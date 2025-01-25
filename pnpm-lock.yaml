@@ -79,6 +79,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@kid/audio':
+        specifier: workspace:*
+        version: link:../../packages/audio
       '@repo/math':
         specifier: workspace:*
         version: link:../../packages/math
@@ -113,6 +116,12 @@ importers:
       typescript:
         specifier: 5.5.4
         version: 5.5.4
+
+  packages/audio:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
 
   packages/eslint-config:
     devDependencies:

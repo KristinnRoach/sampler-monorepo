@@ -4,6 +4,7 @@ import styles from './page.module.css';
 
 import { add } from '@repo/math/add';
 import { subtract } from '@repo/math/subtract';
+import { hi, hotReload } from '@kid/audio';
 
 type Props = Omit<ImageProps, 'src'> & {
   srcLight: string;
@@ -37,6 +38,8 @@ export default function Home() {
 
         <div>{add(7, 12)}</div>
         <div>{subtract(10, 9)}</div>
+        <div>{hi}</div>
+        <div>Hot reloads? : {hotReload} </div>
 
         <ol>
           <li>

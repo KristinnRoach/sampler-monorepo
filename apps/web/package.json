@@ -11,6 +11,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@kid/audio": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/math": "workspace:*",
     "next": "^15.1.0",
