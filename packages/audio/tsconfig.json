@@ -1,0 +1,6 @@
+{
+  "extends": "@kid/ts-config/just-in-time.json"
+
+  // Todo: Prófa að extenda nýja config
+  // currently JIT, skoða versus build/compile, AOT? dev vs prod
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@kid/audio",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@kid/ts-config": "workspace:*"
+  }
+}

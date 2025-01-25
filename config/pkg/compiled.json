@@ -1,0 +1,12 @@
+{
+  "exports": {
+    ".": ["./dist/**/*.js", "./dist/*.js"]
+  },
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*"
+  }
+}
