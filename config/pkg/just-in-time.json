@@ -3,6 +3,6 @@
     ".": "./src/index.ts"
   },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
+    "@kid/ts-config": "workspace:*"
   }
 }

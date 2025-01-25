@@ -2,8 +2,5 @@
   "name": "@kid/ts-config",
   "version": "0.0.0",
   "private": true,
-  "license": "UNLICENSED",
-  "publishConfig": {
-    "access": "public"
-  }
+  "license": "UNLICENSED"
 }

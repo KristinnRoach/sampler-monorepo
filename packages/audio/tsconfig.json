@@ -1,6 +1,17 @@
 {
-  "extends": "@kid/ts-config/just-in-time.json"
-
   // Todo: Prófa að extenda nýja config
-  // currently JIT, skoða versus build/compile, AOT? dev vs prod
+  //  JIT versus build/compile, AOT? dev vs prod
+
+  // "extends": "@kid/ts-config/just-in-time.json"
+  // "extends": "@kid/ts-config/compiled.json"
+  "extends": "./base.json",
+  "includes": ["src"],
+  "exclude": ["node_modules"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@src": ["/src/"]
+    }
+  }
 }

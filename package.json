@@ -1,5 +1,5 @@
 {
-  "name": "sampler-monorepo",
+  "name": "@kid/sampler-monorepo",
   "private": true,
   "scripts": {
     "build": "turbo build",

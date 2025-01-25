@@ -1,9 +1,16 @@
 {
   "name": "@kid/audio",
   "exports": {
-    ".": "./src/index.ts"
+    ".": [
+      "./dist/**/*.js",
+      "./dist/*.js"
+    ]
+  },
+  "scripts": {
+    "dev": "tsc --watch --preserveWatchOutput",
+    "build": "tsc"
   },
   "devDependencies": {
-    "@kid/ts-config": "workspace:*"
+    "typescript": "^4.5.4"
   }
 }
