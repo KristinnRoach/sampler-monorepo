@@ -2,4 +2,3 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'config/*'
-  - 'config/ts/*'
