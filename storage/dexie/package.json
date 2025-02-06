@@ -1,0 +1,14 @@
+{
+  "name": "@kid/dexie",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@kid/schemas": "workspace:*",
+    "dexie": "^3.2.0",
+    "typescript": "^5.0.0"
+  }
+}
