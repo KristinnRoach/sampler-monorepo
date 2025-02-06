@@ -1,0 +1,25 @@
+{
+  "name": "vite-template-solid",
+  "version": "0.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^6.0.0",
+    "vite-plugin-solid": "^2.11.1"
+  },
+  "dependencies": {
+    "@kid/dexie": "workspace:*",
+    "@kid/schemas": "workspace:*",
+    "@kid/audiolib": "workspace:*",
+    "@kid/audio-components": "workspace:*",
+    "solid-js": "^1.9.3"
+  }
+}
