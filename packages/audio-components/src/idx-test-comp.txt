@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Web Audio Components Test</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .audio-rack {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+
+      .component-group {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 4px;
+      }
+
+      .component-title {
+        margin: 0 0 10px 0;
+        font-size: 1.1em;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Audio Context Provider -->
+    <audio-context></audio-context>
+
+    <h1>Web Audio Components Test</h1>
+    <p>
+      Load an audio file and test different connections through oscillator and
+      filter.
+    </p>
+
+    <div class="audio-rack">
+      <div class="component-group">
+        <h2 class="component-title">Sample Player</h2>
+        <audio-buffer-source id="sample1"></audio-buffer-source>
+      </div>
+
+      <div class="component-group">
+        <h2 class="component-title">Oscillator</h2>
+        <audio-oscillator id="osc1"></audio-oscillator>
+      </div>
+
+      <div class="component-group">
+        <h2 class="component-title">Filter</h2>
+        <audio-filter id="filter1"></audio-filter>
+      </div>
+
+      <div class="component-group">
+        <h2 class="component-title">Master Output</h2>
+        <audio-output id="master"></audio-output>
+      </div>
+    </div>
+
+    <script type="module">
+      import { AudioContextProvider } from './audioContext.js';
+      import { AudioBufferSourceNode } from './audioBufferSource.js';
+      import {
+        OscillatorNode,
+        FilterNode,
+        AudioOutput,
+      } from './audioComponents.js';
+
+      async function initializeAudioChain() {
+        try {
+          // Get components
+          const sample = document.getElementById('sample1');
+          const osc = document.getElementById('osc1');
+          const filter = document.getElementById('filter1');
+          const master = document.getElementById('master');
+
+          // Wait for all components to be fully initialized
+          await Promise.all([
+            sample.waitForInit(),
+            osc.waitForInit(),
+            filter.waitForInit(),
+            master.waitForInit(),
+          ]);
+
+          console.log('All components initialized, creating audio chain...');
+
+          // Create audio chain:
+          // Sample Player -> Filter -> Master
+          // Oscillator -> Filter -> Master
+          await sample.connect(filter);
+          await osc.connect(filter);
+          await filter.connect(master);
+
+          console.log('Audio chain created successfully!');
+        } catch (error) {
+          console.error('Error initializing audio chain:', error);
+        }
+      }
+
+      // Wait for custom elements to be defined and DOM to be ready
+      window.addEventListener('load', initializeAudioChain);
+    </script>
+  </body>
+</html>
