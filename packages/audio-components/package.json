@@ -1,0 +1,13 @@
+{
+  "name": "@kid/audio-components",
+  "version": "0.0.1",
+  "main": "./src/index.js",
+  "type": "module",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "test": "echo \"No tests yet\""
+  }
+}
