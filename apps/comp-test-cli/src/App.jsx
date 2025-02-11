@@ -5,7 +5,7 @@ import {
   OscillatorNode,
   FilterNode,
   AudioOutput,
-} from '@kid/audio-components';
+} from '@repo/audio-components';
 
 export default function App() {
   return (

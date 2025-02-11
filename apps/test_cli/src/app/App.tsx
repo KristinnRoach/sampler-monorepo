@@ -1,7 +1,7 @@
 import { createSignal, createEffect, onCleanup, onMount } from 'solid-js';
 import { isOnline, onNetworkChange } from '../utils/networkUtils';
 
-import { Audiolib } from '@kid/audiolib';
+import { Audiolib } from '@repo/audiolib';
 
 import SamplerUI from '../ui/Sampler';
 

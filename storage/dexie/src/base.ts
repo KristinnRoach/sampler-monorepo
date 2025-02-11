@@ -8,7 +8,7 @@ import {
   storeDefinitions,
   StoreNames,
   StoreEntities,
-} from '@kid/schemas';
+} from '@repo/schemas';
 
 export interface DexieStores {
   users?: Table<User>;

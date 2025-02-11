@@ -1,6 +1,9 @@
 {
-  "name": "@kid/ts-config",
+  "name": "@repo/ts-config",
   "version": "0.0.0",
+  "license": "MIT",
   "private": true,
-  "license": "UNLICENSED"
+  "publishConfig": {
+    "access": "public"
+  }
 }

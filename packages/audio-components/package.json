@@ -1,13 +1,13 @@
 {
-  "name": "@kid/audio-components",
-  "version": "0.0.1",
-  "main": "./src/index.js",
-  "type": "module",
+  "name": "@repo/audio-components",
+  "version": "0.0.0",
   "files": [
     "src"
   ],
+  "main": "./src/index.js",
   "scripts": {
     "lint": "eslint .",
     "test": "echo \"No tests yet\""
-  }
+  },
+  "type": "module"
 }
