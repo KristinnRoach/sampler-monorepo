@@ -13,14 +13,17 @@
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
     "lint": "eslint src/",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kid/schemas": "workspace:*",
+    "@kid/dexie": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "eslint": "^8.0.0",
-    "eslint-config-custom": "*",
-    "tsconfig": "*",
+    "eslint": "^9.20.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.7.3"
   }
 }

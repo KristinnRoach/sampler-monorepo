@@ -11,15 +11,12 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.5.4",
+    "typescript": "^5.7.3",
     "vite": "^6.0.0",
     "vite-plugin-solid": "^2.11.1"
   },
   "dependencies": {
-    "@kid/dexie": "workspace:*",
-    "@kid/schemas": "workspace:*",
     "@kid/audiolib": "workspace:*",
-    "@kid/audio-components": "workspace:*",
     "solid-js": "^1.9.3"
   }
 }

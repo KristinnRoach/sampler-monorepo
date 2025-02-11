@@ -18,8 +18,8 @@ export interface Sample extends BaseEntity {
   instrumentId?: number;
 }
 
-export interface Instrument extends BaseEntity {
+export interface SingleSampleInstrument extends BaseEntity {
   name: string;
-  serialNumber: string;
-  status: 'active' | 'maintenance' | 'offline';
+  settings: Record<string, unknown>; // params
+  sampleId?: number;
 }
