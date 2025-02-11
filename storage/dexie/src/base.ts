@@ -1,22 +1,23 @@
 // storage/dexie/src/base.ts
-import Dexie, { Table } from 'dexie';
+import Dexie, { Table, UpdateSpec } from 'dexie';
 import {
   BaseEntity,
   User,
   Sample,
-  Instrument,
+  SingleSampleInstrument,
   storeDefinitions,
   StoreNames,
+  StoreEntities,
 } from '@kid/schemas';
 
 export interface DexieStores {
   users?: Table<User>;
   samples?: Table<Sample>;
-  instruments?: Table<Instrument>;
+  instruments?: Table<SingleSampleInstrument>;
 }
 
 export class BaseDexieDB extends Dexie {
-  stores: DexieStores = {};
+  stores: Record<StoreNames, Table<any>> = {} as Record<StoreNames, Table<any>>;
 
   constructor(databaseName: string, selectedStores: StoreNames[]) {
     super(databaseName);
@@ -35,7 +36,8 @@ export class BaseDexieDB extends Dexie {
 
     // Initialize table properties
     selectedStores.forEach((storeName) => {
-      this.stores[storeName] = this.table(storeName);
+      this.stores[storeName] =
+        this.table<StoreEntities[typeof storeName]>(storeName);
     });
   }
 
@@ -59,10 +61,13 @@ export class BaseDexieDB extends Dexie {
     data: Partial<Omit<T, keyof BaseEntity>>
   ): Promise<void> {
     const timestamp = new Date();
-    await table.update(id, {
-      ...data,
-      updatedAt: timestamp,
-    });
+    const updateData: Partial<Omit<T, keyof BaseEntity>> & { updatedAt: Date } =
+      {
+        ...data,
+        updatedAt: timestamp,
+      };
+
+    await table.update(id, updateData as UpdateSpec<T>);
   }
 }
 
