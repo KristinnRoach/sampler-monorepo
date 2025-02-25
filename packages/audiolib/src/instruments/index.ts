@@ -1,2 +1,2 @@
-export * from './instruments';
+export * from './instrument';
 export * from './sampled';
