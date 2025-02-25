@@ -1,0 +1,10 @@
+{
+  "name": "@repo/audio-js",
+  "version": "0.0.0",
+  "main": "./src/example.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "echo \"No tests yet\""
+  },
+  "type": "module"
+}
