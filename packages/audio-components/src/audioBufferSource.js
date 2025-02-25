@@ -1,6 +1,6 @@
 // audioBufferSource.js
 import { AudioContextProvider } from './audioContext.js';
-import { BaseAudioNode } from './baseAudioNode.js'; // We should move BaseAudioNode to its own file
+import { BaseAudioNode } from './baseAudioNode.js';
 
 class AudioBufferSourceNode extends BaseAudioNode {
   constructor() {

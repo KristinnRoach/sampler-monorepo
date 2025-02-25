@@ -17,6 +17,9 @@
     "dev": "turbo dev",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "go": "turbo lint && turbo check-types && turbo build",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "list-packages": "npx syncpack list",
+    "list-mismatches": "npx syncpack list-mismatches",
+    "fix-mismatches": "npx syncpack fix-mismatches && pnpm install"
   }
 }
