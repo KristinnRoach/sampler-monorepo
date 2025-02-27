@@ -1,5 +1,0 @@
-const osc = document.getElementById('osc1');
-const filter = document.getElementById('filter1');
-const master = document.getElementById('master');
-
-osc.connect(filter).connect(master);

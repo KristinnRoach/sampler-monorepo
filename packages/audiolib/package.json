@@ -1,29 +1,23 @@
 {
-  "name": "@kid/audiolib",
-  "version": "0.0.1",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "sideEffects": false,
-  "license": "MIT",
-  "files": [
-    "dist/**"
-  ],
+  "name": "@repo/audiolib",
+  "type": "module",
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts",
-    "dev": "tsup src/index.ts --format esm,cjs --watch --dts",
-    "lint": "eslint src/",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
-    "type-check": "tsc --noEmit"
+    "dev": "tsc --watch",
+    "build": "tsc && cp -r public dist/",
+    "check-types": "tsc --noEmit",
+    "postinstall": "node scripts/copy-worklets.js"
   },
-  "dependencies": {
-    "@kid/schemas": "workspace:*",
-    "@kid/dexie": "workspace:*"
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
+  "files": [
+    "dist",
+    "public"
+  ],
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "eslint": "^9.20.0",
-    "tsup": "^8.0.0",
     "typescript": "^5.7.3"
   }
 }
