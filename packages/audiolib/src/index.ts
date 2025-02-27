@@ -1,7 +1,3 @@
 export * from './recording/index.js';
 
-// export {
-//   createAudioRecorder,
-//   // AudioRecorderEvents, // why no work ?
-//   AudioRecorder,
-// } from './recording/AudioRecorder.js';
+export { SourceNode } from './playback/source-node/SourceNode.js';
