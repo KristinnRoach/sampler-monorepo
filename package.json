@@ -1,6 +1,19 @@
 {
-  "name": "@repo/sampler-monorepo",
+  "name": "sampler-monorepo",
   "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "go": "turbo lint && turbo check-types && turbo build",
+    "list-packages": "npx syncpack list",
+    "list-mismatches": "npx syncpack list-mismatches",
+    "fix-mismatches": "npx syncpack fix-mismatches && pnpm install"
+  },
+
   "devDependencies": {
     "prettier": "^3.4.2",
     "syncpack": "^13.0.2",
@@ -10,16 +23,5 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "pnpm@9.0.0",
-  "private": true,
-  "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "go": "turbo lint && turbo check-types && turbo build",
-    "lint": "turbo lint",
-    "list-packages": "npx syncpack list",
-    "list-mismatches": "npx syncpack list-mismatches",
-    "fix-mismatches": "npx syncpack fix-mismatches && pnpm install"
-  }
+  "packageManager": "pnpm@9.0.0"
 }

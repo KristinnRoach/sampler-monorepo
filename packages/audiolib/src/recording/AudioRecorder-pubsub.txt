@@ -1,0 +1,140 @@
+import {
+  createAudioStream,
+  createMediaRecorder,
+  startMediaRecording,
+  stopMediaRecording,
+  createAudioBlob,
+  blobToArrayBuffer,
+} from './utils/media_recorder_utils.js';
+
+export type RecordingState = {
+  mediaRecorder: MediaRecorder | null;
+  stream: MediaStream | null;
+  audioChunks: Blob[];
+  isRecording: boolean;
+};
+
+export type StateListener = (state: RecordingState) => void;
+
+/**
+ * Audio recorder service with publisher-subscriber pattern
+ */
+export class AudioRecorder {
+  private state: RecordingState = {
+    mediaRecorder: null,
+    stream: null,
+    audioChunks: [],
+    isRecording: false,
+  };
+
+  private listeners: StateListener[] = [];
+
+  /**
+   * Subscribe to state changes
+   */
+  subscribe(listener: StateListener): void {
+    this.listeners.push(listener);
+    // Immediately notify the new listener of current state
+    listener({ ...this.state });
+  }
+
+  /**
+   * Unsubscribe from state changes
+   */
+  unsubscribe(listener: StateListener): void {
+    this.listeners = this.listeners.filter((l) => l !== listener);
+  }
+
+  /**
+   * Notify all listeners of state change
+   */
+  private notifyListeners(): void {
+    const stateCopy = { ...this.state };
+    this.listeners.forEach((listener) => listener(stateCopy));
+  }
+
+  /**
+   * Start audio recording
+   */
+  async startRecording(): Promise<void> {
+    if (this.state.isRecording) return;
+
+    try {
+      const stream = await createAudioStream();
+      const audioChunks: Blob[] = [];
+
+      const mediaRecorder = createMediaRecorder(stream, (data) => {
+        audioChunks.push(data);
+        this.state = {
+          ...this.state,
+          audioChunks: [...this.state.audioChunks, data],
+        };
+        this.notifyListeners();
+      });
+
+      startMediaRecording(mediaRecorder);
+
+      this.state = {
+        mediaRecorder,
+        stream,
+        audioChunks,
+        isRecording: true,
+      };
+
+      this.notifyListeners();
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop audio recording
+   */
+  async stopRecording(
+    onComplete: (audioData: ArrayBuffer, blob: Blob) => Promise<void>
+  ): Promise<void> {
+    if (
+      !this.state.mediaRecorder ||
+      !this.state.stream ||
+      !this.state.isRecording
+    ) {
+      return;
+    }
+
+    try {
+      await stopMediaRecording(this.state.mediaRecorder, this.state.stream);
+
+      const blob = createAudioBlob(this.state.audioChunks);
+      const arrayBuffer = await blobToArrayBuffer(blob);
+
+      await onComplete(arrayBuffer, blob);
+
+      this.state = {
+        mediaRecorder: null,
+        stream: null,
+        audioChunks: [],
+        isRecording: false,
+      };
+
+      this.notifyListeners();
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if currently recording
+   */
+  isRecording(): boolean {
+    return this.state.isRecording;
+  }
+
+  /**
+   * Get current state (read-only)
+   */
+  getState(): RecordingState {
+    return { ...this.state };
+  }
+}

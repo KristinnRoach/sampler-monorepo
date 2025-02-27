@@ -1,0 +1,110 @@
+import { SampleId, SampleSettings } from '../shared/schema/sample';
+import { Loader, LoadedSample } from './managers/samples/Loader';
+import { SampleSelector } from './managers/samples/Selector';
+import { VoiceManager } from './managers/VoiceManager';
+import Voice from './Voice';
+import AudioNodeGraph from './web-audio/NodeGraph';
+
+export default class Sampler {
+  private context: AudioContext;
+  private nodeGraph: AudioNodeGraph;
+  private sampleManager: Loader;
+  private sampleSelector: SampleSelector;
+  private voiceManager: VoiceManager;
+
+  // temp fix
+  private activeNotes: Map<number, Voice> = new Map();
+
+  constructor(context: AudioContext) {
+    this.context = context;
+    this.nodeGraph = new AudioNodeGraph(context);
+    this.sampleManager = new Loader();
+    this.sampleSelector = new SampleSelector(this.sampleManager);
+    this.voiceManager = new VoiceManager(
+      context,
+      this.nodeGraph.firstMasterNode()
+    );
+  }
+
+  play(midiNote: number, velocity?: number): void {
+    const selectedSamples = this.sampleSelector.getSelectedSamples();
+
+    selectedSamples.forEach((sample) => {
+      const voice = this.voiceManager.createVoice(
+        sample.buffer,
+        sample.settings
+      );
+      voice.play(midiNote, velocity);
+      this.voiceManager.addVoice(voice);
+
+      // temp
+      this.activeNotes.set(midiNote, voice);
+    });
+  }
+
+  stop(midiNote: number): void {
+    const voice = this.activeNotes.get(midiNote);
+    voice && voice.stop();
+    this.activeNotes.delete(midiNote);
+  }
+
+  stopAll(): void {
+    this.voiceManager.stopAll();
+  }
+
+  // Public API methods for sample management
+  loadSample(
+    sampleId: SampleId,
+    buffer: AudioBuffer,
+    settings: SampleSettings,
+    autoSelect: boolean = true
+  ): boolean {
+    const loaded = this.sampleManager.loadSample(sampleId, buffer, settings);
+    if (loaded && autoSelect) {
+      console.log('autoSelect', autoSelect, 'loaded', loaded);
+      this.sampleSelector.selectOne(sampleId);
+    }
+
+    console.log(
+      'Ids of selected samples:',
+      this.sampleSelector.getSelectedSamples().keys()
+    );
+    return loaded;
+  }
+
+  unloadSample(sampleId: SampleId): boolean {
+    this.sampleSelector.deselect(sampleId);
+    return this.sampleManager.unloadSample(sampleId);
+  }
+
+  // Public API methods for sample selection
+  selectSample(sampleId: SampleId): boolean {
+    return this.sampleSelector.selectOne(sampleId);
+  }
+
+  addSampleToSelection(sampleId: SampleId): boolean {
+    return this.sampleSelector.addToSelection(sampleId);
+  }
+
+  deselectSample(sampleId?: SampleId): void {
+    this.sampleSelector.deselect(sampleId);
+  }
+
+  deselectAllSamples(): void {
+    this.sampleSelector.deselect();
+  }
+
+  getSelectedSamples(): Map<SampleId, LoadedSample> {
+    return this.sampleSelector.getSelectedSamples();
+  }
+
+  // getSelectedBlobs(): Blob[] {
+  //   return Array.from(this.sampleSelector.getSelectedSamples().values()).map(
+  //     (sample) => sample.buffer.getChannelData(0)
+  //   );
+  // }
+
+  getLoadedSamples(): Map<SampleId, LoadedSample> {
+    return this.sampleManager.getAllSamples();
+  }
+}

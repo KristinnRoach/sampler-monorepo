@@ -1,0 +1,67 @@
+let audioCtx: AudioContext;
+let buffer: AudioBuffer;
+let source: AudioBufferSourceNode;
+let isPlaying = false;
+
+// Current and target values
+let currentLoopStart = 0;
+let currentLoopEnd = 1;
+let targetLoopStart = 0;
+let targetLoopEnd = 1;
+const interpolationSpeed = 0.05; // Adjust for faster/slower interpolation
+
+async function loadAudio() {
+  audioCtx = new AudioContext();
+  const response = await fetch('piano-c4.mp3');
+  buffer = await audioCtx.decodeAudioData(await response.arrayBuffer());
+}
+
+function play() {
+  if (!audioCtx) {
+    loadAudio().then(startPlayback);
+  } else {
+    startPlayback();
+  }
+}
+
+function startPlayback() {
+  if (isPlaying) return;
+  
+  source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  source.connect(audioCtx.destination);
+  source.start();
+  
+  isPlaying = true;
+  
+  // Start the animation loop for interpolation
+  requestAnimationFrame(updateLoop);
+}
+
+function stop() {
+  if (!isPlaying) return;
+  
+  source.stop();
+  isPlaying = false;
+}
+
+function updateLoop() {
+  if (!isPlaying) return;
+  
+  // Interpolate current values toward targets
+  currentLoopStart += (targetLoopStart - currentLoopStart) * interpolationSpeed;
+  currentLoopEnd += (targetLoopEnd - currentLoopEnd) * interpolationSpeed;
+  
+  // Apply updated values
+  source.loopStart = currentLoopStart;
+  source.loopEnd = currentLoopEnd;
+  
+  // Continue the loop
+  requestAnimationFrame(updateLoop);
+}
+
+function setTargetLoopPoints(start: number, end: number) {
+  targetLoopStart = start;
+  targetLoopEnd = end;
+}

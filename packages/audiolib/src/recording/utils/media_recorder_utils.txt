@@ -1,0 +1,72 @@
+/**
+ * Creates a media stream for audio recording
+ */
+export const createAudioStream = async (): Promise<MediaStream> => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!stream) {
+      throw new Error('Could not get audio stream');
+    }
+    return stream;
+  } catch (error) {
+    console.error('Error accessing audio stream:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a media recorder from a stream
+ */
+export const createMediaRecorder = (
+  stream: MediaStream,
+  onDataAvailable: (data: Blob) => void
+): MediaRecorder => {
+  const mediaRecorder = new MediaRecorder(stream);
+
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) {
+      onDataAvailable(event.data);
+    }
+  };
+
+  return mediaRecorder;
+};
+
+/**
+ * Starts a media recorder
+ */
+export const startMediaRecording = (mediaRecorder: MediaRecorder): void => {
+  mediaRecorder.start();
+};
+
+/**
+ * Stops a media recorder and releases the stream
+ */
+export const stopMediaRecording = (
+  mediaRecorder: MediaRecorder,
+  stream: MediaStream
+): Promise<void> => {
+  return new Promise((resolve) => {
+    const onStop = () => {
+      stream.getTracks().forEach((track) => track.stop());
+      resolve();
+    };
+
+    mediaRecorder.addEventListener('stop', onStop, { once: true });
+    mediaRecorder.stop();
+  });
+};
+
+/**
+ * Creates a blob from audio chunks
+ */
+export const createAudioBlob = (audioChunks: Blob[]): Blob => {
+  return new Blob(audioChunks, { type: 'audio/wav' });
+};
+
+/**
+ * Converts a blob to an ArrayBuffer
+ */
+export const blobToArrayBuffer = async (blob: Blob): Promise<ArrayBuffer> => {
+  return await blob.arrayBuffer();
+};

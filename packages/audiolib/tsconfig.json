@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json", // Todo: fix config packages
+  "compilerOptions": {
+    "strict": false, // FOR GETTING STARTED - REMOVE
+
+    "outDir": "dist",
+    "rootDir": "src"
+
+    // "allowImportingTsExtensions": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "build"]
+}

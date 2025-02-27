@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [solidPlugin()],
 
   optimizeDeps: {
-    include: ['@repo/audio-components'],
+    include: ['@repo/audiolib'],
   },
   server: {
     port: 3000,
