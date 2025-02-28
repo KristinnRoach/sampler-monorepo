@@ -51,8 +51,11 @@ export class AudioRecorder extends BaseEventTarget {
         }
 
         if (this.audioChunks.length > 0) {
-          const blob = new Blob(this.audioChunks, { type: 'audio/wav' });
+          const blob = new Blob(this.audioChunks, {
+            type: this.mediaRecorder.mimeType,
+          }); // type: 'audio/wav' });
           const arrayBuffer = await blob.arrayBuffer();
+          this.audioChunks = [];
           this.notifyListeners('recording:complete', { arrayBuffer, blob });
         }
       });
