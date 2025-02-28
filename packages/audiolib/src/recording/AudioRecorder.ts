@@ -1,6 +1,6 @@
 // src/recording/AudioRecorder.ts
 
-import { BaseEventTarget } from '../shared/base-event-target.js';
+import { BaseEventTarget } from '../base/BaseEventTarget.js';
 
 // Todo: make proper types
 // Todo: create utility functions and swappable strategies for cleaner code and optional features (e.g. arm, threshold)
