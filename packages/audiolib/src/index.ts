@@ -1,3 +1,6 @@
 export * from './recording/index.js';
 
-export { SourceNode } from './playback/source-node/SourceNode.js';
+export {
+  SourceNode,
+  SOURCE_EVENTS,
+} from './playback/source-node/SourceNode.js';

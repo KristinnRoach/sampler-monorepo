@@ -4,12 +4,13 @@ import {
   setWorkletParams,
   WorkletMessage,
 } from '../utils/worklet-utils.js';
+import { BaseEventTarget } from './BaseEventTarget.js';
 
 /**
  * BaseWorkletNode - Abstract base class for audio worklet wrappers
  * Provides common functionality for all audio worklet nodes
  */
-export abstract class BaseWorkletNode {
+export abstract class BaseWorkletNode extends BaseEventTarget {
   protected audioContext: AudioContext;
   protected workletNode: AudioWorkletNode | null = null;
   protected gainNode: GainNode;
@@ -21,6 +22,7 @@ export abstract class BaseWorkletNode {
    * @param outputDestination Optional destination to connect to (defaults to audioContext.destination)
    */
   constructor(audioContext: AudioContext, outputDestination?: AudioNode) {
+    super();
     this.audioContext = audioContext;
     this.gainNode = audioContext.createGain();
 
@@ -89,7 +91,7 @@ export abstract class BaseWorkletNode {
     data?: T,
     transferables?: Transferable[]
   ): void {
-    if (!this.workletNode) {
+    if (!this.isInitialized || !this.workletNode) {
       throw new Error(
         `${this.getProcessorName()} not initialized. Call init() first.`
       );

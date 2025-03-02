@@ -86,6 +86,9 @@ importers:
 
   packages/audiolib:
     devDependencies:
+      '@types/dom-webcodecs':
+        specifier: ^0.1.14
+        version: 0.1.14
       typescript:
         specifier: ^5.7.3
         version: 5.7.3
@@ -579,6 +582,9 @@ packages:
 
   '@types/babel__traverse@7.20.6':
     resolution: {integrity: sha512-r1bzfrm0tomOI8g1SzvCaQHo6Lcv6zu0EA+W2kHrt8dyrHQxGzBBL4kdkzIS+jBMV+EYcMAEAqXqYaLJq5rOZg==}
+
+  '@types/dom-webcodecs@0.1.14':
+    resolution: {integrity: sha512-ba9aF0qARLLQpLihONIRbj8VvAdUxO+5jIxlscVcDAQTcJmq5qVr781+ino5qbQUJUmO21cLP2eLeXYWzao5Vg==}
 
   '@types/estree@1.0.6':
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
@@ -2471,6 +2477,8 @@ snapshots:
   '@types/babel__traverse@7.20.6':
     dependencies:
       '@babel/types': 7.26.7
+
+  '@types/dom-webcodecs@0.1.14': {}
 
   '@types/estree@1.0.6': {}
 

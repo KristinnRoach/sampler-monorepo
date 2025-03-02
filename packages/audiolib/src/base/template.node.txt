@@ -1,0 +1,27 @@
+// New node implementation template
+export class NewAudioNode extends BaseWorkletNode {
+  // Step 1: Define required processor name
+  protected getProcessorName(): string {
+    return 'new-audio-processor';
+  }
+  
+  // Step 2: Provide embedded code
+  protected getEmbeddedCode(): string {
+    return newAudioProcessorCode;
+  }
+  
+  // Step 3: Add node-specific parameter methods
+  setFrequency(freq: number): void {
+    this.setParameters({ targetFrequency: freq });
+    return this; // Enable method chaining
+  }
+  
+  // Step 4: Handle processor messages
+  protected handleMessage(event: MessageEvent<WorkletMessage>): void {
+    if (event.data.type === 'parameterUpdate') {
+      this.dispatchEvent(new CustomEvent('parameterchange', { 
+        detail: event.data.data 
+      }));
+    }
+  }
+}

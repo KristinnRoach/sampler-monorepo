@@ -1,6 +1,7 @@
 import { sourceProcessorCode } from './worklet-code.js';
 import { BaseWorkletNode } from '../../base/BaseWorkletNode.js';
 import { WorkletMessage } from '../../utils/worklet-utils.js';
+import { BaseEventTarget } from '../../base/BaseEventTarget.js';
 
 /**
  * SourceNode - Audio source player using AudioWorklet
