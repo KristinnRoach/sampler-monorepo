@@ -1,6 +1,7 @@
 \*\* Pattern for implementing features:
 
-nodes EXTEND BaseEventTarget AND BaseWorkletNode ??
+nodes EXTEND? BaseEventTarget
+
 TODO: DI or other patterns for implementing the needed base functionality, KISS!!
 
 feature-x:

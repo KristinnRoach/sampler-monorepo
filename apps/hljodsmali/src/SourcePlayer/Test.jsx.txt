@@ -1,0 +1,134 @@
+import { createSignal, onCleanup } from 'solid-js';
+import { WorkletVoiceManager } from '@repo/audiolib';
+
+const Test = () => {
+  const [audioContext, setAudioContext] = createSignal(null);
+  const [voiceManager, setVoiceManager] = createSignal(null);
+  const [status, setStatus] = createSignal('Ready');
+  const [isLoading, setIsLoading] = createSignal(false);
+  const [isLoaded, setIsLoaded] = createSignal(false);
+  const [isPlaying, setIsPlaying] = createSignal(false);
+  const [isLooping, setIsLooping] = createSignal(false);
+  let currentNoteId = null;
+
+  // Initialize audio context and voice manager
+  const loadSample = async () => {
+    try {
+      setIsLoading(true);
+      setStatus('Initializing audio...');
+
+      // Create AudioContext
+      const ctx = new AudioContext();
+      setAudioContext(ctx);
+
+      // Create voice manager
+      const vm = new WorkletVoiceManager(ctx, {
+        polyphony: 4,
+        preloadVoices: 2,
+      });
+      setVoiceManager(vm);
+
+      // Load a test sound
+      const response = await fetch('/piano-c4.mp3');
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+      await vm.loadSample('test-sound', audioBuffer);
+
+      setIsLoaded(true);
+      setIsLoading(false);
+      setStatus('Sample loaded');
+    } catch (error) {
+      setStatus(`Error: ${error.message}`);
+      setIsLoading(false);
+      console.error(error);
+    }
+  };
+
+  // Play the sound
+  const playSound = () => {
+    if (!voiceManager()) return;
+
+    // Create a unique ID for this note
+    currentNoteId = 'note-' + Date.now();
+
+    // Play with current loop setting
+    voiceManager().triggerAttack(currentNoteId, 'test-sound', {
+      loop: isLooping(),
+      loopStart: 0.2,
+      loopEnd: 0.8,
+    });
+
+    setIsPlaying(true);
+    setStatus(`Playing (${isLooping() ? 'looping' : 'once'})`);
+  };
+
+  // Toggle looping
+  const toggleLoop = () => {
+    if (!voiceManager() || !currentNoteId) return;
+
+    const newLoopState = !isLooping();
+    setIsLooping(newLoopState);
+
+    if (newLoopState) {
+      // Update loop points
+      voiceManager().updateLoopPoints(currentNoteId, 0.2, 0.8);
+      voiceManager().activeVoices.get(currentNoteId).node.port.postMessage({
+        type: 'enableLooping',
+      });
+    } else {
+      voiceManager().activeVoices.get(currentNoteId).node.port.postMessage({
+        type: 'disableLooping',
+      });
+    }
+
+    setStatus(`Playing (${newLoopState ? 'looping' : 'once'})`);
+  };
+
+  // Release the sound
+  const releaseSound = () => {
+    if (!voiceManager() || !currentNoteId) return;
+
+    voiceManager().triggerRelease(currentNoteId);
+    setIsPlaying(false);
+    setStatus('Released');
+  };
+
+  // Clean up on component unmount
+  onCleanup(() => {
+    if (voiceManager()) {
+      voiceManager().dispose();
+    }
+    if (audioContext()) {
+      audioContext().close();
+    }
+  });
+
+  return (
+    <div class='audio-test'>
+      <h2>Audio Sampler Test</h2>
+
+      <div class='controls'>
+        <button onClick={loadSample} disabled={isLoading() || isLoaded()}>
+          1. Load Sample
+        </button>
+
+        <button onClick={playSound} disabled={!isLoaded() || isPlaying()}>
+          2. Play
+        </button>
+
+        <button onClick={toggleLoop} disabled={!isPlaying()}>
+          3. {isLooping() ? 'Disable' : 'Enable'} Loop
+        </button>
+
+        <button onClick={releaseSound} disabled={!isPlaying()}>
+          4. Release
+        </button>
+      </div>
+
+      <div class='status'>Status: {status()}</div>
+    </div>
+  );
+};
+
+export default Test;

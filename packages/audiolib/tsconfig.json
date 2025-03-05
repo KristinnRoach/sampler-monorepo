@@ -8,5 +8,5 @@
     // "allowImportingTsExtensions": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "build"]
+  "exclude": ["node_modules", "dist", "build", "trash"]
 }

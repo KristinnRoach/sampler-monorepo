@@ -1,13 +1,12 @@
 import { sourceProcessorCode } from './worklet-code.js';
-import { BaseWorkletNode } from '../../base/BaseWorkletNode.js';
+import { AudiolibNode } from '../../base/AudiolibNode.js';
 import { WorkletMessage } from '../../utils/worklet-utils.js';
-import { BaseEventTarget } from '../../base/BaseEventTarget.js';
 
 /**
  * SourceNode - Audio source player using AudioWorklet
  * Extends the BaseWorkletNode class for common functionality
  */
-export class SourceNode extends BaseWorkletNode {
+export class SourceNode extends AudiolibNode {
   private isPlaying = false;
   private isLoaded = false;
 

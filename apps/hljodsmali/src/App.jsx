@@ -1,12 +1,21 @@
 import styles from './App.module.css';
-import SampleRecorder from './recorder/SampleRecorder';
-import TestSourceNode from './sourceNodePlayer/TestSourceNode';
+import VoiceTest from './testComponents/VoiceTest';
 
 export default function App() {
   return (
-    <>
-      <SampleRecorder />
-      <TestSourceNode />
-    </>
+    <div
+      className={styles.app}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100vw',
+        padding: '1rem',
+        gap: '2rem',
+      }}
+    >
+      <VoiceTest />
+    </div>
   );
 }
