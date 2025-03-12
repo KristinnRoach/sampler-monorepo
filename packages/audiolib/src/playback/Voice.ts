@@ -21,6 +21,17 @@ type VoiceParams = {
   release_ms: number;
 };
 
+type VoiceState = {
+  isPlaying: boolean;
+  playbackRate: number;
+  playbackDirection: 'forward' | 'reverse' | 'pingpong';
+  loopEnabled: boolean;
+  loopStart: number;
+  loopEnd: number;
+  volume: number;
+  pan: number;
+};
+
 export class Voice {
   private _context: AudioContext;
   private _buffer: AudioBuffer;
@@ -104,6 +115,18 @@ export class Voice {
 
   /* SETTERS */
 
+  set loopEnabled(enabled: boolean) {
+    this._isLooping = enabled;
+
+    if (this._activeSource) {
+      this._activeSource.loop = enabled;
+    }
+
+    if (this._nextSource) {
+      this._nextSource.loop = enabled;
+    }
+  }
+
   setBuffer(buffer: AudioBuffer): void {
     this._buffer = buffer;
     this._nextSource = this._createSourceNode();
@@ -129,20 +152,9 @@ export class Voice {
   }
 
   setPlaybackDirection(direction: 'forward' | 'reverse' | 'pingpong'): void {
-    // TODO: Implement playback direction
+    // TODO: Implement / test playback direction
     this._playbackDirection = direction;
-  }
-
-  set loopEnabled(enabled: boolean) {
-    this._isLooping = enabled;
-
-    if (this._activeSource) {
-      this._activeSource.loop = enabled;
-    }
-
-    if (this._nextSource) {
-      this._nextSource.loop = enabled;
-    }
+    this._playbackRate = -this._playbackRate;
   }
 
   setPortamentoMS(milliseconds: number) {
@@ -271,86 +283,3 @@ export class Voice {
     }, 16.7);
   }
 }
-
-// // OLD IMPLEMENTATION
-
-// setLoopPoints(
-//   loopStart: number,
-//   loopEnd: number,
-//   interpolationTime: number | null = null
-// ): void {
-//   this._loopStart_ms = loopStart;
-//   this._loopEnd_ms = loopEnd;
-//   this._loopGlide_ms = interpolationTime;
-
-//   // Apply to current playback if active
-//   if (this._isPlaying && this._source) {
-//     this._source.loop = true;
-//     this._source.loopStart = loopStart;
-//     this._source.loopEnd = loopEnd;
-
-//     // Handle interpolation if needed
-//     if (interpolationTime !== null) {
-//       setTimeout(() => {
-//         const event = new CustomEvent('loopPointsInterpolated', {
-//           detail: {
-//             loopStart,
-//             loopEnd,
-//             interpolationTime,
-//           },
-//         });
-//         document.dispatchEvent(event);
-//       }, interpolationTime * 1000);
-//     }
-//   }
-
-//     // Also update the pre-created source for next playback
-//     if (this._nextSource) {
-//       this._nextSource.loop = true;
-//       this._nextSource.loopStart = loopStart;
-//       this._nextSource.loopEnd = loopEnd;
-//     }
-//   }
-
-// private startInterpolation(): void {
-//   if (this.updateIntervalId) {
-//     clearInterval(this.updateIntervalId);
-//   }
-
-//   this.isInterpolating = true;
-//   this.interpolationStartTime = this.audioContext.currentTime;
-
-//   const startLoopStart = this.currentLoopStart;
-//   const startLoopEnd = this.currentLoopEnd;
-
-//   this.updateIntervalId = setInterval(() => {
-//     const now = this.audioContext.currentTime;
-//     const elapsed = now - this.interpolationStartTime;
-//     const progress = Math.min(elapsed / this.interpolationTime, 1.0);
-
-//     this.currentLoopStart =
-//       startLoopStart + (this.targetLoopStart - startLoopStart) * progress;
-//     this.currentLoopEnd =
-//       startLoopEnd + (this.targetLoopEnd - startLoopEnd) * progress;
-
-//     if (this.sourceNode) {
-//       this.sourceNode.loopStart = this.currentLoopStart;
-//       this.sourceNode.loopEnd = this.currentLoopEnd;
-//     }
-
-//     const event = new CustomEvent('loopPointsInterpolated', {
-//       detail: {
-//         currentLoopStart: this.currentLoopStart,
-//         currentLoopEnd: this.currentLoopEnd,
-//         progress,
-//       },
-//     });
-//     document.dispatchEvent(event);
-
-//     if (progress >= 1.0) {
-//       this.isInterpolating = false;
-//       clearInterval(this.updateIntervalId);
-//       this.updateIntervalId = null;
-//     }
-//   }, 16.7);
-// }

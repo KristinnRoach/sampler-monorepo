@@ -293,7 +293,7 @@ export class WorkletVoiceManager {
     return false;
   }
 
-  // Update loop points for a playing note
+  // Update loop points for an active note
   updateLoopPoints(
     noteId: string,
     loopStart: number,

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Basic Granular Synthesis Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .controls {
+        margin: 20px 0;
+      }
+      .slider-container {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Granular Synthesis Test</h1>
+    <p>Press 'p' to play sound</p>
+
+    <div class="controls">
+      <div class="slider-container">
+        <label for="holdSlider">Hold: <span id="holdValue">7000</span></label>
+        <input type="range" id="holdSlider" min="0" max="20000" value="7000" />
+      </div>
+    </div>
+
+    <script>
+      // AudioWorklet processor code
+      const workletCode = `
+    class GranularEffectProcessor extends AudioWorkletProcessor {
+      static get parameterDescriptors() {
+        return [
+          {
+            name: 'hold',
+            defaultValue: 7000,
+            minValue: 0,
+            maxValue: 44100,
+            automationRate: 'a-rate',
+          }
+        ];
+      }
+
+      constructor() {
+        super();
+        this.sampleBuffer = null;
+        this.position = 0;
+        
+        this.port.onmessage = (event) => {
+          if (event.data.type === 'buffer') {
+            this.sampleBuffer = new Float32Array(event.data.buffer);
+          }
+        };
+      }
+
+      process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        
+        if (!this.sampleBuffer) return true;
+        
+        const hold = parameters.hold[0];
+        
+        for (let channel = 0; channel < output.length; channel++) {
+          const outputChannel = output[channel];
+          
+          for (let i = 0; i < outputChannel.length; i++) {
+            // Basic sample playback with hold parameter
+            if (this.position < this.sampleBuffer.length) {
+              outputChannel[i] = this.sampleBuffer[this.position] * 0.5;
+              this.position++;
+            } else {
+              outputChannel[i] = 0;
+            }
+          }
+        }
+        
+        return true;
+      }
+    }
+
+    registerProcessor('granular-effect-processor', GranularEffectProcessor);
+    `;
+
+      // Main script
+      let audioContext;
+      let workletNode;
+      let audioBuffer;
+
+      async function setupAudio() {
+        try {
+          audioContext = new AudioContext();
+
+          // Create a blob from the processor code
+          const blob = new Blob([workletCode], {
+            type: 'application/javascript',
+          });
+          const workletUrl = URL.createObjectURL(blob);
+
+          // Load the processor
+          await audioContext.audioWorklet.addModule(workletUrl);
+
+          // Create a simple sine wave buffer
+          audioBuffer = createSineWaveBuffer(audioContext, 440, 2);
+
+          console.log('Audio setup complete');
+        } catch (error) {
+          console.error('Error setting up audio:', error);
+        }
+      }
+
+      function createSineWaveBuffer(context, frequency, duration) {
+        const sampleRate = context.sampleRate;
+        const length = sampleRate * duration;
+        const buffer = context.createBuffer(1, length, sampleRate);
+        const channel = buffer.getChannelData(0);
+
+        for (let i = 0; i < length; i++) {
+          channel[i] = Math.sin((2 * Math.PI * frequency * i) / sampleRate);
+        }
+
+        return buffer;
+      }
+
+      function playSound() {
+        if (!audioContext) {
+          setupAudio().then(playSound);
+          return;
+        }
+
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+
+        // Create a new worklet node for each playback
+        workletNode = new AudioWorkletNode(
+          audioContext,
+          'granular-effect-processor'
+        );
+        workletNode.connect(audioContext.destination);
+
+        // Set the hold parameter
+        const holdValue = parseInt(document.getElementById('holdSlider').value);
+        workletNode.parameters
+          .get('hold')
+          .setValueAtTime(holdValue, audioContext.currentTime);
+
+        // Send the buffer to the processor
+        workletNode.port.postMessage({
+          type: 'buffer',
+          buffer: audioBuffer.getChannelData(0),
+        });
+      }
+
+      // Set up event listeners
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'p') {
+          playSound();
+        }
+      });
+
+      const holdSlider = document.getElementById('holdSlider');
+      const holdValue = document.getElementById('holdValue');
+
+      holdSlider.addEventListener('input', () => {
+        holdValue.textContent = holdSlider.value;
+
+        if (workletNode) {
+          workletNode.parameters
+            .get('hold')
+            .setValueAtTime(
+              parseInt(holdSlider.value),
+              audioContext.currentTime
+            );
+        }
+      });
+
+      // Initialize audio when the page loads
+      document.addEventListener('DOMContentLoaded', setupAudio);
+    </script>
+  </body>
+</html>

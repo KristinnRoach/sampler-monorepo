@@ -1,10 +1,6 @@
 import { Voice } from './Voice.js';
 
-const ctxOptions = {
-  latencyHint: 'interactive',
-  sampleRate: 48000,
-};
-
+// VoiceManager - Manages audio voices and playback
 // TODO: Clean up and implement proper voice management and polyphony,
 // clarify optimal responsibilities for VoiceManager versus Voice
 // add EventTarget to either or both for event handling
@@ -34,8 +30,8 @@ export class VoiceManager {
     if (!this._audioContext) {
       this._audioContext = new (window.AudioContext ||
         (window as any).webkitAudioContext)({
-        latencyHint: ctxOptions.latencyHint,
-        sampleRate: ctxOptions.sampleRate,
+        latencyHint: 'interactive',
+        sampleRate: 48000,
       });
 
       this.preCreateVoices();

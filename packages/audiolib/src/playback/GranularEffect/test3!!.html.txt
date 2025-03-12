@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Granular Synthesis Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin: 20px 0;
+      }
+      .slider-container {
+        margin-bottom: 10px;
+      }
+      label {
+        display: inline-block;
+        width: 120px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Advanced Granular Synthesis Test</h1>
+    <p>Press 'p' to play sound (release to stop)</p>
+
+    <div class="controls">
+      <div class="slider-container">
+        <label for="attackSlider"
+          >Attack: <span id="attackValue">4000</span></label
+        >
+        <input
+          type="range"
+          id="attackSlider"
+          min="0"
+          max="10000"
+          value="4000"
+        />
+      </div>
+      <div class="slider-container">
+        <label for="holdSlider">Hold: <span id="holdValue">7000</span></label>
+        <input type="range" id="holdSlider" min="0" max="20000" value="7000" />
+      </div>
+      <div class="slider-container">
+        <label for="releaseSlider"
+          >Release: <span id="releaseValue">6000</span></label
+        >
+        <input
+          type="range"
+          id="releaseSlider"
+          min="0"
+          max="10000"
+          value="6000"
+        />
+      </div>
+      <div class="slider-container">
+        <label for="spreadSlider"
+          >Spread: <span id="spreadValue">30000</span></label
+        >
+        <input
+          type="range"
+          id="spreadSlider"
+          min="0"
+          max="44100"
+          value="30000"
+        />
+      </div>
+      <div class="slider-container">
+        <label for="densitySlider"
+          >Density: <span id="densityValue">10</span></label
+        >
+        <input type="range" id="densitySlider" min="1" max="20" value="10" />
+      </div>
+      <div class="slider-container">
+        <label for="mixSlider">Mix: <span id="mixValue">0.3</span></label>
+        <input
+          type="range"
+          id="mixSlider"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.3"
+        />
+      </div>
+      <div class="slider-container">
+        <label for="travelSlider"
+          >Travel: <span id="travelValue">1</span></label
+        >
+        <input
+          type="range"
+          id="travelSlider"
+          min="0.25"
+          max="3"
+          step="0.05"
+          value="1"
+        />
+      </div>
+      <div class="slider-container">
+        <label for="reverseCheckbox">Reverse:</label>
+        <input type="checkbox" id="reverseCheckbox" />
+      </div>
+    </div>
+
+    <script>
+      // AudioWorklet processor code
+      const workletCode = `
+    class GranularEffectProcessor extends AudioWorkletProcessor {
+      static get parameterDescriptors() {
+        return [
+          {
+            name: 'attack',
+            defaultValue: 4000,
+            minValue: 0,
+            maxValue: 44100,
+            automationRate: 'a-rate',
+          },
+          {
+            name: 'hold',
+            defaultValue: 7000,
+            minValue: 0,
+            maxValue: 44100,
+            automationRate: 'a-rate',
+          },
+          {
+            name: 'release',
+            defaultValue: 6000,
+            minValue: 0,
+            maxValue: 44100,
+            automationRate: 'a-rate',
+          },
+          {
+            name: 'spread',
+            defaultValue: 30000,
+            minValue: 0,
+            maxValue: 44100,
+            automationRate: 'k-rate',
+          },
+          {
+            name: 'density',
+            defaultValue: 10,
+            minValue: 1,
+            maxValue: 20,
+            automationRate: 'k-rate',
+          },
+          {
+            name: 'mix',
+            defaultValue: 0.3,
+            minValue: 0,
+            maxValue: 1,
+            automationRate: 'a-rate',
+          },
+          {
+            name: 'travel',
+            defaultValue: 1,
+            minValue: 0.25,
+            maxValue: 3,
+            automationRate: 'a-rate',
+          },
+          {
+            name: 'reverse',
+            defaultValue: 0,
+            minValue: 0,
+            maxValue: 1,
+            automationRate: 'k-rate',
+          }
+        ];
+      }
+
+      constructor() {
+        super();
+        // Global properties
+        this.sampleBuffer = null;
+        this.sampleBufferLength = 0;
+        this.grains = [];
+        this.grainsCount = 10;
+        
+        // Initialize grains
+        for (let i = 0; i < this.grainsCount; ++i) {
+          this.grains[i] = {
+            offset: Math.floor((44100 / this.grainsCount) * i),
+            position: 0,
+            length: this.getGrainDefaultLength(),
+            smear: 0
+          };
+        }
+        
+        this.port.onmessage = (event) => {
+          if (event.data.type === 'buffer') {
+            this.sampleBuffer = new Float32Array(event.data.buffer);
+            this.sampleBufferLength = this.sampleBuffer.length;
+            console.log("Buffer received, length:", this.sampleBufferLength);
+          }
+        };
+      }
+      
+      getGrainDefaultLength() {
+        return 4000 + 7000 + 6000; // Default attack + hold + release
+      }
+      
+      getGrainLength(parameters) {
+        return parameters.attack[0] + parameters.hold[0] + parameters.release[0];
+      }
+      
+      calculateGainForSampleIndex(grainSampleIndex, parameters) {
+        const attackTime = parameters.attack[0];
+        const holdTime = parameters.hold[0];
+        const releaseTime = parameters.release[0];
+        const mix = parameters.mix[0];
+        
+        let index = grainSampleIndex;
+        
+        if (index < attackTime) {
+          return (index / attackTime) * mix;
+        }
+        
+        index -= attackTime;
+        
+        if (index <= holdTime) {
+          return 1 * mix;
+        }
+        
+        index -= holdTime;
+        
+        if (index <= releaseTime) {
+          return (1 - (index / releaseTime)) * mix;
+        }
+        
+        return 0;
+      }
+      
+      playGrain(grain, outputChannel, sampleIndex, parameters) {
+        if (!this.sampleBuffer || this.sampleBufferLength === 0) return;
+        
+        // Calculate where in the sample buffer this grain currently is
+        const sampleBufferIndex = Math.round(
+          grain.position + grain.offset + grain.smear
+        ) % this.sampleBufferLength;
+        
+        // Get the sample value
+        const sampleValue = this.sampleBuffer[sampleBufferIndex];
+        
+        // Calculate gain
+        const gain = this.calculateGainForSampleIndex(grain.position, parameters);
+        const reverse = parameters.reverse[0] > 0.5;
+        const travel = parameters.travel[0];
+        
+        // Write the sample to output
+        outputChannel[sampleIndex] += sampleValue * gain;
+        
+        // Update grain position
+        if (reverse) {
+          grain.position -= travel;
+          
+          if (grain.position < 0) {
+            grain.position = grain.length - 1;
+          }
+        } else {
+          grain.position += travel;
+        }
+        
+        // Reset grain if needed
+        if (grain.position >= grain.length || grain.position === 0) {
+          grain.length = this.getGrainLength(parameters);
+          grain.position = reverse ? grain.length - 1 : 0;
+          
+          // Calculate new smear
+          const smearValue = Math.random() * parameters.spread[0];
+          grain.smear = Math.floor(smearValue);
+        }
+      }
+
+      process(inputs, outputs, parameters) {
+        const input = inputs[0];
+        const output = outputs[0];
+        
+        // Skip if no sample buffer
+        if (!this.sampleBuffer) return true;
+        
+        // Process each channel
+        for (let channelIndex = 0; channelIndex < output.length; channelIndex++) {
+          const outputChannel = output[channelIndex];
+          
+          // Process each sample
+          for (let sampleIndex = 0; sampleIndex < outputChannel.length; sampleIndex++) {
+            // Initialize sample to 0 or input value if available
+            outputChannel[sampleIndex] = input.length > 0 && input[channelIndex] ? 
+              input[channelIndex][sampleIndex] : 0;
+            
+            // Get the current density
+            const density = Math.min(this.grainsCount, Math.round(parameters.density[0]));
+            
+            // Play each active grain
+            for (let i = 0; i < density; i++) {
+              this.playGrain(
+                this.grains[i],
+                outputChannel,
+                sampleIndex,
+                parameters
+              );
+            }
+          }
+        }
+        
+        return true;
+      }
+    }
+
+    registerProcessor('granular-effect-processor', GranularEffectProcessor);
+    `;
+
+      // Main script
+      let audioContext;
+      let sharedWorkletNode;
+      let audioBuffer;
+      let activeSource;
+
+      async function setupAudio() {
+        try {
+          audioContext = new AudioContext();
+
+          // Create a blob from the processor code
+          const blob = new Blob([workletCode], {
+            type: 'application/javascript',
+          });
+          const workletUrl = URL.createObjectURL(blob);
+
+          // Load the processor
+          await audioContext.audioWorklet.addModule(workletUrl);
+
+          // Create shared worklet node
+          sharedWorkletNode = new AudioWorkletNode(
+            audioContext,
+            'granular-effect-processor'
+          );
+          sharedWorkletNode.connect(audioContext.destination);
+
+          // Create a simple sine wave buffer
+          audioBuffer = createSineWaveBuffer(audioContext, 440, 2);
+
+          // Update parameter displays
+          updateAllSliderValues();
+
+          console.log('Audio setup complete');
+        } catch (error) {
+          console.error('Error setting up audio:', error);
+        }
+      }
+
+      function createSineWaveBuffer(context, frequency, duration) {
+        const sampleRate = context.sampleRate;
+        const length = sampleRate * duration;
+        const buffer = context.createBuffer(1, length, sampleRate);
+        const channel = buffer.getChannelData(0);
+
+        for (let i = 0; i < length; i++) {
+          channel[i] = Math.sin((2 * Math.PI * frequency * i) / sampleRate);
+        }
+
+        return buffer;
+      }
+
+      function playSound() {
+        if (!audioContext) {
+          setupAudio().then(playSound);
+          return;
+        }
+
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+
+        // Stop any currently playing source
+        stopSound();
+
+        // Create a new source node and connect to the shared worklet
+        activeSource = new AudioBufferSourceNode(audioContext, {
+          buffer: audioBuffer,
+        });
+        activeSource.connect(sharedWorkletNode);
+
+        // Update all parameters
+        updateAllParameters();
+
+        // Send the buffer to the processor
+        sharedWorkletNode.port.postMessage({
+          type: 'buffer',
+          buffer: audioBuffer.getChannelData(0),
+        });
+
+        // Start the source
+        activeSource.start();
+      }
+
+      function stopSound() {
+        if (activeSource) {
+          try {
+            activeSource.stop();
+          } catch (e) {
+            // Ignore errors if source already stopped
+          }
+          activeSource = null;
+        }
+      }
+
+      function updateAllParameters() {
+        // Only update if worklet exists
+        if (!sharedWorkletNode) return;
+
+        const currentTime = audioContext.currentTime;
+
+        // Update all parameters
+        sharedWorkletNode.parameters
+          .get('attack')
+          .setValueAtTime(
+            parseInt(document.getElementById('attackSlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('hold')
+          .setValueAtTime(
+            parseInt(document.getElementById('holdSlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('release')
+          .setValueAtTime(
+            parseInt(document.getElementById('releaseSlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('spread')
+          .setValueAtTime(
+            parseInt(document.getElementById('spreadSlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('density')
+          .setValueAtTime(
+            parseInt(document.getElementById('densitySlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('mix')
+          .setValueAtTime(
+            parseFloat(document.getElementById('mixSlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('travel')
+          .setValueAtTime(
+            parseFloat(document.getElementById('travelSlider').value),
+            currentTime
+          );
+
+        sharedWorkletNode.parameters
+          .get('reverse')
+          .setValueAtTime(
+            document.getElementById('reverseCheckbox').checked ? 1 : 0,
+            currentTime
+          );
+      }
+
+      function updateAllSliderValues() {
+        document.getElementById('attackValue').textContent =
+          document.getElementById('attackSlider').value;
+        document.getElementById('holdValue').textContent =
+          document.getElementById('holdSlider').value;
+        document.getElementById('releaseValue').textContent =
+          document.getElementById('releaseSlider').value;
+        document.getElementById('spreadValue').textContent =
+          document.getElementById('spreadSlider').value;
+        document.getElementById('densityValue').textContent =
+          document.getElementById('densitySlider').value;
+        document.getElementById('mixValue').textContent =
+          document.getElementById('mixSlider').value;
+        document.getElementById('travelValue').textContent =
+          document.getElementById('travelSlider').value;
+      }
+
+      // Set up keyboard event listeners
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'p' && !event.repeat) {
+          playSound();
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        if (event.key === 'p') {
+          stopSound();
+        }
+      });
+
+      // Set up UI control event listeners
+      const sliders = [
+        'attack',
+        'hold',
+        'release',
+        'spread',
+        'density',
+        'mix',
+        'travel',
+      ];
+
+      sliders.forEach((param) => {
+        const slider = document.getElementById(`${param}Slider`);
+        const value = document.getElementById(`${param}Value`);
+
+        slider.addEventListener('input', () => {
+          value.textContent = slider.value;
+
+          if (sharedWorkletNode) {
+            sharedWorkletNode.parameters
+              .get(param)
+              .setValueAtTime(
+                parseFloat(slider.value),
+                audioContext.currentTime
+              );
+          }
+        });
+      });
+
+      document
+        .getElementById('reverseCheckbox')
+        .addEventListener('change', (event) => {
+          if (sharedWorkletNode) {
+            sharedWorkletNode.parameters
+              .get('reverse')
+              .setValueAtTime(
+                event.target.checked ? 1 : 0,
+                audioContext.currentTime
+              );
+          }
+        });
+
+      // Initialize audio when the page loads
+      document.addEventListener('DOMContentLoaded', setupAudio);
+    </script>
+  </body>
+</html>
