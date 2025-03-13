@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voice Class Test</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      button {
+        margin: 5px;
+        padding: 8px 16px;
+      }
+      .piano {
+        display: flex;
+        margin: 20px 0;
+      }
+      .key {
+        height: 120px;
+        width: 40px;
+        background: white;
+        border: 1px solid #333;
+        margin-right: -1px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: 5px;
+        position: relative;
+        z-index: 1;
+        cursor: pointer;
+      }
+      .black {
+        height: 80px;
+        width: 24px;
+        background: black;
+        margin-left: -12px;
+        margin-right: -12px;
+        z-index: 2;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Voice Class Test</h1>
+
+    <div>
+      <button id="initAudio">Initialize Audio</button>
+      <button id="loadSample" disabled>Load Test Sound</button>
+      <button id="playSequence" disabled>Play Sequence</button>
+    </div>
+
+    <div class="piano">
+      <!-- C4 (MIDI 60) to C5 (MIDI 72) -->
+      <div class="key" data-note="60">C</div>
+      <div class="key black" data-note="61">C#</div>
+      <div class="key" data-note="62">D</div>
+      <div class="key black" data-note="63">D#</div>
+      <div class="key" data-note="64">E</div>
+      <div class="key" data-note="65">F</div>
+      <div class="key black" data-note="66">F#</div>
+      <div class="key" data-note="67">G</div>
+      <div class="key black" data-note="68">G#</div>
+      <div class="key" data-note="69">A</div>
+      <div class="key black" data-note="70">A#</div>
+      <div class="key" data-note="71">B</div>
+      <div class="key" data-note="72">C</div>
+    </div>
+    <script src="Voice.mjs" type="module"></script>
+    <script type="module">
+      import { Voice } from './Voice.mjs';
+    </script>
+  </body>
+</html>

@@ -48,11 +48,11 @@ export class Voice {
   private _end_seconds: number;
 
   private _isPlaying: boolean;
-  private _isLooping: boolean;
+  private _loopEnabled: boolean;
   private _loopMode: 'interactive' | 'always_on' | 'always_off';
   private _loopStart_seconds: number;
   private _loopEnd_seconds: number;
-  private _loopGlide_seconds: number | null;
+  private _loopLerp_seconds: number | null;
 
   // TESTING: Pre-create the next source node to eliminate creation latency during playback
   private _activeSource: AudioBufferSourceNode | null;
@@ -73,11 +73,11 @@ export class Voice {
     this._pitchGlide_seconds = params?.pitchGlide_ms / 1000 || 0;
     this._playbackDirection = params?.playbackDirection || 'forward';
 
-    this._isLooping = params?.loopMode === 'always_on' ? true : false;
+    this._loopEnabled = params?.loopMode === 'always_on' ? true : false;
     this._loopMode = params?.loopMode || 'interactive';
     this._loopStart_seconds = 0;
     this._loopEnd_seconds = buffer.duration || 0;
-    this._loopGlide_seconds = 0;
+    this._loopLerp_seconds = 0;
 
     // One gain node per voice - allows for envelope / lfo per voice
     this._gainNode = this._context.createGain();
@@ -85,10 +85,10 @@ export class Voice {
     this._volume = params?.volume || 1;
 
     // Pre-create the next source node
-    this._nextSource = this._createSourceNode();
+    this._nextSource = this._createNextSource(buffer);
   }
 
-  private _createSourceNode(): AudioBufferSourceNode {
+  private _createNextSource(buffer: AudioBuffer): AudioBufferSourceNode {
     const source = this._context.createBufferSource();
     source.connect(this._gainNode);
 
@@ -116,7 +116,7 @@ export class Voice {
   /* SETTERS */
 
   set loopEnabled(enabled: boolean) {
-    this._isLooping = enabled;
+    this._loopEnabled = enabled;
 
     if (this._activeSource) {
       this._activeSource.loop = enabled;
@@ -127,9 +127,19 @@ export class Voice {
     }
   }
 
+  set loopGlide(milliseconds: number) {
+    this._loopLerp_seconds = milliseconds / 1000;
+  }
+
   setBuffer(buffer: AudioBuffer): void {
+    this._activeSource?.stop();
+    this._activeSource = null;
+    this._nextSource?.stop();
+    this._nextSource = null;
+    // TODO: Disconnect old buffer? Clean up?
     this._buffer = buffer;
-    this._nextSource = this._createSourceNode();
+    // Todo: validate buffer
+    this._nextSource = this._createNextSource(buffer);
   }
 
   setVolume(value: number, time: number = 0.05): void {
@@ -165,121 +175,203 @@ export class Voice {
     playbackRate: number = 1,
     velocity?: number,
     params?: Partial<VoiceParams>
-  ): void {
-    if (!this._buffer) return;
-
-    // Stop any current playback // needed?
-    if (this._isPlaying && this._activeSource) {
-      this.stop();
+  ) {
+    if (!this._nextSource || this._isPlaying) {
+      throw new Error('No source node available to play');
     }
 
     if (!this._portamento_seconds) {
       this._nextSource.playbackRate.value = playbackRate;
-      // TODO: Implement amp envelope !
-      this._nextSource.start();
     } else {
       this._nextSource.playbackRate.setValueAtTime(
         playbackRate,
         this._portamento_seconds
       );
-
-      this._activeSource?.start(
-        this._start_seconds,
-        this._end_seconds - this._start_seconds
-      );
-
-      this._isPlaying = true;
-
-      // TESTING: Use the pre-created source node to minimize latency and
-      //          immediately create the next source node for next playback
-      this._activeSource = this._nextSource;
-      this._nextSource = this._createSourceNode();
     }
+
+    this._nextSource.start(
+      this._start_seconds,
+      this._end_seconds - this._start_seconds
+    );
+
+    this._isPlaying = true;
+
+    this._activeSource = this._nextSource;
+    this._nextSource = this._createNextSource(this._buffer);
   }
 
   stop(): void {
-    if (this._isPlaying && this._activeSource) {
-      this._activeSource.stop(this._context.currentTime);
-
-      // Disconnect to free resources
-      this._activeSource = null;
-      this._activeSource?.disconnect(); // needed?
-      this._isPlaying = false;
-    }
+    this._activeSource.stop();
+    this._activeSource = null;
+    this._isPlaying = false;
   }
-  setLoopPoints(
-    loopStart_ms: number,
-    loopEnd_ms: number,
-    interpolationTime_ms: number | null = null
+
+  // Todo: change to setLoopPoint(value_ms: number, param: loopStart | loopEnd), since only one is changed at a time
+  // Todo: System to consistently convert all params ms to seconds in one place, since WebAudio APi uses seconds
+
+  // Linear interpolation
+  lerp(start: number, end: number, mix: number): number {
+    return start + (end - start) * mix;
+  }
+
+  setLoopPoint(
+    targetValue_ms: number,
+    param: 'loopStart' | 'loopEnd',
+    lerpDuration_ms: number = this._loopLerp_seconds * 1000
   ): void {
-    // Convert from ms to seconds at the public API boundary
-    const loopStart = loopStart_ms / 1000;
-    const loopEnd = loopEnd_ms / 1000;
-    const interpolationTime =
-      interpolationTime_ms !== null ? interpolationTime_ms / 1000 : null;
+    if (!(this._activeSource || this._nextSource)) {
+      throw new Error('No source node available to set loop point');
+    }
 
-    this._loopGlide_seconds = interpolationTime;
+    // convert params from ms to seconds
+    const targetSec = targetValue_ms / 1000;
+    const lerpSeconds = lerpDuration_ms / 1000;
 
-    // If no interpolation or not playing/looping, update immediately
-    if (
-      !interpolationTime ||
-      interpolationTime <= 0 ||
-      !this._isPlaying ||
-      !this._isLooping
-    ) {
-      this._loopStart_seconds = loopStart;
-      this._loopEnd_seconds = loopEnd;
+    // If not playing/looping, update immediately
+    if (!this._isPlaying || !this._loopEnabled) {
+      this._loopStart_seconds = targetSec;
 
       if (this._activeSource) {
-        this._activeSource.loopStart = loopStart;
-        this._activeSource.loopEnd = loopEnd;
+        this._activeSource.loopStart = targetSec;
       }
 
       if (this._nextSource) {
-        this._nextSource.loopStart = loopStart;
-        this._nextSource.loopEnd = loopEnd;
+        this._nextSource.loopStart = targetSec;
       }
       return;
     }
 
+    // get current time and calculate end time for interpolation
+    const startLerpSec = this._context.currentTime;
+    const endLerpSec = startLerpSec + lerpSeconds;
+
     // Handle interpolation
-    const startLoopStart = this._loopStart_seconds;
-    const startLoopEnd = this._loopEnd_seconds;
-    const interpolationStartTime = this._context.currentTime;
-    let updateIntervalId: number;
+    const prevValue =
+      param == 'loopStart' ? this._loopStart_seconds : this._loopEnd_seconds;
 
-    updateIntervalId = window.setInterval(() => {
+    function update() {
       const now = this._context.currentTime;
-      const elapsed = now - interpolationStartTime;
-      const progress = Math.min(elapsed / interpolationTime!, 1.0);
 
-      const currentLoopStart =
-        startLoopStart + (loopStart - startLoopStart) * progress;
-      const currentLoopEnd = startLoopEnd + (loopEnd - startLoopEnd) * progress;
-
-      // Update current values
-      this._loopStart_seconds = currentLoopStart;
-      this._loopEnd_seconds = currentLoopEnd;
-
-      if (this._activeSource) {
-        this._activeSource.loopStart = currentLoopStart;
-        this._activeSource.loopEnd = currentLoopEnd;
+      if (now >= endLerpSec) {
+        // Ensure the final value is set precisely
+        this._activeSource[param] = targetSec;
+        return;
       }
 
-      // Dispatch event for external listeners with values converted back to ms
-      document.dispatchEvent(
-        new CustomEvent('loopPointsInterpolated', {
-          detail: {
-            currentLoopStart_ms: currentLoopStart * 1000,
-            currentLoopEnd_ms: currentLoopEnd * 1000,
-            progress,
-          },
-        })
-      );
+      // Calculate interpolation factor (t)
+      const t = (now - startLerpSec) / lerpSeconds;
 
-      if (progress >= 1.0) {
-        clearInterval(updateIntervalId);
-      }
-    }, 16.7);
+      // Interpolate values using lerp
+      this._activeSource[param] = this.lerp(prevValue, targetSec, t);
+      this._nextSource[param] = this.lerp(prevValue, targetSec, t);
+
+      // Schedule next update
+      setTimeout(update, 1); // High-resolution (~1ms)
+    }
+
+    // Start the first update
+    update();
   }
 }
+
+// setLoopPoints(loopStart_ms: number, loopEnd_ms: number): void {
+//   // Todo: change to setLoopPoint(value_ms: number, param: loopStart | loopEnd), since only one is changed at a time
+//   // Todo: System to consistently convert all params ms to seconds in one place, since WebAudio APi uses seconds
+//   const targetStartSec = loopStart_ms / 1000;
+//   const targetEndSec = loopEnd_ms / 1000;
+//   const glideSec = this._loopGlide_seconds;
+
+//   // If not playing/looping, update immediately
+//   if (!this._isPlaying || !this._isLooping) {
+//     this._loopStart_seconds = targetStartSec;
+//     this._loopEnd_seconds = targetEndSec;
+
+//     if (this._activeSource) {
+//       this._activeSource.loopStart = targetStartSec;
+//       this._activeSource.loopEnd = targetEndSec;
+//     }
+
+//     if (this._nextSource) {
+//       this._nextSource.loopStart = targetStartSec;
+//       this._nextSource.loopEnd = targetEndSec;
+//     }
+//     return;
+//   }
+
+//   // Handle interpolation
+//   const prevLoopStart = this._loopStart_seconds;
+//   const prevLoopEnd = this._loopEnd_seconds;
+//   const glideStartTime = this._context.currentTime;
+
+//   let updateIntervalId: number;
+//   updateIntervalId = window.setInterval(() => {
+//     const now = this._context.currentTime;
+//     const elapsed = now - glideStartTime;
+//     const progress = Math.min(elapsed / glideSec, 1.0);
+
+//     const currentLoopStart =
+//       prevLoopStart + (targetStartSec - prevLoopStart) * progress;
+//     const currentLoopEnd =
+//       prevLoopEnd + (targetEndSec - prevLoopEnd) * progress;
+
+//     // Update current values
+//     this._loopStart_seconds = currentLoopStart;
+//     this._loopEnd_seconds = currentLoopEnd;
+
+//     if (this._activeSource) {
+//       this._activeSource.loopStart = currentLoopStart;
+//       this._activeSource.loopEnd = currentLoopEnd;
+//     }
+
+//     // Dispatch event for external listeners with values converted back to ms
+//     document.dispatchEvent(
+//       new CustomEvent('loopPointsInterpolated', {
+//         detail: {
+//           currentLoopStart_ms: currentLoopStart * 1000,
+//           currentLoopEnd_ms: currentLoopEnd * 1000,
+//           progress,
+//         },
+//       })
+//     );
+
+//     if (progress >= 1.0) {
+//       clearInterval(updateIntervalId);
+//     }
+//   }, 16.7);
+// }
+
+// export function interpolate(
+//   startValue: number,
+//   endValue: number,
+//   durationSeconds: number,
+//   onUpdate: (currentValue: number, progress: number) => void
+// ): void {
+//   if (durationSeconds <= 0) {
+//     onUpdate(endValue, 1);
+//     return;
+//   }
+
+//   const startTime = this._context.currentTime;
+//   const intervalId = window.setInterval(() => {
+//     const elapsed = this._context.currentTime - startTime;
+//     const progress = Math.min(elapsed / durationSeconds, 1.0);
+//     const currentValue = startValue + (endValue - startValue) * progress;
+
+//     onUpdate(currentValue, progress);
+
+//     if (progress >= 1.0) {
+//       clearInterval(intervalId);
+//     }
+//   }, 16.7);
+// }
+
+// Example usage
+// const audioContext = new AudioContext();
+// const bufferSource = audioContext.createBufferSource();
+// bufferSource.buffer = someAudioBuffer; // Load your buffer here
+
+// // Interpolate loop points from 0 to 2 seconds over 5 seconds
+// interpolateLoopPoints(audioContext, bufferSource, 0, 2, 5);
+
+// bufferSource.loop = true;
+// bufferSource.start();

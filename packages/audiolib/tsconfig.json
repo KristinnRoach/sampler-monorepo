@@ -7,6 +7,6 @@
     "rootDir": "src"
     // "allowImportingTsExtensions": true
   },
-  "include": ["src"],
+  "include": ["src", "public/**/*.js"],
   "exclude": ["node_modules", "dist", "build", "trash"]
 }

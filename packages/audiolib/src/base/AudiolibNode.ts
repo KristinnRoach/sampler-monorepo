@@ -10,7 +10,7 @@ import { BaseEventTarget } from './BaseEventTarget.js';
  * BaseWorkletNode - Abstract base class for audio worklet wrappers
  * Provides common functionality for all audio worklet nodes
  */
-export abstract class AudiolibNode extends BaseEventTarget {
+export abstract class AudiolibWorkletNode extends BaseEventTarget {
   protected audioContext: AudioContext;
   protected workletNode: AudioWorkletNode | null = null;
   protected gainNode: GainNode;

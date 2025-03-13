@@ -1,4 +1,4 @@
-import { sourceProcessorCode } from './worklet-code.js';
+import { sourceProcessorCode } from './oldsource/worklet-code.js';
 
 export interface WorkletVoiceManagerOptions {
   polyphony?: number;

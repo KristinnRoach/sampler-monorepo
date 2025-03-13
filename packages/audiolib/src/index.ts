@@ -8,4 +8,4 @@ export * from './recording/index.js';
 //   Sample,
 // } from './playback/source-node/WorkletVoiceManager.js';
 
-export { VoiceManager } from './playback/VoiceManager.js';
+export { SamplePlayer as VoiceManager } from './playback/VoiceManager.js';

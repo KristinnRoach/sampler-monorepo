@@ -3,43 +3,42 @@ import KeyboardController from '../input/KeyboardController';
 import { VoiceManager } from '@repo/audiolib';
 
 const VoiceTest = () => {
-  const [voiceId, setVoiceId] = createSignal(null);
-  const [selectedFile, setSelectedFile] = createSignal(null);
   const [isPlaying, setIsPlaying] = createSignal(false);
   const [loopStart, setLoopStart] = createSignal(0);
-  const [loopEnd, setLoopEnd] = createSignal(0);
+  const [loopEnd, setLoopEnd] = createSignal(0.5);
   const [interpolationTime, setInterpolationTime] = createSignal(0.5);
   const [status, setStatus] = createSignal('');
-  const [isPreloaded, setIsPreloaded] = createSignal(false);
+  const [selectedFile, setSelectedFile] = createSignal(null);
 
   let voiceManager = new VoiceManager();
 
   onMount(() => {
     voiceManager.init();
-    // const id = voiceManager.createVoice(); // TODO: Make VoiceManager manage voiceId's
-    // setVoiceId(id);
 
-    // Subscribe to loop points interpolated event
-    //   voiceManager.on(id, 'loopPointsInterpolated', (detail) => {
+    // // Subscribe to loop points interpolated event using the default voice
+    // const voiceId = voiceManager.getCurrentVoiceId();
+    // if (voiceId) {
+    //   voiceManager.on('loopPointsInterpolated', (detail) => {
     //     setStatus(`Loop points interpolated: ${JSON.stringify(detail)}`);
-    //     setTimeout(() => setStatus(''), 100);
+    //     setTimeout(() => setStatus(''), 1000);
     //   });
-    // });
+    // }
 
     document.addEventListener('click', initAudioContext, { once: true });
     document.addEventListener('keydown', initAudioContext, { once: true });
     document.addEventListener('touchstart', initAudioContext, { once: true });
+
+    // Set initial loop points
+    // updateLoopPoint();
   });
 
   onCleanup(() => {
-    if (voiceId()) {
-      voiceManager.dispose();
-    }
+    voiceManager.dispose();
   });
 
   const initAudioContext = () => {
     if (voiceManager._audioContext?.state === 'suspended') {
-      // Resume context immediately at user interaction, not right before playing
+      // Resume context immediately at user interaction
       voiceManager._audioContext.resume();
     }
   };
@@ -51,30 +50,37 @@ const VoiceTest = () => {
     }
 
     setSelectedFile(file);
-    voiceManager.resume();
+    const isAudioRunning = await voiceManager.ensureAudioContext();
+
+    if (!isAudioRunning) {
+      setStatus('Failed to start audio context');
+      return;
+    }
 
     try {
       setStatus('Loading audio...');
 
-      // // Read file as ArrayBuffer
-      // const fileReader = new FileReader();
-      // const filePromise = new Promise((resolve, reject) => {
-      //   fileReader.onload = () => resolve(fileReader.result);
-      //   fileReader.onerror = () => reject(fileReader.error);
-      // });
-      // fileReader.readAsArrayBuffer(file);
-      // const arrayBuffer = await filePromise;
+      // Read file as ArrayBuffer
+      const fileReader = new FileReader();
+      const filePromise = new Promise((resolve, reject) => {
+        fileReader.onload = () => resolve(fileReader.result);
+        fileReader.onerror = () => reject(fileReader.error);
+      });
+      fileReader.readAsArrayBuffer(file);
+      const arrayBuffer = await filePromise;
 
-      // // Decode audio data and set it to the voice
-      // const buffer = await voiceManager.loadAudioFile(arrayBuffer);
+      // Use the improved loadAudioFile method
+      const buffer = await voiceManager.loadAudioFile(
+        arrayBuffer,
+        true,
+        file.name
+      );
 
-      try {
-        const buffer = await voiceManager.loadAudioFile(file); // TODO: FIX
-      } catch (error) {
-        console.error('Error loading audio file:', error);
-      }
+      // Set the buffer using the default voice
+      voiceManager.setBuffer(buffer);
 
-      voiceManager.setBuffer(voiceId(), buffer);
+      // Update loop points after loading new audio
+      updateLoopPoint();
 
       setStatus('Audio loaded successfully');
       setTimeout(() => setStatus(''), 3000);
@@ -84,65 +90,58 @@ const VoiceTest = () => {
   };
 
   function handlePlay(midiNote) {
-    if (voiceManager.play(voiceId(), midiNote)) {
+    // Play using the default voice
+    if (voiceManager.play(midiNote)) {
       setIsPlaying(true);
     }
-    // console.log('ctx base latency: ', voiceApi._audioContext.baseLatency);
-    // console.log('ctx output latency: ', voiceApi._audioContext.outputLatency);
   }
 
   function handleStop() {
-    if (voiceManager.stop(voiceId())) {
+    // Stop the default voice
+    if (voiceManager.stop()) {
       setIsPlaying(false);
     }
   }
 
-  document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && e.target.tagName !== 'INPUT' && !e.repeat) {
-      if (!isPlaying()) {
-        handlePlay();
-      }
-    }
-  });
-
-  document.addEventListener('keyup', (e) => {
-    if (e.code === 'Space') {
-      if (isPlaying()) {
-        handleStop();
-      }
-    }
-  });
-
+  // TODO: Update to MILLISECONDS ? Decide on lib API for consistency
   const handleParamChange = (value, param) => {
     if (param === 'loopStart') {
       if (value > loopEnd() - 0.0001) {
         return;
       }
       setLoopStart(value);
-    } else if (param === 'loopEnd') {
+      updateLoopPoint(param);
+      return;
+    }
+
+    if (param === 'loopEnd') {
       if (value < loopStart() + 0.0001) {
         return;
       }
       setLoopEnd(value);
-    } else if (param === 'interpolationTime') {
+      updateLoopPoint(param);
+      return;
+    }
+
+    if (param === 'interpolationTime') {
       setInterpolationTime(value);
     }
 
-    const start = parseFloat(loopStart());
-    const end = parseFloat(loopEnd());
+    // updateLoopPoint(param);
+  };
+
+  const updateLoopPoint = (param) => {
+    const targetValue =
+      param === 'loopEnd' ? parseFloat(loopEnd()) : parseFloat(loopStart());
     const interpTime = parseFloat(interpolationTime());
 
-    if (voiceManager.setLoopPoints(voiceId(), start, end, interpTime)) {
+    if (voiceManager.setLoopPoint(targetValue, param, interpTime)) {
       setStatus(
-        `Loop points set: ${start}s to ${end}s with ${interpTime}s interpolation`
+        `Loop point updated: ${param}s, target value: ${targetValue}s with ${interpTime}<SEC OR MILLI??> interpolation`
       );
       setTimeout(() => setStatus(''), 3000);
     }
   };
-
-  handleParamChange(0, 'loopStart');
-  handleParamChange(0.5, 'loopEnd');
-  handleParamChange(0.5, 'interpolationTime');
 
   return (
     <div
@@ -163,7 +162,7 @@ const VoiceTest = () => {
         </div>
 
         <div class='playback-controls'>
-          <button onClick={handlePlay} disabled={isPlaying()}>
+          <button onClick={() => handlePlay()} disabled={isPlaying()}>
             Play
           </button>
           <button onClick={handleStop} disabled={!isPlaying()}>
@@ -209,15 +208,12 @@ const VoiceTest = () => {
               }
             />
           </div>
-
-          {/* <button onClick={handleSetLoopPoints}>Set Loop Points</button> */}
         </div>
       </div>
 
       {status() && <div class='message'>{status()}</div>}
 
       <div class='info'>
-        <p>Voice ID: {voiceId()}</p>
         <p>Status: {isPlaying() ? 'Playing' : 'Stopped'}</p>
         {selectedFile() && <p>Loaded file: {selectedFile().name}</p>}
       </div>
