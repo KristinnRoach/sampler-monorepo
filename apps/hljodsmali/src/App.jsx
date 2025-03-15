@@ -1,6 +1,7 @@
 import styles from './App.module.css';
-import VoiceTest from './testComponents/VoiceTest';
+// import VoiceTest from './testComponents/VoiceTest';
 //import GrainTest from './testComponents/GrainTest';
+import Test from './SourcePlayer/Test';
 
 export default function App() {
   return (
@@ -16,8 +17,9 @@ export default function App() {
         gap: '2rem',
       }}
     >
-      <VoiceTest />
+      {/* <VoiceTest /> */}
       {/* <GrainTest /> */}
+      <Test />
     </div>
   );
 }
