@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "vite",
-    "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview"
+    "dev": "vite",
+    "serve": "vite preview",
+    "clean": "rm -rf dist && rm -rf node_modules && rm -rf .turbo"
   },
   "license": "MIT",
   "devDependencies": {
@@ -17,7 +18,6 @@
   },
   "dependencies": {
     "solid-js": "^1.9.3",
-    "@repo/audiolib": "workspace:*",
-    "@repo/grain": "workspace:*"
+    "@repo/audiolib": "workspace:*"
   }
 }

@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loop Point Processor Test</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 100vw;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .controls {
+        margin: 20px 0;
+        width: 800px;
+      }
+      .slider-container {
+        margin: 15px 0;
+        width: 800px;
+      }
+      input {
+        width: 100%;
+      }
+      label {
+        display: inline-block;
+        width: 150px;
+      }
+      button {
+        margin-right: 10px;
+        padding: 8px 16px;
+      }
+      #fileInput {
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Loop Point Processor Test</h1>
+
+    <div>
+      <input type="file" id="fileInput" accept="audio/*" />
+      <div class="buttons">
+        <button id="playButton" disabled>Play</button>
+        <button id="stopButton" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="slider-container">
+        <label for="loopStartSlider"
+          >Loop Start: <span id="loopStartValue">0.0</span>s</label
+        >
+        <input
+          type="range"
+          id="loopStartSlider"
+          min="0"
+          max="1"
+          step="0.005"
+          value="0"
+        />
+      </div>
+
+      <div class="slider-container">
+        <label for="loopEndSlider"
+          >Loop End: <span id="loopEndValue">1.0</span>s</label
+        >
+        <input
+          type="range"
+          id="loopEndSlider"
+          min="0"
+          max="1"
+          step="0.005"
+          value="1"
+        />
+      </div>
+
+      <div class="slider-container">
+        <label for="interpSpeedSlider"
+          >Interpolation Speed: <span id="interpSpeedValue">0.05</span></label
+        >
+        <input
+          type="range"
+          id="interpSpeedSlider"
+          min="0.001"
+          max="0.5"
+          step="0.001"
+          value="0.05"
+        />
+      </div>
+    </div>
+
+    <script>
+      // Worklet processor code
+      const processorCode = `
+    class LoopPointProcessor extends AudioWorkletProcessor {
+      static get parameterDescriptors() {
+        return [
+          { name: 'loopStart', defaultValue: 0 },
+          { name: 'loopEnd', defaultValue: 1 },
+          { name: 'interpolationSpeed', defaultValue: 0.05 }
+        ];
+      }
+
+      constructor() {
+        super();
+        this.currentLoopStart = 0;
+        this.currentLoopEnd = 1;
+        this.port.onmessage = (event) => {
+          if (event.data.type === 'init') {
+            this.currentLoopStart = event.data.loopStart || 0;
+            this.currentLoopEnd = event.data.loopEnd || 1;
+          }
+        };
+      }
+
+      process(inputs, outputs, parameters) {
+        // Get parameter values
+        const targetLoopStart = parameters.loopStart.length > 1 ? parameters.loopStart[0] : parameters.loopStart[0];
+        const targetLoopEnd = parameters.loopEnd.length > 1 ? parameters.loopEnd[0] : parameters.loopEnd[0];
+        const interpolationSpeed = parameters.interpolationSpeed.length > 1 ? parameters.interpolationSpeed[0] : parameters.interpolationSpeed[0];
+        
+        // Smoothly interpolate loop points
+        this.currentLoopStart += (targetLoopStart - this.currentLoopStart) * interpolationSpeed;
+        this.currentLoopEnd += (targetLoopEnd - this.currentLoopEnd) * interpolationSpeed;
+        
+        // Send updated loop points to main thread
+        this.port.postMessage({
+          type: 'update',
+          loopStart: this.currentLoopStart,
+          loopEnd: this.currentLoopEnd
+        });
+        
+        // Pass audio through unchanged
+        const input = inputs[0];
+        const output = outputs[0];
+        
+        for (let channel = 0; channel < input.length && channel < output.length; channel++) {
+          const inputChannel = input[channel];
+          const outputChannel = output[channel];
+          for (let i = 0; i < inputChannel.length; i++) {
+            outputChannel[i] = inputChannel[i];
+          }
+        }
+        
+        return true;
+      }
+    }
+
+    registerProcessor('loop-point-processor', LoopPointProcessor);
+    `;
+
+      // UI elements
+      const fileInput = document.getElementById('fileInput');
+      const playButton = document.getElementById('playButton');
+      const stopButton = document.getElementById('stopButton');
+      const loopStartSlider = document.getElementById('loopStartSlider');
+      const loopEndSlider = document.getElementById('loopEndSlider');
+      const interpSpeedSlider = document.getElementById('interpSpeedSlider');
+      const loopStartValue = document.getElementById('loopStartValue');
+      const loopEndValue = document.getElementById('loopEndValue');
+      const interpSpeedValue = document.getElementById('interpSpeedValue');
+
+      // Audio context and nodes
+      let audioContext;
+      let audioBuffer;
+      let sourceNode;
+      let loopProcessor;
+      let loopStartParam;
+      let loopEndParam;
+      let interpSpeedParam;
+      let duration = 1;
+
+      // Initialize audio context
+      async function initAudio() {
+        // Create audio context
+        audioContext = new AudioContext();
+
+        // Add worklet module
+        const blob = new Blob([processorCode], {
+          type: 'application/javascript',
+        });
+        const workletUrl = URL.createObjectURL(blob);
+
+        try {
+          await audioContext.audioWorklet.addModule(workletUrl);
+          console.log('AudioWorklet loaded successfully');
+        } catch (error) {
+          console.error('Error loading AudioWorklet:', error);
+          alert('Failed to load AudioWorklet: ' + error.message);
+        }
+      }
+
+      // Load and decode audio file
+      async function loadAudioFile(file) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+          duration = audioBuffer.duration;
+          console.log(`Audio loaded: ${duration.toFixed(2)} seconds`);
+
+          // Update slider ranges based on audio duration
+          loopStartSlider.max = duration;
+          loopEndSlider.max = duration;
+          loopEndSlider.value = duration;
+          loopEndValue.textContent = duration.toFixed(2);
+
+          // Enable playback controls
+          playButton.disabled = false;
+          stopButton.disabled = false;
+        } catch (error) {
+          console.error('Error loading audio:', error);
+          alert('Failed to load audio file: ' + error.message);
+        }
+      }
+
+      // Set up and start playback
+      function playAudio() {
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+
+        if (sourceNode) {
+          sourceNode.stop();
+        }
+
+        // Create source node
+        sourceNode = audioContext.createBufferSource();
+        sourceNode.buffer = audioBuffer;
+        sourceNode.loop = true;
+
+        // Create loop processor node
+        loopProcessor = new AudioWorkletNode(
+          audioContext,
+          'loop-point-processor'
+        );
+
+        // Get parameters
+        loopStartParam = loopProcessor.parameters.get('loopStart');
+        loopEndParam = loopProcessor.parameters.get('loopEnd');
+        interpSpeedParam = loopProcessor.parameters.get('interpolationSpeed');
+
+        // Set initial values
+        loopStartParam.value = parseFloat(loopStartSlider.value);
+        loopEndParam.value = parseFloat(loopEndSlider.value);
+        interpSpeedParam.value = parseFloat(interpSpeedSlider.value);
+
+        // Handle loop updates from processor
+        loopProcessor.port.onmessage = (event) => {
+          if (event.data.type === 'update') {
+            // Update the source node's loop points
+            sourceNode.loopStart = event.data.loopStart;
+            sourceNode.loopEnd = event.data.loopEnd;
+          }
+        };
+
+        // Initialize processor
+        loopProcessor.port.postMessage({
+          type: 'init',
+          loopStart: parseFloat(loopStartSlider.value),
+          loopEnd: parseFloat(loopEndSlider.value),
+        });
+
+        // Connect nodes
+        sourceNode.connect(loopProcessor);
+        loopProcessor.connect(audioContext.destination);
+
+        // Start playback
+        sourceNode.start(0);
+      }
+
+      // Stop playback
+      function stopAudio() {
+        if (sourceNode) {
+          sourceNode.stop();
+          sourceNode = null;
+        }
+      }
+
+      // Event listeners
+      fileInput.addEventListener('change', async (e) => {
+        if (!audioContext) {
+          await initAudio();
+        }
+
+        if (e.target.files.length > 0) {
+          await loadAudioFile(e.target.files[0]);
+        }
+      });
+
+      playButton.addEventListener('click', playAudio);
+      stopButton.addEventListener('click', stopAudio);
+
+      loopStartSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        loopStartValue.textContent = value.toFixed(2);
+
+        // Ensure loop start is less than loop end
+        if (value >= loopEndSlider.value) {
+          loopEndSlider.value = Math.min(value + 0.1, duration);
+          loopEndValue.textContent = loopEndSlider.value.toFixed(2);
+        }
+
+        if (loopStartParam) {
+          loopStartParam.value = value;
+        }
+      });
+
+      loopEndSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        loopEndValue.textContent = value.toFixed(2);
+
+        // Ensure loop end is greater than loop start
+        if (value <= loopStartSlider.value) {
+          loopStartSlider.value = Math.max(value - 0.1, 0);
+          loopStartValue.textContent = loopStartSlider.value.toFixed(2);
+        }
+
+        if (loopEndParam) {
+          loopEndParam.value = value;
+        }
+      });
+
+      interpSpeedSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        interpSpeedValue.textContent = value.toFixed(3);
+
+        if (interpSpeedParam) {
+          interpSpeedParam.value = value;
+        }
+      });
+    </script>
+  </body>
+</html>
