@@ -1,290 +1,117 @@
-import {
-  Component,
-  createSignal,
-  createEffect,
-  onMount,
-  onCleanup,
-} from 'solid-js';
-// Temporarily use a direct import to workaround build issue
-import { VoiceNode, EnvelopeType } from '@repo/audiolib';
-import styles from './VoiceNodeTest.module.css';
+// import { createSignal, onCleanup, onMount } from 'solid-js';
+// import { VoiceNode } from '@repo/audiolib';
+// import styles from './VoiceNodeTest.module.css';
 
-interface AudioSample {
-  name: string;
-  url: string;
-  buffer?: AudioBuffer;
-}
+// const VoiceNodeTest = () => {
+//   const [audioContext, setAudioContext] = createSignal<AudioContext | null>(
+//     null
+//   );
+//   const [voiceNode, setVoiceNode] = createSignal<VoiceNode | null>(null);
+//   const [isPlaying, setIsPlaying] = createSignal(false);
+//   const [midiNote, setMidiNote] = createSignal(60); // Middle C
+//   const [audioBuffer, setAudioBuffer] = createSignal<AudioBuffer | null>(null);
 
-const VoiceNodeTest: Component = () => {
-  // Audio context and nodes
-  const [audioContext, setAudioContext] = createSignal<AudioContext | null>(
-    null
-  );
-  const [voiceNode, setVoiceNode] = createSignal<VoiceNode | null>(null);
+//   onMount(async () => {
+//     // Create audio context
+//     const ctx = new AudioContext();
+//     setAudioContext(ctx);
 
-  // UI state
-  const [isPlaying, setIsPlaying] = createSignal(false);
-  const [isReleasing, setIsReleasing] = createSignal(false);
-  const [currentSampleIndex, setCurrentSampleIndex] = createSignal(0);
-  const [attack, setAttack] = createSignal(0.05);
-  const [release, setRelease] = createSignal(0.3);
-  const [loopEnabled, setLoopEnabled] = createSignal(false);
+//     // Load a sample
+//     try {
+//       const response = await fetch('/audio/test-samples/c4.mp3');
+//       const arrayBuffer = await response.arrayBuffer();
+//       const buffer = await ctx.decodeAudioData(arrayBuffer);
+//       setAudioBuffer(buffer);
 
-  // Sample data
-  const samples: AudioSample[] = [
-    { name: 'Guitar', url: '/audio/test-samples/guitar.mp3' },
-    { name: 'Piano', url: '/audio/test-samples/c4.mp3' },
-    { name: 'Drum', url: '/audio/test-samples/Kit03-120C-04.wav' },
-  ];
+//       // Create voice node with loaded buffer
+//       const voice = new VoiceNode(ctx, buffer, ctx.destination, {
+//         type: 'ADSR',
+//         params: {
+//           attackMs: 10,
+//           decayMs: 100,
+//           sustainLevel: 0.7,
+//           releaseMs: 500,
+//         },
+//       });
 
-  // Initialize audio context
-  const initAudio = async () => {
-    if (audioContext()) return;
+//       setVoiceNode(voice);
+//     } catch (error) {
+//       console.error('Error loading sample:', error);
+//     }
+//   });
 
-    try {
-      const context = new AudioContext();
-      setAudioContext(context);
+//   onCleanup(() => {
+//     // Clean up audio resources
+//     voiceNode()?.disconnect();
+//     audioContext()?.close();
+//   });
 
-      // Create and initialize voice node
-      const voice = new VoiceNode(context);
-      voice.setEnvelope(EnvelopeType.AR, {
-        attack: attack(),
-        release: release(),
-      });
-      voice.connect(context.destination);
-      setVoiceNode(voice);
+//   const handlePlayNote = () => {
+//     const voice = voiceNode();
+//     if (!voice) return;
 
-      // Load initial sample
-      if (samples[currentSampleIndex()]) {
-        await loadSample(samples[currentSampleIndex()]!);
-      }
-    } catch (error) {
-      console.error('Failed to initialize audio:', error);
-    }
-  };
+//     if (!isPlaying()) {
+//       voice.play(midiNote());
+//       setIsPlaying(true);
+//     } else {
+//       voice.release();
+//       setIsPlaying(false);
+//     }
+//   };
 
-  // Load a sample into the voice node
-  const loadSample = async (sample: AudioSample) => {
-    const context = audioContext();
-    const voice = voiceNode();
+//   const handleSetLoop = (enabled: boolean) => {
+//     voiceNode()?.setLoop(enabled, 0.2, 0.5);
+//   };
 
-    if (!context || !voice) return;
+//   const handleChangeNote = (event: Event) => {
+//     const input = event.target as HTMLInputElement;
+//     setMidiNote(parseInt(input.value, 10));
+//   };
 
-    try {
-      // Use cached buffer if available
-      if (sample.buffer) {
-        voice.setBuffer(sample.buffer);
-        return;
-      }
+//   return (
+//     <div class={styles.container}>
+//       <h2>VoiceNode Test</h2>
 
-      // Load and decode the audio file
-      const response = await fetch(sample.url);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await context.decodeAudioData(arrayBuffer);
+//       <div class={styles.controls}>
+//         <button
+//           onClick={handlePlayNote}
+//           disabled={!voiceNode()}
+//           class={isPlaying() ? styles.activeButton : ''}
+//         >
+//           {isPlaying() ? 'Release' : 'Play Note'}
+//         </button>
 
-      // Cache the buffer and set it on the voice node
-      sample.buffer = audioBuffer;
-      voice.setBuffer(audioBuffer);
-    } catch (error) {
-      console.error(`Failed to load sample "${sample.name}":`, error);
-    }
-  };
+//         <div class={styles.sliderContainer}>
+//           <label>MIDI Note: {midiNote()}</label>
+//           <input
+//             type='range'
+//             min='36'
+//             max='84'
+//             value={midiNote()}
+//             onInput={handleChangeNote}
+//           />
+//         </div>
 
-  // Play the current sample
-  const playSample = () => {
-    const voice = voiceNode();
-    if (!voice) return;
+//         <div class={styles.checkboxContainer}>
+//           <label>
+//             <input
+//               type='checkbox'
+//               onChange={(e) => handleSetLoop(e.target.checked)}
+//             />
+//             Enable Looping
+//           </label>
+//         </div>
+//       </div>
 
-    voice.start();
-    setIsPlaying(true);
-    setIsReleasing(false);
-  };
+//       <div class={styles.status}>
+//         {!audioBuffer() ? (
+//           <p>Loading sample...</p>
+//         ) : (
+//           <p>Sample loaded: {audioBuffer()?.duration.toFixed(2)}s</p>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
 
-  // Release the current note
-  const releaseSample = () => {
-    const voice = voiceNode();
-    if (!voice || !isPlaying()) return;
-
-    voice.release();
-    setIsReleasing(true);
-
-    // Wait for release to complete before resetting state
-    setTimeout(
-      () => {
-        setIsPlaying(false);
-        setIsReleasing(false);
-      },
-      release() * 1000 + 100
-    ); // Add a small buffer
-  };
-
-  // Stop immediately
-  const stopSample = () => {
-    const voice = voiceNode();
-    if (!voice || !isPlaying()) return;
-
-    voice.stop();
-    setIsPlaying(false);
-    setIsReleasing(false);
-  };
-
-  // Change sample
-  const changeSample = (index: number) => {
-    if (index === currentSampleIndex()) return;
-
-    // Stop current playback
-    if (isPlaying()) {
-      stopSample();
-    }
-
-    setCurrentSampleIndex(index);
-    if (samples[index]) loadSample(samples[index]);
-  };
-
-  // Toggle looping
-  const toggleLoop = (enabled: boolean) => {
-    const voice = voiceNode();
-    if (!voice) return;
-
-    setLoopEnabled(enabled);
-    voice.setLoop(enabled);
-  };
-
-  // Update envelope parameters
-  createEffect(() => {
-    const voice = voiceNode();
-    if (!voice) return;
-
-    voice.setEnvelope(EnvelopeType.AR, {
-      attack: attack(),
-      release: release(),
-    });
-  });
-
-  // Clean up on unmount
-  onCleanup(() => {
-    const voice = voiceNode();
-    if (voice && isPlaying()) {
-      voice.stop();
-    }
-
-    const context = audioContext();
-    if (context && context.state !== 'closed') {
-      context.close();
-    }
-  });
-
-  return (
-    <div class={styles.container}>
-      <h2 class={styles.title}>VoiceNode Test</h2>
-
-      <div class={styles.controls}>
-        <button
-          class={styles.initButton}
-          onClick={initAudio}
-          disabled={!!audioContext()}
-        >
-          Initialize Audio
-        </button>
-
-        <div class={styles.sampleSelector}>
-          <span>Sample:</span>
-          {samples.map((sample, index) => (
-            <button
-              class={
-                currentSampleIndex() === index
-                  ? styles.activeButton
-                  : styles.button
-              }
-              onClick={() => changeSample(index)}
-              disabled={!audioContext()}
-            >
-              {sample.name}
-            </button>
-          ))}
-        </div>
-
-        <div class={styles.playbackControls}>
-          <button
-            class={isPlaying() ? styles.activeButton : styles.button}
-            onClick={playSample}
-            disabled={!audioContext() || isPlaying()}
-          >
-            Play
-          </button>
-
-          <button
-            class={isReleasing() ? styles.activeButton : styles.button}
-            onClick={releaseSample}
-            disabled={!audioContext() || !isPlaying() || isReleasing()}
-          >
-            Release
-          </button>
-
-          <button
-            class={styles.button}
-            onClick={stopSample}
-            disabled={!audioContext() || !isPlaying()}
-          >
-            Stop
-          </button>
-        </div>
-
-        <div class={styles.envelopeControls}>
-          <div class={styles.control}>
-            <label for='attack'>Attack: {attack().toFixed(2)}s</label>
-            <input
-              id='attack'
-              type='range'
-              min='0.001'
-              max='2'
-              step='0.01'
-              value={attack()}
-              onInput={(e) => setAttack(parseFloat(e.currentTarget.value))}
-              disabled={!audioContext()}
-            />
-          </div>
-
-          <div class={styles.control}>
-            <label for='release'>Release: {release().toFixed(2)}s</label>
-            <input
-              id='release'
-              type='range'
-              min='0.001'
-              max='2'
-              step='0.01'
-              value={release()}
-              onInput={(e) => setRelease(parseFloat(e.currentTarget.value))}
-              disabled={!audioContext()}
-            />
-          </div>
-        </div>
-
-        <div class={styles.loopControl}>
-          <label>
-            <input
-              type='checkbox'
-              checked={loopEnabled()}
-              onChange={(e) => toggleLoop(e.currentTarget.checked)}
-              disabled={!audioContext()}
-            />
-            Loop Audio
-          </label>
-        </div>
-      </div>
-
-      <div class={styles.status}>
-        Status:{' '}
-        {!audioContext()
-          ? 'Not initialized'
-          : isPlaying()
-            ? isReleasing()
-              ? 'Releasing'
-              : 'Playing'
-            : 'Ready'}
-      </div>
-    </div>
-  );
-};
-
-export default VoiceNodeTest;
+// export default VoiceNodeTest;
