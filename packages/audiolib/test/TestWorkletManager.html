@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorkletNode Test</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .controls {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      button {
+        padding: 8px 16px;
+        margin-right: 10px;
+        cursor: pointer;
+      }
+      .status {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f0f0f0;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WorkletNode Test</h1>
+
+    <div class="controls">
+      <button id="start">Start Oscillator</button>
+      <button id="stop" disabled>Stop Oscillator</button>
+      <div>
+        <label for="frequency">Frequency:</label>
+        <input
+          type="range"
+          id="frequency"
+          min="50"
+          max="1000"
+          value="440"
+          step="1"
+        />
+        <span id="freqValue">440 Hz</span>
+      </div>
+      <div>
+        <label for="gain">Gain:</label>
+        <input type="range" id="gain" min="0" max="1" value="0.5" step="0.01" />
+        <span id="gainValue">0.5</span>
+      </div>
+    </div>
+
+    <div class="status" id="status">Status: Ready</div>
+
+    <script type="module">
+      // Import our test classes
+      import { TestWorkletManager } from './TestWorkletManager.js';
+      import { TestWorkletNode } from './TestWorkletNode.js';
+
+      let audioContext = null;
+      let oscillator = null;
+      const manager = new TestWorkletManager();
+
+      // Status logging helper
+      function logStatus(message) {
+        const status = document.getElementById('status');
+        status.textContent = 'Status: ' + message;
+        console.log(message);
+      }
+
+      // Define the processing function
+      const processFunction = function (inputs, outputs, parameters) {
+        const output = outputs[0];
+        const frequency = parameters.frequency;
+        const gain = parameters.gain;
+
+        // Simple sine wave oscillator
+        for (let channel = 0; channel < output.length; ++channel) {
+          const outputChannel = output[channel];
+
+          for (let i = 0; i < outputChannel.length; ++i) {
+            // Get parameter value (handle both constant and automation)
+            const f = frequency.length > 1 ? frequency[i] : frequency[0];
+            const g = gain.length > 1 ? gain[i] : gain[0];
+
+            // Time is based on sample rate
+            const sampleTime = currentTime + i / sampleRate;
+            // Simple sine oscillator
+            outputChannel[i] = g * Math.sin(2 * Math.PI * f * sampleTime);
+          }
+        }
+
+        return true;
+      };
+
+      async function createOscillator() {
+        // Define processor parameters
+        const params = [
+          {
+            name: 'frequency',
+            defaultValue: 440,
+            minValue: 20,
+            maxValue: 20000,
+          },
+          { name: 'gain', defaultValue: 0.5, minValue: 0, maxValue: 1 },
+        ];
+
+        try {
+          // Create the oscillator node
+          const oscillator = await TestWorkletNode.create(
+            audioContext,
+            manager,
+            {
+              processorName: 'sineosc',
+              processFunction,
+              params,
+              nodeOptions: {
+                outputChannelCount: [2], // Stereo output
+              },
+            }
+          );
+
+          logStatus('Oscillator created successfully');
+          return oscillator;
+        } catch (error) {
+          logStatus('Error creating oscillator: ' + error.message);
+          console.error(error);
+          throw error;
+        }
+      }
+
+      // Event listeners
+      document.getElementById('start').addEventListener('click', async () => {
+        try {
+          if (!audioContext) {
+            audioContext = new AudioContext();
+            logStatus('AudioContext created');
+          }
+
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+          }
+
+          if (!oscillator) {
+            oscillator = await createOscillator();
+            oscillator.connect(audioContext.destination);
+
+            // Update UI
+            document.getElementById('start').disabled = true;
+            document.getElementById('stop').disabled = false;
+            logStatus('Oscillator playing');
+          } else {
+            oscillator.setActive(true);
+            logStatus('Oscillator resumed');
+          }
+        } catch (error) {
+          logStatus('Error starting: ' + error.message);
+        }
+      });
+
+      document.getElementById('stop').addEventListener('click', () => {
+        if (oscillator) {
+          oscillator.setActive(false);
+          document.getElementById('start').disabled = false;
+          document.getElementById('stop').disabled = true;
+          logStatus('Oscillator stopped');
+        }
+      });
+
+      // Frequency control
+      const freqSlider = document.getElementById('frequency');
+      const freqValue = document.getElementById('freqValue');
+
+      freqSlider.addEventListener('input', () => {
+        const value = parseInt(freqSlider.value);
+        freqValue.textContent = `${value} Hz`;
+
+        if (oscillator) {
+          oscillator.setParam('frequency', value);
+        }
+      });
+
+      // Gain control
+      const gainSlider = document.getElementById('gain');
+      const gainValue = document.getElementById('gainValue');
+
+      gainSlider.addEventListener('input', () => {
+        const value = parseFloat(gainSlider.value);
+        gainValue.textContent = value.toFixed(2);
+
+        if (oscillator) {
+          oscillator.setParam('gain', value);
+        }
+      });
+
+      // Initial status
+      logStatus('Ready - Click "Start Oscillator" to begin');
+    </script>
+  </body>
+</html>

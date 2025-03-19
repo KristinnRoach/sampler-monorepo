@@ -1,5 +1,5 @@
-import { WorkletNode } from '@/WorkletNode/WorkletNode';
-import { AudioParamDescriptor } from '@/WorkletNode/types';
+import { WorkletNode } from '@/base/WorkletNode/WorkletNode';
+import { AudioParamDescriptor } from '@/base/WorkletNode/types';
 import LoopProcessorRaw from './loop-processor?raw';
 
 export class LoopWorklet extends WorkletNode {
@@ -8,15 +8,15 @@ export class LoopWorklet extends WorkletNode {
       name: 'loopStart',
       defaultValue: 0,
       minValue: 0,
-      maxValue: 1000, // This can be adjusted based on your needs
-      automationRate: 'k-rate',
+      maxValue: 1000,
+      automationRate: 'a-rate', // TODO: testing a-rate vs k-rate
     },
     {
       name: 'loopEnd',
       defaultValue: 1,
       minValue: 0,
-      maxValue: 1000, // This can be adjusted based on your needs
-      automationRate: 'k-rate',
+      maxValue: 1000,
+      automationRate: 'a-rate',
     },
     {
       name: 'interpolationSpeed',
@@ -27,10 +27,10 @@ export class LoopWorklet extends WorkletNode {
     },
   ];
 
-  sourceNode: AudioBufferSourceNode | null = null;
+  #sourceNode: AudioBufferSourceNode | null = null;
 
   constructor(context: BaseAudioContext) {
-    super(context, 1, 1);
+    super(context, 1, 1); // Todo: make nr of inputs and outputs dynamic (at least support stereo)
   }
 
   public async initialise(): Promise<void> {
@@ -45,22 +45,22 @@ export class LoopWorklet extends WorkletNode {
    * Connect the loop processor to a source node and set up message handling
    * @param sourceNode The AudioBufferSourceNode to control loop points for
    */
-  connectToSource(sourceNode: AudioBufferSourceNode): void {
+  connectToSource(sourceNode: AudioBufferSourceNode): boolean {
     if (!this._initialised) {
       throw new Error(
         'LoopProcessorWorklet must be initialized before connecting to a source'
       );
     }
 
-    this.sourceNode = sourceNode;
+    this.#sourceNode = sourceNode;
     sourceNode.connect(this.workletNode);
     this.workletNode.connect(this.context.destination);
 
     // Set up message handling to update the source node's loop points
     this.workletNode.port.onmessage = (event) => {
-      if (event.data.type === 'update' && this.sourceNode) {
-        this.sourceNode.loopStart = event.data.loopStart;
-        this.sourceNode.loopEnd = event.data.loopEnd;
+      if (event.data.type === 'update' && this.#sourceNode) {
+        this.#sourceNode.loopStart = event.data.loopStart;
+        this.#sourceNode.loopEnd = event.data.loopEnd;
       }
     };
 
@@ -70,6 +70,8 @@ export class LoopWorklet extends WorkletNode {
       loopStart: sourceNode.loopStart,
       loopEnd: sourceNode.loopEnd,
     });
+
+    return true;
   }
 
   /**
@@ -78,7 +80,7 @@ export class LoopWorklet extends WorkletNode {
    * @param time When to schedule the change (defaults to now)
    */
   setLoopStart(value: number, time?: number): void {
-    this.setParamValueAtTime('loopStart', value, time);
+    this.setParam('loopStart', value, time);
   }
 
   /**
@@ -87,7 +89,7 @@ export class LoopWorklet extends WorkletNode {
    * @param time When to schedule the change (defaults to now)
    */
   setLoopEnd(value: number, time?: number): void {
-    this.setParamValueAtTime('loopEnd', value, time);
+    this.setParam('loopEnd', value, time);
   }
 
   /**
@@ -96,6 +98,6 @@ export class LoopWorklet extends WorkletNode {
    * @param time When to schedule the change (defaults to now)
    */
   setInterpolationSpeed(value: number, time?: number): void {
-    this.setParamValueAtTime('interpolationSpeed', value, time);
+    this.setParam('interpolationSpeed', value, time);
   }
 }

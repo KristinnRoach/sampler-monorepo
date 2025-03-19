@@ -61,4 +61,3 @@ class LoopProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('loop-processor', LoopProcessor);
-//registerProcessor('LoopProcessorWorkletProcessor', LoopProcessor); // Todo: fix name, should be 'loop-processor'

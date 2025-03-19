@@ -9,14 +9,11 @@ export default defineConfig({
       name: 'audiolib',
       fileName: 'index',
     },
-    minify: false, // Disable minification for debugging // TODO: hardcode the processor names in GrainSamplerWorklet class ?
-
+    minify: false, // Disable minification for debugging
     rollupOptions: {
       external: [], // Add any external dependencies here if needed
       output: {
         globals: {}, // Define globals for UMD builds if needed
-        // manualChunks: undefined, // Disable automatic chunk splitting ??
-        // preserveModules: true, // Preserves module structure
         format: 'es',
       },
     },
@@ -27,4 +24,13 @@ export default defineConfig({
       '@test': fileURLToPath(new URL('./test', import.meta.url)),
     },
   },
+  // server configuration to serve test files
+  server: {
+    fs: {
+      // Allow serving files from one level up
+      allow: ['..'],
+    },
+  },
+  // Configured to serve test HTML files
+  publicDir: 'public',
 });

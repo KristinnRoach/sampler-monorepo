@@ -5,18 +5,19 @@ import {
 } from './worklet-store';
 
 export class WorkletNode {
+  // Todo: Extend AudioWorkletNode ??? see comment above initialize method
   static params: AudioParamDescriptor[] = [];
 
   static _getWorkletParamsAsJSON(): string {
     return JSON.stringify(this.params);
   }
 
-  static _getWorkletProcessorClassName(): string {
-    return this.name + 'Processor';
+  static _getWorkletNodeClassName(): string {
+    return this.name + 'WorkletNode';
   }
 
   // Note: Filename must match processor name (e.g., "LoopWorklet.ts" → "loop-worklet")
-  static _getWorkletProcessorName(): string {
+  static _getProcessorName(): string {
     // Convert camelCase to hyphen-case
     const hyphenated = this.name
       .replace(/([a-z])([A-Z])/g, '$1-$2')
@@ -35,8 +36,8 @@ export class WorkletNode {
     return processorName;
   }
 
-  static _getWorkletProcessor(): string {
-    const workletClassName = this._getWorkletProcessorClassName();
+  static _getProcessor(): string {
+    const workletClassName = this._getWorkletNodeClassName();
 
     return `
             class ${workletClassName} extends AudioWorkletProcessor {
@@ -56,7 +57,7 @@ export class WorkletNode {
                 ${this.process.toString()}
             }
 
-            registerProcessor('${this._getWorkletProcessorName()}', ${workletClassName});
+            registerProcessor('${this._getProcessorName()}', ${workletClassName});
         `;
   }
 
@@ -136,7 +137,7 @@ export class WorkletNode {
   protected _generateAudioWorkletNode(): AudioWorkletNode {
     const node = new AudioWorkletNode(
       this.context,
-      this._getConstructor()._getWorkletProcessorName(),
+      this._getConstructor()._getProcessorName(),
       this.workletNodeOptions
     );
 
@@ -211,12 +212,12 @@ export class WorkletNode {
       return;
     }
 
-    const workletName = this._getConstructor()._getWorkletProcessorName();
+    const workletName = this._getConstructor()._getProcessorName();
 
     if (!hasLoadedWorkletProcessor(workletName)) {
       // Create a blob holding the stringified definition
       // for the audio worklet
-      const blob = new Blob([this._getConstructor()._getWorkletProcessor()], {
+      const blob = new Blob([this._getConstructor()._getProcessor()], {
         type: 'application/javascript',
       });
 
@@ -256,25 +257,38 @@ export class WorkletNode {
     ).get(customParamName);
   }
 
-  public setParamValueAtTime(
+  public setParam(
     customParamName: string,
     value: number,
+    when: number = this.context.currentTime,
+    durationSeconds: number = 0
+  ): void {
+    const param = this.getParam(customParamName);
+
+    if (param) {
+      param.setTargetAtTime(value, when, durationSeconds);
+    }
+  }
+
+  public cancelScheduledParamValues(
+    customParamName: string,
     when: number = this.context.currentTime
   ): void {
     const param = this.getParam(customParamName);
 
     if (param) {
-      param.setValueAtTime(value, when);
+      param.cancelScheduledValues(when);
+    }
+  }
 
-      // TODO:
-      // - Add delegates for all of these, too.
-      //
-      // param.cancelAndHoldAtTime
-      // param.cancelScheduledValues
-      // param.exponentialRampToValueAtTime
-      // param.setTargetAtTime
-      // param.setValueAtTime
-      // param.setValueCurveAtTime
+  public cancelAndHoldParamValue(
+    customParamName: string,
+    when: number = this.context.currentTime
+  ): void {
+    const param = this.getParam(customParamName);
+
+    if (param) {
+      param.cancelAndHoldAtTime(when);
     }
   }
 
@@ -286,3 +300,11 @@ export class WorkletNode {
     this.workletNode?.port.postMessage({ active: false });
   }
 }
+
+// TODO:
+// - Add delegates for these, only when and if needed:
+//
+// param.exponentialRampToValueAtTime // maybe better to always use setTargetAtTime ?
+// param.linearRampToValueAtTime // maybe better to always use setTargetAtTime ?
+// param.setValueAtTime // sets value instantly at time
+// param.setValueCurveAtTime
