@@ -1,3 +1,4 @@
+import { AudioParamDescriptor } from '../types';
 export class WorkletManager {
   private registeredProcessors: Set<string>;
 
@@ -28,12 +29,7 @@ export class WorkletManager {
   generateProcessorCode(
     { className, registryName }: { className: string; registryName: string },
     processFunc: Function,
-    params: Array<{
-      name: string;
-      defaultValue: number;
-      minValue: number;
-      maxValue: number;
-    }> = [],
+    params: AudioParamDescriptor[],
     options: {
       state?: Record<string, unknown>;
       constructorCode?: Function;
@@ -76,40 +72,40 @@ export class WorkletManager {
       );
 
       messageHandler = `this.port.onmessage = (event) => {
-              if (event.data.hasOwnProperty('active')) {
-                this.active = event.data.active;
-              }
-              ${handlerBody}
-            };`;
+                if (event.data.hasOwnProperty('active')) {
+                  this.active = event.data.active;
+                }
+                ${handlerBody}
+              };`;
     } else {
       messageHandler = `this.port.onmessage = (event) => {
-              if (event.data.hasOwnProperty('active')) {
-                this.active = event.data.active;
-              }
-            };`;
+                if (event.data.hasOwnProperty('active')) {
+                  this.active = event.data.active;
+                }
+              };`;
     }
 
     return `
-      class ${className} extends AudioWorkletProcessor {
-        static get parameterDescriptors() {
-          return ${paramsJSON};
+        class ${className} extends AudioWorkletProcessor {
+          static get parameterDescriptors() {
+            return ${paramsJSON};
+          }
+  
+          constructor() {
+            super();
+            this.active = true;
+            ${stateInit}
+            ${messageHandler}
+            ${extraConstructorCode}
+          }
+  
+          process(inputs, outputs, parameters) {
+            if (!this.active) return true;
+            ${funcBody}
+          }
         }
-
-        constructor() {
-          super();
-          this.active = true;
-          ${stateInit}
-          ${messageHandler}
-          ${extraConstructorCode}
-        }
-
-        process(inputs, outputs, parameters) {
-          if (!this.active) return true;
-          ${funcBody}
-        }
-      }
-
-      registerProcessor('${registryName}', ${className});
-    `;
+  
+        registerProcessor('${registryName}', ${className});
+      `;
   }
 }
