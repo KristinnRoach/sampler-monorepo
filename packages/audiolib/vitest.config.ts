@@ -1,23 +1,9 @@
-import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    browser: {
-      enabled: true,
-      headless: true,
-      name: 'chrome', // browser name is required
-    },
-    // logHeapUsage: true,
-    reporters: 'default',
-    benchmark: {
-      include: ['**/*.bench.{js,ts}'],
-    },
-  },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@test': fileURLToPath(new URL('./test', import.meta.url)),
-    },
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.test.ts'],
   },
 });

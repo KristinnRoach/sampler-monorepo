@@ -6,7 +6,7 @@ import {
   onCleanup,
 } from 'solid-js';
 // Temporarily use a direct import to workaround build issue
-import { VoiceNode, EnvelopeType } from '@repo/audiolib';
+import { VoiceNode } from '@repo/audiolib';
 import styles from './VoiceNodeTest.module.css';
 
 interface AudioSample {

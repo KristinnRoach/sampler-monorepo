@@ -1,9 +1,9 @@
 // export { GrainSamplerWorklet } from './processors/grain-states-reff/GrainSamplerWorklet';
 
-export { VoiceNode } from './lib/voice/VoiceNode';
+export { VoiceNode } from './nodes/voice/VoiceNode';
 
-export { WorkletNode } from './base/WorkletNode/WorkletNode';
+export { WorkletNode } from './nodes/worklet/WorkletNode';
 
-export { LoopWorklet } from './lib/loop/LoopWorklet';
+export { LoopWorklet } from './nodes/loop/LoopWorklet';
 
-export type { AudioParamDescriptor } from './base/WorkletNode/types';
+export type { AudioParamDescriptor } from './nodes/worklet/types';

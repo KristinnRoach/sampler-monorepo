@@ -1,11 +1,11 @@
-import { LoopWorklet } from '@/lib/loop/LoopWorklet';
+import { LoopWorklet } from '@/nodes/loop/LoopWorklet';
 import { isValidAudioBuffer } from '@/utils/validation-utils';
 import {
   createAmpEnvNode,
   AmpEnvelopeNode,
   EnvelopeType,
   EnvelopeParams,
-} from './EnvelopeFactory';
+} from '../envelope/EnvelopeFactory';
 
 // A map of AudioContext -> LoopWorklet to ensure a single worklet per context
 const sharedLoopWorklets = new WeakMap<AudioContext, LoopWorklet>();

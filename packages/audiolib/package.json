@@ -20,7 +20,9 @@
     "build": "tsc --emitDeclarationOnly && vite build",
     "watch": "tsc --emitDeclarationOnly --watch & vite build --watch",
     "preview": "vite preview",
-    "clean": "rm -rf dist && rm -rf node_modules && rm -rf .turbo"
+    "clean": "rm -rf dist && rm -rf node_modules && rm -rf .turbo",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/audioworklet": "^0.0.46",

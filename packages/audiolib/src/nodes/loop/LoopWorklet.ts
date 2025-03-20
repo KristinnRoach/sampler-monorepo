@@ -1,5 +1,5 @@
-import { WorkletNode } from '@/base/WorkletNode/WorkletNode';
-import { AudioParamDescriptor } from '@/base/WorkletNode/types';
+import { WorkletNode } from '@/nodes/worklet/WorkletNode';
+import { AudioParamDescriptor } from '@/nodes/worklet/types';
 import LoopProcessorRaw from './loop-processor?raw';
 
 export class LoopWorklet extends WorkletNode {
