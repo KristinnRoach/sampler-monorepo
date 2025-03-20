@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "clean": "turbo run clean",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
@@ -13,7 +14,6 @@
     "list-mismatches": "npx syncpack list-mismatches",
     "fix-mismatches": "npx syncpack fix-mismatches && pnpm install"
   },
-
   "devDependencies": {
     "prettier": "^3.4.2",
     "syncpack": "^13.0.2",
