@@ -35,6 +35,8 @@ class WorkletRegistry {
     // Check if already registered with this context
     const contextProcessors =
       this.registeredProcessors.get(context) || new Set();
+
+    // If already registered, return the registry name
     if (contextProcessors.has(registryName)) {
       return registryName;
     }
