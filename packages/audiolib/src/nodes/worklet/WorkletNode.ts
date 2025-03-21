@@ -14,26 +14,17 @@ export class WorkletNode extends AudioWorkletNode {
     this.connections = new Map();
   }
 
-  // Declare method overload signatures
-  connect(
-    destinationNode: AudioNode,
-    output?: number,
-    input?: number
-  ): AudioNode;
-  connect(destinationParam: AudioParam, output?: number): void;
-
   connect(
     destination: AudioNode | AudioParam,
     outputIndex?: number,
     inputIndex?: number
-  ): AudioNode | void {
+  ): this {
     super.connect(destination as any, outputIndex as any, inputIndex as any);
 
     if (destination instanceof AudioNode) {
       this.connections.set(destination, [outputIndex || 0, inputIndex || 0]);
-      return destination;
     }
-    return;
+    return this;
   }
 
   disconnect(destinationNode: AudioNode): void;
@@ -82,17 +73,17 @@ export class WorkletNode extends AudioWorkletNode {
     // Todo: util function to check for audio worklet support and context state
     const manager = WorkletManager.getInstance();
 
-    // if (!manager) {
-    //   throw new Error('WorkletManager is not initialized');
-    // }
+    if (!manager) {
+      throw new Error('WorkletManager is not initialized');
+    }
 
-    // if (manager.hasRegistered(options.processorName)) {
-    //   return new WorkletNode(
-    //     context,
-    //     getStandardizedAWPNames(options.processorName),
-    //     options.nodeOptions
-    //   );
-    // }
+    if (manager.hasRegistered(options.processorName)) {
+      return new WorkletNode(
+        context,
+        getStandardizedAWPNames(options.processorName),
+        options.nodeOptions
+      );
+    }
 
     const {
       processorName,
