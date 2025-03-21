@@ -12,11 +12,13 @@ export async function createWorkletNode(
 ) {
   // Register or get existing processor
   if (processFunction) {
+    // registry.register is a no-op if already registered
     await registry.register(context, processorName, {
       processFunction,
       params,
     });
   } else {
+    // todo: check if this works (should still register without processFunction, otherwise remove the else)
     await registry.register(context, processorName);
   }
 
@@ -28,18 +30,3 @@ export async function createWorkletNode(
 // For convenience when importing (only from one file)
 // todo: make WorkletNode private to this package to avoid duplicate exports?
 export { WorkletNode } from './WorkletNode';
-
-// export async function createWorkletNode(
-//   context: BaseAudioContext,
-//   processorName: string,
-//   processFunction: Function,
-//   params: AudioParamDescriptor[] = [],
-//   nodeOptions = {}
-// ) {
-//   return WorkletNode.create(context, {
-//     processorName,
-//     processFunction,
-//     params,
-//     nodeOptions,
-//   });
-// }

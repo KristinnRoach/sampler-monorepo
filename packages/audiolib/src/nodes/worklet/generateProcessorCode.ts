@@ -79,6 +79,6 @@ export function generateProcessorCode(
           }
         }
   
-        registerProcessor('${registryName}', ${className});
-      `;
+        registerProcessor("${registryName}", ${className});
+      `; // Note: double quotes are necessary for the registry name
 }
