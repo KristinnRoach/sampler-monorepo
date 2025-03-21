@@ -25,14 +25,11 @@ export class WorkletNode extends AudioWorkletNode {
     return this;
   }
 
-  // todo: fix inconsistency with connect and native AudioNode interface
-  /* why are these declarations necessary? */
-  disconnect(destinationNode: AudioNode): void;
-  disconnect(): void; /* why are these declarations necessary? */
+  disconnect(): void;
 
-  disconnect(destination?: AudioNode): void {
+  disconnect(destination?: AudioNode | null): void {
     if (destination) {
-      this.connections.delete(destination as AudioNode);
+      this.connections.delete(destination);
       super.disconnect(destination);
     } else {
       super.disconnect();
