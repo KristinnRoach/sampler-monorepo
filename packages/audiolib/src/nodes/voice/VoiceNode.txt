@@ -1,0 +1,41 @@
+interface VoiceNodeMethods {
+  playNote: (midiNote: number) => void;
+  releaseNote: (midiNote: number) => void;
+  freezeNote: (midiNote: number) => void;
+  unfreezeNote: (midiNote: number) => void;
+  setVolume: (volume: number) => void;
+  setPlaybackRate: (rate: number) => void;
+}
+
+// class VoiceNode extends AudioNode {
+//   private methods: VoiceNodeMethods;
+
+//   constructor(context: BaseAudioContext, methods: VoiceNodeMethods) {
+//     super();
+//     this.methods = methods;
+//   }
+
+//   playNote(midiNote: number): void {
+//     this.methods.playNote(midiNote);
+//   }
+
+//   releaseNote(midiNote: number): void {
+//     this.methods.releaseNote(midiNote);
+//   }
+
+//   freezeNote(midiNote: number): void {
+//     this.methods.freezeNote(midiNote);
+//   }
+
+//   unfreezeNote(midiNote: number): void {
+//     this.methods.unfreezeNote(midiNote);
+//   }
+
+//   setVolume(volume: number): void {
+//     this.methods.setVolume(volume);
+//   }
+
+//   setPlaybackRate(rate: number): void {
+//     this.methods.setPlaybackRate(rate);
+//   }
+// }

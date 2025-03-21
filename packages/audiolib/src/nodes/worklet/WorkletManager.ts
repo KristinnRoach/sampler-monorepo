@@ -1,8 +1,17 @@
 import { AudioParamDescriptor } from '../types';
 export class WorkletManager {
+  private static instance: WorkletManager;
+
+  static getInstance(): WorkletManager {
+    if (!WorkletManager.instance) {
+      WorkletManager.instance = new WorkletManager();
+    }
+    return WorkletManager.instance;
+  }
+
   private registeredProcessors: Set<string>;
 
-  constructor() {
+  private constructor() {
     this.registeredProcessors = new Set();
   }
 
