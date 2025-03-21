@@ -1,4 +1,16 @@
 import { AudioParamDescriptor } from '../types';
+
+// todo: add a weakmap to store the blob urls and revoke them when the processor is unregistered
+
+// todo: possibly define processors when audiolib is initialized
+//  const manager = WorkletManager.getInstance();
+//  manager.registerProcessorDefinition('sine-oscillator', {
+//    processFunction: /* oscillator process fn */,
+//    params: [/* frequency, etc */]
+// });
+// Later simply create by name
+// const osc = await createNode(context, 'sine-oscillator', { frequency: 440 });
+
 export class WorkletManager {
   private static instance: WorkletManager;
 
