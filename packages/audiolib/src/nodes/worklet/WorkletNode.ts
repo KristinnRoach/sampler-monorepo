@@ -71,7 +71,6 @@ export class WorkletNode extends AudioWorkletNode {
 
   static async create(
     context: BaseAudioContext,
-    manager: WorkletManager,
     options: {
       processorName: string;
       processFunction: Function;
@@ -80,6 +79,21 @@ export class WorkletNode extends AudioWorkletNode {
       processorOptions?: Record<string, unknown>;
     }
   ): Promise<WorkletNode> {
+    // Todo: util function to check for audio worklet support and context state
+    const manager = WorkletManager.getInstance();
+
+    // if (!manager) {
+    //   throw new Error('WorkletManager is not initialized');
+    // }
+
+    // if (manager.hasRegistered(options.processorName)) {
+    //   return new WorkletNode(
+    //     context,
+    //     getStandardizedAWPNames(options.processorName),
+    //     options.nodeOptions
+    //   );
+    // }
+
     const {
       processorName,
       processFunction,

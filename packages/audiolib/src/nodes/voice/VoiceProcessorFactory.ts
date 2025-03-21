@@ -1,6 +1,4 @@
-import { WorkletManager } from '../worklet/WorkletManager';
-import { createWorkletNode } from '../worklet/workletFactory';
-import { WorkletNode } from '../worklet/WorkletNode';
+import { createWorkletNode, WorkletNode } from '../worklet/workletFactory';
 import { AudioParamDescriptor } from '../types';
 
 // Process function that will be converted to string and run in audio thread
@@ -31,15 +29,12 @@ function voiceProcessFunction(
 
 export async function createVoiceProcessor(
   context: BaseAudioContext,
-  manager: WorkletManager,
   processorName: string,
   params: AudioParamDescriptor[] = [],
   nodeOptions: AudioWorkletNodeOptions = {}
 ): Promise<WorkletNode> {
-  // Create the worklet node using the factory function
   return createWorkletNode(
     context,
-    manager,
     processorName,
     voiceProcessFunction,
     params,

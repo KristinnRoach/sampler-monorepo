@@ -1,10 +1,6 @@
 import { Component, onCleanup } from 'solid-js';
 import { createSignal, createEffect } from 'solid-js';
-import {
-  createVoiceProcessor,
-  WorkletManager,
-  WorkletNode,
-} from '@repo/audiolib';
+import { createVoiceProcessor, WorkletNode } from '@repo/audiolib';
 
 const VoiceProcessorTest: Component = () => {
   const [audioContext, setAudioContext] = createSignal<AudioContext | null>(
@@ -23,12 +19,7 @@ const VoiceProcessorTest: Component = () => {
     setAudioContext(ctx);
 
     // Create worklet manager and processor
-    const manager = new WorkletManager();
-    const voiceProcessor = await createVoiceProcessor(
-      ctx,
-      manager,
-      'voiceProcessor'
-    );
+    const voiceProcessor = await createVoiceProcessor(ctx, 'voiceProcessor');
 
     // Create gain node and connect processor to output
     const gainNode = ctx.createGain();
