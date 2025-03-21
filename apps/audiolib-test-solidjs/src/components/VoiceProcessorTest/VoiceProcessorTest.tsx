@@ -23,8 +23,7 @@ const VoiceProcessorTest: Component = () => {
 
     // Create gain node and connect processor to output
     const gainNode = ctx.createGain();
-    voiceProcessor.connect(gainNode);
-    gainNode.connect(ctx.destination);
+    voiceProcessor.connect(gainNode).connect(ctx.destination); // test chaining
 
     setProcessor(voiceProcessor);
   };
