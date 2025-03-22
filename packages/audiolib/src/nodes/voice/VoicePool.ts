@@ -21,7 +21,7 @@ export class VoicePool {
    */
   private async createVoice(): Promise<VoiceNode> {
     const voice = new VoiceNode(this.context);
-    await voice.init();
+    await voice.initWorklet();
     voice.connect(this.destination);
     this.voices.push(voice);
     return voice;
@@ -33,7 +33,7 @@ export class VoicePool {
    */
   play(buffer: AudioBuffer, startTime?: number): VoiceNode | null {
     // Find an inactive voice
-    let voice = this.voices.find((v) => !v.isActive());
+    let voice = this.voices.find((v) => !v.isAvailable());
 
     // If no inactive voice is found, steal the oldest one
     if (!voice && this.voices.length > 0) {
@@ -82,7 +82,7 @@ export class VoicePool {
    * Get the number of active voices
    */
   activeVoiceCount(): number {
-    return this.voices.filter((v) => v.isActive()).length;
+    return this.voices.filter((v) => v.isAvailable()).length;
   }
 
   /**
