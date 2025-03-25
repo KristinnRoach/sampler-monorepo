@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    include: ['src/**/*.test.ts'],
+    include: ['test/**/*.test.ts'],
+    coverage: {
+      reporter: ['text', 'html'],
+    },
+    testTimeout: 10000, // Increased timeout for tests
   },
 });

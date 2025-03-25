@@ -1,6 +1,6 @@
-// alternative voiceWorkletFactory.ts
+// voiceWorkletFactory.ts
 
-import { createWorkletNode, WorkletNode } from '../worklet/workletFactory';
+import { createWorkletNode, WorkletNode } from '../worklet/WorkletNode';
 import { AudioParamDescriptor } from '../types';
 
 // Process function that will be converted to string and run in audio thread
@@ -29,7 +29,7 @@ function voiceProcessFunction(
   return true;
 }
 
-export async function createVoiceProcessor(
+export async function createVoiceWorklet(
   context: BaseAudioContext,
   processorName: string,
   params: AudioParamDescriptor[] = [],

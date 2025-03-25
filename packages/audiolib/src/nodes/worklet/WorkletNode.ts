@@ -1,6 +1,34 @@
+import { AudioParamDescriptor } from '../types';
+import { registry } from './worklet-registry';
+import { getStandardizedAWPNames } from './worklet-utils';
+
+export async function createWorkletNode(
+  context: BaseAudioContext,
+  processorName: string,
+  processFunction?: Function,
+  params: AudioParamDescriptor[] = [],
+  nodeOptions = {}
+) {
+  // Register or get existing processor
+  if (processFunction) {
+    // registry.register is a no-op if already registered
+    await registry.register(context, processorName, {
+      processFunction,
+      params,
+    });
+  } else {
+    // todo: check if this works (should still register without processFunction, otherwise remove the else)
+    await registry.register(context, processorName);
+  }
+
+  // Create and return node
+  const { registryName, className } = getStandardizedAWPNames(processorName);
+  return new WorkletNode(context, { className, registryName }, nodeOptions);
+}
+
 // TODO: Consider making `connections` a WeakMap. Check support for AudioParam connections if needed.
 
-export class WorkletNode extends AudioWorkletNode {
+class WorkletNode extends AudioWorkletNode {
   private connections: Map<AudioNode, [number, number]>; // todo: make this a weakmap? Add AudioParam?
 
   constructor(
@@ -62,79 +90,4 @@ export class WorkletNode extends AudioWorkletNode {
   }
 }
 
-// draft drasl:
-// getParameterDescriptors(): AudioParamDescriptor[] {
-//   const { registryName } = getStandardizedAWPNames(this.constructor.name);
-//   const definition = registry.getDefinition(registryName);
-//   if (definition) {
-//     return definition.parameterDescriptors;
-//   }
-//   return [];
-// }
-// getParameterDescriptor(name: string): AudioParamDescriptor | undefined {
-//   const { registryName } = getStandardizedAWPNames(this.constructor.name);
-//   const definition = registry.getDefinition(registryName);
-//   if (definition) {
-//     return definition.parameterDescriptors.find((param) => param.name === name);
-//   }
-//   return undefined;
-// }
-// getParameterValue(name: string): number | undefined {
-//   const param = this.parameters.get(name);
-//   if (param) {
-//     return param.value;
-//   }
-//   return undefined;
-// }
-// getParameterValues(): Map<string, number> {
-//   const values = new Map<string, number>();
-//   this.parameters.forEach((param, name) => {
-//     values.set(name, param.value);
-//   });
-//   return values;
-// }
-
-// HENDA
-// static async create(
-//   context: BaseAudioContext,
-//   options: {
-//     processorName: string;
-//     processFunction: Function;
-//     params?: AudioParamDescriptor[];
-//     nodeOptions?: AudioWorkletNodeOptions;
-//     processorOptions?: Record<string, unknown>;
-//   }
-// ): Promise<WorkletNode> {
-//   if (!registry) {
-//     throw new Error('WorkletRegistry is not initialized');
-//   }
-
-//   if (registry.hasRegistered(options.processorName, context)) {
-//     return new WorkletNode(
-//       context,
-//       getStandardizedAWPNames(options.processorName),
-//       options.nodeOptions
-//     );
-//   }
-
-//   const {
-//     processorName,
-//     processFunction,
-//     params = [],
-//     nodeOptions = {},
-//     processorOptions = {},
-//   } = options;
-
-//   const { className, registryName } = getStandardizedAWPNames(processorName);
-
-//   const processorCode = generateProcessorCode(
-//     { className, registryName },
-//     processFunction,
-//     params,
-//     processorOptions
-//   );
-
-//   await registry.register(context, processorCode, registryName);
-
-//   return new WorkletNode(context, { className, registryName }, nodeOptions);
-// }
+export type { WorkletNode };

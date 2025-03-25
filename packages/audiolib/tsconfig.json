@@ -1,11 +1,12 @@
 {
   "compilerOptions": {
+    "strict": true,
+
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ESNext", "DOM"],
     "moduleResolution": "Node",
-    "strict": true, // Note: ensure is true after protoyping
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
@@ -18,8 +19,7 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@/*": ["./src/*"],
-      "@test/*": ["./test/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

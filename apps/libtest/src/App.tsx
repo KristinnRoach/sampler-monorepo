@@ -1,8 +1,6 @@
 import type { Component } from 'solid-js';
 import { createSignal } from 'solid-js';
-// import LoopWorkletTest from './components/LoopWorklet/LoopWorkletTest';
-import VoiceNodeTest from './components/VoiceNodeTest/VoiceNodeTest';
-// import VoiceProcessorTest from './components/VoiceProcessorTest/VoiceProcessorTest';
+import SSPlayerTest from './components/SingleSamplePlayer/SSPlayerTest';
 import styles from './App.module.css';
 
 type TestComponent = 'loop' | 'voice';
@@ -31,7 +29,7 @@ const App: Component = () => {
       </header>
       <main class={styles.main}>
         {/* {activeTest() === 'loop' ? <LoopWorkletTest /> : <VoiceNodeTest />} */}
-        <VoiceNodeTest />
+        <SSPlayerTest />
       </main>
     </div>
   );
