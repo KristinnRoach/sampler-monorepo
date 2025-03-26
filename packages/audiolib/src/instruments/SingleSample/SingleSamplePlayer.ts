@@ -1,6 +1,5 @@
-import { VoiceNode, createVoice } from './VoiceNode';
-import { createVoiceWorklet } from './voiceWorkletFactory';
-import { midiToDetune } from './midiUtils';
+import { VoiceNode, createVoice } from '@/nodes/voice/VoiceNode';
+import { midiToDetune } from '@/utils/midiUtils';
 import { getAudioContext } from '@/context/globalAudioContext';
 
 export async function createSingleSamplePlayer(
@@ -10,6 +9,7 @@ export async function createSingleSamplePlayer(
     polyphony?: number;
     rootNote?: number;
   },
+  onPositionUpdate?: (position: number, normalized: number) => void,
   output?: AudioNode
 ): Promise<SingleSamplePlayer> {
   const audioContext = await getAudioContext();
@@ -31,13 +31,17 @@ export async function createSingleSamplePlayer(
 
   await player.init(output);
 
+  if (onPositionUpdate && player.isInitialized) {
+    player.onPositionUpdate(onPositionUpdate);
+  }
+
   return player;
 }
 
 // Allocation strategy type - can be expanded in the future
 export type VoiceAllocationStrategy = 'oldest-first' | 'quietest-first';
 
-class SingleSamplePlayer {
+class SingleSamplePlayer extends EventTarget {
   // Core properties
   readonly id: string;
   #context: BaseAudioContext;
@@ -52,6 +56,8 @@ class SingleSamplePlayer {
   // Audio routing
   #playerGain: GainNode;
 
+  isInitialized: boolean = false;
+
   constructor(
     id: string,
     context: BaseAudioContext,
@@ -61,6 +67,7 @@ class SingleSamplePlayer {
       rootNote?: number;
     }
   ) {
+    super();
     this.id = id;
     this.#context = context;
     this.#buffer = buffer;
@@ -73,32 +80,11 @@ class SingleSamplePlayer {
   }
 
   async init(output: AudioNode = this.#context.destination): Promise<void> {
-    // Setup the worklet processor
-    const processorName = 'voice-processor';
-    const processorOptions = {
-      // Instead of passing the buffer, pass its properties
-      sampleRate: this.#buffer.sampleRate,
-      length: this.#buffer.length,
-      duration: this.#buffer.duration,
-      numberOfChannels: this.#buffer.numberOfChannels,
-      rootNote: this.#rootNote,
-    };
-
     // Initialize the voice pool
     for (let i = 0; i < this.#polyphony; i++) {
-      const voiceWorkletNode = await createVoiceWorklet(
-        this.#context,
-        processorName,
-        [],
-        {
-          processorOptions,
-        }
-      );
-
       const voice = await createVoice(
         this.#context,
         this.#buffer,
-        voiceWorkletNode,
         this.#rootNote
       );
       voice.connect(this.#playerGain);
@@ -106,6 +92,8 @@ class SingleSamplePlayer {
 
       this.#voices.push(voice);
     }
+
+    this.isInitialized = true;
   }
 
   /**
@@ -129,6 +117,15 @@ class SingleSamplePlayer {
     }
 
     return null;
+  }
+
+  /**
+   * Set a callback to receive position updates from all voices
+   */
+  onPositionUpdate(callback: (position: number, normalized: number) => void) {
+    this.#voices.forEach((voice) => {
+      voice.setPositionCallback(callback);
+    });
   }
 
   /**
@@ -200,8 +197,19 @@ class SingleSamplePlayer {
   /**
    * Get the total polyphony setting
    */
-  getPolyphony(): number {
+  get polyphony(): number {
     return this.#polyphony;
+  }
+
+  set polyphony(value: number) {
+    if (value < 1) {
+      throw new Error('Polyphony must be at least 1');
+    }
+    if (value > 32) {
+      throw new Error('Polyphony cannot exceed 32');
+    }
+
+    this.#polyphony = value;
   }
 
   /**

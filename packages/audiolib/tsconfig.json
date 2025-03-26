@@ -1,3 +1,4 @@
+// repo/packages/audiolib/tsconfig.json
 {
   "compilerOptions": {
     "strict": true,
@@ -19,8 +20,10 @@
     "outDir": "./dist",
     "noEmit": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@test/*": ["./test/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"] // "test"
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // We need to mock the module before importing it
-vi.mock('../src/context/globalAudioContext', async () => {
+vi.mock('@/context/globalAudioContext', async () => {
   // Create a mock function that we can control
   const mockGetAudioContext = vi.fn();
 
@@ -9,7 +9,7 @@ vi.mock('../src/context/globalAudioContext', async () => {
   };
 });
 
-import { getAudioContext } from '../src/context/globalAudioContext';
+import { getAudioContext } from './src/context/globalAudioContext';
 
 describe('globalAudioContext', () => {
   // Store original AudioContext
@@ -52,9 +52,9 @@ describe('globalAudioContext', () => {
       mockInstance as unknown as AudioContext
     );
 
-    const context = await getAudioContext();
+    const _context = await getAudioContext();
 
-    expect(context).toBe(mockInstance);
+    expect(_context).toBe(mockInstance);
     expect(getAudioContext).toHaveBeenCalledTimes(1);
   });
 
@@ -63,10 +63,10 @@ describe('globalAudioContext', () => {
       mockInstance as unknown as AudioContext
     );
 
-    const context1 = await getAudioContext();
-    const context2 = await getAudioContext();
+    const _context1 = await getAudioContext();
+    const _context2 = await getAudioContext();
 
-    expect(context1).toBe(context2);
+    expect(_context1).toBe(_context2);
     expect(getAudioContext).toHaveBeenCalledTimes(2);
   });
 
@@ -74,8 +74,6 @@ describe('globalAudioContext', () => {
     vi.mocked(getAudioContext).mockResolvedValue(
       mockInstance as unknown as AudioContext
     );
-
-    const context = await getAudioContext();
 
     // Since we're mocking the entire function, we can't test the internal resume setup
     // Instead, we're just testing that our mock was called correctly
@@ -87,8 +85,6 @@ describe('globalAudioContext', () => {
     vi.mocked(getAudioContext).mockResolvedValue(
       mockInstance as unknown as AudioContext
     );
-
-    const context = await getAudioContext();
 
     expect(getAudioContext).toHaveBeenCalledTimes(1);
   });

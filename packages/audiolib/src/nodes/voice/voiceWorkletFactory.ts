@@ -1,7 +1,12 @@
 // voiceWorkletFactory.ts
 
-import { createWorkletNode, WorkletNode } from '../worklet/WorkletNode';
-import { AudioParamDescriptor } from '../types';
+import {
+  createWorkletNode,
+  WorkletNode,
+} from '@/nodes/worklet/base/WorkletNode';
+import { AudioParamDescriptor } from '@/types/types';
+
+/* basic template for a bypass processor. */
 
 // Process function that will be converted to string and run in audio thread
 function voiceProcessFunction(
@@ -43,3 +48,22 @@ export async function createVoiceWorklet(
     nodeOptions
   );
 }
+
+// usage: const processorName = 'voice-processor';
+// const processorOptions = {
+//   // Instead of passing the buffer, pass its properties
+//   sampleRate: this.#buffer.sampleRate,
+//   length: this.#buffer.length,
+//   duration: this.#buffer.duration,
+//   numberOfChannels: this.#buffer.numberOfChannels,
+//   rootNote: this.#rootNote,
+// };
+
+// const voiceWorkletNode = await createVoiceWorklet(
+//   this.#context,
+//   processorName,
+//   [],
+//   {
+//     processorOptions,
+//   }
+// );

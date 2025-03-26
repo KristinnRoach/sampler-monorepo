@@ -14,7 +14,7 @@ type Result<T, E = Error> = Success<T> | Failure<E>;
 export async function tryCatch<T, E = Error>(
   promise: Promise<T>,
   errorMessage?: string,
-  logError: boolean = false
+  logError: boolean = true
 ): Promise<Result<T, E>> {
   try {
     const data = await promise;

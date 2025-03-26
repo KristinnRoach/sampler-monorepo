@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { registry } from '../src/nodes/worklet/worklet-registry';
-import { generateProcessorCode } from '../src/nodes/worklet/generateProcessorCode';
+import { registry } from '@/nodes/worklet/base/WorkletRegistry';
+import { generateProcessorCode } from '@/nodes/worklet/base/generateProcessorCode';
 
 // Move this section below the imports
-import * as ProcessorCodeModule from '../src/nodes/worklet/generateProcessorCode';
+import * as ProcessorCodeModule from '@/nodes/worklet/base/generateProcessorCode';
 
 // Set up mocks
 beforeEach(() => {

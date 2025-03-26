@@ -1,23 +1,23 @@
 {
   "name": "@repo/libtest",
-  "version": "0.0.0",
   "description": "",
-  "type": "module",
-  "scripts": {
-    "start": "vite",
-    "build": "vite build",
-    "dev": "vite",
-    "serve": "vite preview",
-    "clean": "rm -rf dist && rm -rf node_modules && rm -rf .turbo"
+  "version": "0.0.0",
+  "dependencies": {
+    "@repo/audiolib": "workspace:*",
+    "solid-js": "^1.9.3"
   },
-  "license": "MIT",
   "devDependencies": {
     "typescript": "^5.7.3",
     "vite": "^6.0.0",
     "vite-plugin-solid": "^2.11.1"
   },
-  "dependencies": {
-    "solid-js": "^1.9.3",
-    "@repo/audiolib": "workspace:*"
-  }
+  "license": "MIT",
+  "scripts": {
+    "build": "vite build",
+    "clean": "rm -rf dist",
+    "dev": "vite",
+    "serve": "vite preview",
+    "start": "vite"
+  },
+  "type": "module"
 }

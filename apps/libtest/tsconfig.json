@@ -10,9 +10,9 @@
     "jsxImportSource": "solid-js",
     "types": ["vite/client"],
     "noEmit": true,
-    "isolatedModules": true,
-    "paths": {
-      "@repo/audiolib": ["../../packages/audiolib/src"]
-    }
+    "isolatedModules": true
+    // "paths": {
+    //   "@repo/audiolib": ["../../packages/audiolib/src"]
+    // }
   }
 }

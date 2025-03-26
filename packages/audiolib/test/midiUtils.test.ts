@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { midiToPlaybackRate, midiToDetune } from '../src/nodes/voice/midiUtils';
+import { midiToPlaybackRate, midiToDetune } from '@/utils/midiUtils';
+
 describe('midiUtils', () => {
   describe('midiToPlaybackRate', () => {
     it('returns 1 when midiNote equals baseNote', () => {

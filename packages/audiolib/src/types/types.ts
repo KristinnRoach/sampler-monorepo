@@ -1,5 +1,3 @@
-// todo: remove the .d extension ?
-
 export interface AudioParamDescriptor {
   name: string;
   defaultValue: number;
@@ -10,6 +8,6 @@ export interface AudioParamDescriptor {
 
 export interface ProcessorDefinition {
   processFunction: Function;
-  params?: AudioParamDescriptor[];
-  options?: Record<string, unknown>;
+  processorParams?: AudioParamDescriptor[];
+  processorOptions?: Record<string, unknown>;
 }

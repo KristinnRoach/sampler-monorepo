@@ -1,15 +1,25 @@
 // VoiceNode.ts
-import { WorkletNode } from '../worklet/WorkletNode';
-import { midiToPlaybackRate } from './midiUtils';
+// import { createVoiceWorklet } from './voiceWorkletFactory';
+// import { WorkletNode } from '@/nodes/worklet/base/WorkletNode';
+
+import { midiToPlaybackRate } from '@/utils/midiUtils';
+import {
+  createPositionTrackingWorklet,
+  PositionTrackingWorklet,
+} from '@/nodes/worklet/positionTracker/positionTracker';
 
 export async function createVoice(
   context: BaseAudioContext,
   buffer: AudioBuffer,
-  workletNode: WorkletNode | null = null,
   rootNote: number = 60
+  // trackPlayPosition?: boolean
 ): Promise<VoiceNode> {
   const voice = new VoiceNode(context, buffer, rootNote);
-  await voice.init(workletNode);
+  const bufferDuration = buffer.duration;
+
+  // Create the tracker worklet node
+  const tracker = await createPositionTrackingWorklet(context, bufferDuration);
+  await voice.init(tracker);
   return voice;
 }
 
@@ -22,8 +32,13 @@ class VoiceNode extends EventTarget {
 
   #activeSource: AudioBufferSourceNode | null;
   #nextSource: AudioBufferSourceNode | null;
-  #workletNode: WorkletNode | null;
   #voiceGain: GainNode;
+  #positionTracker: PositionTrackingWorklet | null;
+
+  // #workletNode: WorkletNode | null;
+
+  #onPositionCallback: ((position: number, normalized: number) => void) | null =
+    null;
 
   constructor(
     context: BaseAudioContext,
@@ -42,26 +57,50 @@ class VoiceNode extends EventTarget {
     this.#nextSource = context.createBufferSource();
 
     this.#activeSource = null;
-    this.#workletNode = null;
+    this.#positionTracker = null;
   }
 
-  async init(workletNode: WorkletNode | null): Promise<void> {
+  async init(tracker?: PositionTrackingWorklet): Promise<void> {
     // Create the gain node
     this.#voiceGain = this.#context.createGain();
-    this.#voiceGain.gain.setValueAtTime(0, this.#now());
+    this.#voiceGain.gain.setValueAtTime(0, this.now());
 
     // Set the worklet node
-    this.#workletNode = workletNode || null;
+    this.#positionTracker = tracker || null;
 
     // Create source node
-    this.#nextSource = this.prepNextSource(this.#buffer);
+    this.#nextSource = this.#prepNextSource(this.#buffer);
 
     // Connect nodes
-    if (this.#workletNode) {
-      this.#nextSource.connect(this.#workletNode);
-      this.#workletNode.connect(this.#voiceGain);
+    if (this.#positionTracker) {
+      this.#positionTracker.setBufferInfo(this.#buffer.length);
+      this.#positionTracker.setReportInterval(4);
+
+      // Set up callback if already assigned
+      this.#onPositionCallback
+        ? this.#positionTracker.onPositionUpdate(this.#onPositionCallback)
+        : null; // null?
+
+      this.#nextSource.connect(this.#positionTracker);
+      this.#positionTracker.connect(this.#voiceGain);
     } else {
       this.#nextSource.connect(this.#voiceGain);
+    }
+  }
+
+  setPositionCallback(
+    callback: (position: number, normalized: number) => void
+  ): void {
+    this.#onPositionCallback = callback;
+
+    if (this.#positionTracker) {
+      this.#positionTracker.onPositionUpdate(callback);
+    }
+  }
+
+  #resetPosition(): void {
+    if (this.#positionTracker) {
+      this.#positionTracker.resetPosition();
     }
   }
 
@@ -69,9 +108,7 @@ class VoiceNode extends EventTarget {
    * Create and configure a buffer source
    * @param buffer Audio buffer to use
    */
-  private prepNextSource(
-    buffer: AudioBuffer = this.#buffer
-  ): AudioBufferSourceNode {
+  #prepNextSource(buffer: AudioBuffer = this.#buffer): AudioBufferSourceNode {
     const source = new AudioBufferSourceNode(this.#context, {
       buffer: buffer,
     });
@@ -79,9 +116,9 @@ class VoiceNode extends EventTarget {
     // Set the playback rate
     source.playbackRate.value = this.#basePlaybackRate;
 
-    if (!this.#workletNode) throw new Error('Worklet node not initialized');
+    if (!this.#positionTracker) throw new Error('Worklet node not initialized');
 
-    source.connect(this.#workletNode);
+    source.connect(this.#positionTracker);
 
     // Handle source ending
     source.onended = () => {
@@ -110,7 +147,7 @@ class VoiceNode extends EventTarget {
     return this.#activeSource === null && this.#nextSource !== null;
   }
 
-  #now(): number {
+  now(): number {
     return this.#context.currentTime;
   }
 
@@ -128,7 +165,7 @@ class VoiceNode extends EventTarget {
   play(
     detuneCents: number = 0,
     voiceGain: number = 1,
-    when: number = this.#now()
+    when: number = this.now()
   ): void {
     if (this.isPlaying())
       console.warn('Voice already playing when play() called');
@@ -142,7 +179,8 @@ class VoiceNode extends EventTarget {
     this.#activeSource!.start(when);
 
     // prep next source
-    this.#nextSource = this.prepNextSource(this.#buffer);
+    this.#nextSource = this.#prepNextSource(this.#buffer);
+    this.#resetPosition();
   }
 
   forceMakeAvailable(): void {
@@ -157,13 +195,13 @@ class VoiceNode extends EventTarget {
     }
 
     // Prepare a fresh source for the next play
-    this.#nextSource = this.prepNextSource(this.#buffer);
+    this.#nextSource = this.#prepNextSource(this.#buffer);
   }
 
   #ensureAllNodesExist(): void {
     // check if they exist and are connected
     if (!this.#voiceGain) console.warn('Gain node not initialized');
-    if (!this.#workletNode) console.warn('Worklet node not initialized');
+    if (!this.#positionTracker) console.warn('Worklet node not initialized');
     if (!this.#activeSource) console.warn('Active source not initialized');
     if (!this.#nextSource) console.warn('Next source not initialized');
 
@@ -171,7 +209,7 @@ class VoiceNode extends EventTarget {
       throw new Error('Active source is the same as next source');
   }
 
-  triggerRelease(releaseTime: number = 0.1, when: number = this.#now()): void {
+  triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
     this.#ensureAllNodesExist(); // todo: get rid of this method, just for debugging
 
     if (!this.isPlaying()) throw new Error('No playing source to release');

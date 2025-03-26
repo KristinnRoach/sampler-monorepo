@@ -1,10 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { generateProcessorCode } from '../src/nodes/worklet/generateProcessorCode';
-import { AudioParamDescriptor } from '../src/nodes/types';
+import { generateProcessorCode } from '@/nodes/worklet/base/generateProcessorCode';
+import { AudioParamDescriptor } from '@/types/types';
 
 describe('generateProcessorCode', () => {
   // Define a simple test process function
-  const testProcessFunc = function (inputs, outputs, parameters) {
+  interface ProcessInputs {
+    [index: number]: Float32Array[];
+  }
+
+  interface ProcessOutputs {
+    [index: number]: Float32Array[];
+  }
+
+  interface ProcessParameters {
+    [name: string]: Float32Array;
+  }
+
+  const testProcessFunc = function (
+    inputs: ProcessInputs,
+    outputs: ProcessOutputs,
+    _parameters: ProcessParameters
+  ): boolean {
     // Simple pass-through
     const input = inputs[0];
     const output = outputs[0];
@@ -69,7 +85,7 @@ describe('generateProcessorCode', () => {
   });
 
   it('should include constructor code when provided', () => {
-    const constructorCode = function () {
+    const constructorCode = function (this: any): void {
       this.initialized = true;
       console.log('Processor initialized');
     };
@@ -87,11 +103,11 @@ describe('generateProcessorCode', () => {
   });
 
   it('should include message handler when provided', () => {
-    const messageHandler = function (event) {
+    function messageHandler(this: any, event: MessageEvent): void {
       if (event.data.type === 'configure') {
         this.config = event.data.value;
       }
-    };
+    }
 
     const code = generateProcessorCode(
       { className: 'TestProcessor', registryName: 'test-processor' },

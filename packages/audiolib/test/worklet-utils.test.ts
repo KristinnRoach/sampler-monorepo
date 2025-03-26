@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getStandardizedAWPNames } from '../src/nodes/worklet/worklet-utils';
+import { getStandardizedAWPNames } from '@/nodes/worklet/base/worklet-utils';
 
 describe('worklet-utils', () => {
   describe('getStandardizedAWPNames', () => {

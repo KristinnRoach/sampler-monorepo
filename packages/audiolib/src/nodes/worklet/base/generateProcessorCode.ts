@@ -1,4 +1,4 @@
-import { AudioParamDescriptor } from '../types';
+import { AudioParamDescriptor } from '@/types/types';
 
 export function generateProcessorCode(
   { className, registryName }: { className: string; registryName: string },

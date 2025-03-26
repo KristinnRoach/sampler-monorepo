@@ -1,5 +1,5 @@
-export { createSingleSamplePlayer } from './nodes/voice/SingleSamplePlayer';
-export type { SingleSamplePlayer } from './nodes/voice/SingleSamplePlayer';
+export { createSingleSamplePlayer } from './instruments/SingleSample/SingleSamplePlayer';
+export type { SingleSamplePlayer } from './instruments/SingleSample/SingleSamplePlayer';
 
 export { loadAudioSample } from './utils/loadAudio';
 
