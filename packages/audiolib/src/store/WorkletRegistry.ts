@@ -1,9 +1,9 @@
 // WorkletRegistry.ts
 
-import { generateProcessorCode } from './generateProcessorCode';
-import { getStandardizedAWPNames } from './worklet-utils';
+import { generateProcessorCode } from '../utils/generateProcessorCode';
+import { getStandardizedAWPNames } from '../utils/worklet-utils';
 import { ProcessorDefinition, AudioParamDescriptor } from '../types/types';
-import { importFileAsBlob } from './worklet-utils';
+import { importFileAsBlob } from '../utils/worklet-utils';
 import { tryCatch } from '@/utils/tryCatch';
 
 type PathToProcessorJsFile = string;

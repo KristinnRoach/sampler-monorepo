@@ -1,6 +1,9 @@
+import BaseNode from '../interfaces/BaseNode';
+import { DEFAULTS } from './SharedByBaseNodes';
+
 import { AudioParamDescriptor } from '@/types/types';
-import { registry } from './WorkletRegistry';
-import { getStandardizedAWPNames } from './worklet-utils';
+import { registry } from '../../store/WorkletRegistry';
+import { getStandardizedAWPNames } from '../../utils/worklet-utils';
 
 export async function generateWorkletNode(
   audioContext: BaseAudioContext,
@@ -9,7 +12,7 @@ export async function generateWorkletNode(
   params: AudioParamDescriptor[] = [],
   nodeOptions = {},
   processorOptions = {}
-): Promise<WorkletNode> {
+): Promise<BaseWorkletNode> {
   // Register or get existing processor
   if (processFunction) {
     // register is a no-op if already registered
@@ -25,20 +28,20 @@ export async function generateWorkletNode(
 
   // Create and return node
   const { registryName } = getStandardizedAWPNames(processorName);
-  return new WorkletNode(audioContext, registryName, nodeOptions);
+  return new BaseWorkletNode(audioContext, registryName, nodeOptions);
 }
 
 export function createWorkletNode(
   audioContext: BaseAudioContext,
   registeredProcessorName: string,
   nodeOptions: AudioWorkletNodeOptions = {}
-): WorkletNode {
+): BaseWorkletNode {
   const { registryName } = getStandardizedAWPNames(registeredProcessorName);
-  return new WorkletNode(audioContext, registryName, nodeOptions);
+  return new BaseWorkletNode(audioContext, registryName, nodeOptions);
 }
 
 // TODO: Consider making `connections` a WeakMap. Check support for AudioParam connections if needed.
-class WorkletNode extends AudioWorkletNode {
+class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
   private connections: Map<AudioNode, [number, number]>; // todo: make this a weakmap? Add AudioParam?
 
   constructor(
@@ -75,20 +78,19 @@ class WorkletNode extends AudioWorkletNode {
     }
   }
 
-  setParam(name: string, value: number, time = 0): boolean {
-    const param = (this.parameters as any)[name];
-    if (!param) {
-      console.warn(`Parameter "${name}" not found`);
-      return false;
-    }
-
-    if (time > 0) {
-      param.setValueAtTime(value, this.context.currentTime + time);
-    } else {
-      param.value = value;
-    }
-
-    return true;
+  setParam(
+    name: string,
+    value: number,
+    rampTime?: number,
+    offsetSeconds?: number
+  ): boolean {
+    return DEFAULTS.METHODS.setParam(
+      this,
+      name,
+      value,
+      rampTime,
+      offsetSeconds
+    );
   }
 
   setActive(active: boolean): void {
@@ -100,7 +102,8 @@ class WorkletNode extends AudioWorkletNode {
   }
 }
 
-export { WorkletNode };
+export { BaseWorkletNode };
+
 // export default WorkletNode;
 
 // interface AudioWorkletProcessorOptions {

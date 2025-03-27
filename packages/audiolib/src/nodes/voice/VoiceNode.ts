@@ -6,24 +6,30 @@ import {
   createPositionTrackingWorklet,
   PositionTrackingWorklet,
 } from '@/processors/positionTracker/positionTracker';
+import { BaseAudioNode } from '@/base/classes/BaseAudioNode';
 
 export async function createVoice(
   context: BaseAudioContext,
   buffer: AudioBuffer,
-  rootNote: number = 60
-  // trackPlayPosition?: boolean
+  rootNote: number = 60,
+  trackPlayPosition?: boolean
 ): Promise<VoiceNode> {
   const voice = new VoiceNode(context, buffer, rootNote);
   const bufferDuration = buffer.duration;
 
-  // Create the tracker worklet node
-  const tracker = await createPositionTrackingWorklet(context, bufferDuration);
-  await voice.init(tracker);
+  if (trackPlayPosition) {
+    const tracker = await createPositionTrackingWorklet(
+      context,
+      bufferDuration
+    );
+    await voice.init(tracker);
+  } else {
+    await voice.init();
+  }
   return voice;
 }
 
-class VoiceNode {
-  // extends AudioWorkletNode | WorkletNode
+class VoiceNode extends BaseAudioNode {
   #context: BaseAudioContext;
   #buffer: AudioBuffer;
 
@@ -31,7 +37,7 @@ class VoiceNode {
   #rootNote: number; // MIDI note number of the original sample
 
   #activeSource: AudioBufferSourceNode | null;
-  #nextSource: AudioBufferSourceNode | null;
+  #nextSource: AudioBufferSourceNode;
   #voiceGain: GainNode;
   #positionTracker: PositionTrackingWorklet | null;
 
@@ -43,9 +49,11 @@ class VoiceNode {
   constructor(
     context: BaseAudioContext,
     buffer: AudioBuffer,
-    rootNote: number = 60
+    rootNote: number = 60,
+    options: AudioNodeOptions = {}
   ) {
-    // super(context, 'voice-processor', {});
+    super(context, options);
+
     this.#context = context;
     this.#buffer = buffer;
 
@@ -65,24 +73,24 @@ class VoiceNode {
     this.#voiceGain = this.#context.createGain();
     this.#voiceGain.gain.setValueAtTime(0, this.now());
 
-    // Set the worklet node
-    this.#positionTracker = tracker || null;
-
     // Create source node
     this.#nextSource = this.#prepNextSource(this.#buffer);
 
-    // Connect nodes
-    if (this.#positionTracker) {
-      this.#positionTracker.setBufferInfo(this.#buffer.length);
-      this.#positionTracker.setReportInterval(4);
+    // Connect and setup worklet if provided
+    if (tracker) {
+      tracker.setBufferInfo(this.#buffer.length);
+      tracker.setReportInterval(4);
 
       // Set up callback if already assigned
       this.#onPositionCallback
-        ? this.#positionTracker.onPositionUpdate(this.#onPositionCallback)
+        ? tracker.onPositionUpdate(this.#onPositionCallback)
         : null; // null?
 
-      this.#nextSource.connect(this.#positionTracker);
-      this.#positionTracker.connect(this.#voiceGain);
+      this.#nextSource.connect(tracker);
+      tracker.connect(this.#voiceGain);
+
+      // Set the field to the tracker
+      this.#positionTracker = tracker;
     } else {
       this.#nextSource.connect(this.#voiceGain);
     }
@@ -116,10 +124,11 @@ class VoiceNode {
     // Set the playback rate
     source.playbackRate.value = this.#basePlaybackRate;
 
-    if (!this.#positionTracker) throw new Error('Worklet node not initialized');
-
-    source.connect(this.#positionTracker);
-
+    if (this.#positionTracker) {
+      source.connect(this.#positionTracker);
+    } else {
+      source.connect(this.#voiceGain);
+    }
     // Handle source ending
     source.onended = () => {
       if (source === this.#activeSource) {

@@ -1,6 +1,9 @@
 // voiceWorkletFactory.ts
 
-import { generateWorkletNode, WorkletNode } from '@/base/WorkletNode';
+import {
+  generateWorkletNode,
+  BaseWorkletNode,
+} from '@/base/classes/BaseWorkletNode';
 import { AudioParamDescriptor } from '@/types/types';
 
 /* basic template for a bypass processor. */
@@ -36,7 +39,7 @@ export async function createVoiceWorklet(
   processorName: string,
   params: AudioParamDescriptor[] = [],
   nodeOptions: AudioWorkletNodeOptions = {}
-): Promise<WorkletNode> {
+): Promise<BaseWorkletNode> {
   return generateWorkletNode(
     context,
     processorName,

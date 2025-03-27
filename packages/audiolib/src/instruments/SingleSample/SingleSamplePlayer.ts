@@ -1,6 +1,13 @@
 import { VoiceNode, createVoice } from '@/nodes/voice/VoiceNode';
 import { midiToDetune } from '@/utils/midiUtils';
 import { getAudioContext } from '@/context/globalAudioContext';
+import {
+  createWorkletNode,
+  BaseWorkletNode,
+} from '@/base/classes/BaseWorkletNode';
+
+// TEMP
+import { registry } from '@/store/WorkletRegistry';
 
 export async function createSingleSamplePlayer(
   id: string,
@@ -17,10 +24,10 @@ export async function createSingleSamplePlayer(
 
   if (!output) {
     output = audioContext.destination;
-    console.warn(
-      'No output node provided. Defaulting to AudioContext destination.'
-    );
+    console.log('Connecting sample player output to AudioContext destination.');
   }
+
+  const shouldTrackPosition = onPositionUpdate !== undefined || false;
 
   const player = new SingleSamplePlayer(
     id,
@@ -29,7 +36,7 @@ export async function createSingleSamplePlayer(
     options
   );
 
-  await player.init(output);
+  await player.init(output, shouldTrackPosition);
 
   if (onPositionUpdate && player.isInitialized) {
     player.onPositionUpdate(onPositionUpdate);
@@ -55,6 +62,7 @@ class SingleSamplePlayer extends EventTarget {
 
   // Audio routing
   #playerGain: GainNode;
+  #loopProcessor: BaseWorkletNode | null = null;
 
   isInitialized: boolean = false;
 
@@ -79,19 +87,59 @@ class SingleSamplePlayer extends EventTarget {
     this.#playerGain.gain.value = 1.0;
   }
 
-  async init(output: AudioNode = this.#context.destination): Promise<void> {
+  async init(
+    output: AudioNode = this.#context.destination,
+    trackPlayPosition: boolean
+  ): Promise<void> {
+    // TEMP
+    if (!this.#context.audioWorklet) {
+      throw new Error('AudioWorklet is not supported in this context');
+    }
+
+    // Check if the processor is already registered (DEFINED?)
+    const processorName = 'loop-processor';
+    if (!registry.hasRegistered(processorName)) {
+      // Register the processor
+      await this.#context.audioWorklet.addModule(
+        new URL(`./processors/${processorName}.js`, import.meta.url)
+      );
+    }
+
+    // Create the loop processor
+    this.#loopProcessor = createWorkletNode(this.#context, 'loop-processor');
+
+    if (!this.#loopProcessor) {
+      throw new Error('Failed to create loop processor');
+    }
+
+    if (this.#loopProcessor.port) {
+      this.#loopProcessor.port.postMessage({
+        type: 'init',
+        buffer: this.#buffer,
+        trackPlayPosition,
+      });
+    }
+
     // Initialize the voice pool
     for (let i = 0; i < this.#polyphony; i++) {
       const voice = await createVoice(
         this.#context,
         this.#buffer,
-        this.#rootNote
+        this.#rootNote,
+        trackPlayPosition
       );
-      voice.connect(this.#playerGain);
-      this.#playerGain.connect(output);
+      voice.connect(this.#loopProcessor);
 
       this.#voices.push(voice);
     }
+
+    this.#loopProcessor.connect(this.#playerGain);
+    this.#playerGain.connect(output);
+
+    // this.#loopProcessor.port.postMessage({
+    //   type: 'set-voices',
+    //   voices: this.#voices.map((voice) => voice.id),
+    // });
 
     this.isInitialized = true;
   }

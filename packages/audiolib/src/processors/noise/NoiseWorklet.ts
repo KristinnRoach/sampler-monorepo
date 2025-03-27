@@ -7,16 +7,14 @@ import { getAudioContext } from '@/context/globalAudioContext';
 // import processorCode from './noise-processor.js?raw';
 // or
 
-export class NoiseTest {
+export class RandomNoiseWorklet {
   ctx: AudioContext | null = null;
   gain: GainNode | null = null;
   noise: AudioWorkletNode | null = null;
-  constructor() {
-    console.log('NoiseTest constructor');
-  }
+  constructor() {}
 
   async start() {
-    console.log('NoiseTest start');
+    console.log('Noise start');
 
     this.ctx = await getAudioContext();
 
@@ -38,18 +36,14 @@ export class NoiseTest {
       type: 'application/javascript',
     });
 
-    // const code = await loadFileAsString('./noise-processor.js');
-    console.log('NoiseWorklet code:', code);
-
     const promise = this.ctx.audioWorklet.addModule(URL.createObjectURL(blob));
 
     await tryCatch(promise, `Error registering processor noise-processor`);
 
-    this.noise = new AudioWorkletNode(this.ctx, 'noise-processor', {
+    this.noise = new AudioWorkletNode(this.ctx, 'random-noise-processor', {
       outputChannelCount: [1],
     });
 
-    console.log('NoiseWorklet module loaded');
     this.noise.connect(this.gain);
     this.gain.connect(this.ctx.destination);
   }
@@ -62,6 +56,5 @@ export class NoiseTest {
     }
     this.gain?.disconnect();
     this.gain = null;
-    this.ctx?.suspend();
   }
 }

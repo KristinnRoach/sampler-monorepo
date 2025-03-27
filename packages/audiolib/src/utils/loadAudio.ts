@@ -1,11 +1,11 @@
 // src/utils/loadAudio.ts
 
-import { getAudioContext } from '../context/globalAudioContext';
+import { getAudioContext } from '@/context/globalAudioContext';
 import {
   storeAudioSample,
   getAudioSample,
   hasAudioSample,
-} from '../idb/audioStorage';
+} from '@/store/idb/audioStorage';
 
 /**
  * Loads and decodes an audio sample from a URL or file path

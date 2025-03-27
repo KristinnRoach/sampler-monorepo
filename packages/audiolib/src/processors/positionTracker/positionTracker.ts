@@ -1,10 +1,13 @@
 // positionTracker.ts - (Event Listener Approach ?)
 
-import { generateWorkletNode, WorkletNode } from '../../base/WorkletNode';
+import {
+  generateWorkletNode,
+  BaseWorkletNode,
+} from '@/base/classes/BaseWorkletNode';
 import { AudioParamDescriptor } from '@/types/types';
-import { createMessageHandler } from '../../base/messageHandlerFactory';
+import { createMessageHandler } from '@/base/misc-flokka-henda/messageHandlerFactory';
 
-export interface PositionTrackingWorklet extends WorkletNode {
+export interface PositionTrackingWorklet extends BaseWorkletNode {
   resetPosition(): void;
   setBufferInfo(length: number): void;
   setReportInterval(frames: number): void;

@@ -1,6 +1,6 @@
 // src/idb/audioStorage.ts
 import { db, ISampleItem } from './db';
-import { getAudioContext } from '../context/globalAudioContext';
+import { getAudioContext } from '@/context/globalAudioContext';
 
 /**
  * Stores an AudioBuffer in IndexedDB
