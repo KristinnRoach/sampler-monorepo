@@ -1,12 +1,11 @@
 // VoiceNode.ts
 // import { createVoiceWorklet } from './voiceWorkletFactory';
 // import { WorkletNode } from '@/nodes/worklet/base/WorkletNode';
-
 import { midiToPlaybackRate } from '@/utils/midiUtils';
 import {
   createPositionTrackingWorklet,
   PositionTrackingWorklet,
-} from '@/nodes/worklet/positionTracker/positionTracker';
+} from '@/processors/positionTracker/positionTracker';
 
 export async function createVoice(
   context: BaseAudioContext,
@@ -23,7 +22,8 @@ export async function createVoice(
   return voice;
 }
 
-class VoiceNode extends EventTarget {
+class VoiceNode {
+  // extends AudioWorkletNode | WorkletNode
   #context: BaseAudioContext;
   #buffer: AudioBuffer;
 
@@ -45,7 +45,7 @@ class VoiceNode extends EventTarget {
     buffer: AudioBuffer,
     rootNote: number = 60
   ) {
-    super();
+    // super(context, 'voice-processor', {});
     this.#context = context;
     this.#buffer = buffer;
 

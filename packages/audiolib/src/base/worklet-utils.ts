@@ -1,3 +1,15 @@
+export async function importFileAsBlob(path: string): Promise<Blob> {
+  const code = await import(
+    /* @vite-ignore */
+    `${path}?raw`
+  ).then((m) => m.default);
+
+  const blob = new Blob([code], {
+    type: 'application/javascript',
+  });
+  return blob;
+}
+
 // /**
 //  * Standardizes naming for audio worklet processors,
 //  * class name convention: class SomeProcessor extends AudioWorkletProcessor

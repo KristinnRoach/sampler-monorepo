@@ -1,8 +1,8 @@
-// positionTrackingFactory.ts - Event Listener Approach
+// positionTracker.ts - (Event Listener Approach ?)
 
-import { createWorkletNode, WorkletNode } from '../base/WorkletNode';
+import { generateWorkletNode, WorkletNode } from '../../base/WorkletNode';
 import { AudioParamDescriptor } from '@/types/types';
-import { createMessageHandler } from '../base/messageHandlerFactory';
+import { createMessageHandler } from '../../base/messageHandlerFactory';
 
 export interface PositionTrackingWorklet extends WorkletNode {
   resetPosition(): void;
@@ -86,17 +86,13 @@ export async function createPositionTrackingWorklet(
     totalSamples: bufferLength || 0,
   };
 
-  // const nodeOptions: AudioWorkletNodeOptions = {
-  //   processorOptions: initialState,
-  // };
-
   const processorOptions = {
     state: initialState,
     messageHandler: positionTrackerMessageHandler,
   };
 
   // Create worklet node
-  const node = await createWorkletNode(
+  const node = await generateWorkletNode(
     context,
     processorName,
     positionTrackingProcess,
@@ -108,10 +104,12 @@ export async function createPositionTrackingWorklet(
 
   // Add methods to interact with the processor
   positionTrackingNode.resetPosition = () => {
+    console.log('resetPosition');
     positionTrackingNode.port.postMessage({ command: 'reset' });
   };
 
   positionTrackingNode.setBufferInfo = (length: number) => {
+    console.log('setBufferInfo', length);
     positionTrackingNode.port.postMessage({
       command: 'setBufferInfo',
       bufferLength: length,
@@ -119,6 +117,7 @@ export async function createPositionTrackingWorklet(
   };
 
   positionTrackingNode.setReportInterval = (frames: number) => {
+    console.log('setReportInterval', frames);
     positionTrackingNode.port.postMessage({
       command: 'setReportInterval',
       interval: frames,

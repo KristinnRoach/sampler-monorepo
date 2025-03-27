@@ -2,8 +2,19 @@
 
 import { generateProcessorCode } from './generateProcessorCode';
 import { getStandardizedAWPNames } from './worklet-utils';
-import { ProcessorDefinition } from '../../../types/types';
+import { ProcessorDefinition, AudioParamDescriptor } from '../types/types';
+import { importFileAsBlob } from './worklet-utils';
 import { tryCatch } from '@/utils/tryCatch';
+
+type PathToProcessorJsFile = string;
+
+type ProcessorInfo =
+  | {
+      processFunction: Function;
+      processorParams?: AudioParamDescriptor[];
+      processorOptions?: Record<string, unknown>;
+    }
+  | PathToProcessorJsFile;
 
 class WorkletRegistry {
   private static instance: WorkletRegistry;
@@ -20,18 +31,12 @@ class WorkletRegistry {
     return WorkletRegistry.instance;
   }
 
-  // Single register method that handles both definition and context registration
-  async register(
+  async registerFromPath(
     context: BaseAudioContext,
     name: string,
-    definition?: ProcessorDefinition
+    path: string
   ): Promise<string> {
-    const { registryName, className } = getStandardizedAWPNames(name);
-
-    // Store definition if provided
-    if (definition) {
-      this.registeredDefinitions.set(registryName, definition);
-    }
+    const { registryName } = getStandardizedAWPNames(name);
 
     // Check if already registered with this context
     const existingProcessors =
@@ -42,18 +47,61 @@ class WorkletRegistry {
       return registryName;
     }
 
+    // Get code from path as string
+    const codeBlob = await importFileAsBlob(path);
+
+    // const promise =
+    await context.audioWorklet.addModule(URL.createObjectURL(codeBlob));
+
+    // await tryCatch(promise, `Error registering processor ${name}:`);
+
+    // Track registration
+    if (!this.registeredProcessors.has(context)) {
+      this.registeredProcessors.set(context, new Set());
+    }
+
+    this.registeredProcessors.get(context)!.add(registryName);
+
+    return registryName;
+  }
+
+  // Single register method that handles both definition and context registration
+  async register(
+    context: BaseAudioContext,
+    name: string,
+    definition?: ProcessorInfo
+  ): Promise<string> {
+    const { registryName, className } = getStandardizedAWPNames(name);
+
+    // Store definition if provided
+    if (typeof definition === 'object' && 'processFunction' in definition) {
+      this.registeredDefinitions.set(registryName, definition);
+    }
+
+    // Check if already registered with this context
+    const existingProcessors =
+      this.registeredProcessors.get(context) || new Set();
+
+    // If already registered, return the registry name
+    if (existingProcessors.has(registryName)) {
+      console.warn(
+        `Processor ${name} already registered with this context. Skipping registration.`
+      );
+      return registryName;
+    }
+
     // Get definition or throw
-    const existingDefinitionName = this.registeredDefinitions.get(registryName);
-    if (!existingDefinitionName) {
+    const def = this.registeredDefinitions.get(registryName);
+    if (!def) {
       throw new Error(`Processor ${name} not defined`);
     }
 
     // Generate and register
     const processorCode = generateProcessorCode(
       { className, registryName },
-      existingDefinitionName.processFunction,
-      existingDefinitionName.processorParams || [],
-      existingDefinitionName.processorOptions || {}
+      def.processFunction,
+      def.processorParams || [],
+      def.processorOptions || {}
     );
 
     const blob = new Blob([processorCode], {
@@ -77,6 +125,7 @@ class WorkletRegistry {
   hasRegistered(name: string, audioContext?: BaseAudioContext): boolean {
     // todo: make cleaner
     const { registryName } = getStandardizedAWPNames(name);
+    // todo: skip this if name has correct format  // todo: make naming function idempotent
     if (audioContext) {
       const contextProcessors = this.registeredProcessors.get(audioContext);
       return contextProcessors ? contextProcessors.has(registryName) : false;

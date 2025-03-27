@@ -1,18 +1,39 @@
-// voiceWorkletFactory.ts
+// loopWorkletFactory.ts
 
-import { generateWorkletNode, WorkletNode } from '@/base/WorkletNode';
+import {
+  createWorkletNode,
+  WorkletNode,
+} from '@/nodes/worklet/base/WorkletNode';
 import { AudioParamDescriptor } from '@/types/types';
 
 /* basic template for a bypass processor. */
 
 // Process function that will be converted to string and run in audio thread
-function voiceProcessFunction(
+function loopProcessFunction(
   inputs: Float32Array[][],
   outputs: Float32Array[][],
   _parameters: Record<string, Float32Array>
 ): boolean {
   const input = inputs[0];
   const output = outputs[0];
+
+  // Get parameter values
+  const targetLoopStart = _parameters.loopStart[0];
+  const targetLoopEnd = _parameters.loopEnd[0];
+  const interpolationSpeed = _parameters.interpolationSpeed[0];
+
+  // Smoothly interpolate loop points
+  this.currentLoopStart +=
+    (targetLoopStart - this.currentLoopStart) * interpolationSpeed;
+  this.currentLoopEnd +=
+    (targetLoopEnd - this.currentLoopEnd) * interpolationSpeed;
+
+  // Send updated loop points to main thread to update the AudioBufferSourceNode
+  this.port.postMessage({
+    type: 'update',
+    loopStart: this.currentLoopStart,
+    loopEnd: this.currentLoopEnd,
+  });
 
   // If we have input data, copy it to output
   if (input && input.length > 0) {
@@ -31,36 +52,17 @@ function voiceProcessFunction(
   return true;
 }
 
-export async function createVoiceWorklet(
+export async function createLoopWorklet(
   context: BaseAudioContext,
   processorName: string,
   params: AudioParamDescriptor[] = [],
   nodeOptions: AudioWorkletNodeOptions = {}
 ): Promise<WorkletNode> {
-  return generateWorkletNode(
+  return createWorkletNode(
     context,
     processorName,
-    voiceProcessFunction,
+    loopProcessFunction,
     params,
     nodeOptions
   );
 }
-
-// usage: const processorName = 'voice-processor';
-// const processorOptions = {
-//   // Instead of passing the buffer, pass its properties
-//   sampleRate: this.#buffer.sampleRate,
-//   length: this.#buffer.length,
-//   duration: this.#buffer.duration,
-//   numberOfChannels: this.#buffer.numberOfChannels,
-//   rootNote: this.#rootNote,
-// };
-
-// const voiceWorkletNode = await createVoiceWorklet(
-//   this.#context,
-//   processorName,
-//   [],
-//   {
-//     processorOptions,
-//   }
-// );

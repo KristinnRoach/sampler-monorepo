@@ -22,6 +22,7 @@ export function generateProcessorCode(
     funcBody.lastIndexOf('}')
   );
 
+  // State initialization for constructor
   const stateInit = options.state
     ? Object.entries(options.state)
         .map(([key, value]) => `this.${key} = ${JSON.stringify(value)};`)

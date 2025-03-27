@@ -2,7 +2,7 @@ import { AudioParamDescriptor } from '@/types/types';
 import { registry } from './WorkletRegistry';
 import { getStandardizedAWPNames } from './worklet-utils';
 
-export async function createWorkletNode(
+export async function generateWorkletNode(
   audioContext: BaseAudioContext,
   processorName: string,
   processFunction?: Function,
@@ -12,7 +12,7 @@ export async function createWorkletNode(
 ): Promise<WorkletNode> {
   // Register or get existing processor
   if (processFunction) {
-    // registry.register is a no-op if already registered
+    // register is a no-op if already registered
     await registry.register(audioContext, processorName, {
       processFunction,
       processorParams: params,
@@ -24,25 +24,29 @@ export async function createWorkletNode(
   }
 
   // Create and return node
-  const { registryName, className } = getStandardizedAWPNames(processorName);
-  return new WorkletNode(
-    audioContext,
-    { className, registryName },
-    nodeOptions
-  );
+  const { registryName } = getStandardizedAWPNames(processorName);
+  return new WorkletNode(audioContext, registryName, nodeOptions);
+}
+
+export function createWorkletNode(
+  audioContext: BaseAudioContext,
+  registeredProcessorName: string,
+  nodeOptions: AudioWorkletNodeOptions = {}
+): WorkletNode {
+  const { registryName } = getStandardizedAWPNames(registeredProcessorName);
+  return new WorkletNode(audioContext, registryName, nodeOptions);
 }
 
 // TODO: Consider making `connections` a WeakMap. Check support for AudioParam connections if needed.
-
 class WorkletNode extends AudioWorkletNode {
   private connections: Map<AudioNode, [number, number]>; // todo: make this a weakmap? Add AudioParam?
 
   constructor(
     context: BaseAudioContext,
-    standardizedWAPNames: { registryName: string; className: string },
+    processorName: string,
     options: AudioWorkletNodeOptions = {}
   ) {
-    super(context, standardizedWAPNames.registryName, options);
+    super(context, processorName, options);
     this.connections = new Map();
   }
 
@@ -96,4 +100,37 @@ class WorkletNode extends AudioWorkletNode {
   }
 }
 
-export type { WorkletNode };
+export { WorkletNode };
+// export default WorkletNode;
+
+// interface AudioWorkletProcessorOptions {
+//   processorName?: string;
+//   processorState?: Record<string, any>;
+//   processorCode?: string;
+//   constructorCode?: Function;
+//   messageHandler?: Function;
+//   processFunction?: Function;
+//   params?: AudioParamDescriptor[];
+//   options?: {
+//     state?: Record<string, unknown>;
+//     constructorCode?: Function;
+//     messageHandler?: Function;
+//   };
+// }
+
+// interface AudioWorkletNodeOptions {
+//   outputChannelCount?: number[];
+//   channelCount?: number;
+//   channelCountMode?: 'max' | 'clamped-max' | 'explicit';
+//   channelInterpretation?: 'speakers' | 'discrete';
+//   numberOfInputs?: number;
+//   numberOfOutputs?: number;
+//   processorOptions?: Record<string, any>;
+//   parameterData?: Record<string, number>;
+//   port?: MessagePort;
+//   tailTime?: number;
+//   renderQuantumRange?: [number, number];
+//   processorName?: string;
+//   processorState?: Record<string, any>;
+//   processorCode?: string;
+// }
