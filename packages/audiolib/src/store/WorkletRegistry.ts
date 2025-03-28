@@ -1,27 +1,13 @@
 // WorkletRegistry.ts
 
-import { generateProcessorCode } from '../utils/generateProcessorCode';
+import { getAudioContext } from '@/context/globalAudioContext';
 import { getStandardizedAWPNames } from '../utils/worklet-utils';
-import { ProcessorDefinition, AudioParamDescriptor } from '../types/types';
 import { importFileAsBlob } from '../utils/worklet-utils';
-import { tryCatch } from '@/utils/tryCatch';
-
-type PathToProcessorJsFile = string;
-
-type ProcessorInfo =
-  | {
-      processFunction: Function;
-      processorParams?: AudioParamDescriptor[];
-      processorOptions?: Record<string, unknown>;
-    }
-  | PathToProcessorJsFile;
 
 class WorkletRegistry {
   private static instance: WorkletRegistry;
-  private registeredDefinitions: Map<string, ProcessorDefinition> = new Map();
   private registeredProcessors = new Map<BaseAudioContext, Set<string>>();
 
-  // Singleton pattern to ensure only one instance of WorkletRegistry
   private constructor() {}
 
   static getInstance(): WorkletRegistry {
@@ -31,16 +17,22 @@ class WorkletRegistry {
     return WorkletRegistry.instance;
   }
 
-  async registerFromPath(
-    context: BaseAudioContext,
-    name: string,
-    path: string
+  async register(
+    path: string,
+    name: string, // todo: optional (inferred from name)
+    context?: BaseAudioContext // todo: optional (inferred from the global getAudioContext)
   ): Promise<string> {
+    const ctx = context ? context : await getAudioContext();
+
+    if (!ctx)
+      throw console.error(
+        'no AudioContext available for registering audioWorkletProcessors'
+      );
+
     const { registryName } = getStandardizedAWPNames(name);
 
-    // Check if already registered with this context
-    const existingProcessors =
-      this.registeredProcessors.get(context) || new Set();
+    // Check if registered with this context
+    const existingProcessors = this.registeredProcessors.get(ctx) || new Set();
 
     // If already registered, return the registry name
     if (existingProcessors.has(registryName)) {
@@ -51,81 +43,21 @@ class WorkletRegistry {
     const codeBlob = await importFileAsBlob(path);
 
     // const promise =
-    await context.audioWorklet.addModule(URL.createObjectURL(codeBlob));
-
-    // await tryCatch(promise, `Error registering processor ${name}:`);
+    await ctx.audioWorklet.addModule(URL.createObjectURL(codeBlob));
 
     // Track registration
-    if (!this.registeredProcessors.has(context)) {
-      this.registeredProcessors.set(context, new Set());
+    if (!this.registeredProcessors.has(ctx)) {
+      this.registeredProcessors.set(ctx, new Set());
     }
 
-    this.registeredProcessors.get(context)!.add(registryName);
-
-    return registryName;
-  }
-
-  // Single register method that handles both definition and context registration
-  async register(
-    context: BaseAudioContext,
-    name: string,
-    definition?: ProcessorInfo
-  ): Promise<string> {
-    const { registryName, className } = getStandardizedAWPNames(name);
-
-    // Store definition if provided
-    if (typeof definition === 'object' && 'processFunction' in definition) {
-      this.registeredDefinitions.set(registryName, definition);
-    }
-
-    // Check if already registered with this context
-    const existingProcessors =
-      this.registeredProcessors.get(context) || new Set();
-
-    // If already registered, return the registry name
-    if (existingProcessors.has(registryName)) {
-      console.warn(
-        `Processor ${name} already registered with this context. Skipping registration.`
-      );
-      return registryName;
-    }
-
-    // Get definition or throw
-    const def = this.registeredDefinitions.get(registryName);
-    if (!def) {
-      throw new Error(`Processor ${name} not defined`);
-    }
-
-    // Generate and register
-    const processorCode = generateProcessorCode(
-      { className, registryName },
-      def.processFunction,
-      def.processorParams || [],
-      def.processorOptions || {}
-    );
-
-    const blob = new Blob([processorCode], {
-      type: 'application/javascript',
-    });
-
-    const promise = context.audioWorklet.addModule(URL.createObjectURL(blob));
-
-    await tryCatch(promise, `Error registering processor ${name}:`);
-
-    // Track registration
-    if (!this.registeredProcessors.has(context)) {
-      this.registeredProcessors.set(context, new Set());
-    }
-
-    this.registeredProcessors.get(context)!.add(registryName);
+    this.registeredProcessors.get(ctx)!.add(registryName);
 
     return registryName;
   }
 
   hasRegistered(name: string, audioContext?: BaseAudioContext): boolean {
-    // todo: make cleaner
+    // todo: skip if name already has correct format, also.. -->  ensure getStandardizedAWPNames is idempotent!
     const { registryName } = getStandardizedAWPNames(name);
-    // todo: skip this if name has correct format  // todo: make naming function idempotent
     if (audioContext) {
       const contextProcessors = this.registeredProcessors.get(audioContext);
       return contextProcessors ? contextProcessors.has(registryName) : false;
@@ -140,20 +72,6 @@ class WorkletRegistry {
 
   getRegisteredProcessors(context: BaseAudioContext): Set<string> | undefined {
     return this.registeredProcessors.get(context);
-  }
-
-  getDefinitions(): Map<string, ProcessorDefinition> {
-    return this.registeredDefinitions;
-  }
-
-  getDefinition(name: string): ProcessorDefinition | undefined {
-    const { registryName } = getStandardizedAWPNames(name);
-    return this.registeredDefinitions.get(registryName);
-  }
-
-  hasDefinition(name: string): boolean {
-    const { registryName } = getStandardizedAWPNames(name);
-    return this.registeredDefinitions.has(registryName);
   }
 }
 
@@ -172,4 +90,84 @@ export const registry = WorkletRegistry.getInstance();
 //   }
 // }
 
+// import { AudioParamDescriptor, ProcessorDefinition } from '../types/types';
+
+// type PathToProcessorJsFile = string;
+
+// type ProcessorInfo =
+//   | {
+//       processFunction: Function;
+//       processorParams?: AudioParamDescriptor[];
+//       processorOptions?: Record<string, unknown>;
+//     }
+//   | PathToProcessorJsFile;
+// storeProcessorDefinition(name: string, definition: ProcessorInfo): string {
+//   const { registryName } = getStandardizedAWPNames(name);
+
+//   if (typeof definition === 'object' && 'processFunction' in definition) {
+//     this.registeredDefinitions.set(registryName, definition);
+//   } else {
+//     throw new Error('Invalid processor definition provided');
+//   }
+
+//   return registryName;
+// }
+
 // // Clear all registrations for a specific context
+
+// // Single register method that handles both definition and context registration
+// async register(
+//   context: BaseAudioContext,
+//   name: string,
+//   definition?: ProcessorInfo
+// ): Promise<string> {
+//   const { registryName, className } = getStandardizedAWPNames(name);
+
+//   // // Store definition if provided
+//   // if (typeof definition === 'object' && 'processFunction' in definition) {
+//   //   this.registeredDefinitions.set(registryName, definition);
+//   // }
+
+//   // Check if already registered with this context
+//   const existingProcessors =
+//     this.registeredProcessors.get(context) || new Set();
+
+//   // If already registered, return the registry name
+//   if (existingProcessors.has(registryName)) {
+//     console.warn(
+//       `Processor ${name} already registered with this context. Skipping registration.`
+//     );
+//     return registryName;
+//   }
+
+//   // Get definition or throw
+//   const def = this.registeredDefinitions.get(registryName);
+//   if (!def) {
+//     throw new Error(`Processor ${name} not defined`);
+//   }
+
+//   // Generate and register
+//   const processorCode = generateProcessorCode(
+//     { className, registryName },
+//     def.processFunction,
+//     def.processorParams || [],
+//     def.processorOptions || {}
+//   );
+
+//   const blob = new Blob([processorCode], {
+//     type: 'application/javascript',
+//   });
+
+//   const promise = context.audioWorklet.addModule(URL.createObjectURL(blob));
+
+//   await tryCatch(promise, `Error registering processor ${name}:`);
+
+//   // Track registration
+//   if (!this.registeredProcessors.has(context)) {
+//     this.registeredProcessors.set(context, new Set());
+//   }
+
+//   this.registeredProcessors.get(context)!.add(registryName);
+
+//   return registryName;
+// }

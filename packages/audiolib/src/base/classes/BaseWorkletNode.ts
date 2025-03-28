@@ -1,43 +1,17 @@
 import BaseNode from '../interfaces/BaseNode';
 import { DEFAULTS } from './SharedByBaseNodes';
 
-import { AudioParamDescriptor } from '@/types/types';
-import { registry } from '../../store/WorkletRegistry';
-import { getStandardizedAWPNames } from '../../utils/worklet-utils';
-
-export async function generateWorkletNode(
-  audioContext: BaseAudioContext,
-  processorName: string,
-  processFunction?: Function,
-  params: AudioParamDescriptor[] = [],
-  nodeOptions = {},
-  processorOptions = {}
-): Promise<BaseWorkletNode> {
-  // Register or get existing processor
-  if (processFunction) {
-    // register is a no-op if already registered
-    await registry.register(audioContext, processorName, {
-      processFunction,
-      processorParams: params,
-      processorOptions: processorOptions,
-    });
-  } else {
-    // todo: check if this works (should still register without processFunction, otherwise remove the else)
-    await registry.register(audioContext, processorName);
-  }
-
-  // Create and return node
-  const { registryName } = getStandardizedAWPNames(processorName);
-  return new BaseWorkletNode(audioContext, registryName, nodeOptions);
-}
-
 export function createWorkletNode(
   audioContext: BaseAudioContext,
   registeredProcessorName: string,
   nodeOptions: AudioWorkletNodeOptions = {}
 ): BaseWorkletNode {
-  const { registryName } = getStandardizedAWPNames(registeredProcessorName);
-  return new BaseWorkletNode(audioContext, registryName, nodeOptions);
+  // todo: validate naming convention & validate audioWorklet.addModule has already been called to registe (later)
+  return new BaseWorkletNode(
+    audioContext,
+    registeredProcessorName,
+    nodeOptions
+  );
 }
 
 // TODO: Consider making `connections` a WeakMap. Check support for AudioParam connections if needed.
