@@ -1,0 +1,56 @@
+class AudioSourceNode extends AudioWorkletProcessor {
+  constructor(options) {
+    super();
+    this.samples = options?.processorOptions?.initialSamples || [];
+    this._bufferHead = 0; // Current position in samples
+    this.sampleRate = 44100; // Default, updated from context
+
+    this.port.onmessage = (event) => {
+      switch (event.data.type) {
+        case 'SEEK':
+          this._bufferHead = Math.floor(
+            event.data.payload.playbackTimeInS * this.sampleRate
+          );
+          break;
+
+        case 'ADD_SAMPLES':
+          this.samples = this.samples.concat(event.data.payload.samples);
+          break;
+
+        case 'UPDATE_SHOULD_LOOP':
+          this.shouldLoop = event.data.payload.shouldLoop;
+          break;
+      }
+    };
+  }
+
+  process(inputs, outputs) {
+    const output = outputs[0];
+    const channel = output[0];
+    const blockSize = channel.length;
+
+    // Track position through buffer head index
+    const availableSamples = this.samples.length - this._bufferHead;
+    const samplesToCopy = Math.min(availableSamples, blockSize);
+
+    if (samplesToCopy > 0) {
+      channel.set(
+        this.samples.subarray(
+          this._bufferHead,
+          this._bufferHead + samplesToCopy
+        )
+      );
+
+      this._bufferHead += samplesToCopy;
+
+      // Handle looping
+      if (this.shouldLoop && this._bufferHead >= this.samples.length) {
+        this._bufferHead = 0;
+      }
+    }
+
+    return true;
+  }
+}
+
+registerProcessor('audio-source-processor', AudioSourceNode);

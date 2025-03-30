@@ -3,6 +3,10 @@ import {
   createSingleSamplePlayer,
   SingleSamplePlayer,
   loadAudioSample,
+  // Import the event system
+  EVENTS,
+  on,
+  off,
 } from '@repo/audiolib';
 
 export default function TestSingleSamplePlayer() {
@@ -16,8 +20,37 @@ export default function TestSingleSamplePlayer() {
   const [sampleDuration, setSampleDuration] = createSignal(0);
   const [currentTime, setCurrentTime] = createSignal('0:00');
 
+  const [lastEvent, setLastEvent] = createSignal('No events yet');
+
   // Reference to track active voices
   let voiceCountInterval: number | undefined;
+
+  // Event handlers that filter by sampleId
+  const handleVoiceStarted = (event: CustomEvent) => {
+    const { voiceId, note, sampleId } = event.detail;
+    // Only handle events from our piano sample
+    if (sampleId === 'piano') {
+      setLastEvent(`Voice ${voiceId} started - Note: ${note}`);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleVoiceEnded = (event: CustomEvent) => {
+    const { voiceId, sampleId } = event.detail;
+    // Only handle events from our piano sample
+    if (sampleId === 'piano') {
+      setLastEvent(`Voice ${voiceId} ended`);
+    }
+  };
+
+  const handleAllVoicesEnded = (event: CustomEvent) => {
+    const { sampleId } = event.detail;
+    // Only handle events from our piano sample
+    if (sampleId === 'piano') {
+      setLastEvent(`All voices ended`);
+      setIsPlaying(false);
+    }
+  };
 
   onMount(async () => {
     try {
@@ -35,25 +68,6 @@ export default function TestSingleSamplePlayer() {
         {
           polyphony: polyphony(),
           rootNote: 60, // Middle C
-        },
-        (position: number, normalized: number) => {
-          setPlaybackPosition(normalized);
-          console.log('Position:', position, 'normalized', normalized);
-
-          // Calculate current time display (MM:SS format)
-          const currentTimeInSeconds = normalized * audioBuffer.duration;
-          const minutes = Math.floor(currentTimeInSeconds / 60);
-          const seconds = Math.floor(currentTimeInSeconds % 60);
-
-          setCurrentTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
-          console.log('Current time:', currentTimeInSeconds, currentTime());
-
-          // Set playing state based on active voices
-          if (samplePlayer.getActiveVoiceCount() > 0) {
-            setIsPlaying(true);
-          } else {
-            setIsPlaying(false);
-          }
         }
       );
 
@@ -61,17 +75,22 @@ export default function TestSingleSamplePlayer() {
       setPlayer(samplePlayer);
       setIsLoaded(true);
 
-      // Set up voice count monitoring
-      voiceCountInterval = setInterval(() => {
-        if (samplePlayer) {
-          setActiveVoices(samplePlayer.getActiveVoiceCount());
+      // Subscribe to events - the piano ID will help us filter
+      on(EVENTS.VOICE.STARTED, handleVoiceStarted);
+      on(EVENTS.VOICE.ENDED, handleVoiceEnded);
+      on(EVENTS.SAMPLE.ALL_VOICES_ENDED, handleAllVoicesEnded);
 
-          // Update playing state
-          if (samplePlayer.getActiveVoiceCount() === 0) {
-            setIsPlaying(false);
-          }
-        }
-      }, 100);
+      // // Set up voice count monitoring
+      // voiceCountInterval = setInterval(() => {
+      //   if (samplePlayer) {
+      //     setActiveVoices(samplePlayer.getActiveVoiceCount());
+
+      //     // Update playing state
+      //     if (samplePlayer.getActiveVoiceCount() === 0) {
+      //       setIsPlaying(false);
+      //     }
+      //   }
+      // }, 100);
     } catch (error) {
       console.error('Failed to initialize player:', error);
     }
@@ -82,6 +101,11 @@ export default function TestSingleSamplePlayer() {
     if (voiceCountInterval) {
       clearInterval(voiceCountInterval);
     }
+
+    // Unsubscribe from events
+    off(EVENTS.VOICE.STARTED, handleVoiceStarted);
+    off(EVENTS.VOICE.ENDED, handleVoiceEnded);
+    off(EVENTS.SAMPLE.ALL_VOICES_ENDED, handleAllVoicesEnded);
 
     const currentPlayer = player();
     if (currentPlayer) {
@@ -101,7 +125,10 @@ export default function TestSingleSamplePlayer() {
     const currentPlayer = player();
     if (currentPlayer) {
       currentPlayer.play(midiNote, 1.0);
+      console.log('Playing note:', midiNote);
       setIsPlaying(true);
+    } else {
+      console.error('there is no currentPlayer');
     }
   };
 

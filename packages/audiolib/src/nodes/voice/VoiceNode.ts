@@ -1,36 +1,11 @@
 // VoiceNode.ts
-// import { createVoiceWorklet } from './voiceWorkletFactory';
-// import { WorkletNode } from '@/nodes/worklet/base/WorkletNode';
+
 import { midiToPlaybackRate } from '@/utils/midiUtils';
-import {
-  createPositionTrackingWorklet,
-  PositionTrackingWorklet,
-} from '@/processors/positionTracker/positionTracker';
-import { BaseAudioNode } from '@/base/classes/BaseAudioNode';
+import { EVENTS, notifyListeners } from '@/events/MainEventBus';
 
-export async function createVoice(
-  context: BaseAudioContext,
-  buffer: AudioBuffer,
-  rootNote: number = 60,
-  trackPlayPosition?: boolean
-): Promise<VoiceNode> {
-  const voice = new VoiceNode(context, buffer, rootNote);
-  const bufferDuration = buffer.duration;
-
-  if (trackPlayPosition) {
-    const tracker = await createPositionTrackingWorklet(
-      context,
-      bufferDuration
-    );
-    await voice.init(tracker);
-  } else {
-    await voice.init();
-  }
-  return voice;
-}
-
-class VoiceNode extends BaseAudioNode {
+export class VoiceNode {
   #context: BaseAudioContext;
+  #voiceId: number;
   #buffer: AudioBuffer;
 
   #basePlaybackRate: number;
@@ -38,78 +13,32 @@ class VoiceNode extends BaseAudioNode {
 
   #activeSource: AudioBufferSourceNode | null;
   #nextSource: AudioBufferSourceNode;
-  #voiceGain: GainNode;
-  #positionTracker: PositionTrackingWorklet | null;
-
-  // #workletNode: WorkletNode | null;
-
-  #onPositionCallback: ((position: number, normalized: number) => void) | null =
-    null;
+  #outputNode: GainNode;
 
   constructor(
+    voiceId: number,
     context: BaseAudioContext,
     buffer: AudioBuffer,
-    rootNote: number = 60,
-    options: AudioNodeOptions = {}
+    rootNote: number = 60
   ) {
-    super(context, options);
-
     this.#context = context;
     this.#buffer = buffer;
+    this.#voiceId = voiceId;
 
     // set tuning
-    this.#basePlaybackRate = midiToPlaybackRate(rootNote); // todo: test
+    this.#basePlaybackRate = midiToPlaybackRate(rootNote);
     this.#rootNote = rootNote;
 
-    this.#voiceGain = context.createGain();
-    this.#nextSource = context.createBufferSource();
+    this.#outputNode = context.createGain();
+    this.#outputNode.gain.setValueAtTime(0, this.now());
+
+    this.#nextSource = this.#prepNextSource(buffer);
 
     this.#activeSource = null;
-    this.#positionTracker = null;
   }
 
-  async init(tracker?: PositionTrackingWorklet): Promise<void> {
-    // Create the gain node
-    this.#voiceGain = this.#context.createGain();
-    this.#voiceGain.gain.setValueAtTime(0, this.now());
-
-    // Create source node
-    this.#nextSource = this.#prepNextSource(this.#buffer);
-
-    // Connect and setup worklet if provided
-    if (tracker) {
-      tracker.setBufferInfo(this.#buffer.length);
-      tracker.setReportInterval(4);
-
-      // Set up callback if already assigned
-      this.#onPositionCallback
-        ? tracker.onPositionUpdate(this.#onPositionCallback)
-        : null; // null?
-
-      this.#nextSource.connect(tracker);
-      tracker.connect(this.#voiceGain);
-
-      // Set the field to the tracker
-      this.#positionTracker = tracker;
-    } else {
-      this.#nextSource.connect(this.#voiceGain);
-    }
-  }
-
-  setPositionCallback(
-    callback: (position: number, normalized: number) => void
-  ): void {
-    this.#onPositionCallback = callback;
-
-    if (this.#positionTracker) {
-      this.#positionTracker.onPositionUpdate(callback);
-    }
-  }
-
-  #resetPosition(): void {
-    if (this.#positionTracker) {
-      this.#positionTracker.resetPosition();
-    }
+  getId() {
+    return this.#voiceId;
   }
 
   /**
@@ -121,31 +50,174 @@ class VoiceNode extends BaseAudioNode {
       buffer: buffer,
     });
 
+    source.connect(this.#outputNode);
+
     // Set the playback rate
     source.playbackRate.value = this.#basePlaybackRate;
 
-    if (this.#positionTracker) {
-      source.connect(this.#positionTracker);
-    } else {
-      source.connect(this.#voiceGain);
-    }
     // Handle source ending
     source.onended = () => {
       if (source === this.#activeSource) {
+        this.#activeSource.stop();
+        this.#outputNode!.gain.cancelScheduledValues(0);
+        // this.#outputNode!.gain.setValueAtTime(0, 0);
+
+        this.#activeSource.disconnect();
         this.#activeSource = null;
-      } else if (this.#activeSource !== null) {
-        console.warn(
-          'check VoiceNode source onended logic, source: ',
-          source,
-          'activeSource: ',
-          this.#activeSource,
-          'nextSource: ',
-          this.#nextSource
-        );
+
+        notifyListeners(EVENTS.VOICE.ENDED, {
+          voiceId: this.#voiceId,
+          time: this.#context.currentTime,
+        });
+      } else {
+        // console.error('nextSource ended, only activeSources should be playing');
+        notifyListeners(EVENTS.VOICE.ERROR, {
+          detail: { message: 'Wrong source ended', voiceId: this.#voiceId },
+        });
       }
     };
 
     return source;
+  }
+
+  /**
+   * Play an audio buffer
+   */
+  play(
+    midiNote: number = this.#rootNote,
+    voiceGain: number = 1,
+    when: number = this.now()
+  ): boolean {
+    if (!this.isAvailable()) {
+      console.warn('Voice not available');
+      notifyListeners(EVENTS.VOICE.ERROR, {
+        detail: { message: 'Voice not available', voiceId: this.#voiceId },
+      });
+
+      return false;
+    }
+
+    const playbackRate = Math.pow(2, (midiNote - this.#rootNote) / 12);
+
+    this.#outputNode!.gain.cancelScheduledValues(when);
+    this.#outputNode!.gain.setValueAtTime(voiceGain, when);
+    // console.log('Set gain to:', voiceGain, 'at time:', when);
+
+    // Swap sources, tune and play
+    this.#activeSource = this.#nextSource;
+    this.#activeSource!.playbackRate.setValueAtTime(playbackRate, when);
+    this.#activeSource!.detune.setValueAtTime(0, when); // Reset detune
+
+    this.#activeSource!.start(when);
+
+    // Dispatch started event with note information
+    notifyListeners(EVENTS.VOICE.STARTED, {
+      detail: {
+        voiceId: this.#voiceId,
+        note: midiNote,
+        gain: voiceGain,
+        time: when,
+      },
+    });
+
+    // prep next source
+    this.#nextSource = this.#prepNextSource(this.#buffer);
+
+    return true;
+  }
+
+  glideToNote(
+    targetMidiNote: number,
+    glideTime: number,
+    when: number = this.now()
+  ): void {
+    if (!this.isPlaying()) return;
+
+    // Calculate target playback rate
+    const targetRate = Math.pow(2, (targetMidiNote - this.#rootNote) / 12);
+
+    // Gradually change the playback rate
+    this.#activeSource!.playbackRate.linearRampToValueAtTime(
+      targetRate,
+      when + glideTime
+    );
+  }
+
+  forceMakeAvailable(): void {
+    // Stop any active source if it's playing
+    if (this.#activeSource) {
+      try {
+        this.#activeSource.stop();
+      } catch (e) {
+        // Handle the case where it might have already stopped
+      }
+      this.#activeSource = null;
+    }
+
+    // Prepare a fresh source for the next play
+    this.#nextSource = this.#prepNextSource(this.#buffer);
+  }
+
+  triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
+    if (!this.#activeSource) {
+      console.warn('Voice not playing when triggerRelease() called');
+      notifyListeners(EVENTS.VOICE.ERROR, {
+        detail: {
+          message: 'Release called on inactive voice',
+          voiceId: this.#voiceId,
+        },
+      });
+
+      return;
+    }
+
+    this.#activeSource!.stop(when + releaseTime);
+
+    // Dispatch released event
+    notifyListeners(EVENTS.VOICE.RELEASED, {
+      detail: {
+        voiceId: this.#voiceId,
+        endReleaseTime: when + releaseTime,
+      },
+    });
+  }
+
+  /**
+   * Connect the voice node's output to a destination
+   */
+  connect(destination: AudioNode | AudioParam): VoiceNode {
+    if (!this.#outputNode) throw new Error('Gain node not initialized');
+    this.#outputNode.connect(destination as any);
+    return this;
+  }
+
+  /**
+   * Disconnect the voice node from all destinations
+   */
+  dispose(): void {
+    this.#outputNode?.disconnect();
+    this.#activeSource?.disconnect();
+    this.#nextSource?.disconnect();
+    this.#activeSource = null;
+  }
+
+  /**
+   * Set gain value (0-1)
+   */
+  setGain(value: number, timeOffset: number = 0): void {
+    if (!this.#outputNode) throw new Error('Gain node not initialized');
+    if (value < 0 || value > 1)
+      throw new Error('Gain value out of range (0-1)');
+    const time = this.#context.currentTime + timeOffset;
+    this.#outputNode.gain.setValueAtTime(value, time);
+  }
+
+  /**
+   * Get the current gain value
+   */
+  getGain(): number {
+    if (!this.#outputNode) throw new Error('Gain node not initialized');
+    return this.#outputNode.gain.value;
   }
 
   isPlaying(): boolean {
@@ -167,99 +239,26 @@ class VoiceNode extends BaseAudioNode {
   getRootNote(): number {
     return this.#rootNote;
   }
-
-  /**
-   * Play an audio buffer
-   */
-  play(
-    detuneCents: number = 0,
-    voiceGain: number = 1,
-    when: number = this.now()
-  ): void {
-    if (this.isPlaying())
-      console.warn('Voice already playing when play() called');
-
-    // Set params not known in advance
-    this.#voiceGain!.gain.setValueAtTime(voiceGain, when);
-
-    // Swap sources and play
-    this.#activeSource = this.#nextSource;
-    this.#activeSource!.detune.setValueAtTime(detuneCents, when);
-    this.#activeSource!.start(when);
-
-    // prep next source
-    this.#nextSource = this.#prepNextSource(this.#buffer);
-    this.#resetPosition();
-  }
-
-  forceMakeAvailable(): void {
-    // Stop any active source if it's playing
-    if (this.#activeSource) {
-      try {
-        this.#activeSource.stop();
-      } catch (e) {
-        // Handle the case where it might have already stopped
-      }
-      this.#activeSource = null;
-    }
-
-    // Prepare a fresh source for the next play
-    this.#nextSource = this.#prepNextSource(this.#buffer);
-  }
-
-  #ensureAllNodesExist(): void {
-    // check if they exist and are connected
-    if (!this.#voiceGain) console.warn('Gain node not initialized');
-    if (!this.#positionTracker) console.warn('Worklet node not initialized');
-    if (!this.#activeSource) console.warn('Active source not initialized');
-    if (!this.#nextSource) console.warn('Next source not initialized');
-
-    if (this.#activeSource === this.#nextSource)
-      throw new Error('Active source is the same as next source');
-  }
-
-  triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
-    this.#ensureAllNodesExist(); // todo: get rid of this method, just for debugging
-
-    if (!this.isPlaying()) throw new Error('No playing source to release');
-
-    this.#activeSource!.stop(when + releaseTime);
-  }
-
-  /**
-   * Set gain value (0-1)
-   */
-  setGain(value: number, timeOffset: number = 0): void {
-    if (!this.#voiceGain) throw new Error('Gain node not initialized');
-    if (value < 0 || value > 1)
-      throw new Error('Gain value out of range (0-1)');
-    const time = this.#context.currentTime + timeOffset;
-    this.#voiceGain.gain.setValueAtTime(value, time);
-  }
-
-  /**
-   * Get the current gain value
-   */
-  getGain(): number {
-    if (!this.#voiceGain) throw new Error('Gain node not initialized');
-    return this.#voiceGain.gain.value;
-  }
-
-  /**
-   * Connect the voice node's output to a destination
-   */
-  connect(destination: AudioNode | AudioParam): VoiceNode {
-    if (!this.#voiceGain) throw new Error('Gain node not initialized');
-    this.#voiceGain.connect(destination as any);
-    return this;
-  }
-
-  /**
-   * Disconnect the voice node from all destinations
-   */
-  disconnect(): void {
-    this.#voiceGain?.disconnect();
-  }
 }
 
-export type { VoiceNode };
+//  // Todo: replace this with proper LFO impelemnation and ensure cleanup
+//  applyVibrato(
+//   depth: number,
+//   rate: number,
+//   duration: number = 1,
+//   when: number = this.now()
+// ): void {
+//   if (!this.isPlaying()) return;
+
+//   const vibratoOsc = this.#context.createOscillator();
+//   const vibratoGain = this.#context.createGain();
+
+//   vibratoOsc.frequency.value = rate; // Hz
+//   vibratoGain.gain.value = depth; // Cents
+
+//   vibratoOsc.connect(vibratoGain);
+//   vibratoGain.connect(this.#activeSource!.detune);
+
+//   vibratoOsc.start(when);
+//   vibratoOsc.stop(when + duration);
+// }

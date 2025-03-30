@@ -1,9 +1,16 @@
-import { VoiceNode, createVoice } from '@/nodes/voice/VoiceNode';
-import { midiToDetune } from '@/utils/midiUtils';
 import { getAudioContext } from '@/context/globalAudioContext';
+import { VoiceNode } from '@/nodes/voice/VoiceNode';
+import { registry } from '@/store/ProcessorRegistry';
+import {
+  createWorkletNode,
+  BaseWorkletNode,
+} from '@/base/nodes/BaseWorkletNode';
+import { on, off, notifyListeners, EVENTS } from '@/events/MainEventBus';
 
-// Todo: import factory from '@/factory/factory'; // use: factory.createWorkletNode
-// Todo: import registry from '@/registry/registry'; // use: registry.hasRegistered ? else register
+import { getProcessorSource, createBlobURL } from '@/utils/worklet-utils';
+
+// Cache for processor sources to avoid redundant loading
+const processorSourceCache: Record<string, string> = {};
 
 export async function createSingleSamplePlayer(
   id: string,
@@ -12,38 +19,57 @@ export async function createSingleSamplePlayer(
     polyphony?: number;
     rootNote?: number;
   },
-  onPositionUpdate?: (position: number, normalized: number) => void,
-  output?: AudioNode
+  processorName: string = 'loop-processor',
+  outputDestination?: AudioNode
 ): Promise<SingleSamplePlayer> {
-  const audioContext = await getAudioContext();
+  try {
+    const audioContext = await getAudioContext();
+    outputDestination = outputDestination || audioContext.destination;
 
-  if (!output) {
-    output = audioContext.destination;
-    console.log('Connecting sample player output to AudioContext destination.');
+    // Check if we've already registered this processor
+    if (!registry.hasRegistered(processorName)) {
+      // Get the processor source code (using cache if available)
+      if (!processorSourceCache[processorName]) {
+        processorSourceCache[processorName] = await getProcessorSource(
+          processorName as any
+        );
+      }
+
+      // Create a blob URL and register the processor
+      const blobURL = createBlobURL(processorSourceCache[processorName]);
+      await registry.register(processorName, blobURL);
+    }
+
+    // Create the worklet node
+    const processorNode = createWorkletNode(audioContext, processorName);
+
+    if (!processorNode) {
+      throw new Error('Could not create processor node');
+    }
+
+    // Initialize the player
+    const player = new SingleSamplePlayer(
+      id,
+      audioContext,
+      sampleBuffer,
+      options
+    );
+
+    player.init(outputDestination, processorNode);
+
+    console.log('SingleSamplePlayer initialized successfully');
+
+    return player;
+  } catch (error) {
+    console.error('Failed to initialize player:', error);
+    throw error;
   }
-
-  const shouldTrackPosition = onPositionUpdate !== undefined || false;
-
-  const player = new SingleSamplePlayer(
-    id,
-    audioContext,
-    sampleBuffer,
-    options
-  );
-
-  await player.init(output, shouldTrackPosition);
-
-  if (onPositionUpdate && player.isInitialized) {
-    player.onPositionUpdate(onPositionUpdate);
-  }
-
-  return player;
 }
 
 // Allocation strategy type - can be expanded in the future
 export type VoiceAllocationStrategy = 'oldest-first' | 'quietest-first';
 
-class SingleSamplePlayer extends EventTarget {
+export class SingleSamplePlayer extends EventTarget {
   // Core properties
   readonly id: string;
   #context: BaseAudioContext;
@@ -55,11 +81,19 @@ class SingleSamplePlayer extends EventTarget {
   #rootNote: number;
   #allocationStrategy: VoiceAllocationStrategy = 'oldest-first';
 
-  // Audio routing
-  #playerGain: GainNode;
-  // #loopProcessor: BaseWorkletNode | null = null;
+  #outputGain: GainNode;
+  #processorNode: BaseWorkletNode | null = null;
 
   isInitialized: boolean = false;
+
+  // Track handlers using a Map instead of storing on voice objects
+  private voiceEventHandlersMap = new Map<
+    number,
+    {
+      started: EventListener;
+      ended: EventListener;
+    }
+  >();
 
   constructor(
     id: string,
@@ -78,66 +112,44 @@ class SingleSamplePlayer extends EventTarget {
     this.#rootNote = options?.rootNote || 60;
 
     // Create the main output gain node
-    this.#playerGain = context.createGain();
-    this.#playerGain.gain.value = 1.0;
+    this.#outputGain = context.createGain();
+    this.#outputGain.gain.value = 1.0;
   }
 
-  async init(
-    output: AudioNode = this.#context.destination,
-    trackPlayPosition: boolean
-  ): Promise<void> {
+  init(
+    destinationNode: AudioNode = this.#context.destination,
+    processor: BaseWorkletNode | null = null
+  ): boolean {
     // TEMP
     if (!this.#context.audioWorklet) {
       throw new Error('AudioWorklet is not supported in this context');
     }
 
-    // // Check if the processor is already registered (DEFINED?)
-    // const processorName = 'loop-processor';
-    // if (!registry.hasRegistered(processorName)) {
-    //   // Register the processor
-    //   await this.#context.audioWorklet.addModule(
-    //     new URL(`./processors/${processorName}.js`, import.meta.url)
-    //   );
-    // }
+    // Initialize and connect the processor if provided
+    if (processor) {
+      processor.connect(this.#outputGain);
+      this.#processorNode = processor;
+    }
 
-    // // Create the loop processor
-    // this.#loopProcessor = createWorkletNode(this.#context, 'loop-processor');
-
-    // if (!this.#loopProcessor) {
-    //   throw new Error('Failed to create loop processor');
-    // }
-
-    // if (this.#loopProcessor.port) {
-    //   this.#loopProcessor.port.postMessage({
-    //     type: 'init',
-    //     buffer: this.#buffer,
-    //     trackPlayPosition,
-    //   });
-    // }
-
-    // Initialize the voice pool
-    for (let i = 0; i < this.#polyphony; i++) {
-      const voice = await createVoice(
+    // Initialize the voice pool and connect to processor or output
+    const voiceDestination = processor || this.#outputGain;
+    for (let voiceIdx = 0; voiceIdx < this.#polyphony; voiceIdx++) {
+      const voice = new VoiceNode(
+        voiceIdx, // this id does not change (should be string or number?)
         this.#context,
         this.#buffer,
-        this.#rootNote,
-        trackPlayPosition
+        this.#rootNote
       );
-      voice.connect(this.#playerGain);
-      // voice.connect(this.#loopProcessor);
 
+      this.#attachVoiceEventHandlers(voice);
+      voice.connect(voiceDestination);
       this.#voices.push(voice);
     }
 
-    // this.#loopProcessor.connect(this.#playerGain);
-    this.#playerGain.connect(output);
-
-    // this.#loopProcessor.port.postMessage({
-    //   type: 'set-voices',
-    //   voices: this.#voices.map((voice) => voice.id),
-    // });
-
+    this.#outputGain.connect(destinationNode);
     this.isInitialized = true;
+
+    return true;
   }
 
   /**
@@ -147,29 +159,29 @@ class SingleSamplePlayer extends EventTarget {
    * @param startTime Time to start playback (defaults to now)
    * @returns The voice being used, or null if no voice was available
    */
-  play(
-    midiNote: number,
-    velocity: number = 1.0,
-    startTime?: number
-  ): VoiceNode | null {
-    const detune = midiToDetune(midiNote, this.#rootNote);
+  play(midiNote: number, velocity: number = 1.0, startTime?: number): boolean {
     const voice = this.#allocateVoice();
-
-    if (voice) {
-      voice.play(detune, velocity, startTime);
-      return voice;
+    if (!voice) {
+      console.warn('No available voices to play the note');
+      return false;
     }
 
-    return null;
-  }
+    const success = voice.play(midiNote, velocity, startTime);
+    // console.log('Playing note:', midiNote, 'on voice:', voice);
 
-  /**
-   * Set a callback to receive position updates from all voices
-   */
-  onPositionUpdate(callback: (position: number, normalized: number) => void) {
-    this.#voices.forEach((voice) => {
-      voice.setPositionCallback(callback);
-    });
+    if (success && this.#processorNode?.port) {
+      // send event to processor if it exists
+      this.#processorNode?.port?.postMessage({
+        type: 'play',
+        id: voice.getId(),
+        note: midiNote,
+        velocity: velocity,
+      });
+
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -263,14 +275,14 @@ class SingleSamplePlayer extends EventTarget {
     if (value < 0 || value > 1) {
       throw new Error('Volume value must be between 0 and 1');
     }
-    this.#playerGain.gain.value = value;
+    this.#outputGain.gain.value = value;
   }
 
   /**
    * Get the current master volume
    */
   getVolume(): number {
-    return this.#playerGain.gain.value;
+    return this.#outputGain.gain.value;
   }
 
   /**
@@ -295,10 +307,10 @@ class SingleSamplePlayer extends EventTarget {
       throw new Error('Destination must be an AudioNode');
     }
     // Disconnect from the current destination if any
-    this.#playerGain.disconnect();
+    this.#outputGain.disconnect();
 
     // Connect to the new destination
-    this.#playerGain.connect(destination);
+    this.#outputGain.connect(destination);
     return this;
   }
 
@@ -306,7 +318,53 @@ class SingleSamplePlayer extends EventTarget {
    * Disconnect from all destinations
    */
   disconnect(): void {
-    this.#playerGain.disconnect();
+    this.#outputGain.disconnect();
+  }
+
+  // Private method to handle event delegation
+  #attachVoiceEventHandlers(voice: VoiceNode): void {
+    const voiceId = voice.getId();
+    // Create a handler for started events
+    const handleVoiceStarted = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail.voiceId === voiceId) {
+        // Forward the event with sample context
+        notifyListeners(EVENTS.VOICE.STARTED, {
+          ...customEvent.detail,
+          sampleId: this.id,
+        });
+      }
+    };
+
+    // Create a handler for ended events
+    const handleVoiceEnded = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail.voiceId === voiceId) {
+        // Forward the event with sample context
+        notifyListeners(EVENTS.VOICE.ENDED, {
+          ...customEvent.detail,
+          sampleId: this.id,
+        });
+
+        // Check if this was the last active voice
+        if (this.getActiveVoiceCount() === 0) {
+          notifyListeners(EVENTS.INSTRUMENT.ALL_VOICES_ENDED, {
+            sampleId: this.id,
+            time: this.#context.currentTime,
+          });
+        }
+      }
+    };
+
+    // Listen to events on the EventBus
+    on(EVENTS.VOICE.STARTED, handleVoiceStarted);
+    on(EVENTS.VOICE.ENDED, handleVoiceEnded);
+
+    // Store references to remove listeners on dispose
+    this.voiceEventHandlersMap.set(voiceId, {
+      started: handleVoiceStarted,
+      ended: handleVoiceEnded,
+    });
   }
 
   /**
@@ -315,9 +373,26 @@ class SingleSamplePlayer extends EventTarget {
   dispose(): void {
     this.stopAll(0);
     this.disconnect();
-    this.#voices.forEach((voice) => voice.disconnect());
-    this.#voices = [];
+
+    // Remove event listeners for each voice
+    this.#voices.forEach((voice) => {
+      const voiceId = voice.getId();
+      const handlers = this.voiceEventHandlersMap.get(voiceId);
+
+      if (handlers) {
+        off(EVENTS.VOICE.STARTED, handlers.started);
+        off(EVENTS.VOICE.ENDED, handlers.ended);
+        this.voiceEventHandlersMap.delete(voiceId);
+      }
+
+      this.#voices = [];
+    });
+    this.#outputGain.disconnect();
+    this.#outputGain = null as unknown as GainNode;
+    this.#processorNode?.disconnect();
+    this.#processorNode = null;
+    this.#context = null as unknown as BaseAudioContext;
+    this.#buffer = null as unknown as AudioBuffer;
+    this.isInitialized = false;
   }
 }
-
-export type { SingleSamplePlayer };

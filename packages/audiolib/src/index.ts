@@ -6,5 +6,9 @@ export type { SingleSamplePlayer } from './instruments/SingleSample/SingleSample
 
 export { loadAudioSample } from './utils/loadAudio';
 
+export { getAudioContext } from './context/globalAudioContext';
+
+export { EVENTS, on, off } from './events/MainEventBus';
+
 // TEST
-export { RandomNoiseWorklet as NoiseTest } from './processors/noise/NoiseWorklet';
+// export { RandomNoiseWorklet } from './processors/trash/noise/NoiseWorklet';

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateProcessorCode } from '@/nodes/worklet/base/generateProcessorCode';
+import { generateProcessorCode } from '@/utils/generateProcessorCode';
 import { AudioParamDescriptor } from '@/types/types';
 
 describe('generateProcessorCode', () => {

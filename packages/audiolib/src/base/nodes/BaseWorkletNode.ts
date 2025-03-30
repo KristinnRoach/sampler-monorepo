@@ -1,3 +1,5 @@
+// import { getAudioContext } from '@/context/globalAudioContext';
+import { registry } from '@/store/ProcessorRegistry';
 import BaseNode from '../interfaces/BaseNode';
 import { DEFAULTS } from './SharedByBaseNodes';
 
@@ -6,7 +8,12 @@ export function createWorkletNode(
   registeredProcessorName: string,
   nodeOptions: AudioWorkletNodeOptions = {}
 ): BaseWorkletNode {
-  // todo: validate naming convention & validate audioWorklet.addModule has already been called to registe (later)
+  // Check if the processor is registered
+  if (!registry.hasRegistered(registeredProcessorName)) {
+    throw new Error(
+      `AudioWorkletProcessor "${registeredProcessorName}" is not registered.`
+    );
+  }
   return new BaseWorkletNode(
     audioContext,
     registeredProcessorName,
@@ -14,9 +21,8 @@ export function createWorkletNode(
   );
 }
 
-// TODO: Consider making `connections` a WeakMap. Check support for AudioParam connections if needed.
 class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
-  private connections: Map<AudioNode, [number, number]>; // todo: make this a weakmap? Add AudioParam?
+  private connections: Map<AudioNode | AudioParam, [number, number]>; // todo: make this a WeakMap?
 
   constructor(
     context: BaseAudioContext,
@@ -31,9 +37,12 @@ class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
     destination: AudioNode | AudioParam,
     outputIndex?: number,
     inputIndex?: number
-  ): this {
-    super.connect(destination as any, outputIndex as any, inputIndex as any);
-
+  ): AudioNode {
+    if (destination instanceof AudioNode) {
+      super.connect(destination, outputIndex, inputIndex);
+    } else if (destination instanceof AudioParam) {
+      super.connect(destination, outputIndex);
+    }
     if (destination instanceof AudioNode) {
       this.connections.set(destination, [outputIndex || 0, inputIndex || 0]);
     }
@@ -44,8 +53,8 @@ class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
 
   disconnect(destination?: AudioNode | null): void {
     if (destination) {
-      this.connections.delete(destination);
       super.disconnect(destination);
+      this.connections.delete(destination);
     } else {
       super.disconnect();
       this.connections.clear();
@@ -54,14 +63,14 @@ class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
 
   setParam(
     name: string,
-    value: number,
+    targetValue: number,
     rampTime?: number,
     offsetSeconds?: number
   ): boolean {
     return DEFAULTS.METHODS.setParam(
       this,
       name,
-      value,
+      targetValue,
       rampTime,
       offsetSeconds
     );
@@ -71,7 +80,7 @@ class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
     this.port.postMessage({ active });
   }
 
-  getConnections(): Map<AudioNode, [number, number]> {
+  getConnections(): Map<AudioNode | AudioParam, [number, number]> {
     return this.connections;
   }
 }

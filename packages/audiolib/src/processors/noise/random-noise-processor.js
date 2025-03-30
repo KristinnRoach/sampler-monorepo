@@ -1,5 +1,5 @@
 // noise-processor.js
-class NoiseProcessor extends AudioWorkletProcessor {
+class RandomNoiseProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     output.forEach((channel) => {
@@ -11,4 +11,4 @@ class NoiseProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('noise-processor', NoiseProcessor);
+registerProcessor('random-noise-processor', NoiseProcessor);

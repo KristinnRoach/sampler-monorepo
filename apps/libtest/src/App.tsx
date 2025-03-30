@@ -1,40 +1,49 @@
 import type { Component } from 'solid-js';
-import { createSignal } from 'solid-js';
+import { createSignal, onMount } from 'solid-js';
 import SSPlayerTest from './components/SingleSamplePlayer/SSPlayerTest';
-import { NoiseTest } from '@repo/audiolib';
+// import { RandomNoiseWorklet, getAudioContext } from '@repo/audiolib';
 import styles from './App.module.css';
 
 type TestComponent = 'loop' | 'voice' | 'noise';
 
-export async function loadFileAsString(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load processor: ${response.status}`);
-  }
-  return await response.text();
-}
-
 const App: Component = () => {
   const [activeTest, setActiveTest] = createSignal<TestComponent>('voice');
+  // const [audioContext, setAudioContext] = createSignal<AudioContext | null>(
+  //   null
+  // );
 
-  const [noise, setNoise] = createSignal<NoiseTest | null>(null);
+  // onMount(async () => {
+  //   const ctx = await getAudioContext();
+  //   setAudioContext(ctx);
+  //   if (!ctx) {
+  //     console.error('Audio context is not initialized');
+  //     return;
+  //   }
+  //   console.log('ctx.state', ctx.state);
+  // });
 
-  const toggleNoise = () => {
-    if (noise()) {
-      noise()?.stop();
-      setNoise(null);
-    } else {
-      const noiseTest = new NoiseTest();
-      noiseTest.start();
-      setNoise(noiseTest);
-    }
-  };
+  // const [noise, setNoise] = createSignal<RandomNoiseWorklet | null>(null);
 
-  const testLoadString = async () => {
-    await loadFileAsString('./noise-processor.js');
-  };
+  // const toggleNoise = () => {
+  //   const ctx = audioContext();
+  //   if (!ctx) {
+  //     console.error('Audio context is not initialized');
+  //     return;
+  //   }
+  //   console.log('ctx.state', ctx.state);
+  //   if (ctx.state === 'suspended') {
+  //     ctx.resume();
+  //   }
 
-  console.log('testLoadString', () => testLoadString);
+  //   if (noise()) {
+  //     noise()?.stop();
+  //     setNoise(null);
+  //   } else {
+  //     const noise = new RandomNoiseWorklet();
+  //     noise.start();
+  //     setNoise(noise);
+  //   }
+  // };
 
   return (
     <div class={styles.App}>
@@ -59,7 +68,7 @@ const App: Component = () => {
         {/* {activeTest() === 'loop' ? <LoopWorkletTest /> : <VoiceNodeTest />} */}
         <SSPlayerTest />
 
-        <button onClick={() => toggleNoise()}>NOISE</button>
+        {/* <button onClick={() => toggleNoise()}>NOISE</button> */}
       </main>
     </div>
   );

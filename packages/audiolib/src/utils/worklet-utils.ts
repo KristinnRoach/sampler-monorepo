@@ -1,14 +1,69 @@
-export async function importFileAsBlob(path: string): Promise<Blob> {
-  const code = await import(
-    /* @vite-ignore */
-    `${path}?raw`
-  ).then((m) => m.default);
+// @/utils/worklet-utils.ts
 
-  const blob = new Blob([code], {
-    type: 'application/javascript',
-  });
-  return blob;
+// Define paths to worklet source files
+export const PROCESSOR_PATHS = {
+  'loop-processor': '../processors/loop/loop-processor.js',
+} as const;
+
+// Import worklet sources via bundler-specific methods
+export async function getProcessorSource(
+  processorName: keyof typeof PROCESSOR_PATHS
+): Promise<string> {
+  try {
+    const path = PROCESSOR_PATHS[processorName];
+
+    // For Vite specifically
+    const module = await import(
+      /* @vite-ignore */
+      `${path}?raw`
+    );
+
+    return module.default;
+  } catch (error) {
+    console.error(
+      `Error loading processor source for ${processorName}:`,
+      error
+    );
+    throw error;
+  }
 }
+
+// Helper to create blob URLs from processor source
+export function createBlobURL(
+  source: string,
+  type: string = 'application/javascript'
+): string {
+  const blob = new Blob([source], { type });
+  return URL.createObjectURL(blob);
+}
+
+// export const DEFAULT_PROCESSOR_PATHS = {
+//   'loop-processor': new URL(
+//     `../processors/loop/loop-processor.js`,
+//     import.meta.url
+//   ).toString(),
+// } as const;
+
+// export async function createObjectURLFromPath(
+//   path: string,
+//   type: string = 'application/javascript'
+// ) {
+//   try {
+//     const code = await import(
+//       /* @vite-ignore */
+//       `${path}?raw`
+//     ).then((m) => m.default);
+
+//     const blob = new Blob([code], {
+//       type: type,
+//     });
+
+//     return URL.createObjectURL(blob);
+//   } catch (error) {
+//     console.error(`error importing ${path}?raw: ${(error as Error).message}`);
+//     throw error;
+//   }
+// }
 
 // /**
 //  * Standardizes naming for audio worklet processors,
