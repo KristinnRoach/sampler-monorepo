@@ -1,5 +1,5 @@
 // import { getAudioContext } from '@/context/globalAudioContext';
-import { registry } from '@/store/ProcessorRegistry';
+import { registry } from '@/processors/ProcessorRegistry';
 import BaseNode from '../interfaces/BaseNode';
 import { DEFAULTS } from './SharedByBaseNodes';
 

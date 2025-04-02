@@ -1,44 +1,19 @@
 // @store/ProcessorRegistry.ts
 import { getAudioContext } from '@/context/globalAudioContext';
-
-// Singleton for AudioWorkletProcessor registration
+import { getBlobURL } from '@/processors/registry-utils';
 
 // Define paths to worklet source files
-export const PROCESSOR_PATHS = {
-  'loop-processor': '../processors/loop/loop-processor.js',
+export const PROCESSORS = {
+  'loop-control-processor': {
+    path: './loop/loop-control-processor.js',
+  },
+  // Add other processors here
 } as const;
 
-// Import worklet sources via bundler-specific methods
-export async function getProcessorSource(
-  processorName: keyof typeof PROCESSOR_PATHS
-): Promise<string> {
-  try {
-    const path = PROCESSOR_PATHS[processorName];
+// Create a union type of all valid processor names
+export type VerifiedProcessor = keyof typeof PROCESSORS; // TODO: Rethink
 
-    // For Vite specifically
-    const module = await import(
-      /* @vite-ignore */
-      `${path}?raw`
-    );
-
-    return module.default;
-  } catch (error) {
-    console.error(
-      `Error loading processor source for ${processorName}:`,
-      error
-    );
-    throw error;
-  }
-}
-
-// Helper to create blob URLs from processor source
-export function createBlobURL(
-  source: string,
-  type: string = 'application/javascript'
-): string {
-  const blob = new Blob([source], { type });
-  return URL.createObjectURL(blob);
-}
+// Singleton for AudioWorkletProcessor registration
 
 class ProcessorRegistry {
   private static instance: ProcessorRegistry;
@@ -55,8 +30,17 @@ class ProcessorRegistry {
     return ProcessorRegistry.instance;
   }
 
-  async register(processorName: string, blobURL: string): Promise<void> {
+  async register(processorName: VerifiedProcessor): Promise<void> {
+    // , blobURL: string): Promise<void> {
     const audioContext = await getAudioContext();
+
+    const blobURL = await getBlobURL(
+      PROCESSORS[processorName].path,
+      true,
+      'application/javascript'
+    );
+
+    console.log('blobURL', blobURL);
 
     if (!audioContext) {
       console.error('Audio context is not initialized');

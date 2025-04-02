@@ -1,0 +1,188 @@
+// First, create the AudioWorkletProcessor
+
+// processor.js
+class SourceProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      {
+        name: 'playbackRate',
+        defaultValue: 1.0,
+        minValue: 0.1,
+        maxValue: 10.0,
+        automationRate: 'k-rate',
+      },
+    ];
+  }
+
+  constructor() {
+    super();
+    this.buffer = null;
+    this.isPlaying = false;
+    this.bufferPosition = 0;
+
+    // Setup message handling for receiving buffer and control commands
+    this.port.onmessage = (event) => {
+      if (event.data.type === 'setBuffer') {
+        this.buffer = event.data.buffer;
+      } else if (event.data.type === 'start') {
+        this.isPlaying = true;
+        this.bufferPosition = event.data.offset || 0;
+      } else if (event.data.type === 'stop') {
+        this.isPlaying = false;
+      }
+    };
+  }
+
+  process(inputs, outputs, parameters) {
+    const output = outputs[0];
+    const playbackRate = parameters.playbackRate[0]; // k-rate parameter
+
+    if (!this.isPlaying || !this.buffer) {
+      return true;
+    }
+
+    // Process each output channel
+    for (let channel = 0; channel < output.length; channel++) {
+      const outputChannel = output[channel];
+      const bufferChannel = Math.min(channel, this.buffer.numberOfChannels - 1);
+      const bufferData = this.buffer.getChannelData(bufferChannel);
+
+      // Fill the output buffer
+      for (let i = 0; i < outputChannel.length; i++) {
+        // Get the sample with the current playback position
+        const samplePosition = Math.floor(this.bufferPosition);
+
+        // Apply playback rate
+        this.bufferPosition += playbackRate;
+
+        // Check if we've reached the end of the buffer
+        if (samplePosition >= bufferData.length) {
+          this.isPlaying = false;
+          this.port.postMessage({ type: 'ended' });
+          break;
+        }
+
+        // Copy the sample to output
+        outputChannel[i] = bufferData[samplePosition];
+      }
+    }
+
+    return true; // Keep processor alive
+  }
+}
+
+registerProcessor('source-processor', SourceProcessor);
+
+// Now, create the AudioWorkletNode wrapper
+
+// source-node.js
+class SourceAudioWorkletNode extends AudioWorkletNode {
+  constructor(context, options = {}) {
+    super(context, 'source-processor', {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [options.channelCount || 2],
+      processorOptions: {},
+    });
+
+    this.playbackRate = this.parameters.get('playbackRate');
+    this._buffer = null;
+    this.onended = null;
+
+    this.port.onmessage = (event) => {
+      if (event.data.type === 'ended' && typeof this.onended === 'function') {
+        this.onended();
+      }
+    };
+  }
+
+  // Set the audio buffer to play
+  setBuffer(buffer) {
+    this._buffer = buffer;
+    const arrayBuffer = {
+      numberOfChannels: buffer.numberOfChannels,
+      sampleRate: buffer.sampleRate,
+      length: buffer.length,
+      duration: buffer.duration,
+    };
+
+    // Create transferable channel data
+    const channelData = [];
+    for (let i = 0; i < buffer.numberOfChannels; i++) {
+      channelData.push(buffer.getChannelData(i).slice());
+    }
+
+    // Send buffer metadata and channel data to processor
+    this.port.postMessage(
+      {
+        type: 'setBuffer',
+        buffer: {
+          ...arrayBuffer,
+          getChannelData: (i) => channelData[i],
+        },
+      },
+      channelData
+    );
+  }
+
+  // Start playback
+  start(when = 0, offset = 0) {
+    const now = this.context.currentTime;
+    const actualStartTime = Math.max(now, when);
+
+    // Schedule the start message to be sent at the precise time
+    if (actualStartTime === now) {
+      this.port.postMessage({
+        type: 'start',
+        offset: offset,
+      });
+    } else {
+      // For precise timing, use setTimeout to send message closer to start time
+      const delayMs = (actualStartTime - now) * 1000;
+      setTimeout(() => {
+        this.port.postMessage({
+          type: 'start',
+          offset: offset,
+        });
+      }, delayMs);
+    }
+  }
+
+  // Stop playback
+  stop(when = 0) {
+    const now = this.context.currentTime;
+    const actualStopTime = Math.max(now, when);
+
+    if (actualStopTime === now) {
+      this.port.postMessage({ type: 'stop' });
+    } else {
+      const delayMs = (actualStopTime - now) * 1000;
+      setTimeout(() => {
+        this.port.postMessage({ type: 'stop' });
+      }, delayMs);
+    }
+  }
+}
+
+// Example usage:
+/*
+async function setupSourceNode() {
+  const audioContext = new AudioContext();
+  
+  // Load the processor
+  await audioContext.audioWorklet.addModule('processor.js');
+  
+  // Create the source node
+  const sourceNode = new SourceAudioWorkletNode(audioContext);
+  
+  // Load and set buffer
+  const response = await fetch('sound.mp3');
+  const arrayBuffer = await response.arrayBuffer();
+  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+  sourceNode.setBuffer(audioBuffer);
+  
+  // Connect and play
+  sourceNode.connect(audioContext.destination);
+  sourceNode.start();
+}
+*/

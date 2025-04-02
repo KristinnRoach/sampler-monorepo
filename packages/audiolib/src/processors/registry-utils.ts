@@ -1,35 +1,61 @@
-// @/utils/worklet-utils.ts
-
-// Define paths to worklet source files
-export const PROCESSOR_PATHS = {
-  'loop-processor': '../processors/loop/loop-processor.js',
-} as const;
-
-// Import worklet sources via bundler-specific methods
-export async function getProcessorSource(
-  processorName: keyof typeof PROCESSOR_PATHS
-): Promise<string> {
+function isValidURL(url: string): boolean {
   try {
-    const path = PROCESSOR_PATHS[processorName];
+    new URL(url);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
 
+function isRelativePath(path: string): boolean {
+  return path.startsWith('./') || path.startsWith('../');
+}
+function isAbsolutePath(path: string): boolean {
+  return (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('file://') ||
+    path.startsWith('/')
+  );
+}
+
+// TODO: make this dummy proof and general, proper handling for ALL common scenarios, paths and environments (should be separate functions for package vs app ?) ... (non-raw imports?)
+export async function getBlobURL(
+  relativePath: string,
+  raw: boolean = true,
+  type: string = 'application/javascript',
+  useDefaultExport: boolean = false
+): Promise<string> {
+  // Check if the path is absolute or relative
+  if (isAbsolutePath(relativePath)) {
+    throw new Error('Absolute URLs are not supported');
+  }
+  if (!isValidURL(relativePath) && !isRelativePath(relativePath)) {
+    throw new Error(`Invalid URL: ${relativePath}`);
+  }
+
+  const suffix = raw ? '?raw' : '';
+  try {
     // For Vite specifically
     const module = await import(
       /* @vite-ignore */
-      `${path}?raw`
+      `${relativePath}${suffix}`
     );
 
-    return module.default;
+    const thingWeWant = useDefaultExport ? module.default : module;
+    const blobURL = stringToBlobURL(thingWeWant, type);
+
+    return blobURL;
   } catch (error) {
     console.error(
-      `Error loading processor source for ${processorName}:`,
+      `Error loading source from relative path: ${relativePath}:`,
       error
     );
     throw error;
   }
 }
 
-// Helper to create blob URLs from processor source
-export function createBlobURL(
+export function stringToBlobURL(
   source: string,
   type: string = 'application/javascript'
 ): string {

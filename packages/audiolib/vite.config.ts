@@ -1,22 +1,34 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import dts from 'vite-plugin-dts';
 
 export default defineConfig({
+  plugins: [
+    dts({
+      include: ['src'],
+      exclude: ['**/*.test.ts', '**/__tests__/**'], // todo: ensure compatibility with tsconfig
+      outDir: 'dist',
+      rollupTypes: true,
+    }),
+  ], // try adding these if still ves ->{ tsconfigPath: './tsconfig.json', rollupTypes: true }
+
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: 'audiolib',
+      name: '@repo/audiolib',
+      formats: ['es', 'cjs'], // todo: add 'cjs', 'umd' ??
       fileName: 'index',
     },
-    minify: false, // Disable minification for debugging
-    rollupOptions: {
-      external: [], // Add any external dependencies here if needed
-      output: {
-        globals: {}, // Define globals for UMD builds if needed
-        format: 'es',
-      },
-    },
+
+    // minify: false, // Disable minification for debugging
+    // rollupOptions: {
+    //   external: [], // Add any external dependencies here if needed
+    //   output: {
+    //     globals: {}, // Define globals for UMD builds if needed
+    //     format: 'es',
+    //   },
+    // },
   },
   resolve: {
     alias: {

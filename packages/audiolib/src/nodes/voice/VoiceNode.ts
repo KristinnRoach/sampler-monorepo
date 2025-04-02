@@ -1,12 +1,14 @@
 // VoiceNode.ts
 
 import { midiToPlaybackRate } from '@/utils/midiUtils';
-import { EVENTS, notifyListeners } from '@/events/MainEventBus';
+import { IEventBus, DefaultEventBus } from '@/events';
 
 export class VoiceNode {
   #context: BaseAudioContext;
   #voiceId: number;
   #buffer: AudioBuffer;
+  #eventBus: IEventBus;
+  #isSharedEventBus: boolean;
 
   #basePlaybackRate: number;
   #rootNote: number; // MIDI note number of the original sample
@@ -19,11 +21,15 @@ export class VoiceNode {
     voiceId: number,
     context: BaseAudioContext,
     buffer: AudioBuffer,
-    rootNote: number = 60
+    rootNote: number = 60,
+    sharedEventBus?: IEventBus
   ) {
     this.#context = context;
     this.#buffer = buffer;
     this.#voiceId = voiceId;
+
+    this.#eventBus = sharedEventBus || new DefaultEventBus();
+    this.#isSharedEventBus = !!sharedEventBus; // (skoða (!!) operator)
 
     // set tuning
     this.#basePlaybackRate = midiToPlaybackRate(rootNote);
@@ -39,6 +45,10 @@ export class VoiceNode {
 
   getId() {
     return this.#voiceId;
+  }
+
+  getEventBus(): IEventBus {
+    return this.#eventBus;
   }
 
   /**
@@ -65,18 +75,13 @@ export class VoiceNode {
         this.#activeSource.disconnect();
         this.#activeSource = null;
 
-        notifyListeners(EVENTS.VOICE.ENDED, {
-          voiceId: this.#voiceId,
-          time: this.#context.currentTime,
-        });
-      } else {
-        // console.error('nextSource ended, only activeSources should be playing');
-        notifyListeners(EVENTS.VOICE.ERROR, {
-          detail: { message: 'Wrong source ended', voiceId: this.#voiceId },
+        // Notify voice ended
+        this.#eventBus.notify('voice:ended', {
+          id: this.#voiceId,
+          currentTime: this.now(),
         });
       }
     };
-
     return source;
   }
 
@@ -89,11 +94,12 @@ export class VoiceNode {
     when: number = this.now()
   ): boolean {
     if (!this.isAvailable()) {
-      console.warn('Voice not available');
-      notifyListeners(EVENTS.VOICE.ERROR, {
-        detail: { message: 'Voice not available', voiceId: this.#voiceId },
+      this.#eventBus.notify('error', {
+        id: this.#voiceId,
+        note: midiNote,
+        currentTime: when,
+        message: 'Voice not available for playback',
       });
-
       return false;
     }
 
@@ -110,18 +116,11 @@ export class VoiceNode {
 
     this.#activeSource!.start(when);
 
-    // Dispatch started event with note information
-    notifyListeners(EVENTS.VOICE.STARTED, {
-      detail: {
-        voiceId: this.#voiceId,
-        note: midiNote,
-        gain: voiceGain,
-        time: when,
-      },
-    });
+    // todo: notify listeners started
 
     // prep next source
     this.#nextSource = this.#prepNextSource(this.#buffer);
+    // todo: notify listeners isAvailable
 
     return true;
   }
@@ -161,24 +160,18 @@ export class VoiceNode {
   triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
     if (!this.#activeSource) {
       console.warn('Voice not playing when triggerRelease() called');
-      notifyListeners(EVENTS.VOICE.ERROR, {
-        detail: {
-          message: 'Release called on inactive voice',
-          voiceId: this.#voiceId,
-        },
-      });
+      // todo: notify listeners
 
       return;
     }
 
     this.#activeSource!.stop(when + releaseTime);
 
-    // Dispatch released event
-    notifyListeners(EVENTS.VOICE.RELEASED, {
-      detail: {
-        voiceId: this.#voiceId,
-        endReleaseTime: when + releaseTime,
-      },
+    // Notify voice release scheduled
+    this.#eventBus.notify('voice:released', {
+      id: this.#voiceId,
+      endTime: when + releaseTime,
+      currentTime: when,
     });
   }
 
@@ -199,6 +192,15 @@ export class VoiceNode {
     this.#activeSource?.disconnect();
     this.#nextSource?.disconnect();
     this.#activeSource = null;
+
+    // If we created our own event bus, clean it up completely
+    if (!this.#isSharedEventBus) {
+      this.#eventBus.removeAllListeners('error');
+      this.#eventBus.removeAllListeners('voice:started');
+      this.#eventBus.removeAllListeners('voice:ended');
+      this.#eventBus.removeAllListeners('voice:released');
+    }
+    // Otherwise we don't remove anything, as listeners might be shared
   }
 
   /**

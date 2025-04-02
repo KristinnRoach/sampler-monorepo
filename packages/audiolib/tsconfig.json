@@ -3,27 +3,38 @@
   "compilerOptions": {
     "strict": true,
 
-    "target": "ESNext",
-    "useDefineForClassFields": true,
+    "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
-    "moduleResolution": "Node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
+    "moduleResolution": "node",
+    "lib": ["ES2022", "DOM"],
+
     "skipLibCheck": true,
     "declaration": true,
+    "noEmit": false,
+
     "declarationDir": "./dist",
     "outDir": "./dist",
-    "noEmit": false,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@test/*": ["./test/*"]
+      "@test/*": ["src/test/*"]
+      // "dexie": ["node_modules/dexie"]
     }
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist"] // "test"
+  "exclude": ["node_modules", "dist", "src/test/*"] // should test be excluded?
 }
+
+// Under review:
+// "watch": true,
+// "declarationMap": true, //?
+// "sourceMap": true,
+// "useDefineForClassFields": true,
+// "resolveJsonModule": true,
+// "isolatedModules": true,
+// "esModuleInterop": true,
+// "noUnusedLocals": true,
+// "noUnusedParameters": true,
+
+
+// "noImplicitReturns": true,
