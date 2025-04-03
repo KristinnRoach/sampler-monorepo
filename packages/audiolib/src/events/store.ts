@@ -1,5 +1,6 @@
 // @events/store.ts
-// Store to track wrapped listeners
+
+// track wrapped listeners
 const listenerMap = new WeakMap<
   EventTarget,
   Map<string, Map<Function, EventListener>>

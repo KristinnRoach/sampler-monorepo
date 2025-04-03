@@ -1,6 +1,5 @@
 // import { getAudioContext } from '@/context/globalAudioContext';
 import { registry } from '@/processors/ProcessorRegistry';
-import BaseNode from '../interfaces/BaseNode';
 import { DEFAULTS } from './SharedByBaseNodes';
 
 export function createWorkletNode(
@@ -21,7 +20,8 @@ export function createWorkletNode(
   );
 }
 
-class BaseWorkletNode extends AudioWorkletNode implements BaseNode {
+class BaseWorkletNode extends AudioWorkletNode {
+  // implements Node { // todo: eventbus
   private connections: Map<AudioNode | AudioParam, [number, number]>; // todo: make this a WeakMap?
 
   constructor(

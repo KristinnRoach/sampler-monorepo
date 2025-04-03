@@ -1,3 +1,5 @@
+import { AudioContextTimeSeconds, Id } from '@/types/global';
+
 // All possible event types mapped to EventData
 export type EventMap = {
   ready: EventData;
@@ -25,7 +27,7 @@ export type EventType = keyof EventMap;
 // Single event payload type with all possible properties
 export type EventData = {
   // Common properties
-  id?: Id; // todo: instrumentId or voiceId or sampleId or bufferId (eventId) ?
+  publisherId?: Id;
   currentTime?: AudioContextTimeSeconds;
   endTime?: AudioContextTimeSeconds;
   message?: string;

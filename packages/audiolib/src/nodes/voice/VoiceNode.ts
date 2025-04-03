@@ -1,14 +1,15 @@
 // VoiceNode.ts
 
 import { midiToPlaybackRate } from '@/utils/midiUtils';
-import { IEventBus, DefaultEventBus } from '@/events';
+import { IEventBus } from '@/events'; // DefaultEventBus, EventBusOption
+import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
 
-export class VoiceNode {
+export class VoiceNode extends FlexEventDriven {
   #context: BaseAudioContext;
   #voiceId: number;
   #buffer: AudioBuffer;
-  #eventBus: IEventBus;
-  #isSharedEventBus: boolean;
+  // #eventBus: IEventBus;
+  // #isSharedEventBus: boolean;
 
   #basePlaybackRate: number;
   #rootNote: number; // MIDI note number of the original sample
@@ -22,14 +23,15 @@ export class VoiceNode {
     context: BaseAudioContext,
     buffer: AudioBuffer,
     rootNote: number = 60,
-    sharedEventBus?: IEventBus
+    EventBusOption?: IEventBus
   ) {
+    super(EventBusOption);
     this.#context = context;
     this.#buffer = buffer;
     this.#voiceId = voiceId;
 
-    this.#eventBus = sharedEventBus || new DefaultEventBus();
-    this.#isSharedEventBus = !!sharedEventBus; // (skoða (!!) operator)
+    // this.#eventBus = sharedEventBus || new DefaultEventBus();
+    // this.#isSharedEventBus = !!sharedEventBus; // (skoða (!!) operator)
 
     // set tuning
     this.#basePlaybackRate = midiToPlaybackRate(rootNote);
@@ -47,9 +49,12 @@ export class VoiceNode {
     return this.#voiceId;
   }
 
-  getEventBus(): IEventBus {
-    return this.#eventBus;
-  }
+  // getEventBus(): IEventBus {
+  //   if (!this.#eventBus) {
+  //     throw new Error('Event bus not initialized');
+  //   }
+  //   return this.#eventBus;
+  // }
 
   /**
    * Create and configure a buffer source
@@ -76,8 +81,8 @@ export class VoiceNode {
         this.#activeSource = null;
 
         // Notify voice ended
-        this.#eventBus.notify('voice:ended', {
-          id: this.#voiceId,
+        this.notify('voice:ended', {
+          publisherId: this.#voiceId,
           currentTime: this.now(),
         });
       }
@@ -94,8 +99,8 @@ export class VoiceNode {
     when: number = this.now()
   ): boolean {
     if (!this.isAvailable()) {
-      this.#eventBus.notify('error', {
-        id: this.#voiceId,
+      this.notify('error', {
+        publisherId: this.#voiceId,
         note: midiNote,
         currentTime: when,
         message: 'Voice not available for playback',
@@ -168,8 +173,8 @@ export class VoiceNode {
     this.#activeSource!.stop(when + releaseTime);
 
     // Notify voice release scheduled
-    this.#eventBus.notify('voice:released', {
-      id: this.#voiceId,
+    this.notify('voice:released', {
+      publisherId: this.#voiceId,
       endTime: when + releaseTime,
       currentTime: when,
     });
@@ -194,12 +199,12 @@ export class VoiceNode {
     this.#activeSource = null;
 
     // If we created our own event bus, clean it up completely
-    if (!this.#isSharedEventBus) {
-      this.#eventBus.removeAllListeners('error');
-      this.#eventBus.removeAllListeners('voice:started');
-      this.#eventBus.removeAllListeners('voice:ended');
-      this.#eventBus.removeAllListeners('voice:released');
-    }
+    // if (this.hasEventBus()) {
+    //   this.removeAllListeners('error');
+    //   this.removeAllListeners('voice:started');
+    //   this.removeAllListeners('voice:ended');
+    //   this.removeAllListeners('voice:released');
+    // }
     // Otherwise we don't remove anything, as listeners might be shared
   }
 

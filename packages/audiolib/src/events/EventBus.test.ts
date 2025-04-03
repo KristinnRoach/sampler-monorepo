@@ -8,7 +8,8 @@ describe('DefaultEventBus', () => {
 
   beforeEach(() => {
     // Create a fresh EventBus instance before each test
-    eventBus = new DefaultEventBus();
+    const ownerId = 'testOwnerId'; // Replace with a valid Id if needed
+    eventBus = new DefaultEventBus(ownerId);
   });
 
   afterEach(() => {

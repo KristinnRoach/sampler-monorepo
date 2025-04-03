@@ -1,7 +1,7 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import { VoiceNode } from '@/nodes/voice/VoiceNode';
 import { createLoopControllerNode } from '@/processors/loop/createLoopController';
-import { DefaultEventBus } from '@/events';
+import { IEventBus, GlobalEventBus } from '@/events'; // DefaultEventBus
 
 export async function createSingleSamplePlayer(
   id: string,
@@ -56,6 +56,7 @@ export class SingleSamplePlayer {
   readonly id: string;
   #context: BaseAudioContext;
   #buffer: AudioBuffer;
+  #eventBus: IEventBus;
 
   // Voice management
   #voices: VoiceNode[] = [];
@@ -84,7 +85,9 @@ export class SingleSamplePlayer {
     options?: {
       polyphony?: number;
       rootNote?: number;
-    }
+    },
+    // Todo: standardize (optional parent versus global event bus)
+    parentEventBus?: IEventBus
   ) {
     this.id = id;
     this.#context = context;
@@ -95,6 +98,9 @@ export class SingleSamplePlayer {
     // Create the main output gain node
     this.#outputGain = context.createGain();
     this.#outputGain.gain.value = 1.0;
+
+    // Initialize the event bus
+    this.#eventBus = parentEventBus || GlobalEventBus;
   }
 
   init(
@@ -126,10 +132,34 @@ export class SingleSamplePlayer {
       this.#voices.push(voice);
     }
 
+    // Set up instrument-level notification when all voices become inactive
+    this.#addVoiceListeners();
+
     this.#outputGain.connect(destinationNode);
     this.isInitialized = true;
 
     return true;
+  }
+
+  // Set up instrument-level listeners that respond to voice events
+  #addVoiceListeners(): void {
+    // Listen for voice ended events to check if instrument is silent
+    this.#eventBus.addListener('voice:ended', (detail) => {
+      // Check if all voices are now inactive
+      const isInstrumentSilent = this.#voices.every((voice) =>
+        voice.isAvailable()
+      );
+
+      if (isInstrumentSilent) {
+        this.#eventBus.notify('instrument:silent', {
+          publisherId: this.id,
+          currentTime: this.#context.currentTime,
+          message: `All voices from instrument with id: ${this.id} are now silent`,
+        });
+      }
+    });
+
+    // We could add more listeners here for other scenarios
   }
 
   /**
@@ -162,6 +192,16 @@ export class SingleSamplePlayer {
     }
 
     return false;
+  }
+
+  playError(midiNote: number): void {
+    // Notify the event bus about the error
+    this.#eventBus.notify('error', {
+      publisherId: this.id,
+      message: 'No available voices to play the note',
+      note: midiNote,
+      currentTime: this.#context.currentTime,
+    });
   }
 
   /**

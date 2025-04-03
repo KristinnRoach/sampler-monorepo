@@ -1,8 +1,11 @@
 // EventBus.ts
 import { EventType, EventMap } from './types';
 import { listenerMap, getListenerMap } from './store';
+import { Id } from '@/types/global';
 
 export interface IEventBus extends EventTarget {
+  readonly ownerId: Id;
+
   notify<K extends EventType>(type: K, detail: EventMap[K]): void;
 
   addListener<K extends EventType>(
@@ -25,6 +28,13 @@ export interface IEventBus extends EventTarget {
 }
 
 export class DefaultEventBus extends EventTarget implements IEventBus {
+  readonly ownerId: Id;
+
+  constructor(ownerId: Id) {
+    super();
+    this.ownerId = ownerId;
+  }
+
   notify<K extends EventType>(type: K, detail: EventMap[K]): void {
     this.dispatchEvent(new CustomEvent(type, { detail }));
   }
@@ -81,6 +91,21 @@ export class DefaultEventBus extends EventTarget implements IEventBus {
 
     // Clean up the map
     targetMap.delete(type);
+  }
+
+  dispose(): void {
+    // Remove all listeners from the event target
+    const targetMap = listenerMap.get(this);
+    if (targetMap) {
+      for (const [type, typeListeners] of targetMap.entries()) {
+        for (const [handler, listener] of typeListeners.entries()) {
+          this.removeEventListener(type, listener);
+          typeListeners.delete(handler);
+        }
+        targetMap.delete(type);
+      }
+      listenerMap.delete(this);
+    }
   }
 
   listenOnce<K extends EventType>(

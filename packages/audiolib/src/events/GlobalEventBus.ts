@@ -2,7 +2,7 @@
 import { DefaultEventBus } from './EventBus';
 
 // Singleton instance
-export const GlobalEventBus = new DefaultEventBus();
+export const GlobalEventBus = new DefaultEventBus('1'); // temporary id
 
 // Usage example:
 /*
