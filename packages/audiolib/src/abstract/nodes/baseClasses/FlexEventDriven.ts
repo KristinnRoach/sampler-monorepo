@@ -1,3 +1,4 @@
+import { Node } from './Node';
 import {
   EventType,
   IEventBus,
@@ -6,23 +7,64 @@ import {
   getEventBus,
 } from '@/events';
 
-// The same as EventDrivenNode, but you can optionally choose to use the GlobalEventBus
-// or a bus passed in via the constructor.
-// Defaults to creating its own unique event bus.
-export abstract class FlexEventDriven {
-  #eventBus: IEventBus | null;
+// The same as EventDrivenNode's unique bus, but adding all possible EventBus options:
+// GlobalAudio, GlobalUI, unique (for each instance), or none.
+export abstract class FlexEventDriven extends Node {
+  #eventBus: IEventBus | null = null;
   #eventBusOption: EventBusOption;
+  // // Track listeners added by this instance
+  // #ownListeners: Map<EventType, Set<Function>> = new Map();
 
-  constructor(eventBusOption: EventBusOption = 'unique') {
+  constructor(eventBusOption: EventBusOption) {
+    super();
+
     this.#eventBusOption = eventBusOption;
-    this.#eventBus = getEventBus(eventBusOption);
+    eventBusOption === 'unique'
+      ? (this.#eventBus = getEventBus(eventBusOption, this.nodeId))
+      : (this.#eventBus = getEventBus(eventBusOption));
   }
 
   protected notify<K extends EventType>(type: K, detail: EventMap[K]): void {
-    this.#eventBus?.notify(type, detail);
+    if (!this.#eventBus) throw new Error('Event bus not initialized');
+
+    this.#eventBus.notify(type, detail);
   }
 
-  getEventBus(): IEventBus | null {
+  addListener<K extends EventType>(
+    type: K,
+    listener: (detail: EventMap[K]) => void
+  ): () => void {
+    if (!this.#eventBus) throw new Error('Event bus not initialized');
+
+    return this.#eventBus.addListener(type, listener);
+  }
+
+  removeListener<K extends EventType>(
+    type: K,
+    listener: (detail: EventMap[K]) => void
+  ): void {
+    if (!this.#eventBus) throw new Error('Event bus not initialized');
+
+    this.#eventBus.removeListener(type, listener);
+  }
+
+  // protected disposeAll() {
+  //   if (!this.#eventBus) {
+  //     throw new Error('Event bus not initialized');
+  //   }
+  //   this.#eventBus.dispose();
+  // }
+
+  // protected removeAllListeners(): void {
+  //   if (!this.#eventBus) {
+  //     throw new Error('Event bus not initialized');
+  //   }
+  //   this.#eventBus.removeAllListeners();
+  // }
+
+  getEventBus(): IEventBus {
+    if (!this.#eventBus) throw new Error('Event bus not initialized');
+
     return this.#eventBus;
   }
 
@@ -33,12 +75,15 @@ export abstract class FlexEventDriven {
   getEventBusOption(): EventBusOption {
     return this.#eventBusOption;
   }
-  // dispose(): void {
-  //   if (this.#eventBus) {
-  //     this.#eventBus.removeAllListeners();
-  //     this.#eventBus = null;
-  //   }
-  // }
+
+  dispose(): void {
+    super.dispose();
+
+    if (this.#eventBus) {
+      this.#eventBus.clearAllListeners();
+      this.#eventBus = null;
+    }
+  }
 
   // Add other event methods that check for null first
 

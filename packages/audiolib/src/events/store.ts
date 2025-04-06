@@ -3,7 +3,7 @@
 // track wrapped listeners
 const listenerMap = new WeakMap<
   EventTarget,
-  Map<string, Map<Function, EventListener>>
+  Map<string, Map<Function, EventListener>> // todo: use NodeId ?
 >();
 
 // Helper to get or create listener maps

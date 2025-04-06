@@ -1,13 +1,16 @@
-import { AudioContextTimeSeconds, Id } from '@/types/global';
+import { AudioContextTimeSeconds, NodeID } from '@/types/global';
 
 // All possible event types mapped to EventData
 export type EventMap = {
   ready: EventData;
   error: EventData;
 
-  'voice:started': EventData;
-  'voice:ended': EventData;
-  'voice:released': EventData;
+  'note:on': EventData;
+  'note:off': EventData;
+  'note:released': EventData;
+
+  'voice:available': EventData;
+  'voice:unavailable': EventData;
 
   'instrument:silent': EventData;
   'instrument:playing': EventData;
@@ -27,13 +30,16 @@ export type EventType = keyof EventMap;
 // Single event payload type with all possible properties
 export type EventData = {
   // Common properties
-  publisherId?: Id;
+  publisherId?: NodeID;
   currentTime?: AudioContextTimeSeconds;
   endTime?: AudioContextTimeSeconds;
   message?: string;
   // Playback properties
   note?: number;
   gain?: number;
+
+  // Voice properties
+  isAvailable?: boolean;
 };
 
 /*

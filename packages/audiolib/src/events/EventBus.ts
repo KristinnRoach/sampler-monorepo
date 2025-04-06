@@ -1,10 +1,10 @@
 // EventBus.ts
 import { EventType, EventMap } from './types';
 import { listenerMap, getListenerMap } from './store';
-import { Id } from '@/types/global';
 
-export interface IEventBus extends EventTarget {
-  readonly ownerId: Id;
+export interface IEventBus {
+  // possibly extend EventTarget
+  // readonly busID: NodeID;
 
   notify<K extends EventType>(type: K, detail: EventMap[K]): void;
 
@@ -19,7 +19,9 @@ export interface IEventBus extends EventTarget {
     handler: (detail: EventMap[K]) => void
   ): void;
 
-  removeAllListeners<K extends EventType>(type: K): void;
+  clearAllListeners(): void;
+
+  clearListenersForType<K extends EventType>(type: K): void;
 
   listenOnce<K extends EventType>(
     type: K,
@@ -28,11 +30,10 @@ export interface IEventBus extends EventTarget {
 }
 
 export class DefaultEventBus extends EventTarget implements IEventBus {
-  readonly ownerId: Id;
+  // readonly busID: BusID; // The bus id if global, or the owner node id if unique to that node instance
 
-  constructor(ownerId: Id) {
+  constructor() {
     super();
-    this.ownerId = ownerId;
   }
 
   notify<K extends EventType>(type: K, detail: EventMap[K]): void {
@@ -76,7 +77,7 @@ export class DefaultEventBus extends EventTarget implements IEventBus {
     }
   }
 
-  removeAllListeners<K extends EventType>(type: K): void {
+  clearListenersForType<K extends EventType>(type: K): void {
     const targetMap = listenerMap.get(this);
     if (!targetMap) return;
 
@@ -93,7 +94,10 @@ export class DefaultEventBus extends EventTarget implements IEventBus {
     targetMap.delete(type);
   }
 
-  dispose(): void {
+  // TODO: clearListenersByPublisherId(nodeId: Id): void {}
+  // todo: separate dispose method?
+
+  clearAllListeners(): void {
     // Remove all listeners from the event target
     const targetMap = listenerMap.get(this);
     if (targetMap) {

@@ -8,22 +8,22 @@ type AudioContextConfig = {
   latencyHint?: AudioContextLatencyCategory;
 };
 
-export async function getAudioContext(
-  config?: AudioContextConfig
-): Promise<AudioContext> {
+// Non-async for use in constructors and synchronous code - Use ensureAudioCtx when possible
+export function getAudioContext(config?: AudioContextConfig): AudioContext {
   if (!globalAudioContext) {
     console.log('Creating new AudioContext');
     globalAudioContext = new AudioContext({
       sampleRate: config?.sampleRate,
       latencyHint: config?.latencyHint || 'interactive',
     });
+
+    // Set up auto-resume on first creation, but don't await it
+    if (globalAudioContext.state === 'suspended') {
+      resumePromise = resumePromise || setupAutoResume();
+    }
   }
 
-  if (globalAudioContext.state === 'suspended') {
-    resumePromise = resumePromise || setupAutoResume();
-    await resumePromise;
-  }
-
+  // Always return the context immediately, even if suspended
   return globalAudioContext;
 }
 
@@ -46,3 +46,40 @@ function setupAutoResume(): Promise<void> {
     );
   });
 }
+
+// Call this when async is allowed
+export async function ensureAudioCtx(
+  config?: AudioContextConfig
+): Promise<AudioContext> {
+  const context = getAudioContext(config);
+
+  if (context.state === 'running') {
+    return context;
+  }
+
+  // If resumePromise is null, set it up
+  resumePromise = resumePromise || setupAutoResume();
+
+  await resumePromise;
+
+  return context;
+}
+
+// export async function getAudioContext(
+//   config?: AudioContextConfig
+// ): Promise<AudioContext> {
+//   if (!globalAudioContext) {
+//     console.log('Creating new AudioContext');
+//     globalAudioContext = new AudioContext({
+//       sampleRate: config?.sampleRate,
+//       latencyHint: config?.latencyHint || 'interactive',
+//     });
+//   }
+
+//   if (globalAudioContext.state === 'suspended') {
+//     resumePromise = resumePromise || setupAutoResume();
+//     await resumePromise;
+//   }
+
+//   return globalAudioContext;
+// }

@@ -4,7 +4,7 @@ export type IsReady = boolean;
 
 export type AudioContextTimeSeconds = number;
 
-export type Id = string | number; // | symbol; // TODO -> Standardize id's
+export type NodeID = string; // | number; // | symbol; // TODO -> Standardize id's
 
 export interface AudioParamDescriptor {
   name: string;

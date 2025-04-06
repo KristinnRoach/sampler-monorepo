@@ -1,0 +1,241 @@
+import getDefaultPlayer from './defaultSSPlayer';
+import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { type SamplePlayerNode } from './types';
+import { useEffect, useState } from 'react';
+import { type SingleSamplePlayer } from '@repo/audiolib';
+
+function SamplePlayerNode({
+  positionAbsoluteX,
+  positionAbsoluteY,
+  data,
+}: NodeProps<SamplePlayerNode>) {
+  const x = `${Math.round(positionAbsoluteX)}px`;
+  const y = `${Math.round(positionAbsoluteY)}px`;
+
+  const [bufferDuration, setBufferDuration] = useState(0);
+  const [loopStart, setLoopStart] = useState(0);
+  const [loopEnd, setLoopEnd] = useState(0);
+  const [rampDuration, setRampDuration] = useState(0);
+  const [loop, setLoop] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sampleUrl, setSampleUrl] = useState<string>('./sus.wav');
+
+  const [player, setPlayer] = useState<SingleSamplePlayer>();
+
+  // This will be used to create an AudioBuffer directly from the audio file
+  // which bypasses any path resolution issues
+  const loadAudioDirectly = async (url: string) => {
+    try {
+      // Clear any previous error
+      setErrorMessage(null);
+
+      // First log some debug info
+      console.log('Loading audio from URL:', url);
+      console.log('Current page URL:', window.location.href);
+
+      // Try to fetch the file directly
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the audio data as an ArrayBuffer
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(
+        'Successfully fetched audio file, size:',
+        arrayBuffer.byteLength
+      );
+
+      // Now load this into the player
+      const audioContext = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      console.log(
+        'Successfully decoded audio, duration:',
+        audioBuffer.duration
+      );
+
+      // Once we have the buffer, initialize the player
+      return getDefaultPlayer().then((player) => {
+        // Instead of using loadSample with URL, we'll set the buffer directly using internal methods
+        if (player.setSampleBuffer) {
+          player.setSampleBuffer(audioBuffer);
+          setBufferDuration(audioBuffer.duration);
+          setLoopStart(0);
+          setLoopEnd(audioBuffer.duration);
+          setRampDuration(0);
+          setLoop(false);
+          setPlayer(player);
+          return player;
+        } else {
+          throw new Error('Player does not have setSampleBuffer method');
+        }
+      });
+    } catch (error) {
+      console.error('Error loading audio:', error);
+      setErrorMessage(
+        `Error loading audio: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  };
+
+  // Try different paths for the audio file
+  const tryPaths = async () => {
+    const possiblePaths = [
+      './sus.wav', // Relative to current page
+      '/sus.wav', // Root relative
+      '/samples/sus.wav', // From samples dir
+      '/assets/audio/sus.wav', // From assets
+      '../../../assets/audio/sus.wav', // Relative using repo path
+      'sus.wav', // Just filename
+      window.location.origin + '/sus.wav', // Absolute with origin
+      `${window.location.origin}/assets/audio/sus.wav`, // Absolute with origin and path
+    ];
+
+    // Try each path until one works
+    for (const path of possiblePaths) {
+      try {
+        console.log(`Trying path: ${path}`);
+        const response = await fetch(path, { method: 'HEAD' });
+
+        if (response.ok) {
+          console.log(`Path ${path} exists!`);
+          setSampleUrl(path);
+          await loadAudioDirectly(path);
+          return; // Exit if successful
+        }
+      } catch (e) {
+        console.log(`Path ${path} failed:`, e);
+        // Continue to the next path
+      }
+    }
+
+    // If we got here, none of the paths worked
+    setErrorMessage('Could not find audio file at any of the attempted paths');
+  };
+
+  useEffect(() => {
+    // Try all the paths on component mount
+    tryPaths().catch((err) => {
+      console.error('Failed to load audio from any path:', err);
+    });
+
+    return () => {
+      player?.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (player) {
+      player.setLoopPoint('loopStart', loopStart, rampDuration);
+    }
+  }, [loopStart, player, rampDuration]);
+
+  useEffect(() => {
+    if (player) {
+      player.setLoopPoint('loopEnd', loopEnd, rampDuration);
+    }
+  }, [loopEnd, player, rampDuration]);
+
+  useEffect(() => {
+    if (player) {
+      player.setLoopEnabled(loop);
+    }
+  }, [player, loop]);
+
+  const handleSampleUrlChange = (newUrl: string) => {
+    setSampleUrl(newUrl);
+    setBufferDuration(0);
+    setLoopStart(0);
+    setLoopEnd(0);
+    setLoop(false);
+
+    // Load the new sample
+    loadAudioDirectly(newUrl).catch((err) => {
+      console.error('Failed to load new sample:', err);
+    });
+  };
+
+  return (
+    <div className='react-flow__node-default'>
+      {data.name && <div>{data.name}</div>}
+
+      {/* Show error message if there is one */}
+      {errorMessage && (
+        <div style={{ color: 'red', marginBottom: '10px' }}>{errorMessage}</div>
+      )}
+
+      <label className='drag-handle'>
+        <p>Loop Start</p>
+        <input
+          className='nodrag'
+          type='range'
+          step='0.001'
+          min='0'
+          max={loopEnd}
+          value={loopStart}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            setLoopStart(value);
+          }}
+        />
+        <p>Loop End</p>
+        <input
+          className='nodrag'
+          type='range'
+          step='0.001'
+          min={loopStart}
+          max={bufferDuration}
+          value={loopEnd}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            setLoopEnd(value);
+          }}
+        />
+        <p>Ramp Duration</p>
+        <input
+          className='nodrag'
+          type='range'
+          min='0'
+          max='1'
+          step='0.001'
+          value={rampDuration}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            setRampDuration(value);
+          }}
+        />
+        <p>Loop</p>
+        <input
+          className='nodrag'
+          type='checkbox'
+          checked={loop}
+          onChange={(e) => {
+            const value = e.target.checked;
+            setLoop(value);
+          }}
+        />
+        <p>Sample URL</p>
+        <input
+          className='nodrag'
+          type='text'
+          value={sampleUrl}
+          onChange={(e) => handleSampleUrlChange(e.target.value)}
+        />
+
+        {/* Current path info for debugging */}
+        <p>Current working path: {window.location.pathname}</p>
+      </label>
+
+      <div>
+        {x} {y}
+      </div>
+
+      <Handle type='source' position={Position.Bottom} />
+    </div>
+  );
+}
+
+export default SamplePlayerNode;

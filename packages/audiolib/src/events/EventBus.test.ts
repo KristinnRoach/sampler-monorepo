@@ -9,7 +9,7 @@ describe('DefaultEventBus', () => {
   beforeEach(() => {
     // Create a fresh EventBus instance before each test
     const ownerId = 'testOwnerId'; // Replace with a valid Id if needed
-    eventBus = new DefaultEventBus(ownerId);
+    eventBus = new DefaultEventBus();
   });
 
   afterEach(() => {
@@ -19,7 +19,7 @@ describe('DefaultEventBus', () => {
     // @ts-ignore - Accessing a private property for testing purposes
     const listeners = eventBus.eventListeners || [];
     for (const type in listeners) {
-      eventBus.removeAllListeners(type as EventType);
+      eventBus.clearListenersForType(type as EventType);
     }
   });
 
@@ -70,7 +70,7 @@ describe('DefaultEventBus', () => {
     eventBus.addListener(eventType, handler2);
 
     // Remove all handlers for the event type
-    eventBus.removeAllListeners(eventType);
+    eventBus.clearListenersForType(eventType);
 
     // Notify should not trigger any handlers
     eventBus.notify(eventType, eventData);

@@ -2,11 +2,8 @@ import { createSignal, createEffect, onMount, onCleanup } from 'solid-js';
 import {
   createSingleSamplePlayer,
   SingleSamplePlayer,
+  SingleSamplePlayerProps,
   loadAudioSample,
-  // Import the event system
-  EVENTS,
-  on,
-  off,
 } from '@repo/audiolib';
 
 export default function TestSingleSamplePlayer() {
@@ -20,36 +17,77 @@ export default function TestSingleSamplePlayer() {
   const [sampleDuration, setSampleDuration] = createSignal(0);
   const [currentTime, setCurrentTime] = createSignal('0:00');
 
-  const [lastEvent, setLastEvent] = createSignal('No events yet');
+  const [loopEnabled, setLoopEnabled] = createSignal(false);
+  const [loopStart, setLoopStart] = createSignal(0);
+  const [loopEnd, setLoopEnd] = createSignal(0);
+  const [rampDuration, setRampDuration] = createSignal(0);
 
   // Reference to track active voices
   let voiceCountInterval: number | undefined;
 
-  // Event handlers that filter by sampleId
-  const handleVoiceStarted = (event: CustomEvent) => {
-    const { voiceId, note, sampleId } = event.detail;
-    // Only handle events from our piano sample
-    if (sampleId === 'piano') {
-      setLastEvent(`Voice ${voiceId} started - Note: ${note}`);
-      setIsPlaying(true);
+  const [lastEvent, setLastEvent] = createSignal('No events yet');
+
+  // Event handlers
+
+  const handleSetLoopStart = (value: number) => {
+    const currentPlayer = player();
+    const rampTime = rampDuration();
+    if (currentPlayer) {
+      currentPlayer.setLoopPoint('loopStart', value, rampTime);
+      setLoopStart(value);
+    }
+  };
+  const handleSetLoopEnd = (value: number) => {
+    const currentPlayer = player();
+    const rampTime = rampDuration();
+    if (currentPlayer) {
+      currentPlayer.setLoopPoint('loopEnd', value, rampTime);
+      setLoopEnd(value);
     }
   };
 
-  const handleVoiceEnded = (event: CustomEvent) => {
-    const { voiceId, sampleId } = event.detail;
-    // Only handle events from our piano sample
-    if (sampleId === 'piano') {
-      setLastEvent(`Voice ${voiceId} ended`);
+  const handleEnableLoop = () => {
+    const currentPlayer = player();
+    if (currentPlayer) {
+      currentPlayer.setLoopEnabled(true);
+      setLoopEnabled(true);
+    }
+  };
+  const handleDisableLoop = () => {
+    const currentPlayer = player();
+    if (currentPlayer) {
+      currentPlayer.setLoopEnabled(false);
+      setLoopEnabled(false);
     }
   };
 
-  const handleAllVoicesEnded = (event: CustomEvent) => {
-    const { sampleId } = event.detail;
-    // Only handle events from our piano sample
-    if (sampleId === 'piano') {
-      setLastEvent(`All voices ended`);
-      setIsPlaying(false);
+  const handleNoteOn = (data: any) => {
+    const { publisherId, note } = data;
+    console.log('Note on:', publisherId, note);
+    setLastEvent(`Voice ${publisherId} started - Note: ${note}`);
+    setIsPlaying(true);
+  };
+
+  const handleNoteOff = (data: any) => {
+    const { publisherId, releaseTime } = data;
+    const currentPlayer = player();
+    if (currentPlayer) {
+      currentPlayer.releaseNote(releaseTime);
     }
+    console.log('Note off:', publisherId);
+    setLastEvent(`Voice ${publisherId} ended`);
+  };
+
+  const handleError = (data: any) => {
+    const { publisherId, message } = data;
+    console.error('Error:', publisherId, message);
+    setLastEvent(`Error in voice ${publisherId}: ${message}`);
+  };
+
+  const handleSilence = (data: any) => {
+    console.log('Silence:', data);
+    setLastEvent(`All voices ended`);
+    setIsPlaying(false);
   };
 
   onMount(async () => {
@@ -61,24 +99,28 @@ export default function TestSingleSamplePlayer() {
       // Store sample duration for display
       setSampleDuration(audioBuffer.duration);
 
+      const props: SingleSamplePlayerProps = {
+        name: 'piano',
+        sampleBuffer: audioBuffer,
+        polyphony: polyphony(),
+        rootNote: 60, // Middle C
+        addInputHandlers: true,
+      };
+
       // Create player with position tracking callback
-      const samplePlayer = await createSingleSamplePlayer(
-        'piano',
-        audioBuffer,
-        {
-          polyphony: polyphony(),
-          rootNote: 60, // Middle C
-        }
-      );
+      const samplePlayer = await createSingleSamplePlayer(props);
 
       // Update state
       setPlayer(samplePlayer);
       setIsLoaded(true);
 
       // Subscribe to events - the piano ID will help us filter
-      on(EVENTS.VOICE.STARTED, handleVoiceStarted);
-      on(EVENTS.VOICE.ENDED, handleVoiceEnded);
-      on(EVENTS.SAMPLE.ALL_VOICES_ENDED, handleAllVoicesEnded);
+      samplePlayer.addListener('note:on', handleNoteOn);
+      samplePlayer.addListener('note:off', handleNoteOff);
+      samplePlayer.addListener('error', handleError);
+
+      // on(EVENTS.VOICE.ENDED, handleVoiceEnded);
+      // on(EVENTS.SAMPLE.ALL_VOICES_ENDED, handleAllVoicesEnded);
 
       // // Set up voice count monitoring
       // voiceCountInterval = setInterval(() => {
@@ -102,10 +144,11 @@ export default function TestSingleSamplePlayer() {
       clearInterval(voiceCountInterval);
     }
 
-    // Unsubscribe from events
-    off(EVENTS.VOICE.STARTED, handleVoiceStarted);
-    off(EVENTS.VOICE.ENDED, handleVoiceEnded);
-    off(EVENTS.SAMPLE.ALL_VOICES_ENDED, handleAllVoicesEnded);
+    // todo: Unsubscribe from events in the players dispose method
+
+    // off(EVENTS.VOICE.STARTED, handleNoteOn);
+    // off(EVENTS.VOICE.ENDED, handleNoteOff);
+    // off(EVENTS.SAMPLE.ALL_VOICES_ENDED, handleSilence);
 
     const currentPlayer = player();
     if (currentPlayer) {
@@ -124,8 +167,8 @@ export default function TestSingleSamplePlayer() {
   const handlePlayNote = (midiNote: number) => {
     const currentPlayer = player();
     if (currentPlayer) {
-      currentPlayer.play(midiNote, 1.0);
-      console.log('Playing note:', midiNote);
+      currentPlayer.playNote(midiNote, 1.0);
+      // console.log('Playing note:', midiNote);
       setIsPlaying(true);
     } else {
       console.error('there is no currentPlayer');
@@ -223,7 +266,59 @@ export default function TestSingleSamplePlayer() {
             class='w-full'
             disabled={!isLoaded()}
           />
+
           <div class='text-right'>{(volume() * 100).toFixed(0)}%</div>
+
+          <label class='block mb-2'>Loop Start</label>
+
+          <input
+            type='range'
+            min='0'
+            max={sampleDuration() / 4}
+            step='0.005'
+            value={loopStart()}
+            onInput={(e) =>
+              handleSetLoopStart(
+                parseFloat((e.target as HTMLInputElement).value)
+              )
+            }
+            class='w-full'
+            disabled={!isLoaded() || !loopEnabled()}
+          />
+
+          <div class='text-right'>{loopStart().toFixed(2)}s</div>
+
+          <label class='block mb-2'>Loop End</label>
+
+          <input
+            type='range'
+            min={loopStart()}
+            max={sampleDuration() / 4}
+            step='0.005'
+            value={loopEnd()}
+            onInput={(e) =>
+              handleSetLoopEnd(parseFloat((e.target as HTMLInputElement).value))
+            }
+            class='w-full'
+            disabled={!isLoaded() || !loopEnabled()}
+          />
+          <div class='text-right'>{loopEnd().toFixed(2)}s</div>
+
+          <label class='block mb-2'>Ramp Duration</label>
+          <input
+            type='range'
+            min='0'
+            max='0.5'
+            step='0.01'
+            value={rampDuration()}
+            onInput={(e) =>
+              setRampDuration(parseFloat((e.target as HTMLInputElement).value))
+            }
+            class='w-full'
+            disabled={!isLoaded() || !loopEnabled()}
+          />
+
+          <div class='text-right'>{rampDuration().toFixed(2)}s</div>
         </div>
 
         <button
@@ -232,6 +327,21 @@ export default function TestSingleSamplePlayer() {
           class='px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50'
         >
           Stop All
+        </button>
+
+        <button
+          onClick={handleEnableLoop}
+          disabled={!isLoaded() || loopEnabled()}
+          class='px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50'
+        >
+          Enable Looping
+        </button>
+        <button
+          onClick={handleDisableLoop}
+          disabled={!isLoaded() || !loopEnabled()}
+          class='px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50'
+        >
+          Disable Looping
         </button>
       </div>
 
@@ -261,12 +371,7 @@ export default function TestSingleSamplePlayer() {
         </div>
       </div>
 
-      <div class='mt-6 text-sm text-gray-600'>
-        <p>
-          Note: Ensure you have a c4.mp3 sample in your
-          public/audio/test-samples directory.
-        </p>
-      </div>
+      <div class='mt-6 text-sm text-gray-600'>{lastEvent().toString()}</div>
     </div>
   );
 }

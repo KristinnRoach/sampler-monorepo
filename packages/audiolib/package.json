@@ -16,7 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --emitDeclarationOnly --watch & vite build --watch",
+    "build": "tsc --emitDeclarationOnly  & vite build",
+    "watch": "tsc --emitDeclarationOnly --watch & vite build --watch",
     "clean": "rm -rf dist",
     "dev": "vite",
     "preview": "vite preview",

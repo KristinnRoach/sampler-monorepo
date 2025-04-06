@@ -1,7 +1,7 @@
 // src/input/KeyboardController.tsx
 
 import { createEffect, onCleanup } from 'solid-js';
-import { keymap } from './keymap.js';
+import { keymap } from './keymap';
 
 interface Props {
   onNoteOn: (midiNote: number, velocity?: number) => void;

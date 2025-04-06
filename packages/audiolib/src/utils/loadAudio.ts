@@ -41,26 +41,18 @@ export async function loadAudioSample(
       }
     }
 
-    // Get the audio context
-    const audioContext = await getAudioContext();
-
-    // Fetch the audio file
+    const audioContext = getAudioContext();
     const response = await fetch(path);
 
-    // Check if the fetch was successful
     if (!response.ok) {
       throw new Error(
         `Failed to fetch audio file: ${response.status} ${response.statusText}`
       );
     }
 
-    // Get the audio data as ArrayBuffer
     const arrayBuffer = await response.arrayBuffer();
-
-    // Decode the audio data
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-    // Store in cache if enabled
     if (useCache) {
       await storeAudioSample(cacheId, path, audioBuffer);
     }
