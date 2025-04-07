@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
+  base: './', // For fetching assets!
   plugins: [
     dts({
       include: ['src'],
@@ -35,7 +36,7 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  // server configuration to serve test files
+  // server configuration to serve html test files
   server: {
     fs: {
       // Allow serving files from one level up

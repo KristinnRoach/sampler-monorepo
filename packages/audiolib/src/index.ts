@@ -1,6 +1,5 @@
-export * from './store/idb/db';
-export * from './store/idb/audioStorage';
-
+export * from './store/persistent/idb/db';
+export * from './store/persistent/idb/audioStorage';
 export * from './input';
 
 export { createSingleSamplePlayer } from './instruments/SingleSample/SingleSamplePlayer_loopController';

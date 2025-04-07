@@ -75,8 +75,7 @@ export async function getAudioSample(id: string): Promise<AudioBuffer | null> {
       return null;
     }
 
-    // Get the audio context
-    const audioContext = getAudioContext();
+    const audioContext = getAudioContext(); // todo: test getting the offline context instead
 
     // Metadata needed for reconstruction
     const channels = sampleItem.metadata?.channels || 1;

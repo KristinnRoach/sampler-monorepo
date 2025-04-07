@@ -84,9 +84,10 @@ export abstract class FlexEventDriven extends Node {
       this.#eventBus = null;
     }
   }
-
-  // Add other event methods that check for null first
-
-  // Usage example in VoiceNode:
-  // constructor(voiceId: number, ..., eventBusOption: EventBusOption = 'unique')
 }
+
+// Methods need to check for null bus first
+// if (!this.#eventBus) throw new Error('Event bus not initialized');
+
+// Usage example in VoiceNode:
+// constructor(voiceId: number, ..., eventBusOption: EventBusOption = 'unique')

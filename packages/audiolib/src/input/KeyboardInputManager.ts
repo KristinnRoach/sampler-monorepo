@@ -38,10 +38,17 @@ export class KeyboardInputManager {
    * @returns A cleanup function to unregister the handler
    */
   public addHandler(handler: NoteHandler): () => void {
+    if (this.activeHandlers.has(handler)) {
+      console.warn('Handler is already registered');
+      return () => {
+        this.removeHandler(handler);
+      };
+    }
+
     this.activeHandlers.add(handler);
     this.startListening();
 
-    // Return a cleanup function
+    // Return a cleanup function for convenience
     return () => {
       this.removeHandler(handler);
     };
@@ -58,6 +65,18 @@ export class KeyboardInputManager {
     if (this.activeHandlers.size === 0) {
       this.stopListening();
     }
+  }
+
+  /**
+   * Checks if a handler is registered
+   * @param handler The note handler to check
+   * @returns True if the handler is registered, false otherwise
+   */
+  public hasHandler(handler: NoteHandler | NoteHandler[]): boolean {
+    if (Array.isArray(handler)) {
+      return handler.every((h) => this.activeHandlers.has(h));
+    }
+    return this.activeHandlers.has(handler);
   }
 
   /**

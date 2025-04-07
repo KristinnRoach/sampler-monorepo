@@ -5,35 +5,35 @@ import {
   storeAudioSample,
   getAudioSample,
   hasAudioSample,
-} from '@/store/idb/audioStorage';
+} from '@/store/persistent/idb/audioStorage';
 
 /**
  * Loads and decodes an audio sample from a URL or file path
  * with IndexedDB caching support
  *
  * @param path - URL or path to the audio file
- * @param options - Loading options
+ * @param idbOptions - Loading options
  * @returns Promise resolving to the decoded AudioBuffer
  * @throws Error if loading or decoding fails
  */
 export async function loadAudioSample(
   path: string,
-  options: {
-    useCache?: boolean; // Whether to use IndexedDB cache
+  idbOptions: {
+    storeSample?: boolean; // Whether to use IndexedDB cache
     forceReload?: boolean; // Whether to force reload even if cached
-    cacheId?: string; // Custom ID for caching (defaults to path)
-  } = { useCache: true, forceReload: false }
+    sampleId?: string; // todo: sampleId system for manual retrieval (defaults to path for now)
+  } = { storeSample: true, forceReload: false }
 ): Promise<AudioBuffer> {
-  const { useCache = true, forceReload = false, cacheId = path } = options;
+  const { storeSample, forceReload, sampleId = path } = idbOptions;
 
   try {
     // Check cache first if enabled and not forcing reload
-    if (useCache && !forceReload) {
-      const cached = await hasAudioSample(cacheId);
+    if (storeSample && !forceReload) {
+      const cached = await hasAudioSample(sampleId);
 
       if (cached) {
-        console.log(`Loading audio sample from cache: ${cacheId}`);
-        const cachedBuffer = await getAudioSample(cacheId);
+        console.log(`Loading audio sample from cache: ${sampleId}`);
+        const cachedBuffer = await getAudioSample(sampleId);
 
         if (cachedBuffer) {
           return cachedBuffer;
@@ -53,8 +53,8 @@ export async function loadAudioSample(
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-    if (useCache) {
-      await storeAudioSample(cacheId, path, audioBuffer);
+    if (storeSample) {
+      await storeAudioSample(sampleId, path, audioBuffer);
     }
 
     return audioBuffer;

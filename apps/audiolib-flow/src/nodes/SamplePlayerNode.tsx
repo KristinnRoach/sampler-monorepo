@@ -2,9 +2,8 @@ import getDefaultPlayer from './defaultSSPlayer';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { type SamplePlayerNode } from './types';
 import { useEffect, useState } from 'react';
-import { type SingleSamplePlayer } from '@repo/audiolib';
+import { SingleSamplePlayer, loadAudioSample } from '@repo/audiolib';
 
-// Use a simpler approach with a default audio buffer
 function SamplePlayerNode({
   positionAbsoluteX,
   positionAbsoluteY,
@@ -22,61 +21,37 @@ function SamplePlayerNode({
 
   const [player, setPlayer] = useState<SingleSamplePlayer>();
 
+  const initasync = async () => {
+    console.log('Init async function called');
+    const path = '/sus.wav';
+    const audiobuffer = await loadAudioSample(path, {
+      storeSample: true,
+      forceReload: false,
+    });
+
+    if (!audiobuffer) {
+      throw new Error('EVEN HANDLER FAILED TO DECODE AUDIO DATA');
+    }
+    if (!player) {
+      const player = await getDefaultPlayer();
+      player.setSampleBuffer(audiobuffer);
+      setPlayer(player);
+      setBufferDuration(audiobuffer.duration);
+      setLoopStart(0);
+      setLoopEnd(audiobuffer.duration);
+      setRampDuration(0);
+      setLoop(false);
+      setErrorMessage(null);
+    }
+  };
+
   useEffect(() => {
-    // Create a simple sine wave audio buffer instead of loading from file
-    const createSineWaveBuffer = () => {
-      // Create an audio context
-      const audioCtx = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-
-      // Create a 2 second buffer at the sample rate of the AudioContext
-      const sampleRate = audioCtx.sampleRate;
-      const duration = 2; // in seconds
-      const bufferSize = sampleRate * duration;
-      const audioBuffer = audioCtx.createBuffer(1, bufferSize, sampleRate);
-
-      // Fill the buffer with a simple sine wave
-      const bufferData = audioBuffer.getChannelData(0);
-      const frequency = 440; // A4 note in Hz
-
-      for (let i = 0; i < bufferSize; i++) {
-        // Generate a sine wave
-        bufferData[i] = Math.sin((2 * Math.PI * frequency * i) / sampleRate);
-      }
-
-      console.log('Created sine wave buffer, duration:', audioBuffer.duration);
-      return audioBuffer;
-    };
-
-    // Initialize player with synthetic audio buffer
-    getDefaultPlayer()
-      .then((player) => {
-        try {
-          const audioBuffer = createSineWaveBuffer();
-          player.setSampleBuffer(audioBuffer);
-
-          setBufferDuration(audioBuffer.duration);
-          setLoopStart(0);
-          setLoopEnd(audioBuffer.duration);
-          setRampDuration(0);
-          setLoop(false);
-          setPlayer(player);
-          setErrorMessage(null);
-
-          console.log('Player initialized successfully with synthetic buffer');
-        } catch (error) {
-          console.error('Failed to initialize player:', error);
-          setErrorMessage(
-            `Failed to initialize player: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to get default player:', error);
-        setErrorMessage(
-          `Failed to get default player: ${error instanceof Error ? error.message : String(error)}`
-        );
-      });
+    console.log('Mounted Useffect fired');
+    // document.addEventListener('click', initasync, { once: true });
+    initasync().then(() => {
+      console.log('Init async function completed, player() is: ', player);
+      // document.removeEventListener('click', initasync);
+    });
 
     return () => {
       player?.dispose();
@@ -101,8 +76,49 @@ function SamplePlayerNode({
     }
   }, [player, loop]);
 
+  function handlePlayTestOsc() {
+    const audioCtx = new (window.AudioContext ||
+      (window as any).webkitAudioContext)();
+    const gainNode = audioCtx.createGain();
+    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+    gainNode.connect(audioCtx.destination);
+    const oscillator = audioCtx.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+    oscillator.connect(gainNode);
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 2);
+  }
+
+  function handlePlayTestPlayer() {
+    if (player) {
+      //&& player?.isInitialized) {
+      player.playNote(60, 0.5); // Play a note at 60Hz for 0.5 seconds
+      console.log('Playing note with player');
+    } else {
+      console.error('Player is not initialized');
+      setErrorMessage('Player is not initialized yet');
+    }
+  }
+
   return (
     <div className='react-flow__node-default'>
+      <button
+        id='test-osc'
+        onClick={() => {
+          handlePlayTestOsc();
+        }}
+      >
+        Test Osc
+      </button>
+      <button
+        id='test-osc'
+        onClick={() => {
+          handlePlayTestPlayer();
+        }}
+      >
+        Test play player
+      </button>
       {data.name && <div>{data.name}</div>}
 
       {/* Show error message if there is one */}

@@ -65,21 +65,7 @@ export async function ensureAudioCtx(
   return context;
 }
 
-// export async function getAudioContext(
-//   config?: AudioContextConfig
-// ): Promise<AudioContext> {
-//   if (!globalAudioContext) {
-//     console.log('Creating new AudioContext');
-//     globalAudioContext = new AudioContext({
-//       sampleRate: config?.sampleRate,
-//       latencyHint: config?.latencyHint || 'interactive',
-//     });
-//   }
-
-//   if (globalAudioContext.state === 'suspended') {
-//     resumePromise = resumePromise || setupAutoResume();
-//     await resumePromise;
-//   }
-
-//   return globalAudioContext;
-// }
+/* todo: listen for ctx events
+sinkchange Experimental
+Fired when the output audio device (and therefore, the AudioContext.sinkId) has changed.
+*/

@@ -1,13 +1,13 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import { VoiceNode } from '@/nodes/voice/VoiceNode';
-import { EventBusOption } from '@/events'; // DefaultEventBus
+import { EventBusOption, EventData } from '@/events'; // DefaultEventBus
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
 import { globalKeyboardInput } from '@/input';
 import { loadAudioSample } from '@/utils/loadAudio';
 
 export type SingleSamplePlayerProps = {
   name: string;
-  sampleBuffer?: AudioBuffer;
+  sampleBuffer?: AudioBuffer | ArrayBuffer;
   addInputHandlers?: boolean; // "none" | "keyboard" | "midi";
   polyphony?: number;
   rootNote?: number;
@@ -18,8 +18,9 @@ export async function createSingleSamplePlayer(
   props: SingleSamplePlayerProps
 ): Promise<SingleSamplePlayer> {
   try {
-    // Initialize the player
     const player = new SingleSamplePlayer(props);
+
+    console.warn('PROPS: ', props);
 
     return player;
   } catch (error) {
@@ -31,7 +32,7 @@ export async function createSingleSamplePlayer(
 export class SingleSamplePlayer extends FlexEventDriven {
   #name: string;
   #context: BaseAudioContext;
-  #buffer: AudioBuffer | null;
+  #buffer: AudioBuffer | null = null;
 
   #availableVoices: VoiceNode[] = [];
   #activeVoices: Map<number, VoiceNode[]> = new Map(); // VoiceNode[] = []; // todo: skoða voice allocation
@@ -52,43 +53,52 @@ export class SingleSamplePlayer extends FlexEventDriven {
     super(eventBusOption);
 
     this.#name = props.name;
-    this.#buffer = props.sampleBuffer || null;
     this.#polyphony = props.polyphony || 8;
     this.#rootNote = props.rootNote || 60;
 
-    this.#context = getAudioContext();
+    this.#context = getAudioContext(); // could be done in super()
     if (!this.#context) throw new Error('No AudioContext!');
-
     this.#destination = props.outputDestination || this.#context.destination;
-
-    // Create the main output gain node
     this.#outputGain = this.#context.createGain();
     this.#outputGain.gain.value = 1.0;
 
     this.#outputGain.connect(this.#destination);
 
-    if (props.addInputHandlers) {
-      this.addInputHandlers();
-    }
+    if (props.sampleBuffer && props.sampleBuffer instanceof ArrayBuffer) {
+      this.#context.decodeAudioData(
+        props.sampleBuffer,
+        (buffer) => {
+          this.#buffer = buffer;
+        },
+        (error) => {
+          console.error('Failed to decode audio buffer:', error);
+        }
+      );
 
-    if (props.sampleBuffer) {
-      this.#buffer = props.sampleBuffer;
+      if (props.sampleBuffer instanceof AudioBuffer) {
+        this.#buffer = props.sampleBuffer;
+      } else {
+        console.warn(
+          'No buffer provided, need to setBuffer(b: AudioBuffer | ArrayBuffer ) before playing'
+        );
+      }
+
       if (this.initVoices()) {
         this.isInitialized = true;
       }
+    }
+
+    if (props.addInputHandlers) {
+      this.addInputHandlers();
     }
   }
 
   addInputHandlers(type: 'computer-keyboard' | 'midi' = 'computer-keyboard') {
     if (!this.isInitialized) {
-      console.log('SingleSamplePlayer not initialized');
-      return;
+      console.warn(
+        'SingleSamplePlayer not initialized when adding input handlers'
+      );
     }
-    // todo: check if handlers already added
-    globalKeyboardInput.removeHandler({
-      onNoteOn: this.playNote.bind(this),
-      onNoteOff: this.releaseNote.bind(this),
-    });
 
     switch (type) {
       case 'computer-keyboard':
@@ -104,32 +114,41 @@ export class SingleSamplePlayer extends FlexEventDriven {
         break;
     }
   }
+
   removeInputHandlers() {
-    if (!this.isInitialized) {
-      console.log('SingleSamplePlayer not initialized');
-      return;
-    }
     globalKeyboardInput.removeHandler({
       onNoteOn: this.playNote.bind(this),
       onNoteOff: this.releaseNote.bind(this),
     });
   }
 
-  async loadSample(url: string) {
-    // todo: flexible source, add cache options
-    const audioBuffer = await loadAudioSample(url);
-    if (!audioBuffer) {
-      console.warn('Failed to load audio sample');
-      return null;
+  async loadSampleFromeURL(
+    // todo: TEST in different environments, paths suck with bundling
+    path: string,
+    idbOptions?: {
+      storeSample?: boolean;
+      forceReload?: boolean;
+      sampleId?: string;
     }
+  ): Promise<number | null> {
+    const audioBuffer = await loadAudioSample(path, idbOptions);
     this.setSampleBuffer(audioBuffer);
     //  assert
     return audioBuffer.duration;
   }
 
   setSampleBuffer(buffer: AudioBuffer): void {
+    if (!buffer || buffer.length <= 0) {
+      console.warn('Failed to load audio sample');
+      return;
+    }
+    if (this.#buffer) {
+      console.warn('Clearing existing buffer...');
+      this.#buffer = null;
+      this.clearVoices();
+    }
     this.#buffer = buffer;
-    this.initVoices(buffer); // todo: maybe reuse VoiceNode's instead (add setBuffer to VoiceNode)
+    this.initVoices(); // todo: maybe reuse VoiceNode's instead (add setBuffer to VoiceNode)
   }
 
   getSampleBuffer(): AudioBuffer | null {
@@ -144,10 +163,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
     return this.#buffer.duration;
   }
 
-  initVoices(audioBuffer?: AudioBuffer): boolean {
-    let buffer = audioBuffer || this.#buffer;
-    if (!buffer) throw new Error('Buffer non-existent');
-    if (!this.#outputGain) throw new Error('Output gain non-existent');
+  initVoices(): boolean {
     if (!this.#buffer) throw new Error('Buffer non-existent');
     // todo: consistent assert system
 
@@ -162,7 +178,6 @@ export class SingleSamplePlayer extends FlexEventDriven {
 
       voice.addListener('note:on', (info) => this.notify('note:on', info));
 
-      // Draft voice allocation
       voice.addListener('note:off', (info) => {
         this.notify('note:off', info);
         // Remove the voice from the active voices
@@ -191,6 +206,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
     }
 
     console.log('SingleSamplePlayer initialized');
+    this.isInitialized = true;
     return true;
   }
 

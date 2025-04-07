@@ -163,43 +163,32 @@ export class VoiceNode extends FlexEventDriven {
   setLoopPoint(
     loopPoint: 'loopStart' | 'loopEnd',
     targetValue: number,
-    rampDuration: number
+    rampDuration: number = 0 // todo: Interpolate!
   ): void {
-    // Todo: interpolate - temp immediate
     if (this.#activeSource) {
       this.#activeSource[loopPoint] = targetValue;
     }
     if (this.#nextSource) {
       this.#nextSource[loopPoint] = targetValue;
     }
-
-    // const param = loopPoint === 'loopStart' ? this.#loopStart : this.#loopEnd;
-    // if (this.isPlaying()) {
-    //   param.linearRampToValueAtTime(targetValue, this.now() + rampDuration);
-    // }
-    // param.setValueAtTime(targetValue, this.now());
   }
 
-  forceMakeAvailable(): void {
-    // Stop any active source if it's playing
-    if (this.#activeSource) {
-      try {
-        this.#activeSource.stop();
-      } catch (e) {
-        // Handle the case where it might have already stopped
-      }
+  forceMakeAvailable(fadeOutSec: number = 0.05): void {
+    if (this.#activeSource !== null) {
+      this.#outputNode!.gain.cancelScheduledValues(0);
+      this.#outputNode!.gain.setValueAtTime(0, fadeOutSec);
+      this.#activeSource.stop(this.now() + fadeOutSec);
+      this.#activeSource.disconnect();
       this.#activeSource = null;
     }
 
-    // Prepare a fresh source for the next play
     this.#nextSource = this.#prepNextSource(this.#buffer);
   }
 
   triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
     if (!this.#activeSource) {
       console.warn('Voice not playing when triggerRelease() called');
-      // todo: notify listeners
-
+      // notify
       return;
     }
 
