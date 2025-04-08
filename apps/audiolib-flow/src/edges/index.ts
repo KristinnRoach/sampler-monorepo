@@ -6,6 +6,4 @@ export const initialEdges: Edge[] = [
   { id: 'c->d', source: 'c', target: 'd', animated: true },
 ];
 
-export const edgeTypes = {
-  // Add your custom edge types here!
-} satisfies EdgeTypes;
+export const edgeTypes = {} satisfies EdgeTypes;

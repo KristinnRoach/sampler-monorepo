@@ -2,11 +2,12 @@
 import { IEventBus, DefaultEventBus } from '@/events';
 
 // Singleton instance
-export const UIUpdateBus = new DefaultEventBus(); // 'GLOBAL_UI'); // temporary id
-export const AudioEventBus = new DefaultEventBus(); // 'GLOBAL_AUDIO'); // temporary id
+export const UIUpdateBus = new DefaultEventBus();
+export const AudioEventBus = new DefaultEventBus();
+export const SystemEventBus = new DefaultEventBus();
 
-export type GlobalEventBusses = 'audio' | 'ui';
-export type EventBusOption = 'audio' | 'ui' | 'unique' | 'none'; // IEventBus |
+export type GlobalEventBusses = 'audio' | 'ui' | 'system';
+export type EventBusOption = 'audio' | 'ui' | 'unique' | 'system' | 'none'; // IEventBus |
 
 // overloads for type safety
 export function getEventBus(option: 'unique', publisherId: string): IEventBus;
@@ -21,6 +22,7 @@ export function getEventBus(
   publisherId?: string
 ): IEventBus | null {
   if (option === 'none') return null;
+  if (option === 'system') return SystemEventBus;
   if (option === 'ui') return UIUpdateBus;
   if (option === 'audio') return AudioEventBus;
   if (option === 'unique') {
@@ -30,5 +32,6 @@ export function getEventBus(
       );
     return new DefaultEventBus();
   }
+
   return option; // IEventBus
 }

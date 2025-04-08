@@ -1,9 +1,9 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import { VoiceNode } from '@/nodes/voice/VoiceNode';
-import { EventBusOption, EventData } from '@/events'; // DefaultEventBus
+import { EventBusOption } from '@/events'; // DefaultEventBus
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
 import { globalKeyboardInput } from '@/input';
-import { loadAudioSample } from '@/utils/loadAudio';
+import { loadAudioSample, loadDefaultSample } from '@/utils/loadAudio';
 
 export type SingleSamplePlayerProps = {
   name: string;
@@ -13,21 +13,6 @@ export type SingleSamplePlayerProps = {
   rootNote?: number;
   outputDestination?: AudioDestinationNode;
 };
-
-export async function createSingleSamplePlayer(
-  props: SingleSamplePlayerProps
-): Promise<SingleSamplePlayer> {
-  try {
-    const player = new SingleSamplePlayer(props);
-
-    console.warn('PROPS: ', props);
-
-    return player;
-  } catch (error) {
-    console.error('Failed to initialize player:', error);
-    throw error;
-  }
-}
 
 export class SingleSamplePlayer extends FlexEventDriven {
   #name: string;
@@ -48,7 +33,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
 
   constructor(
     props: SingleSamplePlayerProps,
-    eventBusOption: EventBusOption = 'ui' // 'ui' | 'audio' | 'unique' | 'none'
+    eventBusOption: EventBusOption = 'ui'
   ) {
     super(eventBusOption);
 
@@ -56,40 +41,53 @@ export class SingleSamplePlayer extends FlexEventDriven {
     this.#polyphony = props.polyphony || 8;
     this.#rootNote = props.rootNote || 60;
 
-    this.#context = getAudioContext(); // could be done in super()
+    this.#context = getAudioContext();
     if (!this.#context) throw new Error('No AudioContext!');
     this.#destination = props.outputDestination || this.#context.destination;
     this.#outputGain = this.#context.createGain();
     this.#outputGain.gain.value = 1.0;
-
     this.#outputGain.connect(this.#destination);
 
+    // Handle ArrayBuffer asynchronously
     if (props.sampleBuffer && props.sampleBuffer instanceof ArrayBuffer) {
       this.#context.decodeAudioData(
         props.sampleBuffer,
         (buffer) => {
           this.#buffer = buffer;
+          if (this.initVoices()) {
+            this.isInitialized = true;
+            if (props.addInputHandlers) {
+              this.addInputHandlers();
+            }
+          }
         },
         (error) => {
           console.error('Failed to decode audio buffer:', error);
         }
       );
-
-      if (props.sampleBuffer instanceof AudioBuffer) {
-        this.#buffer = props.sampleBuffer;
-      } else {
-        console.warn(
-          'No buffer provided, need to setBuffer(b: AudioBuffer | ArrayBuffer ) before playing'
-        );
-      }
-
+    }
+    // Handle AudioBuffer synchronously
+    else if (props.sampleBuffer instanceof AudioBuffer) {
+      this.#buffer = props.sampleBuffer;
       if (this.initVoices()) {
         this.isInitialized = true;
+        if (props.addInputHandlers) {
+          this.addInputHandlers();
+        }
       }
     }
-
-    if (props.addInputHandlers) {
-      this.addInputHandlers();
+    // Load default sample
+    else {
+      console.warn('No buffer provided, using default sample...');
+      loadDefaultSample().then((buffer: AudioBuffer) => {
+        this.#buffer = buffer;
+        if (this.initVoices()) {
+          this.isInitialized = true;
+          if (props.addInputHandlers) {
+            this.addInputHandlers();
+          }
+        }
+      });
     }
   }
 
@@ -123,7 +121,6 @@ export class SingleSamplePlayer extends FlexEventDriven {
   }
 
   async loadSampleFromeURL(
-    // todo: TEST in different environments, paths suck with bundling
     path: string,
     idbOptions?: {
       storeSample?: boolean;
@@ -133,7 +130,6 @@ export class SingleSamplePlayer extends FlexEventDriven {
   ): Promise<number | null> {
     const audioBuffer = await loadAudioSample(path, idbOptions);
     this.setSampleBuffer(audioBuffer);
-    //  assert
     return audioBuffer.duration;
   }
 
@@ -156,6 +152,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
   }
 
   getSampleDuration(): number | null {
+    // Seconds
     if (!this.#buffer) {
       console.warn('Audio buffer non-existent');
       return null;
@@ -164,8 +161,16 @@ export class SingleSamplePlayer extends FlexEventDriven {
   }
 
   initVoices(): boolean {
-    if (!this.#buffer) throw new Error('Buffer non-existent');
-    // todo: consistent assert system
+    if (!this.#buffer) {
+      console.warn(
+        'No audio buffer provided, using default sample. Call loadSample or setSampleBuffer'
+      );
+      loadDefaultSample().then((buffer: AudioBuffer) => {
+        this.#buffer = buffer;
+        this.initVoices();
+      });
+      return false;
+    }
 
     if (this.#availableVoices.length > 0 || this.#activeVoices.size > 0) {
       console.warn('Clearing existing voices...');

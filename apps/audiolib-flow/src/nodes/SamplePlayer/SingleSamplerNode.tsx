@@ -1,18 +1,17 @@
-import getDefaultPlayer from './defaultSSPlayer';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { type SamplePlayerNode } from './types';
 import { useEffect, useState } from 'react';
-import { SingleSamplePlayer, loadAudioSample } from '@repo/audiolib';
+import { SingleSamplePlayer } from '@repo/audiolib';
+import { type SingleSamplerProps } from '../node-types';
 
-function SamplePlayerNode({
+function SingleSamplerNode({
   positionAbsoluteX,
   positionAbsoluteY,
   data,
-}: NodeProps<SamplePlayerNode>) {
+}: NodeProps<SingleSamplerProps>) {
   const x = `${Math.round(positionAbsoluteX)}px`;
   const y = `${Math.round(positionAbsoluteY)}px`;
 
-  const [bufferDuration, setBufferDuration] = useState(0);
+  const [sampleDuration, setSampleDuration] = useState(0);
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(0);
   const [rampDuration, setRampDuration] = useState(0);
@@ -21,37 +20,27 @@ function SamplePlayerNode({
 
   const [player, setPlayer] = useState<SingleSamplePlayer>();
 
-  const initasync = async () => {
-    console.log('Init async function called');
-    const path = '/sus.wav';
-    const audiobuffer = await loadAudioSample(path, {
-      storeSample: true,
-      forceReload: false,
-    });
-
-    if (!audiobuffer) {
-      throw new Error('EVEN HANDLER FAILED TO DECODE AUDIO DATA');
+  const init = () => {
+    if (player) {
+      console.log('Player already initialized');
+      return;
     }
-    if (!player) {
-      const player = await getDefaultPlayer();
-      player.setSampleBuffer(audiobuffer);
-      setPlayer(player);
-      setBufferDuration(audiobuffer.duration);
-      setLoopStart(0);
-      setLoopEnd(audiobuffer.duration);
-      setRampDuration(0);
-      setLoop(false);
-      setErrorMessage(null);
-    }
+    console.log('Initializing player...');
+    const props = data;
+    const newPlayer = new SingleSamplePlayer(props);
+    const bufferDuration = newPlayer.getSampleDuration();
+    setPlayer(newPlayer);
+    setSampleDuration(bufferDuration ?? 0);
+    setLoopStart(0);
+    setLoopEnd(bufferDuration ?? 0);
+    setRampDuration(0);
+    setLoop(false);
+    setErrorMessage(null);
   };
 
   useEffect(() => {
     console.log('Mounted Useffect fired');
-    // document.addEventListener('click', initasync, { once: true });
-    initasync().then(() => {
-      console.log('Init async function completed, player() is: ', player);
-      // document.removeEventListener('click', initasync);
-    });
+    init();
 
     return () => {
       player?.dispose();
@@ -76,49 +65,8 @@ function SamplePlayerNode({
     }
   }, [player, loop]);
 
-  function handlePlayTestOsc() {
-    const audioCtx = new (window.AudioContext ||
-      (window as any).webkitAudioContext)();
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-    gainNode.connect(audioCtx.destination);
-    const oscillator = audioCtx.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
-    oscillator.connect(gainNode);
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 2);
-  }
-
-  function handlePlayTestPlayer() {
-    if (player) {
-      //&& player?.isInitialized) {
-      player.playNote(60, 0.5); // Play a note at 60Hz for 0.5 seconds
-      console.log('Playing note with player');
-    } else {
-      console.error('Player is not initialized');
-      setErrorMessage('Player is not initialized yet');
-    }
-  }
-
   return (
     <div className='react-flow__node-default'>
-      <button
-        id='test-osc'
-        onClick={() => {
-          handlePlayTestOsc();
-        }}
-      >
-        Test Osc
-      </button>
-      <button
-        id='test-osc'
-        onClick={() => {
-          handlePlayTestPlayer();
-        }}
-      >
-        Test play player
-      </button>
       {data.name && <div>{data.name}</div>}
 
       {/* Show error message if there is one */}
@@ -146,7 +94,7 @@ function SamplePlayerNode({
           type='range'
           step='0.001'
           min={loopStart}
-          max={bufferDuration}
+          max={sampleDuration}
           value={loopEnd}
           onChange={(e) => {
             const value = parseFloat(e.target.value);
@@ -189,4 +137,4 @@ function SamplePlayerNode({
   );
 }
 
-export default SamplePlayerNode;
+export default SingleSamplerNode;

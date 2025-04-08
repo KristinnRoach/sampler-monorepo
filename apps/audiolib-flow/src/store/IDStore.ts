@@ -2,11 +2,9 @@ let newestId = -1;
 
 const IDStore: string[] = [newestId + ''];
 
-// todo: add node types
 export const createNodeId = (nodeType: string = '') => {
   const id = (++newestId).toString();
   IDStore.push(id + '-' + nodeType);
-  console.log('lib: createNodeId: ', id, ' type: ', nodeType);
   return id;
 };
 
@@ -16,7 +14,6 @@ export const deleteNodeId = (nodeId: string) => {
     IDStore.splice(index, 1);
     console.log('Node ID deleted: ', nodeId);
   } else {
-    console.error('Node ID not found: ', nodeId);
   }
 };
 
@@ -27,3 +24,19 @@ export const getIdsByType = (type: string) => {
 export const getAllIds = () => [...IDStore];
 
 export const hasId = (id: string) => IDStore.includes(id);
+export const resetIdStore = () => {
+  IDStore.length = 0;
+  newestId = -1;
+};
+
+export const getIdStore = () => IDStore;
+
+export default {
+  createNodeId,
+  deleteNodeId,
+  getIdsByType,
+  getAllIds,
+  hasId,
+  resetIdStore,
+  getIdStore,
+};

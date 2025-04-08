@@ -60,6 +60,24 @@ export async function storeAudioSample(
   }
 }
 
+// Get most recently added sample from IndexedDB
+export async function getLatestAudioSample(): Promise<ISampleItem | null> {
+  try {
+    const latestSampleItem = await db.samples
+      .orderBy('dateAdded')
+      .reverse()
+      .first();
+    return latestSampleItem || null;
+  } catch (error) {
+    console.error('Failed to retrieve latest audio sample:', error);
+    throw new Error(
+      `Failed to retrieve latest audio sample: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// export async function getAudioSampleByUrl(url: string): Promise<ISampleItem | null> {
+
 /**
  * Retrieves an AudioBuffer from IndexedDB
  *

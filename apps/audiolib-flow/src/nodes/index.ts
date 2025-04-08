@@ -1,14 +1,40 @@
 import type { NodeTypes } from '@xyflow/react';
+import { AppNode } from './node-types';
+import SingleSamplerNode from './SamplePlayer/SingleSamplerNode';
+import * as IDs from '../store';
 
-import PositionLoggerNode from './PositionLoggerNode';
-import { AppNode } from './types';
-import SamplePlayerNode from './SamplePlayerNode';
+export const initialNodes: AppNode[] = [
+  {
+    id: IDs.createNodeId(),
+    type: 'sink',
+    position: { x: 0, y: 0 },
+    data: { label: 'Node Factory' },
+  },
+  {
+    id: IDs.createNodeId(),
+    type: 'node-factory',
+    position: { x: 0, y: 0 },
+    data: { label: 'Node Factory' },
+  },
 
-// import {
-//   createSingleSamplePlayer,
-//   type SingleSamplePlayer,
-//   type SingleSamplePlayerProps,
-// } from '@repo/audiolib';
+  // {
+  //   id: IDs.createNodeId(),
+  //   type: 'sample-player',
+  //   position: { x: 0, y: 0 },
+  //   data: defaultPlayerProps,
+  // },
+  // {
+  //   id: IDs.createNodeId(),
+  //   type: 'output',
+  //   position: { x: 0, y: 300 },
+  //   data: { label: 'Output Node' },
+  // },
+];
+
+export const nodeTypes = {
+  'sample-player': SingleSamplerNode,
+  // 'node-factory': NodeFactoryNode,
+} satisfies NodeTypes;
 
 // const getArrBuff = async (path = '/sus.wav') => {
 //   const response = await fetch(path);
@@ -30,43 +56,3 @@ import SamplePlayerNode from './SamplePlayerNode';
 //   sampleBuffer: arrayBuffer,
 //   polyphony: 8,
 // };
-
-// async function getDefaultPlayer() {
-//   if (!defaultPlayer) {
-//     console.warn('defaultPlayerPROPS: ', playerDefaultData);
-//     defaultPlayer = await createSingleSamplePlayer(playerDefaultData);
-//   }
-//   return defaultPlayer;
-// }
-
-export const initialNodes: AppNode[] = [
-  {
-    id: 'a',
-    type: 'sample-player',
-    position: { x: 0, y: 0 },
-    data: { name: 'Default Sampler' },
-  },
-  {
-    id: 'b',
-    type: 'position-logger',
-    position: { x: -100, y: 100 },
-    data: { label: 'drag me!' },
-  },
-  {
-    id: 'c',
-    type: 'sample-player',
-    position: { x: 100, y: 100 },
-    data: { name: 'Second Sampler' },
-  },
-  {
-    id: 'd',
-    type: 'output',
-    position: { x: 0, y: 200 },
-    data: { label: 'Output Node' },
-  },
-];
-
-export const nodeTypes = {
-  'position-logger': PositionLoggerNode,
-  'sample-player': SamplePlayerNode,
-} satisfies NodeTypes;

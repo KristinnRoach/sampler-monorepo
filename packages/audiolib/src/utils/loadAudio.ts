@@ -7,6 +7,11 @@ import {
   hasAudioSample,
 } from '@/store/persistent/idb/audioStorage';
 
+const DEFAULT_SAMPLE_URL = new URL(
+  '/audio-samples/trimmed.wav',
+  import.meta.url
+).toString();
+
 /**
  * Loads and decodes an audio sample from a URL or file path
  * with IndexedDB caching support
@@ -64,6 +69,14 @@ export async function loadAudioSample(
       `Failed to load audio sample from ${path}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
+}
+// load default audio sample
+export async function loadDefaultSample(): Promise<AudioBuffer> {
+  return loadAudioSample(DEFAULT_SAMPLE_URL, {
+    storeSample: true,
+    forceReload: false,
+    sampleId: DEFAULT_SAMPLE_URL,
+  });
 }
 
 /**

@@ -1,5 +1,7 @@
 // globalAudioContext.ts
 
+import { SystemEventBus } from '@/events';
+
 let globalAudioContext: AudioContext | null = null;
 let resumePromise: Promise<void> | null = null;
 
@@ -15,6 +17,11 @@ export function getAudioContext(config?: AudioContextConfig): AudioContext {
     globalAudioContext = new AudioContext({
       sampleRate: config?.sampleRate,
       latencyHint: config?.latencyHint || 'interactive',
+    });
+
+    SystemEventBus.notify('audiocontext:created', {
+      publisherId: 'SingletonAudioContext',
+      message: `outputlatency: ${globalAudioContext.outputLatency},\nbaselatency: ${globalAudioContext.baseLatency},\nsampleRate: ${globalAudioContext.sampleRate}\nctx: ${globalAudioContext}`,
     });
 
     // Set up auto-resume on first creation, but don't await it
@@ -34,6 +41,10 @@ function setupAutoResume(): Promise<void> {
     const handler = async () => {
       if (globalAudioContext) {
         await globalAudioContext.resume();
+        SystemEventBus.notify('audiocontext:resumed', {
+          publisherId: 'SingletonAudioContext',
+          message: `ctx: ${globalAudioContext}`,
+        });
         resumeEvents.forEach((event) =>
           document.removeEventListener(event, handler)
         );
@@ -66,6 +77,6 @@ export async function ensureAudioCtx(
 }
 
 /* todo: listen for ctx events
-sinkchange Experimental
+sinkchange Experimental, onstatechange
 Fired when the output audio device (and therefore, the AudioContext.sinkId) has changed.
 */
