@@ -3,6 +3,8 @@
 import { midiToPlaybackRate } from '@/utils/midiUtils';
 import { EventBusOption } from '@/events'; // DefaultEventBus, EventBusOption
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
+import { MultiLoopController } from '@/processors/loop/MultiLoopController';
+import { createLWN } from './fact';
 
 export class VoiceNode extends FlexEventDriven {
   readonly eventBusOption: EventBusOption;
@@ -12,11 +14,14 @@ export class VoiceNode extends FlexEventDriven {
   #basePlaybackRate: number;
   #rootNote: number; // MIDI note number of the original sample
 
-  #activeSource: AudioBufferSourceNode | null;
-  #nextSource: AudioBufferSourceNode;
+  #activeSrc: AudioBufferSourceNode | null;
+  #nextSrc: AudioBufferSourceNode;
   #outputNode: GainNode;
 
   #loopEnabled: boolean = false;
+  #loopController: MultiLoopController | null = null;
+
+  // #looper: OptimizedLoopWorkletNode;
 
   constructor(
     context: BaseAudioContext,
@@ -30,29 +35,61 @@ export class VoiceNode extends FlexEventDriven {
     this.#buffer = buffer;
     this.eventBusOption = eventBusOption;
 
-    // set tuning
     this.#basePlaybackRate = midiToPlaybackRate(rootNote);
     this.#rootNote = rootNote;
 
     this.#outputNode = context.createGain();
     this.#outputNode.gain.setValueAtTime(0, this.now());
 
-    this.#nextSource = this.#prepNextSource(buffer);
+    this.#loopController = new MultiLoopController(this.#context, {
+      loopStart: 0,
+      loopEnd: buffer.duration,
+      processorOptions: {
+        significantChange: 0.001,
+        loopEnabled: this.#loopEnabled,
+      },
+    });
 
-    // this.#loopStart = new PseudoAudioParam(this.#nextSource, 'loopStart');
-    // this.#loopEnd = new PseudoAudioParam(this.#nextSource, 'loopEnd');
+    this.#nextSrc = this.#prepNextSource(buffer);
 
-    this.#activeSource = null;
+    this.#activeSrc = null;
+  }
+
+  setLoopController(loopController: MultiLoopController): void {
+    if (this.#loopController) return;
+
+    this.#loopController = loopController;
+    if (this.#activeSrc)
+      this.#loopController.addSourceNode(this.#activeSrc, {
+        start: this.setLoopStartDirectly,
+        end: this.setLoopEndDirectly,
+      });
+
+    if (this.#nextSrc)
+      this.#loopController.addSourceNode(this.#nextSrc, {
+        start: this.setLoopStartDirectly,
+        end: this.setLoopEndDirectly,
+      });
+  }
+
+  setLoopStartDirectly(loopStart: number): void {
+    if (this.#activeSrc) this.#activeSrc.loopStart = loopStart;
+    this.#nextSrc.loopStart = loopStart;
+  }
+
+  setLoopEndDirectly(loopEnd: number): void {
+    if (this.#activeSrc) this.#activeSrc.loopEnd = loopEnd;
+    this.#nextSrc.loopEnd = loopEnd;
   }
 
   /* CHECKERS */
 
   isPlaying(): boolean {
-    return this.#activeSource !== null;
+    return this.#activeSrc !== null;
   }
 
   isAvailable(): boolean {
-    return this.#activeSource === null && this.#nextSource !== null;
+    return this.#activeSrc === null && this.#nextSrc !== null;
   }
 
   now(): number {
@@ -68,26 +105,20 @@ export class VoiceNode extends FlexEventDriven {
       buffer: buffer,
     });
 
+    // this.#loopController?.addSourceNode(source);
+
     source.connect(this.#outputNode);
 
-    // Set the playback rate
     source.playbackRate.value = this.#basePlaybackRate;
     source.loop = this.#loopEnabled;
 
-    // source.loopStart = this.#loopStart?.currentValue ?? 0;
-    // source.loopEnd = this.#loopEnd?.currentValue ?? buffer.duration;
-
-    // Handle source ending
     source.onended = () => {
-      if (source === this.#activeSource) {
-        this.#activeSource.stop();
+      if (source === this.#activeSrc) {
+        this.#activeSrc.stop();
         this.#outputNode!.gain.cancelScheduledValues(0);
-        // this.#outputNode!.gain.setValueAtTime(0, 0);
+        this.#activeSrc.disconnect();
+        this.#activeSrc = null;
 
-        this.#activeSource.disconnect();
-        this.#activeSource = null;
-
-        // Notify voice ended
         this.notify('note:ended', {
           publisherId: this.nodeId,
           currentTime: this.now(),
@@ -119,11 +150,11 @@ export class VoiceNode extends FlexEventDriven {
     this.#outputNode!.gain.setValueAtTime(voiceGain, when);
 
     // Swap sources, tune and play
-    this.#activeSource = this.#nextSource;
-    this.#activeSource!.playbackRate.setValueAtTime(playbackRate, when);
-    this.#activeSource!.detune.setValueAtTime(0, when); // Reset detune
+    this.#activeSrc = this.#nextSrc;
+    this.#activeSrc!.playbackRate.setValueAtTime(playbackRate, when);
+    this.#activeSrc!.detune.setValueAtTime(0, when); // Reset detune
 
-    this.#activeSource!.start(when);
+    this.#activeSrc!.start(when);
 
     this.notify('note:started', {
       publisherId: this.nodeId,
@@ -132,7 +163,7 @@ export class VoiceNode extends FlexEventDriven {
       currentTime: when,
     });
 
-    this.#nextSource = this.#prepNextSource(this.#buffer);
+    this.#nextSrc = this.#prepNextSource(this.#buffer);
 
     return true;
   }
@@ -148,39 +179,26 @@ export class VoiceNode extends FlexEventDriven {
     const targetRate = Math.pow(2, (targetMidiNote - this.#rootNote) / 12);
 
     // Gradually change the playback rate
-    this.#activeSource!.playbackRate.linearRampToValueAtTime(
+    this.#activeSrc!.playbackRate.linearRampToValueAtTime(
       targetRate,
       when + glideTime
     );
   }
 
-  setLoopPoint(
-    loopPoint: 'loopStart' | 'loopEnd',
-    targetValue: number,
-    rampDuration: number = 0 // todo: Interpolate!
-  ): void {
-    if (this.#activeSource) {
-      this.#activeSource[loopPoint] = targetValue;
-    }
-    if (this.#nextSource) {
-      this.#nextSource[loopPoint] = targetValue;
-    }
-  }
-
   forceMakeAvailable(fadeOutSec: number = 0.05): void {
-    if (this.#activeSource !== null) {
+    if (this.#activeSrc !== null) {
       this.#outputNode!.gain.cancelScheduledValues(0);
       this.#outputNode!.gain.setValueAtTime(0, fadeOutSec);
-      this.#activeSource.stop(this.now() + fadeOutSec);
-      this.#activeSource.disconnect();
-      this.#activeSource = null;
+      this.#activeSrc.stop(this.now() + fadeOutSec);
+      this.#activeSrc.disconnect();
+      this.#activeSrc = null;
     }
 
-    this.#nextSource = this.#prepNextSource(this.#buffer);
+    this.#nextSrc = this.#prepNextSource(this.#buffer);
   }
 
   triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
-    if (!this.#activeSource) {
+    if (!this.#activeSrc) {
       // notify
       return;
     }
@@ -191,7 +209,7 @@ export class VoiceNode extends FlexEventDriven {
     this.#outputNode.gain.linearRampToValueAtTime(0, when + releaseTime);
     // todo: notify voice available when the volume is 0 or close to it
 
-    this.#activeSource!.stop(when + releaseTime);
+    this.#activeSrc!.stop(when + releaseTime);
 
     // Notify voice release
     this.notify('note:released', {
@@ -210,20 +228,19 @@ export class VoiceNode extends FlexEventDriven {
   dispose(): void {
     super.dispose();
     this.#outputNode?.disconnect();
-    this.#activeSource?.disconnect();
-    this.#nextSource.disconnect();
-    this.#activeSource = null;
+    this.#activeSrc?.disconnect();
+    this.#nextSrc.disconnect();
+    this.#activeSrc = null;
   }
 
   /*  GETTERS & SETTERS  */
 
   setLoopEnabled(enabled: boolean, rampDuration: number = 0.1): void {
     this.#loopEnabled = enabled;
-    if (enabled && this.#activeSource) {
-      // todo: interpolate - temp immediate
-      this.#activeSource.loop = enabled;
+    if (enabled && this.#activeSrc) {
+      this.#activeSrc.loop = enabled;
     }
-    this.#nextSource.loop = enabled;
+    this.#nextSrc.loop = enabled;
   }
 
   /**
@@ -272,4 +289,18 @@ export class VoiceNode extends FlexEventDriven {
 
 //   vibratoOsc.start(when);
 //   vibratoOsc.stop(when + duration);
+// }
+
+// LoopPoints currently handled by the LoopController
+// setLoopPoint(
+//   loopPoint: 'loopStart' | 'loopEnd',
+//   targetValue: number,
+//   rampDuration: number = 0
+// ): void {
+//   if (this.#activeSource) {
+//     this.#activeSource[loopPoint] = targetValue;
+//   }
+//   if (this.#nextSource) {
+//     this.#nextSource[loopPoint] = targetValue;
+//   }
 // }

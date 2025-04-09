@@ -17,7 +17,7 @@ const App: Component = () => {
         setAudioReady(true);
         console.log(`Is audio ready?, ${audioReady()} , ctx: ${audioCtx()}`);
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.trace(`Error ensuring audio context: ${error}`);
       });
   });

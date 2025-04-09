@@ -193,7 +193,7 @@
     </div>
 
     <script type="module">
-      import { createLoopController } from './NoInLoopNode.js';
+      import { createLoopController } from './multisource.js';
 
       // Audio context and nodes
       let audioContext;
@@ -317,7 +317,7 @@
             await setupLoopController();
           }
 
-          loopController.connectToSource(sourceNode);
+          loopController.addSourceNode(sourceNode);
 
           // Get current slider values
           const loopStart = parseFloat(loopStartSlider.value);

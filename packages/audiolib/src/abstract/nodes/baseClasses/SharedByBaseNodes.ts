@@ -9,12 +9,12 @@ export const CONSTANTS = {
 
 /* METHODS */
 export const METHODS = {
-  setParam(
+  setTargetAtTime(
     node: AudioNode,
     name: string,
     value: number,
-    rampTime: number = DEFAULT_RAMP_TIME,
-    offsetSeconds = 0
+    offsetSeconds = 0,
+    rampTime: number = DEFAULT_RAMP_TIME
   ): boolean {
     const param = (node as any)[name] as AudioParam;
     if (!param || !(param instanceof AudioParam)) {

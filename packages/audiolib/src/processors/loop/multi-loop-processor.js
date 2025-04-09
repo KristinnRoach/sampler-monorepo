@@ -1,19 +1,17 @@
-// no-in-loop-processor.js
-class NoInLoopProcessor extends AudioWorkletProcessor {
+// multi-loop-processor.js
+class MultiLoopProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        maxValue: 1000,
         automationRate: 'k-rate',
       },
       {
         name: 'loopEnd',
-        defaultValue: 1,
+        defaultValue: 0,
         minValue: 0,
-        maxValue: 1000,
         automationRate: 'k-rate',
       },
     ];
@@ -38,8 +36,8 @@ class NoInLoopProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs, parameters) {
-    const loopStart = parameters.loopStart[0]; // ?.[0] ?? 0;
-    const loopEnd = parameters.loopEnd[0]; //?.[0] ?? 1;
+    const loopStart = parameters.loopStart[0];
+    const loopEnd = parameters.loopEnd[0];
 
     // Store loop duration (we will use this for a future feature, keeping as a reminder)
     const loopDuration = loopEnd - loopStart;
@@ -48,15 +46,21 @@ class NoInLoopProcessor extends AudioWorkletProcessor {
     const startDiff = Math.abs(loopStart - this.lastLoopStart);
     const endDiff = Math.abs(loopEnd - this.lastLoopEnd);
 
-    if (startDiff > this.updateThreshold || endDiff > this.updateThreshold) {
+    if (startDiff > this.updateThreshold) {
       this.port.postMessage({
-        type: 'update',
+        type: 'update-loop-start',
         loopStart: loopStart,
+      });
+
+      this.lastLoopStart = loopStart;
+    }
+
+    if (endDiff > this.updateThreshold) {
+      this.port.postMessage({
+        type: 'update-loop-end',
         loopEnd: loopEnd,
       });
 
-      // Update last values
-      this.lastLoopStart = loopStart;
       this.lastLoopEnd = loopEnd;
     }
 
@@ -65,4 +69,4 @@ class NoInLoopProcessor extends AudioWorkletProcessor {
 }
 
 // Register the processor
-registerProcessor('no-in-loop-processor', NoInLoopProcessor);
+registerProcessor('multi-loop-processor', MultiLoopProcessor);

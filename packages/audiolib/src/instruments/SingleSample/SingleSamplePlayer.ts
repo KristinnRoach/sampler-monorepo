@@ -1,24 +1,28 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import { VoiceNode } from '@/nodes/voice/VoiceNode';
-import { EventBusOption, DefaultEventBus, IEventBus } from '@/events'; // DefaultEventBus
-import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
+import { DefaultEventBus, IEventBus, EventMap, EventData } from '@/events'; // DefaultEventBus
+import { LibNode } from '@/abstract/nodes/baseClasses/LibNode';
 import { globalKeyboardInput } from '@/input';
 import { loadAudioSample, loadDefaultSample } from '@/utils/loadAudio';
+import {
+  MultiLoopController,
+  createMultiLoopController,
+} from '@/processors/loop/MultiLoopController';
 
 export type SingleSamplePlayerProps = {
   name: string;
   enableUserInput?: 'computer-keyboard' | 'midi';
   polyphony?: number;
   rootNote?: number;
-  sampleBuffer?: AudioBuffer; // | ArrayBuffer;
+  sampleBuffer?: AudioBuffer;
   outputDestination?: AudioDestinationNode;
 };
 
-export class SingleSamplePlayer extends FlexEventDriven {
+export class SingleSamplePlayer extends LibNode {
   #name: string;
   #context: BaseAudioContext;
   #buffer: AudioBuffer | null = null;
-  // #events: IEventBus | null = null;
+  #events: IEventBus;
 
   #availableVoices: VoiceNode[] = [];
   #activeVoices: Map<number, VoiceNode[]> = new Map(); // VoiceNode[] = []; // todo: skoða voice allocation
@@ -28,19 +32,16 @@ export class SingleSamplePlayer extends FlexEventDriven {
 
   #outputGain: GainNode;
   #destination: AudioDestinationNode;
-  #loopController: AudioWorkletNode | null = null;
+  #loopController: MultiLoopController | null = null;
 
   #userInputType: 'computer-keyboard' | 'midi' | 'inactive' = 'inactive';
 
   #initialized: boolean = false;
 
-  constructor(
-    props: SingleSamplePlayerProps,
-    eventBusOption: EventBusOption = 'ui'
-  ) {
-    super(eventBusOption);
+  constructor(props: SingleSamplePlayerProps) {
+    super();
 
-    // this.#events = new DefaultEventBus();
+    this.#events = new DefaultEventBus();
 
     this.#name = props.name;
     this.#polyphony = props.polyphony || 8;
@@ -71,11 +72,43 @@ export class SingleSamplePlayer extends FlexEventDriven {
   start(): void {
     if (this.initVoices()) {
       this.setInputHandlers(this.#userInputType);
+
+      // this.#initLoopController().catch((e) =>
+      //   console.error('Error initializing loop controller:', e)
+      // );
+
       this.#setInitialized(true);
     } else {
       console.warn('Failed to initialize voices');
     }
   }
+
+  // async #initLoopController(): Promise<void> {
+  //   if (this.#loopController) {
+  //     console.warn('Loop controller already initialized');
+  //     return;
+  //   }
+
+  //   createMultiLoopController(this.#context)
+  //     .then((looper) => {
+  //       this.#loopController = looper;
+  //       this.#availableVoices.forEach((voice) =>
+  //         voice.setLoopController(looper)
+  //       );
+  //       this.#activeVoices.forEach((note) => {
+  //         note.forEach((voice) => voice.setLoopController(looper));
+  //       });
+  //     })
+  //     .catch((error) => {
+  //       console.error('Failed to create loop controller:', error);
+  //       this.#loopController = null;
+  //       this.#events.notify('error', {
+  //         publisherId: this.nodeId,
+  //         message: 'Failed to create loop controller',
+  //         currentTime: this.#context.currentTime,
+  //       });
+  //     });
+  // }
 
   isInitialized(): boolean {
     return this.#initialized;
@@ -85,7 +118,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
     if (ready) {
       this.#initialized = true;
 
-      this.notify('ready', {
+      this.#events.notify('ready', {
         publisherId: this.nodeId,
         message: 'SingleSamplePlayer initialized',
         currentTime: this.#context.currentTime,
@@ -93,12 +126,30 @@ export class SingleSamplePlayer extends FlexEventDriven {
       });
     } else {
       this.#initialized = false;
-      this.notify('error', {
+      this.#events.notify('error', {
         publisherId: this.nodeId,
         message: 'SingleSamplePlayer failed to initialize',
         currentTime: this.#context.currentTime,
       });
     }
+  }
+
+  addListener(
+    type: keyof EventMap,
+    handler: (detail: EventData) => void,
+    options?: AddEventListenerOptions
+  ): () => void {
+    return this.#events?.addListener(type, handler, options);
+  }
+
+  removeListener(
+    type: keyof EventMap,
+    handler: (detail: EventData) => void
+  ): void {
+    this.#events?.removeListener(type, handler);
+  }
+  removeAllListeners(): void {
+    this.#events?.clearAllListeners(); // TODO: unique listener store for each Instrument..
   }
 
   setInputHandlers(
@@ -200,14 +251,14 @@ export class SingleSamplePlayer extends FlexEventDriven {
       const voice = new VoiceNode(this.#context, this.#buffer, this.#rootNote);
 
       voice.addListener('note:started', (info) =>
-        this.notify('note:started', info)
+        this.#events.notify('note:started', info)
       );
       voice.addListener('note:released', (info) =>
-        this.notify('note:released', info)
+        this.#events.notify('note:released', info)
       );
 
       voice.addListener('note:ended', (info) => {
-        this.notify('note:ended', info);
+        this.#events.notify('note:ended', info);
         // Remove the voice from the active voices
         const midiNote = info.note ?? -1;
         const voicesForNote = this.#activeVoices.get(midiNote);
@@ -224,11 +275,11 @@ export class SingleSamplePlayer extends FlexEventDriven {
       });
 
       voice.addListener('voice:available', (info) => {
-        this.notify('voice:available', info);
+        this.#events.notify('voice:available', info);
         this.#availableVoices.push(voice);
       });
 
-      voice.addListener('error', (info) => this.notify('error', info));
+      voice.addListener('error', (info) => this.#events.notify('error', info));
 
       voice.connect(voiceDestination);
       this.#availableVoices.push(voice);
@@ -241,16 +292,11 @@ export class SingleSamplePlayer extends FlexEventDriven {
     loopPoint: 'loopStart' | 'loopEnd',
     targetValue: number,
     rampDuration: number
-  ): void {
-    this.#activeVoices.forEach((note) => {
-      note.forEach((voice) =>
-        voice.setLoopPoint(loopPoint, targetValue, rampDuration)
-      );
-    });
-    this.#availableVoices.forEach((voice) => {
-      voice.setLoopPoint(loopPoint, targetValue, rampDuration);
-    });
-    // notify
+  ): boolean {
+    if (!this.#loopController) return false;
+    console.warn('Setting loop point to', loopPoint, targetValue);
+    this.#loopController?.setLoopPoint(loopPoint, targetValue, rampDuration);
+    return true;
   }
 
   setLoopEnabled(enabled: boolean, rampDuration: number = 0.1): void {
@@ -328,7 +374,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
   }
 
   playError(midiNote: number, message?: string): void {
-    this.notify('error', {
+    this.#events.notify('error', {
       publisherId: this.nodeId,
       message: message ?? 'No available voices to play the note',
       note: midiNote,
@@ -448,24 +494,6 @@ export class SingleSamplePlayer extends FlexEventDriven {
   }
 }
 
-// // Handle ArrayBuffer asynchronously
-// if (props.sampleBuffer && props.sampleBuffer instanceof ArrayBuffer) {
-//   this.#context.decodeAudioData(
-//     props.sampleBuffer,
-//     (buffer) => {
-//       this.#buffer = buffer;
-//       if (this.initVoices()) {
-//         this.isInitialized = true;
-//         if (props.enableUserInput) {
-//           this.setInputHandlers(this.#userInput);
-//         }
-//       }
-//     },
-//     (error) => {
-//       console.error('Failed to decode audio buffer:', error);
-//     }
-//   );
-// }
 // // Handle AudioBuffer synchronously
 // // Allocation strategy type - can be expanded in the future
 // export type VoiceAllocationStrategy = 'oldest-first' | 'quietest-first';

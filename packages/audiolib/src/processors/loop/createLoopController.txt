@@ -1,9 +1,9 @@
-// import { getBlobURL } from '@/processors/registry-utils';
 import { registry, AudiolibProcessor } from '@/processors/ProcessorRegistry';
 
 // TODO: This could be the generic AudioWorkletNode factory
 async function createLoopControllerNode(
-  audioContext: BaseAudioContext, // | AudioContext | OfflineAudioContext,
+  audioContext: BaseAudioContext,
+  
   processorName: AudiolibProcessor = 'loop-control-processor'
 ) {
   // await audioContext.audioWorklet.addModule(objectUrl);

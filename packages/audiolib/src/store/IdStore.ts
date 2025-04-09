@@ -6,7 +6,7 @@ const IDStore: string[] = [newestId + ''];
 export const createNodeId = (nodeType: string = '') => {
   const id = (++newestId).toString();
   IDStore.push(id + '-' + nodeType);
-  console.log('lib: createNodeId: ', id, ' type: ', nodeType);
+  // console.log('lib: createNodeId: ', id, ' type: ', nodeType);
   return id;
 };
 

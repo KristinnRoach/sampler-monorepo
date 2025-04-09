@@ -1,7 +1,7 @@
 import { NodeID } from '@/types/global';
 import { createNodeId } from '@/store/IdStore';
 
-export class Node {
+export class LibNode {
   readonly nodeId: NodeID;
 
   constructor() {

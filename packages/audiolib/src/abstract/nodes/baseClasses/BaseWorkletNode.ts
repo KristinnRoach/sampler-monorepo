@@ -61,13 +61,23 @@ class BaseWorkletNode extends AudioWorkletNode {
     }
   }
 
-  setParam(
+  getParam(name: string): AudioParam {
+    const param = (this as any).parameters.get(name); //as AudioParam
+    if (param && param instanceof AudioParam) {
+      return param as AudioParam;
+    } else {
+      console.warn(`Parameter: ${name} not found`);
+      throw new Error(`Parameter: ${name} not found in: ${this}`);
+    }
+  }
+
+  setTargetAtTime(
     name: string,
     targetValue: number,
     rampTime?: number,
     offsetSeconds?: number
   ): boolean {
-    return DEFAULTS.METHODS.setParam(
+    return DEFAULTS.METHODS.setTargetAtTime(
       this,
       name,
       targetValue,

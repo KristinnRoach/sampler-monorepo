@@ -1,5 +1,0 @@
-declare module '@/processors/loop/generateLoopController.js' {
-  export function generateLoopController(
-    audioContext: AudioContext
-  ): AudioWorkletNode;
-}

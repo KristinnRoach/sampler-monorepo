@@ -1,7 +1,31 @@
-class NoInLoopNode extends AudioWorkletNode {
-  constructor(context, options = {}) {
-    // Create the worklet node with proper options
-    super(context, 'no-in-loop-processor', {
+import { BaseWorkletNode } from '@/abstract/nodes/baseClasses/BaseWorkletNode';
+import { AudioParamDescriptor } from '@/types/global';
+import MultiLoopProcessorRaw from './multi-loop-processor?raw';
+
+interface ProcessorMessage {
+  type: string;
+  significantChange?: number;
+}
+
+class MultiLoopController extends BaseWorkletNode {
+  static params: AudioParamDescriptor[] = [
+    {
+      name: 'loopStart',
+      defaultValue: 0,
+      minValue: 0,
+      automationRate: 'a-rate',
+    },
+    {
+      name: 'loopEnd',
+      defaultValue: 0,
+      minValue: 0,
+      automationRate: 'a-rate',
+    },
+  ];
+  sourceNodes: AudioBufferSourceNode[];
+
+  constructor(context: BaseAudioContext, options: Record<string, any> = {}) {
+    super(context, 'multi-loop-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1, // dummy output (can't be zero)
       processorOptions: options.processorOptions || {},
@@ -10,35 +34,35 @@ class NoInLoopNode extends AudioWorkletNode {
     // Store reference to source node
     this.sourceNodes = [];
 
-    // Keep track of current loop values
-    this.currentLoopStart = 0;
-    this.currentLoopEnd = 0.5;
-
     // Configure the significant change threshold (optional)
     const significantChange = options.significantChange || 0.001;
     this.port.postMessage({
       type: 'config',
       significantChange,
-    });
+    } as ProcessorMessage);
 
     // Set up message handling from the processor
     this.port.onmessage = this.handleProcessorMessage.bind(this);
   }
 
-  addSourceNode(sourceNode) {
-    if (!(sourceNode instanceof AudioBufferSourceNode)) {
+  addSourceNode(
+    src: AudioBufferSourceNode,
+    callbacks: { start: Function; end: Function }
+  ) {
+    if (!(src instanceof AudioBufferSourceNode)) {
       throw new Error('The provided node must be an AudioBufferSourceNode');
     }
+    this.getParam('loopStart').value = src.loopStart;
+    this.getParam('loopEnd').value = src.loopEnd;
 
-    sourceNode.loopStart = this.currentLoopStart;
-    sourceNode.loopEnd = this.currentLoopEnd;
+    callbacks.start.bind(this.setLoopPoint('loopStart', src.loopStart))();
 
-    this.sourceNodes.push(sourceNode);
-    return this; // For method chaining
+    this.sourceNodes.push(src);
+    return this; // For chaining
   }
 
-  removeSourceNode(sourceNode) {
-    const index = this.sourceNodes.indexOf(sourceNode);
+  removeSourceNode(src: AudioBufferSourceNode) {
+    const index = this.sourceNodes.indexOf(src);
     if (index !== -1) {
       this.sourceNodes.splice(index, 1);
     }
@@ -50,67 +74,65 @@ class NoInLoopNode extends AudioWorkletNode {
     return this;
   }
 
-  // Set the loop start time (in seconds)
-  setLoopPoint(param, value, timeConstant = 0) {
-    if (!this.sourceNodes.length) {
-      throw new Error('No source node connected');
-    }
-
-    if (timeConstant <= 0) {
-      // Immediate change
-      this.sourceNodes.loopStart = value;
-      this.parameters.get(param).value = value;
-      return this;
-    }
-
+  setLoopPoint(
+    param: 'loopStart' | 'loopEnd',
+    value: number,
+    rampDuration = 0
+  ) {
     // For small values, use linearRampToValueAtTime which can handle zero
     if (value < 0.01) {
-      this.parameters
-        .get(param)
-        .linearRampToValueAtTime(
-          value,
-          this.context.currentTime + timeConstant
-        );
+      this.getParam(param).linearRampToValueAtTime(value, rampDuration);
     } else {
-      this.parameters
-        .get(param)
-        .exponentialRampToValueAtTime(
-          value,
-          this.context.currentTime + timeConstant
-        );
+      this.getParam(param).exponentialRampToValueAtTime(value, rampDuration);
     }
 
-    return this; // For method chaining
+    if (!this.sourceNodes.length) console.warn('No source node connected');
+
+    return this;
   }
 
   // Handle messages from the processor
-  handleProcessorMessage(event) {
-    if (event.data && event.data.type === 'update' && this.sourceNodes) {
-      // Update the source node's loop properties
-      this.sourceNodes.loopStart = event.data.loopStart;
-      this.sourceNodes.loopEnd = event.data.loopEnd;
+  handleProcessorMessage(event: MessageEvent) {
+    switch (event.data.type) {
+      case 'update-loop-start':
+        console.log('Updating loop start:', event.data.loopStart);
+        // this.sourceNodes[0].loopStart = event.data.loopStart;
+
+        // this.sourceNodes.forEach(
+        //   (src) => (src.loopStart = event.data.loopStart)
+        // );
+        break;
+      case 'update-loop-end':
+        this.sourceNodes[0].loopEnd = event.data.loopEnd;
+
+        this.sourceNodes.forEach((src) => (src.loopEnd = event.data.loopEnd));
+        break;
+      default:
+        console.warn('Unknown message type:', event.data.type);
+        break;
     }
   }
 }
 
 // Helper function to load the worklet processor
-async function createLoopController(audioContext) {
-  // Check if the worklet is already loaded
+async function createMultiLoopController(audioContext: BaseAudioContext) {
   if (!audioContext.audioWorklet) {
     throw new Error('AudioWorklet not supported in this browser');
   }
 
   try {
-    // Load the processor if not already loaded
-    await audioContext.audioWorklet.addModule('./no-in-loop-processor.js');
-    return new NoInLoopNode(audioContext);
+    const blob = new Blob([MultiLoopProcessorRaw], {
+      type: 'application/javascript',
+    });
+    await audioContext.audioWorklet.addModule(URL.createObjectURL(blob));
+    return new MultiLoopController(audioContext);
   } catch (error) {
     console.error('Failed to load loop processor worklet:', error);
     throw error;
   }
 }
 
-export { NoInLoopNode, createLoopController };
+export { MultiLoopController, createMultiLoopController };
 
 // // example-usage.js
 // import { createLoopController } from './loop-worklet-node.js';

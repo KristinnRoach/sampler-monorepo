@@ -3,6 +3,9 @@
   "compilerOptions": {
     "strict": true,
 
+    "allowJs": true,
+    "checkJs": false, // prevents type checking for JS files
+
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",

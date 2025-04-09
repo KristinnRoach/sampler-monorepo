@@ -24,14 +24,14 @@ class LoopControlProcessor extends AudioWorkletProcessor {
     this.lastLoopStart = 0;
     this.lastLoopEnd = 1;
 
-    // Detect significant changes to avoid micro-updates
-    this.updateThreshold = 0.0009556; // Threshold for reporting changes // C6 in ms
+    // Only detect significant changes to avoid micro-updates
+    this.threshold = 0.0009556; // currently C6 in ms for no reason..
   }
 
   handleMessage(event) {
     if (event.data && event.data.type === 'config') {
       if (event.data.updateThreshold !== undefined) {
-        this.updateThreshold = event.data.updateThreshold;
+        this.threshold = event.data.updateThreshold;
       }
     }
   }
@@ -47,7 +47,7 @@ class LoopControlProcessor extends AudioWorkletProcessor {
     const startDiff = Math.abs(loopStart - this.lastLoopStart);
     const endDiff = Math.abs(loopEnd - this.lastLoopEnd);
 
-    if (startDiff > this.updateThreshold || endDiff > this.updateThreshold) {
+    if (startDiff > this.threshold || endDiff > this.threshold) {
       this.port.postMessage({
         type: 'update',
         loopStart: loopStart,
@@ -59,9 +59,8 @@ class LoopControlProcessor extends AudioWorkletProcessor {
       this.lastLoopEnd = loopEnd;
     }
 
-    return true; // Keep the processor alive
+    return true;
   }
 }
 
-// Register the processor
 registerProcessor('loop-control-processor', LoopControlProcessor);

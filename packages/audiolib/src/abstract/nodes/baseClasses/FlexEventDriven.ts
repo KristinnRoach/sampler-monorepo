@@ -1,4 +1,4 @@
-import { Node } from './Node';
+import { LibNode } from './LibNode';
 import {
   EventType,
   IEventBus,
@@ -9,7 +9,7 @@ import {
 
 // The same as EventDrivenNode's unique bus, but adding all possible EventBus options:
 // GlobalAudio, GlobalUI, unique (for each instance), or none.
-export abstract class FlexEventDriven extends Node {
+export abstract class FlexEventDriven extends LibNode {
   #eventBus: IEventBus | null = null;
   #eventBusOption: EventBusOption;
   // // Track listeners added by this instance

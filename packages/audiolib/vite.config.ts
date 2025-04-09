@@ -32,6 +32,7 @@ export default defineConfig({
     // },
   },
   resolve: {
+    extensions: ['.js', '.ts'], // TOdo: henda
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },

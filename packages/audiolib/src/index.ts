@@ -6,12 +6,5 @@ export { SingleSamplePlayer } from './instruments/SingleSample/SingleSamplePlaye
 export type { SingleSamplePlayerProps } from './instruments/SingleSample/SingleSamplePlayer';
 
 export { getAudioContext, ensureAudioCtx } from './context';
-
 export { registry } from './processors/ProcessorRegistry';
-
-// export { globalKeyboardInput } from './input';
-
-// export { loadAudioSample } from './utils/loadAudio';
-
-// TEST
-// export { RandomNoiseWorklet } from './processors/trash/noise/NoiseWorklet';
+// export { globalKeyboardInput } from './input'; // maybe better to just export it?

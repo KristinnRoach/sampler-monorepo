@@ -21,16 +21,23 @@ export default function TestSingleSamplePlayer() {
   // Event handlers
 
   const handleSetLoopStart = (value: number) => {
+    if (value >= loopEnd()) return;
+
     const currentPlayer = player();
     const rampTime = rampDuration();
+
     if (currentPlayer) {
       currentPlayer.setLoopPoint('loopStart', value, rampTime);
       setLoopStart(value);
     }
   };
+
   const handleSetLoopEnd = (value: number) => {
+    if (value <= loopStart()) return;
+
     const currentPlayer = player();
     const rampTime = rampDuration();
+
     if (currentPlayer) {
       currentPlayer.setLoopPoint('loopEnd', value, rampTime);
       setLoopEnd(value);
@@ -38,18 +45,13 @@ export default function TestSingleSamplePlayer() {
   };
 
   const handleEnableLoop = () => {
-    const currentPlayer = player();
-    if (currentPlayer) {
-      currentPlayer.setLoopEnabled(true);
-      setLoopEnabled(true);
-    }
+    player()?.setLoopEnabled(true);
+    setLoopEnabled(true);
   };
+
   const handleDisableLoop = () => {
-    const currentPlayer = player();
-    if (currentPlayer) {
-      currentPlayer.setLoopEnabled(false);
-      setLoopEnabled(false);
-    }
+    player()?.setLoopEnabled(false);
+    setLoopEnabled(false);
   };
 
   const handleNoteOnData = (data: any) => {
@@ -93,37 +95,31 @@ export default function TestSingleSamplePlayer() {
 
   // Set up event listeners when player has been set
   createEffect(() => {
-    const samplePlayer = player();
-    if (!!samplePlayer) {
-      samplePlayer.addListener('note:started', handleNoteOnData);
-      samplePlayer.addListener('note:released', handleNoteOnData);
-      samplePlayer.addListener('note:ended', handleNoteOffData);
-      samplePlayer.addListener('error', handleErrorData);
+    const sp = player();
+    if (!!sp) {
+      sp.addListener('note:started', handleNoteOnData);
+      sp.addListener('note:released', handleNoteOnData);
+      sp.addListener('note:ended', handleNoteOffData);
+      sp.addListener('error', handleErrorData);
 
-      setSampleDuration(samplePlayer.getSampleDuration() ?? 0);
+      setSampleDuration(sp.getSampleDuration() ?? 0);
       setIsLoaded(true);
-      // console.warn(`IS IT INITIALIZED?: ${samplePlayer.isInitialized()}`); // Why not ??
+      // console.warn(`init?: ${samplePlayer.isInitialized()}`); // Why not ??
     }
   });
 
   onCleanup(() => {
+    if (!player()) return;
     player()?.removeListener('note:started', handleNoteOnData);
     player()?.removeListener('note:released', handleNoteOnData);
     player()?.removeListener('note:ended', handleNoteOffData);
     player()?.removeListener('error', handleErrorData);
-
-    const currentPlayer = player();
-    if (currentPlayer) {
-      currentPlayer.dispose();
-    }
+    player()?.dispose();
+    setPlayer(null);
   });
 
-  // Update volume when slider changes
   createEffect(() => {
-    const currentPlayer = player();
-    if (currentPlayer) {
-      currentPlayer.setVolume(volume());
-    }
+    player()?.setVolume(volume());
   });
 
   const handleClickPlay = (midiNote: number) => {
@@ -196,8 +192,9 @@ export default function TestSingleSamplePlayer() {
           <input
             type='range'
             min='0'
-            max={sampleDuration() / 4}
-            step='0.005'
+            //max={sampleDuration()}
+            max='1'
+            step='0.05'
             value={loopStart()}
             onInput={(e) =>
               handleSetLoopStart(
@@ -214,9 +211,10 @@ export default function TestSingleSamplePlayer() {
 
           <input
             type='range'
-            min={loopStart()}
-            max={sampleDuration() / 4}
-            step='0.005'
+            min='0'
+            // max={sampleDuration()}
+            max='1'
+            step='0.05'
             value={loopEnd()}
             onInput={(e) =>
               handleSetLoopEnd(parseFloat((e.target as HTMLInputElement).value))
@@ -230,7 +228,7 @@ export default function TestSingleSamplePlayer() {
           <input
             type='range'
             min='0'
-            max='0.5'
+            max='1'
             step='0.01'
             value={rampDuration()}
             onInput={(e) =>
