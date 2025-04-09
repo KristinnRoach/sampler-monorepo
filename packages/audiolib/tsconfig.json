@@ -8,6 +8,10 @@
     "moduleResolution": "node",
     "lib": ["ES2022", "DOM"],
 
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+
     "skipLibCheck": true,
     "declaration": true,
     "noEmit": false,

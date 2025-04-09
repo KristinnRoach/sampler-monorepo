@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
 import solidPlugin from 'vite-plugin-solid';
 
 export default defineConfig({
@@ -8,5 +9,12 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+  },
+  base: './',
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // '@samplelib': '../../assets/audio',
+    },
   },
 });

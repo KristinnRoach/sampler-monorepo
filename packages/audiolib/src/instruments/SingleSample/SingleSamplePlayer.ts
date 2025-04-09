@@ -1,16 +1,16 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import { VoiceNode } from '@/nodes/voice/VoiceNode';
-import { EventBusOption } from '@/events'; // DefaultEventBus
+import { EventBusOption, DefaultEventBus, IEventBus } from '@/events'; // DefaultEventBus
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
 import { globalKeyboardInput } from '@/input';
 import { loadAudioSample, loadDefaultSample } from '@/utils/loadAudio';
 
 export type SingleSamplePlayerProps = {
   name: string;
-  sampleBuffer?: AudioBuffer | ArrayBuffer;
-  addInputHandlers?: boolean; // "none" | "keyboard" | "midi";
+  enableUserInput?: 'computer-keyboard' | 'midi';
   polyphony?: number;
   rootNote?: number;
+  sampleBuffer?: AudioBuffer; // | ArrayBuffer;
   outputDestination?: AudioDestinationNode;
 };
 
@@ -18,6 +18,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
   #name: string;
   #context: BaseAudioContext;
   #buffer: AudioBuffer | null = null;
+  // #events: IEventBus | null = null;
 
   #availableVoices: VoiceNode[] = [];
   #activeVoices: Map<number, VoiceNode[]> = new Map(); // VoiceNode[] = []; // todo: skoða voice allocation
@@ -29,7 +30,9 @@ export class SingleSamplePlayer extends FlexEventDriven {
   #destination: AudioDestinationNode;
   #loopController: AudioWorkletNode | null = null;
 
-  isInitialized: boolean = false;
+  #userInputType: 'computer-keyboard' | 'midi' | 'inactive' = 'inactive';
+
+  #initialized: boolean = false;
 
   constructor(
     props: SingleSamplePlayerProps,
@@ -37,76 +40,91 @@ export class SingleSamplePlayer extends FlexEventDriven {
   ) {
     super(eventBusOption);
 
+    // this.#events = new DefaultEventBus();
+
     this.#name = props.name;
     this.#polyphony = props.polyphony || 8;
     this.#rootNote = props.rootNote || 60;
 
     this.#context = getAudioContext();
     if (!this.#context) throw new Error('No AudioContext!');
+
     this.#destination = props.outputDestination || this.#context.destination;
     this.#outputGain = this.#context.createGain();
     this.#outputGain.gain.value = 1.0;
     this.#outputGain.connect(this.#destination);
 
-    // Handle ArrayBuffer asynchronously
-    if (props.sampleBuffer && props.sampleBuffer instanceof ArrayBuffer) {
-      this.#context.decodeAudioData(
-        props.sampleBuffer,
-        (buffer) => {
-          this.#buffer = buffer;
-          if (this.initVoices()) {
-            this.isInitialized = true;
-            if (props.addInputHandlers) {
-              this.addInputHandlers();
-            }
-          }
-        },
-        (error) => {
-          console.error('Failed to decode audio buffer:', error);
-        }
-      );
-    }
-    // Handle AudioBuffer synchronously
-    else if (props.sampleBuffer instanceof AudioBuffer) {
+    this.#userInputType = props.enableUserInput || 'inactive';
+
+    if (props.sampleBuffer instanceof AudioBuffer) {
       this.#buffer = props.sampleBuffer;
-      if (this.initVoices()) {
-        this.isInitialized = true;
-        if (props.addInputHandlers) {
-          this.addInputHandlers();
-        }
-      }
-    }
-    // Load default sample
-    else {
-      console.warn('No buffer provided, using default sample...');
+      this.start();
+    } else {
+      console.log('No buffer provided, using default sample...');
       loadDefaultSample().then((buffer: AudioBuffer) => {
         this.#buffer = buffer;
-        if (this.initVoices()) {
-          this.isInitialized = true;
-          if (props.addInputHandlers) {
-            this.addInputHandlers();
-          }
-        }
+        this.start();
       });
     }
   }
 
-  addInputHandlers(type: 'computer-keyboard' | 'midi' = 'computer-keyboard') {
-    if (!this.isInitialized) {
-      console.warn(
-        'SingleSamplePlayer not initialized when adding input handlers'
-      );
+  start(): void {
+    if (this.initVoices()) {
+      this.setInputHandlers(this.#userInputType);
+      this.#setInitialized(true);
+    } else {
+      console.warn('Failed to initialize voices');
     }
+  }
 
+  isInitialized(): boolean {
+    return this.#initialized;
+  }
+
+  #setInitialized(ready: boolean): void {
+    if (ready) {
+      this.#initialized = true;
+
+      this.notify('ready', {
+        publisherId: this.nodeId,
+        message: 'SingleSamplePlayer initialized',
+        currentTime: this.#context.currentTime,
+        // could pass the needed info here (e.g. sample duration)
+      });
+    } else {
+      this.#initialized = false;
+      this.notify('error', {
+        publisherId: this.nodeId,
+        message: 'SingleSamplePlayer failed to initialize',
+        currentTime: this.#context.currentTime,
+      });
+    }
+  }
+
+  setInputHandlers(
+    type: 'computer-keyboard' | 'midi' | 'inactive' = this.#userInputType // | 'touch';
+  ) {
+    if (type !== this.#userInputType) {
+      console.log(`Changing user input handlers to ${type}`);
+      this.#userInputType = type;
+    }
     switch (type) {
       case 'computer-keyboard':
         globalKeyboardInput.addHandler({
           onNoteOn: this.playNote.bind(this),
           onNoteOff: this.releaseNote.bind(this),
         });
+        break;
+
       case 'midi':
         console.log('MIDI input not implemented yet');
         break;
+
+      case 'inactive':
+        this.removeInputHandlers();
+        console.log('Input handlers removed');
+        break;
+
       default:
         console.log('No input handlers added');
         break;
@@ -162,29 +180,34 @@ export class SingleSamplePlayer extends FlexEventDriven {
 
   initVoices(): boolean {
     if (!this.#buffer) {
-      console.warn(
-        'No audio buffer provided, using default sample. Call loadSample or setSampleBuffer'
-      );
-      loadDefaultSample().then((buffer: AudioBuffer) => {
-        this.#buffer = buffer;
-        this.initVoices();
-      });
+      console.warn('No buffer to initVoices');
       return false;
     }
+    if (this.#initialized) {
+      console.warn('Voices already initialized');
+      return false;
+    }
+
+    console.trace(`Initializing voices with buffer: ${this.#buffer.duration}`);
 
     if (this.#availableVoices.length > 0 || this.#activeVoices.size > 0) {
       console.warn('Clearing existing voices...');
       this.clearVoices();
     }
 
-    const voiceDestination = this.#outputGain; // processor ||
+    const voiceDestination = this.#outputGain;
     for (let idx = 0; idx < this.#polyphony; idx++) {
       const voice = new VoiceNode(this.#context, this.#buffer, this.#rootNote);
 
-      voice.addListener('note:on', (info) => this.notify('note:on', info));
+      voice.addListener('note:started', (info) =>
+        this.notify('note:started', info)
+      );
+      voice.addListener('note:released', (info) =>
+        this.notify('note:released', info)
+      );
 
-      voice.addListener('note:off', (info) => {
-        this.notify('note:off', info);
+      voice.addListener('note:ended', (info) => {
+        this.notify('note:ended', info);
         // Remove the voice from the active voices
         const midiNote = info.note ?? -1;
         const voicesForNote = this.#activeVoices.get(midiNote);
@@ -197,11 +220,12 @@ export class SingleSamplePlayer extends FlexEventDriven {
             }
           }
         }
-        // Add the voice back to the available voices
-        if (info.isAvailable) {
-          this.#availableVoices.push(voice);
-          console.log('Voice is available, nodeID: ' + voice.nodeId);
-        }
+        // voice:available listener handles pushing the voice back to available voices
+      });
+
+      voice.addListener('voice:available', (info) => {
+        this.notify('voice:available', info);
+        this.#availableVoices.push(voice);
       });
 
       voice.addListener('error', (info) => this.notify('error', info));
@@ -209,13 +233,10 @@ export class SingleSamplePlayer extends FlexEventDriven {
       voice.connect(voiceDestination);
       this.#availableVoices.push(voice);
     }
-
-    console.log('SingleSamplePlayer initialized');
-    this.isInitialized = true;
+    // notify
     return true;
   }
 
-  // TEMP HACK VERSION
   setLoopPoint(
     loopPoint: 'loopStart' | 'loopEnd',
     targetValue: number,
@@ -288,20 +309,11 @@ export class SingleSamplePlayer extends FlexEventDriven {
       if (voicesForNote.length === 0) {
         this.#activeVoices.delete(midiNote);
       }
-    } else {
-      this.playError(midiNote, 'No active voice to release the note');
     }
+    // else { // todo: fix this
+    //   this.playError(midiNote, 'No active voice to release the note');
+    // }
   }
-
-  //   const voice = this.#activeVoices.find((v) => v.isPlaying());
-  //   if (voice) {
-  //     voice.triggerRelease(releaseTime);
-  //     this.#activeVoices = this.#activeVoices.filter((v) => v !== voice);
-  //     this.#availableVoices.push(voice);
-  //   } else {
-  //     this.playError(midiNote, 'No active voice to release the note');
-  //   }
-  // }
 
   /**
    * Release all notes using the sample
@@ -414,7 +426,7 @@ export class SingleSamplePlayer extends FlexEventDriven {
     this.#loopController = null;
     this.#context = null as unknown as BaseAudioContext;
     this.#buffer = null as unknown as AudioBuffer;
-    this.isInitialized = false;
+    this.#initialized = false;
   }
 
   clearVoices(): void {
@@ -436,6 +448,25 @@ export class SingleSamplePlayer extends FlexEventDriven {
   }
 }
 
+// // Handle ArrayBuffer asynchronously
+// if (props.sampleBuffer && props.sampleBuffer instanceof ArrayBuffer) {
+//   this.#context.decodeAudioData(
+//     props.sampleBuffer,
+//     (buffer) => {
+//       this.#buffer = buffer;
+//       if (this.initVoices()) {
+//         this.isInitialized = true;
+//         if (props.enableUserInput) {
+//           this.setInputHandlers(this.#userInput);
+//         }
+//       }
+//     },
+//     (error) => {
+//       console.error('Failed to decode audio buffer:', error);
+//     }
+//   );
+// }
+// // Handle AudioBuffer synchronously
 // // Allocation strategy type - can be expanded in the future
 // export type VoiceAllocationStrategy = 'oldest-first' | 'quietest-first';
 // #allocationStrategy: VoiceAllocationStrategy = 'oldest-first';

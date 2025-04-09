@@ -1,15 +1,11 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useEffect, useState } from 'react';
 import { getAudioContext, ensureAudioCtx } from '@repo/audiolib';
-import { type SinkNode } from '../node-types';
+// import { type SinkNode } from '../node-types';
 
 const ensureCtx = async () => await ensureAudioCtx();
 
-function SinkNode({
-  positionAbsoluteX,
-  positionAbsoluteY,
-  data,
-}: NodeProps<SinkNode>) {
+function SinkNode({ positionAbsoluteX, positionAbsoluteY, data }: NodeProps) {
   const [ctx, setCtx] = useState<AudioContext>(getAudioContext());
   const [destination, setDestination] = useState<AudioDestinationNode | null>(
     null
@@ -49,7 +45,7 @@ function SinkNode({
 
   return (
     <div className='react-flow__node-default'>
-      {data.label && <div>{data.label}</div>}
+      {/* {data.label && <div>{data.label}</div>} */}
 
       <div>
         {x} {y}

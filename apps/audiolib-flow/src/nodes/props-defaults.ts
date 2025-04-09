@@ -9,4 +9,15 @@ const DEFAULT_PLAYER_PROPS: SingleSamplePlayerProps = {
   outputDestination: undefined,
 };
 
-export { DEFAULT_PLAYER_PROPS };
+type SSamplerProps = {
+  id: string;
+  type: 'sample-player';
+  label: string;
+  data: SingleSamplePlayerProps;
+  position: {
+    x: number;
+    y: number;
+  };
+};
+
+export { DEFAULT_PLAYER_PROPS, type SSamplerProps };

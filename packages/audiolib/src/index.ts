@@ -7,6 +7,8 @@ export type { SingleSamplePlayerProps } from './instruments/SingleSample/SingleS
 
 export { getAudioContext, ensureAudioCtx } from './context';
 
+export { registry } from './processors/ProcessorRegistry';
+
 // export { globalKeyboardInput } from './input';
 
 // export { loadAudioSample } from './utils/loadAudio';

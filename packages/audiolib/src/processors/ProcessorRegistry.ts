@@ -1,24 +1,15 @@
 // @store/ProcessorRegistry.ts
-import { getAudioContext } from '@/context/globalAudioContext';
-import { getBlobURL } from '@/processors/registry-utils';
-
-// Define paths to worklet source files
-export const PROCESSORS = {
-  'loop-control-processor': {
-    path: './loop/loop-control-processor.js',
-  },
-  // Add other processors here
-} as const;
+import { ensureAudioCtx } from '@/context/globalAudioContext';
+import PROCESSORS from '@/processors';
 
 // Create a union type of all valid processor names
-export type VerifiedProcessor = keyof typeof PROCESSORS; // TODO: Rethink
+export type AudiolibProcessor = keyof typeof PROCESSORS; // ?
 
 // Singleton for AudioWorkletProcessor registration
-
 class ProcessorRegistry {
   private static instance: ProcessorRegistry;
   private registeredProcessors = new Set<string>();
-  private blobURLs: Map<string, string> = new Map();
+  private blobURLStore: Map<string, string> = new Map(); // move or remove
 
   private constructor() {}
 
@@ -30,33 +21,32 @@ class ProcessorRegistry {
     return ProcessorRegistry.instance;
   }
 
-  async register(processorName: VerifiedProcessor): Promise<void> {
+  async registerDefaultProcessors(): Promise<void> {
+    Object.keys(PROCESSORS).forEach(async (processorName) => {
+      await this.register(processorName as AudiolibProcessor);
+    });
+  }
+
+  async register(processorName: AudiolibProcessor): Promise<void> {
     // , blobURL: string): Promise<void> {
-    const audioContext = await getAudioContext();
-
-    const blobURL = await getBlobURL(
-      PROCESSORS[processorName].path,
-      true,
-      'application/javascript'
-    );
-
-    console.log('blobURL', blobURL);
-
-    if (!audioContext) {
-      console.error('Audio context is not initialized');
-      return;
-    }
+    const audioContext = await ensureAudioCtx();
 
     if (this.hasRegistered(processorName)) {
       return;
     }
+
+    const rawSource = PROCESSORS[processorName];
+    const blob = new Blob([rawSource], {
+      type: 'application/javascript',
+    });
+    const blobURL = URL.createObjectURL(blob);
 
     try {
       // Register the processor with the audio worklet
       await audioContext.audioWorklet.addModule(blobURL);
 
       // Store the blob URL for later cleanup if needed
-      this.blobURLs.set(processorName, blobURL);
+      this.blobURLStore.set(processorName, blobURL);
 
       // Mark this processor as registered
       this.registeredProcessors.add(processorName);
@@ -80,13 +70,38 @@ class ProcessorRegistry {
 
   // Cleanup method (call when shutting down the audio system)
   dispose() {
-    this.blobURLs.forEach((url) => {
+    this.blobURLStore.forEach((url) => {
       URL.revokeObjectURL(url);
     });
 
-    this.blobURLs.clear();
+    this.blobURLStore.clear();
     this.registeredProcessors.clear();
   }
 }
 
 export const registry = ProcessorRegistry.getInstance();
+
+// // Define paths to worklet source files (using urls for Vite)
+// export const PROCESSORS = {
+//   'loop-control-processor': {
+//     path: './loop/loop-control-processor.js',
+//     pathURL: new URL(
+//       'src/processors/loop/loop-control-processor.js',
+//       import.meta.url
+//     ).toString(),
+//   },
+//   'random-noise-processor': {
+//     path: './noise/random-noise-processor.js',
+//     pathURL: new URL(
+//       'src/processors//noise/random-noise-processor.js',
+//       import.meta.url
+//     ).toString(),
+//   },
+//   'feedback-delay-processor': {
+//     path: './delays/feedback-delay-processor.js',
+//     pathURL: new URL(
+//       'src/processors/delays/feedback-delay-processor.js',
+//       import.meta.url
+//     ).toString(),
+//   },
+// } as const;

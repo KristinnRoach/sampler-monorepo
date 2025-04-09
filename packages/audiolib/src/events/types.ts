@@ -5,18 +5,17 @@ export type EventMap = {
   ready: EventData;
   error: EventData;
 
-  'note:on': EventData;
-  'note:off': EventData;
+  'note:started': EventData;
+  'note:ended': EventData;
   'note:released': EventData;
 
   'voice:available': EventData;
-  'voice:unavailable': EventData;
 
-  'instrument:silent': EventData;
-  'instrument:playing': EventData;
+  // 'instrument:silent': EventData;
+  // 'instrument:playing': EventData;
 
-  'instrument:loaded': EventData;
-  'sample:loaded': EventData;
+  // 'instrument:loaded': EventData;
+  // 'sample:loaded': EventData;
 
   'audiocontext:created': EventData;
   'audiocontext:resumed': EventData;

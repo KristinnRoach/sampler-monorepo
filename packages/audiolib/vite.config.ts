@@ -12,7 +12,7 @@ export default defineConfig({
       outDir: 'dist',
       rollupTypes: true,
     }),
-  ], // try adding these if still ves ->{ tsconfigPath: './tsconfig.json', rollupTypes: true }
+  ],
 
   build: {
     lib: {

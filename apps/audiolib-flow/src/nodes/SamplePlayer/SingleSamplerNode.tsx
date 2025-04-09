@@ -1,13 +1,13 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useEffect, useState } from 'react';
 import { SingleSamplePlayer } from '@repo/audiolib';
-import { type SingleSamplerProps } from '../node-types';
+import { type SSamplerProps } from '../props-defaults';
 
 function SingleSamplerNode({
   positionAbsoluteX,
   positionAbsoluteY,
   data,
-}: NodeProps<SingleSamplerProps>) {
+}: NodeProps<SSamplerProps>) {
   const x = `${Math.round(positionAbsoluteX)}px`;
   const y = `${Math.round(positionAbsoluteY)}px`;
 
@@ -125,7 +125,7 @@ function SingleSamplerNode({
           }}
         />
 
-        <p>Using synthetic sine wave (440Hz)</p>
+        <p></p>
       </label>
 
       <div>

@@ -1,7 +1,7 @@
 // EventBusProvider.ts
 import { IEventBus, DefaultEventBus } from '@/events';
 
-// Singleton instance
+// Singleton instances
 export const UIUpdateBus = new DefaultEventBus();
 export const AudioEventBus = new DefaultEventBus();
 export const SystemEventBus = new DefaultEventBus();

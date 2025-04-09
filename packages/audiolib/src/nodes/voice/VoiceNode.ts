@@ -3,8 +3,6 @@
 import { midiToPlaybackRate } from '@/utils/midiUtils';
 import { EventBusOption } from '@/events'; // DefaultEventBus, EventBusOption
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
-// // TEMP HACK
-// import { PseudoAudioParam } from '@/abstract/params/PseudoAudioParam';
 
 export class VoiceNode extends FlexEventDriven {
   readonly eventBusOption: EventBusOption;
@@ -17,10 +15,6 @@ export class VoiceNode extends FlexEventDriven {
   #activeSource: AudioBufferSourceNode | null;
   #nextSource: AudioBufferSourceNode;
   #outputNode: GainNode;
-
-  // // TEMP HACK
-  // #loopStart: PseudoAudioParam;
-  // #loopEnd: PseudoAudioParam;
 
   #loopEnabled: boolean = false;
 
@@ -94,7 +88,7 @@ export class VoiceNode extends FlexEventDriven {
         this.#activeSource = null;
 
         // Notify voice ended
-        this.notify('note:off', {
+        this.notify('note:ended', {
           publisherId: this.nodeId,
           currentTime: this.now(),
           isAvailable: this.isAvailable(),
@@ -110,11 +104,11 @@ export class VoiceNode extends FlexEventDriven {
     when: number = this.now()
   ): boolean {
     if (!this.isAvailable()) {
+      // todo: force make available if volume low
       this.notify('error', {
         publisherId: this.nodeId,
         note: midiNote,
         currentTime: when,
-        message: 'Voice not available for playback',
       });
       return false;
     }
@@ -131,7 +125,7 @@ export class VoiceNode extends FlexEventDriven {
 
     this.#activeSource!.start(when);
 
-    this.notify('note:on', {
+    this.notify('note:started', {
       publisherId: this.nodeId,
       note: midiNote,
       gain: voiceGain,
@@ -187,20 +181,19 @@ export class VoiceNode extends FlexEventDriven {
 
   triggerRelease(releaseTime: number = 0.1, when: number = this.now()): void {
     if (!this.#activeSource) {
-      console.warn('Voice not playing when triggerRelease() called');
       // notify
       return;
     }
 
     // TODO: amp env
-    this.#outputNode!.gain.cancelScheduledValues(when);
-    this.#outputNode!.gain.setValueAtTime(this.#outputNode!.gain.value, when);
-    this.#outputNode!.gain.linearRampToValueAtTime(0, when + releaseTime);
-    // todo: notity voice available when the volume is 0 or close to it
+    this.#outputNode.gain.cancelScheduledValues(when);
+    this.#outputNode.gain.setValueAtTime(this.#outputNode!.gain.value, when);
+    this.#outputNode.gain.linearRampToValueAtTime(0, when + releaseTime);
+    // todo: notify voice available when the volume is 0 or close to it
 
     this.#activeSource!.stop(when + releaseTime);
 
-    // Notify voice release scheduled
+    // Notify voice release
     this.notify('note:released', {
       publisherId: this.nodeId,
       endTime: when + releaseTime,

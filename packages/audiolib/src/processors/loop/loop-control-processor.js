@@ -1,4 +1,3 @@
-// loop-processor.js
 class LoopControlProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [

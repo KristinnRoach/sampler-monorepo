@@ -20,7 +20,7 @@ function isAbsolutePath(path: string): boolean {
 }
 
 // TODO: make this dummy proof and general, proper handling for ALL common scenarios, paths and environments (should be separate functions for package vs app ?) ... (non-raw imports?)
-export async function getBlobURL(
+export async function pathToBlobURL(
   relativePath: string,
   raw: boolean = true,
   type: string = 'application/javascript',

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ReactFlow,
+  // ReactFlowProvider,
+  // Panel,
   Background,
   Controls,
   addEdge,
@@ -11,11 +13,11 @@ import {
 
 import '@xyflow/react/dist/style.css';
 
-import { initialNodes, nodeTypes } from './nodes';
+import { initialNodes } from './nodes/initElements';
 import { initialEdges, edgeTypes } from './edges';
 
-import { ensureAudioCtx } from '@repo/audiolib';
-// getAudioContext();
+import { appNodes } from './nodes/node-types';
+import { ensureAudioCtx, registry } from '@repo/audiolib';
 
 export default function App() {
   const [nodes, , onNodesChange] = useNodesState(initialNodes);
@@ -40,36 +42,52 @@ export default function App() {
   );
 
   const [ctx, setCtx] = useState<AudioContext | null>(null);
+  const [ctxCreated, setCtxCreated] = useState(false);
   // const [ctxState, setCtxState] = useState<AudioContextState | null>(null); // testa first í audiolib
 
   useEffect(() => {
-    const audioCtx = async () => await ensureAudioCtx();
-    audioCtx().then((audioCtx) => {
-      if (!audioCtx) {
-        throw new Error('Audio context not available');
-      } else {
-        console.log('Audio context available');
-        setCtx(audioCtx);
-      }
-    });
+    const getAudioCtx = async () => await ensureAudioCtx();
+    getAudioCtx()
+      .then((audioCtx) => {
+        if (!audioCtx) {
+          throw new Error('Audio context not available');
+        } else {
+          console.log('Audio context available');
+          setCtx(audioCtx);
+          registry.registerDefaultProcessors();
+        }
+      })
+      .then(() => {
+        setCtxCreated(true);
+        console.log('Audio context initialized, state:', ctx?.state);
+      })
+      .catch((error) => {
+        console.error('Error initializing audio context:', error);
+      });
   }, []);
 
   useEffect(() => {
+    if (!ctxCreated) return;
     if (!ctx) console.warn('Audio context not available in flow App');
     if (ctx && ctx.state !== 'running') {
       console.log('Audio context is suspended, waiting for user interaction');
       document.addEventListener('click', () => {
         ctx.resume().then(() => {
           console.log('Audio context resumed');
+          registry.registerDefaultProcessors();
+          console.log(
+            'Registered processors:',
+            registry.getRegisteredProcessors()
+          );
         });
       });
     }
-  }, [ctx]);
+  }, [ctxCreated]);
 
   return (
     <ReactFlow
       nodes={nodes}
-      nodeTypes={nodeTypes}
+      nodeTypes={appNodes}
       onNodesChange={onNodesChange}
       edges={edges}
       edgeTypes={edgeTypes}

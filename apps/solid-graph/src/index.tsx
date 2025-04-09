@@ -1,9 +1,8 @@
 /* @refresh reload */
 import { render } from 'solid-js/web';
-import BoardComponent from './components/Board';
 
 import './index.css';
-// import App from './App';
+import App from './App';
 
 const root = document.getElementById('root');
 
@@ -13,4 +12,4 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
   );
 }
 
-render(() => <BoardComponent />, root!);
+render(() => <App />, root!);
