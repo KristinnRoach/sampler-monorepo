@@ -1,5 +1,5 @@
-// multi-loop-processor.js
-class MultiLoopProcessor extends AudioWorkletProcessor {
+// another-loop-processor.js
+class AnotherLoopProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       {
@@ -69,4 +69,4 @@ class MultiLoopProcessor extends AudioWorkletProcessor {
 }
 
 // Register the processor
-registerProcessor('multi-loop-processor', MultiLoopProcessor);
+registerProcessor('another-loop-processor', AnotherLoopProcessor);

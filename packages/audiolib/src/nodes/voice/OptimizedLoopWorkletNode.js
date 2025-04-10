@@ -3,8 +3,7 @@
 
 class OptimizedLoopWorkletNode extends AudioWorkletNode {
   constructor(context, options = {}) {
-    // Create the node with our processor
-    super(context, 'duh-loop-processor', {
+    super(context, 'loop-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       processorOptions: options.processorOptions || {},
@@ -159,7 +158,7 @@ class OptimizedLoopWorkletNode extends AudioWorkletNode {
           }
         }
         
-        registerProcessor('duh-loop-processor', OptimizedLoopProcessor);
+        registerProcessor('loop-processor', OptimizedLoopProcessor);
       `;
 
     // Create a blob URL for the processor code

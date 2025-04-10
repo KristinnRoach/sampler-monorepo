@@ -4,10 +4,10 @@ import { DefaultEventBus, IEventBus, EventMap, EventData } from '@/events'; // D
 import { LibNode } from '@/abstract/nodes/baseClasses/LibNode';
 import { globalKeyboardInput } from '@/input';
 import { loadAudioSample, loadDefaultSample } from '@/utils/loadAudio';
-import {
-  MultiLoopController,
-  createMultiLoopController,
-} from '@/processors/loop/MultiLoopController';
+// import {
+//   MultiLoopController,
+//   createMultiLoopController,
+// } from '@/processors/loop/MultiLoopController';
 
 export type SingleSamplePlayerProps = {
   name: string;
@@ -32,7 +32,7 @@ export class SingleSamplePlayer extends LibNode {
 
   #outputGain: GainNode;
   #destination: AudioDestinationNode;
-  #loopController: MultiLoopController | null = null;
+  // #loopController: MultiLoopController | null = null;
 
   #userInputType: 'computer-keyboard' | 'midi' | 'inactive' = 'inactive';
 

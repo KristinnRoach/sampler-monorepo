@@ -1,10 +1,9 @@
 // VoiceNode.ts
-
 import { midiToPlaybackRate } from '@/utils/midiUtils';
 import { EventBusOption } from '@/events'; // DefaultEventBus, EventBusOption
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
-import { MultiLoopController } from '@/processors/loop/MultiLoopController';
-import { createLWN } from './fact';
+// import { MultiLoopController } from '@/processors/loop/MultiLoopController';
+// import { createLWN } from './fact';
 
 export class VoiceNode extends FlexEventDriven {
   readonly eventBusOption: EventBusOption;
@@ -19,8 +18,7 @@ export class VoiceNode extends FlexEventDriven {
   #outputNode: GainNode;
 
   #loopEnabled: boolean = false;
-  #loopController: MultiLoopController | null = null;
-
+  // #loopController: MultiLoopController | null = null;
   // #looper: OptimizedLoopWorkletNode;
 
   constructor(
@@ -41,36 +39,28 @@ export class VoiceNode extends FlexEventDriven {
     this.#outputNode = context.createGain();
     this.#outputNode.gain.setValueAtTime(0, this.now());
 
-    this.#loopController = new MultiLoopController(this.#context, {
-      loopStart: 0,
-      loopEnd: buffer.duration,
-      processorOptions: {
-        significantChange: 0.001,
-        loopEnabled: this.#loopEnabled,
-      },
-    });
+    // this.#loopController = new MultiLoopController(this.#context, {
+    //   loopStart: 0,
+    //   loopEnd: buffer.duration,
+    //   processorOptions: {
+    //     significantChange: 0.001,
+    //     loopEnabled: this.#loopEnabled,
+    //   },
+    // });
 
     this.#nextSrc = this.#prepNextSource(buffer);
 
     this.#activeSrc = null;
   }
 
-  setLoopController(loopController: MultiLoopController): void {
-    if (this.#loopController) return;
+  // setLoopController(loopController: MultiLoopController): void {
+  //   if (this.#loopController) return;
 
-    this.#loopController = loopController;
-    if (this.#activeSrc)
-      this.#loopController.addSourceNode(this.#activeSrc, {
-        start: this.setLoopStartDirectly,
-        end: this.setLoopEndDirectly,
-      });
+  //   this.#loopController = loopController;
+  //   if (this.#activeSrc) this.#loopController.addSourceNode(this.#activeSrc);
 
-    if (this.#nextSrc)
-      this.#loopController.addSourceNode(this.#nextSrc, {
-        start: this.setLoopStartDirectly,
-        end: this.setLoopEndDirectly,
-      });
-  }
+  //   if (this.#nextSrc) this.#loopController.addSourceNode(this.#nextSrc);
+  // }
 
   setLoopStartDirectly(loopStart: number): void {
     if (this.#activeSrc) this.#activeSrc.loopStart = loopStart;

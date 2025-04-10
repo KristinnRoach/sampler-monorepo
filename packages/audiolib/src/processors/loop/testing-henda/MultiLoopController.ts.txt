@@ -45,17 +45,12 @@ class MultiLoopController extends BaseWorkletNode {
     this.port.onmessage = this.handleProcessorMessage.bind(this);
   }
 
-  addSourceNode(
-    src: AudioBufferSourceNode,
-    callbacks: { start: Function; end: Function }
-  ) {
+  addSourceNode(src: AudioBufferSourceNode) {
     if (!(src instanceof AudioBufferSourceNode)) {
       throw new Error('The provided node must be an AudioBufferSourceNode');
     }
     this.getParam('loopStart').value = src.loopStart;
     this.getParam('loopEnd').value = src.loopEnd;
-
-    callbacks.start.bind(this.setLoopPoint('loopStart', src.loopStart))();
 
     this.sourceNodes.push(src);
     return this; // For chaining
@@ -86,8 +81,6 @@ class MultiLoopController extends BaseWorkletNode {
       this.getParam(param).exponentialRampToValueAtTime(value, rampDuration);
     }
 
-    if (!this.sourceNodes.length) console.warn('No source node connected');
-
     return this;
   }
 
@@ -95,16 +88,11 @@ class MultiLoopController extends BaseWorkletNode {
   handleProcessorMessage(event: MessageEvent) {
     switch (event.data.type) {
       case 'update-loop-start':
-        console.log('Updating loop start:', event.data.loopStart);
-        // this.sourceNodes[0].loopStart = event.data.loopStart;
-
-        // this.sourceNodes.forEach(
-        //   (src) => (src.loopStart = event.data.loopStart)
-        // );
+        this.sourceNodes.forEach(
+          (src) => (src.loopStart = event.data.loopStart)
+        );
         break;
       case 'update-loop-end':
-        this.sourceNodes[0].loopEnd = event.data.loopEnd;
-
         this.sourceNodes.forEach((src) => (src.loopEnd = event.data.loopEnd));
         break;
       default:
