@@ -293,9 +293,9 @@ export class SingleSamplePlayer extends LibNode {
     targetValue: number,
     rampDuration: number
   ): boolean {
-    if (!this.#loopController) return false;
+    // if (!this.#loopController) return false;
     console.warn('Setting loop point to', loopPoint, targetValue);
-    this.#loopController?.setLoopPoint(loopPoint, targetValue, rampDuration);
+    // this.#loopController?.setLoopPoint(loopPoint, targetValue, rampDuration);
     return true;
   }
 
@@ -468,8 +468,8 @@ export class SingleSamplePlayer extends LibNode {
     this.#availableVoices = [];
     this.#outputGain?.disconnect();
     this.#outputGain = null as unknown as GainNode;
-    this.#loopController?.disconnect();
-    this.#loopController = null;
+    // this.#loopController?.disconnect();
+    // this.#loopController = null;
     this.#context = null as unknown as BaseAudioContext;
     this.#buffer = null as unknown as AudioBuffer;
     this.#initialized = false;

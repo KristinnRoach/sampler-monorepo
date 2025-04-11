@@ -7,4 +7,7 @@ export type { SingleSamplePlayerProps } from './instruments/SingleSample/SingleS
 
 export { getAudioContext, ensureAudioCtx } from './context';
 export { registry } from './processors/ProcessorRegistry';
-// export { globalKeyboardInput } from './input'; // maybe better to just export it?
+export { globalKeyboardInput } from './input'; // maybe better to just export it?
+
+export { SourceNode } from './nodes/source/SourceNode';
+export { SourceNodePool } from './nodes/source/SourceNodePool';

@@ -1,3 +1,8 @@
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities; */
+
+/* 
 body {
   font-family: sans-serif;
   color: #111;
@@ -79,4 +84,4 @@ header select {
   .overview-example__add {
     display: block;
   }
-}
+} */

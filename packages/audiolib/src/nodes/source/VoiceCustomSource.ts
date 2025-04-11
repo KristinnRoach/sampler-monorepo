@@ -1,4 +1,4 @@
-import { SourceNode } from './SourceWorkletProTs';
+import { SourceNode } from './SourceNode';
 
 export class VoiceCustomSource {
   #context: BaseAudioContext;

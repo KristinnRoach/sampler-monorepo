@@ -1,17 +1,15 @@
-// Custom SourceNode implementation with AudioParam loop points
+// @ts-nocheck
 class SourceNode extends AudioWorkletNode {
   private _startCalled: boolean;
   private _stopTime: number | null;
   context: BaseAudioContext;
 
-  // AudioParams
   playbackRate: AudioParam;
   loopStart: AudioParam;
   loopEnd: AudioParam;
   loop: AudioParam;
 
   constructor(context: BaseAudioContext, options: any = {}) {
-    // Create processor with 0 inputs, 1 output
     super(context, 'source-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
@@ -333,7 +331,7 @@ class SourceNode extends AudioWorkletNode {
     }
   }
 
-  // Create and setup SourceNode instance with proper registration
+  // create instance and register - todo: only register once
   static async create(
     context: BaseAudioContext,
     options: any = {}
