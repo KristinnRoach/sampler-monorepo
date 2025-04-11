@@ -86,6 +86,18 @@ class SourceNodePool {
     return node;
   }
 
+  // release
+
+  stopAll(): void {
+    this.nodes.forEach((node) => {
+      node.disconnect();
+      node.stop();
+    });
+
+    this.nodes = [];
+    this.available = [];
+  }
+
   // Return a node to the available pool
   private returnNode(node: SourceNode): void {
     // Check if node is already in available pool

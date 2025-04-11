@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SourceNode, ensureAudioCtx } from '@repo/audiolib';
-import KeyboardController from '../../input/KeyboardController';
 
 const SourceNodeTester = () => {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
@@ -29,7 +28,7 @@ const SourceNodeTester = () => {
     setLoopEnd(decodedBuffer.duration);
   };
 
-  const playAudio = async (event) => {
+  const playAudio = async () => {
     if (!audioContext || !audioBuffer) return;
 
     if (sourceNodeRef.current) {
@@ -101,10 +100,6 @@ const SourceNodeTester = () => {
 
   return (
     <div className='p-4'>
-      <KeyboardController
-        onNoteOn={() => playAudio()}
-        onNoteOff={() => stopAudio()}
-      />
       <h2 className='text-xl font-bold mb-4'>SourceNode Tester</h2>
 
       {/* Audio Context Initialization */}

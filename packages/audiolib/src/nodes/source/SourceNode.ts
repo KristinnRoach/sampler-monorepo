@@ -30,7 +30,6 @@ class SourceNode extends AudioWorkletNode {
     this.loopEnd = this.parameters.get('loopEnd')!;
     this.loop = this.parameters.get('loop')!;
 
-    // Handle buffer setting after construction
     if (options.buffer) {
       this.buffer = options.buffer;
     }
@@ -38,7 +37,6 @@ class SourceNode extends AudioWorkletNode {
     // Add event handling for processor notifications
     this.port.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'ended') {
-        // Handle playback ended event
         this._onEnded();
       }
     };
@@ -56,14 +54,13 @@ class SourceNode extends AudioWorkletNode {
     }
   }
 
-  // Start playback with precise timing
   start(when = 0, offset = 0, duration?: number): SourceNode {
     if (this._startCalled) {
       throw new Error('Start method already called');
     }
 
     this._startCalled = true;
-    const startTime = Math.max(this.context.currentTime, when);
+    const startTime = Math.max(this.context.currentTime, when); // TODO: check if currentTime is defined, should be currentFrame / sampleRate ?? dunno
 
     this.port.postMessage({
       type: 'start',
@@ -97,14 +94,11 @@ class SourceNode extends AudioWorkletNode {
 
   // Internal ended event handler
   private _onEnded(): void {
-    // Dispatch ended event
     const event = new Event('ended');
     this.dispatchEvent(event);
   }
 
-  // Register the audio processor
   static async registerProcessor(context: BaseAudioContext): Promise<boolean> {
-    // Processor code as string
     const processorCode = `
         // Helper function to handle timing and scheduling
         function scheduleTiming(currentTime, startTime, stopTime) {
@@ -331,7 +325,7 @@ class SourceNode extends AudioWorkletNode {
     }
   }
 
-  // create instance and register - todo: only register once
+  // todo: only register once
   static async create(
     context: BaseAudioContext,
     options: any = {}
@@ -350,5 +344,4 @@ function bufferToFloat32Arrays(audioBuffer: AudioBuffer): Float32Array[] {
   return arrays;
 }
 
-// Export the node
 export { SourceNode };
