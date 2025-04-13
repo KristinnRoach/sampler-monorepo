@@ -3,10 +3,8 @@ import React, { useEffect } from 'react';
 import { keymap } from './keymap';
 
 interface Props {
-  onNoteOn: () => void; // (midiNote: number, velocity?: number) => void;
-  onNoteOff: () => void; // (midiNote: number) => void;
-  // onNoteOn: () => void; // (midiNote: number, velocity?: number) => void;
-  // onNoteOff: () => void; // (midiNote: number) => void;
+  onNoteOn: (midiNote: number, velocity?: number) => void; // (midiNote: number, velocity?: number) => void;
+  onNoteOff: (midiNote: number) => void; // (midiNote: number) => void;
 }
 
 const KeyboardController: React.FC<Props> = (props) => {
@@ -16,14 +14,14 @@ const KeyboardController: React.FC<Props> = (props) => {
       const midiNote = keymap[e.code];
 
       if (midiNote) {
-        props.onNoteOn(); // add velocity later
+        props.onNoteOn(midiNote); // add velocity later
       }
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       const midiNote = keymap[e.code];
       if (midiNote) {
-        props.onNoteOff();
+        props.onNoteOff(midiNote); // midiNote
       }
     };
     window.addEventListener('keydown', handleKeyDown);

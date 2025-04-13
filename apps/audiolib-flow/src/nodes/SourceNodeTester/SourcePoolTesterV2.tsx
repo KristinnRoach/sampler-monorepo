@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { SourceNode, ensureAudioCtx } from '@repo/audiolib';
-
+import React, { useEffect, useRef, useState } from 'react';
+import { SourcePool } from '@repo/audiolib';
 import KeyboardController from '../../input/KeyboardController';
 
-const SourceNodeTester = () => {
+const PoolPlayerV2 = () => {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -11,12 +10,32 @@ const SourceNodeTester = () => {
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [rampDuration, setRampDuration] = useState(0.1);
 
-  const sourceNodeRef = useRef<SourceNode | null>(null);
+  const poolRef = useRef<SourcePool | null>(null);
+
+  // const initAudio = async () => {
+  //   const context = new AudioContext();
+  //   setAudioContext(context);
+
+  //   // Create the pool but don't set a buffer yet
+  //   const pool = new SourcePool(context, {
+  //     polyphony: 8,
+  //   });
+  //   pool.connect(context.destination);
+  //   poolRef.current = pool;
+  // };
 
   const initAudio = async () => {
-    const context = await ensureAudioCtx();
+    const context = new AudioContext();
     setAudioContext(context);
+
+    // Create the pool and properly await its initialization
+    const pool = await SourcePool.create(context, {
+      polyphony: 8,
+    });
+    pool.connect(context.destination);
+    poolRef.current = pool;
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,68 +47,41 @@ const SourceNodeTester = () => {
 
     setAudioBuffer(decodedBuffer);
     setLoopEnd(decodedBuffer.duration);
+
+    if (poolRef.current) {
+      poolRef.current.setBuffer(decodedBuffer);
+    }
   };
 
   const playAudio = async (midiNote: number, velocity: number = 1) => {
-    if (!audioContext || !audioBuffer) return;
+    if (!audioContext || !audioBuffer || !poolRef.current) return;
 
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
-    }
-
-    const sourceNode = await SourceNode.create(audioContext, {
-      buffer: audioBuffer,
-    });
-
-    sourceNode.connect(audioContext.destination);
-
-    sourceNode.loop.value = loopEnabled ? 1 : 0;
-    sourceNode.loopStart.value = loopStart;
-    sourceNode.loopEnd.value = loopEnd;
-    sourceNode.playbackRate.value = playbackRate;
-
-    sourceNode.playNote(midiNote, velocity);
-    sourceNodeRef.current = sourceNode;
+    poolRef.current.playNote(midiNote, velocity);
     setIsPlaying(true);
-
-    sourceNode.addEventListener('ended', () => {
-      setIsPlaying(false);
-    });
   };
 
-  // Stop audio
   const stopAudio = () => {
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
-      setIsPlaying(false);
-    }
+    // This is probably where the error is happening
+    setIsPlaying(false);
   };
 
-  const [rampDuration, setRampDuration] = useState(0.1);
-
+  // Update parameters when sliders change
   useEffect(() => {
-    if (sourceNodeRef.current) {
-      const now = audioContext?.currentTime || 0;
-      const node = sourceNodeRef.current;
+    if (poolRef.current && audioContext) {
+      const now = audioContext.currentTime;
 
-      node.loop.value = loopEnabled ? 1 : 0;
+      poolRef.current.setLoopEnabled(loopEnabled);
 
-      node.loopStart.cancelScheduledValues(now);
-      node.loopStart.setValueAtTime(node.loopStart.value, now);
-      node.loopStart.linearRampToValueAtTime(loopStart, now + rampDuration);
-
-      node.loopEnd.cancelScheduledValues(now);
-      node.loopEnd.setValueAtTime(node.loopEnd.value, now);
-      node.loopEnd.linearRampToValueAtTime(loopEnd, now + rampDuration);
-
-      node.playbackRate.cancelScheduledValues(now);
-      node.playbackRate.setValueAtTime(node.playbackRate.value, now);
-      node.playbackRate.linearRampToValueAtTime(
-        playbackRate,
-        now + rampDuration
-      );
+      // Update parameters with ramping
+      if (audioBuffer) {
+        poolRef.current.setLoopParameters(
+          loopStart,
+          loopEnd,
+          playbackRate,
+          now,
+          rampDuration
+        );
+      }
     }
   }, [
     loopEnabled,
@@ -98,22 +90,26 @@ const SourceNodeTester = () => {
     playbackRate,
     rampDuration,
     audioContext,
+    audioBuffer,
   ]);
 
   return (
     <div className='p-4'>
-      <h2 className='text-xl font-bold mb-4'>SourceNode Tester</h2>
+      <h2 className='text-xl font-bold mb-4'>SourcePool Tester</h2>
 
       {/* Keyboard Controller */}
-      {audioContext && (
+      {audioContext && audioBuffer && (
         <KeyboardController
           onNoteOn={(midiNote: number, velocity: number = 1) => {
             console.log('Note On:', midiNote, 'Velocity:', velocity);
             playAudio(midiNote, velocity);
           }}
-          onNoteOff={() => {
-            console.log('Note Off');
-            stopAudio();
+          onNoteOff={(midiNote: number) => {
+            console.log('Note Off:', midiNote);
+            // The error is likely here - we need to modify how we stop notes
+            if (poolRef.current) {
+              poolRef.current.stopNote(midiNote);
+            }
           }}
         />
       )}
@@ -245,4 +241,4 @@ const SourceNodeTester = () => {
   );
 };
 
-export default SourceNodeTester;
+export default PoolPlayerV2;

@@ -1,0 +1,108 @@
+// SourcePool.ts
+import { SourceNode } from './SourceNode';
+import { ensureAudioCtx, getAudioContext } from '@/context';
+
+export class SourcePool {
+  #context: BaseAudioContext;
+  #options: any;
+  #polyphony: number;
+  #activeNotes: Map<number, SourceNode> = new Map();
+
+  constructor(
+    context?: BaseAudioContext,
+    polyphony?: number,
+    options: any = {}
+  ) {
+    this.#context = context || getAudioContext();
+    this.#polyphony = polyphony || 16;
+    this.#options = options;
+  }
+
+  get activeCount(): number {
+    return this.#activeNotes.size;
+  }
+
+  get availableCount(): number {
+    return this.#polyphony - this.#activeNotes.size;
+  }
+
+  get polyphony(): number {
+    return this.#polyphony;
+  }
+
+  async playNote(
+    midiNote: number,
+    velocity: number = 1.0
+  ): Promise<SourceNode> {
+    if (!this.#context || this.#context.state !== 'running') {
+      this.#context = await ensureAudioCtx();
+    }
+
+    if (this.#activeNotes.size >= this.#polyphony) {
+      console.warn(
+        `Polyphony limit reached (${this.#polyphony}). Stopping the oldest note.`
+      );
+      if (this.#activeNotes.has(midiNote)) {
+        this.stopNote(midiNote);
+      } else {
+        console.warn('polyphony limit reached, stopping the oldest note');
+        // todo: proper voice allocation
+        const oldestNote = this.#activeNotes.keys().next().value;
+        if (oldestNote !== undefined) {
+          this.stopNote(oldestNote);
+        }
+      }
+    }
+
+    // Create a new source node
+    const node = await SourceNode.create(this.#context, this.#options);
+
+    // Connect it to the destination
+    node.connect(this.#context.destination);
+
+    // Play the note
+    node.playNote(midiNote, velocity);
+
+    // Store it in our active notes map
+    this.#activeNotes.set(midiNote, node);
+
+    // Set up ended event to clean up the node
+    node.addEventListener('ended', () => {
+      this.#activeNotes.delete(midiNote);
+    });
+
+    return node;
+  }
+
+  stopNote(midiNote: number = 60): boolean {
+    const node = this.#activeNotes.get(midiNote);
+
+    if (node) {
+      try {
+        node.stop();
+        this.#activeNotes.delete(midiNote);
+        return true;
+      } catch (err) {
+        console.warn('Error stopping note:', err);
+        return false;
+      }
+    }
+    return false;
+  }
+
+  stopAll(): void {
+    this.#activeNotes.forEach((node, midiNote) => {
+      try {
+        node.stop();
+      } catch (err) {
+        console.warn(`Error stopping note ${midiNote}:`, err);
+      }
+    });
+
+    this.#activeNotes.clear();
+  }
+
+  dispose(): void {
+    this.stopAll();
+  }
+}

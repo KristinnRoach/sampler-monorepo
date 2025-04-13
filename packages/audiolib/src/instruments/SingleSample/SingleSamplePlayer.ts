@@ -4,10 +4,6 @@ import { DefaultEventBus, IEventBus, EventMap, EventData } from '@/events'; // D
 import { LibNode } from '@/abstract/nodes/baseClasses/LibNode';
 import { globalKeyboardInput } from '@/input';
 import { loadAudioSample, loadDefaultSample } from '@/utils/loadAudio';
-// import {
-//   MultiLoopController,
-//   createMultiLoopController,
-// } from '@/processors/loop/MultiLoopController';
 
 export type SingleSamplePlayerProps = {
   name: string;
@@ -32,7 +28,6 @@ export class SingleSamplePlayer extends LibNode {
 
   #outputGain: GainNode;
   #destination: AudioDestinationNode;
-  // #loopController: MultiLoopController | null = null;
 
   #userInputType: 'computer-keyboard' | 'midi' | 'inactive' = 'inactive';
 
@@ -73,42 +68,11 @@ export class SingleSamplePlayer extends LibNode {
     if (this.initVoices()) {
       this.setInputHandlers(this.#userInputType);
 
-      // this.#initLoopController().catch((e) =>
-      //   console.error('Error initializing loop controller:', e)
-      // );
-
       this.#setInitialized(true);
     } else {
       console.warn('Failed to initialize voices');
     }
   }
-
-  // async #initLoopController(): Promise<void> {
-  //   if (this.#loopController) {
-  //     console.warn('Loop controller already initialized');
-  //     return;
-  //   }
-
-  //   createMultiLoopController(this.#context)
-  //     .then((looper) => {
-  //       this.#loopController = looper;
-  //       this.#availableVoices.forEach((voice) =>
-  //         voice.setLoopController(looper)
-  //       );
-  //       this.#activeVoices.forEach((note) => {
-  //         note.forEach((voice) => voice.setLoopController(looper));
-  //       });
-  //     })
-  //     .catch((error) => {
-  //       console.error('Failed to create loop controller:', error);
-  //       this.#loopController = null;
-  //       this.#events.notify('error', {
-  //         publisherId: this.nodeId,
-  //         message: 'Failed to create loop controller',
-  //         currentTime: this.#context.currentTime,
-  //       });
-  //     });
-  // }
 
   isInitialized(): boolean {
     return this.#initialized;
@@ -340,7 +304,11 @@ export class SingleSamplePlayer extends LibNode {
    * @param midiNote MIDI note number to release
    * @param releaseTime Time to release playback (defaults to now)
    */
-  releaseNote(midiNote: number, releaseTime?: number): void {
+  releaseNote(midiNote?: number, releaseTime?: number): void {
+    if (!midiNote) {
+      console.warn('No MIDI note provided to release');
+      return;
+    }
     const voicesForNote = this.#activeVoices.get(midiNote);
 
     if (voicesForNote && voicesForNote.length > 0) {

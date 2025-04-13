@@ -50,14 +50,14 @@ class NoInLoopNode extends AudioWorkletNode {
         .get(param)
         .linearRampToValueAtTime(
           value,
-          this.context.currentTime + timeConstant
+          this.#context.currentTime + timeConstant
         );
     } else {
       this.parameters
         .get(param)
         .exponentialRampToValueAtTime(
           value,
-          this.context.currentTime + timeConstant
+          this.#context.currentTime + timeConstant
         );
     }
 

@@ -1,0 +1,325 @@
+import { SourceNode } from '@/nodes/source/SourceNode';
+
+/**
+ * VoicePool - A custom web component that manages multiple SourceNodes
+ * for polyphonic playback, with controls for the main audio parameters.
+ */
+export class VoicePoolWC extends HTMLElement {
+  private context: AudioContext;
+  private voices: Map<number, SourceNode> = new Map();
+  private buffer: AudioBuffer | null = null;
+  private maxVoices: number = 16;
+  private outputNode: GainNode;
+
+  // UI elements
+  private playbackRateSlider!: HTMLInputElement;
+  private loopStartSlider!: HTMLInputElement;
+  private loopEndSlider!: HTMLInputElement;
+  private loopToggle!: HTMLInputElement;
+  private volumeSlider!: HTMLInputElement;
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+
+    // Create audio context
+    this.context = new AudioContext();
+    this.outputNode = this.context.createGain();
+    this.outputNode.connect(this.context.destination);
+
+    // Setup UI
+    this.setupUI();
+
+    // Bind methods
+    this.playNote = this.playNote.bind(this);
+    this.stopNote = this.stopNote.bind(this);
+    this.updatePlaybackRate = this.updatePlaybackRate.bind(this);
+    this.updateLoopStart = this.updateLoopStart.bind(this);
+    this.updateLoopEnd = this.updateLoopEnd.bind(this);
+    this.updateLoop = this.updateLoop.bind(this);
+    this.updateVolume = this.updateVolume.bind(this);
+  }
+
+  /**
+   * Set up the user interface elements
+   */
+  private setupUI(): void {
+    if (!this.shadowRoot) return;
+
+    const container = document.createElement('div');
+
+    // Playback rate slider
+    this.playbackRateSlider = document.createElement('input');
+    this.playbackRateSlider.type = 'range';
+    this.playbackRateSlider.min = '0.1';
+    this.playbackRateSlider.max = '10';
+    this.playbackRateSlider.step = '0.01';
+    this.playbackRateSlider.value = '1';
+    this.playbackRateSlider.addEventListener('input', this.updatePlaybackRate);
+
+    const playbackRateLabel = document.createElement('label');
+    playbackRateLabel.textContent = 'Playback Rate: ';
+
+    // Loop start slider
+    this.loopStartSlider = document.createElement('input');
+    this.loopStartSlider.type = 'range';
+    this.loopStartSlider.min = '0';
+    this.loopStartSlider.max = '1';
+    this.loopStartSlider.step = '0.01';
+    this.loopStartSlider.value = '0';
+    this.loopStartSlider.addEventListener('input', this.updateLoopStart);
+
+    const loopStartLabel = document.createElement('label');
+    loopStartLabel.textContent = 'Loop Start: ';
+
+    // Loop end slider
+    this.loopEndSlider = document.createElement('input');
+    this.loopEndSlider.type = 'range';
+    this.loopEndSlider.min = '0';
+    this.loopEndSlider.max = '1';
+    this.loopEndSlider.step = '0.01';
+    this.loopEndSlider.value = '1';
+    this.loopEndSlider.addEventListener('input', this.updateLoopEnd);
+
+    const loopEndLabel = document.createElement('label');
+    loopEndLabel.textContent = 'Loop End: ';
+
+    // Loop toggle
+    this.loopToggle = document.createElement('input');
+    this.loopToggle.type = 'checkbox';
+    this.loopToggle.addEventListener('change', this.updateLoop);
+
+    const loopToggleLabel = document.createElement('label');
+    loopToggleLabel.textContent = 'Loop: ';
+
+    // Volume slider
+    this.volumeSlider = document.createElement('input');
+    this.volumeSlider.type = 'range';
+    this.volumeSlider.min = '0';
+    this.volumeSlider.max = '1';
+    this.volumeSlider.step = '0.01';
+    this.volumeSlider.value = '0.8';
+    this.volumeSlider.addEventListener('input', this.updateVolume);
+
+    const volumeLabel = document.createElement('label');
+    volumeLabel.textContent = 'Volume: ';
+
+    // Add elements to container
+    container.appendChild(playbackRateLabel);
+    container.appendChild(this.playbackRateSlider);
+    container.appendChild(document.createElement('br'));
+
+    container.appendChild(loopStartLabel);
+    container.appendChild(this.loopStartSlider);
+    container.appendChild(document.createElement('br'));
+
+    container.appendChild(loopEndLabel);
+    container.appendChild(this.loopEndSlider);
+    container.appendChild(document.createElement('br'));
+
+    container.appendChild(loopToggleLabel);
+    container.appendChild(this.loopToggle);
+    container.appendChild(document.createElement('br'));
+
+    container.appendChild(volumeLabel);
+    container.appendChild(this.volumeSlider);
+
+    this.shadowRoot.appendChild(container);
+  }
+
+  /**
+   * Set the buffer to be used by all SourceNodes
+   */
+  async setBuffer(buffer: AudioBuffer): Promise<void> {
+    this.buffer = buffer;
+
+    // Update slider ranges based on buffer duration
+    if (buffer) {
+      this.loopStartSlider.max = buffer.duration.toString();
+      this.loopEndSlider.max = buffer.duration.toString();
+      this.loopEndSlider.value = buffer.duration.toString();
+    }
+  }
+
+  /**
+   * Play a note with the specified MIDI note number and velocity
+   */
+  async playNote(midiNote: number, velocity: number = 1.0): Promise<void> {
+    // If context is suspended (e.g., due to autoplay policy), resume it
+    if (this.context.state === 'suspended') {
+      await this.context.resume();
+    }
+
+    // If we already have a voice for this note, stop it
+    this.stopNote(midiNote);
+
+    // Clean up any ended voices to manage pool size
+    this.cleanupVoices();
+
+    // Create a new SourceNode
+    if (this.buffer) {
+      try {
+        const voice = await SourceNode.create(this.context, {
+          buffer: this.buffer,
+        });
+
+        // Apply current parameter values
+        voice.playbackRate.value = parseFloat(this.playbackRateSlider.value);
+        voice.loopStart.value = parseFloat(this.loopStartSlider.value);
+        voice.loopEnd.value = parseFloat(this.loopEndSlider.value);
+        voice.loop.value = this.loopToggle.checked ? 1 : 0;
+
+        // Connect to output and play
+        voice.connect(this.outputNode);
+        voice.playNote(midiNote, velocity);
+
+        // Add ended event listener for automatic cleanup
+        voice.addEventListener('ended', () => {
+          this.voices.delete(midiNote);
+          voice.dispose();
+        });
+
+        // Add to voice pool
+        this.voices.set(midiNote, voice);
+      } catch (error) {
+        console.error('Failed to create voice:', error);
+      }
+    }
+  }
+
+  /**
+   * Stop a currently playing note
+   */
+  stopNote(midiNote: number): void {
+    const voice = this.voices.get(midiNote);
+    if (voice) {
+      try {
+        voice.stop(this.context.currentTime);
+      } catch (error) {
+        // Ignore errors from already stopped voices
+      }
+      this.voices.delete(midiNote);
+    }
+  }
+
+  /**
+   * Stop all currently playing notes
+   */
+  stopAllNotes(): void {
+    this.voices.forEach((voice, midiNote) => {
+      this.stopNote(midiNote);
+    });
+  }
+
+  /**
+   * Clean up any ended or excess voices to manage memory
+   */
+  private cleanupVoices(): void {
+    // If we have too many voices, remove the oldest ones
+    if (this.voices.size >= this.maxVoices) {
+      const oldestNote = this.voices.keys().next().value;
+      this.stopNote(oldestNote ?? -1);
+    }
+  }
+
+  /**
+   * Update the playback rate for all active voices
+   */
+  private updatePlaybackRate(): void {
+    const value = parseFloat(this.playbackRateSlider.value);
+    this.voices.forEach((voice) => {
+      voice.playbackRate.value = value;
+    });
+  }
+
+  /**
+   * Update the loop start point for all active voices
+   */
+  private updateLoopStart(): void {
+    const value = parseFloat(this.loopStartSlider.value);
+    this.voices.forEach((voice) => {
+      voice.loopStart.value = value;
+    });
+  }
+
+  /**
+   * Update the loop end point for all active voices
+   */
+  private updateLoopEnd(): void {
+    const value = parseFloat(this.loopEndSlider.value);
+    this.voices.forEach((voice) => {
+      voice.loopEnd.value = value;
+    });
+  }
+
+  /**
+   * Update the loop toggle for all active voices
+   */
+  private updateLoop(): void {
+    const value = this.loopToggle.checked ? 1 : 0;
+    this.voices.forEach((voice) => {
+      voice.loop.value = value;
+    });
+  }
+
+  /**
+   * Update the master volume
+   */
+  private updateVolume(): void {
+    const value = parseFloat(this.volumeSlider.value);
+    this.outputNode.gain.value = value;
+  }
+
+  /**
+   * Connect the output to an AudioNode
+   */
+  connect(destination: AudioNode): void {
+    this.outputNode.disconnect();
+    this.outputNode.connect(destination);
+  }
+
+  /**
+   * Lifecycle method: component connected to DOM
+   */
+  connectedCallback(): void {
+    // Initialize AudioWorklet if it hasn't been done yet
+    SourceNode.registerProcessor(this.context).catch((err) => {
+      console.error('Failed to register processor:', err);
+    });
+  }
+
+  /**
+   * Lifecycle method: component disconnected from DOM
+   */
+  disconnectedCallback(): void {
+    this.stopAllNotes();
+    this.voices.clear();
+  }
+
+  /**
+   * Gets the master audio context
+   */
+  getAudioContext(): AudioContext {
+    return this.context;
+  }
+
+  /**
+   * Set the maximum number of concurrent voices
+   */
+  setMaxVoices(num: number): void {
+    this.maxVoices = Math.max(1, Math.min(64, num));
+  }
+
+  /**
+   * Dispose of all resources
+   */
+  dispose(): void {
+    this.stopAllNotes();
+    this.voices.clear();
+    this.outputNode.disconnect();
+    this.context.close();
+  }
+}
+
+// Define the custom element
+customElements.define('voice-pool', VoicePoolWC);

@@ -1,9 +1,10 @@
-// VoiceNode.ts
+// VoiceCustomSrc.ts
 import { midiToPlaybackRate } from '@/utils/midiUtils';
 import { EventBusOption } from '@/events'; // DefaultEventBus, EventBusOption
 import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
+import { SourceNode } from './SourceNode';
 
-export class VoiceNode extends FlexEventDriven {
+export class VoiceCustomSrc extends FlexEventDriven {
   readonly eventBusOption: EventBusOption;
 
   #context: BaseAudioContext;
@@ -11,8 +12,8 @@ export class VoiceNode extends FlexEventDriven {
   #basePlaybackRate: number;
   #rootNote: number; // MIDI note number of the original sample
 
-  #activeSrc: AudioBufferSourceNode | null;
-  #nextSrc: AudioBufferSourceNode;
+  #activeSrc: SourceNode | null;
+  #nextSrc: SourceNode;
   #outputNode: GainNode;
 
   #loopEnabled: boolean = false;
@@ -40,16 +41,6 @@ export class VoiceNode extends FlexEventDriven {
     this.#activeSrc = null;
   }
 
-  setLoopStartDirectly(loopStart: number): void {
-    if (this.#activeSrc) this.#activeSrc.loopStart = loopStart;
-    this.#nextSrc.loopStart = loopStart;
-  }
-
-  setLoopEndDirectly(loopEnd: number): void {
-    if (this.#activeSrc) this.#activeSrc.loopEnd = loopEnd;
-    this.#nextSrc.loopEnd = loopEnd;
-  }
-
   /* CHECKERS */
 
   isPlaying(): boolean {
@@ -64,21 +55,29 @@ export class VoiceNode extends FlexEventDriven {
     return this.#context.currentTime;
   }
 
+  get activeSrc(): SourceNode | null {
+    return this.#activeSrc;
+  }
+
+  get nextSrc(): SourceNode {
+    return this.#nextSrc;
+  }
+
   /**
    * Create and configure a buffer source
    * @param buffer Audio buffer to use
    */
-  #prepNextSource(buffer: AudioBuffer = this.#buffer): AudioBufferSourceNode {
-    const source = new AudioBufferSourceNode(this.#context, {
+  #prepNextSource(buffer: AudioBuffer = this.#buffer): SourceNode {
+    const source = new SourceNode(this.#context, {
       buffer: buffer,
     });
 
     source.connect(this.#outputNode);
 
     source.playbackRate.value = this.#basePlaybackRate;
-    source.loop = this.#loopEnabled;
+    source.setLoopEnabled(this.#loopEnabled);
 
-    source.onended = () => {
+    source.setOnEnded = () => {
       if (source === this.#activeSrc) {
         this.#activeSrc.stop();
         this.#outputNode!.gain.cancelScheduledValues(0);
@@ -118,7 +117,6 @@ export class VoiceNode extends FlexEventDriven {
     // Swap sources, tune and play
     this.#activeSrc = this.#nextSrc;
     this.#activeSrc!.playbackRate.setValueAtTime(playbackRate, when);
-    this.#activeSrc!.detune.setValueAtTime(0, when); // Reset detune
 
     this.#activeSrc!.start(when);
 
@@ -185,7 +183,7 @@ export class VoiceNode extends FlexEventDriven {
     });
   }
 
-  connect(destination: AudioNode | AudioParam): VoiceNode {
+  connect(destination: AudioNode | AudioParam): VoiceCustomSrc {
     if (!this.#outputNode) throw new Error('Gain node not initialized');
     this.#outputNode.connect(destination as any);
     return this;
@@ -204,9 +202,9 @@ export class VoiceNode extends FlexEventDriven {
   setLoopEnabled(enabled: boolean, rampDuration: number = 0.1): void {
     this.#loopEnabled = enabled;
     if (enabled && this.#activeSrc) {
-      this.#activeSrc.loop = enabled;
+      this.#activeSrc.setLoopEnabled(enabled);
     }
-    this.#nextSrc.loop = enabled;
+    this.#nextSrc.setLoopEnabled(enabled);
   }
 
   /**

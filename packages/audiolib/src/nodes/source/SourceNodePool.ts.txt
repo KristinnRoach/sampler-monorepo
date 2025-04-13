@@ -4,21 +4,22 @@ class SourceNodePool {
   private context: AudioContext;
   private buffer: AudioBuffer | null;
   private nodes: SourceNode[];
+  private active: SourceNode[];
   private available: SourceNode[];
   private destination: AudioNode;
-  private poolSize: number; // polyphony
+  private polyphony: number;
   private initPromise: Promise<void> | null = null;
 
   constructor(context: AudioContext, destination: AudioNode, poolSize = 8) {
     this.context = context;
     this.buffer = null;
     this.nodes = [];
+    this.active = [];
     this.available = [];
     this.destination = destination;
-    this.poolSize = poolSize;
+    this.polyphony = poolSize;
   }
 
-  // Initialize the pool with a buffer
   async init(buffer: AudioBuffer): Promise<void> {
     // Only initialize once
     if (this.initPromise) return this.initPromise;
@@ -28,13 +29,12 @@ class SourceNodePool {
       this.nodes = [];
       this.available = [];
 
-      // Create poolSize nodes
-      for (let i = 0; i < this.poolSize; i++) {
+      for (let i = 0; i < this.polyphony; i++) {
         const node = await SourceNode.create(this.context, { buffer });
         node.connect(this.destination);
 
         // When playback ends, return to pool
-        node.addEventListener('ended', () => this.returnNode(node));
+        node.addEventListener('ended', () => this.prepNewSource(node));
 
         this.nodes.push(node);
         this.available.push(node);
@@ -44,7 +44,6 @@ class SourceNodePool {
     return this.initPromise;
   }
 
-  // Play a sound with specified parameters
   play(
     options: {
       when?: number;
@@ -56,14 +55,12 @@ class SourceNodePool {
       loopEnd?: number;
     } = {}
   ): SourceNode | null {
-    // Get available node
     const node = this.available.pop();
     if (!node) {
       console.warn('SourceNodePool: No available nodes');
       return null;
     }
 
-    // Apply parameters
     if (options.playbackRate !== undefined) {
       node.playbackRate.value = options.playbackRate;
     }
@@ -80,8 +77,9 @@ class SourceNodePool {
       node.loopEnd.value = options.loopEnd;
     }
 
-    // Start playback
     node.start(options.when || 0, options.offset || 0, options.duration);
+
+    this.active.push(node);
 
     return node;
   }
@@ -99,9 +97,12 @@ class SourceNodePool {
   }
 
   // Return a node to the available pool
-  private returnNode(node: SourceNode): void {
-    // Check if node is already in available pool
+  private prepNewSource(node: SourceNode): void {
     if (this.available.includes(node)) return;
+
+    // const node = await SourceNode.create(this.context, {
+    //   buffer: this.buffer,
+    // });
 
     // Reset node parameters to defaults
     node.playbackRate.value = 1;
@@ -132,13 +133,13 @@ class SourceNodePool {
         buffer: this.buffer,
       });
       node.connect(this.destination);
-      node.addEventListener('ended', () => this.returnNode(node));
+      node.addEventListener('ended', () => this.prepNewSource(node));
 
       this.nodes.push(node);
       this.available.push(node);
     }
 
-    this.poolSize = this.nodes.length;
+    this.polyphony = this.nodes.length;
   }
 }
 

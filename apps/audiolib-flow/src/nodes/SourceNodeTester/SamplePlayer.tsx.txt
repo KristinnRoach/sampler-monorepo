@@ -1,0 +1,102 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import VoicePool from './PoolWC';
+
+const SampleInstrument: React.FC = () => {
+  const [voicePoolInstance, setVoicePoolInstance] = useState<unknown>(null);
+
+  // Handle the web component being ready
+  const handleVoicePoolReady = useCallback((instance: unknown) => {
+    setVoicePoolInstance(instance);
+
+    // Load a sample when the component is ready
+    loadSample(instance);
+  }, []);
+
+  // Load an audio sample
+  const loadSample = async (voicePool: typeof VoicePool) => {
+    try {
+      const response = await fetch('/samples/piano.wav');
+      const arrayBuffer = await response.arrayBuffer();
+      const audioContext = voicePool.getAudioContext();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      await voicePool.setBuffer(audioBuffer);
+      console.log('Sample loaded');
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+    }
+  };
+
+  // Play a note on keydown
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!voicePoolInstance) return;
+
+      // Simple keyboard mapping
+      const keyMap: Record<string, number> = {
+        a: 60,
+        s: 62,
+        d: 64,
+        f: 65,
+        g: 67,
+        h: 69,
+        j: 71,
+        k: 72,
+      };
+
+      const key = e.key.toLowerCase();
+      if (keyMap[key] && !e.repeat) {
+        voicePoolInstance.playNote(keyMap[key], 0.8);
+      }
+    },
+    [voicePoolInstance]
+  );
+
+  // Stop note on keyup
+  const handleKeyUp = useCallback(
+    (e: KeyboardEvent) => {
+      if (!voicePoolInstance) return;
+
+      const keyMap: Record<string, number> = {
+        a: 60,
+        s: 62,
+        d: 64,
+        f: 65,
+        g: 67,
+        h: 69,
+        j: 71,
+        k: 72,
+      };
+
+      const key = e.key.toLowerCase();
+      if (keyMap[key]) {
+        voicePoolInstance.stopNote(keyMap[key]);
+      }
+    },
+    [voicePoolInstance]
+  );
+
+  // Setup keyboard listeners
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [handleKeyDown, handleKeyUp]);
+
+  return (
+    <div className='instrument-container'>
+      <h2>WebAudio Piano</h2>
+      <p>Press A-K keys to play notes</p>
+      <VoicePool
+        onReady={handleVoicePoolReady}
+        className='voice-pool-controls'
+      />
+    </div>
+  );
+};
+
+export default SampleInstrument;

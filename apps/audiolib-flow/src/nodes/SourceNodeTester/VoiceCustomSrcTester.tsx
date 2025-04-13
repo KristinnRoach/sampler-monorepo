@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SourceNode, ensureAudioCtx } from '@repo/audiolib';
+import { VoiceCustomSrc, SourceNode, ensureAudioCtx } from '@repo/audiolib';
 
 import KeyboardController from '../../input/KeyboardController';
 
-const SourceNodeTester = () => {
+const VoiceCustomSrcTester = () => {
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -12,7 +12,7 @@ const SourceNodeTester = () => {
   const [loopEnd, setLoopEnd] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
 
-  const sourceNodeRef = useRef<SourceNode | null>(null);
+  const voiceRef = useRef<VoiceCustomSrc | null>(null);
 
   const initAudio = async () => {
     const context = await ensureAudioCtx();
@@ -33,9 +33,9 @@ const SourceNodeTester = () => {
   const playAudio = async (midiNote: number, velocity: number = 1) => {
     if (!audioContext || !audioBuffer) return;
 
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
+    if (voiceRef.current) {
+      voiceRef.current.triggerRelease();
+      voiceRef.current = null;
     }
 
     const sourceNode = await SourceNode.create(audioContext, {
@@ -50,7 +50,7 @@ const SourceNodeTester = () => {
     sourceNode.playbackRate.value = playbackRate;
 
     sourceNode.playNote(midiNote, velocity);
-    sourceNodeRef.current = sourceNode;
+    voiceRef.current = sourceNode;
     setIsPlaying(true);
 
     sourceNode.addEventListener('ended', () => {
@@ -60,9 +60,9 @@ const SourceNodeTester = () => {
 
   // Stop audio
   const stopAudio = () => {
-    if (sourceNodeRef.current) {
-      sourceNodeRef.current.stop();
-      sourceNodeRef.current = null;
+    if (voiceRef.current) {
+      voiceRef.current.stop();
+      voiceRef.current = null;
       setIsPlaying(false);
     }
   };
@@ -70,23 +70,49 @@ const SourceNodeTester = () => {
   const [rampDuration, setRampDuration] = useState(0.1);
 
   useEffect(() => {
-    if (sourceNodeRef.current) {
+    if (voiceRef.current) {
       const now = audioContext?.currentTime || 0;
-      const node = sourceNodeRef.current;
+      const node = voiceRef.current;
 
-      node.loop.value = loopEnabled ? 1 : 0;
+      voiceRef.current.setLoopEnabled(loopEnabled ? true : false);
 
-      node.loopStart.cancelScheduledValues(now);
-      node.loopStart.setValueAtTime(node.loopStart.value, now);
-      node.loopStart.linearRampToValueAtTime(loopStart, now + rampDuration);
+      voiceRef.current.activeSrc?.loopStart.cancelScheduledValues(now);
+      voiceRef.current.nextSrc.loopStart.cancelScheduledValues(now);
 
-      node.loopEnd.cancelScheduledValues(now);
-      node.loopEnd.setValueAtTime(node.loopEnd.value, now);
-      node.loopEnd.linearRampToValueAtTime(loopEnd, now + rampDuration);
+      voiceRef.current.activeSrc?.loopStart.setValueAtTime(
+        voiceRef.current.activeSrc?.loopStart.value,
+        now
+      );
+      voiceRef.current.activeSrc?.loopStart.linearRampToValueAtTime(
+        loopStart,
+        now + rampDuration
+      );
+      voiceRef.current.nextSrc.loopEnd.cancelScheduledValues(now);
+      voiceRef.current.nextSrc.loopEnd.setValueAtTime(
+        voiceRef.current.nextSrc.loopEnd.value,
+        now
+      );
+      voiceRef.current.activeSrc?.loopEnd.linearRampToValueAtTime(
+        loopEnd,
+        now + rampDuration
+      );
 
-      node.playbackRate.cancelScheduledValues(now);
-      node.playbackRate.setValueAtTime(node.playbackRate.value, now);
-      node.playbackRate.linearRampToValueAtTime(
+      voiceRef.current.activeSrc?.playbackRate.cancelScheduledValues(now);
+      voiceRef.current.activeSrc?.playbackRate.setValueAtTime(
+        voiceRef.current.activeSrc?.playbackRate.value,
+        now
+      );
+      voiceRef.current.activeSrc?.playbackRate.linearRampToValueAtTime(
+        playbackRate,
+        now + rampDuration
+      );
+
+      voiceRef.current.nextSrc.playbackRate.cancelScheduledValues(now);
+      voiceRef.current.nextSrc.playbackRate.setValueAtTime(
+        voiceRef.current.nextSrc.playbackRate.value,
+        now
+      );
+      voiceRef.current.nextSrc.playbackRate.linearRampToValueAtTime(
         playbackRate,
         now + rampDuration
       );
@@ -245,4 +271,4 @@ const SourceNodeTester = () => {
   );
 };
 
-export default SourceNodeTester;
+export default VoiceCustomSrcTester;

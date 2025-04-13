@@ -1,6 +1,7 @@
 // import { getAudioContext } from '@/context/globalAudioContext';
 import { registry } from '@/processors/ProcessorRegistry';
 import { DEFAULTS } from './SharedByBaseNodes';
+import { AudiolibProcessor } from '@/processors/ProcessorRegistry';
 
 export function createWorkletNode(
   audioContext: BaseAudioContext,
@@ -31,6 +32,14 @@ class BaseWorkletNode extends AudioWorkletNode {
   ) {
     super(context, processorName, options);
     this.connections = new Map();
+  }
+
+  static async register(processorName: AudiolibProcessor): Promise<void> {
+    return await registry.register(processorName);
+  }
+
+  static isProcessorRegistered(processorName: AudiolibProcessor): boolean {
+    return registry.hasRegistered(processorName);
   }
 
   connect(

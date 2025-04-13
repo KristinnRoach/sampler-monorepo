@@ -1,0 +1,84 @@
+//// @ts-nocheck
+
+import React, { useRef, useEffect } from 'react';
+import type VoicePoolWC from '@repo/audiolib';
+import { ensureAudioCtx } from '@repo/audiolib';
+
+type VoicePoolWCType = typeof VoicePoolWC;
+
+const VoicePool: React.FC = () => {
+  const voicePoolRef = useRef<VoicePoolWCType | null>(null);
+
+  useEffect(() => {
+    const voicePool = voicePoolRef.current as VoicePoolWCType;
+    if (!voicePool) {
+      console.error('VoicePoolWC not found');
+      return;
+    }
+    let audioContext;
+    ensureAudioCtx().then((ctx) => {
+      audioContext = ctx;
+      // voicePool.setAudioContext(audioContext);
+    });
+    console.log({ audioContext, voicePool });
+
+    const initPoolBuffer = async () => {
+      const response = await fetch('/sus.wav');
+      const arrayBuffer = await response.arrayBuffer();
+      const audioContext = voicePool.getAudioContext();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+      // Set the buffer for the VoicePool
+      await voicePool.setBuffer(audioBuffer);
+      console.log('Sample loaded successfully!');
+    };
+
+    try {
+      initPoolBuffer();
+    } catch (error) {
+      console.error('Failed to load audio file:', error);
+    }
+
+    // Example keyboard event handling
+    document.addEventListener('keydown', (event) => {
+      // Simple keyboard mapping (Z = C3, X = D3, etc.)
+      const keyToNote = {
+        z: 60, // C3
+        x: 62, // D3
+        c: 64, // E3
+        v: 65, // F3
+        b: 67, // G3
+        n: 69, // A3
+        m: 71, // B3
+        ',': 72, // C4
+      };
+
+      const key = event.key.toLowerCase();
+      if (key in keyToNote && !event.repeat) {
+        voicePool.playNote(keyToNote[key], 0.8);
+      }
+    });
+
+    document.addEventListener('keyup', (event) => {
+      const keyToNote = {
+        z: 60,
+        x: 62,
+        c: 64,
+        v: 65,
+        b: 67,
+        n: 69,
+        m: 71,
+        ',': 72,
+      };
+
+      const key = event.key.toLowerCase();
+      if (key in keyToNote) {
+        voicePool.stopNote(keyToNote[key]);
+      }
+    });
+  }, []);
+
+  return <voice-pool id='pool' ref={voicePoolRef}></voice-pool>;
+};
+
+export default VoicePool;

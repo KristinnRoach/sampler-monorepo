@@ -1,8 +1,18 @@
-// @ts-nocheck
+import { NodeID } from '@/types/global';
+import { createNodeId } from '@/store/IdStore';
+
+function midiNoteToFrequency(note: number): number {
+  return 440 * Math.pow(2, (note - 69) / 12);
+}
+
 class SourceNode extends AudioWorkletNode {
-  private _startCalled: boolean;
-  private _stopTime: number | null;
-  context: BaseAudioContext;
+  readonly nodeId: NodeID;
+
+  static isProcessorRegistered: boolean = false;
+
+  #startCalled: boolean;
+  #stopTime: number | null;
+  #context: BaseAudioContext;
 
   playbackRate: AudioParam;
   loopStart: AudioParam;
@@ -20,15 +30,16 @@ class SourceNode extends AudioWorkletNode {
       },
     });
 
-    this.context = context;
-    this._startCalled = false;
-    this._stopTime = null;
+    this.nodeId = createNodeId();
+    this.#context = context;
+    this.#startCalled = false;
+    this.#stopTime = null;
 
     // Store references to AudioParams for convenient access
-    this.playbackRate = this.parameters.get('playbackRate')!;
-    this.loopStart = this.parameters.get('loopStart')!;
-    this.loopEnd = this.parameters.get('loopEnd')!;
-    this.loop = this.parameters.get('loop')!;
+    this.playbackRate = (this.parameters as any).get('playbackRate')!;
+    this.loopStart = (this.parameters as any).get('loopStart')!;
+    this.loopEnd = (this.parameters as any).get('loopEnd')!;
+    this.loop = (this.parameters as any).get('loop')!;
 
     if (options.buffer) {
       this.buffer = options.buffer;
@@ -37,9 +48,15 @@ class SourceNode extends AudioWorkletNode {
     // Add event handling for processor notifications
     this.port.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'ended') {
-        this._onEnded();
+        this.#onEnded();
       }
     };
+  }
+
+  setLoopEnabled(enabled: boolean): SourceNode {
+    const value = enabled ? 1.0 : 0.0;
+    this.loop.setValueAtTime(value, this.#context.currentTime);
+    return this;
   }
 
   // Buffer accessor
@@ -49,18 +66,45 @@ class SourceNode extends AudioWorkletNode {
       this.port.postMessage({
         type: 'setBuffer',
         buffer: bufferData,
-        sampleRate: this.context.sampleRate,
+        sampleRate: this.#context.sampleRate,
       });
     }
   }
 
+  playNote(
+    midiNote: number,
+    velocity: number = 1.0,
+    startTime?: number
+  ): SourceNode {
+    const time = startTime ?? this.#context.currentTime;
+    const frequency = midiNoteToFrequency(midiNote);
+
+    const baseFrequency = 440; // A4
+    const playbackRatio = frequency / baseFrequency;
+
+    this.playbackRate.setValueAtTime(playbackRatio, time);
+
+    this.port.postMessage({
+      type: 'noteOn',
+      midiNote: midiNote,
+      velocity: velocity,
+      time: time,
+    });
+
+    if (!this.#startCalled) {
+      this.start(time);
+    }
+
+    return this;
+  }
+
   start(when = 0, offset = 0, duration?: number): SourceNode {
-    if (this._startCalled) {
+    if (this.#startCalled) {
       throw new Error('Start method already called');
     }
 
-    this._startCalled = true;
-    const startTime = Math.max(this.context.currentTime, when); // TODO: check if currentTime is defined, should be currentFrame / sampleRate ?? dunno
+    this.#startCalled = true;
+    const startTime = Math.max(this.#context.currentTime, when);
 
     this.port.postMessage({
       type: 'start',
@@ -72,33 +116,54 @@ class SourceNode extends AudioWorkletNode {
     return this;
   }
 
-  // Stop playback with precise timing
   stop(when = 0): SourceNode {
-    if (!this._startCalled) {
+    if (!this.#startCalled) {
       throw new Error('Cannot call stop without calling start first');
     }
 
-    if (this._stopTime !== null) {
-      throw new Error('Stop method already called');
+    // Only proceed if stop hasn't been called already
+    if (this.#stopTime === null) {
+      this.#stopTime = Math.max(this.#context.currentTime, when);
+
+      this.port.postMessage({
+        type: 'stop',
+        time: this.#stopTime,
+      });
     }
-
-    this._stopTime = Math.max(this.context.currentTime, when);
-
-    this.port.postMessage({
-      type: 'stop',
-      time: this._stopTime,
-    });
 
     return this;
   }
 
-  // Internal ended event handler
-  private _onEnded(): void {
+  #onEnded(): void {
     const event = new Event('ended');
     this.dispatchEvent(event);
   }
 
+  setOnEnded(callback: () => void): any {
+    this.addEventListener('ended', callback);
+    return this;
+  }
+
+  dispose(): void {
+    console.log(`Disposing node with ID: ${this.nodeId}`);
+    // todo: optimize for performance
+    this.stop();
+    this.port.close();
+    this.disconnect();
+    this.#context = null as any; // Clear context reference
+    this.#startCalled = false;
+    this.#stopTime = null;
+    this.buffer = null as any; // Clear buffer reference
+    this.playbackRate = null as any; // Clear playbackRate reference
+    this.loopStart = null as any; // Clear loopStart reference
+    this.loopEnd = null as any; // Clear loopEnd reference
+    this.loop = null as any; // Clear loop reference
+  }
+
   static async registerProcessor(context: BaseAudioContext): Promise<boolean> {
+    if (this.isProcessorRegistered) {
+      return true;
+    }
     const processorCode = `
         // Helper function to handle timing and scheduling
         function scheduleTiming(currentTime, startTime, stopTime) {
@@ -139,6 +204,18 @@ class SourceNode extends AudioWorkletNode {
                 if (this.duration !== undefined) {
                   this.endTime = this.startTime + this.duration;
                 }
+
+                else if (data.type === 'noteOn') {
+                  this.currentNote = data.midiNote;
+                  this.velocity = data.velocity;
+
+                  if (this.startTime === null) {
+                    this.startTime = data.time;
+                  }
+
+                  // Reset to beginning of buffer for new note (optional)
+                  this.playbackPosition = 0;
+}
                 
                 // Initialize playback position based on offset
                 this.playbackPosition = Math.floor(this.startOffset * this.sampleRate);
@@ -158,6 +235,9 @@ class SourceNode extends AudioWorkletNode {
             if (!this.buffer || numChannels === 0 || !this.startTime) {
               return true;
             }
+
+            const currentTime = currentFrame / sampleRate;
+
             
             // Get parameter values
             const playbackRate = parameters.playbackRate;
@@ -262,9 +342,10 @@ class SourceNode extends AudioWorkletNode {
                 const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
                 const current = bufferChannel[position];
                 const next = bufferChannel[nextPosition];
+                const velocityGain = this.velocity || 1.0;
                 
                 // Linear interpolation between samples
-                output[c][i] = current + fraction * (next - current);
+                output[c][i] = (current + fraction * (next - current)) * velocityGain;
               }
               
               // Advance playback position
@@ -316,6 +397,8 @@ class SourceNode extends AudioWorkletNode {
 
     try {
       await context.audioWorklet.addModule(url);
+
+      this.isProcessorRegistered = true;
       return true;
     } catch (error) {
       console.error('Failed to register worklet processor:', error);
@@ -325,7 +408,6 @@ class SourceNode extends AudioWorkletNode {
     }
   }
 
-  // todo: only register once
   static async create(
     context: BaseAudioContext,
     options: any = {}
