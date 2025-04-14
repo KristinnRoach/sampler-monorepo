@@ -1,4 +1,3 @@
-import { NodeID } from '@/types/global';
 import { createNodeId } from '@/store/IdStore';
 
 export class LibNode {

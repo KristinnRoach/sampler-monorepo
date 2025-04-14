@@ -1,6 +1,11 @@
 // src/idb/audioStorage.ts
-import { db, ISampleItem } from './db';
-import { getAudioContext } from '@/context/globalAudioContext';
+import { db } from './db';
+import { DEFAULT_SAMPLE_RATE } from '@/constants';
+import {
+  releaseOfflineContext,
+  getOfflineAudioContext,
+  OfflineContextConfig,
+} from '@/context';
 
 /**
  * Stores an AudioBuffer in IndexedDB
@@ -11,9 +16,11 @@ import { getAudioContext } from '@/context/globalAudioContext';
  * @returns Promise resolving to the stored item's ID
  */
 export async function storeAudioSample(
-  id: string,
+  id: string, // Todo: id system!
   url: string,
-  audioBuffer: AudioBuffer
+  audioBuffer: AudioBuffer,
+  isDefaultInitSample: 0 | 1 = 0,
+  isFromDefaultLib: 0 | 1 = 0
 ): Promise<string> {
   try {
     // Extract raw audio data
@@ -40,12 +47,14 @@ export async function storeAudioSample(
     };
 
     // Create the sample item
-    const sampleItem: ISampleItem = {
+    const sampleItem: IdbSample = {
       id,
       url,
       audioData: serializedData,
       dateAdded: new Date(),
       metadata,
+      isDefaultInitSample,
+      isFromDefaultLib,
     };
 
     // Store it in IndexedDB
@@ -60,68 +69,244 @@ export async function storeAudioSample(
   }
 }
 
-// Get most recently added sample from IndexedDB
-export async function getLatestAudioSample(): Promise<ISampleItem | null> {
-  try {
-    const latestSampleItem = await db.samples
-      .orderBy('dateAdded')
-      .reverse()
-      .first();
-    return latestSampleItem || null;
-  } catch (error) {
-    console.error('Failed to retrieve latest audio sample:', error);
-    throw new Error(
-      `Failed to retrieve latest audio sample: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
+export async function getSampleItem(
+  id: string
+): Promise<IdbSample | undefined> {
+  return await db.samples.get(id);
 }
 
-// export async function getAudioSampleByUrl(url: string): Promise<ISampleItem | null> {
+export async function getSampleMetadata(
+  id: string
+): Promise<IdbSample['metadata'] | undefined> {
+  const item = await db.samples.get(id);
+  return item?.metadata || undefined;
+}
+
+export async function getSampleArrayBuffer(
+  id: string
+): Promise<ArrayBuffer | undefined> {
+  const item = await db.samples.get(id);
+  return item?.audioData;
+}
+
+export async function getSampleAsFloat32Array(
+  id: string
+): Promise<ArrayBuffer | undefined> {
+  const item = await db.samples.get(id);
+  return item ? new Float32Array(item.audioData) : undefined;
+}
+
+export async function getSamplesDateAdded(
+  id: string
+): Promise<Date | undefined> {
+  const item = await db.samples.get(id);
+  return item?.dateAdded;
+}
+
+// todo: getByUrl? sort/get by duration / samplerate / channels etc.
+
+function extractContextConfig(
+  metadata: ISampleMetadata,
+  audioData: Float32Array
+): OfflineContextConfig {
+  // Data needed for reconstruction of AudioBuffer
+  const channels = metadata?.channels || 1; // make required when storing?
+  const length = audioData.byteLength / (4 * channels); // 4 bytes per float
+  const sampleRate = metadata?.sampleRate || DEFAULT_SAMPLE_RATE;
+  return {
+    length,
+    numberOfChannels: channels,
+    sampleRate,
+  };
+}
 
 /**
  * Retrieves an AudioBuffer from IndexedDB
  *
  * @param id - Unique identifier for the sample
- * @returns Promise resolving to the AudioBuffer or null if not found
+ * @returns Promise resolving to the AudioBuffer or undefined if not found
  */
-export async function getAudioSample(id: string): Promise<AudioBuffer | null> {
+export async function getSampleAudioBuffer(
+  id: string,
+  sampleItem?: IdbSample
+): Promise<AudioBuffer | undefined> {
   try {
-    // Get the sample item from IndexedDB
-    const sampleItem = await db.samples.get(id);
+    const item = sampleItem ? sampleItem : await db.samples.get(id);
 
-    if (!sampleItem) {
-      return null;
-    }
-
-    const audioContext = getAudioContext(); // todo: test getting the offline context instead
-
-    // Metadata needed for reconstruction
-    const channels = sampleItem.metadata?.channels || 1;
-    const length = sampleItem.audioData.byteLength / (4 * channels); // 4 bytes per float
-
-    // Create a new AudioBuffer
-    const audioBuffer = audioContext.createBuffer(
-      channels,
-      length,
-      sampleItem.metadata?.sampleRate || audioContext.sampleRate
-    );
+    if (!item) return undefined;
 
     // Convert ArrayBuffer back to Float32Array
-    const audioData = new Float32Array(sampleItem.audioData);
+    const audioData = new Float32Array(item.audioData);
+
+    // Metadata needed for reconstruction
+    const config: OfflineContextConfig = extractContextConfig(
+      item.metadata,
+      audioData
+    );
+
+    const context = getOfflineAudioContext(config);
+
+    // Create a new AudioBuffer
+    const audioBuffer = context.createBuffer(
+      config.numberOfChannels!,
+      config.length,
+      config.sampleRate!
+    );
 
     // Copy data into the AudioBuffer for each channel
-    for (let channel = 0; channel < channels; channel++) {
+    for (let channel = 0; channel < config.numberOfChannels!; channel++) {
       const channelData = audioBuffer.getChannelData(channel);
       const start = channel * length;
       const end = start + length;
       channelData.set(audioData.subarray(start, end));
     }
 
+    // Always release the OfflineAudioContext after use!
+    releaseOfflineContext(config);
+
     return audioBuffer;
   } catch (error) {
     console.error('Failed to retrieve audio sample:', error);
     throw new Error(
       `Failed to retrieve audio sample: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+export async function initDefaultSample(
+  id: string,
+  url: string,
+  audioBuffer: AudioBuffer
+): Promise<string> {
+  id = 'default-' + id; // todo: id system!
+  const returnedId = await storeAudioSample(id, url, audioBuffer, 1, 1);
+  console.log('Stored default sample with ID:', returnedId);
+  return returnedId;
+}
+
+export async function getInitSample(): Promise<{} | undefined> {
+  // todo: type when settled
+  const item = await getInitSampleItem();
+  if (!item) {
+    console.error(`Failed to fetch init sample from Idb. Item is: ${item}`);
+    return undefined;
+  }
+
+  return await getAppSample(item.id); // using default params
+}
+
+export async function getAppSample(
+  id: string,
+  audioDataType: 'AudioBuffer' | 'Float32Array' | 'ArrayBuffer' = 'AudioBuffer',
+  getMetadata = true,
+  getInfo = true,
+  idbSample: IdbSample | null = null
+): Promise<
+  | {
+      audioData: AudioBuffer | Float32Array | ArrayBuffer;
+      sampleInfo?: Partial<AppSample>;
+    }
+  | undefined
+> {
+  const item = idbSample || (await getSampleItem(id));
+
+  if (!item) return undefined;
+  if (idbSample && item.id !== idbSample.id) {
+    console.warn('sample id and idb item do not match, check logic');
+    return undefined;
+  }
+
+  let audioData: AudioBuffer | Float32Array | ArrayBuffer;
+
+  switch (audioDataType) {
+    case 'AudioBuffer':
+      audioData = (await getSampleAudioBuffer(item.id, item)) as AudioBuffer;
+      break;
+    case 'Float32Array':
+      audioData = new Float32Array(item.audioData);
+      break;
+    case 'ArrayBuffer':
+      audioData = item.audioData;
+      break;
+  }
+
+  if (!audioData) {
+    console.error(`
+      Failed to get audio data from IDb 
+      for sampleId: ${item.id}`);
+    return undefined;
+  }
+
+  const sampleInfo: Partial<AppSample> = {};
+
+  if (getInfo) {
+    sampleInfo.id = item.id;
+    sampleInfo.url = item.url;
+    sampleInfo.dateAdded = item.dateAdded;
+    sampleInfo.extraInfo = {}; // replace if needed
+  }
+
+  if (getMetadata) {
+    sampleInfo.metadata = item.metadata;
+  }
+
+  return {
+    audioData,
+    sampleInfo: getInfo ? sampleInfo : undefined,
+  };
+}
+
+async function getInitSampleItem(): Promise<IdbSample | undefined> {
+  try {
+    const defaultSampleItem = await db.samples
+      .where('isDefaultInitSample')
+      .equals(1)
+      .first();
+    return defaultSampleItem || undefined;
+  } catch (error) {
+    console.error('Failed to retrieve default init sample:', error);
+    throw new Error(
+      `Failed to retrieve default init sample: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+/**
+ * Retrieves all audio samples from IndexedDB
+ *
+ * @returns Promise resolving to an array of sample items
+ */
+export async function getAllAudioSamples(): Promise<IdbSample[]> {
+  try {
+    const allSamples = await db.samples.toArray();
+    return allSamples;
+  } catch (error) {
+    console.error('Failed to retrieve all audio samples:', error);
+    throw new Error(
+      `Failed to retrieve all audio samples: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// Get most recently added sample item, as stored in IndexedDB
+async function getLatestSampleItem(): Promise<IdbSample | undefined> {
+  return (await db.samples.orderBy('dateAdded').reverse().first()) || undefined;
+}
+// export async function getAudioSampleByUrl(url: string): Promise<ISampleItem | undefined> {
+
+export async function getLatestSampleBuffer(): Promise<
+  AudioBuffer | undefined
+> {
+  try {
+    const item = await getLatestSampleItem();
+    if (!item) return undefined;
+
+    return await getSampleAudioBuffer(item.id, item);
+  } catch (error) {
+    console.error('Failed to retrieve latest audio sample:', error);
+    throw new Error(
+      `Failed to retrieve sample: 
+      ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }

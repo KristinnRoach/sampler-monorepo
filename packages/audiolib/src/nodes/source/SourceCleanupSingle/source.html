@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <source-node
+      loop
+      playback-rate="1.0"
+      loop-start="0"
+      loop-end="2"
+    ></source-node>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', async () => {
+        const sourceElement = document.querySelector('source-node');
+
+        // Wait for the node to be ready
+        sourceElement.addEventListener('ready', async (e) => {
+          // Load an audio buffer
+          const response = await fetch('./trimmed.wav');
+          const arrayBuffer = await response.arrayBuffer();
+          const audioBuffer =
+            await sourceElement.audioContext.decodeAudioData(arrayBuffer);
+
+          // Set the buffer and play a note
+          sourceElement.buffer = audioBuffer;
+          sourceElement.playNote(60); // Middle C
+
+          // Handle when playback ends
+          sourceElement.setOnEnded(() => {
+            console.log('Playback ended');
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

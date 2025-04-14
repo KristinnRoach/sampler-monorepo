@@ -1,3 +1,5 @@
+import { BaseWorkletNode } from '@/abstract/nodes/baseClasses/BaseWorkletNode';
+
 // Helper function to handle timing and scheduling
 function scheduleTiming(currentTime, startTime, stopTime) {
   return {

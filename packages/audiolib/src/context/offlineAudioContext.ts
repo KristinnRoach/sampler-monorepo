@@ -1,17 +1,21 @@
 // offlineAudioContext.ts
+
 const offlineInstances = new Map<string, OfflineAudioContext>();
 
-type OfflineContextConfig = {
+export type OfflineContextConfig = {
   length: number;
   numberOfChannels?: number;
   sampleRate?: number;
 };
 
+// remember to release!
 export function getOfflineAudioContext(
   config: OfflineContextConfig
 ): OfflineAudioContext {
-  if (!config.length) {
-    throw new Error('Length is required for offline audio context');
+  if (!config.length || config.length <= 0) {
+    throw new Error(
+      'Length is required, e.g. buffer size (samples), or (duration (seconds) * sample rate)'
+    );
   }
 
   const key = `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || 44100}`;
@@ -23,6 +27,9 @@ export function getOfflineAudioContext(
       sampleRate: config.sampleRate || 44100,
     });
 
+    console.log(`Offline audio context created (remember to release it).
+          Current nr of offline ctx instances: ${offlineInstances.size} `);
+
     offlineInstances.set(key, offlineContext);
   }
 
@@ -31,5 +38,9 @@ export function getOfflineAudioContext(
 
 export function releaseOfflineContext(config: OfflineContextConfig): boolean {
   const key = `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || 44100}`;
+  console.log(
+    `Offline audio context released. 
+    Current nr of offline ctx instances: ${offlineInstances.size} `
+  );
   return offlineInstances.delete(key);
 }

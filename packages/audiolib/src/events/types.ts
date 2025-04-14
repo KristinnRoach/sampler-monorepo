@@ -1,5 +1,3 @@
-import { AudioContextTimeSeconds, NodeID } from '@/types/global';
-
 // All possible event types mapped to EventData
 export type EventMap = {
   ready: EventData;

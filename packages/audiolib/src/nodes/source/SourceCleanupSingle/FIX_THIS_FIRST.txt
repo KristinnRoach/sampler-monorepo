@@ -1,0 +1,56 @@
+
+
+index.js:4392 Uncaught (in promise) 
+
+
+
+
+TypeError: Cannot read properties of undefined (reading 'sampleRate')
+
+
+
+
+    at new lt (index.js:4392:31)
+    at ya (index.js:4364:7)
+    at async SourceNodeTester.tsx:68:25
+lt @ index.js:4392
+ya @ index.js:4364
+await in ya
+(anonymous) @ SourceNodeTester.tsx:68
+(anonymous) @ SourceNodeTester.tsx:90
+commitHookEffectListMount @ chunk-77JA7ZBG.js?v=aae0d5fa:16961
+commitPassiveMountOnFiber @ chunk-77JA7ZBG.js?v=aae0d5fa:18204
+commitPassiveMountEffects_complete @ chunk-77JA7ZBG.js?v=aae0d5fa:18177
+commitPassiveMountEffects_begin @ chunk-77JA7ZBG.js?v=aae0d5fa:18167
+commitPassiveMountEffects @ chunk-77JA7ZBG.js?v=aae0d5fa:18157
+flushPassiveEffectsImpl @ chunk-77JA7ZBG.js?v=aae0d5fa:19541
+flushPassiveEffects @ chunk-77JA7ZBG.js?v=aae0d5fa:19498
+(anonymous) @ chunk-77JA7ZBG.js?v=aae0d5fa:19379
+workLoop @ chunk-77JA7ZBG.js?v=aae0d5fa:195
+flushWork @ chunk-77JA7ZBG.js?v=aae0d5fa:174
+performWorkUntilDeadline @ chunk-77JA7ZBG.js?v=aae0d5fa:382
+
+
+VM138:1 Failed to register audio worklet processor 'source-processor': TypeError: Failed to resolve module specifier "@/abstract/nodes/baseClasses/BaseWorkletNode". Relative references must start with either "/", "./", or "../".
+eval @ VM138:1
+overrideMethod @ hook.js:608
+register @ index.js:4232
+await in register
+ya @ index.js:4361
+(anonymous) @ SourceNodeTester.tsx:68
+(anonymous) @ SourceNodeTester.tsx:90
+commitHookEffectListMount @ chunk-77JA7ZBG.js?v=aae0d5fa:16961
+commitPassiveMountOnFiber @ chunk-77JA7ZBG.js?v=aae0d5fa:18204
+commitPassiveMountEffects_complete @ chunk-77JA7ZBG.js?v=aae0d5fa:18177
+commitPassiveMountEffects_begin @ chunk-77JA7ZBG.js?v=aae0d5fa:18167
+commitPassiveMountEffects @ chunk-77JA7ZBG.js?v=aae0d5fa:18157
+flushPassiveEffectsImpl @ chunk-77JA7ZBG.js?v=aae0d5fa:19541
+flushPassiveEffects @ chunk-77JA7ZBG.js?v=aae0d5fa:19498
+(anonymous) @ chunk-77JA7ZBG.js?v=aae0d5fa:19379
+workLoop @ chunk-77JA7ZBG.js?v=aae0d5fa:195
+flushWork @ chunk-77JA7ZBG.js?v=aae0d5fa:174
+performWorkUntilDeadline @ chunk-77JA7ZBG.js?v=aae0d5fa:382
+index.js:4392 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'sampleRate')
+    at new lt (index.js:4392:31)
+    at ya (index.js:4364:7)
+    at async SourceNodeTester.tsx:68:25

@@ -3,7 +3,7 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import {
   storeAudioSample,
-  getAudioSample,
+  getSampleAudioBuffer,
   hasAudioSample,
 } from '@/store/persistent/idb/audioStorage';
 
@@ -38,7 +38,7 @@ export async function loadAudioSample(
 
       if (cached) {
         console.log(`Loading audio sample from cache: ${sampleId}`);
-        const cachedBuffer = await getAudioSample(sampleId);
+        const cachedBuffer = await getSampleAudioBuffer(sampleId);
 
         if (cachedBuffer) {
           return cachedBuffer;

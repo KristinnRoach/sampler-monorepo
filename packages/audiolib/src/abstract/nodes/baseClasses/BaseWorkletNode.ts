@@ -1,44 +1,84 @@
-// import { getAudioContext } from '@/context/globalAudioContext';
+import { getAudioContext, ensureAudioCtx } from '@/context/globalAudioContext';
 import { registry } from '@/processors/ProcessorRegistry';
 import { DEFAULTS } from './SharedByBaseNodes';
-import { AudiolibProcessor } from '@/processors/ProcessorRegistry';
+import { ProcessorName } from '@/processors/ProcessorRegistry';
+import { LibNode } from './LibNode';
+import { createNodeId } from '@/store/IdStore';
 
 export function createWorkletNode(
-  audioContext: BaseAudioContext,
-  registeredProcessorName: string,
-  nodeOptions: AudioWorkletNodeOptions = {}
+  props: AudioWorkletNodeOptions | TODO = {
+    context: getAudioContext(),
+    processorName: 'dummy-processor',
+    workletOptions: {},
+  }
 ): BaseWorkletNode {
-  // Check if the processor is registered
-  if (!registry.hasRegistered(registeredProcessorName)) {
+  if (!registry.hasRegistered(props.processorName)) {
     throw new Error(
-      `AudioWorkletProcessor "${registeredProcessorName}" is not registered.`
+      `AudioWorkletProcessor "${props.processorName}" is not registered.`
     );
   }
-  return new BaseWorkletNode(
-    audioContext,
-    registeredProcessorName,
-    nodeOptions
-  );
+  return new BaseWorkletNode(props);
 }
 
-class BaseWorkletNode extends AudioWorkletNode {
-  // implements Node { // todo: eventbus
-  private connections: Map<AudioNode | AudioParam, [number, number]>; // todo: make this a WeakMap?
+// idempotent and safe to use wherever async is ok
+export async function createAndRegisterWorklet(
+  processorCode: string,
+  props: AudioWorkletNodeOptions | TODO = {
+    context: getAudioContext(),
+    processorName: 'dummy-processor',
+    workletOptions: {},
+  }
+): Promise<BaseWorkletNode> {
+  let ctx: BaseAudioContext | AudioContext = props.context;
+  if (!ctx) {
+    ctx = await ensureAudioCtx();
+  }
+
+  let registeredName = props.processorName;
+  if (!registry.hasRegistered(props.processorName)) {
+    registeredName = await registry.register({
+      processorName: props.processorName,
+      rawSource: processorCode,
+    });
+  }
+
+  return new BaseWorkletNode({
+    context: ctx,
+    processorName: registeredName,
+    ...props,
+  });
+}
+
+class BaseWorkletNode extends AudioWorkletNode implements LibNode {
+  static readonly DEFAULT_PROCESSOR: ProcessorName;
+
+  readonly nodeId: string;
+  readonly processorName: ProcessorName;
+  paramMap: Map<string, AudioParam>; // Workaround for TypeScript issue with AudioParamMap
+
+  private connections: Map<AudioNode | AudioParam, [number, number]>; // todo: rethink whether this is worth it (if so WeakMap?)
 
   constructor(
-    context: BaseAudioContext,
-    processorName: string,
-    options: AudioWorkletNodeOptions = {}
+    // todo: add type for SourceNodeOptions etc
+    props: AudioWorkletNodeOptions | TODO = {
+      audioContext: getAudioContext(),
+      processorName: 'dummy-processor',
+      workletOptions: {},
+    }
   ) {
-    super(context, processorName, options);
+    super(props.context, props.processorName, props.workletOptions);
+    this.nodeId = createNodeId();
+    this.processorName = props.processorName;
+
+    this.paramMap = this.parameters as Map<string, AudioParam>; // ts-error hax
     this.connections = new Map();
   }
 
-  static async register(processorName: AudiolibProcessor): Promise<void> {
-    return await registry.register(processorName);
+  static async register(processorName: ProcessorName): Promise<boolean> {
+    return (await registry.register({ processorName })) !== null;
   }
 
-  static isProcessorRegistered(processorName: AudiolibProcessor): boolean {
+  static isProcessorRegistered(processorName: ProcessorName): boolean {
     return registry.hasRegistered(processorName);
   }
 
@@ -70,17 +110,25 @@ class BaseWorkletNode extends AudioWorkletNode {
     }
   }
 
-  getParam(name: string): AudioParam {
-    const param = (this as any).parameters.get(name); //as AudioParam
+  dispose(): void {
+    this.disconnect();
+    this.connections.clear();
+    this.port.close();
+  }
+
+  getParam(name: string): AudioParam | null {
+    // rethink
+    const param = this.paramMap.get(name);
     if (param && param instanceof AudioParam) {
       return param as AudioParam;
     } else {
-      console.warn(`Parameter: ${name} not found`);
-      throw new Error(`Parameter: ${name} not found in: ${this}`);
+      console.warn(`Parameter: ${name} not found in: ${this}`);
+      return null;
     }
   }
 
   setTargetAtTime(
+    // rethink
     name: string,
     targetValue: number,
     rampTime?: number,
@@ -96,11 +144,60 @@ class BaseWorkletNode extends AudioWorkletNode {
   }
 
   setActive(active: boolean): void {
+    // rethink
     this.port.postMessage({ active });
   }
 
   getConnections(): Map<AudioNode | AudioParam, [number, number]> {
     return this.connections;
+  }
+
+  get ProcessorName(): string {
+    return this.processorName;
+  }
+
+  static async createNodeAsync<T extends typeof BaseWorkletNode>(
+    this: T,
+    props: AudioWorkletNodeOptions | TODO = {} // todo: add type for SourceNodeOptions etc
+  ): Promise<InstanceType<T>> {
+    const ctx = props.audioContext || (await ensureAudioCtx());
+    if (!ctx.audioWorklet) throw new Error('AudioWorklet not supported');
+
+    const name = props.processorName || this.DEFAULT_PROCESSOR;
+    if (!name) throw new Error('No processor name provided');
+
+    let registeredName = name;
+    if (!registry.hasRegistered(name)) {
+      registeredName = (await registry.register({ processorName: name })) || '';
+      if (!registeredName) throw new Error(`Failed to register ${name}.`);
+    }
+
+    return new this({
+      audioContext: ctx,
+      processorName: registeredName,
+      ...props,
+    }) as InstanceType<typeof this>;
+  }
+
+  static createNonAsync<T extends typeof BaseWorkletNode>(
+    props: AudioWorkletNodeOptions | TODO = {} // todo: add type for SourceNodeOptions etc
+  ): InstanceType<T> {
+    const ctx = props.audioContext || getAudioContext();
+
+    if (!ctx.audioWorklet) throw new Error('AudioWorklet not supported');
+
+    const name = props.processorName || this.DEFAULT_PROCESSOR;
+    if (!name) throw new Error('No processor name provided');
+
+    if (!registry.hasRegistered(name)) {
+      throw new Error(`Processor ${name} not registered.`);
+    }
+
+    return new this({
+      audioContext: ctx,
+      processorName: name,
+      ...props,
+    }) as InstanceType<T>;
   }
 }
 

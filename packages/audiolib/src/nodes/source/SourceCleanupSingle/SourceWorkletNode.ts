@@ -1,55 +1,111 @@
 import SourceProcessorRaw from './source-processor?raw';
 
-import { NodeID } from '@/types/global';
 import { createNodeId } from '@/store/IdStore';
-// import { BaseWorkletNode } from '@/abstract/nodes/baseClasses/BaseWorkletNode';
-import { AudiolibProcessor } from '@/processors/ProcessorRegistry';
-import { ensureAudioCtx } from '@/context';
+import {
+  BaseWorkletNode,
+  // createAndRegisterWorklet, // Todo: afflækja!
+} from '@/abstract/nodes/baseClasses/BaseWorkletNode';
+import { AudiolibProcessor, registry } from '@/processors/ProcessorRegistry';
+import { getAudioContext } from '@/context'; // use SourceWorkletNode.createAsync to ensure ensureAudioCtx is called if having issues
 
 function midiNoteToFrequency(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
-class SourceWorkletNode extends AudioWorkletNode {
-  // extends BaseWorkletNode {
+// todo: move to utils and check for accuracy
+// function frequencyToMidiNote(frequency: number): number {
+//   return Math.round(69 + 12 * Math.log2(frequency / 440));
+// }
+
+export const DEFAULT_SOURCE_PROPS = {
+  nrInputs: 0,
+  nrOutputs: 1,
+  playbackRate: 1,
+  loop: false,
+  startTime: 0,
+  loopStart: 0,
+};
+
+export async function createSourceNode(
+  props: AudioWorkletNodeOptions | TODO = {
+    audioContext: getAudioContext(),
+    processorName: 'source-processor', // default
+    workletOptions: {}, // audioworkletnodeoptions
+    sampleId: null,
+    audioData: null,
+    nrInputs: 0,
+    nrOutputs: 1,
+    channelCount: 2,
+  }
+): Promise<SourceWorkletNode> {
+  if (!registry.hasRegistered(props.processorName)) {
+    await registry.register({
+      processorName: props.processorName,
+      rawSource: SourceProcessorRaw,
+    });
+  }
+  return new SourceWorkletNode(props); // ({props}) ?? ({...props})
+}
+
+class SourceWorkletNode extends BaseWorkletNode {
+  static readonly defaultProcessor: AudiolibProcessor = 'source-processor';
+  static readonly sourceProcessorRaw: string = SourceProcessorRaw;
+  static readonly nodeType: string = 'DefaultSourceNode';
 
   readonly nodeId: NodeID;
   readonly processorName: AudiolibProcessor = 'source-processor';
 
+  #context: BaseAudioContext;
+  #currentSampleId: string | null;
   #startCalled: boolean;
   #stopTime: number | null;
-  #context: BaseAudioContext;
 
   playbackRate: AudioParam;
   loopStart: AudioParam;
   loopEnd: AudioParam;
   loop: AudioParam;
 
-  constructor(context: BaseAudioContext, options: any = {}) {
-    super(context, 'source-processor', {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [options.channelCount || 2],
+  constructor(
+    props: AudioWorkletNodeOptions | TODO = {
+      audioContext: getAudioContext(),
+      processorName: 'source-processor', // default
+      workletOptions: {}, // audioworkletnodeoptions
+      sampleId: null,
+      audioData: null,
+      nrInputs: 0,
+      nrOutputs: 1,
+      channelCount: 2,
+    }
+  ) {
+    super({
+      audioContext: props.context,
+      processorName: props.processorName || SourceWorkletNode.defaultProcessor,
+      workletOptions: props.workletOptions, // todo: check the diff with processorOptions (workletOptions must be compatible with AuWkltNode constructor)
+      numberOfInputs: props.nrInputs,
+      numberOfOutputs: props.nrOutputs,
+      outputChannelCount: [props.channelCount || 2], // check
       processorOptions: {
-        buffer: options.buffer ? bufferToFloat32Arrays(options.buffer) : null,
-        sampleRate: context.sampleRate,
+        buffer: props.audioData || null, // bufferToFloat32Arrays(options.buffer) || null, // remove options.buffer
+        sampleRate: props.context.sampleRate,
       },
     });
 
+    // TESTING REMOVE
+    console.warn('RAW code string: ', SourceWorkletNode.sourceProcessorRaw);
+
     this.nodeId = createNodeId();
-    this.#context = context;
+    this.#currentSampleId = props.id || null; // only set id if buffer is set (via onmessage?)
+    console.log(this.#currentSampleId);
+
+    this.#context = props.context;
     this.#startCalled = false;
     this.#stopTime = null;
 
     // Store references to AudioParams for convenient access
-    this.playbackRate = (this.parameters as any).get('playbackRate')!;
-    this.loopStart = (this.parameters as any).get('loopStart')!;
-    this.loopEnd = (this.parameters as any).get('loopEnd')!;
-    this.loop = (this.parameters as any).get('loop')!;
-
-    if (options.buffer) {
-      this.buffer = options.buffer;
-    }
+    this.playbackRate = this.paramMap.get('playbackRate')!;
+    this.loopStart = this.paramMap.get('loopStart')!;
+    this.loopEnd = this.paramMap.get('loopEnd')!;
+    this.loop = this.paramMap.get('loop')!;
 
     // Add event handling for processor notifications
     this.port.onmessage = (event: MessageEvent) => {
@@ -57,18 +113,49 @@ class SourceWorkletNode extends AudioWorkletNode {
         this.#onEnded();
       }
     };
+    this.port.start();
+    this.port.postMessage({
+      type: 'init',
+      sampleRate: this.#context.sampleRate,
+      id: this.nodeId,
+    });
+
+    if (props.audioData && props.id) {
+      this.buffer = {
+        id: props.id,
+        audioData: props.audioData, // validate
+      };
+    } else if (!(props.audioData && props.id)) {
+      console.warn(
+        'Audio data and ID must be provided together. Buffer not set.'
+      );
+    }
   }
 
-  // Buffer accessor
-  set buffer(newBuffer: AudioBuffer) {
-    if (newBuffer) {
-      const bufferData = bufferToFloat32Arrays(newBuffer);
-      this.port.postMessage({
-        type: 'setBuffer',
-        buffer: bufferData,
-        sampleRate: this.#context.sampleRate,
-      });
+  get isAvailable() {
+    // todo: decide multiplay or not - just temp oneshot for now
+    return this.#currentSampleId && !this.#startCalled; // this.#startCalled && this.#stopTime === null;
+  }
+
+  // Buffer accessor // todo: pass in relevant sample data/options (check AppSample type)
+  set buffer(options: { id: string; audioData: Float32Array[] | AudioBuffer }) {
+    let data: Float32Array[] = [];
+    if (options.audioData instanceof AudioBuffer) {
+      data = bufferToFloat32Arrays(options.audioData);
+    } else if (Array.isArray(options.audioData)) {
+      data = options.audioData;
     }
+    this.port.postMessage({
+      type: 'setBuffer',
+      buffer: data,
+      sampleRate: this.#context.sampleRate,
+    });
+
+    this.#currentSampleId = options.id; // decide sample or buffer id system
+  }
+
+  get isPlaying(): boolean {
+    return this.#startCalled && this.#stopTime === null;
   }
 
   playNote(
@@ -146,14 +233,10 @@ class SourceWorkletNode extends AudioWorkletNode {
     this.stop();
     this.port.close();
     this.disconnect();
-    this.#context = null as any; // Clear context reference
     this.#startCalled = false;
     this.#stopTime = null;
-    this.buffer = null as any; // Clear buffer reference
-    this.playbackRate = null as any; // Clear playbackRate reference
-    this.loopStart = null as any; // Clear loopStart reference
-    this.loopEnd = null as any; // Clear loopEnd reference
-    this.loop = null as any; // Clear loop reference
+
+    // this.#context = null as unknown; // Clear context reference // unecessary? (needs to be nullable i think)
     // this.#onEnded = null as any; // Clear event handler reference
   }
 }

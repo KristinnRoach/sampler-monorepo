@@ -1,4 +1,6 @@
 {
+  // TODO: Create separate for tsconfig-packages.base.json and tsconfig-apps.base.json
+  // And update all projects
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "declaration": true,

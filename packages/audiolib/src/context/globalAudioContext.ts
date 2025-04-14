@@ -5,7 +5,7 @@ import { SystemEventBus } from '@/events';
 let globalAudioContext: AudioContext | null = null;
 let resumePromise: Promise<void> | null = null;
 
-type AudioContextConfig = {
+export type AudioContextConfig = {
   sampleRate?: number;
   latencyHint?: AudioContextLatencyCategory;
 };

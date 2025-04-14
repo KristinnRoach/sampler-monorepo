@@ -18,7 +18,14 @@
   "scripts": {
     "build": "tsc --emitDeclarationOnly  & vite build",
     "watch": "tsc --emitDeclarationOnly --watch & vite build --watch",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist && pnpm prune",
+    "clean:turbo": "rimraf .turbo",
+    "clean:store": "pnpm store prune && pnpm prune",
+    "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune",
+    "lint": "eslint . ",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "dev": "vite",
     "preview": "vite preview",
     "test": "vitest run",
@@ -29,6 +36,7 @@
     "dexie": "^4.0.11"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
     "@types/audioworklet": "^0.0.72",
     "@vitest/coverage-v8": "3.0.9",
     "jsdom": "^26.0.0",

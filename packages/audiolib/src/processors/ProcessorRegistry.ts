@@ -2,8 +2,14 @@
 import { ensureAudioCtx } from '@/context/globalAudioContext';
 import PROCESSORS from '@/processors';
 
-// Create a union type of all valid processor names
-export type AudiolibProcessor = keyof typeof PROCESSORS; // ?
+// Union type of processor names that have been predefined by audiolib
+export type AudiolibProcessor = keyof typeof PROCESSORS;
+export type ProcessorName = AudiolibProcessor | string;
+
+type registryOptions = {
+  processorName: ProcessorName;
+  rawSource?: string; // raw source code for the processor if not predefined
+};
 
 // Singleton for AudioWorkletProcessor registration
 class ProcessorRegistry {
@@ -23,39 +29,47 @@ class ProcessorRegistry {
 
   async registerDefaultProcessors(): Promise<void> {
     Object.keys(PROCESSORS).forEach(async (processorName) => {
-      await this.register(processorName as AudiolibProcessor);
+      await this.register({ processorName });
     });
   }
 
-  async register(processorName: AudiolibProcessor): Promise<void> {
+  async register(options: registryOptions): Promise<string | null> {
     // , blobURL: string): Promise<void> {
     const audioContext = await ensureAudioCtx();
+    const name = options.processorName;
 
-    if (this.hasRegistered(processorName)) {
-      return;
+    if (this.hasRegistered(name)) {
+      console.log(`Processor '${name}' is already registered.`);
+      return name;
     }
 
-    const rawSource = PROCESSORS[processorName];
+    const rawSource =
+      options.rawSource || PROCESSORS[name as AudiolibProcessor];
+
     const blob = new Blob([rawSource], {
       type: 'application/javascript',
     });
+
     const blobURL = URL.createObjectURL(blob);
 
     try {
       // Register the processor with the audio worklet
       await audioContext.audioWorklet.addModule(blobURL);
 
-      // Store the blob URL for later cleanup if needed
-      this.blobURLStore.set(processorName, blobURL);
+      // Store the blob URL for later cleanup if needed // ?? Unnecessary bloat?
+      this.blobURLStore.set(name, blobURL);
 
       // Mark this processor as registered
-      this.registeredProcessors.add(processorName);
+      this.registeredProcessors.add(name);
+      console.log(`'${name}' registered successfully.`);
+
+      return name;
     } catch (error) {
       console.error(
-        `Failed to register audio worklet processor '${processorName}':`,
+        `Failed to register audio worklet processor '${name}':`,
         error
       );
-      throw error;
+      return null;
     }
   }
 

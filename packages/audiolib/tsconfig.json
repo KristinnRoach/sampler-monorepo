@@ -11,9 +11,15 @@
     "moduleResolution": "node",
     "lib": ["ES2022", "DOM"],
 
+    "declarationMap": true, //?
+    "useDefineForClassFields": true,
+
+    "sourceMap": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
+
+    "types": ["@types/audioworklet"],
 
     "skipLibCheck": true,
     "declaration": true,
@@ -28,15 +34,12 @@
       // "dexie": ["node_modules/dexie"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "src/types/worklet.d.ts"],
   "exclude": ["node_modules", "dist", "src/test/*"] // should test be excluded?
 }
 
 // Under review:
 // "watch": true,
-// "declarationMap": true, //?
-// "sourceMap": true,
-// "useDefineForClassFields": true,
 // "resolveJsonModule": true,
 // "isolatedModules": true,
 // "esModuleInterop": true,

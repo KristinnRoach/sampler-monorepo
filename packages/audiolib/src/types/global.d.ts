@@ -1,21 +1,9 @@
-export type TODO = any;
+// TODO: make sure this global typing is cool (how does it affect consuming apps?)
 
-export type IsReady = boolean;
+type TODO = any;
 
-export type AudioContextTimeSeconds = number;
+type IsReady = boolean;
 
-export type NodeID = string; // | number; // | symbol; // TODO -> Standardize id's
+type AudioContextTimeSeconds = number;
 
-export interface AudioParamDescriptor {
-  name: string;
-  defaultValue: number;
-  minValue?: number;
-  maxValue?: number;
-  automationRate: 'a-rate' | 'k-rate';
-}
-
-// export interface ProcessorDefinition {
-//   processFunction: Function;
-//   processorParams?: AudioParamDescriptor[];
-//   processorOptions?: Record<string, unknown>;
-// }
+type NodeID = string; // | number; // | symbol; // TODO -> Standardize id's

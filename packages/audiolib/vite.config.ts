@@ -18,7 +18,7 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: '@repo/audiolib',
-      formats: ['es', 'cjs'], // todo: add 'cjs', 'umd' ??
+      formats: ['es'], // , 'cjs'], // todo: add 'cjs', 'umd' ??
       fileName: 'index',
     },
 
