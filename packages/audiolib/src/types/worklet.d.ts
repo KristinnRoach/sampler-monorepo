@@ -7,15 +7,8 @@
  *   //// <reference types="npm:@types/audioworklet" />
  **/
 
-declare var currentTime: number;
-
-interface ProcessorDefinition {
-  processFunction: Function;
-  processorParams?: AudioParamDescriptor[];
-  processorOptions?: Record<string, unknown>;
-}
-
-interface AudioWorkletProcessor {
+declare class AudioWorkletProcessor {
+  constructor(options?: AudioWorkletNodeOptions);
   readonly port: MessagePort;
   process(
     inputs: Float32Array[][],
@@ -24,10 +17,36 @@ interface AudioWorkletProcessor {
   ): boolean;
 }
 
-declare var AudioWorkletProcessor: {
-  prototype: AudioWorkletProcessor;
-  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
-};
+declare function registerProcessor(
+  name: string,
+  processorCtor: typeof AudioWorkletProcessor
+): void;
+
+interface AudioWorkletNodeOptions {
+  processorOptions?: any;
+}
+
+// declare let currentTime: number;
+
+interface ProcessorDefinition {
+  processFunction: Function;
+  processorParams?: AudioParamDescriptor[];
+  processorOptions?: Record<string, unknown>;
+}
+
+// interface AudioWorkletProcessor {
+//   readonly port: MessagePort;
+//   process(
+//     inputs: Float32Array[][],
+//     outputs: Float32Array[][],
+//     parameters: Record<string, Float32Array>
+//   ): boolean;
+// }
+
+// declare var AudioWorkletProcessor: {
+//   prototype: AudioWorkletProcessor;
+//   new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
+// };
 
 interface AudioWorkletProcessorConstructor {
   new (options?: AudioWorkletNodeOptions): AudioWorkletProcessorImpl;

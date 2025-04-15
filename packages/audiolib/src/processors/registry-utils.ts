@@ -3,6 +3,7 @@ function isValidURL(url: string): boolean {
     new URL(url);
     return true;
   } catch (error) {
+    console.warn(`Invalid URL: ${url}. Error: ${(error as Error).message}`);
     return false;
   }
 }

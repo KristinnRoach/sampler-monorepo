@@ -6,7 +6,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . ",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clean": "rimraf dist",
+    "clean:deps": "rimraf node_modules .turbo",
+    "clean:all": "rimraf node_modules .turbo dist"
   },
   "dependencies": {
     "@xyflow/react": "^12.5.1",

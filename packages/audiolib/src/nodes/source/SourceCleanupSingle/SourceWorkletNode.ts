@@ -1,12 +1,8 @@
-import SourceProcessorRaw from './source-processor?raw';
-
+import SourceProcessorRaw from '@/processors/source/source-processor?raw';
 import { createNodeId } from '@/store/IdStore';
-import {
-  BaseWorkletNode,
-  // createAndRegisterWorklet, // Todo: afflækja!
-} from '@/abstract/nodes/baseClasses/BaseWorkletNode';
+
 import { AudiolibProcessor, registry } from '@/processors/ProcessorRegistry';
-import { getAudioContext } from '@/context'; // use SourceWorkletNode.createAsync to ensure ensureAudioCtx is called if having issues
+import { ensureAudioCtx, getAudioContext } from '@/context';
 
 function midiNoteToFrequency(note: number): number {
   return 440 * Math.pow(2, (note - 69) / 12);
@@ -17,37 +13,7 @@ function midiNoteToFrequency(note: number): number {
 //   return Math.round(69 + 12 * Math.log2(frequency / 440));
 // }
 
-export const DEFAULT_SOURCE_PROPS = {
-  nrInputs: 0,
-  nrOutputs: 1,
-  playbackRate: 1,
-  loop: false,
-  startTime: 0,
-  loopStart: 0,
-};
-
-export async function createSourceNode(
-  props: AudioWorkletNodeOptions | TODO = {
-    audioContext: getAudioContext(),
-    processorName: 'source-processor', // default
-    workletOptions: {}, // audioworkletnodeoptions
-    sampleId: null,
-    audioData: null,
-    nrInputs: 0,
-    nrOutputs: 1,
-    channelCount: 2,
-  }
-): Promise<SourceWorkletNode> {
-  if (!registry.hasRegistered(props.processorName)) {
-    await registry.register({
-      processorName: props.processorName,
-      rawSource: SourceProcessorRaw,
-    });
-  }
-  return new SourceWorkletNode(props); // ({props}) ?? ({...props})
-}
-
-class SourceWorkletNode extends BaseWorkletNode {
+class SourceWorkletNode extends AudioWorkletNode {
   static readonly defaultProcessor: AudiolibProcessor = 'source-processor';
   static readonly sourceProcessorRaw: string = SourceProcessorRaw;
   static readonly nodeType: string = 'DefaultSourceNode';
@@ -55,10 +21,11 @@ class SourceWorkletNode extends BaseWorkletNode {
   readonly nodeId: NodeID;
   readonly processorName: AudiolibProcessor = 'source-processor';
 
-  #context: BaseAudioContext;
-  #currentSampleId: string | null;
+  #context: AudioContext = getAudioContext(); // !BASE? nope
   #startCalled: boolean;
   #stopTime: number | null;
+
+  paramMap: Map<string, AudioParam>; // Workaround for TypeScript issue with AudioParamMap
 
   playbackRate: AudioParam;
   loopStart: AudioParam;
@@ -66,40 +33,47 @@ class SourceWorkletNode extends BaseWorkletNode {
   loop: AudioParam;
 
   constructor(
-    props: AudioWorkletNodeOptions | TODO = {
-      audioContext: getAudioContext(),
-      processorName: 'source-processor', // default
-      workletOptions: {}, // audioworkletnodeoptions
-      sampleId: null,
-      audioData: null,
-      nrInputs: 0,
-      nrOutputs: 1,
-      channelCount: 2,
+    context: AudioContext,
+    name: string = SourceWorkletNode.defaultProcessor,
+    options: {
+      audioData: TODO; // Float32Array[]; // ? [][] - channels 2D ?
+      sampleRate?: number;
     }
   ) {
-    super({
-      audioContext: props.context,
-      processorName: props.processorName || SourceWorkletNode.defaultProcessor,
-      workletOptions: props.workletOptions, // todo: check the diff with processorOptions (workletOptions must be compatible with AuWkltNode constructor)
-      numberOfInputs: props.nrInputs,
-      numberOfOutputs: props.nrOutputs,
-      outputChannelCount: [props.channelCount || 2], // check
+    super(context, name, {
       processorOptions: {
-        buffer: props.audioData || null, // bufferToFloat32Arrays(options.buffer) || null, // remove options.buffer
-        sampleRate: props.context.sampleRate,
+        audioData: options.audioData,
+        sampleRate: options.sampleRate,
       },
     });
 
-    // TESTING REMOVE
-    console.warn('RAW code string: ', SourceWorkletNode.sourceProcessorRaw);
+    if (!options) console.debug('new SourceWorkletNode() -> No OPTIONS !!');
+    if (!!options) console.debug('new SourceWorkletNode() -> YEES OPTIONS !!');
+
+    const audio = options.audioData; // ? saving for later maybe
+    if (!audio) console.debug('new SourceWorkletNode() -> No audioData !!');
+    if (!!audio) console.debug('new SourceWorkletNode() -> YES audioData !!');
+
+    const ctx = context || getAudioContext();
+    console.debug('ctx state: ', ctx.state);
+
+    let sr = options.sampleRate;
+    let floatArray: Float32Array[] = [];
+
+    if (audio instanceof AudioBuffer) {
+      sr = sr ? sr : audio.sampleRate; // use audiobuffer samplerate
+      floatArray = bufferToFloat32Arrays(audio);
+    } else if (Array.isArray(audio)) {
+      floatArray = audio; // should already be Float32 arrays (test: 1d, 2d)
+      sr = sr ? sr : ctx.sampleRate; // use audiocontext samplerate
+    }
 
     this.nodeId = createNodeId();
-    this.#currentSampleId = props.id || null; // only set id if buffer is set (via onmessage?)
-    console.log(this.#currentSampleId);
+    this.#context = context;
 
-    this.#context = props.context;
     this.#startCalled = false;
     this.#stopTime = null;
+    this.paramMap = this.parameters as Map<string, AudioParam>; //
 
     // Store references to AudioParams for convenient access
     this.playbackRate = this.paramMap.get('playbackRate')!;
@@ -107,51 +81,62 @@ class SourceWorkletNode extends BaseWorkletNode {
     this.loopEnd = this.paramMap.get('loopEnd')!;
     this.loop = this.paramMap.get('loop')!;
 
-    // Add event handling for processor notifications
+    // Add event handlers for incoming msg
     this.port.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'ended') {
         this.#onEnded();
       }
     };
-    this.port.start();
-    this.port.postMessage({
-      type: 'init',
-      sampleRate: this.#context.sampleRate,
-      id: this.nodeId,
-    });
+    this.port.start(); // setActive, var það eitthvað?
 
-    if (props.audioData && props.id) {
-      this.buffer = {
-        id: props.id,
-        audioData: props.audioData, // validate
-      };
-    } else if (!(props.audioData && props.id)) {
+    if (audio) {
+      // ! first trying processor constructor, super()
+      this.setBuffer(
+        // ? if reliable in super henda þessu
+        audio // validate
+        // sampleId,
+      );
+    } else {
       console.warn(
-        'Audio data and ID must be provided together. Buffer not set.'
+        'No audio data provided in worklet constructor. Call setBuffer.'
       );
     }
   }
 
   get isAvailable() {
     // todo: decide multiplay or not - just temp oneshot for now
-    return this.#currentSampleId && !this.#startCalled; // this.#startCalled && this.#stopTime === null;
+    return !this.#startCalled; // this.#buffer && !this.#startCalled; stopTime ! null
   }
 
-  // Buffer accessor // todo: pass in relevant sample data/options (check AppSample type)
-  set buffer(options: { id: string; audioData: Float32Array[] | AudioBuffer }) {
-    let data: Float32Array[] = [];
-    if (options.audioData instanceof AudioBuffer) {
-      data = bufferToFloat32Arrays(options.audioData);
-    } else if (Array.isArray(options.audioData)) {
-      data = options.audioData;
+  // todo: optimize and use AppSample type
+  // ! first test this in processor constructor
+  setBuffer(
+    audioData: Float32Array[] | AudioBuffer,
+    id?: string,
+    sampleRate?: number // automatically uses audiobuffers rate if available
+  ) {
+    console.error(
+      `Why you give me id? i no use it! (sourceworklet.setBuffer()), id: ${id}`
+    );
+
+    let floatArray: Float32Array[] = [];
+    let sr = sampleRate ? sampleRate : this.#context.sampleRate;
+    if (audioData instanceof AudioBuffer) {
+      // use buffers rate if audiobuffer
+      sr = sampleRate ? sampleRate : audioData.sampleRate;
+      floatArray = bufferToFloat32Arrays(audioData);
+    } else if (Array.isArray(audioData)) {
+      floatArray = audioData;
     }
+
+    console.warn({ floatArray });
+    console.warn({ sr });
+
     this.port.postMessage({
       type: 'setBuffer',
-      buffer: data,
-      sampleRate: this.#context.sampleRate,
+      buffer: floatArray,
+      sampleRate: sr ?? '48000',
     });
-
-    this.#currentSampleId = options.id; // decide sample or buffer id system
   }
 
   get isPlaying(): boolean {
@@ -203,14 +188,8 @@ class SourceWorkletNode extends BaseWorkletNode {
     return this;
   }
 
-  stop(when = 0): SourceWorkletNode {
-    if (!this.#startCalled) {
-      throw new Error('Cannot call stop without calling start first');
-    }
-
-    if (this.#stopTime !== null) {
-      throw new Error('Stop method already called');
-    }
+  stop(when = 0): void {
+    if (!this.#startCalled || this.#stopTime) return;
 
     this.#stopTime = Math.max(this.#context.currentTime, when);
 
@@ -219,7 +198,7 @@ class SourceWorkletNode extends BaseWorkletNode {
       time: this.#stopTime,
     });
 
-    return this;
+    return;
   }
 
   #onEnded(): void {
@@ -228,26 +207,90 @@ class SourceWorkletNode extends BaseWorkletNode {
   }
 
   dispose(): void {
-    console.log(`Disposing node with ID: ${this.nodeId}`);
     // todo: optimize for performance
     this.stop();
-    this.port.close();
     this.disconnect();
+    this.port.close();
     this.#startCalled = false;
     this.#stopTime = null;
-
-    // this.#context = null as unknown; // Clear context reference // unecessary? (needs to be nullable i think)
-    // this.#onEnded = null as any; // Clear event handler reference
+    // (this.#context as unknown as null) = null; // Clear context reference // unecessary? (needs to be nullable i think)
+    // (this.#onEnded as unknown as null) = null; // Clear event handler reference
   }
-}
-
-// Helper function to convert AudioBuffer to transferable arrays
-function bufferToFloat32Arrays(audioBuffer: AudioBuffer): Float32Array[] {
-  const arrays: Float32Array[] = [];
-  for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
-    arrays.push(audioBuffer.getChannelData(i));
-  }
-  return arrays;
 }
 
 export { SourceWorkletNode };
+
+// ! Move to utils
+//function validateAudioBuffer(buffer: AudioBuffer){}
+
+// Helper function to convert AudioBuffer to transferable arrays
+function bufferToFloat32Arrays(audioBuffer: AudioBuffer): Float32Array[] {
+  // Validate the buffer
+  if (!audioBuffer || audioBuffer.length === 0) {
+    console.error('Invalid or empty AudioBuffer');
+    return [];
+  }
+
+  // Check if buffer has any non-zero content
+  const firstChannel = audioBuffer.getChannelData(0);
+  const hasSound = firstChannel.some((sample) => sample !== 0);
+  if (!hasSound) {
+    console.warn('AudioBuffer appears to be silent - all samples are zero');
+  }
+
+  const arrays: Float32Array[] = [];
+  for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+    const channelData = audioBuffer.getChannelData(i);
+    arrays.push(channelData);
+  }
+  console.warn(`COMMONNN - audio to float arr: ${arrays}`); // !!! ATH !!! why iz all zeroes! ? ! ? ! ? ! ? // todo: fix :)
+
+  console.warn('Audio Buffer stats:', {
+    numberOfChannels: audioBuffer.numberOfChannels,
+    length: audioBuffer.length,
+    sampleRate: audioBuffer.sampleRate,
+    duration: audioBuffer.duration,
+  });
+
+  // Check actual content of first few samples
+  const channel0 = audioBuffer.getChannelData(0);
+  console.warn(
+    'First 10 samples:',
+    Array.from(channel0.slice(0, 10)),
+    'Max value:',
+    Math.max(...Array.from(channel0)),
+    'Non-zero:',
+    channel0.some((val) => val !== 0)
+  );
+  return arrays;
+}
+
+// export async function createSourceNode(
+//   props: TODO = {
+//     context: getAudioContext(),
+//     processorName: 'source-processor',
+//     workletOptions: {}, // AudioWorkletNodeOptions
+//     sampleId: null,
+//     audioData: null,
+//     nrInputs: 0,
+//     nrOutputs: 1,
+//     channelCount: 2,
+//   }
+// ): Promise<SourceWorkletNode> {
+//   const ctx = await ensureAudioCtx(); // debugging
+//   props.context = ctx;
+//   if (!registry.hasRegistered(props.processorName)) {
+//     console.warn(
+//       `Processor ${props.processorName} not registered, registering now...`
+//     );
+//     await registry.register({
+//       processorName: props.processorName,
+//       rawSource: SourceProcessorRaw,
+//     });
+
+//     console.warn(
+//       `context ${ctx} - processor ${props.processorName} registered`
+//     );
+//   }
+//   return new SourceWorkletNode({ ...props }); // ({props}) ?? ({...props})
+// }

@@ -1,7 +1,7 @@
 import { getAudioContext } from '@/context/globalAudioContext';
 import { VoiceNode } from '@/nodes/voice/VoiceNode';
 import { DefaultEventBus, IEventBus, EventMap, EventData } from '@/events'; // DefaultEventBus
-import { LibNode } from '@/abstract/nodes/baseClasses/LibNode';
+import { LibNode } from '@/abstract/baseClasses/LibNode';
 import { globalKeyboardInput } from '@/input';
 import { loadAudioSample, loadDefaultSample } from '@/utils/loadAudio';
 

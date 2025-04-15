@@ -1,6 +1,6 @@
 import { getAudioContext, ensureAudioCtx } from '@/context/globalAudioContext';
 import { registry } from '@/processors/ProcessorRegistry';
-import { DEFAULTS } from './SharedByBaseNodes';
+import { DEFAULTS } from '../shared-utils';
 import { ProcessorName } from '@/processors/ProcessorRegistry';
 import { LibNode } from './LibNode';
 import { createNodeId } from '@/store/IdStore';
@@ -29,7 +29,7 @@ export async function createAndRegisterWorklet(
     workletOptions: {},
   }
 ): Promise<BaseWorkletNode> {
-  let ctx: BaseAudioContext | AudioContext = props.context;
+  let ctx: AudioContext = props.context; // BaseAudioContext |
   if (!ctx) {
     ctx = await ensureAudioCtx();
   }
@@ -61,7 +61,7 @@ class BaseWorkletNode extends AudioWorkletNode implements LibNode {
   constructor(
     // todo: add type for SourceNodeOptions etc
     props: AudioWorkletNodeOptions | TODO = {
-      audioContext: getAudioContext(),
+      context: getAudioContext(),
       processorName: 'dummy-processor',
       workletOptions: {},
     }
@@ -160,7 +160,7 @@ class BaseWorkletNode extends AudioWorkletNode implements LibNode {
     this: T,
     props: AudioWorkletNodeOptions | TODO = {} // todo: add type for SourceNodeOptions etc
   ): Promise<InstanceType<T>> {
-    const ctx = props.audioContext || (await ensureAudioCtx());
+    const ctx = props.context || (await ensureAudioCtx());
     if (!ctx.audioWorklet) throw new Error('AudioWorklet not supported');
 
     const name = props.processorName || this.DEFAULT_PROCESSOR;
@@ -173,7 +173,7 @@ class BaseWorkletNode extends AudioWorkletNode implements LibNode {
     }
 
     return new this({
-      audioContext: ctx,
+      context: ctx,
       processorName: registeredName,
       ...props,
     }) as InstanceType<typeof this>;
@@ -182,7 +182,7 @@ class BaseWorkletNode extends AudioWorkletNode implements LibNode {
   static createNonAsync<T extends typeof BaseWorkletNode>(
     props: AudioWorkletNodeOptions | TODO = {} // todo: add type for SourceNodeOptions etc
   ): InstanceType<T> {
-    const ctx = props.audioContext || getAudioContext();
+    const ctx = props.context || getAudioContext();
 
     if (!ctx.audioWorklet) throw new Error('AudioWorklet not supported');
 
@@ -194,7 +194,7 @@ class BaseWorkletNode extends AudioWorkletNode implements LibNode {
     }
 
     return new this({
-      audioContext: ctx,
+      context: ctx,
       processorName: name,
       ...props,
     }) as InstanceType<T>;

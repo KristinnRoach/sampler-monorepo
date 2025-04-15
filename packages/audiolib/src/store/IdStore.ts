@@ -6,7 +6,6 @@ const IDStore: string[] = [newestId + ''];
 export const createNodeId = (nodeType: string = '') => {
   const id = (++newestId).toString();
   IDStore.push(id + '-' + nodeType);
-  // console.log('lib: createNodeId: ', id, ' type: ', nodeType);
   return id;
 };
 
@@ -14,9 +13,8 @@ export const deleteNodeId = (nodeId: string) => {
   const index = IDStore.indexOf(nodeId);
   if (index > -1) {
     IDStore.splice(index, 1);
-    console.log('Node ID deleted: ', nodeId);
   } else {
-    console.error('Node ID not found: ', nodeId);
+    console.warn('Node ID not found: ', nodeId);
   }
 };
 

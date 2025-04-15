@@ -1,6 +1,6 @@
 import FeedbackDelayProcessorRaw from '@/processors/delays/feedback-delay-processor?raw';
 import RandomNoiseProcessorRaw from '@/processors/noise/random-noise-processor?raw';
-import SourceProcessor from '@/nodes/source/SourceCleanupSingle/source-processor?raw';
+import SourceProcessor from '@/processors/source/source-processor?raw';
 
 const PROCESSORS = {
   'source-processor': SourceProcessor,

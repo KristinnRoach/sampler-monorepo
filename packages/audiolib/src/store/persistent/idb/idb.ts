@@ -1,4 +1,4 @@
-// src/idb/db.ts
+// src/idb/idb.ts
 import Dexie from 'dexie';
 
 export class AudioSampleDB extends Dexie {
@@ -7,8 +7,9 @@ export class AudioSampleDB extends Dexie {
   constructor() {
     super('AudioSampleDB');
 
+    // Define the schema for the database
     this.version(1).stores({
-      samples: 'id, url, dateAdded', // hmmm, stuff missing right?
+      samples: 'id, url, dateAdded, isDefaultInitSample, isFromDefaultLib',
     });
 
     this.samples = this.table('samples');
@@ -16,4 +17,4 @@ export class AudioSampleDB extends Dexie {
 }
 
 // Singleton instance
-export const db = new AudioSampleDB();
+export const idb = new AudioSampleDB();

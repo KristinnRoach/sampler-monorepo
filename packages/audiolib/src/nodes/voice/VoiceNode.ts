@@ -1,7 +1,7 @@
 // VoiceNode.ts
 import { midiToPlaybackRate } from '@/utils/midiUtils';
 import { EventBusOption } from '@/events'; // DefaultEventBus, EventBusOption
-import { FlexEventDriven } from '@/abstract/nodes/baseClasses/FlexEventDriven';
+import { FlexEventDriven } from '@/abstract/baseClasses/FlexEventDriven';
 
 export class VoiceNode extends FlexEventDriven {
   readonly eventBusOption: EventBusOption;

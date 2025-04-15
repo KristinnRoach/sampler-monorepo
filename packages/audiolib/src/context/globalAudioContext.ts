@@ -1,5 +1,6 @@
 // globalAudioContext.ts
 
+import { DEFAULT_SAMPLE_RATE } from '@/constants';
 import { SystemEventBus } from '@/events';
 
 let globalAudioContext: AudioContext | null = null;
@@ -13,14 +14,13 @@ export type AudioContextConfig = {
 // Non-async for use in constructors and synchronous code - Use ensureAudioCtx when possible
 export function getAudioContext(config?: AudioContextConfig): AudioContext {
   if (!globalAudioContext) {
-    console.log('Creating new AudioContext');
     globalAudioContext = new AudioContext({
-      sampleRate: config?.sampleRate,
+      sampleRate: config?.sampleRate || DEFAULT_SAMPLE_RATE,
       latencyHint: config?.latencyHint || 'interactive',
     });
 
     SystemEventBus.notify('audiocontext:created', {
-      publisherId: 'SingletonAudioContext',
+      publisherId: 'GlobalAudioContext',
       message: `outputlatency: ${globalAudioContext.outputLatency},\nbaselatency: ${globalAudioContext.baseLatency},\nsampleRate: ${globalAudioContext.sampleRate}\nctx: ${globalAudioContext}`,
     });
 
@@ -42,7 +42,7 @@ function setupAutoResume(): Promise<void> {
       if (globalAudioContext) {
         await globalAudioContext.resume();
         SystemEventBus.notify('audiocontext:resumed', {
-          publisherId: 'SingletonAudioContext',
+          publisherId: 'GlobalAudioContext',
           message: `ctx: ${globalAudioContext}`,
         });
         resumeEvents.forEach((event) =>
@@ -67,13 +67,32 @@ export async function ensureAudioCtx(
   if (context.state === 'running') {
     return context;
   }
-
   // If resumePromise is null, set it up
   resumePromise = resumePromise || setupAutoResume();
-
   await resumePromise;
 
   return context;
+}
+
+export async function decodeAudioData(
+  arrayBuffer: ArrayBuffer,
+  config?: AudioContextConfig
+): Promise<AudioBuffer | null> {
+  const audioCtx = await ensureAudioCtx(config);
+  return audioCtx.decodeAudioData(arrayBuffer);
+}
+
+export function releaseGlobalAudioContext(): void {
+  if (globalAudioContext) {
+    globalAudioContext.close().then(() => {
+      SystemEventBus.notify('audiocontext:closed', {
+        publisherId: 'GlobalAudioContext',
+        message: `ctx: ${globalAudioContext}`,
+      });
+      globalAudioContext = null;
+      resumePromise = null;
+    });
+  }
 }
 
 /* todo: listen for ctx events

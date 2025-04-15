@@ -1,4 +1,4 @@
-import { createNodeId } from '@/store/IdStore';
+import { createNodeId, deleteNodeId } from '@/store/IdStore';
 
 export class LibNode {
   readonly nodeId: NodeID;
@@ -8,6 +8,6 @@ export class LibNode {
   }
 
   dispose(): void {
-    console.log(`Disposing node with ID: ${this.nodeId}`);
+    deleteNodeId(this.nodeId);
   }
 }

@@ -1,5 +1,3 @@
-import { BaseWorkletNode } from '@/abstract/nodes/baseClasses/BaseWorkletNode';
-
 // Helper function to handle timing and scheduling
 function scheduleTiming(currentTime, startTime, stopTime) {
   return {
@@ -9,13 +7,70 @@ function scheduleTiming(currentTime, startTime, stopTime) {
   };
 }
 
-class SourceProcessor extends AudioWorkletProcessor {
-  constructor(options) {
-    super(options);
+// dictionary AudioWorkletNodeOptions : AudioNodeOptions {
+//   unsigned long numberOfInputs = 1;
+//   unsigned long numberOfOutputs = 1;
+//   sequence<unsigned long> outputChannelCount;
+//   record<DOMString, double> parameterData;
+//   object processorOptions;
+// };
 
-    // Initialize state
-    this.buffer = options.processorOptions.buffer || null;
-    this.sampleRate = options.processorOptions.sampleRate || sampleRate;
+// 1.32.4.3.1. Dictionary AudioWorkletNodeOptions Members
+// numberOfInputs, of type unsigned long, defaulting to 1
+// This is used to initialize the value of the AudioNode numberOfInputs attribute.
+
+// numberOfOutputs, of type unsigned long, defaulting to 1
+// This is used to initialize the value of the AudioNode numberOfOutputs attribute.
+
+// outputChannelCount, of type sequence<unsigned long>
+// This array is used to configure the number of channels in each output.
+
+// parameterData, of type record<DOMString, double>
+// This is a list of user-defined key-value pairs that are used to set the initial value of an AudioParam with the matched name in the AudioWorkletNode.
+
+// processorOptions, of type object
+// This holds any user-defined data that may be used to initialize custom properties in an AudioWorkletProcessor instance that is associated with the AudioWorkletNode.
+
+class SourceProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      {
+        name: 'playbackRate',
+        defaultValue: 1.0,
+        minValue: 0.1,
+        maxValue: 10.0,
+        automationRate: 'a-rate',
+      },
+      {
+        name: 'loopStart',
+        defaultValue: 0.0,
+        minValue: 0.0,
+        maxValue: 1000.0,
+        automationRate: 'a-rate',
+      },
+      {
+        name: 'loopEnd',
+        defaultValue: 0.0,
+        minValue: 0.0,
+        maxValue: 1000.0,
+        automationRate: 'a-rate',
+      },
+      {
+        name: 'loop',
+        defaultValue: 0.0,
+        minValue: 0.0,
+        maxValue: 1.0,
+        automationRate: 'a-rate',
+      },
+    ];
+  }
+
+  constructor(options) {
+    super(); // ? Never args to super ?
+
+    // Initialize default state
+    this.buffer = []; // or null
+    this.sampleRate = 48000;
     this.playbackPosition = 0;
     this.isLooping = false;
     this.startTime = null;
@@ -24,30 +79,71 @@ class SourceProcessor extends AudioWorkletProcessor {
     this.duration = undefined;
     this.endTime = null;
 
+    // Initialize the options with defaults in case values are missing
+    const processorOptions = options?.processorOptions || {};
+    const audioData = processorOptions.audioData;
+
+    if (
+      processorOptions.audioData &&
+      Array.isArray(processorOptions.audioData)
+    ) {
+      console.log('Processor received audioData:', {
+        channels: processorOptions.audioData.length,
+        firstChannelLength: processorOptions.audioData[0]?.length,
+        firstFewSamples: processorOptions.audioData[0]?.slice(0, 10),
+        hasNonZero: processorOptions.audioData[0]?.some((v) => v !== 0),
+      });
+
+      this.buffer = processorOptions.audioData;
+    }
+
+    const sampleRate = processorOptions.sampleRate;
+    if (!!sampleRate) this.sampleRate = sampleRate;
+
+    console.debug(
+      `processor constructor audiodata: ${audioData}, SR: ${sampleRate}`
+    );
+
+    if (audioData && Array.isArray(audioData)) {
+      console.debug(
+        `Processor constructor received audioData, 
+         setting buffer: ${typeof audioData},
+        ${audioData}`
+      );
+      this.buffer = audioData;
+    }
+
+    if (sampleRate) {
+      console.debug(
+        `Processor constructor: 
+         setting received sampleRate: ${sampleRate}`
+      );
+      this.sampleRate = sampleRate;
+    }
+
     // Handle messages from main thread
     this.port.onmessage = (event) => {
       const data = event.data;
 
       if (data.type === 'setBuffer') {
+        // ? how/where is this.buffer and this.sampleRate defined..? todo: make all this crap opbvious
         this.buffer = data.buffer;
         this.sampleRate = data.sampleRate;
+
+        console.warn(
+          `PROCESSOR setBuffer message - this.buffer: ${this.buffer}. samplerate: ${this.sampleRate}, - incoming event data: ${data}`
+        );
       } else if (data.type === 'start') {
         this.startTime = data.time;
         this.startOffset = data.offset;
         this.duration = data.duration;
-
         if (this.duration !== undefined) {
           this.endTime = this.startTime + this.duration;
         } else if (data.type === 'noteOn') {
           this.currentNote = data.midiNote;
           this.velocity = data.velocity;
-
-          if (this.startTime === null) {
-            this.startTime = data.time;
-          }
-
-          // Reset to beginning of buffer for new note (optional)
-          this.playbackPosition = 0;
+          // Reset to beginning of buffer for new note if multi play (or non-legato monophonic)
+          // this.playbackPosition = 0;
         }
 
         // Initialize playback position based on offset
@@ -64,17 +160,41 @@ class SourceProcessor extends AudioWorkletProcessor {
     const numChannels = output.length;
 
     // Skip processing if no buffer or channels
-    if (!this.buffer || numChannels === 0 || !this.startTime) {
+    if (
+      !this.buffer ||
+      !this.buffer.length ||
+      numChannels === 0 ||
+      !this.startTime
+    ) {
+      // More informative debug logging
+      console.log('Skipping processing:', {
+        hasBuffer: !!this.buffer,
+        bufferLength: this.buffer?.length,
+        numChannels,
+        startTime: this.startTime,
+      });
       return true;
     }
 
-    const currentTime = currentFrame / sampleRate;
+    // ? maybe not needed: fixes for currentFrame reference
+    // const currentTime = currentFrame / sampleRate;
+    // try replacing with:
+    // const currentTime = currentFrame / this.sampleRate;
+    // oor this:
+    // const currentTime =
+    //   this.currentTime !== undefined
+    //     ? this.currentTime
+    //     : currentFrame / sampleRate;
+
+    //!_____not sure bout this built in time but worth a shot_______//
+    // CLAUDE says: "Use the built-in currentTime property"
+    const currentTime = this.currentTime;
 
     // Get parameter values
-    const playbackRate = parameters.playbackRate;
-    const loopStart = parameters.loopStart;
-    const loopEnd = parameters.loopEnd;
-    const loop = parameters.loop;
+    const playbackRate = parameters.playbackRate; // || [1.0];
+    const loopStart = parameters.loopStart; // || [0.0];
+    const loopEnd = parameters.loopEnd; // || [0.0];
+    const loop = parameters.loop; // || [0.0];
 
     // Single-value vs. audio-rate parameters
     const isPlaybackRateConstant = playbackRate.length === 1;
@@ -189,39 +309,6 @@ class SourceProcessor extends AudioWorkletProcessor {
     }
 
     return true;
-  }
-
-  static get parameterDescriptors() {
-    return [
-      {
-        name: 'playbackRate',
-        defaultValue: 1.0,
-        minValue: 0.1,
-        maxValue: 10.0,
-        automationRate: 'a-rate',
-      },
-      {
-        name: 'loopStart',
-        defaultValue: 0.0,
-        minValue: 0.0,
-        maxValue: 1000.0,
-        automationRate: 'a-rate',
-      },
-      {
-        name: 'loopEnd',
-        defaultValue: 0.0,
-        minValue: 0.0,
-        maxValue: 1000.0,
-        automationRate: 'a-rate',
-      },
-      {
-        name: 'loop',
-        defaultValue: 0.0,
-        minValue: 0.0,
-        maxValue: 1.0,
-        automationRate: 'a-rate',
-      },
-    ];
   }
 }
 

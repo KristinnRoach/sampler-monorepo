@@ -19,9 +19,10 @@ export default defineConfig({
       entry: resolve(__dirname, 'src/index.ts'),
       name: '@repo/audiolib',
       formats: ['es'], // , 'cjs'], // todo: add 'cjs', 'umd' ??
-      fileName: 'index',
+      fileName: 'index', // skoða Vite docs for fileName, þarf að passa við package.json
+      // fileName: (format, entryName) => `my-lib-${entryName}.${format}.js`,
+      // fileName: (format) => `audiolib.${format}.js`,
     },
-
     // minify: false, // Disable minification for debugging
     // rollupOptions: {
     //   external: [], // Add any external dependencies here if needed

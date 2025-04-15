@@ -1,4 +1,5 @@
 // src/idb/index.ts
 
-export * from './db';
-export * from './audioStorage';
+export * from './idb';
+export * as sampleLib from './audioStorage';
+export * from './idb-utils';

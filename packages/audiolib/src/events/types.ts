@@ -19,6 +19,7 @@ export type EventMap = {
   'audiocontext:resumed': EventData;
   'audiocontext:suspended': EventData;
   'audiocontext:statechange': EventData;
+  'audiocontext:closed': EventData;
   'audiocontext:sinkchange': EventData;
   'audiocontext:destroyed': EventData;
   'audiocontext:error': EventData;
