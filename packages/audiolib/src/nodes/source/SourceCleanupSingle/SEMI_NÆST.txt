@@ -1,7 +1,0 @@
-
-
-renna yfir öll shallow copies gerð með {...obj}
-tjékka hvort ég hafi passað uppá að nested objects 
-referenca ennþá sama minni (fkkn weird, ákkru er það sniðugt?)
-
-Tjékka svo á "structuredClone" / deep copy nýja dótið !!

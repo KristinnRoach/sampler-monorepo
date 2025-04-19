@@ -6,8 +6,8 @@ import {
 import { idb, initIdb, sampleLib } from './store/persistent/idb';
 import { AudiolibProcessor, registry } from '@/processors/ProcessorRegistry';
 import { LibNode } from '@/abstract/baseClasses/LibNode';
-import { SourceWorkletNode } from '@/nodes/source/SourceCleanupSingle/SourceWorkletNode';
-import SourceProcessorRaw from '@/processors/source/source-processor?raw';
+import { SourceNode } from './nodes/source/SourceNode';
+import SourceProcessorRaw from '@/nodes/source/source-processor?raw';
 
 export class Audiolib extends LibNode {
   static #instance: Audiolib | null = null;
@@ -23,7 +23,8 @@ export class Audiolib extends LibNode {
   #masterGain: GainNode;
 
   #polyphony: number = 8;
-  #sourcePool: SourceWorkletNode[] = [];
+  #sourcePool: SourceNode[] = [];
+  #activeSources: Map<number, SourceNode> = new Map();
   #defaultSample: { sampleId: string; audioData: AudioBuffer } | null = null; // todo: use (App)Sample type
 
   private constructor() {
@@ -44,6 +45,8 @@ export class Audiolib extends LibNode {
     console.debug('initialized IndexedDB', { idb });
 
     await this.refreshLatestSample();
+
+    await this.initSourceWorklet();
   }
 
   async refreshLatestSample(): Promise<void> {
@@ -63,58 +66,37 @@ export class Audiolib extends LibNode {
     }
   }
 
-  testPlayUsingAudioBufferSourceNode() {
-    const buffer = this.#defaultSample?.audioData;
-    if (!buffer) return;
-    const src = this.#audioContext?.createBufferSource();
-    if (!src) return;
-    src.buffer = buffer;
-    const dest = this.#audioContext?.destination;
-    if (!dest) return;
+  async loadBuffer(buffer: AudioBuffer, sampleRate?: number) {
+    this.#activeSources.forEach((src) => src.stop());
+    this.#activeSources.clear();
 
-    src.connect(this.#masterGain);
-    this.#masterGain.connect(dest);
-    src.start();
+    this.#sourcePool.map((src) => src.loadBuffer(buffer, sampleRate));
 
-    console.warn('SHOULD BE PLAYING - ABSN test');
+    // todo: load through IDB (optional noCache)
+    // todo: if(this.#sourcePool.length < this.#polyphony)
+
+    if (!this.#audioContext) return;
+
+    const newPlayer = new SourceNode(this.#audioContext);
+    newPlayer.loadBuffer(buffer, buffer.sampleRate);
+    newPlayer.connect(this.#masterGain);
+
+    // todo: maybe use the fact that array push() returns the new length of the array
+    // to store reference to the player via it's index in the array
+    const poolSize = this.#sourcePool.push(newPlayer);
+    const thisPlayerIndex = poolSize - 1;
+
+    console.debug({
+      pool: this.#sourcePool,
+      clearedActive: this.#activeSources,
+    });
   }
 
-  async createSourceNode(props?: {
-    context?: AudioContext;
-    processorName?: AudiolibProcessor | string;
-    audioData?: AudioBuffer | Float32Array[]; // | Float32Array[][]
-
-    // sampleId?: string; //  !? einfalda þangað til skil options
-    // numberOfInputs?: number;
-    // numberOfOutputs?: number;
-    // outputChannelCount?: number | ArrayLike<number>; // ? sequence<unsigned long> // dictionary types from w3.org
-    // parameterData?: Record<string, number>; // ? record<DOMString, double>
-    // processorOptions?: {}; // ? object
-  }): Promise<SourceWorkletNode | null> {
-    const ctx = props?.context || (await ensureAudioCtx());
-    const name = props?.processorName || 'source-processor';
-
-    // ! AudioBuffer can not be copied between threads
-    // Convert to transferable format before passing it
-    let processedAudio = null;
-    if (this.#defaultSample?.audioData) {
-      // Create separate Float32Arrays for each channel
-      processedAudio = [];
-      for (let i = 0; i < this.#defaultSample.audioData.numberOfChannels; i++) {
-        // Create a new copy of the data to ensure it's transferable
-        const channelData = this.#defaultSample.audioData.getChannelData(i);
-        processedAudio.push(new Float32Array(channelData));
-      }
+  async initSourceWorklet(name = 'source-processor') {
+    if (!this.#audioContext || !this.#audioContext?.audioWorklet) {
+      console.error(`no context or doesnt support worklet`);
+      return;
     }
-
-    const processorOptions = {
-      audioData: processedAudio,
-      sampleRate: this.#audioContext?.sampleRate || 48000,
-    };
-
-    // console.warn(
-    //   `why is this all zeroes? processorOptions.audioData -> ${processorOptions.audioData}`
-    // );
 
     if (!registry.hasRegistered(name)) {
       console.warn(`Processor ${name} not registered, registering now...`);
@@ -125,39 +107,57 @@ export class Audiolib extends LibNode {
       console.debug(`processor ${name} registered`);
     }
 
-    if (!processorOptions.audioData) {
-      //console.error('No audio provided for source, fallback to default sample');
-      throw new Error('No audio data provided');
+    const initPlayer = await this.createSourceNode();
+    initPlayer?.connect(this.#masterGain);
+
+    if (!this.#defaultSample || !this.#defaultSample.audioData) {
+      console.warn('no default sample!');
+      return initPlayer;
+    }
+  }
+
+  async createSourceNode(audioBuffer?: AudioBuffer) {
+    if (!this.#audioContext) return;
+
+    const player = new SourceNode(this.#audioContext);
+    player.connect(this.#masterGain);
+
+    let usedBuffer: AudioBuffer;
+    if (!audioBuffer) {
+      console.debug('no buffer provided, trying default sample');
+      if (!this.#defaultSample || !this.#defaultSample.audioData) {
+        console.warn('no default sample!');
+        return player;
+      }
+      usedBuffer = this.#defaultSample.audioData;
+    } else {
+      usedBuffer = audioBuffer;
     }
 
-    if (this.#sourcePool.length >= this.#polyphony) {
-      console.warn(`Polyphony limit of ${this.#polyphony} has been reached.`);
-      return null;
+    await player.loadBuffer(usedBuffer, usedBuffer.sampleRate);
+
+    this.#sourcePool.push(player);
+
+    return player;
+  }
+
+  playNote(midiNote: number, velocity?: number) {
+    const source = this.#sourcePool.pop();
+    if (!source) {
+      console.error('no source to playNote');
+      return;
     }
+    source.play({ midiNote });
+    this.#activeSources.set(midiNote, source);
 
-    const node = new SourceWorkletNode(ctx, name, processorOptions);
-    node.connect(this.#masterGain);
+    this.createSourceNode(); // prep next source
+  }
 
-    console.trace(node.start());
-    console.debug(`VOLUME: ${this.#masterGain.gain.value}`);
-
-    const poolSize = this.#sourcePool.push(node);
-    console.debug(`poolSize: ${poolSize}`);
-
-    // const TEST_AUTO_CREATE = true;
-    node.addEventListener('ended', async () => {
-      // const autoNewSrc = await this.createSourceNode(); // todo: remove or finish
-
-      this.#sourcePool.splice(
-        this.#sourcePool.findIndex((n) => n.nodeId === node.nodeId),
-        1
-        // TEST_AUTO_CREATE && autoNewSrc
-      );
-      console.debug(`poolSize 'ended': ${this.#sourcePool.length}`);
-      node.dispose();
-    });
-
-    return node;
+  stopNote(midiNote: number) {
+    const source = this.#activeSources.get(midiNote);
+    if (!source) console.warn('no source to stopNote');
+    source?.stop();
+    this.#activeSources.delete(midiNote);
   }
 
   async ensureAudioCtx(): Promise<AudioContext> {
@@ -166,7 +166,7 @@ export class Audiolib extends LibNode {
 
   /** GETTERS & SETTERS **/
 
-  get sourceNodes(): SourceWorkletNode[] {
+  get sourceNodes(): SourceNode[] {
     return this.#sourcePool;
   }
 
@@ -177,7 +177,7 @@ export class Audiolib extends LibNode {
 
   dispose(): void {
     console.debug('Audiolib dispose called');
-    this.#sourcePool.forEach((node) => node.dispose());
+    this.#sourcePool.forEach((node) => node.disconnect()); // vantar dispose
     this.#sourcePool = [];
     this.#masterGain.disconnect();
     this.#masterGain = null as unknown as GainNode;
