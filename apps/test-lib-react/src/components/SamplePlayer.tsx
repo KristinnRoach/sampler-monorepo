@@ -97,24 +97,17 @@ const SamplePlayer = () => {
     const newLoopState = !isLoopEnabled;
     setIsLoopEnabled(newLoopState);
 
-    // ?! Just debugging
-    setLoopEnd(0.5);
-    samplerRef.current?.setLoopEnd(0.5);
-    setLoopStart(0.1);
-    samplerRef.current?.setLoopStart(0.1);
-    // ?! Just debugging
-
     samplerRef.current?.setLoopEnabled(newLoopState);
   };
 
   const handleLoopStartChange = (value: number) => {
     setLoopStart(value);
-    samplerRef.current?.setLoopStart(value);
+    samplerRef.current?.setLoopStart(value, rampTime);
   };
 
   const handleLoopEndChange = (value: number) => {
     setLoopEnd(value);
-    samplerRef.current?.setLoopEnd(value);
+    samplerRef.current?.setLoopEnd(value, rampTime);
   };
 
   const handleRampTimeChange = (value: number) => {
@@ -123,7 +116,7 @@ const SamplePlayer = () => {
   };
 
   return (
-    <div className='source-player-component'>
+    <div style={{ width: '100vw' }}>
       <h2>SourcePlayer Test</h2>
       <button
         id='loadTestSound'
@@ -149,40 +142,43 @@ const SamplePlayer = () => {
         </button>
       </div>
 
-      <div>
-        <label>
+      <div style={{ width: '100vw' }}>
+        <label style={{ display: 'flex', justifyContent: 'center' }}>
           Loop Start:
-          <input
-            type='range'
-            min={0}
-            max={loopEnd}
-            step={0.01}
-            value={loopStart}
-            onChange={(e) => handleLoopStartChange(parseFloat(e.target.value))}
-          />
-          {loopStart.toFixed(2)}s
+          {'         ' + loopStart.toFixed(8)}s
         </label>
+        <input
+          style={{ width: '65vw', height: '8vh', margin: '50px' }}
+          type='range'
+          min={0}
+          max={0.5} // for testing
+          step={0.0001}
+          value={loopStart}
+          onChange={(e) => handleLoopStartChange(parseFloat(e.target.value))}
+        />
       </div>
 
       <div>
-        <label>
+        <label style={{ display: 'flex' }}>
           Loop End:
-          <input
-            type='range'
-            min={loopStart}
-            max={samplerRef.current?.sampleDuration || 10}
-            step={0.01}
-            value={loopEnd}
-            onChange={(e) => handleLoopEndChange(parseFloat(e.target.value))}
-          />
-          {loopEnd.toFixed(2)}s
+          {'         ' + loopEnd.toFixed(8)}s
         </label>
+        <input
+          style={{ width: '65vw', height: '8vh', margin: '50px' }}
+          type='range'
+          min={loopStart}
+          max={0.5} // {samplerRef.current?.sampleDuration || 10}
+          step={0.0001}
+          value={loopEnd}
+          onChange={(e) => handleLoopEndChange(parseFloat(e.target.value))}
+        />
       </div>
 
       <div>
         <label>
           Ramp Time:
           <input
+            style={{ width: '65vw', height: '8vh', margin: '50px' }}
             type='range'
             min={0}
             max={1}
@@ -190,7 +186,7 @@ const SamplePlayer = () => {
             value={rampTime}
             onChange={(e) => handleRampTimeChange(parseFloat(e.target.value))}
           />
-          {rampTime.toFixed(2)}s
+          {rampTime.toFixed(4)}s
         </label>
       </div>
 

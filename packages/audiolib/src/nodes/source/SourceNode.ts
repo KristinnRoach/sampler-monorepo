@@ -180,7 +180,7 @@ export class SourceNode extends AudioWorkletNode {
   setLoopEnabled(enabled: 1 | 0) {
     // boolean
     this.loop.setValueAtTime(enabled ? 1 : 0, this.context.currentTime);
-
+    // this.loopEnd.setValueAtTime(1, 0); // ! temp fix until macros work
     return this;
   }
 
@@ -194,10 +194,20 @@ export class SourceNode extends AudioWorkletNode {
   }
 
   setLoopEnd(targetValue: number, rampTime: number = 0.1) {
+    console.log(`loopEnd before value: ${this.loopEnd.value}`);
+
     this.loopEnd.linearRampToValueAtTime(
       targetValue,
       this.context.currentTime + rampTime
     );
+
+    console.log(
+      `setting loopEnd to target ${targetValue} at ${this.context.currentTime + rampTime}`
+    );
+    // log actual value
+    setTimeout(() => {
+      console.log(`loopEnd after setting value: ${this.loopEnd.value}`);
+    }, 50);
 
     return this;
   }

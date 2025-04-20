@@ -6,3 +6,4 @@ export * from './generateProcessorCode';
 export * from './loadAudio';
 export * from './validation-utils';
 export * from './xhr-utils';
+export * from './zero-crossing';

@@ -5,6 +5,7 @@ import { SourcePool } from './SourcePool';
 import { SourceNode } from './SourceNode';
 import { MacroParam } from '@/helpers/MacroParam';
 import { createNodeId } from '@/store/IdStore';
+import { findZeroCrossings } from '@/utils';
 
 export class Sampler {
   readonly nodeId: NodeID = createNodeId();
@@ -26,6 +27,9 @@ export class Sampler {
 
   #isInitialized: boolean = false;
   // #isLoaded: boolean;
+
+  #zeroCrossings: number[] = [];
+  #useZeroCrossings: boolean = true;
 
   constructor(
     audioBuffer: AudioBuffer,
@@ -90,6 +94,11 @@ export class Sampler {
     console.debug(
       `loading buffer with sample rate: ${rate}, context's sample rate: ${this.#context.sampleRate}`
     );
+
+    // Cache zero crossings
+    this.#zeroCrossings = findZeroCrossings(buffer);
+
+    console.debug({ calculatedZeroCrossings: this.#zeroCrossings });
 
     const promises = allNodes.map((node) => node.loadBuffer(buffer, rate));
 
@@ -175,39 +184,17 @@ export class Sampler {
 
   setLoopEnabled(enabled: boolean): this {
     const now = this.#now();
+    this.#macroLoop.param.setValueAtTime(enabled ? 1 : 0, now);
 
-    // ? is this still useful?
-    // this.#macroLoop.param.setValueAtTime(enabled ? 1 : 0, now);
-
-    // // If enabling loop and loop points are not set properly, set them
-    // if (enabled) {
-    //   if (this.#macroLoopEnd.param.value <= 0) {
-    //     this.#macroLoopEnd.param.setValueAtTime(this.#bufferDuration, now);
-    //   }
-    //   if (this.#macroLoopStart.param.value < 0) {
-    //     this.#macroLoopStart.param.setValueAtTime(0, now);
-    //   }
-    // }
-
-    // Directly set each node's loop parameter
-    this.#sourcePool.nodes.forEach((node) => {
-      node.setLoopEnabled(enabled ? 1 : 0);
-    });
-
-    //  just for debugging - remove
-    setTimeout(() => {
-      console.log(`Loop state after 100ms:`, {
-        enabled: enabled,
-        macroLoopValue: this.#macroLoop.param.value,
-        loopStart: this.#macroLoopStart.param.value,
-        loopEnd: this.#macroLoopEnd.param.value,
-      });
-
-      // Check the actual node parameter values
-      this.#sourcePool.nodes.forEach((node) => {
-        console.log(`Node ${node.nodeId} loop value:`, node.loop.value);
-      });
-    }, 100);
+    // If enabling loop and loop points are not set properly, set them
+    if (enabled) {
+      if (this.#macroLoopEnd.param.value <= 0) {
+        this.#macroLoopEnd.param.setValueAtTime(this.#bufferDuration, now);
+      }
+      if (this.#macroLoopStart.param.value < 0) {
+        this.#macroLoopStart.param.setValueAtTime(0, now);
+      }
+    }
 
     return this;
   }
@@ -216,19 +203,33 @@ export class Sampler {
     targetValue: number,
     rampTime: number = this.#loopRampTime
   ): this {
-    this.#macroLoopStart.param.linearRampToValueAtTime(
-      targetValue,
-      this.#now() + rampTime
-    );
+    this.#macroLoopStart.ramp(targetValue, rampTime);
     return this;
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampTime): this {
-    this.#macroLoopEnd.param.linearRampToValueAtTime(
-      targetValue,
-      this.#now() + rampTime
-    );
+    // // TODO: Testing which sounds nicer, macro vs looping through
+    // this.#macroLoopEnd.param.exponentialRampToValueAtTime(
+    //   targetValue,
+    //   this.#now() + rampTime
+    // );
+
+    this.#macroLoopEnd.ramp(targetValue, rampTime);
     return this;
+  }
+
+  getAllActiveNodes(): SourceNode[] {
+    // add util to pass in a function to avoid iterating twice
+    const allActiveNodes: SourceNode[] = [];
+    this.#activeNotes.forEach((nodeIds) => {
+      nodeIds.forEach((nodeId) => {
+        const node = this.#sourcePool.getNodeById(nodeId);
+        if (node) {
+          allActiveNodes.push(node);
+        }
+      });
+    });
+    return allActiveNodes;
   }
 
   get activeNotesCount(): number {

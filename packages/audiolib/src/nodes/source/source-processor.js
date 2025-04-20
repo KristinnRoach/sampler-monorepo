@@ -33,8 +33,8 @@ class SourceProcessor extends AudioWorkletProcessor {
         automationRate: 'a-rate',
       },
       {
-        name: 'loop',
-        defaultValue: 0.0,
+        name: 'loop', // kannski kúl í eikkað glitchy stuff en annars meikar miklu meira sens
+        defaultValue: 0.0, // að senda bara boolean í message (sleppa param flækju)
         minValue: 0.0,
         maxValue: 1.0,
         automationRate: 'a-rate',
@@ -55,9 +55,9 @@ class SourceProcessor extends AudioWorkletProcessor {
     this.startOffset = 0;
     this.duration = undefined;
     this.endTime = null;
-    this.velocity = 1.0;
+    this.velocity = 1.0; // todo: amp env class import here + velocity
 
-    // Initialize the options with defaults in case values are missing
+    // Initialize the options with defaults in case values are missing // ? spread
     const processorOptions = options?.processorOptions || {};
 
     // Process audio data if provided
@@ -80,6 +80,7 @@ class SourceProcessor extends AudioWorkletProcessor {
       if (data.type === 'setBuffer') {
         this.buffer = data.buffer;
         this.sampleRate = data.sampleRate;
+        // todo: more to reset on set buffer?
       } else if (data.type === 'start') {
         this.stopTime = null;
         this.endTime = null;
@@ -89,10 +90,11 @@ class SourceProcessor extends AudioWorkletProcessor {
         // this.isLooping = !!data.loopEnabled;
         if (this.duration !== undefined) {
           this.endTime = this.startTime + this.duration;
-        } else if (data.type === 'noteOn') {
-          this.currentNote = data.midiNote;
-          this.velocity = data.velocity || 1.0;
         }
+        // else if (data.type === 'noteOn') {
+        //   this.currentNote = data.midiNote;
+        //   this.velocity = data.velocity || 1.0;
+        // }
 
         // Initialize playback position based on offset
         this.playbackPosition = Math.floor(this.startOffset * this.sampleRate);
@@ -156,6 +158,7 @@ class SourceProcessor extends AudioWorkletProcessor {
       // Check if we need to notify that playback ended
       if (
         this.startTime !== null &&
+        loop < 0.5 &&
         (currentTime >= this.stopTime ||
           (this.endTime !== null && currentTime >= this.endTime))
       ) {
@@ -168,7 +171,7 @@ class SourceProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    // todo: simplify loop enabled logic
+    // todo: simplify loop logic
     // Process each sample in the current block
     for (let i = 0; i < output[0].length; i++) {
       // Get parameter values for this sample
@@ -178,24 +181,28 @@ class SourceProcessor extends AudioWorkletProcessor {
       const shouldLoop = isLoopConstant ? loop[0] > 0.5 : loop[i] > 0.5;
 
       // Calculate loop points in samples
-      const loopStartSample = Math.floor(loopS * this.sampleRate);
-      // const loopEndSample = Math.min(
-      //   Math.max(
-      //     Math.floor(loopE * this.sampleRate),
-      //     loopStartSample + 1 // Ensure loopEnd is at least one sample after loopStart
-      //   ),
-      //   bufferLength - 1
-      // );
+      // const loopStartSample = Math.f16round(loopS * this.sampleRate); // * this.sampleRate;
+      // const loopEndSample = Math.f16round(loopE * this.sampleRate); // * this.sampleRate
 
-      const loopEndSample = Math.max(
-        Math.floor(loopE * this.sampleRate),
-        loopStartSample + 1 // Ensure loopEnd is at least one sample after loopStart
+      const loopStartSample = Math.floor(loopS * this.sampleRate);
+      const loopEndSample = Math.min(
+        Math.max(
+          Math.floor(loopE * this.sampleRate),
+          loopStartSample + 1 // Ensure loopEnd is at least one sample after loopStart
+        ),
+        bufferLength - 1
       );
+
+      // const loopEndSample = Math.max(
+      //   Math.floor(loopE * this.sampleRate),
+      //   loopStartSample + 1 // Ensure loopEnd is at least one sample after loopStart
+      // );
 
       // Check duration-based ending
       if (
         this.endTime !== null &&
-        currentTime + i / this.sampleRate >= this.endTime
+        currentTime + i / this.sampleRate >= this.endTime &&
+        loop < 0.5
       ) {
         // Fill remaining samples with silence
         for (let c = 0; c < numChannels; c++) {
@@ -206,8 +213,8 @@ class SourceProcessor extends AudioWorkletProcessor {
         if (i === 0) {
           this.port.postMessage({ type: 'ended' });
           this.startTime = null; // ?! go through and simplify / cleanup
-          // this.stopTime = null;
-          // this.endTime = null;
+          this.stopTime = null;
+          this.endTime = null;
         }
 
         continue;
@@ -215,6 +222,12 @@ class SourceProcessor extends AudioWorkletProcessor {
 
       // Handle looping logic
       if (shouldLoop && this.playbackPosition >= loopEndSample) {
+        // setInterval(() => {
+        //   console.debug({ playPos: this.playbackPosition }); // !remove
+        //   console.debug({ loopEndSample }); // !remove
+        //   console.debug({ loopStart_sample: loopStartSample }); // !remove
+        // }, 400);
+
         this.playbackPosition = loopStartSample;
       }
 
@@ -232,8 +245,8 @@ class SourceProcessor extends AudioWorkletProcessor {
           if (i === 0) {
             this.port.postMessage({ type: 'ended' });
             this.startTime = null; // ?!
-            // this.stopTime = null;
-            // this.endTime = null;
+            this.stopTime = null;
+            this.endTime = null;
           }
 
           continue;
