@@ -1,2 +1,2 @@
-export * from './default/audioConfig';
-export * from './default/sourceNodeProps';
+export * from './defaults/audioConfig';
+export * from './defaults/sourceNodeProps';
