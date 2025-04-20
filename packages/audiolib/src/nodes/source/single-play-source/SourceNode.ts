@@ -17,6 +17,7 @@ export class SourceNode extends AudioWorkletNode {
   private _isPlaying: boolean;
   private _duration: number;
   private _eventListeners: Record<string, Function[]>;
+  private _rampTime: number;
 
   paramMap: Map<string, AudioParam>; // Workaround for TypeScript issue with AudioParamMap
 
@@ -52,6 +53,7 @@ export class SourceNode extends AudioWorkletNode {
     this.loopEnd = this.paramMap.get('loopEnd')!;
 
     this.loopEnd.setValueAtTime(this._duration, this.context.currentTime);
+    this._rampTime = 0.2; // just some default for now
 
     // Set up message handling
     this.port.onmessage = this._handleMessage.bind(this);
@@ -118,37 +120,30 @@ export class SourceNode extends AudioWorkletNode {
     return this;
   }
 
-  play(options: {
-    midiNote: number;
-    time?: number;
-    offset?: number;
-    duration?: number;
-  }): this {
+  play(
+    options: {
+      midiNote?: number;
+      time?: number;
+      offset?: number;
+      duration?: number;
+    } = {}
+  ): this {
     const {
-      midiNote,
+      midiNote = 60,
       time = this.context.currentTime,
       offset = 0,
       duration,
     } = options;
-    // First stop if already playing // Should not happen!
-    if (this._isPlaying) {
-      console.warn(`source already playing when play() called!`);
-    }
-    // this.stop(); //?! Necessary to prevent race condition? // ! causes active notes / sampler.stop() bug? !
-    this._isPlaying = false; // Explicitly reset state
 
     const playbackRate = midiNoteToPlaybackRate(midiNote);
-    this.playbackRate.setValueAtTime(playbackRate, time);
-
-    // ? should just be handled by param ? // Get the current value of the loop parameter
-    // const loopEnabled = this.loop.value > 0.5;
+    // this.playbackRate.setValueAtTime(playbackRate, time);
 
     this.port.postMessage({
       type: 'start',
+      playbackRate,
       time,
       offset,
       duration,
-      // loopEnabled,
     });
 
     this._isPlaying = true;
@@ -165,26 +160,16 @@ export class SourceNode extends AudioWorkletNode {
       time: this.context.currentTime,
     });
 
-    this._isPlaying = false;
     return this;
   }
 
-  debugLoopParam(): void {
-    const loopValue = this.loop.value;
-    this.port.postMessage({
-      type: 'debug-loop',
-      value: loopValue,
-    });
-  }
-
-  setLoopEnabled(enabled: 1 | 0) {
-    // boolean
+  setLoopEnabled(enabled: boolean) {
     this.loop.setValueAtTime(enabled ? 1 : 0, this.context.currentTime);
 
     return this;
   }
 
-  setLoopStart(targetValue: number, rampTime: number = 0.1) {
+  setLoopStart(targetValue: number, rampTime: number = this._rampTime) {
     this.loopStart.linearRampToValueAtTime(
       targetValue,
       this.context.currentTime + rampTime
@@ -193,12 +178,17 @@ export class SourceNode extends AudioWorkletNode {
     return this;
   }
 
-  setLoopEnd(targetValue: number, rampTime: number = 0.1) {
+  setLoopEnd(targetValue: number, rampTime: number = this._rampTime) {
     this.loopEnd.linearRampToValueAtTime(
       targetValue,
       this.context.currentTime + rampTime
     );
 
+    return this;
+  }
+
+  setRampTime(duration: number) {
+    this._rampTime = duration;
     return this;
   }
 

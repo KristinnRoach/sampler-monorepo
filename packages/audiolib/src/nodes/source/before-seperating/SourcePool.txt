@@ -1,0 +1,223 @@
+import { assert } from '@/utils';
+import { SourceNode } from './SourceNode';
+import { MacroParam } from '@/helpers/MacroParam';
+
+export class SourcePool {
+  #context: AudioContext;
+  #output: AudioNode;
+
+  #availableNodes: SourceNode[];
+  #activeNodes: Map<string, SourceNode>; // <nodeId, sourcenode>
+  #buffer: AudioBuffer | null;
+  #maxNodes: number;
+
+  readonly loopStart: AudioParam;
+  readonly loopEnd: AudioParam;
+  readonly loop: AudioParam;
+
+  #macroLoopStart;
+  #macroLoopEnd;
+  #macroLoop;
+
+  constructor(
+    output: AudioNode,
+    polyphony: number = 16,
+    context: AudioContext
+  ) {
+    this.#context = context;
+    this.#output = output;
+    this.#maxNodes = polyphony;
+    this.#buffer = null;
+
+    this.#availableNodes = [];
+    this.#activeNodes = new Map();
+
+    // Create macro parameters
+    this.#macroLoopStart = new MacroParam(context, 0);
+    this.#macroLoopEnd = new MacroParam(context, 0);
+    this.#macroLoop = new MacroParam(context, 0);
+
+    // Expose the AudioParams // todo: make cleaner (unecessary extra vars)
+    this.loopStart = this.#macroLoopStart.param;
+    this.loopEnd = this.#macroLoopEnd.param;
+    this.loop = this.#macroLoop.param;
+  }
+
+  #setupMacroParams(node: SourceNode): void {
+    this.#macroLoopStart.addTarget(node.loopStart);
+    this.#macroLoopEnd.addTarget(node.loopEnd);
+    this.#macroLoop.addTarget(node.loop);
+  }
+
+  setLoopEnabled(enabled: boolean) {
+    this.#macroLoop.param.setValueAtTime(
+      enabled ? 1 : 0,
+      this.#context.currentTime
+    );
+    return this;
+  }
+
+  setLoopStart(targetValue: number, rampTime: number) {
+    this.#macroLoopStart.param.linearRampToValueAtTime(
+      targetValue,
+      this.#context.currentTime + rampTime
+    );
+    return this;
+  }
+
+  setLoopEnd(targetValue: number, rampTime: number) {
+    this.#macroLoopEnd.param.linearRampToValueAtTime(
+      targetValue,
+      this.#context.currentTime + rampTime
+    );
+    return this;
+  }
+
+  async setBuffer(buffer: AudioBuffer): Promise<void> {
+    this.stopAll();
+    this.#buffer = null;
+
+    // load buffer into existing nodes
+    for (const node of this.#availableNodes) {
+      await node.loadBuffer(buffer);
+    }
+
+    this.#buffer = buffer;
+  }
+
+  // For newly created nodes: Load buffer, setup macros & listeners and connect to output.
+  #initNewNode(node: SourceNode) {
+    if (this.#buffer) {
+      node.loadBuffer(this.#buffer);
+    }
+    // Set up ended event to return node to pool
+    node.addListener('ended', () => this.#releaseNode(node.nodeId));
+    this.#setupMacroParams(node);
+
+    // Connect to output
+    node.connect(this.#output);
+
+    return node; // Remember to add to the appropriate collection
+  }
+
+  acquireNode(): SourceNode {
+    let node: SourceNode;
+
+    // Reuse available node if possible
+    if (this.#availableNodes.length > 0) {
+      node = this.#availableNodes.pop()!;
+    }
+    // Create new node if under max limit
+    else if (this.#activeNodes.size < this.#maxNodes) {
+      node = new SourceNode();
+      // load buffer, setup macros, connect to output
+      this.#initNewNode(node);
+    }
+    // Steal oldest node if at capacity
+    else {
+      const oldestId = this.#activeNodes.keys().next().value;
+
+      assert(
+        // remove assert when tested
+        oldestId,
+        'oldestId must exist in order to steal voice in SourcePool!',
+        this
+      );
+
+      node = this.#activeNodes.get(oldestId)!;
+      this.#activeNodes.delete(oldestId);
+      node.stop(); // Force stop oldest node
+    }
+
+    this.#activeNodes.set(node.nodeId, node);
+
+    return node;
+  }
+
+  #releaseNode(nodeId: NodeID): void {
+    const node = this.#activeNodes.get(nodeId);
+    if (node) {
+      this.#activeNodes.delete(nodeId);
+      this.#availableNodes.push(node);
+    }
+  }
+
+  // todo: make this consistently done either here or in sampler
+  // for now:
+  samplerReleaseNode(nodeId: NodeID): void {
+    this.#releaseNode(nodeId);
+  }
+
+  stopAll(): void {
+    for (const node of this.#activeNodes.values()) {
+      node.stop();
+      this.#availableNodes.push(node);
+    }
+    this.#activeNodes.clear();
+  }
+
+  get activeCount(): number {
+    return this.#activeNodes.size;
+  }
+
+  get availableCount(): number {
+    return this.#availableNodes.length;
+  }
+
+  disconnectSources() {
+    // Disconnect all active nodes
+    for (const node of this.#activeNodes.values()) {
+      node.disconnect();
+    }
+    this.#activeNodes.clear();
+    this.#availableNodes = [];
+
+    // Disconnect all available nodes
+    for (const node of this.#availableNodes) {
+      node.disconnect();
+    }
+    this.#availableNodes = [];
+  }
+
+  dispose() {
+    this.disconnectSources();
+    // todo: add dispose method to SourceNode
+    // for (const node of this.#activeNodes.values()) node.dispose();
+    // for (const node of this.#availableNodes) node.dispose();
+
+    this.#buffer = null;
+
+    this.#activeNodes.clear();
+    this.#availableNodes = [];
+
+    this.#macroLoopStart.dispose();
+    this.#macroLoopEnd.dispose();
+    this.#macroLoop.dispose();
+    this.#maxNodes = 0;
+  }
+
+  get activeNodes(): SourceNode[] {
+    return Array.from(this.#activeNodes.values());
+  }
+  get availableNodes(): SourceNode[] {
+    return this.#availableNodes;
+  }
+  get buffer(): AudioBuffer | null {
+    return this.#buffer;
+  }
+  get maxNodes(): number {
+    return this.#maxNodes;
+  }
+  set maxNodes(value: number) {
+    this.#maxNodes = value;
+  }
+  get numTotal(): number {
+    return this.#maxNodes;
+  }
+  get numAvailable(): number {
+    return this.#availableNodes.length;
+  }
+  get numActive(): number {
+    return this.#activeNodes.size + this.#availableNodes.length;
+  }
+}

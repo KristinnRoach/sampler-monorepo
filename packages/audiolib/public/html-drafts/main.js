@@ -1,4 +1,4 @@
-import { audiolib } from '../dist/index.js';
+import { audiolib } from '../../dist/index.js';
 
 let lib;
 

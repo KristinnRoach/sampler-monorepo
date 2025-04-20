@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './style.css';
 
 // import { audiolib } from '@repo/audiolib';
-import SourcePlayer from './components/SourcePlayer';
+import SamplePlayer from './components/SamplePlayer';
 
 const App = () => {
   // const audiolibRef = useRef(audiolib);
@@ -11,7 +11,7 @@ const App = () => {
 
   return (
     <div>
-      <SourcePlayer />
+      <SamplePlayer />
       {/* <button
         id='initAudiolib'
         onClick={async () => {

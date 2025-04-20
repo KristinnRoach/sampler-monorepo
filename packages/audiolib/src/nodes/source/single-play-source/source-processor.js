@@ -2,8 +2,7 @@
 function scheduleTiming(currentTime, startTime, stopTime) {
   return {
     isPlaying:
-      currentTime >= startTime &&
-      (stopTime === null || stopTime === undefined || currentTime < stopTime),
+      currentTime >= startTime && (stopTime === null || currentTime < stopTime),
     progress: currentTime - startTime,
   };
 }
@@ -49,7 +48,7 @@ class SourceProcessor extends AudioWorkletProcessor {
     this.buffer = [];
     this.sampleRate = 48000;
     this.playbackPosition = 0;
-    // this.isLooping = false;
+    this.isLooping = false;
     this.startTime = null;
     this.stopTime = null;
     this.startOffset = 0;
@@ -81,12 +80,10 @@ class SourceProcessor extends AudioWorkletProcessor {
         this.buffer = data.buffer;
         this.sampleRate = data.sampleRate;
       } else if (data.type === 'start') {
-        this.stopTime = null;
-        this.endTime = null;
+        this.playbackRate = data.playbackRate;
         this.startTime = data.time;
         this.startOffset = data.offset || 0;
         this.duration = data.duration;
-        // this.isLooping = !!data.loopEnabled;
         if (this.duration !== undefined) {
           this.endTime = this.startTime + this.duration;
         } else if (data.type === 'noteOn') {
@@ -97,9 +94,7 @@ class SourceProcessor extends AudioWorkletProcessor {
         // Initialize playback position based on offset
         this.playbackPosition = Math.floor(this.startOffset * this.sampleRate);
       } else if (data.type === 'stop') {
-        this.stopTime = data.time + 0.01; // ! test: adding 0.05 cause immediate does not work
-      } else if (data.type === 'debug-loop') {
-        console.log('Current loop (enabled) value:', event.data.value);
+        this.stopTime = data.time;
       }
     };
   }
@@ -122,7 +117,13 @@ class SourceProcessor extends AudioWorkletProcessor {
     // Calculate current time from currentFrame and sampleRate
     const currentTime = currentFrame / sampleRate;
 
+    // DEBUGGING: Log the first time audio is processed to confirm processor is running
     if (!this._hasLoggedProcessing && this.buffer && this.buffer.length) {
+      console.log(
+        'Processing audio in worklet, buffer length:',
+        this.buffer[0].length
+      );
+      console.log('Processing audio in worklet, currentTime:', currentTime);
       this._hasLoggedProcessing = true;
     }
 
@@ -160,15 +161,12 @@ class SourceProcessor extends AudioWorkletProcessor {
           (this.endTime !== null && currentTime >= this.endTime))
       ) {
         this.port.postMessage({ type: 'ended' });
-        this.stopTime = null;
-        this.endTime = null;
-        this.startTime = null;
+        this.startTime = null; // Prevent multiple ended events
       }
 
       return true;
     }
 
-    // todo: simplify loop enabled logic
     // Process each sample in the current block
     for (let i = 0; i < output[0].length; i++) {
       // Get parameter values for this sample
@@ -179,17 +177,9 @@ class SourceProcessor extends AudioWorkletProcessor {
 
       // Calculate loop points in samples
       const loopStartSample = Math.floor(loopS * this.sampleRate);
-      // const loopEndSample = Math.min(
-      //   Math.max(
-      //     Math.floor(loopE * this.sampleRate),
-      //     loopStartSample + 1 // Ensure loopEnd is at least one sample after loopStart
-      //   ),
-      //   bufferLength - 1
-      // );
-
-      const loopEndSample = Math.max(
+      const loopEndSample = Math.min(
         Math.floor(loopE * this.sampleRate),
-        loopStartSample + 1 // Ensure loopEnd is at least one sample after loopStart
+        bufferLength - 1
       );
 
       // Check duration-based ending
@@ -205,9 +195,7 @@ class SourceProcessor extends AudioWorkletProcessor {
         // Only send ended message once
         if (i === 0) {
           this.port.postMessage({ type: 'ended' });
-          this.startTime = null; // ?! go through and simplify / cleanup
-          // this.stopTime = null;
-          // this.endTime = null;
+          this.startTime = null;
         }
 
         continue;
@@ -231,9 +219,7 @@ class SourceProcessor extends AudioWorkletProcessor {
           // Only send ended message once
           if (i === 0) {
             this.port.postMessage({ type: 'ended' });
-            this.startTime = null; // ?!
-            // this.stopTime = null;
-            // this.endTime = null;
+            this.startTime = null;
           }
 
           continue;

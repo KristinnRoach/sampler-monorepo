@@ -1,15 +1,16 @@
 import { useRef, useState } from 'react';
 import KeyboardController from '../input/KeyboardController';
-import { audiolib, SourceNode } from '@repo/audiolib';
+import { audiolib, Sampler } from '@repo/audiolib';
 
-const SourcePlayer = () => {
+const SamplePlayer = () => {
   // const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(0);
   const [rampTime, setRampTime] = useState(0.2);
-  const playerRef = useRef<SourceNode | undefined>(null);
+  const [activeVoices, setActiveVoices] = useState(0);
+  const samplerRef = useRef<Sampler | undefined>(null);
 
   const [isInitialized, setInitialized] = useState(false);
 
@@ -20,6 +21,11 @@ const SourcePlayer = () => {
         await audiolib.init();
       }
 
+      samplerRef.current = audiolib.createSampler();
+      if (!samplerRef.current) {
+        console.error('Failed to create sampler');
+        return false;
+      }
       setInitialized(true);
 
       return true;
@@ -32,25 +38,39 @@ const SourcePlayer = () => {
   // Load sample uploaded by user
   const loadSample = async (file: File) => {
     if (!(await initAudio())) return;
-
+    if (!file) {
+      console.error('No file selected');
+      return;
+    }
+    if (!samplerRef.current) {
+      console.error('Sampler not initialized');
+      return;
+    }
     const ctx = await audiolib.ensureAudioCtx();
     if (!ctx) return;
 
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-    audiolib.loadBuffer(audioBuffer);
-    // playerRef.current = await audiolib.createSourceNode();
-    // if (!playerRef.current) return;
-
-    // await playerRef.current.loadBuffer(audioBuffer, audioBuffer.sampleRate);
-
-    // playerRef.current.addListener('ended', () => {
-    //   // setIsPlaying(false);
-    // });
+    samplerRef.current.loadSample(audioBuffer);
 
     setLoopEnd(audioBuffer.duration); // Set default loopEnd to the duration of the audio
     setIsLoaded(true);
+  };
+
+  // Load initial sample
+  const fetchInitSample = async () => {
+    if (!(await initAudio())) return;
+
+    const response = await fetch('/init_sample.wav');
+    if (!response.ok) {
+      console.error('Failed to fetch initial sample');
+      return;
+    }
+    const blob = await response.blob();
+    const file = new File([blob], 'init_sample.wav', { type: 'audio/wav' });
+
+    return file;
   };
 
   // Handle file input change
@@ -62,54 +82,67 @@ const SourcePlayer = () => {
   };
 
   const handleNoteOn = (midiNote: number) => {
-    audiolib.playNote(midiNote);
+    samplerRef.current?.playNote(midiNote);
 
-    // if (playerRef.current) {
-    //   playerRef.current.play({ midiNote });
-    //   setIsPlaying(true);
-    // }
+    setActiveVoices(samplerRef.current?.activeNotesCount || 0);
   };
 
   const handleNoteOff = (midiNote: number) => {
-    audiolib.stopNote(midiNote);
-    // if (playerRef.current) {
-    //   playerRef.current.stop(midiNote);
-    //   setIsPlaying(false);
-    // }
+    samplerRef.current?.stopNote(midiNote);
+
+    setActiveVoices(samplerRef.current?.activeNotesCount || 0);
   };
 
   const toggleLoopEnabled = () => {
     const newLoopState = !isLoopEnabled;
     setIsLoopEnabled(newLoopState);
-    playerRef.current?.setLoopEnabled(newLoopState);
+
+    // ?! Just debugging
+    setLoopEnd(0.5);
+    samplerRef.current?.setLoopEnd(0.5);
+    setLoopStart(0.1);
+    samplerRef.current?.setLoopStart(0.1);
+    // ?! Just debugging
+
+    samplerRef.current?.setLoopEnabled(newLoopState);
   };
 
   const handleLoopStartChange = (value: number) => {
     setLoopStart(value);
-    playerRef.current?.setLoopStart(value);
+    samplerRef.current?.setLoopStart(value);
   };
 
   const handleLoopEndChange = (value: number) => {
     setLoopEnd(value);
-    playerRef.current?.setLoopEnd(value);
+    samplerRef.current?.setLoopEnd(value);
   };
 
   const handleRampTimeChange = (value: number) => {
     setRampTime(value);
-    playerRef.current?.setRampTime(value);
+    // ?? if (samplerRef.current) samplerRef.current.loopRampTime = value; // unnecessary
   };
 
   return (
     <div className='source-player-component'>
       <h2>SourcePlayer Test</h2>
+      <button
+        id='loadTestSound'
+        onClick={async () => {
+          const file = await fetchInitSample();
+          if (!file) {
+            console.error('Failed to fetch initial sample');
+            return;
+          }
+          loadSample(file);
+        }}
+      >
+        Load default sample
+      </button>
+
       <KeyboardController onNoteOn={handleNoteOn} onNoteOff={handleNoteOff} />
 
       <div>
         <input type='file' accept='audio/*' onChange={handleFileChange} />
-
-        {/* <button onClick={clickPlay} disabled={!isLoaded}>
-          {isPlaying ? 'Stop' : 'Play'}
-        </button> */}
 
         <button onClick={toggleLoopEnabled} disabled={!isLoaded}>
           {isLoopEnabled ? 'Disable Loop' : 'Enable Loop'}
@@ -137,7 +170,7 @@ const SourcePlayer = () => {
           <input
             type='range'
             min={loopStart}
-            max={playerRef.current?.duration || 10}
+            max={samplerRef.current?.sampleDuration || 10}
             step={0.01}
             value={loopEnd}
             onChange={(e) => handleLoopEndChange(parseFloat(e.target.value))}
@@ -162,8 +195,28 @@ const SourcePlayer = () => {
       </div>
 
       <p>{isLoaded ? 'Ready to play!' : 'Click "Load Test Sound" to start'}</p>
+
+      <div>
+        {' '}
+        {/* TODO: useState to render info display instead of ref.current  */}
+        <p>Active Notes: {activeVoices}</p>
+        <p>Sample Duration: {samplerRef.current?.sampleDuration.toFixed(2)}s</p>
+        <p>Volume: {samplerRef.current?.volume.toFixed(2)}</p>
+        <p>Voice Count: {samplerRef.current?.voiceCount}</p>
+        <p>Is Playing: {samplerRef.current?.isPlaying ? 'Yes' : 'No'}</p>
+        <p>Is Looping: {samplerRef.current?.isLooping ? 'Yes' : 'No'}</p>
+        <p>Is Initialized: {isInitialized ? 'Yes' : 'No'}</p>
+        <p>UI Looping: {isLoopEnabled ? 'Enabled' : 'Disabled'}</p>
+        <p>
+          Sampler Looping:{' '}
+          {samplerRef.current?.isLooping ? 'Enabled' : 'Disabled'}
+        </p>
+        <p>UI Loop Start: {loopStart.toFixed(2)}s</p>
+        <p>UI Loop End: {loopEnd.toFixed(2)}s</p>
+        <p>UI Ramp Time: {rampTime.toFixed(2)}s</p>
+      </div>
     </div>
   );
 };
 
-export default SourcePlayer;
+export default SamplePlayer;

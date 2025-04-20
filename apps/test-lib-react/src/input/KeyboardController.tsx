@@ -19,6 +19,8 @@ const KeyboardController: React.FC<Props> = (props) => {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.repeat) return; // ?? Ignore repeats on key up ??
+
       const midiNote = keymap[e.code];
       if (midiNote) {
         props.onNoteOff(midiNote); // midiNote

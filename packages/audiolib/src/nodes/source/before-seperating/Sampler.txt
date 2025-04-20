@@ -1,0 +1,91 @@
+// Todo: only stop the most recent voice for midiNote
+
+import { SourcePool } from './SourcePool';
+import { createNodeId } from '@/store/IdStore';
+
+export class Sampler {
+  readonly nodeId: NodeID = createNodeId();
+  readonly nodeType: string = 'source:default';
+
+  private _sourcePool: SourcePool;
+  private _output: GainNode;
+
+  #activeNotes: Map<number, string[]>; // <midinote, nodeId[]>
+
+  // Declare methods for binding // Todo: test
+  loadSample: (buffer: AudioBuffer) => Promise<void>;
+
+  constructor(context: AudioContext, polyphony: number = 16) {
+    this._output = new GainNode(context);
+    this._output.connect(context.destination);
+    this._output.gain.value = 1;
+
+    this._sourcePool = new SourcePool(this._output, polyphony, context);
+    this.#activeNotes = new Map();
+
+    this.loadSample = this._sourcePool.setBuffer.bind(this._sourcePool);
+  }
+
+  playNote(midiNote: number, velocity: number = 1): void {
+    const node = this._sourcePool.acquireNode();
+    node.connect(this._output);
+
+    node.play({ midiNote });
+
+    this.#activeNotes.get(midiNote)?.push(node.nodeId);
+
+    if (!this.#activeNotes.has(midiNote)) {
+      this.#activeNotes.set(midiNote, [node.nodeId]);
+    }
+  }
+
+  #addToActiveNotes(midiNote: number, nodeId: string): void {
+    if (this.#activeNotes.has(midiNote)) {
+      this.#activeNotes.get(midiNote)?.push(nodeId);
+    } else {
+      this.#activeNotes.set(midiNote, [nodeId]);
+    }
+  }
+
+  #removeFromActiveNotes(midiNote: number, nodeId: string): void {
+    const nodeIds = this.#activeNotes.get(midiNote);
+    if (nodeIds) {
+      const remaining = nodeIds.filter((id) => id !== nodeId);
+      if (remaining.length > 0) {
+        this.#activeNotes.set(midiNote, remaining);
+      } else {
+        this.#activeNotes.delete(midiNote);
+      }
+    }
+  }
+
+  stopNote(midiNote: number): void {
+    const nodeIds = this.#activeNotes.get(midiNote);
+    const nodes = this._sourcePool.activeNodes;
+
+    // Stop all nodes associated with the midiNote
+    if (nodeIds) {
+      nodeIds.forEach((nodeId) => {
+        const node = nodes.find((n) => n.nodeId === nodeId);
+        if (node) {
+          node.stop();
+          this._sourcePool.samplerReleaseNode(nodeId);
+          this.#removeFromActiveNotes(midiNote, nodeId);
+        }
+      });
+    } else {
+      console.warn(`No active nodes for midiNote ${midiNote}`);
+    }
+    // If no nodes left for this midiNote, remove it from activeNotes
+    if (
+      this.#activeNotes.has(midiNote) &&
+      this.#activeNotes.get(midiNote)?.length === 0
+    ) {
+      this.#activeNotes.delete(midiNote);
+    }
+
+    // nodes.forEach((node) => node.stop());
+  }
+
+  // Other methods like stopAllNotes, connect, disconnect, etc.
+}
