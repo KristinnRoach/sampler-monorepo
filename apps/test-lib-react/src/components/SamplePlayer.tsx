@@ -16,10 +16,10 @@ const SamplePlayer = () => {
 
   // Initialize audio on first user interaction
   const initAudio = async () => {
+    if (isInitialized) return;
+
     try {
-      if (!isInitialized) {
-        await audiolib.init();
-      }
+      await audiolib.init();
 
       samplerRef.current = audiolib.createSampler();
       if (!samplerRef.current) {
@@ -35,30 +35,6 @@ const SamplePlayer = () => {
     }
   };
 
-  // Load sample uploaded by user
-  const loadSample = async (file: File) => {
-    if (!(await initAudio())) return;
-    if (!file) {
-      console.error('No file selected');
-      return;
-    }
-    if (!samplerRef.current) {
-      console.error('Sampler not initialized');
-      return;
-    }
-    const ctx = await audiolib.ensureAudioCtx();
-    if (!ctx) return;
-
-    const arrayBuffer = await file.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-
-    samplerRef.current.loadSample(audioBuffer);
-
-    setLoopEnd(audioBuffer.duration); // Set default loopEnd to the duration of the audio
-    setIsLoaded(true);
-  };
-
-  // Load initial sample
   const fetchInitSample = async () => {
     if (!(await initAudio())) return;
 
@@ -71,6 +47,31 @@ const SamplePlayer = () => {
     const file = new File([blob], 'init_sample.wav', { type: 'audio/wav' });
 
     return file;
+  };
+
+  // Load sample uploaded by user
+  const loadSample = async (file: File) => {
+    if (!(await initAudio())) return;
+    if (!file) {
+      console.error('No file selected');
+      return;
+    }
+    if (!samplerRef.current) {
+      console.error('Sampler not initialized');
+      return;
+    }
+
+    console.warn({ ...file });
+    const ctx = await audiolib.ensureAudioCtx();
+    if (!ctx) return;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+    samplerRef.current.loadSample(audioBuffer);
+
+    setLoopEnd(audioBuffer.duration); // Set default loopEnd to the duration of the audio
+    setIsLoaded(true);
   };
 
   // Handle file input change
@@ -121,6 +122,7 @@ const SamplePlayer = () => {
       <button
         id='loadTestSound'
         onClick={async () => {
+          await initAudio();
           const file = await fetchInitSample();
           if (!file) {
             console.error('Failed to fetch initial sample');

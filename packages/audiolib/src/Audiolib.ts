@@ -42,8 +42,9 @@ export class Audiolib extends LibNode {
 
   async init(): Promise<void> {
     await ensureAudioCtx();
-    console.debug(`Audiolib init - context: ${this.#audioContext}`);
-    console.debug(`${this.#audioContext?.state}`);
+    console.debug(
+      `Audiolib init(), context state: ${this.#audioContext?.state}`
+    );
 
     await initIdb();
     console.debug('initialized IndexedDB', { idb });
@@ -55,6 +56,7 @@ export class Audiolib extends LibNode {
 
   async refreshLatestSample(): Promise<void> {
     const appSample = await sampleLib.getLatestSample();
+
     if (appSample?.audioData instanceof AudioBuffer && appSample?.sampleId) {
       this.#defaultSample = {
         audioData: appSample.audioData,
@@ -99,12 +101,12 @@ export class Audiolib extends LibNode {
     }
 
     if (!registry.hasRegistered(name)) {
-      console.warn(`Processor ${name} not registered, registering now...`);
+      console.info(`Processor ${name} not registered, registering now...`);
       const registryName = await registry.register({
         processorName: name,
         rawSource: SourceProcessorRaw,
       });
-      console.debug(`processor ${registryName} registered`);
+      console.info(`processor ${registryName} registered`);
       return registryName !== null;
     }
 
@@ -133,28 +135,3 @@ export class Audiolib extends LibNode {
     Audiolib.#instance = null;
   }
 }
-
-// async createSourceNode(audioBuffer?: AudioBuffer) {
-//   if (!this.#audioContext) return;
-
-//   const player = new SourceNode(this.#audioContext);
-//   player.connect(this.#masterGain);
-
-//   let usedBuffer: AudioBuffer;
-//   if (!audioBuffer) {
-//     console.debug('no buffer provided, trying default sample');
-//     if (!this.#defaultSample || !this.#defaultSample.audioData) {
-//       console.warn('no default sample!');
-//       return player;
-//     }
-//     usedBuffer = this.#defaultSample.audioData;
-//   } else {
-//     usedBuffer = audioBuffer;
-//   }
-
-//   await player.loadBuffer(usedBuffer, usedBuffer.sampleRate);
-
-//   this.#sourcePool.push(player);
-
-//   return player;
-// }
