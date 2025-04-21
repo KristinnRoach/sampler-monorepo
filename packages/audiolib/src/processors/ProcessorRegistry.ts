@@ -43,6 +43,8 @@ class ProcessorRegistry {
       return name;
     }
 
+    console.info(`Processor ${name} not registered, registering now...`);
+
     const rawSource =
       options.rawSource || PROCESSORS[name as AudiolibProcessor];
 

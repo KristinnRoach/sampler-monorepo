@@ -1,6 +1,6 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
-import { assert } from '@/utils';
+import { assert, tryCatch } from '@/utils';
 import { SourcePool } from './SourcePool';
 import { SourceNode } from './SourceNode';
 import { MacroParam } from '@/helpers/MacroParam';
@@ -26,15 +26,15 @@ export class Sampler {
   #loopRampTime: number = 0.2;
 
   #isInitialized: boolean = false;
-  // #isLoaded: boolean;
+  #isLoaded: boolean = false;
 
   #zeroCrossings: number[] = [];
   #useZeroCrossings: boolean = true;
 
   constructor(
-    audioBuffer: AudioBuffer,
     polyphony: number = 16,
-    context: AudioContext
+    context: AudioContext,
+    audioBuffer?: AudioBuffer
   ) {
     this.#context = context;
     this.#output = new GainNode(context);
@@ -57,6 +57,13 @@ export class Sampler {
     }
 
     this.#isInitialized = true;
+    this.#isLoaded = false;
+
+    if (audioBuffer && audioBuffer.duration) {
+      // use validate audioBuffer util
+      // context.samplerate should be default??
+      this.loadSample(audioBuffer, context.sampleRate);
+    }
   }
 
   connect(destination: AudioNode) {
@@ -87,29 +94,34 @@ export class Sampler {
     this.#macroLoop.param.setValueAtTime(0, this.#now());
   }
 
-  async loadSample(buffer: AudioBuffer, sampleRate?: number): Promise<void> {
+  async loadSample(buffer: AudioBuffer, sampleRate?: number): Promise<boolean> {
     this.stopAll();
+    this.#isLoaded = false;
+
+    const rate = sampleRate || buffer.sampleRate;
+    console.debug(`loadSample SR:${rate}, ctx-SR:${this.#context.sampleRate}`);
+
+    // Cache zero crossings, if being used
+    if (this.#useZeroCrossings) this.#zeroCrossings = findZeroCrossings(buffer);
+
     const allNodes = this.#sourcePool.nodes;
-    const rate = sampleRate || buffer.sampleRate; // duplicate sr logic in sourcenode
-    console.debug(
-      `loading buffer with sample rate: ${rate}, context's sample rate: ${this.#context.sampleRate}`
-    );
-
-    // Cache zero crossings
-    this.#zeroCrossings = findZeroCrossings(buffer);
-
-    console.debug({ calculatedZeroCrossings: this.#zeroCrossings });
-
     const promises = allNodes.map((node) => node.loadBuffer(buffer, rate));
 
+    const result = await tryCatch(
+      Promise.all(promises),
+      'Failed to load sample'
+    );
+
+    if (result.error) {
+      return false; // Loading failed
+    }
+
     this.#resetMacros(buffer.duration);
-
     this.#bufferDuration = buffer.duration;
-
     this.setLoopEnd(buffer.duration);
 
-    await Promise.all(promises);
-    return;
+    this.#isLoaded = true;
+    return true; // If returns true: set isLoaded = true
   }
 
   playNote(midiNote: number, velocity: number = 1): void {

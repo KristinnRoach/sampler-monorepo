@@ -1,0 +1,156 @@
+import { useState, useEffect, useRef } from 'react';
+import { Handle, Position, NodeProps } from 'reactflow';
+import { audiolib, Sampler } from '@repo/audiolib';
+
+const SamplerNode = ({ id, data }: NodeProps) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [sampleName, setSampleName] = useState('No sample loaded');
+  const samplerRef = useRef<Sampler | null>(null);
+
+  const initAudio = async () => {
+    try {
+      await audiolib.init();
+
+      // Create the sampler first, separate from loading a sample
+      samplerRef.current = audiolib.createSampler();
+      if (!samplerRef.current) {
+        console.error('Failed to create sampler');
+        return;
+      }
+
+      // Connect to output
+      const ctx = await audiolib.ensureAudioCtx();
+      if (ctx && samplerRef.current) {
+        setIsInitialized(true);
+        console.log('Sampler initialized');
+      }
+    } catch (error) {
+      console.error('Failed to initialize audio:', error);
+    }
+  };
+
+  // Initialize audio and sampler on first interaction
+  useEffect(() => {
+    window.addEventListener('click', async () => await initAudio(), {
+      once: true,
+    });
+
+    // Cleanup when component unmounts
+    return () => {
+      window.removeEventListener('click', async () => await initAudio());
+      if (samplerRef.current) {
+        samplerRef.current.stopAll();
+        samplerRef.current = null;
+      }
+    };
+  }, []);
+
+  const loadSample = async (file: File) => {
+    if (!isInitialized) {
+      console.error('Sampler not initialized yet');
+      return;
+    }
+
+    try {
+      const ctx = await audiolib.ensureAudioCtx();
+      if (!ctx || !samplerRef.current) {
+        console.error('Audio context or sampler not available');
+        return;
+      }
+
+      // Decode and load the sample
+      const arrayBuffer = await file.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+      await samplerRef.current.loadSample(audioBuffer);
+
+      setIsLoaded(true);
+      setSampleName(file.name);
+      console.log('Sample loaded:', file.name);
+    } catch (error) {
+      console.error('Error loading sample:', error);
+      setIsLoaded(false);
+    }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      loadSample(file);
+    }
+  };
+
+  const playNote = () => {
+    if (samplerRef.current && isLoaded) {
+      samplerRef.current.playNote(60); // Play middle C
+    }
+  };
+
+  const stopNote = () => {
+    if (samplerRef.current && isLoaded) {
+      samplerRef.current.stopNote(60);
+    }
+  };
+
+  return (
+    <div className='node'>
+      <Handle type='target' position={Position.Top} id='audio-in' />
+      <div className='node-header'>Sampler</div>
+      <div className='node-content'>
+        <div>{sampleName}</div>
+        <div>{isInitialized ? 'Ready' : 'Initializing...'}</div>
+        <input
+          type='file'
+          accept='audio/*'
+          onChange={handleFileChange}
+          disabled={!isInitialized}
+        />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '5px',
+          }}
+        >
+          <button
+            onClick={async () => {
+              try {
+                const ctx = await audiolib.ensureAudioCtx();
+                if (!ctx || !samplerRef.current) return;
+
+                const response = await fetch('/init_sample.wav');
+                if (!response.ok) {
+                  console.error('Failed to fetch default sample');
+                  return;
+                }
+
+                const blob = await response.blob();
+                const file = new File([blob], 'init_sample.wav', {
+                  type: 'audio/wav',
+                });
+                await loadSample(file);
+              } catch (error) {
+                console.error('Error loading default sample:', error);
+              }
+            }}
+            disabled={!isInitialized}
+          >
+            Load Default
+          </button>
+          <button
+            onMouseDown={playNote}
+            onMouseUp={stopNote}
+            onMouseLeave={stopNote}
+            disabled={!isLoaded}
+          >
+            Play
+          </button>
+        </div>
+      </div>
+      <Handle type='source' position={Position.Bottom} id='audio-out' />
+    </div>
+  );
+};
+
+export default SamplerNode;

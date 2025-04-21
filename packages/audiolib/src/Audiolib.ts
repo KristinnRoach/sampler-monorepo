@@ -76,17 +76,17 @@ export class Audiolib extends LibNode {
     audioSample?: AudioBuffer,
     polyphony = 8,
     ctx = this.#audioContext
-  ) {
+  ): Sampler | null {
     assert(ctx, '', this);
 
     const audioBuffer = audioSample || this.#defaultSample?.audioData;
 
     if (!audioBuffer) {
       console.error('no buffer for create sampler ??');
-      return; // for now
+      return null; // for now
     }
 
-    const newSampler = new Sampler(audioBuffer, polyphony, ctx);
+    const newSampler = new Sampler(polyphony, ctx, audioBuffer);
     newSampler.connect(this.#masterGain);
     this.#samplers.set(newSampler.nodeId, newSampler);
     return newSampler;
@@ -101,12 +101,10 @@ export class Audiolib extends LibNode {
     }
 
     if (!registry.hasRegistered(name)) {
-      console.info(`Processor ${name} not registered, registering now...`);
       const registryName = await registry.register({
         processorName: name,
         rawSource: SourceProcessorRaw,
       });
-      console.info(`processor ${registryName} registered`);
       return registryName !== null;
     }
 

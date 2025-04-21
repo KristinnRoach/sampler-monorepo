@@ -3,7 +3,6 @@ import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 
 const SamplePlayer = () => {
-  // const [isPlaying, setIsPlaying] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
   const [loopStart, setLoopStart] = useState(0);
@@ -14,7 +13,7 @@ const SamplePlayer = () => {
 
   const [isInitialized, setInitialized] = useState(false);
 
-  // Initialize audio on first user interaction
+  // audio must be initialized on user interaction
   const initAudio = async () => {
     if (isInitialized) return;
 
@@ -49,7 +48,6 @@ const SamplePlayer = () => {
     return file;
   };
 
-  // Load sample uploaded by user
   const loadSample = async (file: File) => {
     if (!(await initAudio())) return;
     if (!file) {
@@ -74,7 +72,6 @@ const SamplePlayer = () => {
     setIsLoaded(true);
   };
 
-  // Handle file input change
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -169,7 +166,7 @@ const SamplePlayer = () => {
           style={{ width: '65vw', height: '8vh', margin: '50px' }}
           type='range'
           min={loopStart}
-          max={0.5} // {samplerRef.current?.sampleDuration || 10}
+          max={0.5}
           step={0.0001}
           value={loopEnd}
           onChange={(e) => handleLoopEndChange(parseFloat(e.target.value))}
