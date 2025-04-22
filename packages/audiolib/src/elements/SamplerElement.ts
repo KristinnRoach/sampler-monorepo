@@ -1,5 +1,5 @@
 // SamplerElement.ts
-import { Sampler } from '../nodes/source/Sampler';
+import { Sampler } from '../nodes/Sampler';
 import { audiolib } from '../index';
 import { registry } from '../nodes/processors/ProcessorRegistry';
 

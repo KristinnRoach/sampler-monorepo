@@ -9,7 +9,7 @@ import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
 import { idb, initIdb, sampleLib } from './store/persistent/idb';
 import { registry } from '@/nodes/processors/ProcessorRegistry';
 
-import { Sampler } from './nodes/source/Sampler';
+import { Sampler } from './nodes/Sampler';
 import { assert, tryCatch } from '@/utils';
 
 export class Audiolib extends LibNode {

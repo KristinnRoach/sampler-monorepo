@@ -2,48 +2,6 @@ import { assert } from '../utils/assert';
 import { getScale } from './noteFreq';
 import { SCALE_PATTERNS } from './NOTE_FREQ';
 
-// type PeriodSnappingOptions = {
-//   paramToProcess: 'start' | 'end';
-//   start: number;
-//   end: number;
-// };
-
-// addTarget(target: AudioParam, paramId: string, paramType: string, scaleFactor: number = 1) {
-
-type PeriodSnappingOptions = {
-  target: number;
-  constant: number;
-};
-
-// TODO: Fix loopStart bug and Clean up ramp tracking logic!
-// Maybe it's best handled with custom interpolation in the source-processor ?
-//       gera  closestPeriod(targetValue, 'larger')
-
-// let idx = indexOf current period
-// if (this.param === loopStart && targetValue > this.value)
-//    let val = this.value
-//
-//    let nextLarger = arr.find((firstLarger) => firstLarger > val)
-//    let idx = arr.indexOf(firstLarger)
-//    while (val < nextLarger < targetValue)
-//        setTargetAtTime(arr[idx], easeTime)
-//        wait for easeTime to complete
-//        idx++
-//
-//
-
-function closestVal(
-  val: number,
-  arr: number[],
-  direction: 'larger' | 'smaller'
-) {
-  if (direction === 'larger') {
-    arr.find((firstLarger) => firstLarger > val);
-  } else {
-    arr.find((firstSmaller) => firstSmaller < val);
-  }
-}
-
 export class MacroParam {
   #context: BaseAudioContext;
   #controlNode: GainNode;
@@ -52,17 +10,11 @@ export class MacroParam {
 
   #slaveParams: AudioParam[] = []; // or map for types / param names / id's
   #paramType: string = ''; // for now
-  // #slaveParamTypes: string[] = []; // for now
 
   #allowedValues: number[] = []; // ? test sorting! // using for zero-crossings
   #allowedPeriods: number[] = []; // SORTED low to high
 
-  #pendingCallbacks: {
-    timeoutId: number;
-    scheduledTime: number;
-  }[] = [];
-
-  static MIN_PARAM_VALUE = 1e-5; // maybe check official docs but this works well so far
+  static MIN_EXPONENTIAL_RAMP_VALUE = 1e-5; // clarify if or why needed and check official docs for safe value
 
   constructor(context: BaseAudioContext, initialValue: number = 0) {
     this.#context = context;
@@ -77,9 +29,6 @@ export class MacroParam {
     // default scale for periods
     const periods = getScale('C', [0, 7]).periodsInSec;
     this.#allowedPeriods = periods.sort((a, b) => a - b); // sort low to high
-
-    console.debug({ scalePeriodsInSeconds: this.#allowedPeriods });
-    console.debug({ thisparam: this.macro, this: this });
   }
 
   // add target audioparam to be controlled by the macro
@@ -113,43 +62,45 @@ export class MacroParam {
     return this;
   }
 
-  processTargetValue(value: number, snapToPeriod?: PeriodSnappingOptions) {
+  processTargetValue(value: number, constant: number) {
     let processedValue = value;
+    let targetPeriod = Math.abs(value - constant);
 
-    if (snapToPeriod && this.longestPeriod > value) {
-      processedValue = this.snapToNotePeriod(snapToPeriod);
+    if (this.longestPeriod > targetPeriod) {
+      const zeroSnapped = this.snap(processedValue); // Testing
+      processedValue = this.snapToNotePeriod(zeroSnapped, constant);
     } else if (this.snapEnabled) {
       // only snapping to zero if not snapping to periods
-      // todo: test if that sounds ok or optimize zero snapping for periods
+      // todo: test if this sounds ok or optimize zero snapping for periods
       processedValue = this.snap(processedValue);
     }
-    return this.clampToMin(processedValue);
+    return processedValue;
   }
 
   ramp(
     targetValue: number,
     rampTime: number,
-    snapToPeriod?: PeriodSnappingOptions,
-    // ! optimize exclusively for setTargetAtTime, at least when snapping to periods
-    style: 'linear' | 'exponential' | 'setTargetAtTime' = 'setTargetAtTime',
+    constant: number,
+    style: 'linear' | 'exponential' | 'setTargetAtTime' = 'exponential',
     onComplete?: () => void // optional user callback to run when ramp completes
   ): this {
     const now = this.now;
     const param = this.macro;
+    // if (!this.#shouldRamp(targetValue, snapToPeriod)) return this;
 
-    if (!this.#shouldRamp(targetValue, snapToPeriod)) return this;
-
-    let processedValue = this.processTargetValue(targetValue, snapToPeriod);
-
-    // TESTING the effect of always cancelling previous ramps
-    this.cancelRamp();
+    // this.macro.cancelScheduledValues(now);
+    this.macro.cancelAndHoldAtTime(now);
+    let processedValue = this.processTargetValue(targetValue, constant);
 
     switch (style) {
       case 'linear':
         param.linearRampToValueAtTime(processedValue, now + rampTime);
         break;
       case 'exponential':
-        param.exponentialRampToValueAtTime(processedValue, now + rampTime);
+        param.exponentialRampToValueAtTime(
+          this.ensureNonZero(processedValue),
+          now + rampTime
+        );
         break;
       case 'setTargetAtTime':
         param.setTargetAtTime(processedValue, now, rampTime);
@@ -157,127 +108,14 @@ export class MacroParam {
         break;
     }
 
-    const durationSec = style === 'setTargetAtTime' ? rampTime * 2 : rampTime;
-
-    const completionTime = now + durationSec;
-
-    this.rampTracker = {
-      isRamping: true,
-      direction: processedValue > this.value ? 'up' : 'down',
-      periodIndex: this.#allowedPeriods.indexOf(processedValue),
-      rampStarted: { time: now, value: processedValue },
-      rampEnded: { time: -1, value: -1 },
-      scheduledCompletion: completionTime,
-    };
-
-    // Schedule the callback to run when the ramp completes
-    const timeoutId = setTimeout(() => {
-      this.onRampComplete();
-      if (onComplete) onComplete();
-    }, durationSec * 1000); // ms
-
-    // Store the timeout ID, needed?
-    this.#pendingCallbacks.push({
-      timeoutId: timeoutId as unknown as number, // ts expects NodeJS.Timeout but this is a browser timeout
-      scheduledTime: completionTime,
-    });
+    // Schedule callback if provided
+    if (onComplete) {
+      const durationSec = style === 'setTargetAtTime' ? rampTime * 2 : rampTime;
+      // const timeoutId = // Todo: cleanup considerations?
+      setTimeout(onComplete, durationSec * 1000); // ms
+    }
 
     return this;
-  }
-
-  onRampComplete = () => {
-    const previdx = this.rampTracker.periodIndex;
-    this.rampTracker = {
-      isRamping: false,
-      direction: null,
-      periodIndex: previdx, // ? or -1 ?
-      rampStarted: { time: -1, value: -1 },
-      rampEnded: { time: this.now, value: this.value },
-      scheduledCompletion: -1,
-    };
-
-    // const periodIndex = this.#allowedPeriods.indexOf(this.value);
-    // if (periodIndex > -1) {
-    //   this.rampTracker.periodIndex = periodIndex;
-    // } else {
-    //   console.warn(
-    //     'Ramp complete, but the current value is not in the allowed periods.'
-    //   );
-    // }
-
-    // Only clear timeouts that have completed
-    this.#pendingCallbacks = this.#pendingCallbacks.filter((callback) => {
-      if (callback.scheduledTime <= this.now) {
-        clearTimeout(callback.timeoutId);
-        return false; // Remove from array
-      }
-      return true; // Keep in array
-    });
-  };
-
-  rampTracker: {
-    isRamping: boolean;
-    direction: 'up' | 'down' | null;
-    periodIndex: number;
-    rampStarted: { time: number; value: number };
-    rampEnded: { time: number; value: number };
-    // if is ramping: last update is from ramp start
-    // if not: last update is from last ramp end
-    scheduledCompletion: number;
-  } = {
-    isRamping: false,
-    direction: null,
-    periodIndex: -1,
-    rampStarted: { time: -1, value: -1 },
-    rampEnded: { time: -1, value: -1 },
-    scheduledCompletion: -1,
-  };
-
-  #shouldRamp(newTarget: number, snapToPeriod?: PeriodSnappingOptions) {
-    // be aware that ramp might be in progress from the other param, e.g. start if this is end
-    if (!this.rampTracker.isRamping) return true; // no ramp in progress
-    if (!snapToPeriod) return true; // TEMP: check
-
-    // const proposedDuration = snapToPeriod.end - snapToPeriod.start;
-
-    const now = this.now;
-    const periods = this.#allowedPeriods;
-    const { rampStarted, periodIndex, direction } = this.rampTracker;
-
-    const newRampDirection = newTarget > this.value ? 'up' : 'down';
-
-    if (direction !== newRampDirection) {
-      console.debug('ramp direction change occurred');
-      return true; // ramp direction changed
-    }
-
-    // if (direction === 'up') {
-    //   console.log(`next period should be ${periods[periodIndex + 1]}`);
-    // }
-
-    // const newPeriodIndex = this.#allowedPeriods.indexOf(..
-
-    if (now < rampStarted.time + 0.01) {
-      return false;
-    }
-
-    return true;
-  }
-
-  cancelRamp() {
-    this.#pendingCallbacks.forEach((callback) => {
-      clearTimeout(callback.timeoutId);
-    });
-    this.#pendingCallbacks = [];
-
-    this.rampTracker = {
-      isRamping: false,
-      direction: null,
-      periodIndex: -1,
-      rampStarted: { time: -1, value: -1 },
-      rampEnded: { time: -1, value: -1 },
-      scheduledCompletion: -1,
-    };
   }
 
   snap(inputValue: number) {
@@ -290,27 +128,16 @@ export class MacroParam {
     );
   }
 
-  snapToNotePeriod(options: {
-    target: number; // ? rename to 'target' and 'constant' !
-    constant: number;
-  }): number {
-    const { target, constant } = options;
-    // ... if this.#slaveParamType === loopStart { loopStart = target, loopEnd = constant}
+  snapToNotePeriod(target: number, constant: number) {
+    console.debug('\nEnter snapToNotePeriod');
+
     const allowedDistances = this.#allowedPeriods;
-
     const initialTargetDistance = Math.abs(constant - target);
-
-    let testThreshold = 0.01;
-    let targetPeriod = allowedDistances.find(
-      (period) => period - initialTargetDistance < testThreshold
-    );
-
-    if (targetPeriod) return targetPeriod; // testing - need to add / subtract in caller
 
     let closestAllowed = allowedDistances[0];
     let minDifference = Math.abs(initialTargetDistance - closestAllowed);
 
-    // should use the fact they are sorted, but works fine
+    // could use the fact allowedDistances are sorted (low to high)
     for (const dist of allowedDistances) {
       const difference = Math.abs(initialTargetDistance - dist);
       if (difference < minDifference) {
@@ -321,56 +148,28 @@ export class MacroParam {
 
     const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // should not be needed
 
-    if (this.#paramType.includes('loopEnd')) return constant + safePeriod;
-    else return this.clampToMin(constant - safePeriod);
+    let returnValue: number = 0; // target
+    if (this.#paramType === 'loopEnd') {
+      returnValue = constant + safePeriod;
+    } else if (this.#paramType === 'loopStart') {
+      returnValue = constant - safePeriod;
+    } else {
+      console.warn("Macro's paramType not set");
+    }
+
+    console.debug(
+      `\nparamType: ${this.#paramType} 
+      \nCurrent Value: ${this.value},
+      \nTarget Value: ${target}, 
+      \nBound constant: ${constant}
+      \nReturn Value: ${returnValue}`
+    );
+    return returnValue;
   }
 
-  // snapToNotePeriod(options: {
-  //   paramToProcess: 'start' | 'end';
-  //   start: number;
-  //   end: number;
-  // }): number {
-  //   const { paramToProcess, start, end } = options;
-  //   const allowedDistances = this.#allowedPeriods;
-
-  //   const currentDistance = Math.abs(end - start);
-
-  //   let closestAllowed = allowedDistances[0];
-  //   let minDifference = Math.abs(currentDistance - closestAllowed);
-
-  //   // should use the fact they are sorted, but works fine
-  //   for (const dist of allowedDistances) {
-  //     const difference = Math.abs(currentDistance - dist);
-  //     if (difference < minDifference) {
-  //       minDifference = difference;
-  //       closestAllowed = dist;
-  //     }
-  //   }
-
-  //   const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // should not be needed
-
-  //   if (paramToProcess === 'end') return start + safePeriod;
-  //   else return this.clampToMin(end - safePeriod);
-  // }
-
-  // const actualParamDistance = Math.abs(
-  //   paramToProcess === 'start' ? end - this.value : this.value - start
-  // );
-
-  // const valueToProcess = paramToProcess === 'start' ? start : end;
-  // const otherValue = paramToProcess === 'start' ? end : start;
-  // const distanceToProcess = Math.abs(end - start);
-  // const currentParamDistance = Math.abs(this.value - otherValue);
-
-  // let find: 'firstShorterPeriod' | 'firstLongerPeriod';
-  // if (distanceToProcess < currentParamDistance) {
-  //   find = 'firstShorterPeriod';
-  // } else {
-  //   find = 'firstLongerPeriod';
-  // }
-
-  clampToMin = (value: number) => {
-    return Math.max(value, MacroParam.MIN_PARAM_VALUE);
+  // Used to ensure that values passed into 'exponentialRamp' are non-zero
+  ensureNonZero = (value: number) => {
+    return Math.max(value, MacroParam.MIN_EXPONENTIAL_RAMP_VALUE);
   };
 
   dispose(): void {
@@ -469,6 +268,145 @@ export class MacroParam {
 //   );
 // } else {
 //   allowedValues = this.#snapValues;
+// }
+
+// let testThreshold = 0.01;
+// let targetPeriod = allowedDistances.find(
+//   (period) => period - initialTargetDistance < testThreshold
+// );
+
+// if (targetPeriod) {
+//   console.warn(`Target PERIOD: ${targetPeriod}`); // Always: 0.00031888161838798966
+
+//   if (this.#paramType === 'loopEnd') return constant + targetPeriod;
+//   else if (this.#paramType === 'loopStart')
+//     return this.clampToMin(constant - targetPeriod);
+// }
+// TODO: Fix loopStart bug and Clean up ramp tracking logic!
+// Maybe it's best handled with custom interpolation in the source-processor ?
+//       gera  closestPeriod(targetValue, 'larger')
+
+// let idx = indexOf current period
+// if (this.param === loopStart && targetValue > this.value)
+//    let val = this.value
+//
+//    let nextLarger = arr.find((firstLarger) => firstLarger > val)
+//    let idx = arr.indexOf(firstLarger)
+//    while (val < nextLarger < targetValue)
+//        setTargetAtTime(arr[idx], easeTime)
+//        wait for easeTime to complete
+//        idx++
+//
+//
+
+// function closestVal(
+//   val: number,
+//   arr: number[],
+//   direction: 'larger' | 'smaller'
+// ) {
+//   if (direction === 'larger') {
+//     arr.find((firstLarger) => firstLarger > val);
+//   } else {
+//     arr.find((firstSmaller) => firstSmaller < val);
+//   }
+// }
+
+// ? trash
+
+// onRampComplete = () => {
+//   const previdx = this.rampTracker.periodIndex;
+//   this.rampTracker = {
+//     isRamping: false,
+//     direction: null,
+//     periodIndex: previdx, // ? or -1 ?
+//     rampStarted: { time: -1, value: -1 },
+//     rampEnded: { time: this.now, value: this.value },
+//     scheduledCompletion: -1,
+//   };
+
+//   // const periodIndex = this.#allowedPeriods.indexOf(this.value);
+//   // if (periodIndex > -1) {
+//   //   this.rampTracker.periodIndex = periodIndex;
+//   // } else {
+//   //   console.warn(
+//   //     'Ramp complete, but the current value is not in the allowed periods.'
+//   //   );
+//   // }
+
+//   // Only clear timeouts that have completed
+//   this.#pendingCallbacks = this.#pendingCallbacks.filter((callback) => {
+//     if (callback.scheduledTime <= this.now) {
+//       clearTimeout(callback.timeoutId);
+//       return false; // Remove from array
+//     }
+//     return true; // Keep in array
+//   });
+// };
+
+// rampTracker: {
+//   isRamping: boolean;
+//   direction: 'up' | 'down' | null;
+//   periodIndex: number;
+//   rampStarted: { time: number; value: number };
+//   rampEnded: { time: number; value: number };
+//   // if is ramping: last update is from ramp start
+//   // if not: last update is from last ramp end
+//   scheduledCompletion: number;
+// } = {
+//   isRamping: false,
+//   direction: null,
+//   periodIndex: -1,
+//   rampStarted: { time: -1, value: -1 },
+//   rampEnded: { time: -1, value: -1 },
+//   scheduledCompletion: -1,
+// };
+
+// #shouldRamp(newTarget: number, snapToPeriod?: unknown) {
+//   // be aware that ramp might be in progress from the other param, e.g. start if this is end
+//   if (!this.rampTracker.isRamping) return true; // no ramp in progress
+//   if (!snapToPeriod) return true; // TEMP: check
+
+//   // const proposedDuration = snapToPeriod.end - snapToPeriod.start;
+
+//   const now = this.now;
+//   const periods = this.#allowedPeriods;
+//   const { rampStarted, periodIndex, direction } = this.rampTracker;
+
+//   const newRampDirection = newTarget > this.value ? 'up' : 'down';
+
+//   if (direction !== newRampDirection) {
+//     console.debug('ramp direction change occurred');
+//     return true; // ramp direction changed
+//   }
+
+//   // if (direction === 'up') {
+//   //   console.log(`next period should be ${periods[periodIndex + 1]}`);
+//   // }
+
+//   // const newPeriodIndex = this.#allowedPeriods.indexOf(..
+
+//   if (now < rampStarted.time + 0.2) {
+//     // test, optimize or remove
+//     return false;
+//   }
+
+//   return true;
+// }
+
+// cancelRamp() {
+//   this.#pendingCallbacks.forEach((callback) => {
+//     clearTimeout(callback.timeoutId);
+//   });
+//   this.#pendingCallbacks = [];
+
+//   this.rampTracker = {
+//     isRamping: false,
+//     direction: null,
+//     periodIndex: -1,
+//     rampStarted: { time: -1, value: -1 },
+//     rampEnded: { time: -1, value: -1 },
+//     scheduledCompletion: -1,
+//   };
 // }
 
 // TODO: finna útúr þessu ef ég nenni
@@ -596,3 +534,47 @@ export class MacroParam {
 // }
 
 // const direction = valueToProcess > this.value ? 'up' : 'down';
+
+// snapToNotePeriod(options: {
+//   paramToProcess: 'start' | 'end';
+//   start: number;
+//   end: number;
+// }): number {
+//   const { paramToProcess, start, end } = options;
+//   const allowedDistances = this.#allowedPeriods;
+
+//   const currentDistance = Math.abs(end - start);
+
+//   let closestAllowed = allowedDistances[0];
+//   let minDifference = Math.abs(currentDistance - closestAllowed);
+
+//   // should use the fact they are sorted, but works fine
+//   for (const dist of allowedDistances) {
+//     const difference = Math.abs(currentDistance - dist);
+//     if (difference < minDifference) {
+//       minDifference = difference;
+//       closestAllowed = dist;
+//     }
+//   }
+
+//   const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // should not be needed
+
+//   if (paramToProcess === 'end') return start + safePeriod;
+//   else return this.clampToMin(end - safePeriod);
+// }
+
+// const actualParamDistance = Math.abs(
+//   paramToProcess === 'start' ? end - this.value : this.value - start
+// );
+
+// const valueToProcess = paramToProcess === 'start' ? start : end;
+// const otherValue = paramToProcess === 'start' ? end : start;
+// const distanceToProcess = Math.abs(end - start);
+// const currentParamDistance = Math.abs(this.value - otherValue);
+
+// let find: 'firstShorterPeriod' | 'firstLongerPeriod';
+// if (distanceToProcess < currentParamDistance) {
+//   find = 'firstShorterPeriod';
+// } else {
+//   find = 'firstLongerPeriod';
+// }

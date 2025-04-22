@@ -2,6 +2,23 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 
+// // Utility functions for logarithmic scaling
+// const logScaleStart = (position: number) => {
+//   return 1 - Math.pow(1 - position, 3);
+// };
+
+// const inverseLogScaleStart = (value: number) => {
+//   return 1 - Math.pow(1 - value, 1 / 3);
+// };
+
+// const logScaleEnd = (position: number) => {
+//   return Math.pow(position, 3);
+// };
+
+// const inverseLogScaleEnd = (value: number) => {
+//   return Math.pow(value, 1 / 3);
+// };
+
 const SamplePlayer = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
@@ -122,6 +139,7 @@ const SamplePlayer = () => {
     samplerRef.current?.setLoopEnabled(newLoopState);
   };
 
+  // NOT using Logarithm:
   const handleLoopStartNormalizedChange = (normalizedValue: number) => {
     // Clamp to make sure start doesn't exceed end position
     const clampedValue = Math.min(normalizedValue, loopEndNormalized - 0.001);
@@ -141,6 +159,34 @@ const SamplePlayer = () => {
     const actualValue = clampedValue * sampleDuration;
     samplerRef.current?.setLoopEnd(actualValue, rampTime);
   };
+
+  // Using Logarithm:
+
+  // const handleLoopStartNormalizedChange = (linearPosition: number) => {
+  //   // Apply logarithmic scaling (more sensitive at beginning)
+  //   const logValue = logScaleStart(linearPosition);
+
+  //   // Clamp to make sure start doesn't exceed end position
+  //   const clampedLogValue = Math.min(logValue, loopEndNormalized - 0.001);
+  //   setLoopStartNormalized(inverseLogScaleStart(clampedLogValue));
+
+  //   // Calculate actual time value and update sampler
+  //   const actualValue = clampedLogValue * sampleDuration;
+  //   samplerRef.current?.setLoopStart(actualValue, rampTime);
+  // };
+
+  // const handleLoopEndNormalizedChange = (linearPosition: number) => {
+  //   // Apply logarithmic scaling (more sensitive at end)
+  //   const logValue = logScaleEnd(linearPosition);
+
+  //   // Clamp to make sure end doesn't go below start position
+  //   const clampedLogValue = Math.max(logValue, loopStartNormalized + 0.001);
+  //   setLoopEndNormalized(inverseLogScaleEnd(clampedLogValue));
+
+  //   // Calculate actual time value and update sampler
+  //   const actualValue = clampedLogValue * sampleDuration;
+  //   samplerRef.current?.setLoopEnd(actualValue, rampTime);
+  // };
 
   const handleRampTimeChange = (value: number) => {
     setRampTime(value);
@@ -177,7 +223,7 @@ const SamplePlayer = () => {
       <div style={{ width: '100vw' }}>
         <label style={{ display: 'flex', justifyContent: 'center' }}>
           Loop Start:
-          {'         ' + loopStart.toFixed(8)}s
+          {`           ${loopStart.toFixed(8)}s`}
         </label>
         <input
           style={{ width: '65vw', height: '8vh', margin: '50px' }}
@@ -195,7 +241,9 @@ const SamplePlayer = () => {
       <div>
         <label style={{ display: 'block' }}>
           Loop End:
-          {'         ' + loopEnd.toFixed(8)}s
+          {/* {'         ' +
+            (logScaleEnd(loopEndNormalized) * sampleDuration).toFixed(8)}s */}
+          {`           ${loopEnd.toFixed(8)}s`}
         </label>
         <input
           style={{ width: '65vw', height: '8vh', margin: '50px' }}

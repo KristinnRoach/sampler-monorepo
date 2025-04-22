@@ -1,8 +1,8 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
 import { assert, tryCatch } from '@/utils';
-import { SourcePool } from './SourcePool';
-import { SourceNode } from './SourceNode';
+import { SourcePool } from './source/SourcePool';
+import { SourceNode } from './source/SourceNode';
 import { MacroParam } from '@/helpers/MacroParam';
 import { createNodeId } from '@/store/IdStore';
 import { findZeroCrossings } from '@/utils';
@@ -213,43 +213,23 @@ export class Sampler {
         this.#macroLoopEnd.macro = this.#bufferDuration;
       }
       if (this.#macroLoopStart.macro.value < 0) {
-        this.#macroLoopStart.macro = this.#bufferDuration;
+        this.#macroLoopStart.macro = 0.01;
       }
     }
 
     return this;
   }
 
-  // use bind?
   setLoopStart(
     targetValue: number,
     rampTime: number = this.#loopRampTime
   ): this {
-    // const periodOptions = {
-    //   paramToProcess: 'start',
-    //   start: targetValue,
-    //   end: this.#macroLoopEnd.param.value,
-    // } as const;
-    const periodOptions = {
-      target: targetValue,
-      constant: this.#macroLoopEnd.macro.value,
-    } as const;
-    this.#macroLoopEnd.ramp(targetValue, rampTime, periodOptions);
+    this.#macroLoopStart.ramp(targetValue, rampTime, this.#macroLoopEnd.value);
     return this;
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampTime): this {
-    // const periodOptions = {
-    //   paramToProcess: 'end',
-    //   start: this.#macroLoopStart.param.value,
-    //   end: targetValue,
-    // } as const;
-
-    const periodOptions = {
-      target: targetValue,
-      constant: this.#macroLoopStart.macro.value,
-    } as const;
-    this.#macroLoopEnd.ramp(targetValue, rampTime, periodOptions);
+    this.#macroLoopEnd.ramp(targetValue, rampTime, this.#macroLoopStart.value);
     return this;
   }
 
