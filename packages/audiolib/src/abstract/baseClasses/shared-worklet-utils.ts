@@ -1,6 +1,6 @@
 // import { getAudioContext, ensureAudioCtx } from '@/context/globalAudioContext';
 // import { registry } from '@/processors/ProcessorRegistry';
-import { ProcessorName } from '@/processors/ProcessorRegistry';
+import { ProcessorName } from '@/nodes/processors/ProcessorRegistry';
 import { LibNode } from './LibNode';
 
 export interface LibWorkletNode extends LibNode {

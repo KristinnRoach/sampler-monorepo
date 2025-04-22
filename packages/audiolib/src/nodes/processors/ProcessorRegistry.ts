@@ -1,6 +1,6 @@
 // @store/ProcessorRegistry.ts
 import { ensureAudioCtx } from '@/context/globalAudioContext';
-import PROCESSORS from '@/processors';
+import PROCESSORS from '.';
 
 // Union type of processor names that have been predefined by audiolib
 export type AudiolibProcessor = keyof typeof PROCESSORS;

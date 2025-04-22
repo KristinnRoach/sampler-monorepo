@@ -1,0 +1,113 @@
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  line-height: 1.6;
+  color: #333;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f7f9fc;
+}
+
+.container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+}
+
+.sampler-container {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+}
+
+/* Styling the custom element using parts */
+sampler-element::part(button) {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+sampler-element::part(button):hover {
+  background: #3e8e41;
+}
+
+sampler-element::part(init-button) {
+  background: #2196F3;
+}
+
+sampler-element::part(init-button):hover {
+  background: #0b7dda;
+}
+
+sampler-element::part(status) {
+  font-size: 14px;
+  color: #666;
+  margin-top: 10px;
+}
+
+.slider-group {
+  margin: 15px 0;
+}
+
+.slider-group label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.slider-group input[type="range"] {
+  width: 100%;
+}
+
+.keyboard {
+  display: flex;
+  height: 150px;
+  margin: 30px 0;
+  background-color: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.white-key {
+  background: white;
+  border: 1px solid #ccc;
+  flex: 1;
+  position: relative;
+  cursor: pointer;
+}
+
+.black-key {
+  background: black;
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  top: 0;
+  right: -30%;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.white-key.active {
+  background: #e0f7fa;
+}
+
+.black-key.active {
+  background: #333;
+}
+
+.info-panel {
+  background-color: #f0f8ff;
+  padding: 10px;
+  border-left: 4px solid #2196F3;
+  margin: 20px 0;
+}
+
+.controls {
+  max-width: 500px;
+}

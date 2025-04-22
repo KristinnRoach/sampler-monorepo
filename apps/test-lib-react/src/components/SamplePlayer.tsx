@@ -1,17 +1,33 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 
 const SamplePlayer = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
+
+  // Actual loop points (in seconds)
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(0);
+
+  // Normalized slider positions (0-1)
+  const [loopStartNormalized, setLoopStartNormalized] = useState(0);
+  const [loopEndNormalized, setLoopEndNormalized] = useState(1);
+
+  const [sampleDuration, setSampleDuration] = useState(0);
   const [rampTime, setRampTime] = useState(0.2);
   const [activeVoices, setActiveVoices] = useState(0);
   const samplerRef = useRef<Sampler | undefined>(null);
 
   const [isInitialized, setInitialized] = useState(false);
+
+  // Update actual loop points when normalized positions or sample duration changes
+  useEffect(() => {
+    if (sampleDuration > 0) {
+      setLoopStart(loopStartNormalized * sampleDuration);
+      setLoopEnd(loopEndNormalized * sampleDuration);
+    }
+  }, [loopStartNormalized, loopEndNormalized, sampleDuration]);
 
   // audio must be initialized on user interaction
   const initAudio = async () => {
@@ -59,7 +75,6 @@ const SamplePlayer = () => {
       return;
     }
 
-    console.warn({ ...file });
     const ctx = await audiolib.ensureAudioCtx();
     if (!ctx) return;
 
@@ -68,16 +83,25 @@ const SamplePlayer = () => {
 
     samplerRef.current.loadSample(audioBuffer);
 
-    setLoopEnd(audioBuffer.duration); // Set default loopEnd to the duration of the audio
+    // Set duration and reset end point
+    setSampleDuration(audioBuffer.duration);
+
+    // Reset normalized positions to defaults (start at beginning, end at full duration)
+    setLoopStartNormalized(0);
+    setLoopEndNormalized(1);
+
     setIsLoaded(true);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      loadSample(file);
-    }
-  };
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        loadSample(file);
+      }
+    },
+    []
+  );
 
   const handleNoteOn = (midiNote: number) => {
     samplerRef.current?.playNote(midiNote);
@@ -98,19 +122,28 @@ const SamplePlayer = () => {
     samplerRef.current?.setLoopEnabled(newLoopState);
   };
 
-  const handleLoopStartChange = (value: number) => {
-    setLoopStart(value);
-    samplerRef.current?.setLoopStart(value, rampTime);
+  const handleLoopStartNormalizedChange = (normalizedValue: number) => {
+    // Clamp to make sure start doesn't exceed end position
+    const clampedValue = Math.min(normalizedValue, loopEndNormalized - 0.001);
+    setLoopStartNormalized(clampedValue);
+
+    // Calculate actual time value and update sampler
+    const actualValue = clampedValue * sampleDuration;
+    samplerRef.current?.setLoopStart(actualValue, rampTime);
   };
 
-  const handleLoopEndChange = (value: number) => {
-    setLoopEnd(value);
-    samplerRef.current?.setLoopEnd(value, rampTime);
+  const handleLoopEndNormalizedChange = (normalizedValue: number) => {
+    // Clamp to make sure end doesn't go below start position
+    const clampedValue = Math.max(normalizedValue, loopStartNormalized + 0.001);
+    setLoopEndNormalized(clampedValue);
+
+    // Calculate actual time value and update sampler
+    const actualValue = clampedValue * sampleDuration;
+    samplerRef.current?.setLoopEnd(actualValue, rampTime);
   };
 
   const handleRampTimeChange = (value: number) => {
     setRampTime(value);
-    // ?? if (samplerRef.current) samplerRef.current.loopRampTime = value; // unnecessary
   };
 
   return (
@@ -150,26 +183,30 @@ const SamplePlayer = () => {
           style={{ width: '65vw', height: '8vh', margin: '50px' }}
           type='range'
           min={0}
-          max={0.5} // for testing
+          max={1}
           step={0.0001}
-          value={loopStart}
-          onChange={(e) => handleLoopStartChange(parseFloat(e.target.value))}
+          value={loopStartNormalized}
+          onChange={(e) =>
+            handleLoopStartNormalizedChange(parseFloat(e.target.value))
+          }
         />
       </div>
 
       <div>
-        <label style={{ display: 'flex' }}>
+        <label style={{ display: 'block' }}>
           Loop End:
           {'         ' + loopEnd.toFixed(8)}s
         </label>
         <input
           style={{ width: '65vw', height: '8vh', margin: '50px' }}
           type='range'
-          min={loopStart}
-          max={0.5}
+          min={0}
+          max={1}
           step={0.0001}
-          value={loopEnd}
-          onChange={(e) => handleLoopEndChange(parseFloat(e.target.value))}
+          value={loopEndNormalized}
+          onChange={(e) =>
+            handleLoopEndNormalizedChange(parseFloat(e.target.value))
+          }
         />
       </div>
 

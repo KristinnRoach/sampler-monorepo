@@ -30,7 +30,7 @@ export async function fetchInitSampleAsAudioBuffer() {
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
   // necessary cleanup, unless we use the global
-  audioContext.close(); // await this if needed ? (returns a promise)
+  await audioContext.close();
 
   return audioBuffer;
 }

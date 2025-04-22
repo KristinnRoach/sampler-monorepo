@@ -5,12 +5,12 @@ import {
 } from '@/context';
 import { LibNode } from '@/abstract/baseClasses/LibNode';
 
+import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
 import { idb, initIdb, sampleLib } from './store/persistent/idb';
-import { registry } from '@/processors/ProcessorRegistry';
-import SourceProcessorRaw from '@/nodes/source/source-processor?raw';
+import { registry } from '@/nodes/processors/ProcessorRegistry';
 
 import { Sampler } from './nodes/source/Sampler';
-import { assert } from '@/utils';
+import { assert, tryCatch } from '@/utils';
 
 export class Audiolib extends LibNode {
   static #instance: Audiolib | null = null;
@@ -27,48 +27,94 @@ export class Audiolib extends LibNode {
 
   #samplers: Map<string, Sampler> = new Map();
 
-  // #sourcePool: SourceNode[] = [];
-  // #activeSources: Map<number, SourceNode> = new Map();
-  #defaultSample: { sampleId: string; audioData: AudioBuffer } | null = null; // todo: use (App)Sample type
+  #INIT_APP_SAMPLE: AudioBuffer | null = null;
 
   private constructor() {
     super();
     console.log(`Audiolib constructor. Instance nodeId: ${this.nodeId}.`);
-    this.#audioContext = getAudioContext();
-    this.#masterGain = this.#audioContext.createGain();
-    this.#masterGain.gain.value = 0.5;
-    this.#masterGain.connect(this.#audioContext.destination);
+
+    try {
+      this.#audioContext = getAudioContext();
+      assert(this.#audioContext, 'Failed to get audio context', {
+        nodeId: this.nodeId,
+      });
+
+      this.#masterGain = this.#audioContext.createGain();
+      this.#masterGain.gain.value = 0.5;
+      this.#masterGain.connect(this.#audioContext.destination);
+    } catch (error) {
+      console.error('Error during Audiolib construction:', error);
+      throw new Error(
+        `Failed to initialize Audiolib: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  async #validateContext(ctx: AudioContext): Promise<void> {
+    try {
+      assert(
+        ctx === this.#audioContext,
+        'Singleton globalAudioContext compromised!',
+        { expected: this.#audioContext, received: ctx }
+      );
+
+      assert(
+        ctx.audioWorklet,
+        'Audio worklet not available in this audio context!',
+        { context: ctx }
+      );
+    } catch (error) {
+      console.error(
+        `Context validation failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error; // Re-throw to allow callers to handle it
+    }
   }
 
   async init(): Promise<void> {
-    await ensureAudioCtx();
-    console.debug(
-      `Audiolib init(), context state: ${this.#audioContext?.state}`
-    );
-
-    await initIdb();
-    console.debug('initialized IndexedDB', { idb });
-
-    await this.refreshLatestSample();
-
-    await this.registerProcessors();
-  }
-
-  async refreshLatestSample(): Promise<void> {
-    const appSample = await sampleLib.getLatestSample();
-
-    if (appSample?.audioData instanceof AudioBuffer && appSample?.sampleId) {
-      this.#defaultSample = {
-        audioData: appSample.audioData,
-        sampleId: appSample.sampleId,
-      };
-      const id = appSample.sampleId;
-      const data = appSample.audioData;
-      console.log(
-        `Refreshed sample id: ${id}, buff duration: ${data.duration}`
+    try {
+      // Ensure audio context is available
+      const ctxResult = await tryCatch(
+        ensureAudioCtx(),
+        'Failed to ensure audio context'
       );
-    } else {
-      console.error('Could not refresh sample, got this from db: ', appSample);
+      assert(ctxResult.data, 'Could not initialize audio context', ctxResult);
+
+      await this.#validateContext(ctxResult.data);
+
+      // Initialize indexedDB
+      const idbResult = await tryCatch(
+        initIdb(),
+        'Failed to initialize IndexedDB'
+      );
+      assert(!idbResult.error, 'IndexedDB initialization failed', idbResult);
+
+      // Fetch initial sample
+      const sampleResult = await tryCatch(
+        fetchInitSampleAsAudioBuffer(),
+        'Failed to fetch initial sample'
+      );
+      this.#INIT_APP_SAMPLE = sampleResult.data;
+
+      // Register processors
+      const processorResult = await tryCatch(
+        registry.registerDefaultProcessors(),
+        'Failed to register audio processors'
+      );
+      assert(
+        !processorResult.error,
+        'Processor registration failed',
+        processorResult
+      );
+
+      console.log('Audiolib initialized successfully');
+    } catch (error) {
+      console.error(
+        `Audiolib initialization failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw new Error(
+        `Failed to initialize Audiolib: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -77,59 +123,77 @@ export class Audiolib extends LibNode {
     polyphony = 8,
     ctx = this.#audioContext
   ): Sampler | null {
-    assert(ctx, '', this);
+    try {
+      assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    const audioBuffer = audioSample || this.#defaultSample?.audioData;
-
-    if (!audioBuffer) {
-      console.error('no buffer for create sampler ??');
-      return null; // for now
-    }
-
-    const newSampler = new Sampler(polyphony, ctx, audioBuffer);
-    newSampler.connect(this.#masterGain);
-    this.#samplers.set(newSampler.nodeId, newSampler);
-    return newSampler;
-  }
-
-  // this is overly verbose - should register all default processors
-  // todo: simplify and cleanup all the registry logic!!
-  async registerProcessors(name = 'source-processor'): Promise<boolean> {
-    if (!this.#audioContext || !this.#audioContext?.audioWorklet) {
-      console.error(`no context or doesnt support worklet`);
-      return false;
-    }
-
-    if (!registry.hasRegistered(name)) {
-      const registryName = await registry.register({
-        processorName: name,
-        rawSource: SourceProcessorRaw,
+      let audioBuffer = audioSample || this.#INIT_APP_SAMPLE;
+      assert(audioBuffer, 'No audio buffer available for sampler', {
+        providedSample: !!audioSample,
+        initSampleAvailable: !!this.#INIT_APP_SAMPLE,
       });
-      return registryName !== null;
+
+      const newSampler = new Sampler(polyphony, ctx, audioBuffer);
+      newSampler.connect(this.#masterGain);
+      this.#samplers.set(newSampler.nodeId, newSampler);
+      return newSampler;
+    } catch (error) {
+      console.error(
+        `Failed to create sampler: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
     }
-
-    return registry.hasRegistered(name);
-  }
-
-  async ensureAudioCtx(): Promise<AudioContext> {
-    return await ensureAudioCtx();
   }
 
   /** GETTERS & SETTERS **/
 
+  async ensureAudioCtx(): Promise<AudioContext> {
+    const result = await tryCatch(
+      ensureAudioCtx(),
+      'Failed to ensure audio context'
+    );
+    if (result.error) {
+      console.error('Could not ensure audio context:', result.error);
+      throw result.error;
+    }
+    return result.data;
+  }
+
   get audioContext(): AudioContext | null {
-    if (!this.#audioContext) console.error('context not initialized!');
+    if (!this.#audioContext) {
+      console.error('Audio context not initialized!');
+    }
     return this.#audioContext;
   }
 
+  /** CLEAN UP **/
+
   dispose(): void {
-    console.debug('Audiolib dispose called');
-    this.#masterGain.disconnect();
-    this.#masterGain = null as unknown as GainNode;
-    releaseGlobalAudioContext();
-    registry.dispose();
-    idb.close();
-    super.dispose();
-    Audiolib.#instance = null;
+    try {
+      console.debug('Audiolib dispose called');
+
+      for (const sampler of this.#samplers.values()) {
+        sampler.dispose();
+      }
+      this.#samplers.clear();
+
+      if (this.#masterGain) {
+        this.#masterGain.disconnect();
+        this.#masterGain = null as unknown as GainNode;
+      }
+
+      // Release global resources
+      releaseGlobalAudioContext();
+      registry.dispose();
+      idb.close();
+
+      // Dispose parent
+      super.dispose();
+      Audiolib.#instance = null;
+    } catch (error) {
+      console.error(
+        `Error during Audiolib disposal: ${error instanceof Error ? error.message : String(error)}`
+      );
+      Audiolib.#instance = null;
+    }
   }
 }

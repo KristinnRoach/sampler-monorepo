@@ -10,7 +10,8 @@ import { findZeroCrossings } from '@/utils';
 export class Sampler {
   readonly nodeId: NodeID = createNodeId();
   readonly nodeType: string = 'source:default';
-  // #buffer: AudioBuffer | null = null; // todo: decide where to store ref to buffer (currently in SourceNode and audiolib)
+  // #buffer: AudioBuffer | null = null;
+  // todo: just store in idb samplelib for now! // decide where to store ref to buffer (currently in SourceNode and audiolib)
   #bufferDuration: number = 0;
 
   #context: AudioContext;
@@ -28,7 +29,7 @@ export class Sampler {
   #isInitialized: boolean = false;
   #isLoaded: boolean = false;
 
-  #zeroCrossings: number[] = [];
+  #zeroCrossings: number[] = []; // maybe needed later
   #useZeroCrossings: boolean = true;
 
   constructor(
@@ -59,10 +60,10 @@ export class Sampler {
     this.#isInitialized = true;
     this.#isLoaded = false;
 
+    // use validate audioBuffer util
     if (audioBuffer && audioBuffer.duration) {
-      // use validate audioBuffer util
-      // context.samplerate should be default??
-      this.loadSample(audioBuffer, context.sampleRate);
+      // ? context.samplerate or buffer.sr should be default??
+      this.loadSample(audioBuffer, audioBuffer.sampleRate);
     }
   }
 
@@ -83,15 +84,24 @@ export class Sampler {
   }
 
   #setupNodeParams(node: SourceNode): void {
-    this.#macroLoopStart.addTarget(node.loopStart);
-    this.#macroLoopEnd.addTarget(node.loopEnd);
-    this.#macroLoop.addTarget(node.loop);
+    this.#macroLoopStart.addTarget(node.loopStart, 'loopStart');
+    this.#macroLoopEnd.addTarget(node.loopEnd, 'loopEnd');
+    this.#macroLoop.addTarget(node.loop, 'loopEnabled');
   }
 
-  #resetMacros(bufferDuration: number = this.#bufferDuration): void {
-    this.#macroLoopEnd.param.setValueAtTime(bufferDuration, this.#now());
-    this.#macroLoopStart.param.setValueAtTime(0, this.#now());
-    this.#macroLoop.param.setValueAtTime(0, this.#now());
+  #resetMacros(bufferDuration: number = this.#bufferDuration) {
+    this.#macroLoopEnd.macro.setValueAtTime(bufferDuration, this.#now());
+    this.#macroLoopStart.macro.setValueAtTime(0, this.#now());
+    this.#macroLoop.macro.setValueAtTime(0, this.#now());
+
+    if (!this.#useZeroCrossings || !(this.#zeroCrossings.length > 0)) {
+      return this;
+    }
+    // set zero crossings
+    this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
+    this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
+
+    // set scale - allowed durations ...
   }
 
   async loadSample(buffer: AudioBuffer, sampleRate?: number): Promise<boolean> {
@@ -99,7 +109,6 @@ export class Sampler {
     this.#isLoaded = false;
 
     const rate = sampleRate || buffer.sampleRate;
-    console.debug(`loadSample SR:${rate}, ctx-SR:${this.#context.sampleRate}`);
 
     // Cache zero crossings, if being used
     if (this.#useZeroCrossings) this.#zeroCrossings = findZeroCrossings(buffer);
@@ -196,37 +205,51 @@ export class Sampler {
 
   setLoopEnabled(enabled: boolean): this {
     const now = this.#now();
-    this.#macroLoop.param.setValueAtTime(enabled ? 1 : 0, now);
+    this.#macroLoop.macro.setValueAtTime(enabled ? 1 : 0, now);
 
-    // If enabling loop and loop points are not set properly, set them
+    // Set loop points (maybe unnecessary?)
     if (enabled) {
-      if (this.#macroLoopEnd.param.value <= 0) {
-        this.#macroLoopEnd.param.setValueAtTime(this.#bufferDuration, now);
+      if (this.#macroLoopEnd.macro.value <= 0) {
+        this.#macroLoopEnd.macro = this.#bufferDuration;
       }
-      if (this.#macroLoopStart.param.value < 0) {
-        this.#macroLoopStart.param.setValueAtTime(0, now);
+      if (this.#macroLoopStart.macro.value < 0) {
+        this.#macroLoopStart.macro = this.#bufferDuration;
       }
     }
 
     return this;
   }
 
+  // use bind?
   setLoopStart(
     targetValue: number,
     rampTime: number = this.#loopRampTime
   ): this {
-    this.#macroLoopStart.ramp(targetValue, rampTime);
+    // const periodOptions = {
+    //   paramToProcess: 'start',
+    //   start: targetValue,
+    //   end: this.#macroLoopEnd.param.value,
+    // } as const;
+    const periodOptions = {
+      target: targetValue,
+      constant: this.#macroLoopEnd.macro.value,
+    } as const;
+    this.#macroLoopEnd.ramp(targetValue, rampTime, periodOptions);
     return this;
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampTime): this {
-    // // TODO: Testing which sounds nicer, macro vs looping through
-    // this.#macroLoopEnd.param.exponentialRampToValueAtTime(
-    //   targetValue,
-    //   this.#now() + rampTime
-    // );
+    // const periodOptions = {
+    //   paramToProcess: 'end',
+    //   start: this.#macroLoopStart.param.value,
+    //   end: targetValue,
+    // } as const;
 
-    this.#macroLoopEnd.ramp(targetValue, rampTime);
+    const periodOptions = {
+      target: targetValue,
+      constant: this.#macroLoopStart.macro.value,
+    } as const;
+    this.#macroLoopEnd.ramp(targetValue, rampTime, periodOptions);
     return this;
   }
 
@@ -244,6 +267,45 @@ export class Sampler {
     return allActiveNodes;
   }
 
+  dispose(): void {
+    try {
+      this.stopAll();
+
+      if (this.#sourcePool) {
+        this.#sourcePool.dispose();
+        this.#sourcePool = null as unknown as SourcePool;
+      }
+
+      if (this.#output) {
+        this.#output.disconnect();
+        this.#output = null as unknown as GainNode;
+      }
+
+      this.#activeNotes.clear();
+      this.#activeNotes = null as unknown as Map<number, string[]>;
+
+      this.#macroLoopStart.dispose();
+      this.#macroLoopEnd.dispose();
+      this.#macroLoop.dispose();
+      this.#macroLoopStart = null as unknown as MacroParam;
+      this.#macroLoopEnd = null as unknown as MacroParam;
+      this.#macroLoop = null as unknown as MacroParam;
+
+      // Reset state variables
+      this.#bufferDuration = 0;
+      this.#isInitialized = false;
+      this.#isLoaded = false;
+      this.#zeroCrossings = [];
+      this.#useZeroCrossings = false;
+      this.#loopRampTime = 0;
+
+      // Clear context reference
+      this.#context = null as unknown as AudioContext;
+    } catch (error) {
+      console.error(`Error disposing Sampler ${this.nodeId}:`, error);
+    }
+  }
+
   get activeNotesCount(): number {
     return [...this.#activeNotes.values()].reduce(
       (sum, arr) => sum + arr.length,
@@ -252,6 +314,14 @@ export class Sampler {
   }
   get isPlaying(): boolean {
     return this.#activeNotes.size > 0;
+  }
+
+  get isInitialized() {
+    return this.#isInitialized;
+  }
+
+  get isLoaded() {
+    return this.#isLoaded;
   }
 
   get sampleDuration(): number {
@@ -266,12 +336,12 @@ export class Sampler {
     return this.#sourcePool.nodes.length;
   }
   get loopStart(): AudioParam {
-    return this.#macroLoopStart.param;
+    return this.#macroLoopStart.macro;
   }
   get loopEnd(): AudioParam {
-    return this.#macroLoopEnd.param;
+    return this.#macroLoopEnd.macro;
   }
   get isLooping(): boolean {
-    return this.#macroLoop.param.value > 0.5;
+    return this.#macroLoop.macro.value > 0.5;
   }
 }

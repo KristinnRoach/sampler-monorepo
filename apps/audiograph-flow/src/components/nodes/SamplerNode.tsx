@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { audiolib, Sampler } from '@repo/audiolib';
 
@@ -12,13 +12,46 @@ interface SamplerNodeData {
 const SamplerNode = ({ data, isConnectable }: NodeProps<SamplerNodeData>) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
+
+  // Actual loop points (in seconds)
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(0);
+
+  // Normalized slider positions (0-1)
+  const [loopStartNormalized, setLoopStartNormalized] = useState(0);
+  const [loopEndNormalized, setLoopEndNormalized] = useState(1);
+
+  // Sample duration
+  const [sampleDuration, setSampleDuration] = useState(0);
+
   const [rampTime, setRampTime] = useState(0.2);
   const [activeVoices, setActiveVoices] = useState(0);
   const samplerRef = useRef<Sampler | null>(null);
 
   const [isInitialized, setInitialized] = useState(false);
+
+  // Update actual loop points when normalized positions or sample duration changes
+  useEffect(() => {
+    if (sampleDuration > 0) {
+      const actualLoopStart = loopStartNormalized * sampleDuration;
+      const actualLoopEnd = loopEndNormalized * sampleDuration;
+
+      setLoopStart(actualLoopStart);
+      setLoopEnd(actualLoopEnd);
+
+      // Only update the sampler if it's already loaded
+      if (isLoaded && samplerRef.current) {
+        samplerRef.current.setLoopStart(actualLoopStart, rampTime);
+        samplerRef.current.setLoopEnd(actualLoopEnd, rampTime);
+      }
+    }
+  }, [
+    loopStartNormalized,
+    loopEndNormalized,
+    sampleDuration,
+    isLoaded,
+    rampTime,
+  ]);
 
   const initAudio = async () => {
     if (isInitialized) return true;
@@ -65,7 +98,13 @@ const SamplerNode = ({ data, isConnectable }: NodeProps<SamplerNodeData>) => {
 
     const success = await samplerRef.current.loadSample(audioBuffer);
     if (success) {
-      setLoopEnd(audioBuffer.duration);
+      // Set duration and store it for normalizing calculations
+      setSampleDuration(audioBuffer.duration);
+
+      // Reset normalized positions to defaults
+      setLoopStartNormalized(0);
+      setLoopEndNormalized(1);
+
       setIsLoaded(true);
 
       // Notify parent component that the sample is loaded
@@ -117,20 +156,25 @@ const SamplerNode = ({ data, isConnectable }: NodeProps<SamplerNodeData>) => {
     samplerRef.current?.setLoopEnabled(newLoopState);
   }, [isLoopEnabled]);
 
-  const handleLoopStartChange = useCallback(
-    (value: number) => {
-      setLoopStart(value);
-      samplerRef.current?.setLoopStart(value, rampTime);
+  const handleLoopStartNormalizedChange = useCallback(
+    (normalizedValue: number) => {
+      // Clamp to ensure start doesn't exceed end
+      const clampedValue = Math.min(normalizedValue, loopEndNormalized - 0.001);
+      setLoopStartNormalized(clampedValue);
     },
-    [rampTime]
+    [loopEndNormalized]
   );
 
-  const handleLoopEndChange = useCallback(
-    (value: number) => {
-      setLoopEnd(value);
-      samplerRef.current?.setLoopEnd(value, rampTime);
+  const handleLoopEndNormalizedChange = useCallback(
+    (normalizedValue: number) => {
+      // Clamp to ensure end doesn't go below start
+      const clampedValue = Math.max(
+        normalizedValue,
+        loopStartNormalized + 0.001
+      );
+      setLoopEndNormalized(clampedValue);
     },
-    [rampTime]
+    [loopStartNormalized]
   );
 
   const handleRampTimeChange = useCallback((value: number) => {
@@ -209,10 +253,12 @@ const SamplerNode = ({ data, isConnectable }: NodeProps<SamplerNodeData>) => {
           <input
             type='range'
             min={0}
-            max={loopEnd || 0.5}
+            max={1}
             step={0.001}
-            value={loopStart}
-            onChange={(e) => handleLoopStartChange(parseFloat(e.target.value))}
+            value={loopStartNormalized}
+            onChange={(e) =>
+              handleLoopStartNormalizedChange(parseFloat(e.target.value))
+            }
             className='nodrag'
             style={{ width: '100%' }}
           />
@@ -224,11 +270,13 @@ const SamplerNode = ({ data, isConnectable }: NodeProps<SamplerNodeData>) => {
           </label>
           <input
             type='range'
-            min={loopStart}
-            max={loopEnd || 0.5}
+            min={0}
+            max={1}
             step={0.001}
-            value={loopEnd}
-            onChange={(e) => handleLoopEndChange(parseFloat(e.target.value))}
+            value={loopEndNormalized}
+            onChange={(e) =>
+              handleLoopEndNormalizedChange(parseFloat(e.target.value))
+            }
             className='nodrag'
             style={{ width: '100%' }}
           />

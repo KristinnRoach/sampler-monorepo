@@ -1,7 +1,6 @@
 import { getAudioContext, ensureAudioCtx } from '@/context/globalAudioContext';
-import { registry } from '@/processors/ProcessorRegistry';
+import { registry, ProcessorName } from '@/nodes/processors/ProcessorRegistry';
 import { DEFAULTS } from '../shared-utils';
-import { ProcessorName } from '@/processors/ProcessorRegistry';
 import { LibNode } from './LibNode';
 import { createNodeId } from '@/store/IdStore';
 

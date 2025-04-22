@@ -9,9 +9,6 @@ export async function initIdb() {
   try {
     await idb.open();
     await ensureInitSample();
-    console.debug('Opened IndexedDB', { idb });
-
-    console.log('IndexedDB initialized');
   } catch (error) {
     console.error('Error opening IndexedDB:', error);
   }
@@ -22,12 +19,11 @@ export async function ensureInitSample(): Promise<void> {
   try {
     const sampleId = 'default-init-sample';
     const sampleUrl = `${ASSETS_PATH}${INIT_SAMPLE_FILE}`;
-    console.debug({ sampleUrl });
 
     // Check if the init sample already exists in IndexedDB
     const existingSample = await idb.samples.get(sampleId);
     if (existingSample) {
-      console.debug('Init sample already exists in IndexedDB');
+      console.log('existing init sample in idb: ', { existingSample });
       return;
     }
 
@@ -48,7 +44,6 @@ export async function ensureInitSample(): Promise<void> {
       1, // is default init
       1 // is from audiolib's samplelib
     );
-    console.debug({ storedID });
 
     console.log(`storing init sample in idb, stored sample ID: ${storedID}`);
   } catch (error) {

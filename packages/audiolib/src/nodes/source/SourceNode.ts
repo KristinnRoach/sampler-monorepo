@@ -2,7 +2,7 @@ import { getAudioContext } from '@/context';
 import { createNodeId } from '@/store/IdStore';
 
 function midiNoteToFrequency(note: number): number {
-  return 440 * Math.pow(2, (note - 69) / 12);
+  return 440 * Math.pow(2, (note - 60) / 12);
 }
 
 function midiNoteToPlaybackRate(note: number, baseFrequency: number = 440) {
