@@ -33,11 +33,11 @@ class SourceProcessor extends AudioWorkletProcessor {
         automationRate: 'a-rate',
       },
       {
-        name: 'loop', // kannski kúl í eikkað glitchy stuff en annars meikar miklu meira sens
-        defaultValue: 0.0, // að senda bara boolean í message (sleppa param flækju)
+        name: 'loop',
+        defaultValue: 0.0,
         minValue: 0.0,
         maxValue: 1.0,
-        automationRate: 'a-rate',
+        automationRate: 'k-rate',
       },
     ];
   }
@@ -106,6 +106,10 @@ class SourceProcessor extends AudioWorkletProcessor {
     };
   }
 
+  #isLoopEnabled(loopParam) {
+    return (loopParam[0] ?? 0) > 0.5;
+  }
+
   process(inputs, outputs, parameters) {
     // Get output channel data
     const output = outputs[0];
@@ -133,6 +137,7 @@ class SourceProcessor extends AudioWorkletProcessor {
     const loopStart = parameters.loopStart || [0.0];
     const loopEnd = parameters.loopEnd || [0.0];
     const loop = parameters.loop || [0.0];
+    const shouldLoop = this.#isLoopEnabled(loop);
 
     // Single-value vs. audio-rate parameters
     const isPlaybackRateConstant = playbackRate.length === 1;
@@ -158,7 +163,7 @@ class SourceProcessor extends AudioWorkletProcessor {
       // Check if we need to notify that playback ended
       if (
         this.startTime !== null &&
-        loop < 0.5 &&
+        !this.#isLoopEnabled(loop) &&
         (currentTime >= this.stopTime ||
           (this.endTime !== null && currentTime >= this.endTime))
       ) {
@@ -202,7 +207,7 @@ class SourceProcessor extends AudioWorkletProcessor {
       if (
         this.endTime !== null &&
         currentTime + i / this.sampleRate >= this.endTime &&
-        loop < 0.5
+        !this.#isLoopEnabled(loop)
       ) {
         // Fill remaining samples with silence
         for (let c = 0; c < numChannels; c++) {

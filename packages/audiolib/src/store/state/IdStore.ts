@@ -1,12 +1,11 @@
 let newestId = -1;
 
-const IDStore: string[] = [newestId + ''];
+const IDStore: string[] = [];
 
-// todo: add node types
 export const createNodeId = (nodeType: string = '') => {
-  const id = (++newestId).toString();
-  IDStore.push(id + '-' + nodeType);
-  return id;
+  const nodeId = `${(++newestId).toString()}-${nodeType}`;
+  IDStore.push(nodeId);
+  return nodeId;
 };
 
 export const deleteNodeId = (nodeId: string) => {

@@ -2,24 +2,24 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 
-// // Utility functions for logarithmic scaling
-// const logScaleStart = (position: number) => {
-//   return 1 - Math.pow(1 - position, 3);
-// };
+// Utility functions for logarithmic scaling
+const logScaleStart = (position: number) => {
+  return 1 - Math.pow(1 - position, 3);
+};
 
-// const inverseLogScaleStart = (value: number) => {
-//   return 1 - Math.pow(1 - value, 1 / 3);
-// };
+const inverseLogScaleStart = (value: number) => {
+  return 1 - Math.pow(1 - value, 1 / 3);
+};
 
-// const logScaleEnd = (position: number) => {
-//   return Math.pow(position, 3);
-// };
+const logScaleEnd = (position: number) => {
+  return Math.pow(position, 3);
+};
 
-// const inverseLogScaleEnd = (value: number) => {
-//   return Math.pow(value, 1 / 3);
-// };
+const inverseLogScaleEnd = (value: number) => {
+  return Math.pow(value, 1 / 3);
+};
 
-const SamplePlayer = () => {
+const SamplerComponent = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
 
@@ -308,4 +308,4 @@ const SamplePlayer = () => {
   );
 };
 
-export default SamplePlayer;
+export default SamplerComponent;

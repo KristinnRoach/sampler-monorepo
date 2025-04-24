@@ -3,8 +3,8 @@ import { useRef, useState } from 'react';
 import './style.css';
 
 import { audiolib } from '@repo/audiolib';
-import SamplePlayer from './components/SamplePlayer';
-import KarplusStrongSynthComponent from './components/KarplusStrongSynth';
+import SamplerComponent from './components/SamplerComponent';
+import KarplusStrongSynthComponent from './components/KsSynthComponent';
 
 const App = () => {
   const audiolibRef = useRef(audiolib);
@@ -24,7 +24,7 @@ const App = () => {
             </button>
           </div>
 
-          {chosenInstrument === 'sampler' && <SamplePlayer />}
+          {chosenInstrument === 'sampler' && <SamplerComponent />}
           {chosenInstrument === 'karplus' && <KarplusStrongSynthComponent />}
         </>
       ) : (
