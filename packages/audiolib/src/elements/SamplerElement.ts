@@ -1,7 +1,7 @@
 // SamplerElement.ts
-import { Sampler } from '../nodes/Sampler';
+import { Sampler } from '../instruments/Sampler';
 import { audiolib } from '../index';
-import { registry } from '../nodes/processors/ProcessorRegistry';
+import { registry } from '../store/state/worklet-registry/ProcessorRegistry';
 
 export class SamplerElement extends HTMLElement {
   private sampler: Sampler | null = null;

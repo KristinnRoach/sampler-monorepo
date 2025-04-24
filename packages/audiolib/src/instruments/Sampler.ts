@@ -1,13 +1,13 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
 import { assert, tryCatch } from '@/utils';
-import { SourcePool } from './source/SourcePool';
-import { SourceNode } from './source/SourceNode';
+import { Pool } from '@/nodes/helpers/Pool';
+import { LibInstrument, LibSourceNode, SourceNode } from '@/nodes';
 import { MacroParam } from '@/helpers/MacroParam';
-import { createNodeId } from '@/store/IdStore';
+import { createNodeId } from '@/store/state/IdStore';
 import { findZeroCrossings } from '@/utils';
 
-export class Sampler {
+export class Sampler implements LibInstrument {
   readonly nodeId: NodeID = createNodeId();
   readonly nodeType: string = 'source:default';
   // #buffer: AudioBuffer | null = null;
@@ -17,7 +17,7 @@ export class Sampler {
   #context: AudioContext;
   #output: GainNode;
 
-  #sourcePool: SourcePool;
+  #sourcePool: Pool<SourceNode>; // todo: Pool<LibSourceNode>;
   #activeNotes: Map<number, string[]> = new Map(); // <midiNote, nodeId[]>
 
   #macroLoopStart: MacroParam;
@@ -43,7 +43,7 @@ export class Sampler {
 
     this.#activeNotes = new Map();
 
-    this.#sourcePool = new SourcePool(polyphony);
+    this.#sourcePool = new Pool(polyphony, 'source:default');
 
     this.#preCreateVoices(context, polyphony);
 
@@ -67,12 +67,32 @@ export class Sampler {
     }
   }
 
+  addListener(event: string, listener: Function) {
+    console.error('Method not implemented.');
+    return this;
+  }
+
+  removeListener(event: string, listener: Function) {
+    console.error('Method not implemented.');
+    return this;
+  }
+
+  dispatchEvent(event: Event) {
+    console.error('Method not implemented.');
+    return this;
+  }
+
+  now = () => this.#context.currentTime;
+
   connect(destination: AudioNode) {
     this.#output.connect(destination);
     return this;
   }
 
-  #now = () => this.#context.currentTime;
+  disconnect() {
+    this.#output.disconnect();
+    return this;
+  }
 
   #preCreateVoices(context: AudioContext, polyphony: number): void {
     for (let i = 0; i < polyphony; i++) {
@@ -90,9 +110,9 @@ export class Sampler {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    this.#macroLoopEnd.macro.setValueAtTime(bufferDuration, this.#now());
-    this.#macroLoopStart.macro.setValueAtTime(0, this.#now());
-    this.#macroLoop.macro.setValueAtTime(0, this.#now());
+    this.#macroLoopEnd.macro.setValueAtTime(bufferDuration, this.now());
+    this.#macroLoopStart.macro.setValueAtTime(0, this.now());
+    this.#macroLoop.macro.setValueAtTime(0, this.now());
 
     if (!this.#useZeroCrossings || !(this.#zeroCrossings.length > 0)) {
       return this;
@@ -133,7 +153,7 @@ export class Sampler {
     return true; // If returns true: set isLoaded = true
   }
 
-  playNote(midiNote: number, velocity: number = 1): void {
+  playNote(midiNote: number, velocity: number = 1) {
     let node = this.#sourcePool.getAvailableNode();
 
     if (!node) {
@@ -141,7 +161,7 @@ export class Sampler {
       if (this.#activeNotes.size > 0) {
         const oldestNote = this.#activeNotes.keys().next().value;
 
-        if (!oldestNote) return; // for now
+        if (!oldestNote) return this; // for now
         this.stopNote(oldestNote);
 
         // Try again
@@ -151,7 +171,7 @@ export class Sampler {
       // If still no node, something is wrong
       if (!node) {
         console.error('No voices available and voice stealing failed');
-        return;
+        return this;
       }
     }
 
@@ -160,19 +180,55 @@ export class Sampler {
 
     node.addListener('ended', () => {
       this.#removeFromActiveNotes(midiNote, node.nodeId);
-      this.#sourcePool.releaseNode(node.nodeId);
+      this.#sourcePool.markAvailable(node.nodeId);
     });
+
+    return this;
   }
 
-  #addToActiveNotes(midiNote: number, nodeId: string): void {
+  getParamValue(name: string): number | null {
+    // todo
+    return null;
+  }
+
+  setParamValue(name: string, value: number): this {
+    // todo
+    return this;
+  }
+
+  triggerAttack(midiNote: number, velocity: number = 1) {
+    // Todo
+    this.playNote(midiNote, velocity);
+    return this;
+  }
+
+  triggerRelease(midiNote: number) {
+    // Todo
+    this.stopNote(midiNote);
+    return this;
+  }
+
+  triggerAttackRelease(
+    // Todo
+    midiNote: number,
+    duration: number,
+    velocity: number = 1
+  ) {
+    this.playNote(midiNote, velocity);
+    setTimeout(() => this.stopNote(midiNote), duration * 1000);
+    return this;
+  }
+
+  #addToActiveNotes(midiNote: number, nodeId: string) {
     if (this.#activeNotes.has(midiNote)) {
       this.#activeNotes.get(midiNote)?.push(nodeId);
     } else {
       this.#activeNotes.set(midiNote, [nodeId]);
     }
+    return this;
   }
 
-  #removeFromActiveNotes(midiNote: number, nodeId: string): void {
+  #removeFromActiveNotes(midiNote: number, nodeId: string) {
     const nodeIds = this.#activeNotes.get(midiNote);
     if (nodeIds) {
       const remaining = nodeIds.filter((id) => id !== nodeId);
@@ -182,29 +238,45 @@ export class Sampler {
         this.#activeNotes.delete(midiNote);
       }
     }
+    return this;
   }
 
-  stopNote(midiNote: number): void {
+  stopNote(midiNote: number) {
     const nodeIds = this.#activeNotes.get(midiNote)?.slice() || [];
 
     nodeIds.forEach((nodeId) => {
       const node = this.#sourcePool.getNodeById(nodeId);
       if (node) {
         node.stop();
-        this.#sourcePool.releaseNode(nodeId);
+        this.#sourcePool.markAvailable(nodeId);
       }
     });
 
     this.#activeNotes.delete(midiNote);
+    return this;
   }
 
-  stopAll(): void {
-    this.#sourcePool.stopAll();
+  stopAll() {
+    const callback = (node: LibSourceNode) => {
+      node.stop();
+      this.#sourcePool.markAvailable(node.nodeId);
+    };
+
+    this.applyToAllActiveNodes(callback);
+
     this.#activeNotes.clear();
+
+    return this;
+  }
+
+  releaseAll(): this {
+    // TODO
+    this.stopAll();
+    return this;
   }
 
   setLoopEnabled(enabled: boolean): this {
-    const now = this.#now();
+    const now = this.now();
     this.#macroLoop.macro.setValueAtTime(enabled ? 1 : 0, now);
 
     // Set loop points (maybe unnecessary?)
@@ -233,13 +305,18 @@ export class Sampler {
     return this;
   }
 
-  getAllActiveNodes(): SourceNode[] {
-    // add util to pass in a function to avoid iterating twice
+  applyToAllActiveNodes(funcToApply: Function) {
+    this.getAllActiveNodes(funcToApply);
+    return this;
+  }
+
+  getAllActiveNodes(applyFunction?: Function): SourceNode[] {
     const allActiveNodes: SourceNode[] = [];
     this.#activeNotes.forEach((nodeIds) => {
       nodeIds.forEach((nodeId) => {
         const node = this.#sourcePool.getNodeById(nodeId);
         if (node) {
+          if (applyFunction) applyFunction(node);
           allActiveNodes.push(node);
         }
       });
@@ -253,7 +330,7 @@ export class Sampler {
 
       if (this.#sourcePool) {
         this.#sourcePool.dispose();
-        this.#sourcePool = null as unknown as SourcePool;
+        this.#sourcePool = null as unknown as Pool<SourceNode>;
       }
 
       if (this.#output) {

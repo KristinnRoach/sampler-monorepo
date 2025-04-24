@@ -47,12 +47,10 @@ const SamplePlayer = () => {
   }, [loopStartNormalized, loopEndNormalized, sampleDuration]);
 
   // audio must be initialized on user interaction
-  const initAudio = async () => {
+  const createSampler = async () => {
     if (isInitialized) return;
 
     try {
-      await audiolib.init();
-
       samplerRef.current = audiolib.createSampler();
       if (!samplerRef.current) {
         console.error('Failed to create sampler');
@@ -68,7 +66,7 @@ const SamplePlayer = () => {
   };
 
   const fetchInitSample = async () => {
-    if (!(await initAudio())) return;
+    if (!(await createSampler())) return;
 
     const response = await fetch('/init_sample.wav');
     if (!response.ok) {
@@ -82,7 +80,7 @@ const SamplePlayer = () => {
   };
 
   const loadSample = async (file: File) => {
-    if (!(await initAudio())) return;
+    if (!(await createSampler())) return;
     if (!file) {
       console.error('No file selected');
       return;
@@ -119,6 +117,18 @@ const SamplePlayer = () => {
     },
     []
   );
+
+  useEffect(() => {
+    fetchInitSample()
+      .then((file) => {
+        if (file) {
+          loadSample(file);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching initial sample:', error);
+      });
+  }, []);
 
   const handleNoteOn = (midiNote: number) => {
     samplerRef.current?.playNote(midiNote);
@@ -196,9 +206,8 @@ const SamplePlayer = () => {
     <div style={{ width: '100vw' }}>
       <h2>SourcePlayer Test</h2>
       <button
-        id='loadTestSound'
+        id='loadDefaultSample'
         onClick={async () => {
-          await initAudio();
           const file = await fetchInitSample();
           if (!file) {
             console.error('Failed to fetch initial sample');

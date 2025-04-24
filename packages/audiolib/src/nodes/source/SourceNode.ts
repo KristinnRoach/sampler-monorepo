@@ -1,5 +1,6 @@
+import { LibSourceNode } from '@/nodes';
 import { getAudioContext } from '@/context';
-import { createNodeId } from '@/store/IdStore';
+import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 
 function midiNoteToFrequency(note: number): number {
   return 440 * Math.pow(2, (note - 60) / 12);
@@ -10,9 +11,10 @@ function midiNoteToPlaybackRate(note: number, baseFrequency: number = 440) {
   return frequency / baseFrequency;
 }
 
-export class SourceNode extends AudioWorkletNode {
+export class SourceNode extends AudioWorkletNode implements LibSourceNode {
   readonly nodeId: NodeID = createNodeId();
   readonly nodeType: string = 'source:default';
+  readonly processorNames = ['source-processor'];
 
   private _isPlaying: boolean;
   private _duration: number;
@@ -64,26 +66,45 @@ export class SourceNode extends AudioWorkletNode {
     };
   }
 
+  getParam(name: string): AudioParam | null {
+    return this.paramMap.get(name) || null;
+  }
+
+  setParam(name: string, value: number, options: any): this {
+    // TODO: optional linear, exponential ramp, setTargetAtTime etc.
+    console.warn(`setParam implementation is no finished!!`);
+    const param = this.paramMap.get(name);
+    if (param) {
+      param.setValueAtTime(value, this.now);
+    }
+    return this;
+  }
+
   // Event handling
-  addListener(type: string, callback: Function): void {
+  addListener(type: string, callback: Function) {
     if (this._eventListeners[type]) {
       this._eventListeners[type].push(callback);
     }
+
+    // this.addEventListener(event, listener); // ? check the inheritance
+    return this;
   }
 
-  removeListener(type: string, callback: Function): void {
+  removeListener(type: string, callback: Function) {
     if (this._eventListeners[type]) {
       this._eventListeners[type] = this._eventListeners[type].filter(
         (cb) => cb !== callback
       );
     }
+    return this;
   }
 
-  _dispatchEvent(type: string, detail: Record<string, any> = {}): void {
+  #dispatch(type: string, detail: Record<string, any> = {}) {
     if (this._eventListeners[type]) {
       const event = { type, detail, target: this };
       this._eventListeners[type].forEach((cb) => cb(event));
     }
+    return this;
   }
 
   // Handle messages from processor
@@ -92,9 +113,9 @@ export class SourceNode extends AudioWorkletNode {
 
     if (data.type === 'ended') {
       this._isPlaying = false;
-      this._dispatchEvent('ended');
+      this.#dispatch('ended');
     } else if (data.type === 'looped') {
-      this._dispatchEvent('looped', { loopCount: data.loopCount });
+      this.#dispatch('looped', { loopCount: data.loopCount });
     }
   }
 
@@ -152,7 +173,7 @@ export class SourceNode extends AudioWorkletNode {
     });
 
     this._isPlaying = true;
-    this._dispatchEvent('started', { offset });
+    this.#dispatch('started', { offset });
 
     return this;
   }
@@ -180,7 +201,6 @@ export class SourceNode extends AudioWorkletNode {
   setLoopEnabled(enabled: 1 | 0) {
     // boolean
     this.loop.setValueAtTime(enabled ? 1 : 0, this.context.currentTime);
-    // this.loopEnd.setValueAtTime(1, 0); // ! temp fix until macros work
     return this;
   }
 
@@ -194,20 +214,10 @@ export class SourceNode extends AudioWorkletNode {
   }
 
   setLoopEnd(targetValue: number, rampTime: number = 0.1) {
-    console.log(`loopEnd before value: ${this.loopEnd.value}`);
-
     this.loopEnd.linearRampToValueAtTime(
       targetValue,
       this.context.currentTime + rampTime
     );
-
-    console.log(
-      `setting loopEnd to target ${targetValue} at ${this.context.currentTime + rampTime}`
-    );
-    // log actual value
-    setTimeout(() => {
-      console.log(`loopEnd after setting value: ${this.loopEnd.value}`);
-    }, 50);
 
     return this;
   }
@@ -218,11 +228,22 @@ export class SourceNode extends AudioWorkletNode {
   }
 
   // Properties
+  get now() {
+    return this.context.currentTime;
+  }
+
   get isPlaying(): boolean {
     return this._isPlaying;
   }
 
   get duration(): number {
     return this._duration;
+  }
+
+  dispose() {
+    this.stop();
+    this.disconnect();
+    this.port.close();
+    deleteNodeId(this.nodeId);
   }
 }

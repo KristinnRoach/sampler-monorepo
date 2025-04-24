@@ -1,7 +1,7 @@
 // globalAudioContext.ts
 
 import { DEFAULT_SAMPLE_RATE } from '@/constants';
-import { SystemEventBus } from '@/events';
+// import { SystemEventBus } from '@/events';
 
 let globalAudioContext: AudioContext | null = null;
 let resumePromise: Promise<void> | null = null;
@@ -19,10 +19,10 @@ export function getAudioContext(config?: AudioContextConfig): AudioContext {
       latencyHint: config?.latencyHint || 'interactive',
     });
 
-    SystemEventBus.notify('audiocontext:created', {
-      publisherId: 'GlobalAudioContext',
-      message: `outputlatency: ${globalAudioContext.outputLatency},\nbaselatency: ${globalAudioContext.baseLatency},\nsampleRate: ${globalAudioContext.sampleRate}\nctx: ${globalAudioContext}`,
-    });
+    // SystemEventBus.notify('audiocontext:created', {
+    //   publisherId: 'GlobalAudioContext',
+    //   message: `outputlatency: ${globalAudioContext.outputLatency},\nbaselatency: ${globalAudioContext.baseLatency},\nsampleRate: ${globalAudioContext.sampleRate}\nctx: ${globalAudioContext}`,
+    // });
 
     // Set up auto-resume on first creation, but don't await it
     if (globalAudioContext.state === 'suspended') {
@@ -41,10 +41,10 @@ function setupAutoResume(): Promise<void> {
     const handler = async () => {
       if (globalAudioContext) {
         await globalAudioContext.resume();
-        SystemEventBus.notify('audiocontext:resumed', {
-          publisherId: 'GlobalAudioContext',
-          message: `ctx: ${globalAudioContext}`,
-        });
+        // SystemEventBus.notify('audiocontext:resumed', {
+        //   publisherId: 'GlobalAudioContext',
+        //   message: `ctx: ${globalAudioContext}`,
+        // });
         resumeEvents.forEach((event) =>
           document.removeEventListener(event, handler)
         );
@@ -85,10 +85,10 @@ export async function decodeAudioData(
 export function releaseGlobalAudioContext(): void {
   if (globalAudioContext) {
     globalAudioContext.close().then(() => {
-      SystemEventBus.notify('audiocontext:closed', {
-        publisherId: 'GlobalAudioContext',
-        message: `ctx: ${globalAudioContext}`,
-      });
+      // SystemEventBus.notify('audiocontext:closed', {
+      //   publisherId: 'GlobalAudioContext',
+      //   message: `ctx: ${globalAudioContext}`,
+      // });
       globalAudioContext = null;
       resumePromise = null;
     });

@@ -3,16 +3,17 @@ import {
   getAudioContext,
   releaseGlobalAudioContext,
 } from '@/context';
-import { LibNode } from '@/abstract/baseClasses/LibNode';
 
 import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
 import { idb, initIdb, sampleLib } from './store/persistent/idb';
-import { registry } from '@/nodes/processors/ProcessorRegistry';
+import { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
 
-import { Sampler } from './nodes/Sampler';
+import { Sampler, KarplusStrongSynth } from './instruments';
 import { assert, tryCatch } from '@/utils';
 
-export class Audiolib extends LibNode {
+export class Audiolib {
+  readonly nodeId: string = 'audiolib';
+  readonly nodeType: string = 'audiolib';
   static #instance: Audiolib | null = null;
 
   static getInstance(): Audiolib {
@@ -30,9 +31,6 @@ export class Audiolib extends LibNode {
   #INIT_APP_SAMPLE: AudioBuffer | null = null;
 
   private constructor() {
-    super();
-    console.log(`Audiolib constructor. Instance nodeId: ${this.nodeId}.`);
-
     try {
       this.#audioContext = getAudioContext();
       assert(this.#audioContext, 'Failed to get audio context', {
@@ -144,6 +142,21 @@ export class Audiolib extends LibNode {
     }
   }
 
+  createKarplusStrongSynth(polyphony = 8, ctx = this.#audioContext) {
+    try {
+      assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
+
+      const newSynth = new KarplusStrongSynth(polyphony);
+      newSynth.connect(this.#masterGain);
+      return newSynth;
+    } catch (error) {
+      console.error(
+        `Failed to create Karplus Strong synth: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
   /** GETTERS & SETTERS **/
 
   async ensureAudioCtx(): Promise<AudioContext> {
@@ -186,8 +199,6 @@ export class Audiolib extends LibNode {
       registry.dispose();
       idb.close();
 
-      // Dispose parent
-      super.dispose();
       Audiolib.#instance = null;
     } catch (error) {
       console.error(

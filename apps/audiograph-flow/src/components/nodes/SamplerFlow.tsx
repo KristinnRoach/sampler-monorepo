@@ -131,78 +131,45 @@ function SamplerFlowExample() {
       setEdges((eds) => {
         const newEdge = addEdge(connection, eds);
 
-        // Handle keyboard to sampler connection (MIDI notes)
         if (
           connection.sourceHandle === 'note-out' &&
-          connection.targetHandle === 'note-in' &&
-          connection.source &&
-          connection.target
+          connection.targetHandle === 'note-in'
         ) {
-          // Get the source node (keyboard) methods
-          const sourceNode = nodes.find((n) => n.id === connection.source);
-          const targetNode = nodes.find((n) => n.id === connection.target);
+          console.log('Setting up MIDI connection');
 
-          if (sourceNode && targetNode) {
-            // Update keyboard to send notes to the sampler
-            setNodes((nds) =>
-              nds.map((n) => {
-                if (n.id === sourceNode.id) {
-                  return {
-                    ...n,
-                    data: {
-                      ...n.data,
-                      onNoteOn: (note: number, velocity?: number) => {
-                        const targetMethods = nodeRefsMap.current.get(
-                          targetNode.id
-                        );
-                        if (targetMethods && targetMethods.playNote) {
-                          targetMethods.playNote(note, velocity);
-                        }
-                      },
-                      onNoteOff: (note: number) => {
-                        const targetMethods = nodeRefsMap.current.get(
-                          targetNode.id
-                        );
-                        if (targetMethods && targetMethods.stopNote) {
-                          targetMethods.stopNote(note);
-                        }
-                      },
+          const targetMethods = nodeRefsMap.current.get(connection.target!);
+
+          setNodes((nds) =>
+            nds.map((node) => {
+              if (node.id === connection.source) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    onNoteOn: (note: number, velocity?: number) => {
+                      console.log(
+                        'Keyboard -> Sampler noteOn:',
+                        note,
+                        velocity
+                      );
+                      targetMethods?.playNote?.(note, velocity);
                     },
-                  };
-                }
-                return n;
-              })
-            );
-          }
-        }
-
-        // Handle sampler to analyzer connection (Audio)
-        if (
-          connection.sourceHandle === 'audio-out' &&
-          connection.targetHandle === 'audio-in' &&
-          connection.source &&
-          connection.target
-        ) {
-          setTimeout(() => {
-            const sourceMethods = nodeRefsMap.current.get(connection.source!);
-            const targetMethods = nodeRefsMap.current.get(connection.target!);
-
-            if (sourceMethods && targetMethods) {
-              const sampler = sourceMethods.getSampler?.();
-              const analyzerInput = targetMethods.getInput?.();
-
-              if (sampler && analyzerInput) {
-                console.log('Connecting sampler to analyzer');
-                sampler.connect(analyzerInput);
+                    onNoteOff: (note: number) => {
+                      console.log('Keyboard -> Sampler noteOff:', note);
+                      targetMethods?.stopNote?.(note);
+                    },
+                  },
+                };
               }
-            }
-          }, 500); // Small delay to ensure both nodes are initialized
+              return node;
+            })
+          );
         }
 
         return newEdge;
       });
     },
-    [nodes, setEdges, setNodes]
+    [setEdges, setNodes]
   );
 
   // Update node data to include the register method

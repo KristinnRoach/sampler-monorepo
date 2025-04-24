@@ -34,7 +34,6 @@ class ProcessorRegistry {
   }
 
   async register(options: registryOptions): Promise<string | null> {
-    // , blobURL: string): Promise<void> {
     const audioContext = await ensureAudioCtx();
     const name = options.processorName;
 

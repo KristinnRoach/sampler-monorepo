@@ -1,18 +1,23 @@
-// SourcePool.ts
-import { SourceNode } from './SourceNode';
+// Pool.ts
+import { LibNode } from '@/nodes';
+import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 
-export class SourcePool {
-  #nodes: SourceNode[];
-  #availableNodes: Set<string>; // available nodeIds
+export class Pool<T extends LibNode> implements LibNode {
+  readonly nodeId: NodeID = createNodeId();
+  readonly nodeType: string;
+
+  #nodes: T[];
+  #availableNodes: Set<string>; // nodeIds
   #maxNodes: number;
 
-  constructor(polyphony: number = 16) {
+  constructor(polyphony: number = 16, nodeType: string) {
     this.#nodes = [];
-    this.#availableNodes = new Set();
+    this.#availableNodes = new Set(); // available nodeIds
     this.#maxNodes = polyphony;
+    this.nodeType = `pool:${nodeType}`;
   }
 
-  getAvailableNode(): SourceNode | null {
+  getAvailableNode(): T | null {
     // Get the first available node
     if (this.#availableNodes.size > 0) {
       const nodeId = this.#availableNodes.values().next().value;
@@ -25,19 +30,14 @@ export class SourcePool {
     return null;
   }
 
-  releaseNode(nodeId: NodeID): void {
+  markAvailable(nodeId: NodeID) {
     // Mark the node as available
     this.#availableNodes.add(nodeId);
+
+    return this;
   }
 
-  stopAll(): void {
-    for (const node of this.#nodes) {
-      node.stop();
-      this.#availableNodes.add(node.nodeId);
-    }
-  }
-
-  addNodes(nodes: SourceNode[]) {
+  addNodes(nodes: T[]) {
     for (const node of nodes) {
       if (this.#nodes.length < this.#maxNodes) {
         this.#nodes.push(node);
@@ -46,18 +46,20 @@ export class SourcePool {
         console.warn('Max nodes reached, cannot add more.');
       }
     }
+    return this;
   }
 
-  addNode(node: SourceNode) {
+  addNode(node: T) {
     if (this.#nodes.length < this.#maxNodes) {
       this.#nodes.push(node);
       this.#availableNodes.add(node.nodeId);
     } else {
       console.warn('Max nodes reached, cannot add more.');
     }
+    return this;
   }
 
-  getNodeById(nodeId: NodeID): SourceNode | null {
+  getNodeById(nodeId: NodeID): T | null {
     return this.#nodes.find((n) => n.nodeId === nodeId) || null;
   }
 
@@ -65,19 +67,30 @@ export class SourcePool {
     return this.#availableNodes.has(nodeId);
   }
 
+  connect(destination: AudioNode | AudioParam) {
+    for (const node of this.#nodes) {
+      node.connect(destination);
+    }
+
+    return this;
+  }
+
   disconnect() {
     for (const node of this.#nodes) {
       node.disconnect();
     }
+
+    return this;
   }
 
   dispose() {
     this.disconnect();
     this.#nodes = [];
     this.#availableNodes.clear();
+    deleteNodeId(this.nodeId);
   }
 
-  get nodes(): SourceNode[] {
+  get nodes(): T[] {
     return this.#nodes;
   }
 
