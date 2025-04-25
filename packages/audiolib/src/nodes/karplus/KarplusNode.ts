@@ -48,7 +48,7 @@ export class KarplusNode implements LibSourceNode {
 
     // Create a combined parameter map for all parameters
     this.paramMap = new Map([
-      ['decay', this.fbParamMap.get('gain')!],
+      ['decay', this.fbParamMap.get('gain')!], // todo: clarify decayFactor vs decayTime vs noiseTime
       [
         'noiseTime',
         {
@@ -95,65 +95,11 @@ export class KarplusNode implements LibSourceNode {
     return this;
   }
 
-  triggerAttack(
-    midiNote: number,
-    attackTime: number,
-    velocity: number = 1
-  ): this {
-    // Reset output gain
-    this.outputGain.gain.cancelScheduledValues(this.now);
-    this.outputGain.gain.setValueAtTime(this.#volume, this.now);
+  trigger(options: { midiNote: number; velocity: number }): this {
+    if (this.#isPlaying) return this;
 
-    this.noiseGain.gain.cancelScheduledValues(this.now);
-    this.noiseGain.gain.setValueAtTime(0, this.now);
-    // Schedule noise burst to excite the string using current holdMs value
-    this.noiseGain.gain.linearRampToValueAtTime(
-      this.#volume * velocity,
-      this.now + attackTime
-    );
-    this.noiseGain.gain.linearRampToValueAtTime(
-      0,
-      this.now + this.holdMs / 1000
-    );
-
-    this.play({ midiNote });
-
-    return this;
-  }
-
-  triggerRelease(releaseTime: number): this {
-    // if (!this.#isPlaying) return this;
-
-    const now = this.now;
-    this.outputGain.gain.cancelAndHoldAtTime(this.now);
-    // this.outputGain.gain.setValueAtTime(this.outputGain.gain.value, now);
-    this.outputGain.gain.exponentialRampToValueAtTime(
-      0.00001,
-      now + releaseTime
-    );
-
-    // timeout just for now, should be onEnded notification message
-    setTimeout(() => {
-      this.#isPlaying = false;
-      this.stop();
-    }, releaseTime * 1000);
-
-    return this;
-  }
-
-  // triggerAttackRelease(
-  //   midiNote: number,
-  //   duration: number,
-  //   velocity: number = 1
-  // ): this {
-  //   this.playNote(midiNote, velocity);
-  //   setTimeout(() => this.stopNote(midiNote), duration * 1000);
-  //   return this;
-  // }
-
-  play(options: { midiNote: number }) {
     this.#isPlaying = true;
-    const { midiNote } = options;
+    const { midiNote, velocity } = options;
 
     const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
     const delayMs = 1000 / frequency;
@@ -162,30 +108,54 @@ export class KarplusNode implements LibSourceNode {
     const totalDelay = delayMs;
 
     this.delay = { ms: totalDelay };
+    // Reset gain params
+    this.outputGain.gain.cancelScheduledValues(this.now);
+    this.outputGain.gain.setValueAtTime(this.#volume, this.now);
+    this.noiseGain.gain.cancelScheduledValues(this.now);
+    this.noiseGain.gain.setValueAtTime(0, this.now);
 
-    // // Reset output gain
-    // this.outputGain.gain.cancelScheduledValues(this.now);
-    // this.outputGain.gain.setValueAtTime(1, this.now);
+    // Schedule noise burst to excite the string using current holdMs value
+    this.noiseGain.gain.linearRampToValueAtTime(
+      this.#volume * velocity,
+      this.now //+ this.#attackTime
+    );
 
-    // // Schedule noise burst to excite the string using current holdMs value
-    // this.noiseGain.gain.setValueAtTime(0.5, this.now);
-    // this.noiseGain.gain.linearRampToValueAtTime(
-    //   0,
-    //   this.now + this.holdMs / 1000
-    // );
+    this.noiseGain.gain.linearRampToValueAtTime(
+      0,
+      this.now + this.holdMs / 1000 // + this.#attackTime
+    );
+
+    return this;
+  }
+
+  release(releaseTime: number): this {
+    if (!this.#isPlaying) return this;
+
+    const now = this.now;
+    this.outputGain.gain.cancelAndHoldAtTime(this.now);
+    // this.outputGain.gain.setValueAtTime(this.outputGain.gain.value, now);
+    this.outputGain.gain.linearRampToValueAtTime(0.00001, now + releaseTime);
+
+    // timeout just for now, should be onEnded notification message
+    setTimeout(
+      () => {
+        this.#isPlaying = false;
+        this.stop();
+      },
+      releaseTime + 0.1 * 1000
+    );
 
     return this;
   }
 
   stop() {
     if (!this.#isPlaying) return this;
-
-    // const now = this.now;
-    // this.outputGain.gain.cancelScheduledValues(now);
-    // this.outputGain.gain.setValueAtTime(this.outputGain.gain.value, now);
-    // this.outputGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    this.noiseGain.gain.cancelScheduledValues(this.now);
+    this.outputGain.gain.cancelScheduledValues(this.now);
+    this.outputGain.gain.setValueAtTime(0, this.now);
+    this.noiseGain.gain.setValueAtTime(0, this.now);
+    // this.feedbackDelay.port.postMessage({ type: 'stop' });
     this.#isPlaying = false;
-
     return this;
   }
 
@@ -227,5 +197,11 @@ export class KarplusNode implements LibSourceNode {
 
   get isPlaying(): boolean {
     return this.#isPlaying;
+  }
+
+  sendToProcessor(data: any): void {
+    // Forward messages to both processors
+    this.noiseGenerator.port.postMessage(data);
+    this.feedbackDelay.port.postMessage(data);
   }
 }

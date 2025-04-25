@@ -23,31 +23,16 @@ export interface LibSourceNode extends LibNode {
   addListener(event: string, listener: Function): this;
   removeListener(event: string, listener: Function): this;
 
-  // todo: triggers should be here
-  // triggerAttack(midiNote: number, velocity?: number): this;
-  // triggerRelease(midiNote: number): this;
-  // triggerAttackRelease(
-  //   midiNote: number,
-  //   duration: number,
-  //   velocity?: number
-  // ): void;
-  // releaseAll(): this;
+  trigger(options: TODO): this;
+  release(options?: TODO): this;
+  sendToProcessor(data: any): void;
 
-  play(options: TODO): this;
-  stop(): this;
+  stop(): this; // force immediate stop
 }
 
 export interface LibInstrument extends LibNode {
-  playNote(midiNote: number, velocity?: number): this;
-  stopNote(midiNote: number): this;
-
-  triggerAttack(midiNote: number, velocity?: number): this;
-  triggerRelease(midiNote: number): this;
-  triggerAttackRelease(
-    midiNote: number,
-    duration: number,
-    velocity?: number
-  ): void;
+  play(midiNote: number, velocity?: number): this;
+  release(midiNote?: number): this;
   releaseAll(): this;
 
   setParamValue(name: string, value: number): this;

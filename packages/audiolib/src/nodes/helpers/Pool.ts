@@ -1,8 +1,8 @@
 // Pool.ts
-import { LibNode } from '@/nodes';
+import { LibNode, LibSourceNode } from '@/nodes';
 import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 
-export class Pool<T extends LibNode> implements LibNode {
+export class Pool<T extends LibSourceNode> implements LibNode {
   readonly nodeId: NodeID = createNodeId();
   readonly nodeType: string;
 
@@ -19,15 +19,16 @@ export class Pool<T extends LibNode> implements LibNode {
 
   getAvailableNode(): T | null {
     // Get the first available node
-    if (this.#availableNodes.size > 0) {
-      const nodeId = this.#availableNodes.values().next().value;
-      if (!nodeId) return null;
-
-      this.#availableNodes.delete(nodeId);
-      return this.getNodeById(nodeId);
+    if (!this.#availableNodes.size) {
+      console.warn('No available nodes in the pool.');
+      return null;
     }
+    const nodeId = this.#availableNodes.values().next().value;
+    if (!nodeId) return null;
+
+    this.#availableNodes.delete(nodeId);
+    return this.getNodeById(nodeId);
     // todo: implement stealing
-    return null;
   }
 
   markAvailable(nodeId: NodeID) {
@@ -39,12 +40,7 @@ export class Pool<T extends LibNode> implements LibNode {
 
   addNodes(nodes: T[]) {
     for (const node of nodes) {
-      if (this.#nodes.length < this.#maxNodes) {
-        this.#nodes.push(node);
-        this.#availableNodes.add(node.nodeId);
-      } else {
-        console.warn('Max nodes reached, cannot add more.');
-      }
+      this.addNode(node);
     }
     return this;
   }
@@ -53,6 +49,11 @@ export class Pool<T extends LibNode> implements LibNode {
     if (this.#nodes.length < this.#maxNodes) {
       this.#nodes.push(node);
       this.#availableNodes.add(node.nodeId);
+
+      node.addListener('voice:ended', () => {
+        this.#availableNodes.add(node.nodeId);
+        // this.markAvailable(node.nodeId);
+      });
     } else {
       console.warn('Max nodes reached, cannot add more.');
     }

@@ -22,11 +22,11 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
 
   paramMap: Map<string, AudioParam>; // Workaround for TypeScript issue with AudioParamMap
 
-  // Add type definitions for parameter properties
   readonly playbackRate: AudioParam;
   readonly loop: AudioParam;
   readonly loopStart: AudioParam;
   readonly loopEnd: AudioParam;
+  readonly playbackPositionParam: AudioParam;
 
   constructor(
     context: AudioContext = getAudioContext(),
@@ -34,14 +34,13 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
       processorOptions: {},
     }
   ) {
-    // Pass the processor name and options to the parent constructor
     super(context, 'source-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       processorOptions: options.processorOptions || {},
     });
 
-    // Don't set context property, it's already set by the parent class (super)
+    // The context property is already set by the parent class (super)
     this._isPlaying = false;
     this._duration = options.duration || 0;
 
@@ -52,18 +51,51 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     this.loop = this.paramMap.get('loop')!;
     this.loopStart = this.paramMap.get('loopStart')!;
     this.loopEnd = this.paramMap.get('loopEnd')!;
+    this.playbackPositionParam = this.paramMap.get('playbackPosition')!;
 
-    this.loopEnd.setValueAtTime(this._duration, this.context.currentTime);
+    // Initialize loopEnd according to the samples duration
+    this.loopEnd.setValueAtTime(this._duration, this.now);
 
     // Set up message handling
-    this.port.onmessage = this._handleMessage.bind(this);
+    this.port.onmessage = (event: MessageEvent) => {
+      const data = event.data;
+
+      if (data.type === 'voice:ended') {
+        this._isPlaying = false;
+        this.#dispatch('voice:ended', { nodeId: this.nodeId });
+
+        // FEJWIO
+      } else if (data.type === 'voice:looped') {
+        this.#dispatch('voice:looped', { loopCount: data.loopCount });
+      } else if (data.type === 'voice:position_and_amplitude') {
+        this.playbackPositionParam.setValueAtTime(
+          data.position,
+          this.context.currentTime
+        );
+        this.#dispatch('voice:position_and_amplitude', {
+          nodeId: this.nodeId,
+          position: data.position,
+          seconds: data.seconds,
+          amplitude: data.amplitude,
+        });
+      }
+    };
 
     // Set up event target
     this._eventListeners = {
-      ended: [],
-      started: [],
-      looped: [],
+      'voice:ended': [],
+      'voice:started': [],
+      'voice:looped': [],
+      'voice:position_and_amplitude': [],
+      // 'voice:amplitude': [],
     };
+
+    this.sendToProcessor({ type: 'voice:init' });
+  }
+
+  sendToProcessor(data: any) {
+    // todo: consistently type data for events // use this method to clean up others by including defaults like nodeId
+    this.port.postMessage(data);
   }
 
   getParam(name: string): AudioParam | null {
@@ -85,7 +117,6 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     if (this._eventListeners[type]) {
       this._eventListeners[type].push(callback);
     }
-
     // this.addEventListener(event, listener); // ? check the inheritance
     return this;
   }
@@ -107,30 +138,25 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     return this;
   }
 
-  // Handle messages from processor
-  _handleMessage(event: MessageEvent): void {
-    const data = event.data;
-
-    if (data.type === 'ended') {
-      this._isPlaying = false;
-      this.#dispatch('ended');
-    } else if (data.type === 'looped') {
-      this.#dispatch('looped', { loopCount: data.loopCount });
-    }
-  }
-
   // API methods
-  async loadBuffer(buffer: AudioBuffer, sampleRate?: number): Promise<this> {
+  async loadBuffer(buffer: AudioBuffer): Promise<this> {
+    if (buffer.sampleRate !== this.context.sampleRate) {
+      console.warn(
+        `sample rate mismatch, 
+        buffer: ${buffer.sampleRate}, 
+        context: ${this.context.sampleRate}`
+      );
+    }
+
     // Convert buffer if needed
     const bufferData: Float32Array[] = [];
     for (let i = 0; i < buffer.numberOfChannels; i++) {
       bufferData.push(buffer.getChannelData(i).slice());
     }
 
-    this.port.postMessage({
-      type: 'setBuffer',
+    this.sendToProcessor({
+      type: 'voice:set_buffer',
       buffer: bufferData,
-      sampleRate: sampleRate || this.context.sampleRate,
       duration: buffer.duration,
     });
 
@@ -139,91 +165,98 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     return this;
   }
 
-  play(options: {
+  trigger(options: {
     midiNote: number;
+    velocity?: number;
     time?: number;
     offset?: number;
     duration?: number;
   }): this {
+    this._isPlaying = false; // Explicitly reset state
+
+    // if (this._isPlaying) {
+    //   console.warn(`src.play(): source already playing!`);
+    //   return this;
+    // }
     const {
       midiNote,
-      time = this.context.currentTime,
+      velocity,
+      time = this.now,
       offset = 0,
       duration,
     } = options;
-    // First stop if already playing // Should not happen!
-    if (this._isPlaying) {
-      console.warn(`source already playing when play() called!`);
-    }
-    // this.stop(); //?! Necessary to prevent race condition? // ! causes active notes / sampler.stop() bug? !
-    this._isPlaying = false; // Explicitly reset state
 
-    const playbackRate = midiNoteToPlaybackRate(midiNote);
-    this.playbackRate.setValueAtTime(playbackRate, time);
+    const noteAsRate = midiNoteToPlaybackRate(midiNote);
+    this.playbackRate.setValueAtTime(noteAsRate, time);
 
-    // ? should just be handled by param ? // Get the current value of the loop parameter
-    // const loopEnabled = this.loop.value > 0.5;
-
-    this.port.postMessage({
-      type: 'start',
+    this.sendToProcessor({
+      type: 'voice:start',
       time,
+      velocity,
       offset,
       duration,
-      // loopEnabled,
     });
 
     this._isPlaying = true;
-    this.#dispatch('started', { offset });
+
+    this.#dispatch('voice:started', {
+      nodeId: this.nodeId,
+      midiNote,
+      time,
+      duration,
+    });
+
+    return this;
+  }
+
+  release(options?: TODO): this {
+    if (!this._isPlaying) return this;
+
+    this.sendToProcessor({
+      type: 'voice:release',
+    });
 
     return this;
   }
 
   stop(): this {
+    // todo: immediate stop
     if (!this._isPlaying) return this;
 
-    this.port.postMessage({
-      type: 'stop',
-      time: this.context.currentTime,
+    this.sendToProcessor({
+      type: 'voice:stop',
     });
 
-    this._isPlaying = false;
     return this;
   }
 
   debugLoopParam(): void {
     const loopValue = this.loop.value;
-    this.port.postMessage({
-      type: 'debug-loop',
+    this.sendToProcessor({
+      type: 'voice:debug-loop',
       value: loopValue,
     });
   }
 
-  setLoopEnabled(enabled: 1 | 0) {
-    // boolean
-    this.loop.setValueAtTime(enabled ? 1 : 0, this.context.currentTime);
+  setLoopEnabled(enabled: boolean) {
+    this.loop.setValueAtTime(enabled ? 1 : 0, this.now);
     return this;
   }
 
   setLoopStart(targetValue: number, rampTime: number = 0.1) {
-    this.loopStart.linearRampToValueAtTime(
-      targetValue,
-      this.context.currentTime + rampTime
-    );
+    this.loopStart.linearRampToValueAtTime(targetValue, this.now + rampTime);
 
     return this;
   }
 
   setLoopEnd(targetValue: number, rampTime: number = 0.1) {
-    this.loopEnd.linearRampToValueAtTime(
-      targetValue,
-      this.context.currentTime + rampTime
-    );
+    this.loopEnd.linearRampToValueAtTime(targetValue, this.now + rampTime);
 
     return this;
   }
 
   setRate(rate: number): this {
-    this.playbackRate.setValueAtTime(rate, this.context.currentTime);
+    this.playbackRate.setValueAtTime(rate, this.now);
     return this;
   }
 

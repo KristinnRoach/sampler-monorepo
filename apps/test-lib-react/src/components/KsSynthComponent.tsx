@@ -43,14 +43,14 @@ const KarplusStrongSynthComponent = () => {
 
   const handleNoteOn = (midiNote: number, velocity?: number) => {
     if (synthRef.current) {
-      synthRef.current.playNote(midiNote, velocity);
+      synthRef.current.play(midiNote, velocity);
       setActiveVoices((prev) => prev + 1);
     }
   };
 
   const handleNoteOff = (midiNote: number) => {
     if (synthRef.current) {
-      synthRef.current.stopNote(midiNote);
+      synthRef.current.release(midiNote);
       setActiveVoices((prev) => Math.max(prev - 1, 0));
     }
   };

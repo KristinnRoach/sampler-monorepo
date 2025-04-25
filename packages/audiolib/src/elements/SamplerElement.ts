@@ -245,7 +245,7 @@ export class SamplerElement extends HTMLElement {
 
   playNote(midiNote: number, velocity: number = 1) {
     if (!this.sampler) return;
-    this.sampler.playNote(midiNote, velocity);
+    this.sampler.play(midiNote, velocity);
 
     this.dispatchEvent(
       new CustomEvent('note-on', {
@@ -258,7 +258,7 @@ export class SamplerElement extends HTMLElement {
 
   stopNote(midiNote: number) {
     if (!this.sampler) return;
-    this.sampler.stopNote(midiNote);
+    this.sampler.release(midiNote);
 
     this.dispatchEvent(
       new CustomEvent('note-off', {

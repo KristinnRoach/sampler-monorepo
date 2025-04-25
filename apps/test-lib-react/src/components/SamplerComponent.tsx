@@ -2,24 +2,8 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 
-// Utility functions for logarithmic scaling
-const logScaleStart = (position: number) => {
-  return 1 - Math.pow(1 - position, 3);
-};
-
-const inverseLogScaleStart = (value: number) => {
-  return 1 - Math.pow(1 - value, 1 / 3);
-};
-
-const logScaleEnd = (position: number) => {
-  return Math.pow(position, 3);
-};
-
-const inverseLogScaleEnd = (value: number) => {
-  return Math.pow(value, 1 / 3);
-};
-
 const SamplerComponent = () => {
+  const [isInitialized, setInitialized] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
 
@@ -34,9 +18,73 @@ const SamplerComponent = () => {
   const [sampleDuration, setSampleDuration] = useState(0);
   const [rampTime, setRampTime] = useState(0.2);
   const [activeVoices, setActiveVoices] = useState(0);
-  const samplerRef = useRef<Sampler | undefined>(null);
+  const samplerRef = useRef<Sampler | null>(null);
+  const [samplerReset, setSamplerReset] = useState(false);
 
-  const [isInitialized, setInitialized] = useState(false);
+  const [playbackPosition, setPlaybackPosition] = useState(0);
+  const [playbackAmplitude, setPlaybackAmplitude] = useState(0);
+  const animationFrameRef = useRef<number | null>(null);
+
+  // // Add position tracking
+  // useEffect(() => {
+  //   const updatePosition = () => {
+  //     if (samplerRef.current) {
+  //       setPlaybackPosition(samplerRef.current.normalizedPosition);
+  //     }
+  //     animationFrameRef.current = requestAnimationFrame(updatePosition);
+  //   };
+
+  //   updatePosition();
+
+  //   return () => {
+  //     if (animationFrameRef.current) {
+  //       cancelAnimationFrame(animationFrameRef.current);
+  //     }
+  //   };
+  // }, []);
+
+  // Add visualization component
+  const PlaybackVisualizer = () => (
+    <div
+      style={{
+        width: '65vw',
+        height: '20px',
+        backgroundColor: '#eee',
+        margin: '20px 50px',
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          height: '100%',
+          width: `${playbackPosition * 100}%`,
+          backgroundColor: '#4CAF50',
+          transition: 'width 0.05s linear',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: `${loopStartNormalized * 100}%`,
+          width: '2px',
+          height: '100%',
+          backgroundColor: 'blue',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          left: `${loopEndNormalized * 100}%`,
+          width: '2px',
+          height: '100%',
+          backgroundColor: 'red',
+        }}
+      />
+    </div>
+  );
 
   // Update actual loop points when normalized positions or sample duration changes
   useEffect(() => {
@@ -46,9 +94,8 @@ const SamplerComponent = () => {
     }
   }, [loopStartNormalized, loopEndNormalized, sampleDuration]);
 
-  // audio must be initialized on user interaction
   const createSampler = async () => {
-    if (isInitialized) return;
+    if (isInitialized) return true;
 
     try {
       samplerRef.current = audiolib.createSampler();
@@ -56,6 +103,16 @@ const SamplerComponent = () => {
         console.error('Failed to create sampler');
         return false;
       }
+
+      samplerRef.current.addListener('position_and_amplitude', (data: any) => {
+        setPlaybackPosition(data.position);
+        setPlaybackAmplitude(data.amplitude);
+        // setPlaybackProgress(data.progress);
+      });
+      // samplerRef.current.addListener('voice:ended', () => {
+      //   setActiveVoices((prev) => Math.max(prev - 1, 0));
+      // });
+
       setInitialized(true);
 
       return true;
@@ -131,13 +188,13 @@ const SamplerComponent = () => {
   }, []);
 
   const handleNoteOn = (midiNote: number) => {
-    samplerRef.current?.playNote(midiNote);
+    samplerRef.current?.play(midiNote);
 
     setActiveVoices(samplerRef.current?.activeNotesCount || 0);
   };
 
   const handleNoteOff = (midiNote: number) => {
-    samplerRef.current?.stopNote(midiNote);
+    samplerRef.current?.release(midiNote);
 
     setActiveVoices(samplerRef.current?.activeNotesCount || 0);
   };
@@ -223,10 +280,17 @@ const SamplerComponent = () => {
 
       <div>
         <input type='file' accept='audio/*' onChange={handleFileChange} />
-
         <button onClick={toggleLoopEnabled} disabled={!isLoaded}>
           {isLoopEnabled ? 'Disable Loop' : 'Enable Loop'}
         </button>
+      </div>
+
+      <PlaybackVisualizer />
+
+      {/* Position display */}
+      <div style={{ margin: '10px 50px' }}>
+        Playback Position: {(playbackPosition * sampleDuration).toFixed(3)}s
+        Playback Amplitude: {playbackAmplitude.toFixed(3)}
       </div>
 
       <div style={{ width: '100vw' }}>

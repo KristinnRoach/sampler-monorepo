@@ -13,7 +13,6 @@ export class KarplusStrongSynth implements LibInstrument {
   #activeNotes: Map<number, string[]> = new Map(); // <midiNote, nodeId[]>
 
   #attackTime: number = 0;
-
   #releaseTime: number = 0.3;
 
   constructor(polyphony: number = 8) {
@@ -34,7 +33,7 @@ export class KarplusStrongSynth implements LibInstrument {
     }
   }
 
-  playNote(midiNote: number, velocity: number = 1): this {
+  play(midiNote: number, velocity: number = 1): this {
     let voice = this.#voicePool.getAvailableNode();
 
     if (!voice) {
@@ -43,7 +42,7 @@ export class KarplusStrongSynth implements LibInstrument {
         const oldestNote = this.#activeNotes.keys().next().value;
 
         if (!oldestNote) return this;
-        this.stopNote(oldestNote);
+        this.release(oldestNote);
 
         // Try again
         voice = this.#voicePool.getAvailableNode();
@@ -56,27 +55,27 @@ export class KarplusStrongSynth implements LibInstrument {
       }
     }
 
-    voice.triggerAttack(midiNote, this.#attackTime);
+    voice.trigger({ midiNote, velocity });
     this.#addToActiveNotes(midiNote, voice.nodeId);
 
     //  release the voice after decay time
     // todo: use actual release time
-    const decayTime = 2; // 2 seconds decay time, adjust as needed
+    const releaseTime = 2; // 2 seconds decay time, adjust as needed
     setTimeout(() => {
       this.#removeFromActiveNotes(midiNote, voice!.nodeId);
-      this.#voicePool.markAvailable(voice!.nodeId);
-    }, decayTime * 1000);
+      // this.#voicePool.markAvailable(voice!.nodeId);
+    }, releaseTime * 1000);
 
     return this;
   }
 
-  stopNote(midiNote: number): this {
+  release(midiNote: number): this {
     const nodeIds = this.#activeNotes.get(midiNote)?.slice() || [];
 
     nodeIds.forEach((nodeId) => {
       const voice = this.#voicePool.getNodeById(nodeId);
       if (voice) {
-        voice.triggerRelease(this.#releaseTime);
+        voice.release(this.#releaseTime);
       }
     });
 
@@ -112,29 +111,29 @@ export class KarplusStrongSynth implements LibInstrument {
 
   stopAll(): this {
     Array.from(this.#activeNotes.keys()).forEach((midiNote) => {
-      this.stopNote(midiNote);
+      this.release(midiNote);
     });
     this.#activeNotes.clear();
     return this;
   }
 
-  triggerAttack(midiNote: number, velocity: number = 1): this {
-    return this.playNote(midiNote, velocity);
-  }
+  // triggerAttack(midiNote: number, velocity: number = 1): this {
+  //   return this.play(midiNote, velocity);
+  // }
 
-  triggerRelease(midiNote: number): this {
-    return this.stopNote(midiNote);
-  }
+  // triggerRelease(midiNote: number): this {
+  //   return this.release(midiNote);
+  // }
 
-  triggerAttackRelease(
-    midiNote: number,
-    duration: number,
-    velocity: number = 1
-  ): this {
-    this.playNote(midiNote, velocity);
-    setTimeout(() => this.stopNote(midiNote), duration * 1000);
-    return this;
-  }
+  // triggerAttackRelease(
+  //   midiNote: number,
+  //   duration: number,
+  //   velocity: number = 1
+  // ): this {
+  //   this.play(midiNote, velocity);
+  //   setTimeout(() => this.release(midiNote), duration * 1000);
+  //   return this;
+  // }
 
   releaseAll(): this {
     return this.stopAll();
@@ -205,11 +204,11 @@ export class KarplusStrongSynth implements LibInstrument {
     );
   }
 
-  set attack(timeMs: number) {
+  set attackTime(timeMs: number) {
     this.#attackTime = timeMs * 1000;
   }
 
-  set release(timeMs: number) {
+  set releaseTime(timeMs: number) {
     this.#releaseTime = timeMs * 1000;
   }
 
