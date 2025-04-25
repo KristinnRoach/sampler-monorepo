@@ -2,27 +2,39 @@ import { LibInstrument, KarplusNode } from '@/nodes';
 import { Pool } from '@/nodes/helpers/Pool';
 import { createNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
+import { Message, MessageHandler, createMessageBus } from '@/events';
 
 export class KarplusStrongSynth implements LibInstrument {
-  readonly nodeId: string = createNodeId();
+  readonly nodeId: string;
   readonly nodeType: string = 'karplus-strong-synth';
 
   #context: AudioContext;
   #output: GainNode;
   #voicePool: Pool<KarplusNode>;
   #activeNotes: Map<number, string[]> = new Map(); // <midiNote, nodeId[]>
+  #messages;
 
   #attackTime: number = 0;
   #releaseTime: number = 0.3;
 
   constructor(polyphony: number = 8) {
+    this.nodeId = createNodeId(this.nodeType);
     this.#context = getAudioContext();
     this.#output = new GainNode(this.#context);
     this.#output.gain.value = 0.9;
     this.#voicePool = new Pool(polyphony, 'karplus-strong');
+    this.#messages = createMessageBus<Message>(this.nodeId);
 
     // Pre-create voices
     this.#preCreateVoices(polyphony);
+  }
+
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  protected sendMessage(type: string, data: any): void {
+    this.#messages.sendMessage(type, data);
   }
 
   #preCreateVoices(polyphony: number): void {
@@ -34,37 +46,14 @@ export class KarplusStrongSynth implements LibInstrument {
   }
 
   play(midiNote: number, velocity: number = 1): this {
-    let voice = this.#voicePool.getAvailableNode();
-
-    if (!voice) {
-      // Voice stealing strategy
-      if (this.#activeNotes.size > 0) {
-        const oldestNote = this.#activeNotes.keys().next().value;
-
-        if (!oldestNote) return this;
-        this.release(oldestNote);
-
-        // Try again
-        voice = this.#voicePool.getAvailableNode();
-      }
-
-      // If still no voice, something is wrong
-      if (!voice) {
-        console.error('No voices available and voice stealing failed');
-        return this;
-      }
-    }
+    let voice = this.#voicePool.allocateNode(midiNote);
+    if (!voice) return this;
 
     voice.trigger({ midiNote, velocity });
-    this.#addToActiveNotes(midiNote, voice.nodeId);
 
     //  release the voice after decay time
     // todo: use actual release time
     const releaseTime = 2; // 2 seconds decay time, adjust as needed
-    setTimeout(() => {
-      this.#removeFromActiveNotes(midiNote, voice!.nodeId);
-      // this.#voicePool.markAvailable(voice!.nodeId);
-    }, releaseTime * 1000);
 
     return this;
   }

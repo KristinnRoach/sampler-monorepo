@@ -5,69 +5,6 @@ const DEFAULT_VELOCITY = {
 
 const MIN_ABS_AMPLITUDE = 0.000001;
 
-// envelope.js - Reusable envelope module
-class Envelope {
-  constructor(sampleRate, attackTime = 0.01, releaseTime = 0.3) {
-    this.sampleRate = sampleRate;
-    this.envelope = 0;
-    this.gate = false;
-    this.phase = 'idle'; // 'idle', 'attack', 'sustain', 'release'
-    this.attackTime = attackTime;
-    this.releaseTime = releaseTime;
-
-    this.updateCoefficients(attackTime, releaseTime);
-  }
-
-  updateCoefficients(attackTime, releaseTime) {
-    // Update coefficients only when parameters change
-    this.attackCoef = 1 - Math.exp(-1 / (this.sampleRate * attackTime));
-    this.releaseCoef = Math.exp(-1 / (this.sampleRate * releaseTime));
-  }
-
-  process(gate, attackTime, releaseTime) {
-    // Update coefficients if needed
-    if (this.attackTime !== attackTime || this.releaseTime !== releaseTime) {
-      this.updateCoefficients(attackTime, releaseTime);
-      this.attackTime = attackTime;
-      this.releaseTime = releaseTime;
-    }
-
-    if (gate && !this.gate) {
-      // Attack phase
-      this.phase = 'attack';
-    } else if (!gate && this.gate) {
-      // Release phase
-      this.phase = 'release';
-    }
-
-    switch (this.phase) {
-      case 'attack':
-        this.envelope += (1.0 - this.envelope) * this.attackCoef;
-        if (this.envelope >= 0.999) {
-          this.phase = 'sustain';
-          this.envelope = 1.0;
-        }
-        break;
-      case 'sustain':
-        this.envelope = 1.0;
-        break;
-      case 'release':
-        this.envelope *= this.releaseCoef;
-        if (this.envelope < 0.0001) {
-          this.phase = 'idle';
-          this.envelope = 0;
-        }
-        break;
-      case 'idle':
-        this.envelope = 0;
-        break;
-    }
-
-    this.gate = gate;
-    return this.envelope;
-  }
-}
-
 class PlaybackTiming {
   constructor() {
     this.clear();
@@ -124,7 +61,6 @@ class SourceProcessor extends AudioWorkletProcessor {
     super();
     this.buffer = null;
     this.isPlaying = false;
-    this.velocity = 1;
     this.playbackPosition = 0;
     this._loopCount = 0;
 
@@ -135,11 +71,14 @@ class SourceProcessor extends AudioWorkletProcessor {
       switch (data.type) {
         case 'voice:init':
           this.timing = new PlaybackTiming();
-          this.envelope = new Envelope(sampleRate);
-          this.useEnvelope = true;
-          this.usePlaybackPosition = true;
+          this.usePlaybackPosition = false;
           break;
         case 'voice:set_buffer':
+          this.isPlaying = false;
+          this.timing.clear();
+          this.playbackPosition = 0;
+          this._loopCount = 0;
+
           this.buffer = data.buffer;
           // ? use data.duration // ? clear timing and reset params & vars ?
           console.debug(
@@ -151,13 +90,12 @@ class SourceProcessor extends AudioWorkletProcessor {
 
         case 'voice:start':
           this.timing.start(currentTime, data.offset || 0, data.duration);
-          this.isPlaying = true;
-          this.velocity = data.velocity || 1;
           this.playbackPosition = (data.offset || 0) * sampleRate;
+          this.isPlaying = true;
           break;
 
         case 'voice:release': // make it clearer how to enter release phase
-          this.isPlaying = false;
+          // this.isPlaying = false;
           break;
 
         case 'voice:stop':
@@ -167,10 +105,6 @@ class SourceProcessor extends AudioWorkletProcessor {
 
         case 'voice:usePlaybackPosition': // todo: add option to disable position tracking
           this.usePlaybackPosition = data.value;
-          break;
-
-        case 'voice:useEnvelope':
-          this.useEnvelope = data.value;
           break;
       }
     };
@@ -186,27 +120,25 @@ class SourceProcessor extends AudioWorkletProcessor {
         automationRate: 'k-rate',
       },
       {
-        name: 'attackTime',
-        defaultValue: 0.31,
+        name: 'envGain',
+        defaultValue: 0,
         minValue: 0,
-        maxValue: 2.0, // default for now
-        automationRate: 'k-rate',
+        maxValue: 1,
+        automationRate: 'a-rate',
       },
-
       {
-        name: 'releaseTime',
-        defaultValue: 1.3,
+        name: 'velocity',
+        defaultValue: 100,
         minValue: 0,
-        maxValue: 5.0, // default for now
+        maxValue: 127,
         automationRate: 'k-rate',
       },
-
       {
         name: 'playbackRate',
         defaultValue: 1,
         minValue: -4,
         maxValue: 4,
-        automationRate: 'k-rate',
+        automationRate: 'a-rate',
       },
       {
         name: 'loop',
@@ -219,20 +151,13 @@ class SourceProcessor extends AudioWorkletProcessor {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'k-rate',
+        automationRate: 'a-rate',
       },
       {
         name: 'loopEnd',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'k-rate',
-      },
-      {
-        name: 'useEnvelope',
-        defaultValue: 1,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'k-rate',
+        automationRate: 'a-rate',
       },
     ];
   }
@@ -257,6 +182,7 @@ class SourceProcessor extends AudioWorkletProcessor {
 
   #onended(output, zeroFillBuffer = true, resetPlayPosition = true) {
     this.isPlaying = false;
+    this._loopCount = 0;
     this.timing.clear();
     if (zeroFillBuffer) this.#fillWithSilence(output);
     if (resetPlayPosition) this.playbackPosition = 0;
@@ -277,14 +203,14 @@ class SourceProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const pbRate = parameters.playbackRate[0];
     const loopEnabled = this.#isLoopEnabled(parameters.loop);
+
+    const pbRate = parameters.playbackRate[0];
     const loopStart = parameters.loopStart[0] * sampleRate;
     const loopEnd = parameters.loopEnd[0] * sampleRate;
 
-    const attackTime = parameters.attackTime[0];
-    const releaseTime = parameters.releaseTime[0];
-    const useEnvelope = parameters.useEnvelope[0] > 0.5;
+    const envelopeGain = parameters.envGain[0];
+    const velocityGain = parameters.velocity[0] / 127;
 
     const numChannels = Math.min(output.length, this.buffer.length);
     const bufferLength = this.buffer[0].length;
@@ -320,33 +246,27 @@ class SourceProcessor extends AudioWorkletProcessor {
       const fraction = this.playbackPosition - position;
       const nextPosition = Math.min(position + 1, bufferLength - 1);
 
-      // Process envelope for this sample
-      let envelopeValue = 1.0;
-      if (useEnvelope) {
-        envelopeValue = this.envelope.process(
-          this.isPlaying,
-          attackTime,
-          releaseTime
-        );
-      }
+      // const envelopeGain = parameters.envGain[i];
+      // const velocityGain = parameters.velocity[i] / 127;
+
+      // const pbRate = parameters.playbackRate[i];
+      // const loopStart = parameters.loopStart[i] * sampleRate;
+      // const loopEnd = parameters.loopEnd[i] * sampleRate;
 
       for (let c = 0; c < numChannels; c++) {
         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
         const current = bufferChannel[position];
         const next = bufferChannel[nextPosition];
-        const velocityGain = this.velocity;
 
         output[c][i] =
-          (current + fraction * (next - current)) *
-          velocityGain *
-          envelopeValue;
+          (current + fraction * (next - current)) * velocityGain * envelopeGain;
       }
 
       // Advance playback position
       this.playbackPosition += pbRate;
     }
 
-    const { playbackTime } = this.timing.getPlaybackProgress(currentTime);
+    const playbackTime = currentTime - this.startTime;
     const currentAmplitude = output[0][output.length - 1]; // ? last sample vs first vs median
     const absAmplitude = Math.abs(currentAmplitude);
     // Only store variable here and move the condition to beginning of process with the others

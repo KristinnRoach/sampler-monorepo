@@ -1,12 +1,18 @@
+export type NodeID = string;
+
 let newestId = -1;
 
 const IDStore: string[] = [];
 
-export const createNodeId = (nodeType: string = '') => {
-  const nodeId = `${(++newestId).toString()}-${nodeType}`;
+export const createNodeId = (nodeType: string) => {
+  const nodeId = `${++newestId}-${nodeType}`;
   IDStore.push(nodeId);
   return nodeId;
 };
+
+export const idToNum = (nodeId: string) => parseInt(nodeId.split('-')[0]);
+
+export const numToId = (num: number, nodeType: string) => `${num}-${nodeType}`;
 
 export const deleteNodeId = (nodeId: string) => {
   const index = IDStore.indexOf(nodeId);

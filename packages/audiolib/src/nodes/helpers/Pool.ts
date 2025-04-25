@@ -1,58 +1,140 @@
 // Pool.ts
 import { LibNode, LibSourceNode } from '@/nodes';
-import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
+import {
+  createNodeId,
+  deleteNodeId,
+  idToNum,
+  numToId,
+} from '@/store/state/IdStore';
+import { assert } from '@/utils';
+import { createMessageBus, Message, MessageHandler } from '@/events';
 
-export class Pool<T extends LibSourceNode> implements LibNode {
-  readonly nodeId: NodeID = createNodeId();
+export class Pool<Src extends LibSourceNode> implements LibNode {
+  readonly nodeId: NodeID;
   readonly nodeType: string;
+  readonly sourcesType: string;
 
-  #nodes: T[];
-  #availableNodes: Set<string>; // nodeIds
+  #messages;
+  #nodes: Src[] = [];
+  #availableNodes = new Set<string>();
+  #activeNotes: number[][] = [];
   #maxNodes: number;
 
-  constructor(polyphony: number = 16, nodeType: string) {
-    this.#nodes = [];
-    this.#availableNodes = new Set(); // available nodeIds
+  constructor(polyphony: number = 16, sourcesType: string) {
+    this.nodeType = `pool:${sourcesType}`;
+    this.nodeId = createNodeId(this.nodeType);
+    this.sourcesType = sourcesType;
     this.#maxNodes = polyphony;
-    this.nodeType = `pool:${nodeType}`;
+
+    this.#messages = createMessageBus<Message>(this.nodeId);
   }
 
-  getAvailableNode(): T | null {
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  allocateNode(midiNote?: number): Src | null {
     // Get the first available node
     if (!this.#availableNodes.size) {
       console.warn('No available nodes in the pool.');
       return null;
     }
     const nodeId = this.#availableNodes.values().next().value;
-    if (!nodeId) return null;
+
+    // todo: steal
+    assert(nodeId, 'No nodeId found');
 
     this.#availableNodes.delete(nodeId);
+
+    if (midiNote) this.addToActiveNotes(midiNote, nodeId);
+
+    const node = this.getNodeById(nodeId);
+    assert(node, 'No node found');
+
+    node.onMessage('voice:ended', () => {
+      if (midiNote) this.removeFromActiveNotes(midiNote, node.nodeId);
+      if (this.#activeNotes.length === 0) {
+        this.#messages.sendMessage('all-notes:ended', {});
+      }
+    });
+
     return this.getNodeById(nodeId);
-    // todo: implement stealing
   }
 
-  markAvailable(nodeId: NodeID) {
-    // Mark the node as available
-    this.#availableNodes.add(nodeId);
+  addToActiveNotes(midiNote: number, nodeId: string) {
+    const id = idToNum(nodeId);
+    if (!this.#activeNotes[midiNote]) {
+      this.#activeNotes[midiNote] = [];
+    }
+    if (!this.#activeNotes[midiNote][id]) {
+      this.#activeNotes[midiNote].push(id);
+    } else {
+      console.warn(
+        `${nodeId} already in active notes for midiNote: ${midiNote}`
+      );
+      return this;
+    }
 
     return this;
   }
 
-  addNodes(nodes: T[]) {
+  removeFromActiveNotes(midiNote: number, nodeId: string) {
+    const id = idToNum(nodeId);
+    const node = this.#activeNotes[midiNote][id];
+    if (node) {
+      this.#activeNotes[midiNote].splice(id, 1);
+    }
+    return this;
+  }
+
+  applyToAllActiveNodes(funcToApply: Function) {
+    this.getAllActiveNodes(funcToApply);
+    return this;
+  }
+
+  getAllActiveNodes(applyFunction?: Function): LibSourceNode[][] {
+    if (this.#activeNotes.length === 0) return [];
+
+    const allActiveNodes: LibSourceNode[][] = [];
+    this.#activeNotes.forEach((nodeIds) => {
+      const nodes = nodeIds.map(
+        (nodeId) => this.getNodeById(numToId(nodeId, this.nodeType))!
+      );
+      assert(nodes.length > 0, 'No nodes found');
+
+      if (applyFunction) nodes.forEach(() => applyFunction);
+      allActiveNodes.push(nodes);
+    });
+    return allActiveNodes;
+  }
+
+  getLastPlayedNode(): Src | null {
+    if (this.#activeNotes.length === 0) return null;
+
+    // Get the last active note's most recent voice
+    const lastNoteNodes = this.#activeNotes.pop();
+    if (!lastNoteNodes) return null;
+
+    const lastId = lastNoteNodes.pop();
+    if (!lastId) return null;
+
+    return this.getNodeById(numToId(lastId, this.sourcesType));
+  }
+
+  addNodes(nodes: Src[]) {
     for (const node of nodes) {
       this.addNode(node);
     }
     return this;
   }
 
-  addNode(node: T) {
+  addNode(node: Src) {
     if (this.#nodes.length < this.#maxNodes) {
       this.#nodes.push(node);
       this.#availableNodes.add(node.nodeId);
 
-      node.addListener('voice:ended', () => {
+      node.onMessage('voice:ended', () => {
         this.#availableNodes.add(node.nodeId);
-        // this.markAvailable(node.nodeId);
       });
     } else {
       console.warn('Max nodes reached, cannot add more.');
@@ -60,7 +142,7 @@ export class Pool<T extends LibSourceNode> implements LibNode {
     return this;
   }
 
-  getNodeById(nodeId: NodeID): T | null {
+  getNodeById(nodeId: NodeID): Src | null {
     return this.#nodes.find((n) => n.nodeId === nodeId) || null;
   }
 
@@ -88,14 +170,68 @@ export class Pool<T extends LibSourceNode> implements LibNode {
     this.disconnect();
     this.#nodes = [];
     this.#availableNodes.clear();
+    this.#activeNotes = [];
+    this.#maxNodes = 0;
+
+    // ? is it needed to unsubscribe from messages ?
+
     deleteNodeId(this.nodeId);
   }
 
-  get nodes(): T[] {
+  getNodesByNote(midiNote: number): (Src | null)[] {
+    if (!this.#activeNotes[midiNote] || this.#activeNotes[midiNote].length < 1)
+      return [];
+    const ids = this.#activeNotes[midiNote].map((numId) =>
+      numToId(numId, this.nodeType)
+    );
+    return ids.map((id) => this.getNodeById(id)) || [];
+  }
+
+  get nodes(): Src[] {
     return this.#nodes;
   }
 
   get availableCount(): number {
     return this.#availableNodes.size;
   }
+
+  get activeCount(): number {
+    return this.#nodes.length - this.#availableNodes.size;
+  }
+
+  get maxNodes(): number {
+    return this.#maxNodes;
+  }
 }
+
+/* todo: prófa 1d arr fyrir active!
+     ekki hægt að spila sömu nótu tvisvar á sama tíma þannig ef fleiri þá eru þær eldri og í release phase
+     ie eftir noteOff. 
+     Þannig.. 
+              active[] -> activeNotes[midiNote] = nodeId
+              releasing -> bara basic FIFO eða set
+     // decide between number[][] or Map<number, string[]>
+  */
+
+// addToActive:     // if (!this.#activeNotes.get(midiNote)?.push(nodeId)) {
+//   this.#activeNotes.set(midiNote, [nodeId]);
+// }
+// #removeFromActiveNotes(midiNote: number, nodeId: string) {
+//   const nodeIds = this.#activeNotes.get(midiNote);
+//   if (nodeIds) {
+//     const remaining = nodeIds.filter((id) => id !== nodeId);
+//     if (remaining.length > 0) {
+//       this.#activeNotes.set(midiNote, remaining);
+//     } else {
+//       this.#activeNotes.delete(midiNote);
+//     }
+//   }
+//   return this;
+// }
+
+// markAvailable(nodeId: NodeID) {
+//   // Mark the node as available
+//   this.#availableNodes.add(nodeId);
+
+//   return this;
+// }

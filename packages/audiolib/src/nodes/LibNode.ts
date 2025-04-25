@@ -1,33 +1,34 @@
+import { NodeID } from '@/store/state/IdStore';
+import { Message, MessageHandler } from '@/events';
+
+type BaseNodeType = 'player' | 'source' | 'container' | 'param' | 'fx';
+
 export interface LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: string;
 
+  onMessage(type: string, handler: MessageHandler<Message>): () => void;
+
   connect(
-    destination: AudioNode | AudioParam,
+    destination: AudioNode | null,
     outputIndex?: number,
     inputIndex?: number
   ): this | AudioNode | AudioParam;
   disconnect(destination?: AudioNode | null): void;
-
   dispose(): void;
 }
 
 export interface LibSourceNode extends LibNode {
   readonly processorNames: string[];
-
-  paramMap: Map<string, AudioParam>; // Workaround for TypeScript issue with AudioParamMap
+  readonly paramMap: Map<string, AudioParam>;
 
   getParam(name: string): AudioParam | null;
-  setParam(name: string, value: number, options: TODO): this;
+  setParam(name: string, value: number, options: any): this;
 
-  addListener(event: string, listener: Function): this;
-  removeListener(event: string, listener: Function): this;
-
-  trigger(options: TODO): this;
-  release(options?: TODO): this;
+  trigger(options: any): this;
+  release(options?: any): this;
+  stop(): this;
   sendToProcessor(data: any): void;
-
-  stop(): this; // force immediate stop
 }
 
 export interface LibInstrument extends LibNode {
@@ -37,7 +38,4 @@ export interface LibInstrument extends LibNode {
 
   setParamValue(name: string, value: number): this;
   getParamValue(name: string): number | null;
-
-  addListener(event: string, listener: Function): this;
-  removeListener(event: string, listener: Function): this;
 }

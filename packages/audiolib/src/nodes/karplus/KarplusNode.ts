@@ -1,14 +1,17 @@
 import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { LibSourceNode } from '@/nodes';
+import { Message, MessageHandler, createMessageBus } from '@/events';
 
 export class KarplusNode implements LibSourceNode {
-  readonly nodeId: string = createNodeId();
+  readonly nodeId: NodeID;
   readonly nodeType: string = 'karplus-strong';
   readonly processorNames: string[] = [
     'random-noise-processor',
     'feedback-delay-processor',
   ];
+
+  #messages;
 
   paramMap: Map<string, AudioParam>;
 
@@ -27,18 +30,26 @@ export class KarplusNode implements LibSourceNode {
 
   #isPlaying: boolean = false;
 
-  constructor() {
-    const ctx = getAudioContext();
-    this.audioContext = ctx;
-    this.noiseGenerator = new AudioWorkletNode(ctx, 'random-noise-processor');
-    this.noiseGain = new GainNode(ctx, { gain: 0 });
-    this.outputGain = new GainNode(ctx);
-    this.feedbackDelay = new AudioWorkletNode(ctx, 'feedback-delay-processor', {
-      parameterData: {
-        delayTime: 5, // Initial delay time
-        gain: 0.9, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
-      },
-    });
+  constructor(context: AudioContext = getAudioContext()) {
+    this.nodeId = createNodeId(this.nodeType);
+    this.#messages = createMessageBus<Message>(this.nodeId);
+    this.audioContext = context;
+    this.noiseGenerator = new AudioWorkletNode(
+      context,
+      'random-noise-processor'
+    );
+    this.noiseGain = new GainNode(context, { gain: 0 });
+    this.outputGain = new GainNode(context);
+    this.feedbackDelay = new AudioWorkletNode(
+      context,
+      'feedback-delay-processor',
+      {
+        parameterData: {
+          delayTime: 5, // Initial delay time
+          gain: 0.9, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
+        },
+      }
+    );
 
     this.fbParamMap = this.feedbackDelay.parameters as Map<string, AudioParam>;
     this.noiseParamMap = this.noiseGenerator.parameters as Map<
@@ -86,13 +97,12 @@ export class KarplusNode implements LibSourceNode {
     return this;
   }
 
-  addListener(event: string, listener: Function) {
-    console.error('Method not implemented.');
-    return this;
+  onMessage(type: string, handler: (data: any) => void) {
+    return this.#messages.onMessage(type, handler);
   }
-  removeListener(event: string, listener: Function) {
-    console.error('Method not implemented.');
-    return this;
+
+  protected sendMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
   }
 
   trigger(options: { midiNote: number; velocity: number }): this {
@@ -125,6 +135,7 @@ export class KarplusNode implements LibSourceNode {
       this.now + this.holdMs / 1000 // + this.#attackTime
     );
 
+    this.sendMessage('voice:started', { ...options });
     return this;
   }
 
@@ -145,6 +156,7 @@ export class KarplusNode implements LibSourceNode {
       releaseTime + 0.1 * 1000
     );
 
+    this.sendMessage('voice:ended', {});
     return this;
   }
 
