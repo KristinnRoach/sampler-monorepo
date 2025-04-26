@@ -58,14 +58,14 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
         this.#messages.sendMessage('voice:looped', {
           loopCount: data.loopCount,
         });
-      } else if (data.type === 'voice:position_and_amplitude') {
+      } else if (data.type === 'voice:position') {
         this.getParam('playbackPosition')!.setValueAtTime(
           data.position,
           this.context.currentTime
         );
-        this.#messages.sendMessage('voice:update', {
+        this.#messages.sendMessage('voice:position', {
           position: data.position,
-          amplitude: data.amplitude,
+          // amplitude: data.amplitude,
         });
       }
     };
@@ -250,6 +250,13 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
   setRate(rate: number): this {
     this.getParam('playbackRate')!.setValueAtTime(rate, this.now);
     return this;
+  }
+
+  set enablePositionTracking(enabled: boolean) {
+    this.sendToProcessor({
+      type: 'voice:usePlaybackPosition',
+      value: enabled,
+    });
   }
 
   // Properties

@@ -1,10 +1,3 @@
-const DEFAULT_VELOCITY = {
-  peak: { midi: 100, normalized: 0.78125 },
-  sustain: { midi: 100, normalized: 0.78125 },
-}; //as const;
-
-const MIN_ABS_AMPLITUDE = 0.000001;
-
 class PlaybackTiming {
   constructor() {
     this.clear();
@@ -55,6 +48,7 @@ class PlaybackTiming {
     };
   }
 }
+const MIN_ABS_AMPLITUDE = 0.001;
 
 class SourceProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -62,7 +56,8 @@ class SourceProcessor extends AudioWorkletProcessor {
     this.buffer = null;
     this.isPlaying = false;
     this.playbackPosition = 0;
-    this._loopCount = 0;
+    this.loopCount = 0; // currently not used..
+    this.isReleasing = false;
 
     // Message handling
     this.port.onmessage = (event) => {
@@ -77,25 +72,26 @@ class SourceProcessor extends AudioWorkletProcessor {
           this.isPlaying = false;
           this.timing.clear();
           this.playbackPosition = 0;
-          this._loopCount = 0;
+          this.loopCount = 0;
 
           this.buffer = data.buffer;
           // ? use data.duration // ? clear timing and reset params & vars ?
           console.debug(
-            `buffer set for voice with nodeId: ${this.nodeId}, 
+            `buffer set in processor, 
             length: ${this.buffer[0].length}, 
             duration in seconds: ${data.duration}`
           );
           break;
 
         case 'voice:start':
+          this.isReleasing = false;
           this.timing.start(currentTime, data.offset || 0, data.duration);
           this.playbackPosition = (data.offset || 0) * sampleRate;
           this.isPlaying = true;
           break;
 
-        case 'voice:release': // make it clearer how to enter release phase
-          // this.isPlaying = false;
+        case 'voice:release':
+          this.isReleasing = true;
           break;
 
         case 'voice:stop':
@@ -103,7 +99,7 @@ class SourceProcessor extends AudioWorkletProcessor {
           this.isPlaying = false;
           break;
 
-        case 'voice:usePlaybackPosition': // todo: add option to disable position tracking
+        case 'voice:usePlaybackPosition':
           this.usePlaybackPosition = data.value;
           break;
       }
@@ -124,7 +120,7 @@ class SourceProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: 0,
         maxValue: 1,
-        automationRate: 'a-rate',
+        automationRate: 'k-rate',
       },
       {
         name: 'velocity',
@@ -151,13 +147,13 @@ class SourceProcessor extends AudioWorkletProcessor {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'a-rate',
+        automationRate: 'k-rate',
       },
       {
         name: 'loopEnd',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'a-rate',
+        automationRate: 'k-rate',
       },
     ];
   }
@@ -182,7 +178,7 @@ class SourceProcessor extends AudioWorkletProcessor {
 
   #onended(output, zeroFillBuffer = true, resetPlayPosition = true) {
     this.isPlaying = false;
-    this._loopCount = 0;
+    this.loopCount = 0;
     this.timing.clear();
     if (zeroFillBuffer) this.#fillWithSilence(output);
     if (resetPlayPosition) this.playbackPosition = 0;
@@ -203,6 +199,12 @@ class SourceProcessor extends AudioWorkletProcessor {
       return true;
     }
 
+    // Check for low amplitude after threshold when releasing
+    if (this.isReleasing && parameters.envGain[0] < MIN_ABS_AMPLITUDE) {
+      this.#onended(output);
+      return true;
+    }
+
     const loopEnabled = this.#isLoopEnabled(parameters.loop);
 
     const pbRate = parameters.playbackRate[0];
@@ -210,7 +212,7 @@ class SourceProcessor extends AudioWorkletProcessor {
     const loopEnd = parameters.loopEnd[0] * sampleRate;
 
     const envelopeGain = parameters.envGain[0];
-    const velocityGain = parameters.velocity[0] / 127;
+    const velocityGain = parameters.velocity[0]; // seems to be already normalized from midi values
 
     const numChannels = Math.min(output.length, this.buffer.length);
     const bufferLength = this.buffer[0].length;
@@ -226,10 +228,7 @@ class SourceProcessor extends AudioWorkletProcessor {
       // Handle looping
       if (loopEnabled && this.playbackPosition >= loopEnd) {
         this.playbackPosition = loopStart;
-        this.port.postMessage({
-          type: 'voice:looped',
-          loopCount: ++this._loopCount,
-        });
+        this.loopCount++;
       }
 
       // Check for end of buffer
@@ -246,13 +245,6 @@ class SourceProcessor extends AudioWorkletProcessor {
       const fraction = this.playbackPosition - position;
       const nextPosition = Math.min(position + 1, bufferLength - 1);
 
-      // const envelopeGain = parameters.envGain[i];
-      // const velocityGain = parameters.velocity[i] / 127;
-
-      // const pbRate = parameters.playbackRate[i];
-      // const loopStart = parameters.loopStart[i] * sampleRate;
-      // const loopEnd = parameters.loopEnd[i] * sampleRate;
-
       for (let c = 0; c < numChannels; c++) {
         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
         const current = bufferChannel[position];
@@ -266,22 +258,12 @@ class SourceProcessor extends AudioWorkletProcessor {
       this.playbackPosition += pbRate;
     }
 
-    const playbackTime = currentTime - this.startTime;
-    const currentAmplitude = output[0][output.length - 1]; // ? last sample vs first vs median
-    const absAmplitude = Math.abs(currentAmplitude);
-    // Only store variable here and move the condition to beginning of process with the others
-    // get rid off redundant stuff
-    if (playbackTime > 0.3 && absAmplitude < MIN_ABS_AMPLITUDE) {
-      // fix hardcoded 0.3 threshold // make robust
-      this.isPlaying = false;
-      this.timing.clear();
-      this.port.postMessage({ type: 'voice:ended' });
-    } else if (this.usePlaybackPosition) {
+    if (this.usePlaybackPosition) {
       this.port.postMessage({
-        type: 'voice:position_and_amplitude',
+        type: 'voice:position',
         position: this.playbackPosition / sampleRate,
-        seconds: playbackTime,
-        amplitude: currentAmplitude,
+        // seconds: playbackTime,
+        // amplitude: output[0][output.length - 1],
       });
     }
 

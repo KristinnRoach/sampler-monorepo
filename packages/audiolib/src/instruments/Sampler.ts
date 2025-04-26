@@ -33,8 +33,10 @@ export class Sampler implements LibInstrument {
   #context: AudioContext;
   #output: GainNode;
   #sourcePool: Pool<SourceNode>;
-  #state: InstrumentState = DEFAULT_SAMPLER_SETTINGS;
   #messages;
+
+  #activeNotes = new Map<number, Set<SourceNode>>();
+  #state: InstrumentState = DEFAULT_SAMPLER_SETTINGS;
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
@@ -42,20 +44,19 @@ export class Sampler implements LibInstrument {
 
   #loopRampTime: number = 0.2;
 
-  #isInitialized: boolean = false;
-  #isLoaded: boolean = false;
+  #isInitialized = false;
+  #isLoaded = false;
 
   #zeroCrossings: number[] = []; // maybe needed later
-  #useZeroCrossings: boolean = true;
+  #useZeroCrossings = true;
 
-  #currentPosition: number = 0;
-  #currentAmplitude: number = 0;
-  #positionUpdateInterval: number | null = null;
+  #trackPlaybackPosition = false;
+  #mostRecentSource: SourceNode | null = null;
 
-  randomizeVelocity: boolean = false; // for testing, refactor later
+  randomizeVelocity = false; // for testing, refactor later
 
   constructor(
-    polyphony: number = 16,
+    polyphony: number = 48,
     context: AudioContext,
     audioBuffer?: AudioBuffer
   ) {
@@ -70,9 +71,19 @@ export class Sampler implements LibInstrument {
     this.#macroLoopEnd = new MacroParam(context, 0);
     this.#macroLoop = new MacroParam(context, 0);
 
-    // Initialize voices
-    this.#sourcePool = new Pool(polyphony, 'source:default');
+    // Initialize pool with type only (removed polyphony parameter)
+    this.#sourcePool = new Pool('source:default');
+
+    // Pre-create voices with polyphony
     this.#preCreateVoices(context, polyphony);
+
+    // Todo: probably just track the latest played note instead of all..
+    this.#sourcePool.nodes.forEach((node) => {
+      node.onMessage('voice:position', (data) => {
+        if (this.#trackPlaybackPosition && node === this.#mostRecentSource)
+          this.#messages.sendMessage('voice:position', data);
+      });
+    });
 
     this.#isInitialized = true;
 
@@ -186,18 +197,42 @@ export class Sampler implements LibInstrument {
     const node = this.#sourcePool.allocateNode();
     if (!node) return this;
 
-    node.onMessage('voice:ended', () => {
-      this.sendMessage('voice:ended', { midiNote });
-    });
-
+    // Trigger sound first to minimize latency
     node.trigger({ midiNote, velocity, attackTime: this.#state.attackTime });
+
+    // then bookkeeping
+    if (!this.#activeNotes.has(midiNote)) {
+      this.#activeNotes.set(midiNote, new Set());
+    }
+    this.#activeNotes.get(midiNote)!.add(node);
+
+    // Update most recent source for tracking position
+    this.#mostRecentSource = node;
+    node.enablePositionTracking = true;
+
     this.sendMessage('note:on', { midiNote, velocity });
     return this;
   }
 
-  // Simple subscription method
-  subscribe(callback: EventCallback<SourceEvent>) {
-    return this.events.subscribe(callback);
+  enablePositionTracking(
+    enabled: boolean,
+    strategy: 'mostRecent' | 'all' = 'mostRecent'
+  ) {
+    this.#trackPlaybackPosition = enabled;
+
+    if (enabled && strategy === 'mostRecent') {
+      // Only enable tracking for most recent source
+      if (this.#mostRecentSource) {
+        this.#mostRecentSource.enablePositionTracking = true;
+      }
+    } else if (enabled && strategy === 'all') {
+      // todo
+    } else {
+      // Disable tracking for all sources
+      this.#sourcePool.nodes.forEach((node) => {
+        node.enablePositionTracking = false;
+      });
+    }
   }
 
   getParamValue(name: string): number | null {
@@ -211,17 +246,16 @@ export class Sampler implements LibInstrument {
   }
 
   release(midiNote: number) {
-    const nodes = this.#sourcePool.getNodesByNote(midiNote);
-    if (!nodes?.length) {
+    const nodes = this.#activeNotes.get(midiNote);
+    if (!nodes || nodes.size === 0) {
       console.warn(`Could not release note ${midiNote}`);
       return this;
     }
 
-    // todo: only release the most recently triggered
     nodes.forEach((node) => {
-      if (node instanceof SourceNode) {
-        node.release({ releaseTime: this.#state.releaseTime });
-      }
+      node.release({ releaseTime: this.#state.releaseTime });
+      node.enablePositionTracking = false;
+      if (this.#mostRecentSource === node) this.#mostRecentSource = null;
     });
 
     this.sendMessage('note:off', { midiNote });
@@ -275,41 +309,22 @@ export class Sampler implements LibInstrument {
     return this;
   }
 
-  // applyToAllActiveNodes(funcToApply: Function) {
-  //   this.getAllActiveNodes(funcToApply);
-  //   return this;
-  // }
-
-  // getAllActiveNodes(applyFunction?: Function): SourceNode[] {
-  //   const allActiveNodes: SourceNode[] = [];
-  //   this.#activeNotes.forEach((nodeIds) => {
-  //     nodeIds.forEach((nodeId) => {
-  //       const node = this.#sourcePool.getNodeById(nodeId);
-  //       if (node) {
-  //         if (applyFunction) applyFunction(node);
-  //         allActiveNodes.push(node);
-  //       }
-  //     });
-  //   });
-  //   return allActiveNodes;
-  // }
-
   dispose(): void {
     try {
       this.stopAll();
+      this.#mostRecentSource = null;
 
       if (this.#sourcePool) {
         this.#sourcePool.dispose();
         this.#sourcePool = null as unknown as Pool<SourceNode>;
       }
 
+      this.#activeNotes.clear();
+
       if (this.#output) {
         this.#output.disconnect();
         this.#output = null as unknown as GainNode;
       }
-
-      // this.#activeNotes.clear();
-      // this.#activeNotes = null as unknown as Map<number, string[]>;
 
       this.#macroLoopStart.dispose();
       this.#macroLoopEnd.dispose();
@@ -328,11 +343,6 @@ export class Sampler implements LibInstrument {
 
       // Clear context reference
       this.#context = null as unknown as AudioContext;
-
-      // Clean up position tracking
-      if (this.#positionUpdateInterval) {
-        clearInterval(this.#positionUpdateInterval);
-      }
     } catch (error) {
       console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }
@@ -359,15 +369,11 @@ export class Sampler implements LibInstrument {
   }
 
   get activeNotesCount(): number {
-    return this.#sourcePool.activeCount;
+    return Array.from(this.#activeNotes.values()).reduce(
+      (sum, nodes) => sum + nodes.size,
+      0
+    );
   }
-
-  // get activeNotesCount(): number {
-  //   return [...this.#activeNotes.values()].reduce(
-  //     (sum, arr) => sum + arr.length,
-  //     0
-  //   );
-  // }
 
   get isInitialized() {
     return this.#isInitialized;
@@ -397,49 +403,38 @@ export class Sampler implements LibInstrument {
   get isLooping(): boolean {
     return this.#macroLoop.macro.value > 0.5;
   }
-
-  get currentPosition(): number {
-    return this.#currentPosition;
-  }
-
-  get normalizedPosition(): number {
-    return this.#bufferDuration
-      ? this.#currentPosition / this.#bufferDuration
-      : 0;
-  }
-
-  testPlayPos(pos: number) {
-    this.#currentPosition = pos;
-  }
-
-  // #startPositionTracking() {
-  //   if (this.#positionUpdateInterval) {
-  //     clearInterval(this.#positionUpdateInterval);
-  //   }
-
-  //   // Update position 60 times per second
-  //   this.#positionUpdateInterval = setInterval(() => {
-  //     if (this.isPlaying) {
-  //       // Get position from the most recently played voice
-  //       const lastPlayedNode = this.#getLastPlayedNode();
-  //       if (lastPlayedNode) {
-  //         this.#currentPosition = lastPlayedNode.playbackPositionParam.value;
-  //         this.#currentAmplitude = lastPlayedNode.playbackPositionParam.value;
-  //       }
-  //     }
-  //   }, 1000 / 60) as unknown as number;
-  // }
-
-  // #getLastPlayedNode(): SourceNode | null {
-  //   if (this.#activeNotes.size === 0) return null;
-
-  //   // Get the last active note's most recent voice
-  //   const lastNote = Array.from(this.#activeNotes.entries()).pop();
-  //   if (!lastNote) return null;
-
-  //   const [, nodeIds] = lastNote;
-  //   const lastNodeId = nodeIds[nodeIds.length - 1];
-
-  //   return this.#sourcePool.getNodeById(lastNodeId) as SourceNode; // Changed from getNode to getNodeById
-  // }
 }
+
+//   get currentPosition(): number {
+//     return this.#currentPosition;
+//   }
+
+//   get normalizedPosition(): number {
+//     return this.#bufferDuration
+//       ? this.#currentPosition / this.#bufferDuration
+//       : 0;
+//   }
+
+//   testPlayPos(pos: number) {
+//     this.#currentPosition = pos;
+//   }
+// }
+
+// applyToAllActiveNodes(funcToApply: Function) {
+//   this.getAllActiveNodes(funcToApply);
+//   return this;
+// }
+
+// getAllActiveNodes(applyFunction?: Function): SourceNode[] {
+//   const allActiveNodes: SourceNode[] = [];
+//   this.#activeNotes.forEach((nodeIds) => {
+//     nodeIds.forEach((nodeId) => {
+//       const node = this.#sourcePool.getNodeById(nodeId);
+//       if (node) {
+//         if (applyFunction) applyFunction(node);
+//         allActiveNodes.push(node);
+//       }
+//     });
+//   });
+//   return allActiveNodes;
+// }ss

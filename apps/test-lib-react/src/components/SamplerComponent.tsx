@@ -19,72 +19,54 @@ const SamplerComponent = () => {
   const [rampTime, setRampTime] = useState(0.2);
   const [activeVoices, setActiveVoices] = useState(0);
   const samplerRef = useRef<Sampler | null>(null);
-  const [samplerReset, setSamplerReset] = useState(false);
+  const sampleDurationRef = useRef(0); // Add this ref to track sample duration
 
   const [playbackPosition, setPlaybackPosition] = useState(0);
-  const [playbackAmplitude, setPlaybackAmplitude] = useState(0);
-  const animationFrameRef = useRef<number | null>(null);
 
-  // // Add position tracking
-  // useEffect(() => {
-  //   const updatePosition = () => {
-  //     if (samplerRef.current) {
-  //       setPlaybackPosition(samplerRef.current.normalizedPosition);
-  //     }
-  //     animationFrameRef.current = requestAnimationFrame(updatePosition);
-  //   };
-
-  //   updatePosition();
-
-  //   return () => {
-  //     if (animationFrameRef.current) {
-  //       cancelAnimationFrame(animationFrameRef.current);
-  //     }
-  //   };
-  // }, []);
-
-  // Add visualization component
-  const PlaybackVisualizer = () => (
-    <div
-      style={{
-        width: '65vw',
-        height: '20px',
-        backgroundColor: '#eee',
-        margin: '20px 50px',
-        position: 'relative',
-      }}
-    >
+  // Memoize the PlaybackVisualizer to ensure it only updates when needed
+  const PlaybackVisualizer = useCallback(() => {
+    return (
       <div
         style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          height: '100%',
-          width: `${playbackPosition * 100}%`,
-          backgroundColor: '#4CAF50',
-          transition: 'width 0.05s linear',
+          width: '65vw',
+          height: '20px',
+          backgroundColor: '#eee',
+          margin: '20px 50px',
+          position: 'relative',
         }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: `${loopStartNormalized * 100}%`,
-          width: '2px',
-          height: '100%',
-          backgroundColor: 'blue',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: `${loopEndNormalized * 100}%`,
-          width: '2px',
-          height: '100%',
-          backgroundColor: 'red',
-        }}
-      />
-    </div>
-  );
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: `${playbackPosition * 100}%`,
+            backgroundColor: '#4CAF50',
+            transition: 'width 0.05s linear',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: `${loopStartNormalized * 100}%`,
+            width: '2px',
+            height: '100%',
+            backgroundColor: 'blue',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: `${loopEndNormalized * 100}%`,
+            width: '2px',
+            height: '100%',
+            backgroundColor: 'red',
+          }}
+        />
+      </div>
+    );
+  }, [playbackPosition]); // Only re-render when playbackPosition changes
 
   // Update actual loop points when normalized positions or sample duration changes
   useEffect(() => {
@@ -104,17 +86,30 @@ const SamplerComponent = () => {
         return false;
       }
 
-      samplerRef.current.addListener('position_and_amplitude', (data: any) => {
-        setPlaybackPosition(data.position);
-        setPlaybackAmplitude(data.amplitude);
-        // setPlaybackProgress(data.progress);
+      // Enable position tracking
+      console.log('Enabling position tracking');
+      samplerRef.current.enablePositionTracking(true, 'mostRecent');
+
+      samplerRef.current.onMessage('voice:position', (data: any) => {
+        // Force immediate state update
+        setPlaybackPosition((prev) => {
+          // Use the ref instead of the state
+          if (!sampleDurationRef.current) {
+            console.warn('Sample duration ref is 0 or not set');
+            return prev;
+          }
+          const newPos = data.position / sampleDurationRef.current;
+          // Clamp the position between 0 and 1
+          const clampedPos = Math.min(Math.max(newPos, 0), 1);
+          return clampedPos;
+        });
       });
-      // samplerRef.current.addListener('voice:ended', () => {
-      //   setActiveVoices((prev) => Math.max(prev - 1, 0));
-      // });
+
+      samplerRef.current.onMessage('voice:ended', () => {
+        setActiveVoices((prev) => Math.max(prev - 1, 0));
+      });
 
       setInitialized(true);
-
       return true;
     } catch (error) {
       console.error('Failed to initialize audio:', error);
@@ -153,10 +148,13 @@ const SamplerComponent = () => {
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-    samplerRef.current.loadSample(audioBuffer);
+    // Set both the state and the ref
+    const duration = audioBuffer.duration;
+    console.log('Setting sample duration:', duration);
+    setSampleDuration(duration);
+    sampleDurationRef.current = duration; // Set the ref immediately
 
-    // Set duration and reset end point
-    setSampleDuration(audioBuffer.duration);
+    samplerRef.current.loadSample(audioBuffer);
 
     // Reset normalized positions to defaults (start at beginning, end at full duration)
     setLoopStartNormalized(0);
@@ -227,37 +225,14 @@ const SamplerComponent = () => {
     samplerRef.current?.setLoopEnd(actualValue, rampTime);
   };
 
-  // Using Logarithm:
-
-  // const handleLoopStartNormalizedChange = (linearPosition: number) => {
-  //   // Apply logarithmic scaling (more sensitive at beginning)
-  //   const logValue = logScaleStart(linearPosition);
-
-  //   // Clamp to make sure start doesn't exceed end position
-  //   const clampedLogValue = Math.min(logValue, loopEndNormalized - 0.001);
-  //   setLoopStartNormalized(inverseLogScaleStart(clampedLogValue));
-
-  //   // Calculate actual time value and update sampler
-  //   const actualValue = clampedLogValue * sampleDuration;
-  //   samplerRef.current?.setLoopStart(actualValue, rampTime);
-  // };
-
-  // const handleLoopEndNormalizedChange = (linearPosition: number) => {
-  //   // Apply logarithmic scaling (more sensitive at end)
-  //   const logValue = logScaleEnd(linearPosition);
-
-  //   // Clamp to make sure end doesn't go below start position
-  //   const clampedLogValue = Math.max(logValue, loopStartNormalized + 0.001);
-  //   setLoopEndNormalized(inverseLogScaleEnd(clampedLogValue));
-
-  //   // Calculate actual time value and update sampler
-  //   const actualValue = clampedLogValue * sampleDuration;
-  //   samplerRef.current?.setLoopEnd(actualValue, rampTime);
-  // };
-
   const handleRampTimeChange = (value: number) => {
     setRampTime(value);
   };
+
+  // Add an effect to keep the ref in sync with the state
+  useEffect(() => {
+    sampleDurationRef.current = sampleDuration;
+  }, [sampleDuration]);
 
   return (
     <div style={{ width: '100vw' }}>
@@ -290,7 +265,6 @@ const SamplerComponent = () => {
       {/* Position display */}
       <div style={{ margin: '10px 50px' }}>
         Playback Position: {(playbackPosition * sampleDuration).toFixed(3)}s
-        Playback Amplitude: {playbackAmplitude.toFixed(3)}
       </div>
 
       <div style={{ width: '100vw' }}>
@@ -373,3 +347,31 @@ const SamplerComponent = () => {
 };
 
 export default SamplerComponent;
+
+// Using Logarithm:
+
+// const handleLoopStartNormalizedChange = (linearPosition: number) => {
+//   // Apply logarithmic scaling (more sensitive at beginning)
+//   const logValue = logScaleStart(linearPosition);
+
+//   // Clamp to make sure start doesn't exceed end position
+//   const clampedLogValue = Math.min(logValue, loopEndNormalized - 0.001);
+//   setLoopStartNormalized(inverseLogScaleStart(clampedLogValue));
+
+//   // Calculate actual time value and update sampler
+//   const actualValue = clampedLogValue * sampleDuration;
+//   samplerRef.current?.setLoopStart(actualValue, rampTime);
+// };
+
+// const handleLoopEndNormalizedChange = (linearPosition: number) => {
+//   // Apply logarithmic scaling (more sensitive at end)
+//   const logValue = logScaleEnd(linearPosition);
+
+//   // Clamp to make sure end doesn't go below start position
+//   const clampedLogValue = Math.max(logValue, loopStartNormalized + 0.001);
+//   setLoopEndNormalized(inverseLogScaleEnd(clampedLogValue));
+
+//   // Calculate actual time value and update sampler
+//   const actualValue = clampedLogValue * sampleDuration;
+//   samplerRef.current?.setLoopEnd(actualValue, rampTime);
+// };

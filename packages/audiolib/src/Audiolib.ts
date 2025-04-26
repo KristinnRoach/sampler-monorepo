@@ -119,7 +119,7 @@ export class Audiolib implements LibNode {
 
   createSampler(
     audioSample?: AudioBuffer,
-    polyphony = 8,
+    polyphony = 16,
     ctx = this.#audioContext
   ): Sampler | null {
     try {
