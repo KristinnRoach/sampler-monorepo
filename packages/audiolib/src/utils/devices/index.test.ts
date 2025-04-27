@@ -37,6 +37,16 @@ describe('Device Access Utils', () => {
   });
 
   describe('getDevices', () => {
+    const originalConsoleError = console.error;
+
+    beforeEach(() => {
+      console.error = vi.fn(); // Suppress console.error during tests
+    });
+
+    afterEach(() => {
+      console.error = originalConsoleError; // Restore original console.error
+    });
+
     it('returns list of available devices', async () => {
       const devices = await getDevices();
       expect(devices).toHaveLength(3);
