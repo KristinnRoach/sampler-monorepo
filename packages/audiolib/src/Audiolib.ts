@@ -8,8 +8,11 @@ import { idb, initIdb, sampleLib } from './store/persistent/idb';
 import { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
 import { Sampler, KarplusStrongSynth } from './instruments';
 import { assert, tryCatch } from '@/utils';
-import { LibNode } from '@/nodes';
+import { LibInstrument, LibNode } from '@/nodes';
 import { Message, MessageHandler, createMessageBus } from '@/events';
+import { globalKeyboardInput, InputHandler } from '@/input';
+
+let globalLoopState: boolean = false;
 
 export class Audiolib implements LibNode {
   readonly nodeId: string = 'audiolib';
@@ -25,8 +28,10 @@ export class Audiolib implements LibNode {
 
   #audioContext: AudioContext | null = null;
   #masterGain: GainNode;
-  #samplers: Map<string, Sampler> = new Map();
+  #instruments: Map<string, LibInstrument> = new Map();
   #INIT_APP_SAMPLE: AudioBuffer | null = null;
+
+  #keyboardHandler: InputHandler | null = null;
   #messages;
 
   private constructor() {
@@ -133,7 +138,8 @@ export class Audiolib implements LibNode {
 
       const newSampler = new Sampler(polyphony, ctx, audioBuffer);
       newSampler.connect(this.#masterGain);
-      this.#samplers.set(newSampler.nodeId, newSampler);
+
+      this.#instruments.set(newSampler.nodeId, newSampler);
       return newSampler;
     } catch (error) {
       console.error(
@@ -143,12 +149,60 @@ export class Audiolib implements LibNode {
     }
   }
 
+  #onNoteOn(midiNote: number, modifiers: TODO, velocity?: number) {
+    this.#instruments.forEach((s) => s.play(midiNote, modifiers, velocity));
+  }
+
+  #onNoteOff(midiNote: number, modifiers: TODO) {
+    this.#instruments.forEach((s) => s.release(midiNote, modifiers));
+  }
+
+  #onBlur() {
+    console.debug('Blur occured');
+    this.#instruments.forEach((s) => s.releaseAll());
+  }
+
+  // #onCapsToggled(capsOn: boolean, modifiers: TODO) {
+  //   if (globalLoopState !== capsOn) {
+  //     console.log('Audiolib mod.caps ENABLED: ', capsOn);
+
+  //     globalLoopState = capsOn;
+  //     this.#instruments.forEach((s) => s.onGlobalLoopToggle(capsOn));
+  //   }
+  // }
+
+  enableKeyboard() {
+    if (!this.#keyboardHandler) {
+      this.#keyboardHandler = {
+        onNoteOn: this.#onNoteOn.bind(this),
+        onNoteOff: this.#onNoteOff.bind(this),
+        onBlur: this.#onBlur.bind(this),
+        // onCapsToggled: this.#onCapsToggled.bind(this),
+      };
+      globalKeyboardInput.addHandler(this.#keyboardHandler);
+    } else {
+      console.debug(`keyboard already enabled`);
+    }
+  }
+
+  disableKeyboard() {
+    if (this.#keyboardHandler) {
+      globalKeyboardInput.removeHandler(this.#keyboardHandler);
+      this.#keyboardHandler = null;
+    } else {
+      console.debug(`keyboard already disabled`);
+    }
+  }
+
   createKarplusStrongSynth(polyphony = 8, ctx = this.#audioContext) {
     try {
       assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
       const newSynth = new KarplusStrongSynth(polyphony);
       newSynth.connect(this.#masterGain);
+
+      this.#instruments.set(newSynth.nodeId, newSynth);
+
       return newSynth;
     } catch (error) {
       console.error(
@@ -215,16 +269,20 @@ export class Audiolib implements LibNode {
     return this.#audioContext;
   }
 
+  get now() {
+    return getAudioContext().currentTime;
+  }
+
   /** CLEAN UP **/
 
   dispose(): void {
     try {
       console.debug('Audiolib dispose called');
 
-      for (const sampler of this.#samplers.values()) {
+      for (const sampler of this.#instruments.values()) {
         sampler.dispose();
       }
-      this.#samplers.clear();
+      this.#instruments.clear();
 
       if (this.#masterGain) {
         this.#masterGain.disconnect();

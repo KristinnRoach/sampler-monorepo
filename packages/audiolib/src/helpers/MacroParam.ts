@@ -1,24 +1,31 @@
-import { assert } from '../utils/assert';
+import { LibNode } from '@/nodes';
+import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
+import { MessageHandler, Message } from '@/events';
+import { assert } from '@/utils/assert';
+import { isCancelAndHoldSupported } from '@/utils/environment';
 import { getScale } from './noteFreq';
 import { SCALE_PATTERNS } from './NOTE_FREQ';
 
-export class MacroParam {
+export class MacroParam implements LibNode {
+  readonly nodeId: string;
+  readonly nodeType: string;
+
   #context: BaseAudioContext;
   #controlNode: GainNode;
   #constantSignal: ConstantSourceNode;
-  // #constantOffset: number = 0; // what is dis?
+  #slaveParams: AudioParam[] = [];
+  #paramType: string = '';
+  #allowedValues: number[] = [];
+  #allowedPeriods: number[] = [];
+  #messages: any; // TODO: implement proper message bus
 
-  #slaveParams: AudioParam[] = []; // or map for types / param names / id's
-  #paramType: string = ''; // for now
-
-  #allowedValues: number[] = []; // ? test sorting! // using for zero-crossings
-  #allowedPeriods: number[] = []; // SORTED low to high
-
-  static MIN_EXPONENTIAL_RAMP_VALUE = 1e-5; // clarify if or why needed and check official docs for safe value
+  static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
   constructor(context: BaseAudioContext, initialValue: number = 0) {
     this.#context = context;
     assert(context instanceof AudioContext, '', this);
+    this.nodeType = `macro:${this.#paramType || 'noParamType'}`;
+    this.nodeId = createNodeId(this.nodeType);
 
     this.#constantSignal = context.createConstantSource();
     this.#constantSignal.start();
@@ -26,9 +33,32 @@ export class MacroParam {
     this.#controlNode = new GainNode(context, { gain: initialValue });
     this.#constantSignal.connect(this.#controlNode);
 
-    // default scale for periods
     const periods = getScale('C', [0, 7]).periodsInSec;
-    this.#allowedPeriods = periods.sort((a, b) => a - b); // sort low to high
+    this.#allowedPeriods = periods.sort((a, b) => a - b);
+  }
+
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    // TODO: implement proper message handling
+    return () => {};
+  }
+
+  connect(
+    destination: AudioNode | null,
+    outputIndex?: number,
+    inputIndex?: number
+  ): this | AudioNode | AudioParam {
+    if (destination) {
+      this.#controlNode.connect(destination, outputIndex, inputIndex);
+    }
+    return this;
+  }
+
+  disconnect(destination?: AudioNode | null): void {
+    if (destination) {
+      this.#controlNode.disconnect(destination);
+    } else {
+      this.#controlNode.disconnect();
+    }
   }
 
   // add target audioparam to be controlled by the macro
@@ -88,8 +118,10 @@ export class MacroParam {
     const param = this.macro;
     // if (!this.#shouldRamp(targetValue, snapToPeriod)) return this;
 
-    // this.macro.cancelScheduledValues(now);
-    this.macro.cancelAndHoldAtTime(now);
+    isCancelAndHoldSupported()
+      ? this.macro.cancelAndHoldAtTime(now) // not supported in firefox
+      : this.macro.cancelScheduledValues(now);
+
     let processedValue = this.processTargetValue(targetValue, constant);
 
     switch (style) {
@@ -172,9 +204,6 @@ export class MacroParam {
     return Math.max(value, MacroParam.MIN_EXPONENTIAL_RAMP_VALUE);
   };
 
-  dispose(): void {
-    this.#controlNode.disconnect();
-  }
   /** SETTERS */
 
   setAllowedParamValues(values: number[]) {
@@ -249,6 +278,13 @@ export class MacroParam {
 
   get numAllowedValues() {
     return this.#allowedValues.length;
+  }
+
+  dispose(): void {
+    this.#constantSignal.stop();
+    this.#constantSignal.disconnect();
+    this.#controlNode.disconnect();
+    deleteNodeId(this.nodeId);
   }
 }
 

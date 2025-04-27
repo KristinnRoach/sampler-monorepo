@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import KeyboardController from '../input/KeyboardController';
+// import KeyboardController from '../input/KeyboardController';
 import { audiolib, KarplusStrongSynth } from '@repo/audiolib';
 
 const KarplusStrongSynthComponent = () => {
@@ -132,10 +132,10 @@ const KarplusStrongSynthComponent = () => {
             </div>
           </div>
 
-          <KeyboardController
+          {/* <KeyboardController
             onNoteOn={handleNoteOn}
             onNoteOff={handleNoteOff}
-          />
+          /> */}
         </div>
       )}
     </div>

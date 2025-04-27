@@ -225,6 +225,7 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
   }
 
   setLoopEnabled(enabled: boolean) {
+    console.log('SOURCE ENABLED: ', enabled);
     this.getParam('loop')!.setValueAtTime(enabled ? 1 : 0, this.now);
     return this;
   }

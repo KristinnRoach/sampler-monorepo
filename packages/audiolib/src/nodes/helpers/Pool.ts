@@ -1,4 +1,5 @@
 import { LibNode, LibSourceNode } from '@/nodes';
+import { getAudioContext } from '@/context';
 import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 
@@ -83,6 +84,11 @@ export class Pool<T extends LibSourceNode> implements LibNode {
   }
 
   // Simple getters
+
+  get now() {
+    return getAudioContext().currentTime;
+  }
+
   get nodes(): T[] {
     return [...this.#nodes];
   }

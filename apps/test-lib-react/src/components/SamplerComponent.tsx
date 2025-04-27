@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import KeyboardController from '../input/KeyboardController';
+// import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 
 const SamplerComponent = () => {
@@ -108,6 +108,11 @@ const SamplerComponent = () => {
       samplerRef.current.onMessage('voice:ended', () => {
         setActiveVoices((prev) => Math.max(prev - 1, 0));
       });
+      samplerRef.current.onMessage('voice:started', () => {
+        setActiveVoices((prev) => prev + 1);
+      });
+
+      audiolib.enableKeyboard();
 
       setInitialized(true);
       return true;
@@ -185,17 +190,17 @@ const SamplerComponent = () => {
       });
   }, []);
 
-  const handleNoteOn = (midiNote: number) => {
-    samplerRef.current?.play(midiNote);
+  // const handleNoteOn = (midiNote: number) => {
+  //   samplerRef.current?.play(midiNote);
 
-    setActiveVoices(samplerRef.current?.activeNotesCount || 0);
-  };
+  //   setActiveVoices(samplerRef.current?.activeNotesCount || 0);
+  // };
 
-  const handleNoteOff = (midiNote: number) => {
-    samplerRef.current?.release(midiNote);
+  // const handleNoteOff = (midiNote: number) => {
+  //   samplerRef.current?.release(midiNote);
 
-    setActiveVoices(samplerRef.current?.activeNotesCount || 0);
-  };
+  //   setActiveVoices(samplerRef.current?.activeNotesCount || 0);
+  // };
 
   const toggleLoopEnabled = () => {
     const newLoopState = !isLoopEnabled;
@@ -251,7 +256,7 @@ const SamplerComponent = () => {
         Load default sample
       </button>
 
-      <KeyboardController onNoteOn={handleNoteOn} onNoteOff={handleNoteOff} />
+      {/* <KeyboardController onNoteOn={handleNoteOn} onNoteOff={handleNoteOff} /> */}
 
       <div>
         <input type='file' accept='audio/*' onChange={handleFileChange} />

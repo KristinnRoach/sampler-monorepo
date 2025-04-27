@@ -3,6 +3,7 @@ import { Pool } from '@/nodes/helpers/Pool';
 import { createNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
+import { isModifierStateSupported } from '@/utils';
 
 export class KarplusStrongSynth implements LibInstrument {
   readonly nodeId: string;
@@ -44,7 +45,7 @@ export class KarplusStrongSynth implements LibInstrument {
     }
   }
 
-  play(midiNote: number, velocity: number = 1): this {
+  play(midiNote: number, modifers: TODO, velocity: number = 1): this {
     const voice = this.#voicePool.allocateNode();
     if (!voice) return this;
 
@@ -70,10 +71,17 @@ export class KarplusStrongSynth implements LibInstrument {
       this.sendMessage('voice:ended', { midiNote });
     });
 
+    // if (modifers.caps && isModifierStateSupported()) {
+    //   // Temp hax
+    //   setInterval(() => {
+    //     this.play(midiNote, modifers, velocity);
+    //   }, this.#releaseTime * 1000);
+    // }
+
     return this;
   }
 
-  release(midiNote: number): this {
+  release(midiNote: number, modifers?: TODO): this {
     const voices = this.#activeNotes.get(midiNote);
     if (!voices || voices.size === 0) {
       console.warn(`Could not release note ${midiNote}`);
@@ -121,6 +129,12 @@ export class KarplusStrongSynth implements LibInstrument {
     return null;
   }
 
+  onGlobalLoopToggle(): this {
+    // TODO: loop not implemented yet
+    // this.setLoopEnabled(!this.loopEnabled);
+    return this;
+  }
+
   connect(destination: AudioNode): this {
     this.#output.connect(destination);
     return this;
@@ -159,6 +173,10 @@ export class KarplusStrongSynth implements LibInstrument {
   }
 
   /** GETTERS */
+  get now() {
+    return getAudioContext().currentTime;
+  }
+
   get volume(): number {
     return this.#output.gain.value;
   }
