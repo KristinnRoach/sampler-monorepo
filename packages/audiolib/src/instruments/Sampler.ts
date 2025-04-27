@@ -1,7 +1,7 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
 import { LibInstrument, LibSourceNode, SourceNode } from '@/nodes';
-import { Pool } from '@/nodes/helpers/Pool';
+import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { MacroParam } from '@/helpers/MacroParam';
@@ -282,14 +282,22 @@ export class Sampler implements LibInstrument {
 
   stopAll() {
     const callback = (node: LibSourceNode) => node.stop();
-    this.#sourcePool.applyToAllActiveNodes(callback);
+
+    tryCatch(
+      () => this.#sourcePool.applyToAllActiveNodes(callback),
+      'Failed to stop all nodes'
+    );
 
     return this;
   }
 
   releaseAll(): this {
     const callback = (node: LibSourceNode) => node.release();
-    this.#sourcePool.applyToAllActiveNodes(callback);
+
+    tryCatch(
+      () => this.#sourcePool.applyToAllActiveNodes(callback),
+      'Failed to release all nodes'
+    );
 
     return this;
   }

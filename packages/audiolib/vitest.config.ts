@@ -1,16 +1,24 @@
 import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
 
 // Todo: try the commented out config below
 
 export default defineConfig({
   test: {
-    environment: 'jsdom',
+    environment: 'jsdom', // Creates an isolated test environment
     globals: true,
     include: ['src/**/*.test.ts'],
     coverage: {
       reporter: ['text', 'html'],
     },
-    testTimeout: 10000, // Increased timeout for tests
+    testTimeout: 10000,
+    setupFiles: ['src/utils/test-setup.ts'],
+    // Mocks for web audio api - should only exist in the test environment!
+  },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
 });
 

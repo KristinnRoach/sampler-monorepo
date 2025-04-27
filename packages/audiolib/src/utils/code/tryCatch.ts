@@ -11,7 +11,48 @@ type Failure<E> = {
 
 type Result<T, E = Error> = Success<T> | Failure<E>;
 
-export async function tryCatch<T, E = Error>(
+// Unified tryCatch that handles both sync and async cases
+export function tryCatch<T, E = Error>(
+  fn:
+    | (() => T)
+    | Promise<T>
+    | (() => Promise<T>)
+    | { (): T }
+    | { (): Promise<T> },
+  errorMessage?: string,
+  logError: boolean = true
+): Promise<Result<T, E>> | Result<T, E> {
+  // Handle case where fn is already a Promise
+  if (fn instanceof Promise) {
+    return handleAsync(fn, errorMessage, logError);
+  }
+
+  // Handle case where fn is a function
+  if (typeof fn === 'function') {
+    try {
+      const result = fn();
+      // If result is a Promise, handle async
+      if (result instanceof Promise) {
+        return handleAsync(result, errorMessage, logError);
+      }
+      // Handle sync result
+      return { data: result, error: null };
+    } catch (error) {
+      if (logError) {
+        const message = errorMessage
+          ? `${errorMessage}: ${(error as Error).message}`
+          : (error as Error).message;
+        console.error(message);
+      }
+      return { data: null, error: error as E };
+    }
+  }
+
+  throw new Error('tryCatch argument must be a function or promise');
+}
+
+// Helper for async handling
+async function handleAsync<T, E = Error>(
   promise: Promise<T>,
   errorMessage?: string,
   logError: boolean = true
@@ -20,7 +61,6 @@ export async function tryCatch<T, E = Error>(
     const data = await promise;
     return { data, error: null };
   } catch (error) {
-    // Log the error if requested
     if (logError) {
       const message = errorMessage
         ? `${errorMessage}: ${(error as Error).message}`
@@ -30,6 +70,39 @@ export async function tryCatch<T, E = Error>(
     return { data: null, error: error as E };
   }
 }
+
+// // Types for the result object with discriminated union
+// type Success<T> = {
+//   data: T;
+//   error: null;
+// };
+
+// type Failure<E> = {
+//   data: null;
+//   error: E;
+// };
+
+// type Result<T, E = Error> = Success<T> | Failure<E>;
+
+// export async function tryCatch<T, E = Error>(
+//   promise: Promise<T>,
+//   errorMessage?: string,
+//   logError: boolean = true
+// ): Promise<Result<T, E>> {
+//   try {
+//     const data = await promise;
+//     return { data, error: null };
+//   } catch (error) {
+//     // Log the error if requested
+//     if (logError) {
+//       const message = errorMessage
+//         ? `${errorMessage}: ${(error as Error).message}`
+//         : (error as Error).message;
+//       console.error(message);
+//     }
+//     return { data: null, error: error as E };
+//   }
+// }
 
 /*
 // original from  t3 (theo)

@@ -1,9 +1,9 @@
 import { LibInstrument, KarplusNode } from '@/nodes';
-import { Pool } from '@/nodes/helpers/Pool';
+import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { isModifierStateSupported } from '@/utils';
+// import { isModifierStateSupported } from '@/utils';
 
 export class KarplusStrongSynth implements LibInstrument {
   readonly nodeId: string;

@@ -1,6 +1,6 @@
-import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 import dts from 'vite-plugin-dts';
 
 export default defineConfig({
@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [
     dts({
       include: ['src'],
-      exclude: ['**/*.test.ts', '**/__tests__/**'], // todo: ensure compatibility with tsconfig
+      exclude: ['**/*.test.ts', '**/__tests__/**', '**/test-setup.ts'], // Added test-setup.ts
       outDir: 'dist',
       rollupTypes: true,
     }),
@@ -23,14 +23,9 @@ export default defineConfig({
       // fileName: (format, entryName) => `my-lib-${entryName}.${format}.js`,
       // fileName: (format) => `audiolib.${format}.js`,
     },
-    // minify: false, // Disable minification for debugging
-    // rollupOptions: {
-    //   external: [], // Add any external dependencies here if needed
-    //   output: {
-    //     globals: {}, // Define globals for UMD builds if needed
-    //     format: 'es',
-    //   },
-    // },
+    rollupOptions: {
+      external: [/test-setup\.ts$/], // Exclude test setup from build
+    },
   },
   resolve: {
     extensions: ['.js', '.ts'], // TOdo: henda

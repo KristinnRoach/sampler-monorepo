@@ -2,7 +2,7 @@ import { LibSourceNode } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { assert } from '@/utils';
+import { assert, cancelScheduledParamValues } from '@/utils';
 
 function midiNoteToFrequency(note: number): number {
   return 440 * Math.pow(2, (note - 60) / 12);
@@ -94,11 +94,7 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     // TODO: optional linear, exponential ramp, setTargetAtTime etc.
     const param = this.getParam(name);
     if (options.cancelPrevSchedules) {
-      if (typeof param.cancelAndHoldAtTime === 'function') {
-        param.cancelAndHoldAtTime(this.now); // not supported in firefox
-      } else {
-        param.cancelScheduledValues(this.now);
-      }
+      cancelScheduledParamValues(param, this.now);
     }
     param.setValueAtTime(value, this.now);
     return this;
@@ -107,7 +103,7 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
   resetParams() {
     this.paramMap.forEach((param) => {
       assert(param instanceof AudioParam, 'param is not AudioParam', param);
-      param.cancelScheduledValues(this.now);
+      cancelScheduledParamValues(param, this.now);
       if (param.defaultValue) {
         param.setValueAtTime(param.defaultValue, this.now);
       }
@@ -173,7 +169,7 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     this.getParam('velocity')!.setValueAtTime(velocity, time);
 
     const envGain = this.getParam('envGain')!;
-    envGain.cancelScheduledValues(this.now);
+    cancelScheduledParamValues(envGain, this.now);
     envGain.setValueAtTime(0, this.now);
     envGain.linearRampToValueAtTime(1, this.now + attackTime);
 
@@ -200,7 +196,7 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
     const { releaseTime = 0.3 } = options;
 
     const envGain = this.getParam('envGain')!;
-    envGain.cancelScheduledValues(this.now);
+    cancelScheduledParamValues(envGain, this.now);
     envGain.setValueAtTime(envGain.value, this.now);
     envGain.linearRampToValueAtTime(0, this.now + releaseTime);
 

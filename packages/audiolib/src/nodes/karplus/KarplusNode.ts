@@ -2,6 +2,7 @@ import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { LibSourceNode } from '@/nodes';
 import { Message, MessageHandler, createMessageBus } from '@/events';
+import { assert, cancelScheduledParamValues } from '@/utils';
 
 export class KarplusNode implements LibSourceNode {
   readonly nodeId: NodeID;
@@ -118,10 +119,13 @@ export class KarplusNode implements LibSourceNode {
     const totalDelay = delayMs;
 
     this.delay = { ms: totalDelay };
+
     // Reset gain params
+    cancelScheduledParamValues(this.outputGain.gain, this.now);
     this.outputGain.gain.cancelScheduledValues(this.now);
     this.outputGain.gain.setValueAtTime(this.#volume, this.now);
-    this.noiseGain.gain.cancelScheduledValues(this.now);
+
+    cancelScheduledParamValues(this.noiseGain.gain, this.now);
     this.noiseGain.gain.setValueAtTime(0, this.now);
 
     // Schedule noise burst to excite the string using current holdMs value
@@ -143,7 +147,7 @@ export class KarplusNode implements LibSourceNode {
     if (!this.#isPlaying) return this;
 
     const now = this.now;
-    this.outputGain.gain.cancelAndHoldAtTime(this.now);
+    cancelScheduledParamValues(this.outputGain.gain, this.now);
     // this.outputGain.gain.setValueAtTime(this.outputGain.gain.value, now);
     this.outputGain.gain.linearRampToValueAtTime(0.00001, now + releaseTime);
 

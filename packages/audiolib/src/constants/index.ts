@@ -1,2 +1,1 @@
-export * from './defaults/common';
-export * from './defaults/node-props';
+export * as DEFAULT from './defaults/common';

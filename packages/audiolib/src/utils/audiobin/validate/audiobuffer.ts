@@ -26,18 +26,29 @@ export function isValidAudioBuffer(
     return false;
   }
 
-  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-    const channelData = buffer.getChannelData(channel);
-    if (!channelData || channelData.length === 0) {
-      return false;
-    }
+  // Check if all channels are silent
+  let hasNonZeroData = false;
 
-    // Check if the channel contains non-zero data
-    const hasNonZeroData = channelData.some((sample) => sample !== 0);
-    if (!hasNonZeroData) {
+  for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+    try {
+      const channelData = buffer.getChannelData(channel);
+      if (!channelData || channelData.length === 0) {
+        return false;
+      }
+
+      // Check for any non-zero samples
+      for (let i = 0; i < channelData.length; i++) {
+        if (Math.abs(channelData[i]) > 0) {
+          hasNonZeroData = true;
+          break;
+        }
+      }
+
+      if (hasNonZeroData) break;
+    } catch (error) {
       return false;
     }
   }
 
-  return true;
+  return hasNonZeroData;
 }

@@ -1,4 +1,5 @@
 // offlineAudioContext.ts
+import { DEFAULT } from '@/constants';
 
 const offlineInstances = new Map<string, OfflineAudioContext>();
 
@@ -8,7 +9,10 @@ export type OfflineContextConfig = {
   sampleRate?: number;
 };
 
-// remember to release!
+function generateContextKey(config: OfflineContextConfig): string {
+  return `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || DEFAULT.audio.sampleRate}`;
+}
+
 export function getOfflineAudioContext(
   config: OfflineContextConfig
 ): OfflineAudioContext {
@@ -18,29 +22,27 @@ export function getOfflineAudioContext(
     );
   }
 
-  const key = `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || 44100}`;
+  const key = generateContextKey(config);
+  let context = offlineInstances.get(key);
 
-  if (!offlineInstances.has(key)) {
-    const offlineContext = new OfflineAudioContext({
+  if (!context) {
+    context = new OfflineAudioContext({
       length: config.length,
       numberOfChannels: config.numberOfChannels || 2,
-      sampleRate: config.sampleRate || 44100,
+      sampleRate: config.sampleRate || DEFAULT.audio.sampleRate,
     });
-
-    console.log(`Offline audio context created (remember to release it).
-          Current nr of offline ctx instances: ${offlineInstances.size} `);
-
-    offlineInstances.set(key, offlineContext);
+    offlineInstances.set(key, context);
   }
 
-  return offlineInstances.get(key)!;
+  return context;
 }
 
-export function releaseOfflineContext(config: OfflineContextConfig): boolean {
-  const key = `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || 44100}`;
-  console.log(
-    `Offline audio context released. 
-    Current nr of offline ctx instances: ${offlineInstances.size} `
-  );
-  return offlineInstances.delete(key);
+export function releaseOfflineContext(config: OfflineContextConfig): void {
+  const key = generateContextKey(config);
+  offlineInstances.delete(key);
+}
+
+// Add this new function for testing purposes
+export function clearAllOfflineContexts(): void {
+  offlineInstances.clear();
 }

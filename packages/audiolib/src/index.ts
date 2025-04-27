@@ -7,7 +7,7 @@ export { SourceNode } from '@/nodes/source/SourceNode';
 export { Sampler } from '@/instruments/Sampler';
 export { KarplusStrongSynth } from '@/instruments/KarplusStrongSynth';
 
-export { SamplerElement } from './elements/SamplerElement';
+// export { SamplerElement } from './elements/SamplerElement';
 
 export * from './store/persistent/idb/idb';
 export * as samplelib from './store/persistent/idb/audioStorage';

@@ -1,7 +1,6 @@
 // globalAudioContext.ts
 
-import { DEFAULT_SAMPLE_RATE } from '@/constants';
-// import { SystemEventBus } from '@/events';
+import { DEFAULT } from '@/constants';
 
 let globalAudioContext: AudioContext | null = null;
 let resumePromise: Promise<void> | null = null;
@@ -15,7 +14,7 @@ export type AudioContextConfig = {
 export function getAudioContext(config?: AudioContextConfig): AudioContext {
   if (!globalAudioContext) {
     globalAudioContext = new AudioContext({
-      sampleRate: config?.sampleRate || DEFAULT_SAMPLE_RATE,
+      sampleRate: config?.sampleRate || DEFAULT.audio.sampleRate,
       latencyHint: config?.latencyHint || 'interactive',
     });
 

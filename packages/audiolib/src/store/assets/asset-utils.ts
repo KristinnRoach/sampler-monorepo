@@ -1,5 +1,5 @@
 import initSampleUrl from './init_sample.wav?url';
-import { DEFAULT_SAMPLE_RATE } from '@/constants';
+import { DEFAULT } from '@/constants';
 // import { getOfflineAudioContext, releaseOfflineContext } from '@/context';
 
 export async function fetchInitSample() {
@@ -25,7 +25,9 @@ export async function fetchInitSampleAsAudioBuffer() {
   }
   const arrayBuffer = await response.arrayBuffer();
   const audioContext = new (window.AudioContext ||
-    (window as any).webkitAudioContext)({ sampleRate: DEFAULT_SAMPLE_RATE });
+    (window as any).webkitAudioContext)({
+    sampleRate: DEFAULT.audio.sampleRate,
+  });
 
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 

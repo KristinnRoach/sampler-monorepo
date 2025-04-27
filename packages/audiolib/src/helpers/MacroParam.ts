@@ -1,8 +1,7 @@
 import { LibNode } from '@/nodes';
 import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { MessageHandler, Message } from '@/events';
-import { assert } from '@/utils/assert';
-import { isCancelAndHoldSupported } from '@/utils/environment';
+import { assert, cancelScheduledParamValues } from '@/utils';
 import { getScale } from './noteFreq';
 import { SCALE_PATTERNS } from './NOTE_FREQ';
 
@@ -118,9 +117,7 @@ export class MacroParam implements LibNode {
     const param = this.macro;
     // if (!this.#shouldRamp(targetValue, snapToPeriod)) return this;
 
-    isCancelAndHoldSupported()
-      ? this.macro.cancelAndHoldAtTime(now) // not supported in firefox
-      : this.macro.cancelScheduledValues(now);
+    cancelScheduledParamValues(this.macro, now);
 
     let processedValue = this.processTargetValue(targetValue, constant);
 

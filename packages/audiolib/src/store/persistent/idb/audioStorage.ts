@@ -1,6 +1,6 @@
 // src/idb/audioStorage.ts
 import { idb } from './idb';
-import { DEFAULT_SAMPLE_RATE } from '@/constants';
+import { DEFAULT } from '@/constants';
 import {
   releaseOfflineContext,
   getOfflineAudioContext,
@@ -119,7 +119,7 @@ function extractContextConfig(
   // Data needed for reconstruction of AudioBuffer
   const channels = metadata?.channels || 1; // make required when storing?
   const length = audioData.byteLength / (4 * channels); // 4 bytes per float
-  const sampleRate = metadata?.sampleRate || DEFAULT_SAMPLE_RATE;
+  const sampleRate = metadata?.sampleRate || DEFAULT.audio.sampleRate;
   return {
     length,
     numberOfChannels: channels,

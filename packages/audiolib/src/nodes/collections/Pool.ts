@@ -2,8 +2,10 @@ import { LibNode, LibSourceNode } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
+import { assert, tryCatch } from '@/utils';
 
 export class Pool<T extends LibSourceNode> implements LibNode {
+  // ? should T extend LibNode or LibSourceNode ?
   readonly nodeId: NodeID;
   readonly nodeType: string;
 
@@ -68,6 +70,7 @@ export class Pool<T extends LibSourceNode> implements LibNode {
   }
 
   applyToAllActiveNodes(callback: (node: T) => void): this {
+    if (this.#active.size === 0) return this;
     this.#active.forEach(callback);
     return this;
   }
