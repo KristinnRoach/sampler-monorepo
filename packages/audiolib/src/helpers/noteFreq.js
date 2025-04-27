@@ -1,35 +1,34 @@
-import { allPianoFrequencies, rootNotes, SCALE_PATTERNS } from './NOTE_FREQ';
+import { ROOTS, NOTE_FREQUENCIES, SCALES, PERIODS, NOTES } from '../constants';
 
-export const allNotePeriodsInSec = allPianoFrequencies.map((freq) => 1 / freq);
-
-/** general function to get periods for any scale
- * root: "C" | "C#" | D | ... | "B"
- * scalePattern: e.g [0, 2, 4, 5, 7, 9, 11] for major
- */
 export function getScale(rootNote, scalePattern) {
-  if (!rootNotes[rootNote] && rootNotes[rootNote] !== 0) {
+  if (!ROOTS[rootNote] && ROOTS[rootNote] !== 0) {
     throw new Error(`Unknown root note: ${rootNote}`);
   }
 
-  const rootIndex = rootNotes[rootNote];
+  const rootIdx = ROOTS[rootNote];
   const frequencies = [];
   const periodsInSec = [];
+  const noteNames = [];
 
   // Generate scale notes across all octaves
   for (let octave = 0; octave < 8; octave++) {
     scalePattern.forEach((interval) => {
-      const absoluteIndex = octave * 12 + ((rootIndex + interval) % 12);
+      const absoluteIndex = octave * 12 + ((rootIdx + interval) % 12);
 
-      if (absoluteIndex < allPianoFrequencies.length) {
-        frequencies.push(allPianoFrequencies[absoluteIndex]);
-        periodsInSec.push(allNotePeriodsInSec[absoluteIndex]);
+      if (absoluteIndex < NOTE_FREQUENCIES.length) {
+        frequencies.push(NOTE_FREQUENCIES[absoluteIndex]);
+        periodsInSec.push(PERIODS[absoluteIndex]);
+        noteNames.push(NOTES.noteIndexToName[absoluteIndex]);
       }
     });
   }
 
   return {
+    rootIdx,
     frequencies,
     periodsInSec,
+    scalePattern,
+    noteNames,
   };
 }
 

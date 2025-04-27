@@ -1,11 +1,11 @@
 // Raw binary audio utils
-export * from './audiobin/convert/parseWavHeader';
-export * from './audiobin/validate/audiobuffer';
-export * from './audiobin/calculate/zero-crossing';
+export * from './audiodata/convert/parseWavHeader';
+export * from './audiodata/validate/audiobuffer';
+export * from './audiodata/calculate/zero-crossing';
 
-// Midi utils
-export * from './midi/convert/midiTo';
-export * from './midi/convert/normalize';
+// Musical utils
+export * from './musical/midi/midiTo';
+export * from './musical/midi/normalize';
 
 // Code utils
 export * from './code/assert';

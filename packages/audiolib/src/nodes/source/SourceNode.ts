@@ -2,16 +2,11 @@ import { LibSourceNode } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { assert, cancelScheduledParamValues } from '@/utils';
-
-function midiNoteToFrequency(note: number): number {
-  return 440 * Math.pow(2, (note - 60) / 12);
-}
-
-function midiNoteToPlaybackRate(note: number, baseFrequency: number = 440) {
-  const frequency = midiNoteToFrequency(note);
-  return frequency / baseFrequency;
-}
+import {
+  assert,
+  cancelScheduledParamValues,
+  midiToPlaybackRate,
+} from '@/utils';
 
 export class SourceNode extends AudioWorkletNode implements LibSourceNode {
   readonly nodeId: NodeID;
@@ -164,7 +159,7 @@ export class SourceNode extends AudioWorkletNode implements LibSourceNode {
       duration,
     } = options;
 
-    const noteAsRate = midiNoteToPlaybackRate(midiNote);
+    const noteAsRate = midiToPlaybackRate(midiNote);
     this.getParam('playbackRate')!.setValueAtTime(noteAsRate, time);
     this.getParam('velocity')!.setValueAtTime(velocity, time);
 

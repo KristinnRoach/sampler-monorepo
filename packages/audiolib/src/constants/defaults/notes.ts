@@ -1,5 +1,5 @@
 // audiolib's predefined scale patterns
-export const SCALE_PATTERNS = {
+export const scales = {
   chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
 
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -25,7 +25,7 @@ export const SCALE_PATTERNS = {
   // ... add more as needed
 } as const;
 
-export const allPianoFrequencies = [
+export const pianoNoteFreq = [
   16.35,
   17.32,
   18.35,
@@ -126,7 +126,7 @@ export const allPianoFrequencies = [
 ] as const;
 
 // Root note mapping (C-indexed)
-export const rootNotes = {
+export const rootNoteIdx = {
   C: 0,
   'C#': 1,
   Db: 1,
@@ -274,3 +274,29 @@ export const noteNameToFreq = {
   B7: 3951.07,
   C8: 4186.01,
 } as const;
+
+export const noteNamesToPeriod = Object.fromEntries(
+  Object.entries(noteNameToFreq).map(([note, freq]) => [note, 1 / freq])
+) as { [K in keyof typeof noteNameToFreq]: number };
+
+// Add this utility function
+export function getNoteName(absoluteIndex: number): string {
+  const octave = Math.floor(absoluteIndex / 12);
+  const noteIndex = absoluteIndex % 12;
+
+  // Get the first matching note name (preferring naturals/sharps over flats)
+  const noteName =
+    Object.entries(rootNoteIdx).find(
+      ([_, idx]) => idx === noteIndex && !_.includes('b')
+    )?.[0] || '';
+
+  return `${noteName}${octave}`;
+}
+
+// Export a pre-computed array for even faster lookup
+export const noteIndexToName = Array.from(
+  { length: pianoNoteFreq.length },
+  (_, i) => getNoteName(i)
+);
+
+export const allNotePeriodsInSec = pianoNoteFreq.map((freq) => 1 / freq);

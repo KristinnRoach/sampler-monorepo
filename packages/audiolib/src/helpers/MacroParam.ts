@@ -3,7 +3,7 @@ import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { MessageHandler, Message } from '@/events';
 import { assert, cancelScheduledParamValues } from '@/utils';
 import { getScale } from './noteFreq';
-import { SCALE_PATTERNS } from './NOTE_FREQ';
+import { NOTES } from '../constants';
 
 export class MacroParam implements LibNode {
   readonly nodeId: string;
@@ -220,12 +220,12 @@ export class MacroParam implements LibNode {
 
   setScale(
     rootNote: string,
-    scale: keyof typeof SCALE_PATTERNS,
+    scale: keyof typeof NOTES.scales,
     customScalePattern?: number[]
   ) {
     const scalePattern = customScalePattern
       ? customScalePattern
-      : SCALE_PATTERNS[scale];
+      : NOTES.scales[scale];
     const { periodsInSec } = getScale(rootNote, scalePattern);
     this.#allowedPeriods = periodsInSec.sort((a, b) => a - b); // sort low to high
 

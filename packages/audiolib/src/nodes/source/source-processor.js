@@ -168,20 +168,10 @@ class SourceProcessor extends AudioWorkletProcessor {
     }
   }
 
-  #interpolateSample(channel, position, fraction) {
-    const bufferChannel = this.buffer[channel];
-    const current = bufferChannel[position];
-    const next =
-      bufferChannel[Math.min(position + 1, bufferChannel.length - 1)];
-    return current + fraction * (next - current);
-  }
-
-  #onended(output, zeroFillBuffer = true, resetPlayPosition = true) {
+  #onended(output) {
     this.isPlaying = false;
-    this.loopCount = 0;
     this.timing.clear();
-    if (zeroFillBuffer) this.#fillWithSilence(output);
-    if (resetPlayPosition) this.playbackPosition = 0;
+    this.playbackPosition = 0;
     this.port.postMessage({ type: 'voice:ended' });
   }
 
@@ -189,20 +179,18 @@ class SourceProcessor extends AudioWorkletProcessor {
     const output = outputs[0];
 
     if (!output || !this.buffer || !this.buffer.length || !this.isPlaying) {
-      this.#fillWithSilence(output);
-      return true;
+      this.#onended(output);
+      return true; // AudioWorklet will zero-fill automatically
     }
 
-    // Check timing state
     if (this.timing.shouldStop(currentTime)) {
       this.#onended(output);
-      return true;
+      return true; // AudioWorklet will zero-fill automatically
     }
 
-    // Check for low amplitude after threshold when releasing
     if (this.isReleasing && parameters.envGain[0] < MIN_ABS_AMPLITUDE) {
       this.#onended(output);
-      return true;
+      return true; // AudioWorklet will zero-fill automatically
     }
 
     const loopEnabled = this.#isLoopEnabled(parameters.loop);
