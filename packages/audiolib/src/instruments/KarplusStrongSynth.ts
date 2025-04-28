@@ -1,13 +1,13 @@
-import { LibInstrument, KarplusNode } from '@/nodes';
+import { LibInstrument, KarplusNode, SynthInstrument } from '@/nodes';
 import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 // import { isModifierStateSupported } from '@/utils';
 
-export class KarplusStrongSynth implements LibInstrument {
+export class KarplusStrongSynth implements SynthInstrument {
   readonly nodeId: string;
-  readonly nodeType: string = 'karplus-strong-synth';
+  readonly nodeType: string = 'karplus-strong';
 
   #context: AudioContext;
   #output: GainNode;

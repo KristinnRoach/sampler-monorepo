@@ -1,4 +1,4 @@
-import { LibSourceNode } from '@/nodes';
+import { LibSourceNode, SamplerVoice } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
@@ -8,7 +8,7 @@ import {
   midiToPlaybackRate,
 } from '@/utils';
 
-export class SourceNode extends AudioWorkletNode implements LibSourceNode {
+export class SourceNode extends AudioWorkletNode implements SamplerVoice {
   readonly nodeId: NodeID;
   readonly nodeType: string = 'source:default';
   readonly processorNames = ['source-processor'];

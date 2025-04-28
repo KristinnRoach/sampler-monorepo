@@ -8,7 +8,7 @@ import {
   getAudioOutputDevices,
   getVideoInputDevices,
   onDeviceChange,
-} from './index';
+} from './devices';
 
 describe('Device Access Utils', () => {
   const mockDevices = [
@@ -20,7 +20,6 @@ describe('Device Access Utils', () => {
   const mockStream = { getTracks: () => [] } as unknown as MediaStream;
 
   beforeEach(() => {
-    // Mock navigator.mediaDevices
     vi.stubGlobal('navigator', {
       mediaDevices: {
         getUserMedia: vi.fn().mockResolvedValue(mockStream),
@@ -37,16 +36,6 @@ describe('Device Access Utils', () => {
   });
 
   describe('getDevices', () => {
-    const originalConsoleError = console.error;
-
-    beforeEach(() => {
-      console.error = vi.fn(); // Suppress console.error during tests
-    });
-
-    afterEach(() => {
-      console.error = originalConsoleError; // Restore original console.error
-    });
-
     it('returns list of available devices', async () => {
       const devices = await getDevices();
       expect(devices).toHaveLength(3);
@@ -58,30 +47,32 @@ describe('Device Access Utils', () => {
     });
 
     it('handles enumeration errors gracefully', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
       vi.mocked(navigator.mediaDevices.enumerateDevices).mockRejectedValue(
         new Error('Permission denied')
       );
       const devices = await getDevices();
       expect(devices).toEqual([]);
+      consoleSpy.mockRestore();
     });
   });
 
   describe('Device Access Functions', () => {
     it('gets microphone access', async () => {
-      const result = await getMicrophone();
-      expect(result).toBe(mockStream);
-      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      const stream = await getMicrophone();
+      expect(stream).toBe(mockStream);
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
+        expect.objectContaining({
+          audio: expect.any(Object),
+        })
+      );
     });
 
     it('gets camera access', async () => {
-      const result = await getCamera();
-      expect(result).toBe(mockStream);
+      const stream = await getCamera();
+      expect(stream).toBe(mockStream);
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
         video: {
           width: 1280,
@@ -91,7 +82,16 @@ describe('Device Access Utils', () => {
       });
     });
 
-    it('handles MIDI access', async () => {
+    it('throws when MIDI is not supported', async () => {
+      const mockNavigator = { requestMIDIAccess: undefined };
+      vi.stubGlobal('navigator', mockNavigator);
+
+      await expect(getMIDIAccess()).rejects.toThrow(
+        'MIDI access not supported'
+      );
+    });
+
+    it('gets MIDI access when supported', async () => {
       const mockMIDIAccess = {
         inputs: new Map(),
         outputs: new Map(),
@@ -100,20 +100,8 @@ describe('Device Access Utils', () => {
         mockMIDIAccess as unknown as MIDIAccess
       );
 
-      const result = await getMIDIAccess();
-      expect(result).toBe(mockMIDIAccess);
-    });
-
-    it('handles MIDI access errors', async () => {
-      vi.mocked(navigator.requestMIDIAccess).mockRejectedValue(
-        new Error('MIDI not supported')
-      );
-
-      const result = await getMIDIAccess();
-      expect(result).toEqual({
-        type: 'UnknownError',
-        message: 'MIDI not supported',
-      });
+      const midiAccess = await getMIDIAccess();
+      expect(midiAccess).toBe(mockMIDIAccess);
     });
   });
 

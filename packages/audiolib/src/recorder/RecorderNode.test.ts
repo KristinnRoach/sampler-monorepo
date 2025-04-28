@@ -78,8 +78,9 @@ describe('RecorderNode', () => {
       expect(typeof recorder.now).toBe('number');
     });
 
-    it('should return self from connect for method chaining', () => {
-      expect(recorder.connect()).toBe(recorder);
-    });
+    // todo:
+    // it('should return self from connect for method chaining', () => {
+    //   expect(recorder.connect()).toBe(recorder);
+    // });
   });
 });

@@ -1,33 +1,36 @@
+import { tryCatch } from '../utils/code/tryCatch';
 import {
   getMicrophone,
   getCamera,
   getMIDIAccess,
   getAudioInputDevices,
   onDeviceChange,
-} from '../utils/devices';
+} from '../utils/devices/devices';
 
-// Example usage:
 async function setupDevices() {
   // Get microphone access
-  const micStream = await getMicrophone();
-  if ('type' in micStream) {
-    console.error('Microphone access error:', micStream.message);
+  const micResult = await tryCatch(getMicrophone());
+  if (micResult.error) {
+    console.error('Microphone access error:', micResult.error.message);
     return;
   }
+  const micStream = micResult.data;
 
   // Get camera access
-  const camStream = await getCamera();
-  if ('type' in camStream) {
-    console.error('Camera access error:', camStream.message);
+  const camResult = await tryCatch(getCamera());
+  if (camResult.error) {
+    console.error('Camera access error:', camResult.error.message);
     return;
   }
+  const camStream = camResult.data;
 
   // Get MIDI access
-  const midiAccess = await getMIDIAccess();
-  if ('type' in midiAccess) {
-    console.error('MIDI access error:', midiAccess.message);
+  const midiResult = await tryCatch(getMIDIAccess());
+  if (midiResult.error) {
+    console.error('MIDI access error:', midiResult.error.message);
     return;
   }
+  const midiAccess = midiResult.data;
 
   // List available audio input devices
   const audioDevices = await getAudioInputDevices();
@@ -46,23 +49,4 @@ async function setupDevices() {
   };
 }
 
-// async function setupMIDI() {
-//   const midiAccess = await getMIDIAccess();
-
-//   if ('type' in midiAccess) {
-//     console.error(`Failed to get MIDI access: ${midiAccess.message}`);
-//     return;
-//   }
-
-//   // Now we can use the full MIDI API
-//   midiAccess.inputs.forEach(input => {
-//     input.onmidimessage = (message) => {
-//       console.log('MIDI message:', message.data);
-//     };
-//   });
-
-//   // Listen for MIDI device connections/disconnections
-//   midiAccess.onstatechange = (e) => {
-//     console.log('MIDI state change:', e.port.name, e.port.state);
-//   };
-// }
+export { setupDevices };

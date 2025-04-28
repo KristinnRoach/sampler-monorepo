@@ -1,6 +1,6 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
-import { LibInstrument, LibSourceNode, SourceNode } from '@/nodes';
+import { LibInstrument, SamplerInstrument, SourceNode } from '@/nodes';
 import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
@@ -25,9 +25,9 @@ const DEFAULT_SAMPLER_SETTINGS: InstrumentState = {
   loopEnd: 0,
 };
 
-export class Sampler implements LibInstrument {
+export class Sampler implements SamplerInstrument {
   readonly nodeId: NodeID;
-  readonly nodeType: string = 'instrument:sampler:default';
+  readonly nodeType = 'instrument';
 
   #bufferDuration: number = 0;
 

@@ -1,5 +1,3 @@
-import { DeviceAccessError } from '../devices';
-
 export async function createMediaRecorder(
   stream: MediaStream
 ): Promise<MediaRecorder> {

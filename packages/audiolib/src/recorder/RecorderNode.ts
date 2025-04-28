@@ -7,8 +7,19 @@ import {
   startRecording,
   stopRecording,
   blobToAudioBuffer,
-} from '@/utils/record';
-import { getMicrophone } from '@/utils/devices';
+} from './record-utils';
+import { getMicrophone } from '@/utils/devices/devices';
+
+interface LoadSampleCapable {
+  loadSample(buffer: AudioBuffer): Promise<boolean> | Promise<void>;
+}
+
+interface MicrophoneError {
+  type: 'error';
+  message: string;
+}
+
+type MicrophoneResult = MediaStream | MicrophoneError;
 
 export class RecorderNode implements LibNode {
   readonly nodeId: NodeID;
@@ -19,6 +30,7 @@ export class RecorderNode implements LibNode {
   #recorder: MediaRecorder | null = null;
   #messages;
   #isRecording: boolean = false;
+  #destination: (LibNode & LoadSampleCapable) | null = null;
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
@@ -26,15 +38,14 @@ export class RecorderNode implements LibNode {
     this.#messages = createMessageBus<Message>(this.nodeId);
   }
 
-  async init(): Promise<this> {
-    const micStream = await getMicrophone();
-    if ('type' in micStream) {
-      throw new Error(`Failed to get microphone: ${micStream.message}`);
+  async init(): Promise<RecorderNode> {
+    try {
+      this.#stream = await getMicrophone();
+      this.#recorder = await createMediaRecorder(this.#stream);
+      return this;
+    } catch (error) {
+      throw new Error(`Failed to get microphone: ${error}`);
     }
-
-    this.#stream = micStream;
-    this.#recorder = await createMediaRecorder(micStream);
-    return this;
   }
 
   async start(): Promise<void> {
@@ -56,6 +67,11 @@ export class RecorderNode implements LibNode {
     this.#isRecording = false;
     this.sendMessage('record:stop', { duration: buffer.duration });
 
+    // Type checking no longer needed since destination is guaranteed to have loadSample
+    if (this.#destination) {
+      await this.#destination.loadSample(buffer);
+    }
+
     return buffer;
   }
 
@@ -68,11 +84,16 @@ export class RecorderNode implements LibNode {
     this.#messages.sendMessage(type, data);
   }
 
-  connect(): this {
-    return this; // No-op as this is input-only
+  connect(destination: LibNode & LoadSampleCapable): this {
+    if (destination) {
+      this.#destination = destination;
+    }
+    return this;
   }
 
-  disconnect(): void {} // No-op as this is input-only
+  disconnect(): void {
+    this.#destination = null;
+  }
 
   dispose(): void {
     this.#stream?.getTracks().forEach((track) => track.stop());

@@ -123,8 +123,6 @@ const SamplerComponent = () => {
   };
 
   const fetchInitSample = async () => {
-    if (!(await createSampler())) return;
-
     const response = await fetch('/init_sample.wav');
     if (!response.ok) {
       console.error('Failed to fetch initial sample');
