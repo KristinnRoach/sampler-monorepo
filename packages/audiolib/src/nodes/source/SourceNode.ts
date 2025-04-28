@@ -1,4 +1,4 @@
-import { LibSourceNode, SamplerVoice } from '@/nodes';
+import { LibVoiceNode, Voice } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
@@ -8,9 +8,10 @@ import {
   midiToPlaybackRate,
 } from '@/utils';
 
-export class SourceNode extends AudioWorkletNode implements SamplerVoice {
+// todo ->   Voice<BufferSource>
+export class SourceNode extends AudioWorkletNode implements LibVoiceNode {
   readonly nodeId: NodeID;
-  readonly nodeType: string = 'source:default';
+  readonly nodeType: Voice = 'sample'; // Update from string to
   readonly processorNames = ['source-processor'];
 
   #isPlaying: boolean;
@@ -25,15 +26,13 @@ export class SourceNode extends AudioWorkletNode implements SamplerVoice {
       processorOptions: {},
     }
   ) {
-    const nodeId = createNodeId('source:default');
-
     super(context, 'source-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       processorOptions: options.processorOptions || {},
     });
+    this.nodeId = createNodeId(this.nodeType);
 
-    this.nodeId = nodeId;
     this.#messages = createMessageBus<Message>(this.nodeId);
     this.#isPlaying = false;
     this.#duration = options.duration || 0;

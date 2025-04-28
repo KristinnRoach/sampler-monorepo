@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-// import KeyboardController from '../input/KeyboardController';
 import { audiolib, KarplusStrongSynth } from '@repo/audiolib';
 
 const KarplusStrongSynthComponent = () => {
   const [initialized, setInitialized] = useState(false);
-  const [activeVoices, setActiveVoices] = useState(0);
+  // const [activeVoices, setActiveVoices] = useState(0);
   const [volume, setVolume] = useState(1);
   const synthRef = useRef<KarplusStrongSynth | null>(null);
 
@@ -41,28 +40,14 @@ const KarplusStrongSynthComponent = () => {
     }
   };
 
-  const handleNoteOn = (midiNote: number, velocity?: number) => {
-    if (synthRef.current) {
-      synthRef.current.play(midiNote, velocity);
-      setActiveVoices((prev) => prev + 1);
-    }
-  };
-
-  const handleNoteOff = (midiNote: number) => {
-    if (synthRef.current) {
-      synthRef.current.release(midiNote);
-      setActiveVoices((prev) => Math.max(prev - 1, 0));
-    }
-  };
-
   useEffect(() => {
     createSynth();
-    // return () => {
-    //   if (synthRef.current) {
-    //     synthRef.current.dispose();
-    //     synthRef.current = null;
-    //   }
-    // };
+    return () => {
+      if (synthRef.current) {
+        synthRef.current.dispose();
+        synthRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -78,7 +63,7 @@ const KarplusStrongSynthComponent = () => {
       {initialized && (
         <div>
           <div style={{ margin: '20px 0' }}>
-            <div>Active Voices: {activeVoices}</div>
+            {/* <div>Active Voices: {activeVoices}</div> */}
 
             <div style={{ margin: '20px 0' }}>
               <label>

@@ -1,6 +1,11 @@
-import { LibNode } from '@/nodes/LibNode';
+import { LibNode, BaseNode } from '@/nodes/LibNode';
 import { NodeID, createNodeId, deleteNodeId } from '@/store/state/IdStore';
-import { Message, MessageHandler, createMessageBus } from '@/events';
+import {
+  Message,
+  MessageBus,
+  MessageHandler,
+  createMessageBus,
+} from '@/events';
 import { getAudioContext } from '@/context';
 import {
   createMediaRecorder,
@@ -10,27 +15,21 @@ import {
 } from './record-utils';
 import { getMicrophone } from '@/utils/devices/devices';
 
-interface LoadSampleCapable {
+export interface SampleLoader {
+  // todo: replace SampleLoader with Instrument<Sampler> | Voice<BufferSource> ??
   loadSample(buffer: AudioBuffer): Promise<boolean> | Promise<void>;
 }
 
-interface MicrophoneError {
-  type: 'error';
-  message: string;
-}
-
-type MicrophoneResult = MediaStream | MicrophoneError;
-
-export class RecorderNode implements LibNode {
+export class Recorder implements LibNode {
   readonly nodeId: NodeID;
-  readonly nodeType: string = 'recorder';
+  readonly nodeType: BaseNode = 'recorder';
 
   #context: AudioContext;
   #stream: MediaStream | null = null;
   #recorder: MediaRecorder | null = null;
-  #messages;
+  #messages: MessageBus<Message>;
   #isRecording: boolean = false;
-  #destination: (LibNode & LoadSampleCapable) | null = null;
+  #destination: (LibNode & SampleLoader) | null = null; // ? see comment above in SampleLoader
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
@@ -38,7 +37,7 @@ export class RecorderNode implements LibNode {
     this.#messages = createMessageBus<Message>(this.nodeId);
   }
 
-  async init(): Promise<RecorderNode> {
+  async init(): Promise<Recorder> {
     try {
       this.#stream = await getMicrophone();
       this.#recorder = await createMediaRecorder(this.#stream);
@@ -84,7 +83,7 @@ export class RecorderNode implements LibNode {
     this.#messages.sendMessage(type, data);
   }
 
-  connect(destination: LibNode & LoadSampleCapable): this {
+  connect(destination: LibNode & SampleLoader): this {
     if (destination) {
       this.#destination = destination;
     }

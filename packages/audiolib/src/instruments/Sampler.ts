@@ -1,6 +1,6 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
-import { LibInstrument, SamplerInstrument, SourceNode } from '@/nodes';
+import { LibInstrument, Instrument, SourceNode, LibVoiceNode } from '@/nodes';
 import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
@@ -25,9 +25,9 @@ const DEFAULT_SAMPLER_SETTINGS: InstrumentState = {
   loopEnd: 0,
 };
 
-export class Sampler implements SamplerInstrument {
+export class Sampler implements LibInstrument {
   readonly nodeId: NodeID;
-  readonly nodeType = 'instrument';
+  readonly nodeType: Instrument = 'sampler';
 
   #bufferDuration: number = 0;
 
@@ -73,7 +73,7 @@ export class Sampler implements SamplerInstrument {
     this.#macroLoop = new MacroParam(context, 0);
 
     // Initialize pool with type only (removed polyphony parameter)
-    this.#sourcePool = new Pool('source:default');
+    this.#sourcePool = new Pool<SourceNode>();
 
     // Pre-create voices with polyphony
     this.#preCreateVoices(context, polyphony);
@@ -122,7 +122,7 @@ export class Sampler implements SamplerInstrument {
     for (let i = 0; i < polyphony; i++) {
       const node = new SourceNode(context);
       node.connect(this.#output);
-      this.#sourcePool.addNode(node);
+      this.#sourcePool.add(node);
     }
   }
 
@@ -281,7 +281,7 @@ export class Sampler implements SamplerInstrument {
   }
 
   stopAll() {
-    const callback = (node: LibSourceNode) => node.stop();
+    const callback = (node: LibVoiceNode) => node.stop();
 
     tryCatch(
       () => this.#sourcePool.applyToAllActiveNodes(callback),
@@ -292,7 +292,7 @@ export class Sampler implements SamplerInstrument {
   }
 
   releaseAll(): this {
-    const callback = (node: LibSourceNode) => node.release();
+    const callback = (node: LibVoiceNode) => node.release();
 
     tryCatch(
       () => this.#sourcePool.applyToAllActiveNodes(callback),
@@ -303,7 +303,7 @@ export class Sampler implements SamplerInstrument {
   }
 
   get loopEnabled() {
-    return this.#macroLoop.value > 0.5;
+    return this.#macroLoop.getValue() > 0.5;
   }
 
   onGlobalLoopToggle(capsOn: TODO): this {
@@ -317,12 +317,20 @@ export class Sampler implements SamplerInstrument {
     targetValue: number,
     rampTime: number = this.#loopRampTime
   ): this {
-    this.#macroLoopStart.ramp(targetValue, rampTime, this.#macroLoopEnd.value);
+    this.#macroLoopStart.ramp(
+      targetValue,
+      rampTime,
+      this.#macroLoopEnd.getValue()
+    );
     return this;
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampTime): this {
-    this.#macroLoopEnd.ramp(targetValue, rampTime, this.#macroLoopStart.value);
+    this.#macroLoopEnd.ramp(
+      targetValue,
+      rampTime,
+      this.#macroLoopStart.getValue()
+    );
     return this;
   }
 

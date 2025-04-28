@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RecorderNode } from './RecorderNode';
+import { Recorder } from './Recorder';
 
 // Minimal test without AudioContext - needs manual testing for now
 vi.mock('@/context', () => ({
@@ -7,10 +7,10 @@ vi.mock('@/context', () => ({
 }));
 
 describe('RecorderNode', () => {
-  let recorder: RecorderNode;
+  let recorder: Recorder;
 
   beforeEach(() => {
-    recorder = new RecorderNode();
+    recorder = new Recorder();
   });
 
   describe('Node Properties', () => {

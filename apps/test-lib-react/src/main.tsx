@@ -5,6 +5,7 @@ import './style.css';
 import { audiolib } from '@repo/audiolib';
 import SamplerComponent from './components/SamplerComponent';
 import KarplusStrongSynthComponent from './components/KsSynthComponent';
+import RecorderComponent from './components/RecorderComponent';
 
 const App = () => {
   const audiolibRef = useRef(audiolib);
@@ -22,9 +23,18 @@ const App = () => {
             <button onClick={() => setChosenInstrument('karplus')}>
               Karplus
             </button>
+            <button onClick={() => setChosenInstrument('recorder')}>
+              Recorder
+            </button>
           </div>
 
-          {chosenInstrument === 'sampler' && <SamplerComponent />}
+          {/* Show Recorder alongside Sampler */}
+          {chosenInstrument === 'sampler' && (
+            <>
+              <SamplerComponent />
+              <RecorderComponent />
+            </>
+          )}
           {chosenInstrument === 'karplus' && <KarplusStrongSynthComponent />}
         </>
       ) : (

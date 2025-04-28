@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 // import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
+import RecorderComponent from './RecorderComponent';
 
 const SamplerComponent = () => {
   const [isInitialized, setInitialized] = useState(false);
@@ -240,6 +241,7 @@ const SamplerComponent = () => {
   return (
     <div style={{ width: '100vw' }}>
       <h2>SourcePlayer Test</h2>
+      <RecorderComponent />
       <button
         id='loadDefaultSample'
         onClick={async () => {

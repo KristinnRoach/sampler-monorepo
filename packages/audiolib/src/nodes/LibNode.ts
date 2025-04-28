@@ -1,7 +1,7 @@
 import { NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler } from '@/events';
 
-export type BaseNodeType =
+export type BaseNode =
   | 'instrument'
   | 'voice'
   | 'fx'
@@ -10,15 +10,15 @@ export type BaseNodeType =
   | 'recorder'
   | 'audiolib';
 
-export type InstrumentType = 'sampler' | 'synth';
+export type Instrument = 'sampler' | 'synth';
 
-export type ContainerType = 'pool' | 'chain' | 'audiolib';
+export type Container = 'pool' | 'chain' | 'audiolib';
 
-export type VoiceType = 'sample' | 'karplus-strong' | 'osc';
+export type Voice = 'sample' | 'karplus-strong' | 'osc';
 
-export type ParamType = 'macro' | 'lib-param' | 'web-audio-param'; // 'AudioParam';
+export type Param = 'macro' | 'lib-param' | 'web-audio-param'; // 'AudioParam';
 
-export type FxType =
+export type Fx =
   | 'feedback-delay'
   | 'reverb'
   | 'chorus'
@@ -27,13 +27,7 @@ export type FxType =
   | 'compressor';
 
 // Union of all types
-export type NodeType =
-  | BaseNodeType
-  | InstrumentType
-  | ContainerType
-  | VoiceType
-  | ParamType
-  | FxType;
+export type NodeType = BaseNode | Instrument | Container | Voice | Param | Fx;
 
 // Base interface for all nodes
 export interface LibNode {
@@ -57,7 +51,7 @@ export interface LibNode {
 
 // Voice node - handles actual sound generation
 export interface LibVoiceNode extends LibNode {
-  readonly nodeType: VoiceType;
+  readonly nodeType: Voice;
   readonly processorNames: string[];
   readonly paramMap: Map<string, AudioParam>;
 
@@ -72,7 +66,7 @@ export interface LibVoiceNode extends LibNode {
 
 // Instrument node - manages voices
 export interface LibInstrument extends LibNode {
-  readonly nodeType: InstrumentType;
+  readonly nodeType: Instrument;
 
   play(midiNote: number, modifiers: TODO, velocity?: number): this;
   release(midiNote?: number, modifiers?: TODO): this;
@@ -86,7 +80,7 @@ export interface LibInstrument extends LibNode {
 
 // Effect node
 export interface LibFxNode extends LibNode {
-  readonly nodeType: FxType;
+  readonly nodeType: Fx;
 
   bypass(shouldBypass: boolean): this;
   setMix(value: number): this;
@@ -94,18 +88,17 @@ export interface LibFxNode extends LibNode {
 
 // Container node
 export interface LibContainerNode extends LibNode {
-  readonly nodeType: ContainerType;
+  readonly nodeType: Container;
 
   add(child: LibNode): this;
   remove(child: LibNode): this;
-  getChildren(): LibNode[];
+  nodes: LibNode[];
 }
 
 // Parameter node
 export interface LibParamNode extends LibNode {
-  readonly nodeType: ParamType;
+  readonly nodeType: Param;
 
   getValue(): number;
   setValue(value: number): this;
-  getTarget(): AudioParam | null;
 }

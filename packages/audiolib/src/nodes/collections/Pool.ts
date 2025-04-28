@@ -1,21 +1,19 @@
-import { LibNode, LibSourceNode } from '@/nodes';
+import { LibNode, LibVoiceNode, Container, LibContainerNode } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { assert, tryCatch } from '@/utils';
 
-export class Pool<T extends LibSourceNode> implements LibNode {
-  // ? should T extend LibNode or LibSourceNode ?
+export class Pool<T extends LibVoiceNode> implements LibContainerNode {
   readonly nodeId: NodeID;
-  readonly nodeType: string;
+  readonly nodeType: Container = 'pool';
 
   #nodes: T[] = [];
   #available = new Set<T>();
   #active = new Set<T>();
   #messages;
 
-  constructor(nodeType: string) {
-    this.nodeType = `pool:${nodeType}`;
+  constructor() {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
   }
@@ -24,7 +22,7 @@ export class Pool<T extends LibSourceNode> implements LibNode {
     return this.#messages.onMessage(type, handler);
   }
 
-  addNode(node: T): this {
+  add(node: T): this {
     this.#nodes.push(node);
     this.#available.add(node);
 
@@ -39,6 +37,11 @@ export class Pool<T extends LibSourceNode> implements LibNode {
       if (!this.#active.has(node)) this.#active.add(node);
     });
 
+    return this;
+  }
+
+  remove(child: LibNode): this {
+    // TODO
     return this;
   }
 

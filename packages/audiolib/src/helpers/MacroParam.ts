@@ -1,18 +1,19 @@
-import { LibNode } from '@/nodes';
+import { LibNode, LibParamNode, Param } from '@/nodes';
 import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { MessageHandler, Message } from '@/events';
 import { assert, cancelScheduledParamValues } from '@/utils';
 import { getScale } from './noteFreq';
 import { NOTES } from '../constants';
 
-export class MacroParam implements LibNode {
-  readonly nodeId: string;
-  readonly nodeType: string;
+export class MacroParam implements LibParamNode {
+  readonly nodeId: NodeID;
+  readonly nodeType: Param = 'macro';
 
   #context: BaseAudioContext;
   #controlNode: GainNode;
   #constantSignal: ConstantSourceNode;
-  #slaveParams: AudioParam[] = [];
+
+  #slaveParams: AudioParam[] = []; // LibParam?
   #paramType: string = '';
   #allowedValues: number[] = [];
   #allowedPeriods: number[] = [];
@@ -23,7 +24,7 @@ export class MacroParam implements LibNode {
   constructor(context: BaseAudioContext, initialValue: number = 0) {
     this.#context = context;
     assert(context instanceof AudioContext, '', this);
-    this.nodeType = `macro:${this.#paramType || 'noParamType'}`;
+    // this.nodeType = `macro:${this.#paramType || 'noParamType'}`;
     this.nodeId = createNodeId(this.nodeType);
 
     this.#constantSignal = context.createConstantSource();
@@ -186,13 +187,13 @@ export class MacroParam implements LibNode {
       console.warn("Macro's paramType not set");
     }
 
-    console.debug(
-      `\nparamType: ${this.#paramType} 
-      \nCurrent Value: ${this.value},
-      \nTarget Value: ${target}, 
-      \nBound constant: ${constant}
-      \nReturn Value: ${returnValue}`
-    );
+    // console.debug(
+    //   `\nparamType: ${this.#paramType}
+    //   \nCurrent Value: ${this.getValue()},
+    //   \nTarget Value: ${target},
+    //   \nBound constant: ${constant}
+    //   \nReturn Value: ${returnValue}`
+    // );
     return returnValue;
   }
 
@@ -232,10 +233,47 @@ export class MacroParam implements LibNode {
     return this;
   }
 
+  // Todo: properly define LibParam interface, then fix this duplicate
+  // set macro + setValue + getValue + getChildren + get nodes()
+
   set macro(value: number) {
     this.macro.setValueAtTime(value, this.now + 0.001);
   }
+
+  setValue(value: number) {
+    this.macro.setValueAtTime(value, this.now + 0.001);
+    return this;
+  }
+
   /** GETTERS */
+
+  getValue(): number {
+    return this.#controlNode.gain.value;
+  }
+
+  get macro(): AudioParam {
+    return this.#controlNode.gain;
+  }
+
+  get controlNode() {
+    return this.#controlNode;
+  }
+
+  get type() {
+    return this.#paramType;
+  }
+
+  get now() {
+    return this.#context.currentTime;
+  }
+
+  get numSlaves() {
+    return this.#slaveParams.length;
+  }
+
+  get snapEnabled() {
+    return this.#allowedValues.length > 0;
+  }
 
   get longestPeriod() {
     return this.#allowedPeriods[this.#allowedPeriods.length - 1];
@@ -243,34 +281,6 @@ export class MacroParam implements LibNode {
 
   get shortestPeriod() {
     return this.#allowedPeriods[0];
-  }
-
-  get now() {
-    return this.#context.currentTime;
-  }
-
-  get macro(): AudioParam {
-    return this.#controlNode.gain;
-  }
-
-  get type() {
-    return this.#paramType;
-  }
-
-  get numSlaves() {
-    return this.#slaveParams.length;
-  }
-
-  get node() {
-    return this.#controlNode;
-  }
-
-  get value(): number {
-    return this.#controlNode.gain.value;
-  }
-
-  get snapEnabled() {
-    return this.#allowedValues.length > 0;
   }
 
   get numAllowedValues() {

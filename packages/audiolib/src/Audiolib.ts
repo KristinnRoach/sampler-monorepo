@@ -5,6 +5,7 @@ import {
 } from '@/context';
 
 import { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
+import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { globalKeyboardInput, InputHandler } from '@/input';
 import { assert, tryCatch } from '@/utils';
 
@@ -18,15 +19,21 @@ import {
 import { idb, initIdb, sampleLib } from './store/persistent/idb';
 import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
 
-import { LibInstrument, LibNode, AudiolibRoot, InstrumentType } from '@/nodes';
+import {
+  LibInstrument,
+  LibNode,
+  LibContainerNode,
+  Instrument,
+  Container,
+} from '@/nodes';
 import { Sampler, KarplusStrongSynth } from './instruments';
-import { RecorderNode } from '@/recorder';
+import { Recorder } from '@/recorder';
 
 let globalLoopState: boolean = false;
 
-export class Audiolib implements AudiolibRoot {
-  readonly nodeId: string = 'audiolib';
-  readonly nodeType = 'audiolib';
+export class Audiolib implements LibContainerNode {
+  readonly nodeId: NodeID;
+  readonly nodeType: Container = 'audiolib';
   static #instance: Audiolib | null = null;
 
   static getInstance(): Audiolib {
@@ -38,8 +45,8 @@ export class Audiolib implements AudiolibRoot {
 
   #audioContext: AudioContext | null = null;
   #masterGain: GainNode;
-  #instruments: Map<string, LibInstrument<InstrumentType>> = new Map();
-  #globalAudioRecorder: RecorderNode | null = null;
+  #instruments: Map<string, LibInstrument> = new Map();
+  #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null; // move
 
   #keyboardHandler: InputHandler | null = null;
@@ -47,6 +54,11 @@ export class Audiolib implements AudiolibRoot {
   #isInitialized: boolean = false;
 
   private constructor() {
+    this.nodeId = createNodeId(this.nodeType);
+
+    this.#messages = createMessageBus<Message>(this.nodeId);
+    assert(this.#messages, `Failed to create message bus for Audiolib class`);
+
     this.#audioContext = getAudioContext();
     assert(this.#audioContext, 'Failed to get audio context', {
       nodeId: this.nodeId,
@@ -55,10 +67,6 @@ export class Audiolib implements AudiolibRoot {
     this.#masterGain = this.#audioContext.createGain();
     this.#masterGain.gain.value = 0.5;
     this.#masterGain.connect(this.#audioContext.destination);
-
-    this.#messages = createMessageBus<Message>(this.nodeId);
-
-    assert(this.#messages, `Failed to create message bus for Audiolib class`);
   }
 
   async #validateContext(ctx: AudioContext): Promise<void> {
@@ -104,7 +112,7 @@ export class Audiolib implements AudiolibRoot {
     );
 
     // Initialize Recorder node
-    const recorder = new RecorderNode(ctx);
+    const recorder = new Recorder(ctx);
     const recResult = await tryCatch(recorder.init());
     assert(!recResult.error, `Failed to init Recorder`, recResult);
     this.#globalAudioRecorder = recorder;
@@ -233,6 +241,27 @@ export class Audiolib implements AudiolibRoot {
     }
   }
 
+  /** LibContainerNode required methods */
+  // Todo: change interface or adapt
+
+  add(child: LibNode): this {
+    // this.nodes.push(child);
+    return this;
+  }
+
+  remove(child: LibNode): this {
+    // Todo
+    // const index = this.nodes.indexOf(child);
+    // if (index > -1) {
+    //   this.nodes.splice(index, 1);
+    // }
+    return this;
+  }
+
+  get nodes(): LibNode[] {
+    return Array.from(this.#instruments.values());
+  }
+
   /** GETTERS & SETTERS **/
 
   async ensureAudioCtx(): Promise<AudioContext> {
@@ -262,6 +291,17 @@ export class Audiolib implements AudiolibRoot {
     assert(this.#globalAudioRecorder, 'Recorder not initialized');
     await this.#globalAudioRecorder.start();
     return this.#globalAudioRecorder.stop();
+  }
+
+  // Add this method to get the current sampler
+  getCurrentSampler(): Sampler | null {
+    // Find the first Sampler instance in the instruments map
+    for (const instrument of this.#instruments.values()) {
+      if (instrument instanceof Sampler) {
+        return instrument;
+      }
+    }
+    return null;
   }
 
   /** CLEAN UP **/

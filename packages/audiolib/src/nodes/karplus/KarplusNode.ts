@@ -1,12 +1,12 @@
 import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
-import { LibSourceNode } from '@/nodes';
+import { LibVoiceNode, Voice } from '@/nodes';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { assert, cancelScheduledParamValues } from '@/utils';
 
-export class KarplusNode implements LibSourceNode {
+export class KarplusNode implements LibVoiceNode {
   readonly nodeId: NodeID;
-  readonly nodeType: string = 'karplus-strong';
+  readonly nodeType: Voice = 'karplus-strong';
   readonly processorNames: string[] = [
     'random-noise-processor',
     'feedback-delay-processor',

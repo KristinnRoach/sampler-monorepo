@@ -1,13 +1,13 @@
-import { LibInstrument, KarplusNode, SynthInstrument } from '@/nodes';
+import { LibInstrument, KarplusNode, Instrument } from '@/nodes';
 import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 // import { isModifierStateSupported } from '@/utils';
 
-export class KarplusStrongSynth implements SynthInstrument {
-  readonly nodeId: string;
-  readonly nodeType: string = 'karplus-strong';
+export class KarplusStrongSynth implements LibInstrument {
+  readonly nodeId: NodeID;
+  readonly nodeType: Instrument = 'synth';
 
   #context: AudioContext;
   #output: GainNode;
@@ -23,7 +23,7 @@ export class KarplusStrongSynth implements SynthInstrument {
     this.#context = getAudioContext();
     this.#output = new GainNode(this.#context);
     this.#output.gain.value = 0.9;
-    this.#voicePool = new Pool('karplus-strong');
+    this.#voicePool = new Pool<KarplusNode>();
     this.#messages = createMessageBus<Message>(this.nodeId);
 
     this.#preCreateVoices(polyphony);
@@ -41,7 +41,7 @@ export class KarplusStrongSynth implements SynthInstrument {
     for (let i = 0; i < polyphony; i++) {
       const voice = new KarplusNode();
       voice.connect(this.#output);
-      this.#voicePool.addNode(voice);
+      this.#voicePool.add(voice);
     }
   }
 

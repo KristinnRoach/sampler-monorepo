@@ -1,1 +1,1 @@
-export * from './RecorderNode';
+export * from './Recorder';
