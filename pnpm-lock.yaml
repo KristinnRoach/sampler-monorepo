@@ -80,6 +80,44 @@ importers:
         specifier: ^6.0.0
         version: 6.1.0(@types/node@20.17.17)(jiti@1.21.7)(yaml@2.7.0)
 
+  apps/web-audio-elements:
+    dependencies:
+      '@repo/audio-web-components':
+        specifier: workspace:*
+        version: link:../../packages/audio-web-components
+      '@repo/audiolib':
+        specifier: workspace:*
+        version: link:../../packages/audiolib
+    devDependencies:
+      vite:
+        specifier: ^6.0.0
+        version: 6.1.0(@types/node@20.17.17)(jiti@1.21.7)(yaml@2.7.0)
+      vite-plugin-dts:
+        specifier: ^4.5.3
+        version: 4.5.3(@types/node@20.17.17)(rollup@4.34.4)(typescript@5.8.2)(vite@6.1.0(@types/node@20.17.17)(jiti@1.21.7)(yaml@2.7.0))
+      vitest:
+        specifier: ^3.0.0
+        version: 3.0.9(@types/node@20.17.17)(jiti@1.21.7)(jsdom@26.0.0)(yaml@2.7.0)
+
+  packages/audio-web-components:
+    dependencies:
+      '@repo/audiolib':
+        specifier: workspace:*
+        version: link:../audiolib
+    devDependencies:
+      typescript:
+        specifier: ^5.8.0
+        version: 5.8.2
+      vite:
+        specifier: ^6.0.0
+        version: 6.1.0(@types/node@20.17.17)(jiti@1.21.7)(yaml@2.7.0)
+      vite-plugin-dts:
+        specifier: ^4.5.3
+        version: 4.5.3(@types/node@20.17.17)(rollup@4.34.4)(typescript@5.8.2)(vite@6.1.0(@types/node@20.17.17)(jiti@1.21.7)(yaml@2.7.0))
+      vitest:
+        specifier: ^3.0.0
+        version: 3.0.9(@types/node@20.17.17)(jiti@1.21.7)(jsdom@26.0.0)(yaml@2.7.0)
+
   packages/audiolib:
     dependencies:
       dexie:

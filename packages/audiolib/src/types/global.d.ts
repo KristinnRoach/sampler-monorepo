@@ -1,6 +1,6 @@
 // TODO: make sure this global typing is cool (how does it affect consuming apps?)
 
-type TODO = any;
+type TODO = any; // or unknown?
 
 type IsReady = boolean;
 

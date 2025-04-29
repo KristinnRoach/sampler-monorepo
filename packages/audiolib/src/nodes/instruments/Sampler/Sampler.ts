@@ -6,26 +6,11 @@ import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { MacroParam } from '@/nodes/params';
-import { assert, tryCatch } from '@/utils';
+import { assert, tryCatch, isMidiValue } from '@/utils';
 import { findZeroCrossings } from '@/utils';
 import { getAudioContext } from '@/context';
-import { PressedModifiers } from '../../input/types';
-
-interface InstrumentState {
-  [key: string]: number;
-}
-
-const DEFAULT_SAMPLER_SETTINGS: InstrumentState = {
-  midiNote: 60,
-  velocity: 1,
-  startOffset_sec: 0,
-  endOffset_sec: 0,
-  attack_sec: 0.01,
-  release_sec: 0.3,
-  loopEnabled: 0,
-  loopStart_sec: 0,
-  loopEnd_sec: 0,
-};
+import { PressedModifiers } from '@/input/types';
+import { DEFAULT_SAMPLER_SETTINGS, InstrumentState } from './defaults';
 
 export class Sampler implements LibInstrument {
   readonly nodeId: NodeID;
@@ -50,7 +35,7 @@ export class Sampler implements LibInstrument {
   #isInitialized = false;
   #isLoaded = false;
 
-  #zeroCrossings: number[] = []; // maybe needed later
+  #zeroCrossings: number[] = []; // cache maybe needed later
   #useZeroCrossings = true;
 
   #trackPlaybackPosition = false;
@@ -76,10 +61,10 @@ export class Sampler implements LibInstrument {
     // Initialize pool with type only (removed polyphony parameter)
     this.#sourcePool = new Pool<SampleVoice>();
 
-    // Pre-create voices with polyphony
+    // Pre-create voices, max num voices === polyphony
     this.#preCreateVoices(context, polyphony);
 
-    // Todo: probably just track the latest played note instead of all..
+    // for now just track the latest played note instead of all..
     this.#sourcePool.nodes.forEach((node) => {
       node.onMessage('voice:position', (data) => {
         if (this.#trackPlaybackPosition && node === this.#mostRecentSource)
@@ -114,10 +99,6 @@ export class Sampler implements LibInstrument {
     this.#output.disconnect();
     return this;
   }
-
-  // Event handling
-
-  // addListener, removeListener, #dispatch, etc. have been removed
 
   #preCreateVoices(context: AudioContext, polyphony: number): void {
     for (let i = 0; i < polyphony; i++) {
@@ -191,15 +172,12 @@ export class Sampler implements LibInstrument {
   }
 
   play(midiNote: number, modifiers: TODO, velocity?: number): this {
-    console.log('Sampler play:', { midiNote, modifiers, velocity }); // Debug log
+    // console.log('Sampler play:', { midiNote, modifiers, velocity }); // Debug log
     const node = this.#sourcePool.allocateNode();
     if (!node) return this;
 
     // Ensure velocity is a valid number
-    const safeVelocity =
-      typeof velocity === 'number' && Number.isFinite(velocity)
-        ? velocity
-        : 100; // default velocity
+    const safeVelocity = isMidiValue(velocity) ? velocity : 100; // default velocity
 
     node.setLoopEnabled(this.#loopEnabled);
     node.trigger({

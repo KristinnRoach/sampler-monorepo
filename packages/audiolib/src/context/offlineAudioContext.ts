@@ -10,7 +10,7 @@ export type OfflineContextConfig = {
 };
 
 function generateContextKey(config: OfflineContextConfig): string {
-  return `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || DEFAULT.audio.sampleRate}`;
+  return `${config.length}-${config.numberOfChannels || 2}-${config.sampleRate || DEFAULT.audioConfig.sampleRate}`;
 }
 
 export function getOfflineAudioContext(
@@ -29,7 +29,7 @@ export function getOfflineAudioContext(
     context = new OfflineAudioContext({
       length: config.length,
       numberOfChannels: config.numberOfChannels || 2,
-      sampleRate: config.sampleRate || DEFAULT.audio.sampleRate,
+      sampleRate: config.sampleRate || DEFAULT.audioConfig.sampleRate,
     });
     offlineInstances.set(key, context);
   }

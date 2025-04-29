@@ -3,58 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Web Audio Elements</title>
+    <title>Web Audio Elements Demo</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div class="container">
       <h1>Web Audio Elements Demo</h1>
-      <p>Testing the SamplerElement from the audiolib package</p>
+      <p>Testing the new Audio Web Components</p>
 
-      <div class="sampler-container">
-        <!-- The sampler-element will be imported from our audiolib package -->
-        <sampler-element id="mySampler" polyphony="16"></sampler-element>
+      <div class="connection-info" id="connection-info">
+        <p>Connection status will appear here</p>
       </div>
 
-      <div class="keyboard" id="keyboard"></div>
+      <div class="component-container">
+        <h2>Sampler</h2>
+        <sampler-element id="sampler1"></sampler-element>
+      </div>
+
+      <div class="component-container">
+        <h2>Output</h2>
+        <output-element id="output1"></output-element>
+      </div>
+
+      <div class="component-container">
+        <h2>Keyboard</h2>
+        <div class="keyboard" id="keyboard">
+          <!-- Not in use (just keeping the option open for now)-->
+        </div>
+      </div>
 
       <div class="controls">
-        <div class="slider-group">
-          <label>
-            Loop Start: <span id="loopStartValue">0</span>s
-            <input
-              type="range"
-              id="loopStart"
-              min="0"
-              max="1"
-              step="0.01"
-              value="0"
-              disabled
-            />
-          </label>
-        </div>
-
-        <div class="slider-group">
-          <label>
-            Loop End: <span id="loopEndValue">0</span>s
-            <input
-              type="range"
-              id="loopEnd"
-              min="0"
-              max="1"
-              step="0.01"
-              value="1"
-              disabled
-            />
-          </label>
-        </div>
-      </div>
-
-      <div id="info" class="info-panel">
-        <p>Status: Waiting for initialization</p>
+        <button id="connect-btn">Connect Sampler to Output</button>
+        <button id="disconnect-btn">Disconnect</button>
       </div>
     </div>
 
+    <script type="module" src="./src/audio-components.js"></script>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

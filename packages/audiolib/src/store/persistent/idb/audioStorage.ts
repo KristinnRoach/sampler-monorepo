@@ -119,7 +119,7 @@ function extractContextConfig(
   // Data needed for reconstruction of AudioBuffer
   const channels = metadata?.channels || 1; // make required when storing?
   const length = audioData.byteLength / (4 * channels); // 4 bytes per float
-  const sampleRate = metadata?.sampleRate || DEFAULT.audio.sampleRate;
+  const sampleRate = metadata?.sampleRate || DEFAULT.audioConfig.sampleRate;
   return {
     length,
     numberOfChannels: channels,

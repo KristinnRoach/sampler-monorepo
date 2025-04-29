@@ -2,7 +2,7 @@ export function findZeroCrossings(
   audioBuffer: AudioBuffer,
   threshold: number = 0.001
 ): number[] {
-  const channel = audioBuffer.getChannelData(0); // Assuming mono audio
+  const channel = audioBuffer.getChannelData(0); // Assuming mono audio !
   const sampleRate = audioBuffer.sampleRate;
   const zeroCrossings: number[] = [];
 

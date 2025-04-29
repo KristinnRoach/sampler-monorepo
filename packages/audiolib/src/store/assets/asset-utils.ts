@@ -26,7 +26,7 @@ export async function fetchInitSampleAsAudioBuffer() {
   const arrayBuffer = await response.arrayBuffer();
   const audioContext = new (window.AudioContext ||
     (window as any).webkitAudioContext)({
-    sampleRate: DEFAULT.audio.sampleRate,
+    sampleRate: DEFAULT.audioConfig.sampleRate,
   });
 
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);

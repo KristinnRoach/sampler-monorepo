@@ -14,7 +14,7 @@ export type AudioContextConfig = {
 export function getAudioContext(config?: AudioContextConfig): AudioContext {
   if (!globalAudioContext) {
     globalAudioContext = new AudioContext({
-      sampleRate: config?.sampleRate || DEFAULT.audio.sampleRate,
+      sampleRate: config?.sampleRate || DEFAULT.audioConfig.sampleRate,
       latencyHint: config?.latencyHint || 'interactive',
     });
 

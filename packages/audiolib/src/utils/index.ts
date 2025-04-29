@@ -6,6 +6,7 @@ export * from './audiodata/calculate/zero-crossing';
 // Musical utils
 export * from './musical/midi/midiTo';
 export * from './musical/midi/normalize';
+export * from './musical/midi/guards';
 
 // Code utils
 export * from './code/assert';
