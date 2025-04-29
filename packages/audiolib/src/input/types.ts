@@ -23,7 +23,7 @@ export interface InputHandler {
   ) => void;
   onNoteOff: (midiNote: number, modifiers: PressedModifiers) => void;
   onBlur: () => void;
-  // onCapsToggled: (caps: boolean, modifiers?: PressedModifiers) => void;
+  onModifierChange?: (modifiers: PressedModifiers) => void;
 }
 
 export type KeyMap = Record<string, number>;

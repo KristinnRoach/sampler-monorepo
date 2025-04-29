@@ -1,3 +1,6 @@
+//
+/****** ! NOT IN USE - just for reference when I get around to it (e.g. change createScale to ts first) */
+
 export function snapToDuration(
   paramToProcess: 'start' | 'end',
   start: number,

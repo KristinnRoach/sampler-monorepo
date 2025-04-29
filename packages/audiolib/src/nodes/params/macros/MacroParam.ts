@@ -1,13 +1,18 @@
-import { LibNode, LibParamNode, Param } from '@/nodes';
-import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
-import { MessageHandler, Message } from '@/events';
+import { LibNode, LibParamNode, ParamType } from '@/LibNode';
+import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
+import {
+  MessageHandler,
+  Message,
+  MessageBus,
+  createMessageBus,
+} from '@/events';
 import { assert, cancelScheduledParamValues } from '@/utils';
-import { getScale } from './noteFreq';
-import { NOTES } from '../constants';
+import { createScale } from '@/utils/musical/scales/createScale';
+import { NOTES } from '@/constants';
 
 export class MacroParam implements LibParamNode {
   readonly nodeId: NodeID;
-  readonly nodeType: Param = 'macro';
+  readonly nodeType: ParamType = 'macro';
 
   #context: BaseAudioContext;
   #controlNode: GainNode;
@@ -17,15 +22,16 @@ export class MacroParam implements LibParamNode {
   #paramType: string = '';
   #allowedValues: number[] = [];
   #allowedPeriods: number[] = [];
-  #messages: any; // TODO: implement proper message bus
+  #messages: MessageBus<Message>;
 
   static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
   constructor(context: BaseAudioContext, initialValue: number = 0) {
     this.#context = context;
     assert(context instanceof AudioContext, '', this);
-    // this.nodeType = `macro:${this.#paramType || 'noParamType'}`;
+
     this.nodeId = createNodeId(this.nodeType);
+    this.#messages = createMessageBus(this.nodeId);
 
     this.#constantSignal = context.createConstantSource();
     this.#constantSignal.start();
@@ -33,7 +39,7 @@ export class MacroParam implements LibParamNode {
     this.#controlNode = new GainNode(context, { gain: initialValue });
     this.#constantSignal.connect(this.#controlNode);
 
-    const periods = getScale('C', [0, 7]).periodsInSec;
+    const periods = createScale('C', [0, 7]).periodsInSec;
     this.#allowedPeriods = periods.sort((a, b) => a - b);
   }
 
@@ -42,23 +48,22 @@ export class MacroParam implements LibParamNode {
     return () => {};
   }
 
-  connect(
-    destination: AudioNode | null,
-    outputIndex?: number,
-    inputIndex?: number
-  ): this | AudioNode | AudioParam {
-    if (destination) {
-      this.#controlNode.connect(destination, outputIndex, inputIndex);
-    }
-    return this;
+  connect(): this {
+    assert(
+      false,
+      `connect() is not implemented in Macro.
+       Remove from interface if not needed`,
+      this.macro
+    );
   }
 
-  disconnect(destination?: AudioNode | null): void {
-    if (destination) {
-      this.#controlNode.disconnect(destination);
-    } else {
-      this.#controlNode.disconnect();
-    }
+  disconnect(): void {
+    assert(
+      false,
+      `disconnect() is not implemented in Macro.
+       Remove from interface if not needed`,
+      this.macro
+    );
   }
 
   // add target audioparam to be controlled by the macro
@@ -204,6 +209,11 @@ export class MacroParam implements LibParamNode {
 
   /** SETTERS */
 
+  setValue(value: number) {
+    this.macro.setValueAtTime(value, this.now + 0.001);
+    return this;
+  }
+
   setAllowedParamValues(values: number[]) {
     assert(values.length > 1, 'allowed values must not be empty!', this);
     this.#allowedValues = values.sort((a, b) => a - b); // !! Test whether sorting zero crossings is helpful or not!
@@ -227,21 +237,9 @@ export class MacroParam implements LibParamNode {
     const scalePattern = customScalePattern
       ? customScalePattern
       : NOTES.scales[scale];
-    const { periodsInSec } = getScale(rootNote, scalePattern);
+    const { periodsInSec } = createScale(rootNote, scalePattern);
     this.#allowedPeriods = periodsInSec.sort((a, b) => a - b); // sort low to high
 
-    return this;
-  }
-
-  // Todo: properly define LibParam interface, then fix this duplicate
-  // set macro + setValue + getValue + getChildren + get nodes()
-
-  set macro(value: number) {
-    this.macro.setValueAtTime(value, this.now + 0.001);
-  }
-
-  setValue(value: number) {
-    this.macro.setValueAtTime(value, this.now + 0.001);
     return this;
   }
 

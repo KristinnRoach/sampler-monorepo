@@ -5,7 +5,7 @@ import {
 } from '@/context';
 
 import { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
-import { createNodeId, deleteNodeId } from '@/store/state/IdStore';
+import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
 import { globalKeyboardInput, InputHandler } from '@/input';
 import { assert, tryCatch } from '@/utils';
 
@@ -19,21 +19,13 @@ import {
 import { idb, initIdb, sampleLib } from './store/persistent/idb';
 import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
 
-import {
-  LibInstrument,
-  LibNode,
-  LibContainerNode,
-  Instrument,
-  Container,
-} from '@/nodes';
-import { Sampler, KarplusStrongSynth } from './instruments';
+import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
+import { Sampler, KarplusStrongSynth } from './nodes/instruments';
 import { Recorder } from '@/recorder';
 
-let globalLoopState: boolean = false;
-
-export class Audiolib implements LibContainerNode {
+export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
-  readonly nodeType: Container = 'audiolib';
+  readonly nodeType: ContainerType = 'audiolib';
   static #instance: Audiolib | null = null;
 
   static getInstance(): Audiolib {
@@ -217,7 +209,7 @@ export class Audiolib implements LibContainerNode {
 
   /** LibNode methods */
   connect(
-    destination: AudioNode | null,
+    destination?: AudioNode,
     outputIndex?: number,
     inputIndex?: number
   ): this {
@@ -293,7 +285,7 @@ export class Audiolib implements LibContainerNode {
     return this.#globalAudioRecorder.stop();
   }
 
-  // Add this method to get the current sampler
+  // ? this is currently needed to connect Recorder, refactor later for flexibility
   getCurrentSampler(): Sampler | null {
     // Find the first Sampler instance in the instruments map
     for (const instrument of this.#instruments.values()) {
@@ -319,12 +311,10 @@ export class Audiolib implements LibContainerNode {
         this.#masterGain.disconnect();
         this.#masterGain = null as unknown as GainNode;
       }
-
-      // Release global resources
-      releaseGlobalAudioContext();
-      registry.dispose();
       idb.close();
-
+      registry.dispose();
+      deleteNodeId(this.nodeId);
+      releaseGlobalAudioContext();
       Audiolib.#instance = null;
     } catch (error) {
       console.error(
@@ -334,6 +324,8 @@ export class Audiolib implements LibContainerNode {
     }
   }
 }
+
+// let globalLoopState: boolean = false;
 
 // #onCapsToggled(capsOn: boolean, modifiers: TODO) {
 //   if (globalLoopState !== capsOn) {

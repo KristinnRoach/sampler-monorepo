@@ -1,12 +1,12 @@
 import { Audiolib } from './Audiolib';
 
 export const audiolib = Audiolib.getInstance();
-// await audiolib.init(); // better to let the user call init?
+// await audiolib.init(); // currently the user calls init
 
-export { Sampler } from '@/instruments/Sampler';
-export { KarplusStrongSynth } from '@/instruments/KarplusStrongSynth';
+export { Sampler } from '@/nodes/instruments/Sampler';
+export { KarplusStrongSynth } from '@/nodes/instruments/KarplusStrongSynth';
 
-export { SourceNode } from '@/nodes/source/SourceNode';
+export { SampleVoice } from '@/nodes/voices/voice_nodes/sample/SampleVoice';
 
 export { Recorder } from '@/recorder';
 

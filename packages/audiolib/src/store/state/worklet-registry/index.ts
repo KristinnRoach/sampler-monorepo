@@ -1,9 +1,9 @@
-import FeedbackDelayProcessorRaw from '@/nodes/fx/delays/feedback-delay-processor?raw';
-import RandomNoiseProcessorRaw from '@/nodes/osc/noise/random-noise-processor?raw';
-import SourceProcessor from '@/nodes/source/source-processor?raw';
+import FeedbackDelayProcessorRaw from '@/nodes/fx/fx_processors/delays/feedback-delay-processor?raw';
+import RandomNoiseProcessorRaw from '@/nodes/voices/voice_processors/synth/random-noise-processor?raw';
+import SamplePlayerProcessorRaw from '@/nodes/voices/voice_processors/sample/sample-player-processor?raw';
 
 const PROCESSORS = {
-  'source-processor': SourceProcessor,
+  'sample-player-processor': SamplePlayerProcessorRaw,
   'random-noise-processor': RandomNoiseProcessorRaw,
   'feedback-delay-processor': FeedbackDelayProcessorRaw,
 } as const;

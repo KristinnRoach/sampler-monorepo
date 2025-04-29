@@ -1,6 +1,9 @@
-import { ROOTS, NOTE_FREQUENCIES, SCALES, PERIODS, NOTES } from '../constants';
+import { ROOTS, NOTE_FREQUENCIES, SCALES, PERIODS, NOTES } from '@/constants';
 
-export function getScale(rootNote, scalePattern) {
+// todo: Should return midinotes as well ?
+// If not called often probly best to just get all the info in one place
+// todo: convert to typescript
+export function createScale(rootNote, scalePattern) {
   if (!ROOTS[rootNote] && ROOTS[rootNote] !== 0) {
     throw new Error(`Unknown root note: ${rootNote}`);
   }

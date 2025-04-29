@@ -1,4 +1,9 @@
-import { LibNode, LibVoiceNode, Container, LibContainerNode } from '@/nodes';
+import {
+  LibNode,
+  LibVoiceNode,
+  ContainerType,
+  LibContainerNode,
+} from '@/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler, createMessageBus } from '@/events';
@@ -6,7 +11,7 @@ import { assert, tryCatch } from '@/utils';
 
 export class Pool<T extends LibVoiceNode> implements LibContainerNode {
   readonly nodeId: NodeID;
-  readonly nodeType: Container = 'pool';
+  readonly nodeType: ContainerType = 'pool';
 
   #nodes: T[] = [];
   #available = new Set<T>();

@@ -1,3 +1,3 @@
-export * from './LibNode';
-export * from './source/SourceNode';
-export * from './karplus/KarplusNode';
+/* NODES */
+export * from './voices/voice_nodes/sample/SampleVoice';
+export * from './voices/voice_nodes/synth/physical/KarplusVoice';

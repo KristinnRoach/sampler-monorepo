@@ -4,7 +4,7 @@ async function setupBasicPlayer(samplePath) {
   const audioContext = new AudioContext();
 
   // Register the worklet processor (only needs to be done once)
-  await audioContext.audioWorklet.addModule('./source-processor.js');
+  await audioContext.audioWorklet.addModule('./sample-player-processor.js');
 
   // Create the player instance
   const player = new SourcePlayer(audioContext);
@@ -29,7 +29,7 @@ async function setupBasicPlayer(samplePath) {
 // Example 2: Advanced setup with effects chain
 async function setupPlayerWithEffects() {
   const audioContext = new AudioContext();
-  await audioContext.audioWorklet.addModule('./source-processor.js');
+  await audioContext.audioWorklet.addModule('./sample-player-processor.js');
 
   // Create effects
   const filter = new BiquadFilterNode(audioContext, {
@@ -83,7 +83,7 @@ async function setupPlayerWithEffects() {
 // Example 3: Multiple players with shared resources
 async function createMultiplePlayers(audioBuffers) {
   const audioContext = new AudioContext();
-  await audioContext.audioWorklet.addModule('./source-processor.js');
+  await audioContext.audioWorklet.addModule('./sample-player-processor.js');
 
   // Create a mixer
   const mixer = new GainNode(audioContext, { gain: 1.0 });
@@ -120,7 +120,7 @@ async function createMultiplePlayers(audioBuffers) {
 // Example 4: Using with AudioParam modulation
 async function setupModulatedPlayer(samplePath) {
   const audioContext = new AudioContext();
-  await audioContext.audioWorklet.addModule('./source-processor.js');
+  await audioContext.audioWorklet.addModule('./sample-player-processor.js');
 
   // Create LFO for playback rate modulation
   const lfo = new OscillatorNode(audioContext, {
@@ -181,7 +181,7 @@ class PlayerFactory {
 
     try {
       this.context = new AudioContext();
-      await this.context.audioWorklet.addModule('./source-processor.js');
+      await this.context.audioWorklet.addModule('./sample-player-processor.js');
       this.workletLoaded = true;
     } catch (error) {
       console.error('Failed to initialize player factory:', error);

@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "vitest run && tsc --emitDeclarationOnly && vite build",
+    "build": "tsc --emitDeclarationOnly && vite build",
     "watch": "concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
     "clean": "rimraf dist && pnpm prune",
     "clean:turbo": "rimraf .turbo",

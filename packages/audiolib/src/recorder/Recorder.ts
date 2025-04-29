@@ -1,4 +1,4 @@
-import { LibNode, BaseNode } from '@/nodes/LibNode';
+import { LibNode, BaseNodeType } from '@/LibNode';
 import { NodeID, createNodeId, deleteNodeId } from '@/store/state/IdStore';
 import {
   Message,
@@ -22,7 +22,7 @@ export interface SampleLoader {
 
 export class Recorder implements LibNode {
   readonly nodeId: NodeID;
-  readonly nodeType: BaseNode = 'recorder';
+  readonly nodeType: BaseNodeType = 'recorder';
 
   #context: AudioContext;
   #stream: MediaStream | null = null;

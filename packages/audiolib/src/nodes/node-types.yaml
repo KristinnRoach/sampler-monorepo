@@ -1,6 +1,0 @@
-LibNode:
-  Instrument: # e.g. Instrument<T extends Player>
-    Sampler: # implements Instrument<Player<Sample>>
-  Player: # e.g. Player<T extends Source>
-  Source: # e.g. Source<T extends Playable>
-  Playable:

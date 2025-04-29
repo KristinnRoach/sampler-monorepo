@@ -15,10 +15,21 @@ export class KeyboardInputManager {
 
   private constructor(keymap: KeyMap = defaultKeymap) {
     this.#keymap = keymap;
-
     this.#isModifierStateSupported = isModifierStateSupported();
-    console.log(`caps state supported: ${isModifierStateSupported()}`);
-    console.log(`keyboard layout supported: ${isKeyboardAPISupported()}`);
+
+    // Handle capslock state changes
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'CapsLock') {
+        this.#capsLockOn = !this.#capsLockOn;
+
+        const modifiers = this.getModifiers(e);
+
+        // Notify all handlers of capslock change
+        this.#handlers.forEach((handler) =>
+          handler.onModifierChange?.(modifiers)
+        );
+      }
+    });
   }
 
   static getInstance(keymap: KeyMap = defaultKeymap): KeyboardInputManager {
@@ -34,7 +45,7 @@ export class KeyboardInputManager {
       ctrl: e.ctrlKey,
       alt: e.altKey,
       meta: e.metaKey,
-      caps: this.detectCapsLock(e),
+      caps: this.#capsLockOn,
     };
   }
 
@@ -47,29 +58,10 @@ export class KeyboardInputManager {
     return new Set(this.#pressedKeys);
   }
 
-  detectCapsLock(e: KeyboardEvent): boolean {
-    if (e.key.length !== 1) return false; // Skip non-character keys
-
-    // Modern method
-    if (e.getModifierState) {
-      return e.getModifierState('CapsLock');
-    }
-
-    // Legacy fallback (for letters only)
-    else if (/[a-zA-Z]/.test(e.key)) {
-      // Only for letters
-      const isUppercaseWithoutShift =
-        e.key === e.key.toUpperCase() && !e.shiftKey;
-      const isLowercaseWithShift = e.key === e.key.toLowerCase() && e.shiftKey;
-      return isUppercaseWithoutShift || isLowercaseWithShift;
-    }
-
-    return false; // Default for non-letters
-  }
-
   private handleKeyDown = (e: KeyboardEvent): void => {
     if (e.repeat) return;
     const modifiers = this.getModifiers(e);
+    console.log('KeyDown modifiers:', modifiers); // Debug log
     this.#pressedKeys.add(e.code);
 
     const midiNote = this.#keymap[e.code];
@@ -77,19 +69,20 @@ export class KeyboardInputManager {
       this.#handlers.forEach((handler) =>
         handler.onNoteOn(midiNote, modifiers)
       );
-    } // TODO: else handle non-midinote keys, e.g caps
+    }
   };
 
   private handleKeyUp = (e: KeyboardEvent): void => {
-    this.#pressedKeys.delete(e.code);
     const modifiers = this.getModifiers(e);
+    console.log('KeyUp modifiers:', modifiers); // Debug log
+    this.#pressedKeys.delete(e.code);
 
     const midiNote = this.#keymap[e.code];
     if (midiNote !== undefined) {
-      this.#handlers.forEach(
-        (handler) => handler.onNoteOff(midiNote, modifiers) // ! handle caps only on keyup !?
+      this.#handlers.forEach((handler) =>
+        handler.onNoteOff(midiNote, modifiers)
       );
-    } // TODO: else handle non-midinote keys, e.g caps
+    }
   };
 
   private handleBlur = (e: FocusEvent): void => {
@@ -181,7 +174,7 @@ export function debugKeyModifiers(e: KeyboardEvent, keys?: ModifierKey[]) {
     ctrl: e.ctrlKey,
     alt: e.altKey,
     meta: e.metaKey,
-    caps: e.getModifierState('CapsLock'),
+    caps: e.getModifierState('CapsLock'), // Changed from 'loop' to 'caps'
   };
 
   if (keys) {

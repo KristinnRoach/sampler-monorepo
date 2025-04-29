@@ -8,6 +8,7 @@ class PlaybackTiming {
     this.stopTime = null;
     this.lengthInSeconds = null;
     this.offsetSeconds = 0;
+    this.state = 'idle'; // 'idle', 'playing', 'stopped'
   }
 
   start(timeToStart, offsetSeconds = 0, lengthInSeconds = null) {
@@ -15,10 +16,12 @@ class PlaybackTiming {
     this.offsetSeconds = offsetSeconds;
     this.stopTime = null;
     this.lengthInSeconds = lengthInSeconds;
+    this.state = 'playing';
   }
 
   stop(timeToStop) {
     this.stopTime = timeToStop;
+    this.state = 'stopped';
   }
 
   isActive(now) {
@@ -50,43 +53,41 @@ class PlaybackTiming {
 }
 const MIN_ABS_AMPLITUDE = 0.001;
 
-class SourceProcessor extends AudioWorkletProcessor {
+class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.buffer = null;
     this.isPlaying = false;
     this.playbackPosition = 0;
-    this.loopCount = 0; // currently not used..
+    this.loopCount = 0;
     this.isReleasing = false;
+    this.loopEnabled = false; // Initialize loop state
+    this.timing = new PlaybackTiming();
+    this.usePlaybackPosition = false;
 
     // Message handling
     this.port.onmessage = (event) => {
-      const data = event.data;
+      const { type, value, buffer, offset, duration, time } = event.data;
 
-      switch (data.type) {
+      switch (type) {
         case 'voice:init':
           this.timing = new PlaybackTiming();
           this.usePlaybackPosition = false;
+          this.loopEnabled = false;
           break;
+
         case 'voice:set_buffer':
           this.isPlaying = false;
           this.timing.clear();
           this.playbackPosition = 0;
           this.loopCount = 0;
-
-          this.buffer = data.buffer;
-          // ? use data.duration // ? clear timing and reset params & vars ?
-          console.debug(
-            `buffer set in processor, 
-            length: ${this.buffer[0].length}, 
-            duration in seconds: ${data.duration}`
-          );
+          this.buffer = buffer;
           break;
 
         case 'voice:start':
           this.isReleasing = false;
-          this.timing.start(currentTime, data.offset || 0, data.duration);
-          this.playbackPosition = (data.offset || 0) * sampleRate;
+          this.timing.start(time, offset || 0, duration);
+          this.playbackPosition = (offset || 0) * sampleRate;
           this.isPlaying = true;
           break;
 
@@ -97,10 +98,21 @@ class SourceProcessor extends AudioWorkletProcessor {
         case 'voice:stop':
           this.timing.stop(currentTime);
           this.isPlaying = false;
+          this.isReleasing = false;
+          break;
+
+        case 'setLoopEnabled':
+          this.loopEnabled = value;
+          if (!value && this.isPlaying) {
+            // If turning loop off, and we're past the end, stop right away
+            if (this.playbackPosition >= this.buffer[0].length) {
+              this.#onended(output);
+            }
+          }
           break;
 
         case 'voice:usePlaybackPosition':
-          this.usePlaybackPosition = data.value;
+          this.usePlaybackPosition = value;
           break;
       }
     };
@@ -112,7 +124,6 @@ class SourceProcessor extends AudioWorkletProcessor {
         name: 'playbackPosition',
         defaultValue: 0,
         minValue: 0,
-        // maxValue: 1000000, // ?
         automationRate: 'k-rate',
       },
       {
@@ -137,13 +148,6 @@ class SourceProcessor extends AudioWorkletProcessor {
         automationRate: 'a-rate',
       },
       {
-        name: 'loop',
-        defaultValue: 0,
-        minValue: 0,
-        maxValue: 1,
-        automationRate: 'k-rate',
-      },
-      {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
@@ -158,10 +162,6 @@ class SourceProcessor extends AudioWorkletProcessor {
     ];
   }
 
-  #isLoopEnabled(loopParam) {
-    return loopParam[0] > 0.5;
-  }
-
   #fillWithSilence(output) {
     for (let channel = 0; channel < output.length; channel++) {
       output[channel].fill(0);
@@ -170,7 +170,7 @@ class SourceProcessor extends AudioWorkletProcessor {
 
   #onended(output) {
     this.isPlaying = false;
-    this.timing.clear();
+    if (this.timing) this.timing.clear();
     this.playbackPosition = 0;
     this.port.postMessage({ type: 'voice:ended' });
   }
@@ -193,12 +193,9 @@ class SourceProcessor extends AudioWorkletProcessor {
       return true; // AudioWorklet will zero-fill automatically
     }
 
-    const loopEnabled = this.#isLoopEnabled(parameters.loop);
-
     const pbRate = parameters.playbackRate[0];
     const loopStart = parameters.loopStart[0] * sampleRate;
     const loopEnd = parameters.loopEnd[0] * sampleRate;
-
     const envelopeGain = parameters.envGain[0];
     const velocityGain = parameters.velocity[0]; // seems to be already normalized from midi values
 
@@ -214,14 +211,18 @@ class SourceProcessor extends AudioWorkletProcessor {
     // Process samples
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
-      if (loopEnabled && this.playbackPosition >= loopEnd) {
+      if (this.loopEnabled && this.playbackPosition >= loopEnd) {
         this.playbackPosition = loopStart;
         this.loopCount++;
+        this.port.postMessage({
+          type: 'voice:looped',
+          loopCount: this.loopCount,
+        });
       }
 
       // Check for end of buffer
       if (this.playbackPosition >= bufferLength) {
-        if (!loopEnabled) {
+        if (!this.loopEnabled) {
           this.#onended(output);
           return true;
         }
@@ -259,4 +260,4 @@ class SourceProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('source-processor', SourceProcessor);
+registerProcessor('sample-player-processor', SamplePlayerProcessor);
