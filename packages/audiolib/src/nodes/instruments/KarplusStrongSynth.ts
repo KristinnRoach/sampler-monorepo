@@ -4,6 +4,7 @@ import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId, NodeID } from '@/store/state/IdStore';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
+import { PressedModifiers } from '@/input/types';
 
 export class KarplusStrongSynth implements LibInstrument {
   readonly nodeId: NodeID;
@@ -45,7 +46,11 @@ export class KarplusStrongSynth implements LibInstrument {
     }
   }
 
-  play(midiNote: number, modifers: TODO, velocity: number = 1): this {
+  play(
+    midiNote: number,
+    modifiers: PressedModifiers,
+    velocity: number = 1
+  ): this {
     const voice = this.#voicePool.allocateNode();
     if (!voice) return this;
 
@@ -71,17 +76,10 @@ export class KarplusStrongSynth implements LibInstrument {
       this.sendMessage('voice:ended', { midiNote });
     });
 
-    // if (modifers.caps && isModifierStateSupported()) {
-    //   // Temp hax
-    //   setInterval(() => {
-    //     this.play(midiNote, modifers, velocity);
-    //   }, this.#releaseTime * 1000);
-    // }
-
     return this;
   }
 
-  release(midiNote: number, modifers?: TODO): this {
+  release(midiNote: number, modifiers?: PressedModifiers): this {
     const voices = this.#activeNotes.get(midiNote);
     if (!voices || voices.size === 0) {
       console.warn(`Could not release note ${midiNote}`);

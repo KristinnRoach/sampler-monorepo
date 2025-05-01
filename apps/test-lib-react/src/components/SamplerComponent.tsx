@@ -256,8 +256,6 @@ const SamplerComponent = () => {
         Load default sample
       </button>
 
-      {/* <KeyboardController onNoteOn={handleNoteOn} onNoteOff={handleNoteOff} /> */}
-
       <div>
         <input type='file' accept='audio/*' onChange={handleFileChange} />
         <button onClick={toggleLoopEnabled} disabled={!isLoaded}>

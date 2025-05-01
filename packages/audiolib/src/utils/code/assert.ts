@@ -11,14 +11,28 @@ export function assert<T>(
   }
 }
 
-// Example usage
-// assert(audioBuffer !== null, "Audio buffer cannot be null", this);
-
 /**
  * Example of proper assert usage with error handling:
  *
- * ```typescript
+ * Using audiolib's tryCatch util:
+ *
+ * import { assert, tryCatch } from '@/utils';
+ *
+ * async function loadAndPlaySample(url: string) {
+ *   const result = await tryCatch(fetchSample(url), "Failed to fetch sample");
+ *
+ *   // Check if we got an error or a valid result
+ *   assert(!result.error, "Sample fetch failed", { url });
+ *
+ *   // At this point, TypeScript knows result.error is false
+ *   // and result.result contains our sample
+ *   return playSample(result.result);
+ * }
+ *
+ *
  * import { assert } from '@/utils';
+ *
+ * Using try-catch block:
  *
  * function playSample(audioBuffer: AudioBuffer | null) {
  *   try {
@@ -43,18 +57,4 @@ export function assert<T>(
  *   }
  * }
  *
- * // Using tryCatch utility for cleaner error handling
- * import { assert, tryCatch } from '@/utils';
- *
- * async function loadAndPlaySample(url: string) {
- *   const result = await tryCatch(fetchSample(url), "Failed to fetch sample");
- *
- *   // Check if we got an error or a valid result
- *   assert(!result.error, "Sample fetch failed", { url });
- *
- *   // At this point, TypeScript knows result.error is false
- *   // and result.result contains our sample
- *   return playSample(result.result);
- * }
- * ```
  */
