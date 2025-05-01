@@ -229,9 +229,9 @@ export class SampleVoice implements LibVoiceNode {
       type: 'setLoopEnabled',
       value: enabled,
     });
-    if (!enabled) {
-      this.release({ release_sec: 0.3 }); // todo: remove hardcoded release
-    }
+    // if (!enabled) {
+    //   this.release({ release_sec: 0.3 }); // todo: remove hardcoded release
+    // }
     return this;
   }
 
