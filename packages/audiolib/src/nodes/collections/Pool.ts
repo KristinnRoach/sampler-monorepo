@@ -77,10 +77,21 @@ export class Pool<T extends LibVoiceNode> implements LibContainerNode {
     return this;
   }
 
-  applyToAllActiveNodes(callback: (node: T) => void): this {
+  applyToActive(callback: (node: T) => void): this {
     if (this.#active.size === 0) return this;
     this.#active.forEach(callback);
     return this;
+  }
+
+  applyToAll(callback: (node: T) => void): this {
+    if (this.#nodes.length === 0) return this;
+    this.#nodes.forEach(callback);
+    return this;
+  }
+
+  async asyncApplyToAll(callback: (node: T) => Promise<void>): Promise<void> {
+    if (this.#nodes.length === 0) return;
+    await Promise.all(this.#nodes.map(callback));
   }
 
   dispose(): void {

@@ -1,15 +1,21 @@
 // Todo: only stop the most recent voice for midiNote
 // Sampler.ts
 import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
+import { createNodeId, NodeID } from '@/store/state/IdStore';
+import { getAudioContext } from '@/context';
+
+import { PressedModifiers } from '@/input';
+import {
+  Message,
+  MessageHandler,
+  createMessageBus,
+  MessageBus,
+} from '@/events';
+import { assert, tryCatch, isMidiValue, findZeroCrossings } from '@/utils';
+
 import { SampleVoice } from '@/nodes/voices/voice_nodes/sample/SampleVoice';
 import { Pool } from '@/nodes/collections/Pool';
-import { createNodeId, NodeID } from '@/store/state/IdStore';
-import { Message, MessageHandler, createMessageBus } from '@/events';
 import { MacroParam } from '@/nodes/params';
-import { assert, tryCatch, isMidiValue } from '@/utils';
-import { findZeroCrossings } from '@/utils';
-import { getAudioContext } from '@/context';
-import { PressedModifiers } from '@/input/types';
 import { DEFAULT_SAMPLER_SETTINGS, InstrumentState } from './defaults';
 
 export class Sampler implements LibInstrument {
@@ -20,10 +26,10 @@ export class Sampler implements LibInstrument {
 
   #context: AudioContext;
   #output: GainNode;
-  #sourcePool: Pool<SampleVoice>;
-  #messages;
+  #voicePool: Pool<SampleVoice>;
+  #messages: MessageBus<Message>;
 
-  #activeNotes = new Map<number, Set<SampleVoice>>();
+  #activeMidiNoteToVoice = new Map<number, Set<SampleVoice>>();
   #state: InstrumentState = DEFAULT_SAMPLER_SETTINGS;
 
   #loopEnabled: boolean = false;
@@ -59,15 +65,15 @@ export class Sampler implements LibInstrument {
     this.#macroLoopEnd = new MacroParam(context, 0);
 
     // Initialize pool with type only (removed polyphony parameter)
-    this.#sourcePool = new Pool<SampleVoice>();
+    this.#voicePool = new Pool<SampleVoice>();
 
     // Pre-create voices, max num voices === polyphony
     this.#preCreateVoices(context, polyphony);
 
     // for now just track the latest played note instead of all..
-    this.#sourcePool.nodes.forEach((node) => {
-      node.onMessage('voice:position', (data) => {
-        if (this.#trackPlaybackPosition && node === this.#mostRecentSource)
+    this.#voicePool.applyToAll((voice) => {
+      voice.onMessage('voice:position', (data) => {
+        if (this.#trackPlaybackPosition && voice === this.#mostRecentSource)
           this.#messages.sendMessage('voice:position', data);
       });
     });
@@ -76,7 +82,7 @@ export class Sampler implements LibInstrument {
 
     if (audioBuffer?.duration) {
       this.loadSample(audioBuffer, audioBuffer.sampleRate);
-      this.#sourcePool.nodes.forEach((node) => this.#connectToMacros(node));
+      this.#voicePool.applyToAll((voice) => this.#connectToMacros(voice));
     } else {
       this.#isLoaded = false;
     }
@@ -102,16 +108,15 @@ export class Sampler implements LibInstrument {
 
   #preCreateVoices(context: AudioContext, polyphony: number): void {
     for (let i = 0; i < polyphony; i++) {
-      const node = new SampleVoice(context);
-      node.connect(this.#output);
-      this.#sourcePool.add(node);
+      const voice = new SampleVoice(context);
+      voice.connect(this.#output);
+      this.#voicePool.add(voice);
     }
   }
 
-  #connectToMacros(node: SampleVoice): void {
-    // (node: SourceNode, params: string[] | AudioParam[]) // make generic
-    this.#macroLoopStart.addTarget(node.getParam('loopStart')!, 'loopStart');
-    this.#macroLoopEnd.addTarget(node.getParam('loopEnd')!, 'loopEnd');
+  #connectToMacros(voice: SampleVoice): void {
+    this.#macroLoopStart.addTarget(voice.getParam('loopStart')!, 'loopStart');
+    this.#macroLoopEnd.addTarget(voice.getParam('loopEnd')!, 'loopEnd');
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
@@ -151,14 +156,14 @@ export class Sampler implements LibInstrument {
     // Cache zero crossings, if being used
     if (this.#useZeroCrossings) this.#zeroCrossings = findZeroCrossings(buffer);
 
-    const allNodes = this.#sourcePool.nodes;
-    const promises = allNodes.map((node) => node.loadBuffer(buffer));
+    const allVoices = this.#voicePool.nodes;
+    assert(allVoices.length > 0, 'No voices to load sample!');
 
+    const promises = allVoices.map((voice) => voice.loadBuffer(buffer));
     const result = await tryCatch(
       Promise.all(promises),
       'Failed to load sample'
     );
-
     if (result.error) {
       return false; // Loading failed
     }
@@ -171,33 +176,35 @@ export class Sampler implements LibInstrument {
     return true;
   }
 
-  play(midiNote: number, modifiers: TODO, velocity?: number): this {
+  play(midiNote: number, modifiers: PressedModifiers, velocity?: number): this {
     // console.log('Sampler play:', { midiNote, modifiers, velocity }); // Debug log
-    const node = this.#sourcePool.allocateNode();
-    if (!node) return this;
+    const voice = this.#voicePool.allocateNode();
+    if (!voice) return this;
 
-    // Ensure velocity is a valid number
     const safeVelocity = isMidiValue(velocity) ? velocity : 100; // default velocity
 
-    node.setLoopEnabled(this.#loopEnabled);
-    node.trigger({
+    // Need to set the loop state on the newly allocated voice
+    voice.setLoopEnabled(this.#loopEnabled);
+
+    voice.trigger({
+      // consider just passing the loop enabled state here?
       midiNote,
       attack_sec: this.#state.attack_sec,
       velocity: safeVelocity,
     });
 
-    if (!this.#activeNotes.has(midiNote)) {
-      this.#activeNotes.set(midiNote, new Set());
+    if (!this.#activeMidiNoteToVoice.has(midiNote)) {
+      this.#activeMidiNoteToVoice.set(midiNote, new Set());
     }
-    this.#activeNotes.get(midiNote)!.add(node);
+    this.#activeMidiNoteToVoice.get(midiNote)!.add(voice);
 
     // Position tracking
     if (this.#trackPlaybackPosition) {
       if (this.#mostRecentSource) {
         this.#mostRecentSource.enablePositionTracking = false;
       }
-      this.#mostRecentSource = node;
-      node.enablePositionTracking = true;
+      this.#mostRecentSource = voice;
+      voice.enablePositionTracking = true;
     }
 
     this.sendMessage('note:on', { midiNote, velocity: safeVelocity });
@@ -205,44 +212,44 @@ export class Sampler implements LibInstrument {
   }
 
   release(midiNote: number, modifiers: PressedModifiers) {
-    const nodes = this.#activeNotes.get(midiNote);
-    if (!nodes || nodes.size === 0) {
+    const voices = this.#activeMidiNoteToVoice.get(midiNote);
+    if (!voices || voices.size === 0) {
       console.warn(`Could not release note ${midiNote}`);
       return this;
     }
 
-    if (this.#loopEnabled !== modifiers.caps) {
-      console.log('Updating loop state:', modifiers.caps);
-      this.setLoopEnabled(modifiers.caps);
-    }
+    // if (this.#loopEnabled !== modifiers.caps) {
+    //   console.log('Updating loop state:', modifiers.caps);
+    //   this.setLoopEnabled(modifiers.caps);
+    // }
 
-    nodes.forEach((node) => {
-      node.release({ release_sec: this.#state.release_sec });
-      node.enablePositionTracking = false;
-      if (this.#mostRecentSource === node) this.#mostRecentSource = null;
+    voices.forEach((voice) => {
+      voice.release({ release_sec: this.#state.release_sec });
+      voice.enablePositionTracking = false;
+      if (this.#mostRecentSource === voice) this.#mostRecentSource = null;
     });
 
-    this.sendMessage('note:off', { midiNote });
+    this.sendMessage('note:off', { midiNote }); // ? rename sendMessage to
     return this;
   }
 
   stopAll() {
-    const callback = (node: LibVoiceNode) => node.stop();
+    const callback = (voice: LibVoiceNode) => voice.stop();
 
     tryCatch(
-      () => this.#sourcePool.applyToAllActiveNodes(callback),
-      'Failed to stop all nodes'
+      () => this.#voicePool.applyToActive(callback),
+      'Failed to stop all voices'
     );
 
     return this;
   }
 
   releaseAll(): this {
-    const callback = (node: LibVoiceNode) => node.release();
+    const callback = (voice: LibVoiceNode) => voice.release();
 
     tryCatch(
-      () => this.#sourcePool.applyToAllActiveNodes(callback),
-      'Failed to release all nodes'
+      () => this.#voicePool.applyToActive(callback),
+      'Failed to release all voices'
     );
 
     return this;
@@ -262,46 +269,38 @@ export class Sampler implements LibInstrument {
     return this.#loopEnabled;
   }
 
-  onGlobalLoopToggle(capsOn: TODO): this {
-    // // add conditionals for loop locked etc
-    // this.setLoopEnabled(capsOn);
-
-    return this;
-  }
-
   setLoopEnabled(enabled: boolean): this {
     console.log('setLoopEnabled called with:', enabled); // Debug log
     if (this.#loopEnabled === enabled) return this;
 
-    this.#loopEnabled = enabled;
-
-    // Validate loop points when enabling
     if (enabled) {
       const start = this.#macroLoopStart.getValue();
       const end = this.#macroLoopEnd.getValue();
-
+      // todo: move this check to a convenience method, e.g. ensureValidLoopPoints (in Sampler or a generic version in MacroParam?)
       if (end <= start || start < 0) {
         this.#macroLoopStart.macro.setValueAtTime(0, this.now);
         this.#macroLoopEnd.macro.setValueAtTime(this.#bufferDuration, this.now);
       }
     }
 
+    this.#loopEnabled = enabled;
+
     // Update loop state for all active voices
-    this.#sourcePool.applyToAllActiveNodes((node: SampleVoice) => {
+    this.#voicePool.applyToActive((voice: SampleVoice) => {
       console.log('Updating voice loop state:', enabled); // Debug log
-      node.setLoopEnabled(enabled);
+      voice.setLoopEnabled(enabled);
     });
 
     this.sendMessage('loop:state', { enabled });
     return this;
   }
   setLoopStart(targetValue: number, rampTime: number = this.#loopRampTime) {
-    this.setLoopPoint('start', targetValue, rampTime);
+    this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
     return this;
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampTime) {
-    this.setLoopPoint('end', targetValue, rampTime);
+    this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
     return this;
   }
 
@@ -337,8 +336,8 @@ export class Sampler implements LibInstrument {
       // todo
     } else {
       // Disable tracking for all sources
-      this.#sourcePool.nodes.forEach((node) => {
-        node.enablePositionTracking = false;
+      this.#voicePool.nodes.forEach((voice) => {
+        voice.enablePositionTracking = false;
       });
     }
   }
@@ -348,20 +347,20 @@ export class Sampler implements LibInstrument {
       this.stopAll();
       this.#mostRecentSource = null;
 
-      if (this.#sourcePool) {
-        this.#sourcePool.dispose();
-        this.#sourcePool = null as unknown as Pool<SampleVoice>;
+      if (this.#voicePool) {
+        this.#voicePool.dispose();
+        this.#voicePool = null as unknown as Pool<SampleVoice>;
       }
 
-      this.#activeNotes.clear();
+      this.#activeMidiNoteToVoice.clear();
 
       if (this.#output) {
         this.#output.disconnect();
         this.#output = null as unknown as GainNode;
       }
 
-      this.#macroLoopStart.dispose();
-      this.#macroLoopEnd.dispose();
+      this.#macroLoopStart?.dispose();
+      this.#macroLoopEnd?.dispose();
       this.#macroLoopStart = null as unknown as MacroParam;
       this.#macroLoopEnd = null as unknown as MacroParam;
 
@@ -374,8 +373,9 @@ export class Sampler implements LibInstrument {
       this.#loopRampTime = 0;
       this.#loopEnabled = false;
 
-      // Clear context reference
       this.#context = null as unknown as AudioContext;
+
+      this.#messages = null as unknown as MessageBus<Message>;
     } catch (error) {
       console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }
@@ -402,22 +402,18 @@ export class Sampler implements LibInstrument {
   }
 
   get isPlaying(): boolean {
-    return this.#sourcePool.activeCount > 0;
+    return this.#voicePool.activeCount > 0;
   }
 
-  get activeNotesCount(): number {
-    return Array.from(this.#activeNotes.values()).reduce(
-      (sum, nodes) => sum + nodes.size,
+  get activeVoicesCount(): number {
+    return Array.from(this.#activeMidiNoteToVoice.values()).reduce(
+      (sum, voices) => sum + voices.size,
       0
     );
   }
 
-  get isInitialized() {
-    return this.#isInitialized;
-  }
-
-  get isLoaded() {
-    return this.#isLoaded;
+  get voiceCount(): number {
+    return this.#voicePool.nodes.length;
   }
 
   get sampleDuration(): number {
@@ -426,10 +422,6 @@ export class Sampler implements LibInstrument {
 
   get volume(): number {
     return this.#output.gain.value;
-  }
-
-  get voiceCount(): number {
-    return this.#sourcePool.nodes.length;
   }
 
   get isLooping(): boolean {
@@ -443,44 +435,12 @@ export class Sampler implements LibInstrument {
   get loopEnd(): number {
     return this.#macroLoopEnd.getValue();
   }
+
+  get isInitialized() {
+    return this.#isInitialized;
+  }
+
+  get isLoaded() {
+    return this.#isLoaded;
+  }
 }
-
-// get loopStart(): AudioParam {
-//   return this.#macroLoopStart.macro;
-// }
-// get loopEnd(): AudioParam {
-//   return this.#macroLoopEnd.macro;
-// }
-//   get currentPosition(): number {
-//     return this.#currentPosition;
-//   }
-
-//   get normalizedPosition(): number {
-//     return this.#bufferDuration
-//       ? this.#currentPosition / this.#bufferDuration
-//       : 0;
-//   }
-
-//   testPlayPos(pos: number) {
-//     this.#currentPosition = pos;
-//   }
-// }
-
-// applyToAllActiveNodes(funcToApply: Function) {
-//   this.getAllActiveNodes(funcToApply);
-//   return this;
-// }
-
-// getAllActiveNodes(applyFunction?: Function): SourceNode[] {
-//   const allActiveNodes: SourceNode[] = [];
-//   this.#activeNotes.forEach((nodeIds) => {
-//     nodeIds.forEach((nodeId) => {
-//       const node = this.#sourcePool.getNodeById(nodeId);
-//       if (node) {
-//         if (applyFunction) applyFunction(node);
-//         allActiveNodes.push(node);
-//       }
-//     });
-//   });
-//   return allActiveNodes;
-// }ss

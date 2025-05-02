@@ -1,5 +1,6 @@
 import { NodeID } from '@/store/state/IdStore';
 import { Message, MessageHandler } from '@/events';
+import { PressedModifiers } from '@/input';
 
 export type BaseNodeType =
   | 'instrument'
@@ -67,14 +68,12 @@ export interface LibContainerNode extends LibNode {
 export interface LibInstrument extends LibNode {
   readonly nodeType: InstrumentType;
 
-  play(midiNote: number, modifiers: TODO, velocity?: number): this;
-  release(midiNote?: number, modifiers?: TODO): this;
+  play(midiNote: number, modifiers: PressedModifiers, velocity?: number): this;
+  release(midiNote?: number, modifiers?: PressedModifiers): this;
   releaseAll(): this;
 
   setParamValue(name: string, value: number): this;
   getParamValue(name: string): number | null;
-
-  onGlobalLoopToggle?(modifers?: TODO): this;
 }
 
 // Voice node - handles actual sound generation

@@ -6,8 +6,9 @@ import {
 
 import { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
 import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
-import { globalKeyboardInput, InputHandler } from '@/input';
+import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
 import { assert, tryCatch } from '@/utils';
+import { createAsyncInit, InitState } from '@/utils/async-initializable';
 
 import {
   Message,
@@ -28,6 +29,14 @@ export class Audiolib implements LibNode {
   readonly nodeType: ContainerType = 'audiolib';
   static #instance: Audiolib | null = null;
 
+  #asyncInit = createAsyncInit<Audiolib>();
+  #audioContext: AudioContext | null = null;
+  #masterGain: GainNode;
+  #instruments: Map<string, LibInstrument> = new Map();
+  #globalAudioRecorder: Recorder | null = null;
+  #currentAudioBuffer: AudioBuffer | null = null;
+  #keyboardHandler: InputHandler | null = null;
+
   static getInstance(): Audiolib {
     if (!Audiolib.#instance) {
       Audiolib.#instance = new Audiolib();
@@ -35,21 +44,11 @@ export class Audiolib implements LibNode {
     return Audiolib.#instance;
   }
 
-  #audioContext: AudioContext | null = null;
-  #masterGain: GainNode;
-  #instruments: Map<string, LibInstrument> = new Map();
-  #globalAudioRecorder: Recorder | null = null;
-  #currentAudioBuffer: AudioBuffer | null = null; // move
-
-  #keyboardHandler: InputHandler | null = null;
   #messages: MessageBus<Message>;
-  #isInitialized: boolean = false;
 
   private constructor() {
     this.nodeId = createNodeId(this.nodeType);
-
     this.#messages = createMessageBus<Message>(this.nodeId);
-    assert(this.#messages, `Failed to create message bus for Audiolib class`);
 
     this.#audioContext = getAudioContext();
     assert(this.#audioContext, 'Failed to get audio context', {
@@ -59,25 +58,16 @@ export class Audiolib implements LibNode {
     this.#masterGain = this.#audioContext.createGain();
     this.#masterGain.gain.value = 0.5;
     this.#masterGain.connect(this.#audioContext.destination);
+
+    // Replace init method with wrapped version
+    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
   }
 
-  async #validateContext(ctx: AudioContext): Promise<void> {
-    assert(
-      ctx === this.#audioContext,
-      'Singleton globalAudioContext compromised',
-      { expected: this.#audioContext, received: ctx }
-    );
+  // Public init method (will be replaced by wrapper)
+  init!: () => Promise<Audiolib>;
 
-    assert(ctx.audioWorklet, 'AudioWorklet not available in this context', {
-      context: ctx,
-    });
-  }
-
-  async init(): Promise<Audiolib> {
-    if (this.#isInitialized) {
-      console.debug(`Audiolib already initialized`);
-      return this;
-    }
+  // Original implementation moved here
+  async #initImpl(): Promise<Audiolib> {
     // Ensure audio context is available
     const ctxResult = await tryCatch(ensureAudioCtx());
     assert(ctxResult.data, 'Could not initialize audio context', ctxResult);
@@ -111,8 +101,40 @@ export class Audiolib implements LibNode {
 
     // All is well
     console.log('Audiolib initialized successfully');
-    this.#isInitialized = true;
     return this;
+  }
+
+  // Public API for initialization state
+  isReady(): boolean {
+    return this.#asyncInit.isReady();
+  }
+
+  getInitState(): InitState {
+    return this.#asyncInit.getState();
+  }
+
+  onReady(callback: (instance: Audiolib) => void): () => void {
+    const checkAndCall = () => {
+      if (this.isReady()) callback(this);
+    };
+
+    // Call immediately if already ready
+    checkAndCall();
+
+    // Subscribe to future state changes
+    return this.#asyncInit.onStateChange(checkAndCall);
+  }
+
+  async #validateContext(ctx: AudioContext): Promise<void> {
+    assert(
+      ctx === this.#audioContext,
+      'Singleton globalAudioContext compromised',
+      { expected: this.#audioContext, received: ctx }
+    );
+
+    assert(ctx.audioWorklet, 'AudioWorklet not available in this context', {
+      context: ctx,
+    });
   }
 
   createSampler(
@@ -161,11 +183,11 @@ export class Audiolib implements LibNode {
     return newSynth;
   }
 
-  #onNoteOn(midiNote: number, modifiers: TODO, velocity?: number) {
+  #onNoteOn(midiNote: number, modifiers: PressedModifiers, velocity?: number) {
     this.#instruments.forEach((s) => s.play(midiNote, modifiers, velocity));
   }
 
-  #onNoteOff(midiNote: number, modifiers: TODO) {
+  #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
     this.#instruments.forEach((s) => s.release(midiNote, modifiers));
   }
 
@@ -315,6 +337,11 @@ export class Audiolib implements LibNode {
       registry.dispose();
       deleteNodeId(this.nodeId);
       releaseGlobalAudioContext();
+      // Explicitly nullify resource-holding fields
+      this.#audioContext = null;
+      this.#globalAudioRecorder = null;
+      this.#currentAudioBuffer = null;
+      this.#keyboardHandler = null;
       Audiolib.#instance = null;
     } catch (error) {
       console.error(

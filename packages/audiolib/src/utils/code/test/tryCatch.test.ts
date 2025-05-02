@@ -1,75 +1,114 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { tryCatch } from '../tryCatch';
 
 describe('tryCatch', () => {
-  // Sync tests
-  it('handles successful sync operations', () => {
-    const result = tryCatch(() => 'success');
-    if (result instanceof Promise) throw new Error('Expected sync result');
-    expect(result).toEqual({ data: 'success', error: null });
+  it('handles synchronous success', async () => {
+    const result = await tryCatch(() => 42);
+    expect(result.data).toBe(42);
+    expect(result.error).toBeNull();
   });
 
-  it('handles sync errors', () => {
-    const result = tryCatch(
-      () => {
-        throw new Error('sync error');
-      },
-      'Test error',
-      false // disable console.error
-    );
-    if (result instanceof Promise) throw new Error('Expected sync result');
-    expect(result.error).toBeInstanceOf(Error);
-    expect(result.data).toBeNull();
-  });
-
-  // Async tests
-  it('handles successful async operations', async () => {
-    const result = await tryCatch(Promise.resolve('success'));
-    expect(result).toEqual({ data: 'success', error: null });
-  });
-
-  it('handles async errors', async () => {
-    const result = await tryCatch(
-      Promise.reject(new Error('async error')),
-      'Test error',
-      false // disable console.error
-    );
-    expect(result.error).toBeInstanceOf(Error);
-    expect(result.data).toBeNull();
-  });
-
-  // Async function tests
-  it('handles async functions', async () => {
-    const result = await tryCatch(async () => {
-      return 'success';
+  it('handles synchronous failure', async () => {
+    const result = await tryCatch(() => {
+      throw new Error('fail');
     });
-    expect(result).toEqual({ data: 'success', error: null });
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe('fail');
   });
 
-  // Error message tests
-  it('includes custom error message', () => {
-    const result = tryCatch(
-      () => {
-        throw new Error('original');
-      },
-      'custom message',
-      false // disable console.error for clean test output
+  it('handles asynchronous success', async () => {
+    const result = await tryCatch(() => Promise.resolve('ok'));
+    expect(result.data).toBe('ok');
+    expect(result.error).toBeNull();
+  });
+
+  it('handles asynchronous failure', async () => {
+    const result = await tryCatch(() =>
+      Promise.reject(new Error('async fail'))
     );
-    if (result instanceof Promise) throw new Error('Expected sync result');
-    expect((result.error as Error).message).toBe('original');
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe('async fail');
   });
 
-  // Invalid input test
-  it('throws on invalid input', () => {
-    expect(() => tryCatch(42 as any)).toThrow('must be a function or promise');
+  it('handles direct Promise success', async () => {
+    const result = await tryCatch(Promise.resolve('direct'));
+    expect(result.data).toBe('direct');
+    expect(result.error).toBeNull();
   });
 
-  it('handles regular functions', () => {
-    function regularFn() {
-      return 'success';
-    }
-    const result = tryCatch(regularFn);
-    if (result instanceof Promise) throw new Error('Expected sync result');
-    expect(result).toEqual({ data: 'success', error: null });
+  it('handles direct Promise failure', async () => {
+    const result = await tryCatch(Promise.reject(new Error('direct fail')));
+    expect(result.data).toBeNull();
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error?.message).toBe('direct fail');
+  });
+
+  it('logs error with custom message', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await tryCatch(() => {
+      throw new Error('fail');
+    }, 'CustomMsg');
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('CustomMsg'));
+    spy.mockRestore();
+  });
+
+  it('does not log error when logError is false', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await tryCatch(
+      () => {
+        throw new Error('fail');
+      },
+      undefined,
+      false
+    );
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('handles thrown non-Error values', async () => {
+    const result = await tryCatch(() => {
+      throw 'string error';
+    });
+    expect(result.data).toBeNull();
+    expect(result.error).toBe('string error');
+  });
+
+  it('throws if argument is not function or Promise', async () => {
+    // @ts-expect-error
+    await expect(tryCatch(123)).rejects.toThrow(
+      'tryCatch argument must be a function or promise'
+    );
+  });
+
+  it('handles function returning a Promise', async () => {
+    const result = await tryCatch(() => Promise.resolve(99));
+    expect(result.data).toBe(99);
+    expect(result.error).toBeNull();
+  });
+
+  it('correctly identifies promise-like objects', async () => {
+    // Custom promise-like object
+    const customPromiseLike = {
+      then: function (resolve: (value: any) => void) {
+        resolve('custom promise-like');
+      },
+    };
+
+    // @ts-ignore - Testing runtime behavior
+    const result = await tryCatch(customPromiseLike);
+    expect(result.data).toBe('custom promise-like');
+    expect(result.error).toBeNull();
+  });
+
+  it('throws for objects with non-function then property', async () => {
+    // Object with then property that is not a function
+    const nonPromiseLike = { then: 'not a function' };
+
+    // @ts-expect-error
+    await expect(tryCatch(nonPromiseLike)).rejects.toThrow(
+      'tryCatch argument must be a function or promise'
+    );
   });
 });

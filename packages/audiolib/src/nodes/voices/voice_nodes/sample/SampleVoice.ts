@@ -105,7 +105,7 @@ export class SampleVoice implements LibVoiceNode {
     const defaults = {
       midiNote: 60,
       velocity: 100,
-      attack_sec: 0.01,
+      attack_sec: 0.4,
       time: this.now,
       offset: 0,
     };
@@ -117,12 +117,6 @@ export class SampleVoice implements LibVoiceNode {
 
     // Add validation for velocity
     const normalizedVelocity = velocity ? velocity / 127 : 1;
-
-    // Log values before setting
-    console.log('Setting params:', {
-      playbackRate: midiToPlaybackRate(midiNote),
-      velocity: normalizedVelocity,
-    });
 
     this.setParam('playbackRate', midiToPlaybackRate(midiNote));
     this.setParam('velocity', normalizedVelocity);
@@ -143,7 +137,6 @@ export class SampleVoice implements LibVoiceNode {
 
     const { release_sec = 0.3 } = options;
     const envGain = this.getParam('envGain')!;
-
     cancelScheduledParamValues(envGain, this.now);
     envGain.setValueAtTime(envGain.value, this.now);
     envGain.linearRampToValueAtTime(0, this.now + release_sec);
@@ -236,6 +229,9 @@ export class SampleVoice implements LibVoiceNode {
       type: 'setLoopEnabled',
       value: enabled,
     });
+    // if (!enabled) {
+    //   this.release({ release_sec: 0.3 }); // todo: remove hardcoded release
+    // }
     return this;
   }
 
