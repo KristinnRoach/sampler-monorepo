@@ -51,23 +51,36 @@ class PlaybackTiming {
     };
   }
 }
-const MIN_ABS_AMPLITUDE = 0.001;
+const MIN_ABS_AMPLITUDE = 0.1; // for now
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
+
+    // STATE
     this.buffer = null;
-    this.isPlaying = false;
     this.playbackPosition = 0;
     this.loopCount = 0;
-    this.isReleasing = false;
-    this.loopEnabled = false; // Initialize loop state
     this.timing = new PlaybackTiming();
+
+    // FLAGS
+    this.isPlaying = false;
+    this.isReleasing = false;
+    this.loopEnabled = false;
     this.usePlaybackPosition = false;
 
     // Message handling
     this.port.onmessage = (event) => {
       const { type, value, buffer, offset, duration, time } = event.data;
+
+      // todo: should report flags upstream directly here for consistency
+      // if they should be handled right away, e.g. isReleasing
+      // if (this.isReleasing) {
+      //   this.port.postMessage({
+      //     type: 'voice:releasing',
+      //     loopCount: this.loopCount,
+      //   });
+      // }
 
       switch (type) {
         case 'voice:init':
@@ -89,6 +102,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.timing.start(time, offset || 0, duration);
           this.playbackPosition = (offset || 0) * sampleRate;
           this.isPlaying = true;
+
+          this.port.postMessage({
+            type: 'voice:started',
+            time: currentTime,
+          });
           break;
 
         case 'voice:release':
@@ -165,25 +183,26 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
   #onended(output) {
     this.isPlaying = false;
+    this.isReleasing = false;
     if (this.timing) this.timing.clear();
     this.playbackPosition = 0;
     this.port.postMessage({ type: 'voice:ended' });
   }
 
+  #shouldEnd(parameters) {
+    return (
+      !this.buffer ||
+      !this.buffer.length ||
+      !this.isPlaying ||
+      this.timing.shouldStop(currentTime) ||
+      (this.isReleasing && parameters.envGain[0] <= MIN_ABS_AMPLITUDE)
+    );
+  }
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
-    if (!output || !this.buffer || !this.buffer.length || !this.isPlaying) {
-      this.#onended(output);
-      return true; // AudioWorklet will zero-fill automatically
-    }
-
-    if (this.timing.shouldStop(currentTime)) {
-      this.#onended(output);
-      return true; // AudioWorklet will zero-fill automatically
-    }
-
-    if (this.isReleasing && parameters.envGain[0] < MIN_ABS_AMPLITUDE) {
+    if (!output || this.#shouldEnd(parameters)) {
       this.#onended(output);
       return true; // AudioWorklet will zero-fill automatically
     }
@@ -218,6 +237,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       // Check for end of buffer
       if (this.playbackPosition >= bufferLength) {
         if (!this.loopEnabled) {
+          // || this.isReleasing) {
+          // this.timing.shouldStop(currentTime)) {
           this.#onended(output);
           return true;
         }

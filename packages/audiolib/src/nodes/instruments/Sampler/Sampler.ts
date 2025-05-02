@@ -4,7 +4,8 @@ import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
 import { createNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { getAudioContext } from '@/context';
 
-import { PressedModifiers } from '@/input';
+import { PressedModifiers, checkGlobalLoopState } from '@/input'; // todo
+
 import {
   Message,
   MessageHandler,
@@ -32,7 +33,7 @@ export class Sampler implements LibInstrument {
   #activeMidiNoteToVoice = new Map<number, Set<SampleVoice>>();
   #state: InstrumentState = DEFAULT_SAMPLER_SETTINGS;
 
-  #loopEnabled: boolean = false;
+  // #loopEnabled: boolean = false; // todo: clean up after test
   #loopRampTime: number = 0.2;
 
   #macroLoopStart: MacroParam;
@@ -189,7 +190,7 @@ export class Sampler implements LibInstrument {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100; // default velocity
 
     // Need to set the loop state on the newly allocated voice
-    voice.setLoopEnabled(modifiers.caps ?? this.#loopEnabled); // ? both caps and loopenabled ?
+    voice.setLoopEnabled(checkGlobalLoopState()); //modifiers.caps ?? this.#loopEnabled); // ? both caps and loopenabled ?
 
     voice.trigger({
       // consider just passing the loop enabled state here?
@@ -266,16 +267,15 @@ export class Sampler implements LibInstrument {
     return this;
   }
 
-  get loopEnabled() {
-    return this.#loopEnabled;
-  }
-
   setLoopEnabled(enabled: boolean): this {
     // Skip if no change
-    if (this.#loopEnabled === enabled) return this;
+    // if (this.#loopEnabled === enabled) return this;
 
     // Update internal state
-    this.#loopEnabled = enabled;
+    // this.#loopEnabled = enabled;
+
+    // Todo cleanup after test:
+    enabled = checkGlobalLoopState();
 
     // Update all active voices
     this.#voicePool.applyToActive((voice: SampleVoice) => {
@@ -363,7 +363,7 @@ export class Sampler implements LibInstrument {
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
       this.#loopRampTime = 0;
-      this.#loopEnabled = false;
+      // this.#loopEnabled = false;
 
       this.#context = null as unknown as AudioContext;
 
@@ -416,10 +416,6 @@ export class Sampler implements LibInstrument {
     return this.#output.gain.value;
   }
 
-  get isLooping(): boolean {
-    return this.#loopEnabled;
-  }
-
   get loopStart(): number {
     return this.#macroLoopStart.getValue();
   }
@@ -439,7 +435,7 @@ export class Sampler implements LibInstrument {
   // Add a debug method to check state
   getDebugState(): object {
     return {
-      loopEnabled: this.#loopEnabled,
+      loopEnabled: checkGlobalLoopState(), // this.#loopEnabled,
       activeVoices: this.#voicePool.activeCount,
       activeNotes: Array.from(this.#activeMidiNoteToVoice.keys()),
       loopStart: this.loopStart,

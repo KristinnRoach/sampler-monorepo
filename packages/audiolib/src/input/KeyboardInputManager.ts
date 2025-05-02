@@ -211,6 +211,9 @@ export class KeyboardInputManager {
 // Singleton instance for easy global access
 export const globalKeyboardInput = KeyboardInputManager.getInstance();
 
+export const checkGlobalLoopState = (e?: KeyboardEvent) =>
+  globalKeyboardInput.getCapslock(e);
+
 // Helper function for checking key state
 export const isKeyPressed = (code: string): boolean =>
   KeyboardInputManager.getInstance().isPressed(code);

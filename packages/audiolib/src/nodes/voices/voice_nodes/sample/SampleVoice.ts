@@ -13,6 +13,8 @@ import {
   midiToPlaybackRate,
 } from '@/utils';
 
+import { checkGlobalLoopState } from '@/input';
+
 export class SampleVoice implements LibVoiceNode {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
@@ -21,6 +23,7 @@ export class SampleVoice implements LibVoiceNode {
   private worklet: AudioWorkletNode;
   private messages: MessageBus<Message>;
   private isPlaying = false;
+  private isReleasing = false;
   private bufferDuration: number | null;
 
   constructor(
@@ -46,8 +49,14 @@ export class SampleVoice implements LibVoiceNode {
       const { type, ...data } = event.data;
 
       switch (type) {
+        case 'voice:started':
+          this.isPlaying = true;
+          this.isReleasing = false;
+          this.messages.sendMessage('voice:started', {});
+          break;
         case 'voice:ended':
           this.isPlaying = false;
+          this.isReleasing = false;
           this.messages.sendMessage('voice:ended', {});
           break;
         case 'voice:looped':
@@ -98,8 +107,8 @@ export class SampleVoice implements LibVoiceNode {
     playForSeconds?: number;
   }): this {
     if (this.isPlaying) {
-      console.warn('Voice already playing');
-      return this;
+      // console.warn('Voice already playing');
+      // todo: return this; // when isPlaying is proven robust
     }
 
     const defaults = {
@@ -127,19 +136,31 @@ export class SampleVoice implements LibVoiceNode {
     envGain.linearRampToValueAtTime(1, this.now + attack_sec);
 
     this.sendToProcessor({ type: 'voice:start', time, offset });
-    this.isPlaying = true;
+    // this.isPlaying = true;
+
+    // todo: cleanup after testing
+    const loop = checkGlobalLoopState();
+    this.setLoopEnabled(loop);
 
     return this;
   }
 
   release(options: { release_sec?: number } = {}): this {
-    if (!this.isPlaying) return this;
+    if (this.isReleasing) return this;
+
+    console.warn(this.isPlaying);
+
+    this.isReleasing = true; // flag
 
     const { release_sec = 0.3 } = options;
     const envGain = this.getParam('envGain')!;
     cancelScheduledParamValues(envGain, this.now);
     envGain.setValueAtTime(envGain.value, this.now);
     envGain.linearRampToValueAtTime(0, this.now + release_sec);
+
+    // todo: cleanup after testing
+    const loop = checkGlobalLoopState();
+    this.setLoopEnabled(loop);
 
     this.sendToProcessor({ type: 'voice:release' });
     return this;
