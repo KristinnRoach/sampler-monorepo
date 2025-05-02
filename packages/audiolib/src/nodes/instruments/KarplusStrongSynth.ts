@@ -48,8 +48,8 @@ export class KarplusStrongSynth implements LibInstrument {
 
   play(
     midiNote: number,
-    modifiers: PressedModifiers,
-    velocity: number = 1
+    velocity: number = 100,
+    modifiers: Partial<PressedModifiers> = {}
   ): this {
     const voice = this.#voicePool.allocateNode();
     if (!voice) return this;
@@ -79,7 +79,7 @@ export class KarplusStrongSynth implements LibInstrument {
     return this;
   }
 
-  release(midiNote: number, modifiers?: PressedModifiers): this {
+  release(midiNote: number, modifiers: Partial<PressedModifiers> = {}): this {
     const voices = this.#activeNotes.get(midiNote);
     if (!voices || voices.size === 0) {
       console.warn(`Could not release note ${midiNote}`);

@@ -13,13 +13,13 @@ declare global {
 
 export type ModifierKey = 'shift' | 'ctrl' | 'alt' | 'meta' | 'caps';
 
-export type PressedModifiers = Record<ModifierKey, boolean>;
+export type PressedModifiers = Partial<Record<ModifierKey, boolean>>;
 
 export interface InputHandler {
   onNoteOn: (
     midiNote: number,
-    modifiers: PressedModifiers,
-    velocity?: number
+    velocity: number,
+    modifiers: PressedModifiers
   ) => void;
   onNoteOff: (midiNote: number, modifiers: PressedModifiers) => void;
   onBlur: () => void;

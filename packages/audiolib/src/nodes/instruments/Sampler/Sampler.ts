@@ -176,7 +176,11 @@ export class Sampler implements LibInstrument {
     return true;
   }
 
-  play(midiNote: number, modifiers: PressedModifiers, velocity?: number): this {
+  play(
+    midiNote: number,
+    velocity: number = 100,
+    modifiers: Partial<PressedModifiers> = {}
+  ): this {
     // console.log('Sampler play:', { midiNote, modifiers, velocity }); // Debug log
     const voice = this.#voicePool.allocateNode();
     if (!voice) return this;
@@ -184,7 +188,7 @@ export class Sampler implements LibInstrument {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100; // default velocity
 
     // Need to set the loop state on the newly allocated voice
-    voice.setLoopEnabled(this.#loopEnabled);
+    voice.setLoopEnabled(modifiers.caps ?? this.#loopEnabled); // ? both caps and loopenabled ?
 
     voice.trigger({
       // consider just passing the loop enabled state here?
@@ -211,7 +215,7 @@ export class Sampler implements LibInstrument {
     return this;
   }
 
-  release(midiNote: number, modifiers: PressedModifiers) {
+  release(midiNote: number, modifiers: Partial<PressedModifiers> = {}) {
     const voices = this.#activeMidiNoteToVoice.get(midiNote);
     if (!voices || voices.size === 0) {
       console.warn(`Could not release note ${midiNote}`);

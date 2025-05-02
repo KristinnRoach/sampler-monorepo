@@ -45,12 +45,12 @@ export interface LibNode {
   onMessage(type: string, handler: MessageHandler<Message>): () => void;
 
   connect(
-    destination?: unknown,
+    destination?: TODO,
     outputIndex?: number,
     inputIndex?: number
-  ): this | unknown;
+  ): this | TODO;
 
-  disconnect(destination?: unknown): void;
+  disconnect(destination?: TODO): void;
 
   dispose(): void;
 }
@@ -68,7 +68,7 @@ export interface LibContainerNode extends LibNode {
 export interface LibInstrument extends LibNode {
   readonly nodeType: InstrumentType;
 
-  play(midiNote: number, modifiers: PressedModifiers, velocity?: number): this;
+  play(midiNote: number, velocity: number, modifiers: PressedModifiers): this;
   release(midiNote?: number, modifiers?: PressedModifiers): this;
   releaseAll(): this;
 
@@ -89,12 +89,12 @@ export interface LibVoiceNode extends LibNode {
   ): this;
 
   getParam(name: string): AudioParam | null; // todo: ParamType
-  setParam(name: string, value: number, options: any): this;
+  setParam(name: string, value: number, options: TODO): this;
 
-  trigger(options: any): this;
-  release(options?: any): this;
+  trigger(options: TODO): this;
+  release(options?: TODO): this;
   stop(): this;
-  sendToProcessor(data: any): void;
+  sendToProcessor(data: TODO): void;
 }
 
 // Parameter node
