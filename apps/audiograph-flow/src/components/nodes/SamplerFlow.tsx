@@ -152,7 +152,7 @@ function SamplerFlowExample() {
                         note,
                         velocity
                       );
-                      targetMethods?.playNote?.(note, velocity);
+                      targetMethods?.playNote?.(note, velocity, {});
                     },
                     onNoteOff: (note: number) => {
                       console.log('Keyboard -> Sampler noteOff:', note);

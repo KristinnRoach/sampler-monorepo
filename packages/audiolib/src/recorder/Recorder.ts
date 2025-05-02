@@ -1,5 +1,5 @@
 import { LibNode, BaseNodeType } from '@/LibNode';
-import { NodeID, createNodeId, deleteNodeId } from '@/store/state/IdStore';
+import { NodeID, createNodeId, deleteNodeId } from '@/state/registry/NodeIDs';
 import {
   Message,
   MessageBus,

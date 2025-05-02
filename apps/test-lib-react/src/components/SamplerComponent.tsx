@@ -1,5 +1,4 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-// import KeyboardController from '../input/KeyboardController';
 import { audiolib, Sampler } from '@repo/audiolib';
 import RecorderComponent from './RecorderComponent';
 
@@ -188,18 +187,6 @@ const SamplerComponent = () => {
         console.error('Error fetching initial sample:', error);
       });
   }, []);
-
-  // const handleNoteOn = (midiNote: number) => {
-  //   samplerRef.current?.play(midiNote);
-
-  //   setActiveVoices(samplerRef.current?.activeNotesCount || 0);
-  // };
-
-  // const handleNoteOff = (midiNote: number) => {
-  //   samplerRef.current?.release(midiNote);
-
-  //   setActiveVoices(samplerRef.current?.activeNotesCount || 0);
-  // };
 
   const toggleLoopEnabled = () => {
     const newLoopState = !isLoopEnabled;

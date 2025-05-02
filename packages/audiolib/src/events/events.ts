@@ -1,4 +1,4 @@
-import { NodeID } from '@/store/state/IdStore';
+import { NodeID } from '@/state/registry/NodeIDs';
 
 export interface Message {
   type: string;

@@ -30,9 +30,10 @@ export class KeyboardInputManager {
     else return this.#pressedKeys.has(code);
   }
 
-  getCapslock(e?: KeyboardEvent) {
-    if (e) return e.getModifierState('CapsLock');
-    else return this.#capsLockOn;
+  getCapslock(e?: KeyboardEvent): boolean {
+    if (e && this.#isModifierStateSupported) {
+      return e.getModifierState('CapsLock');
+    } else return this.#capsLockOn;
   }
 
   get pressedKeys(): Set<string> {
@@ -46,7 +47,7 @@ export class KeyboardInputManager {
       alt: e.altKey,
       meta: e.metaKey,
       caps: this.getCapslock(e),
-    };
+    } as const;
   }
 
   private handleKeyDown = (e: KeyboardEvent): void => {
@@ -109,8 +110,8 @@ export class KeyboardInputManager {
         this.#handlers.forEach((handler) =>
           handler.onNoteOff(midiNote, modifiers)
         );
-        this.#pressedKeys.delete(code);
       }
+      this.#pressedKeys.delete(code);
     });
 
     // Then notify all handlers about the blur event
@@ -167,7 +168,7 @@ export class KeyboardInputManager {
       // Attempting to ensure robust capslock behavior
       document.addEventListener('keydown', this.handleCaps);
       document.addEventListener('keyup', this.handleCaps);
-      document.addEventListener('keypress', this.handleCaps);
+      // document.addEventListener('keypress', this.handleCaps);
 
       // Blur
       window.addEventListener('blur', this.handleBlur);
@@ -188,7 +189,7 @@ export class KeyboardInputManager {
       // Attempting to ensure robust capslock behavior
       document.removeEventListener('keydown', this.handleCaps);
       document.removeEventListener('keyup', this.handleCaps);
-      document.removeEventListener('keypress', this.handleCaps);
+      // document.removeEventListener('keypress', this.handleCaps);
 
       if (typeof window !== 'undefined') {
         window.removeEventListener('blur', this.handleBlur);
@@ -209,6 +210,9 @@ export class KeyboardInputManager {
 
 // Singleton instance for easy global access
 export const globalKeyboardInput = KeyboardInputManager.getInstance();
+
+export const checkGlobalLoopState = (e?: KeyboardEvent) =>
+  globalKeyboardInput.getCapslock(e);
 
 // Helper function for checking key state
 export const isKeyPressed = (code: string): boolean =>

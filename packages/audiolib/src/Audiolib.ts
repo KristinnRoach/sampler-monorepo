@@ -4,8 +4,8 @@ import {
   releaseGlobalAudioContext,
 } from '@/context';
 
-import { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
-import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
+import { registry } from '@/state/registry/worklet-registry';
+import { createNodeId, deleteNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
 import { assert, tryCatch } from '@/utils';
 import { createAsyncInit, InitState } from '@/utils/async-initializable';
@@ -349,10 +349,11 @@ export class Audiolib implements LibNode {
       }
 
       // Explicitly nullify resource-holding fields
+      this.#audioContext?.close();
       this.#audioContext = null;
+      this.#globalAudioRecorder?.dispose();
       this.#globalAudioRecorder = null;
       this.#currentAudioBuffer = null;
-      this.#keyboardHandler = null;
 
       Audiolib.#instance = null;
     } catch (error) {
