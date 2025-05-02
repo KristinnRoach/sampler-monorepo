@@ -1,0 +1,189 @@
+// src/input/KeyboardInputManager.ts
+import { InputHandler, KeyMap, PressedModifiers, ModifierKey } from './types';
+import { isKeyboardAPISupported, isModifierStateSupported } from '@/utils';
+import { defaultKeymap } from './keymap';
+
+export class KeyboardInputManager {
+  static #instance: KeyboardInputManager;
+  #handlers: Set<InputHandler> = new Set();
+
+  #pressedKeys: Set<string> = new Set();
+  #capsLockOn: boolean = false;
+  #isModifierStateSupported: boolean = false;
+  #isListening: boolean = false;
+  #keymap: KeyMap;
+
+  private constructor(keymap: KeyMap = defaultKeymap) {
+    this.#keymap = keymap;
+    this.#isModifierStateSupported = isModifierStateSupported();
+
+    // Handle capslock state changes
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'CapsLock') {
+        this.#capsLockOn = !this.#capsLockOn;
+
+        const modifiers = this.getModifiers(e);
+
+        // Notify all handlers of capslock change
+        this.#handlers.forEach((handler) =>
+          handler.onModifierChange?.(modifiers)
+        );
+      }
+    });
+  }
+
+  static getInstance(keymap: KeyMap = defaultKeymap): KeyboardInputManager {
+    if (!KeyboardInputManager.#instance) {
+      KeyboardInputManager.#instance = new KeyboardInputManager(keymap);
+    }
+    return KeyboardInputManager.#instance;
+  }
+
+  getModifiers(e: KeyboardEvent): PressedModifiers {
+    return {
+      shift: e.shiftKey,
+      ctrl: e.ctrlKey,
+      alt: e.altKey,
+      meta: e.metaKey,
+      caps: this.#capsLockOn,
+    };
+  }
+
+  isPressed(code: string): boolean {
+    if (code === 'CapsLock') return this.#capsLockOn;
+    return this.#pressedKeys.has(code);
+  }
+
+  get pressedKeys(): Set<string> {
+    return new Set(this.#pressedKeys);
+  }
+
+  private handleKeyDown = (e: KeyboardEvent): void => {
+    if (e.repeat) return;
+    const modifiers = this.getModifiers(e);
+    console.log('KeyDown modifiers:', modifiers); // Debug log
+    this.#pressedKeys.add(e.code);
+
+    const midiNote = this.#keymap[e.code];
+    if (midiNote !== undefined) {
+      this.#handlers.forEach((handler) =>
+        handler.onNoteOn(midiNote, modifiers)
+      );
+    }
+  };
+
+  private handleKeyUp = (e: KeyboardEvent): void => {
+    const modifiers = this.getModifiers(e);
+    console.log('KeyUp modifiers:', modifiers); // Debug log
+    this.#pressedKeys.delete(e.code);
+
+    const midiNote = this.#keymap[e.code];
+    if (midiNote !== undefined) {
+      this.#handlers.forEach((handler) =>
+        handler.onNoteOff(midiNote, modifiers)
+      );
+    }
+  };
+
+  private handleBlur = (e: FocusEvent): void => {
+    // const modifiers = this.getModifiers(e); //? should not handle modifiers?
+
+    // Release all pressed keys
+    this.#pressedKeys.forEach((code) => {
+      const midiNote = this.#keymap[code];
+      if (midiNote !== undefined) {
+        this.#handlers.forEach((handler) => handler.onBlur());
+      }
+      // persist Capslock ?
+    });
+    this.#pressedKeys.clear();
+  };
+
+  public addHandler(handler: InputHandler): () => void {
+    if (this.#handlers.has(handler)) {
+      console.warn('Handler is already registered');
+      return () => this.removeHandler(handler);
+    }
+
+    this.#handlers.add(handler);
+    this.startListening();
+    return () => this.removeHandler(handler);
+  }
+
+  public removeHandler(handler: InputHandler): void {
+    this.#handlers.delete(handler);
+    if (this.#handlers.size === 0) {
+      this.stopListening();
+    }
+  }
+
+  public hasHandler(handler: InputHandler | InputHandler[]): boolean {
+    if (Array.isArray(handler)) {
+      return handler.every((h) => this.#handlers.has(h));
+    }
+    return this.#handlers.has(handler);
+  }
+
+  public setKeymap(keymap: KeyMap): void {
+    this.#keymap = keymap;
+  }
+
+  public getKeymap(): KeyMap {
+    return { ...this.#keymap };
+  }
+
+  private startListening(): void {
+    if (this.#isListening) return;
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('keydown', this.handleKeyDown);
+      document.addEventListener('keyup', this.handleKeyUp);
+      window.addEventListener('blur', this.handleBlur); // window vs doc ?
+      this.#isListening = true;
+    }
+  }
+
+  private stopListening(): void {
+    if (!this.#isListening) return;
+
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('keydown', this.handleKeyDown);
+      document.removeEventListener('keyup', this.handleKeyUp);
+      window.removeEventListener('blur', this.handleBlur);
+      this.#isListening = false;
+    }
+  }
+
+  public dispose(): void {
+    this.stopListening();
+    this.#handlers.clear();
+    this.#pressedKeys.clear();
+  }
+}
+
+// Singleton instance for easy global access
+export const globalKeyboardInput = KeyboardInputManager.getInstance();
+
+// Helper function for checking key state
+export const isKeyPressed = (code: string): boolean =>
+  KeyboardInputManager.getInstance().isPressed(code);
+
+export function debugKeyModifiers(e: KeyboardEvent, keys?: ModifierKey[]) {
+  const modifiers: Record<ModifierKey, boolean> = {
+    shift: e.shiftKey,
+    ctrl: e.ctrlKey,
+    alt: e.altKey,
+    meta: e.metaKey,
+    caps: e.getModifierState('CapsLock'), // Changed from 'loop' to 'caps'
+  };
+
+  if (keys) {
+    const selectedModifiers: Partial<Record<ModifierKey, boolean>> = {};
+    keys.forEach((key) => {
+      selectedModifiers[key] = modifiers[key];
+    });
+    console.log(selectedModifiers);
+  } else {
+    console.log(modifiers);
+  }
+}

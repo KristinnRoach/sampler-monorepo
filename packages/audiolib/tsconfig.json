@@ -1,26 +1,50 @@
+// repo/packages/audiolib/tsconfig.json
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "useDefineForClassFields": true,
+    "strict": true,
+
+    "allowJs": true,
+    "checkJs": false, // prevents type checking for JS files
+
+    "target": "ES2022",
     "module": "ESNext",
-    "lib": ["ESNext", "DOM"],
-    "moduleResolution": "Node",
-    "strict": true, // Note: ensure is true after protoyping
+    "moduleResolution": "node",
+    "lib": ["ES2022", "DOM"],
+
+    "declarationMap": true, //?
+    "useDefineForClassFields": true,
+
+    "sourceMap": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
+
+    "types": ["@types/audioworklet"],
+
     "skipLibCheck": true,
     "declaration": true,
+    "noEmit": false,
+
     "declarationDir": "./dist",
     "outDir": "./dist",
-    "noEmit": false,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@test/*": ["./test/*"]
+      "@test/*": ["src/test/*"]
+      // "dexie": ["node_modules/dexie"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "src/types/worklet.d.ts"],
+  "exclude": ["node_modules", "dist", "src/test/*"] // should test be excluded?
 }
+
+// Under review:
+// "watch": true,
+// "resolveJsonModule": true,
+// "isolatedModules": true,
+// "esModuleInterop": true,
+// "noUnusedLocals": true,
+// "noUnusedParameters": true,
+
+
+// "noImplicitReturns": true,

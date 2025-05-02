@@ -1,0 +1,20 @@
+{
+  "name": "web-audio-elements",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@repo/audiolib": "workspace:*",
+    "@repo/audio-web-components": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.5.3",
+    "vitest": "^3.0.0"
+  }
+}

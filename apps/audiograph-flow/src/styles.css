@@ -1,0 +1,72 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-canvas {
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.sidebar {
+  width: 200px;
+  background-color: #f0f0f0;
+  padding: 10px;
+  border-right: 1px solid #ccc;
+}
+
+.flow-area {
+  flex-grow: 1;
+  height: 100%;
+}
+
+.node {
+  padding: 10px;
+  border-radius: 5px;
+  background: white;
+  border: 1px solid #1a192b;
+  width: 150px;
+}
+
+.node-header {
+  padding-bottom: 5px;
+  border-bottom: 1px solid #eee;
+  font-weight: bold;
+}
+
+.node-content {
+  padding-top: 5px;
+}
+
+.dndnode {
+  padding: 10px;
+  border-radius: 3px;
+  margin-bottom: 10px;
+  background: white;
+  border: 1px solid #1a192b;
+  cursor: grab;
+  text-align: center;
+}
+
+.dndnode:hover {
+  background: #f8f8f8;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
