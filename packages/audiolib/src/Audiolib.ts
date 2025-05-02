@@ -183,8 +183,12 @@ export class Audiolib implements LibNode {
     return newSynth;
   }
 
-  #onNoteOn(midiNote: number, modifiers: PressedModifiers, velocity?: number) {
-    this.#instruments.forEach((s) => s.play(midiNote, modifiers, velocity));
+  #onNoteOn(
+    midiNote: number,
+    velocity: number = 100,
+    modifiers: PressedModifiers
+  ) {
+    this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
   }
 
   #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
@@ -337,11 +341,19 @@ export class Audiolib implements LibNode {
       registry.dispose();
       deleteNodeId(this.nodeId);
       releaseGlobalAudioContext();
+
+      // Detach keyboard handler
+      if (this.#keyboardHandler) {
+        globalKeyboardInput.removeHandler(this.#keyboardHandler);
+        this.#keyboardHandler = null;
+      }
+
       // Explicitly nullify resource-holding fields
       this.#audioContext = null;
       this.#globalAudioRecorder = null;
       this.#currentAudioBuffer = null;
       this.#keyboardHandler = null;
+
       Audiolib.#instance = null;
     } catch (error) {
       console.error(
