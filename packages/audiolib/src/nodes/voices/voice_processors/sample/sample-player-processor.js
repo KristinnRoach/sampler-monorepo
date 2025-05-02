@@ -102,15 +102,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           break;
 
         case 'setLoopEnabled':
+          // Just update the state flag without any conditional logic
           this.loopEnabled = value;
-          if (!value && this.isPlaying) {
-            this.isReleasing = true;
-
-            // If turning loop off, and we're past the end, stop right away
-            if (this.playbackPosition >= this.buffer[0].length) {
-              this.#onended(output);
-            }
-          }
           break;
 
         case 'voice:usePlaybackPosition':

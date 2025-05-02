@@ -14,7 +14,7 @@ const KeyboardNode = ({ data, isConnectable }: NodeProps<KeyboardNodeData>) => {
 
   const triggerNoteOn = useCallback(
     (midiNote: number, velocity: number = 127) => {
-      if (isEnabled && data.onNoteOn) data.onNoteOn(midiNote, velocity);
+      if (isEnabled && data.onNoteOn) data.onNoteOn(midiNote, velocity, {});
     },
     [data, isEnabled]
   );

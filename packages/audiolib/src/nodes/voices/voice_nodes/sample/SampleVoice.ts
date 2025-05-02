@@ -1,6 +1,6 @@
 import { LibVoiceNode, VoiceType } from '@/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, NodeID, deleteNodeId } from '@/store/state/IdStore';
+import { createNodeId, NodeID, deleteNodeId } from '@/state/registry/NodeIDs';
 import {
   Message,
   MessageHandler,
@@ -225,13 +225,11 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   setLoopEnabled(enabled: boolean): this {
+    // Simple direct message to processor with no side effects
     this.sendToProcessor({
       type: 'setLoopEnabled',
       value: enabled,
     });
-    // if (!enabled) {
-    //   this.release({ release_sec: 0.3 }); // todo: remove hardcoded release
-    // }
     return this;
   }
 

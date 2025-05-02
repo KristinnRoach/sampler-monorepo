@@ -1,9 +1,9 @@
 // @store/ProcessorRegistry.ts
 import { ensureAudioCtx } from '@/context/globalAudioContext';
-import PROCESSORS from '.';
+import LIB_PROCESSORS_RAW from './LIB_PROCESSORS';
 
 // Union type of processor names that have been predefined by audiolib
-export type AudiolibProcessor = keyof typeof PROCESSORS;
+export type AudiolibProcessor = keyof typeof LIB_PROCESSORS_RAW;
 export type ProcessorName = AudiolibProcessor | string;
 
 type registryOptions = {
@@ -28,7 +28,7 @@ class ProcessorRegistry {
   }
 
   async registerDefaultProcessors(): Promise<void> {
-    Object.keys(PROCESSORS).forEach(async (processorName) => {
+    Object.keys(LIB_PROCESSORS_RAW).forEach(async (processorName) => {
       await this.register({ processorName });
     });
   }
@@ -45,7 +45,7 @@ class ProcessorRegistry {
     console.info(`Processor ${name} not registered, registering now...`);
 
     const rawSource =
-      options.rawSource || PROCESSORS[name as AudiolibProcessor];
+      options.rawSource || LIB_PROCESSORS_RAW[name as AudiolibProcessor];
 
     const blob = new Blob([rawSource], {
       type: 'application/javascript',

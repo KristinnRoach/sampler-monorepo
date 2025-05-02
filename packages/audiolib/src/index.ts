@@ -15,4 +15,4 @@ export * as samplelib from './store/persistent/idb/audioStorage';
 export * from './input';
 
 export { getAudioContext, ensureAudioCtx } from './context';
-export { registry } from '@/store/state/worklet-registry/ProcessorRegistry';
+export { registry } from '@/state/registry/worklet-registry/ProcessorRegistry';

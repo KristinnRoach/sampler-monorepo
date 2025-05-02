@@ -335,7 +335,7 @@ export class SamplerElement extends BaseAudioElement {
       return;
     }
 
-    this.sampler.play(midiNote, { caps: false }, velocity);
+    this.sampler.play(midiNote, velocity, { caps: false });
   }
 
   /**

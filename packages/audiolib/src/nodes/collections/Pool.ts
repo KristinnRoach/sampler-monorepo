@@ -5,7 +5,7 @@ import {
   LibContainerNode,
 } from '@/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, deleteNodeId, NodeID } from '@/store/state/IdStore';
+import { createNodeId, deleteNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { assert, tryCatch } from '@/utils';
 
