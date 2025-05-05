@@ -51,13 +51,20 @@ class PlaybackTiming {
     };
   }
 }
-const MIN_ABS_AMPLITUDE = 0.1; // for now
+const MIN_ABS_AMPLITUDE = 0.05; // for now
+
+// Todo: create with input handler callbacks if importing issues are not resolved easily
+// import { globalKeyboardInput } from '../../../../input';
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {
+  // #keyboardHandler;
+
   constructor() {
     super();
 
-    // STATE
+    /* STATE */
+
+    // Data
     this.buffer = null;
     this.playbackPosition = 0;
     this.loopCount = 0;
@@ -69,24 +76,18 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.loopEnabled = false;
     this.usePlaybackPosition = false;
 
-    // Message handling
+    /* Message handling */
     this.port.onmessage = (event) => {
-      const { type, value, buffer, offset, duration, time } = event.data;
-
-      // todo: should report flags upstream directly here for consistency
-      // if they should be handled right away, e.g. isReleasing
-      // if (this.isReleasing) {
-      //   this.port.postMessage({
-      //     type: 'voice:releasing',
-      //     loopCount: this.loopCount,
-      //   });
-      // }
+      const { type, value, buffer, startOffset, duration, when } = event.data;
 
       switch (type) {
         case 'voice:init':
           this.timing = new PlaybackTiming();
           this.usePlaybackPosition = false;
           this.loopEnabled = false;
+
+          // this.enableKeyboard();
+          // globalKeyboardInput.addHandler(this.#onNoteOn);
           break;
 
         case 'voice:set_buffer':
@@ -99,8 +100,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
         case 'voice:start':
           this.isReleasing = false;
-          this.timing.start(time, offset || 0, duration);
-          this.playbackPosition = (offset || 0) * sampleRate;
+          this.timing.start(when, startOffset || 0, duration);
+          this.playbackPosition = (startOffset || 0) * sampleRate;
           this.isPlaying = true;
 
           this.port.postMessage({
@@ -120,7 +121,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           break;
 
         case 'setLoopEnabled':
-          // Just update the state flag without any conditional logic
           this.loopEnabled = value;
           break;
 
@@ -175,6 +175,52 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     ];
   }
 
+  // enableKeyboard() {
+  //   // if (!this.#keyboardHandler) {
+  //   // this.#keyboardHandler = {
+  //   //   onNoteOn: this.#onNoteOn.bind(this),
+  //   //   onNoteOff: this.#onNoteOff.bind(this),
+  //   //   // onBlur: this.#onBlur.bind(this),
+  //   // };
+  //   document.addEventListener('keydown', this.#onNoteOn);
+  //   document.addEventListener('keyup', this.#onNoteOff);
+  //   // } else {
+  //   //   console.debug(`keyboard already enabled`);
+  //   // }
+  // }
+
+  // disableKeyboard() {
+  //   // if (this.#keyboardHandler) {
+  //   //   globalKeyboardInput.removeHandler(this.#keyboardHandler);
+  //   //   this.#keyboardHandler = null;
+  //   // } else {
+  //   //   console.debug(`keyboard already disabled`);
+  //   // }
+
+  //   document.removeEventListener('keydown', this.#onNoteOn);
+  //   document.removeEventListener('keyup', this.#onNoteOff);
+  // }
+
+  // #onNoteOn(midiNote, velocity, modifiers) {
+  //   console.warn(`ON: ${(midinote, velocity, modifiers)}`);
+
+  //   this.isReleasing = false;
+  //   this.timing.start(currentTime, 0, null);
+  //   this.playbackPosition = 0;
+  //   this.isPlaying = true;
+
+  //   // this.port.postMessage({
+  //   //   type: 'voice:started',
+  //   //   time: currentTime,
+  //   // });
+  // }
+
+  // #onNoteOff(midiNote, modifiers) {
+  //   console.warn(`${(midinote, modifiers)}`);
+
+  //   this.isReleasing = true;
+  // }
+
   #fillWithSilence(output) {
     for (let channel = 0; channel < output.length; channel++) {
       output[channel].fill(0);
@@ -202,6 +248,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
+    // Todo: re-design flags to be set by input events and listen for them here
     if (!output || this.#shouldEnd(parameters)) {
       this.#onended(output);
       return true; // AudioWorklet will zero-fill automatically

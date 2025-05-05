@@ -8,6 +8,7 @@ import { getAudioContext } from '@/context';
 import { createNodeId, deleteNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { assert, tryCatch } from '@/utils';
+import { RoundRobin } from '@/utils/collections/RoundRobin';
 
 export class Pool<T extends LibVoiceNode> implements LibContainerNode {
   readonly nodeId: NodeID;
@@ -17,10 +18,12 @@ export class Pool<T extends LibVoiceNode> implements LibContainerNode {
   #available = new Set<T>();
   #active = new Set<T>();
   #messages;
+  #allocationStrategy: RoundRobin<T>;
 
   constructor() {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
+    this.#allocationStrategy = new RoundRobin<T>();
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
@@ -56,15 +59,25 @@ export class Pool<T extends LibVoiceNode> implements LibContainerNode {
       return null;
     }
 
-    const node = this.#available.values().next().value;
+    const node = this.#allocationStrategy.allocate(this.#available);
     if (!node) {
-      console.debug(`unable to get available.values().next().value `);
+      console.debug(`unable to allocate node using strategy`);
       return null;
     }
     this.#available.delete(node);
     this.#active.add(node);
 
     return node;
+  }
+
+  returnNode(node: T): this {
+    if (this.#active.has(node)) {
+      this.#active.delete(node);
+    }
+    if (!this.#available.has(node)) {
+      this.#available.add(node);
+    }
+    return this;
   }
 
   connect(destination: AudioNode): this {

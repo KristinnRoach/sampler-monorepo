@@ -1,12 +1,12 @@
 import { Audiolib } from './Audiolib';
 
 export const audiolib = Audiolib.getInstance();
-// await audiolib.init(); // currently the user calls init
+export { Audiolib };
 
-export { Sampler } from '@/nodes/instruments/Sampler/Sampler';
-export { KarplusStrongSynth } from '@/nodes/instruments/KarplusStrongSynth';
+export { Sampler } from '@/nodes/instruments/Sampler/SingleSample/SS_Sampler';
+export { KarplusStrongSynth } from '@/nodes/instruments/Synth/KarplusStrong/KS_Synth';
 
-export { SampleVoice } from '@/nodes/voices/voice_nodes/sample/SampleVoice';
+export { SampleVoice } from '@/nodes/instruments/Sampler/SingleSample/SampleVoice';
 
 export { Recorder } from '@/recorder';
 

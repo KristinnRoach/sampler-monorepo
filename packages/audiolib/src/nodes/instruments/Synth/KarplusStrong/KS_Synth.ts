@@ -1,17 +1,18 @@
 import { LibInstrument, InstrumentType } from '@/LibNode';
-import { KarplusVoice } from '@/nodes/voices/voice_nodes/synth/physical/KarplusVoice';
+import { KarplusVoice } from '@/nodes/instruments/Synth/KarplusStrong/KS_Voice';
 import { Pool } from '@/nodes/collections/Pool';
 import { createNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { PressedModifiers } from '@/input/types';
+import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 export class KarplusStrongSynth implements LibInstrument {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'synth';
 
   #context: AudioContext;
-  #output: GainNode;
+  #output: InstrumentMasterBus;
   #voicePool: Pool<KarplusVoice>;
   #messages;
 
@@ -22,10 +23,13 @@ export class KarplusStrongSynth implements LibInstrument {
   constructor(polyphony: number = 8) {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = getAudioContext();
-    this.#output = new GainNode(this.#context);
-    this.#output.gain.value = 0.9;
-    this.#voicePool = new Pool<KarplusVoice>();
+    this.#output = new InstrumentMasterBus();
+
+    // Todo: actual dynamics handling, temp fix for now:
+    this.volume = 0.2;
+
     this.#messages = createMessageBus<Message>(this.nodeId);
+    this.#voicePool = new Pool<KarplusVoice>();
 
     this.#preCreateVoices(polyphony);
   }
@@ -41,7 +45,7 @@ export class KarplusStrongSynth implements LibInstrument {
   #preCreateVoices(polyphony: number): void {
     for (let i = 0; i < polyphony; i++) {
       const voice = new KarplusVoice();
-      voice.connect(this.#output);
+      voice.connect(this.#output.input);
       this.#voicePool.add(voice);
     }
   }
@@ -149,17 +153,14 @@ export class KarplusStrongSynth implements LibInstrument {
     this.#voicePool.dispose();
     this.#activeNotes.clear();
 
-    this.#output = null as unknown as GainNode;
+    this.#output.dispose();
+    this.#output = null as unknown as InstrumentMasterBus;
     this.#context = null as unknown as AudioContext;
   }
 
   /** SETTERS */
   set volume(value: number) {
-    const scaleFactor = 0.9;
-    this.#output.gain.setValueAtTime(
-      value * scaleFactor,
-      this.#context.currentTime + 0.0001
-    );
+    this.#output.volume = value;
   }
 
   set attackTime(timeMs: number) {
@@ -176,7 +177,7 @@ export class KarplusStrongSynth implements LibInstrument {
   }
 
   get volume(): number {
-    return this.#output.gain.value;
+    return this.#output.volume;
   }
 
   get isPlaying(): boolean {

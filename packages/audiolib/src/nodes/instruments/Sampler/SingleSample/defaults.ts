@@ -1,11 +1,8 @@
-export interface InstrumentState {
-  // TODO: remove or relocate
+export interface SampleVoiceSettings {
   [key: string]: number;
 }
 
-export const DEFAULT_SAMPLER_SETTINGS: InstrumentState = {
-  midiNote: 60,
-  velocity: 1,
+export const DEFAULT_SAMPLE_VOICE_SETTINGS: SampleVoiceSettings = {
   startOffset_sec: 0,
   endOffset_sec: 0,
   attack_sec: 0.01,

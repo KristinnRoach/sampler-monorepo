@@ -31,7 +31,7 @@ export class Audiolib implements LibNode {
 
   #asyncInit = createAsyncInit<Audiolib>();
   #audioContext: AudioContext | null = null;
-  #masterGain: GainNode;
+  #masterGain: GainNode; // todo: MasterBus
   #instruments: Map<string, LibInstrument> = new Map();
   #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null;
@@ -56,7 +56,7 @@ export class Audiolib implements LibNode {
     });
 
     this.#masterGain = this.#audioContext.createGain();
-    this.#masterGain.gain.value = 0.5;
+    this.#masterGain.gain.value = 1.0;
     this.#masterGain.connect(this.#audioContext.destination);
 
     // Replace init method with wrapped version
@@ -185,7 +185,7 @@ export class Audiolib implements LibNode {
 
   #onNoteOn(
     midiNote: number,
-    velocity: number = 100,
+    velocity: number = 100, // use DEFAULT when implemented
     modifiers: PressedModifiers
   ) {
     this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
@@ -328,6 +328,12 @@ export class Audiolib implements LibNode {
     try {
       console.debug('Audiolib dispose called');
 
+      // Detach keyboard handler
+      if (this.#keyboardHandler) {
+        globalKeyboardInput.removeHandler(this.#keyboardHandler);
+        this.#keyboardHandler = null;
+      }
+
       for (const sampler of this.#instruments.values()) {
         sampler.dispose();
       }
@@ -341,12 +347,6 @@ export class Audiolib implements LibNode {
       registry.dispose();
       deleteNodeId(this.nodeId);
       releaseGlobalAudioContext();
-
-      // Detach keyboard handler
-      if (this.#keyboardHandler) {
-        globalKeyboardInput.removeHandler(this.#keyboardHandler);
-        this.#keyboardHandler = null;
-      }
 
       // Explicitly nullify resource-holding fields
       this.#audioContext?.close();

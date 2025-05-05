@@ -32,7 +32,7 @@ export class KarplusVoice implements LibVoiceNode {
   feedbackDelay: AudioWorkletNode;
   noiseGain: GainNode;
   outputGain: GainNode;
-  #volume: number = 0.5;
+  #volume: number = 0.3; // todo: standardize
 
   #isPlaying: boolean = false;
 
@@ -52,7 +52,7 @@ export class KarplusVoice implements LibVoiceNode {
       {
         parameterData: {
           delayTime: 5, // Initial delay time
-          gain: 0.9, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
+          gain: 0.8 * this.#volume, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
         },
       }
     );

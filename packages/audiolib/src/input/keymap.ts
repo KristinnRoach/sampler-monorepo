@@ -1,6 +1,10 @@
-// src/input/keymap.ts
 import { KeyMap } from './types';
 
+/**
+ * Default keyboard-to-MIDI note mapping for audio input.
+ * Provides a piano-like layout across the QWERTY keyboard.
+ * Used by KeyboardInputManager to translate keyboard events to MIDI notes.
+ */
 export const defaultKeymap: KeyMap = {
   KeyZ: 48,
   KeyS: 49,
@@ -39,4 +43,4 @@ export const defaultKeymap: KeyMap = {
   BracketLeft: 77,
   Equal: 78,
   BracketRight: 79,
-};
+} as const;

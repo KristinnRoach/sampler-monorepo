@@ -5,7 +5,15 @@ import { defaultKeymap } from './keymap';
 
 export class KeyboardInputManager {
   static #instance: KeyboardInputManager;
+
+  /* todo: separate trigger handlers
+           to ensure the most time critical
+           handlers are called first 
+           (minimize audio latency)
+           ? Priority queue or latency categories
+  */
   #handlers: Set<InputHandler> = new Set();
+  #triggerHandlers: Set<InputHandler> = new Set(); // todo: Set<InputHandler<"NoteOn">>
 
   #pressedKeys: Set<string> = new Set();
   #capsLockOn: boolean = false;
@@ -57,13 +65,17 @@ export class KeyboardInputManager {
 
     const midiNote = this.#keymap[e.code];
     if (midiNote === undefined) return;
+    e.preventDefault();
 
     const modifiers = this.getModifiers(e);
+    // todo: move when space handling is implemented (just to avoid annoying scrolling behaviour for now)
+    if (e.key === 'Space') e.preventDefault();
+
     // debugKeyModifiers(e);
-    const dummyVelocity = 100; // conform to interface
+    const defaultVelocity = 100; // todo: DEFAULT.MIDI.VELOCITY // ? check Web Midi API for standards
 
     this.#handlers.forEach((handler) =>
-      handler.onNoteOn(midiNote, dummyVelocity, modifiers)
+      handler.onNoteOn(midiNote, defaultVelocity, modifiers)
     ); // no velocity for computer keyboard
 
     // Moved after handlers to prevent stuck notes
@@ -86,6 +98,8 @@ export class KeyboardInputManager {
 
   // Specifically handling caps for robust cross-platform behavior
   private handleCaps = (e: KeyboardEvent): void => {
+    // todo: add robust toggle handling for caps and space
+    // ensure no race conditions
     if (e.key === 'CapsLock') {
       this.#capsLockOn = this.getCapslock(e);
     }
@@ -161,7 +175,8 @@ export class KeyboardInputManager {
   private startListening(): void {
     if (this.#isListening) return;
     if (typeof document !== 'undefined') {
-      // use document for key & mouse events, window for blur & focus
+      // Use document for key & mouse events, window for blur & focus
+      // Attach time critical handlers first (e.g. keydown triggering playback)
       document.addEventListener('keydown', this.handleKeyDown);
       document.addEventListener('keyup', this.handleKeyUp);
 

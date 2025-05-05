@@ -18,23 +18,26 @@ export function getOfflineAudioContext(
 ): OfflineAudioContext {
   if (!config.length || config.length <= 0) {
     throw new Error(
-      'Length is required, e.g. buffer size (samples), or (duration (seconds) * sample rate)'
+      'Length is required, e.g. buffer size (samples), or (duration (seconds) * sample rate)',
+      { cause: config }
     );
   }
 
   const key = generateContextKey(config);
   let context = offlineInstances.get(key);
 
-  if (!context) {
-    context = new OfflineAudioContext({
-      length: config.length,
-      numberOfChannels: config.numberOfChannels || 2,
-      sampleRate: config.sampleRate || DEFAULT.audioConfig.sampleRate,
-    });
-    offlineInstances.set(key, context);
+  if (context) {
+    return context;
   }
 
-  return context;
+  const newContext = new OfflineAudioContext({
+    length: config.length,
+    numberOfChannels: config.numberOfChannels || 2,
+    sampleRate: config.sampleRate || DEFAULT.audioConfig.sampleRate,
+  });
+  offlineInstances.set(key, newContext);
+
+  return newContext;
 }
 
 export function releaseOfflineContext(config: OfflineContextConfig): void {

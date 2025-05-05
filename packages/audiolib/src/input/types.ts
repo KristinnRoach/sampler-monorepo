@@ -2,7 +2,7 @@
 
 interface Keyboard {
   getLayoutMap(): Promise<Record<string, string>>;
-  [key: string]: any;
+  // [key: string]: any;
 }
 
 declare global {

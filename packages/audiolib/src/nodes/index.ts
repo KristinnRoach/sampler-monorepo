@@ -1,3 +1,3 @@
 /* NODES */
-export * from './voices/voice_nodes/sample/SampleVoice';
-export * from './voices/voice_nodes/synth/physical/KarplusVoice';
+export * from './instruments/Sampler/SingleSample/SampleVoice';
+export * from './instruments/Synth/KarplusStrong/KS_Voice';

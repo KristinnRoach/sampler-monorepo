@@ -22,9 +22,13 @@ export class SampleVoice implements LibVoiceNode {
 
   private worklet: AudioWorkletNode;
   private messages: MessageBus<Message>;
-  private isPlaying = false;
-  private isReleasing = false;
   private bufferDuration: number | null;
+
+  // Playback Flags
+  // ! Keeping as comments for now,
+  // ! until I can verify whether these are needed
+  // private isPlaying = false;
+  // private isReleasing = false;
 
   constructor(
     private context: AudioContext = getAudioContext(),
@@ -48,15 +52,16 @@ export class SampleVoice implements LibVoiceNode {
     this.worklet.port.onmessage = (event: MessageEvent) => {
       const { type, ...data } = event.data;
 
+      // Todo: only send messages if someone has subscribed to them?
       switch (type) {
         case 'voice:started':
-          this.isPlaying = true;
-          this.isReleasing = false;
+          // this.isPlaying = true;
+          // this.isReleasing = false;
           this.messages.sendMessage('voice:started', {});
           break;
         case 'voice:ended':
-          this.isPlaying = false;
-          this.isReleasing = false;
+          // this.isPlaying = false;
+          // this.isReleasing = false;
           this.messages.sendMessage('voice:ended', {});
           break;
         case 'voice:looped':
@@ -100,26 +105,27 @@ export class SampleVoice implements LibVoiceNode {
 
   trigger(options: {
     midiNote: number;
-    attack_sec?: number;
     velocity?: number;
-    time?: number;
-    offset?: number;
-    playForSeconds?: number;
+    when?: number;
+    startOffset?: number;
+    endOffset?: number;
+    attack_sec?: number;
   }): this {
-    if (this.isPlaying) {
-      // console.warn('Voice already playing');
-      // todo: return this; // when isPlaying is proven robust
-    }
+    // if (this.isPlaying) {
+    //   // console.warn('Voice already playing');
+    //   // todo: return this; // when isPlaying is proven robust
+    // }
 
     const defaults = {
       midiNote: 60,
       velocity: 100,
-      attack_sec: 0.4,
-      time: this.now,
-      offset: 0,
+      when: this.now,
+      startOffset: 0,
+      endOffset: 0,
+      attack_sec: 0.02,
     };
 
-    const { midiNote, time, attack_sec, velocity, offset } = {
+    const { midiNote, velocity, when, startOffset, endOffset, attack_sec } = {
       ...defaults,
       ...options,
     };
@@ -135,7 +141,11 @@ export class SampleVoice implements LibVoiceNode {
     envGain.setValueAtTime(0, this.now);
     envGain.linearRampToValueAtTime(1, this.now + attack_sec);
 
-    this.sendToProcessor({ type: 'voice:start', time, offset });
+    this.sendToProcessor({
+      type: 'voice:start',
+      when,
+      startOffset,
+    });
     // this.isPlaying = true;
 
     // todo: cleanup after testing
@@ -146,13 +156,13 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   release(options: { release_sec?: number } = {}): this {
-    if (this.isReleasing) return this;
+    // if (this.isReleasing) return this;
 
-    console.warn(this.isPlaying);
+    // console.warn(this.isPlaying);
 
-    this.isReleasing = true; // flag
+    // this.isReleasing = true; // flag
 
-    const { release_sec = 0.3 } = options;
+    const release_sec = options.release_sec ?? 0.1;
     const envGain = this.getParam('envGain')!;
     cancelScheduledParamValues(envGain, this.now);
     envGain.setValueAtTime(envGain.value, this.now);
@@ -167,7 +177,7 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   stop(): this {
-    if (!this.isPlaying) return this;
+    // if (!this.isPlaying) return this;
     this.setParam('envGain', 0);
     this.sendToProcessor({ type: 'voice:stop' });
     return this;

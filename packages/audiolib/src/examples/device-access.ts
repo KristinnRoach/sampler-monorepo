@@ -44,8 +44,11 @@ async function setupDevices() {
   // Cleanup when done
   return () => {
     cleanup();
-    micStream.getTracks().forEach((track) => track.stop());
-    camStream.getTracks().forEach((track) => track.stop());
+    const stopTracks = (stream: MediaStream) =>
+      stream.getTracks().map((track) => track.stop());
+
+    stopTracks(micStream);
+    stopTracks(camStream);
   };
 }
 

@@ -321,13 +321,13 @@ const SamplerComponent = () => {
         <p>Volume: {samplerRef.current?.volume.toFixed(2)}</p>
         <p>Voice Count: {samplerRef.current?.voiceCount}</p>
         <p>Is Playing: {samplerRef.current?.isPlaying ? 'Yes' : 'No'}</p>
-        <p>Is Looping: {samplerRef.current?.isLooping ? 'Yes' : 'No'}</p>
+        {/* <p>Is Looping: {samplerRef.current?.isLooping ? 'Yes' : 'No'}</p> */}
         <p>Is Initialized: {isInitialized ? 'Yes' : 'No'}</p>
         <p>UI Looping: {isLoopEnabled ? 'Enabled' : 'Disabled'}</p>
-        <p>
+        {/* <p>
           Sampler Looping:{' '}
           {samplerRef.current?.isLooping ? 'Enabled' : 'Disabled'}
-        </p>
+        </p> */}
         <p>UI Loop Start: {loopStart.toFixed(2)}s</p>
         <p>UI Loop End: {loopEnd.toFixed(2)}s</p>
         <p>UI Ramp Time: {rampTime.toFixed(2)}s</p>

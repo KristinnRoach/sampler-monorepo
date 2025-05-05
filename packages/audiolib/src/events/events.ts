@@ -1,8 +1,8 @@
 import { NodeID } from '@/state/registry/NodeIDs';
 
 export interface Message {
-  type: string;
-  senderId: NodeID;
+  readonly type: string;
+  readonly senderId: NodeID;
 }
 
 export type MessageHandler<T> = (data: T) => void;

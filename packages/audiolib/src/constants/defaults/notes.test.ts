@@ -37,13 +37,13 @@ describe('notes constants', () => {
 
     if (breaks.length > 0) {
       console.log('Frequency order breaks at:');
-      breaks.forEach(({ prev, curr }) => {
-        console.log(
+      const breakMessages = breaks.map(
+        ({ prev, curr }) =>
           `${prev.note}(${prev.freq}Hz) -> ${curr.note}(${curr.freq}Hz)`
-        );
-      });
+      );
+      console.log(breakMessages.join('\n'));
     }
 
-    expect(breaks).toHaveLength(0); // Fixed: Using toHaveLength instead of toBe with message
+    expect(breaks).toHaveLength(0);
   });
 });
