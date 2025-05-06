@@ -10,8 +10,8 @@ export { SampleVoice } from '@/nodes/instruments/Sampler/SingleSample/SampleVoic
 
 export { Recorder } from '@/recorder';
 
-export * from './store/persistent/idb/idb';
-export * as samplelib from './store/persistent/idb/audioStorage';
+export * from './storage/idb/idb';
+export * as samplelib from './storage/idb/audioStorage';
 export * from './input';
 
 export { getAudioContext, ensureAudioCtx } from './context';

@@ -1,8 +1,8 @@
 import { idb } from './idb';
-import { fetchInitSampleAsAudioBuffer } from '../../assets/asset-utils';
+import { fetchInitSampleAsAudioBuffer } from '../assets/asset-utils';
 import * as sampleLib from './audioStorage';
 
-const ASSETS_PATH = '../../assets/';
+const ASSETS_PATH = '../assets/';
 const INIT_SAMPLE_FILE = `init_sample.wav`;
 
 export async function initIdb() {

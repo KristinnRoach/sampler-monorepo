@@ -10,6 +10,8 @@ import { assert, cancelScheduledParamValues } from '@/utils';
 import { createScale } from '@/utils/musical/scales/createScale';
 import { NOTES } from '@/constants';
 
+// Todo: add Debouncer!
+
 export class MacroParam implements LibParamNode {
   readonly nodeId: NodeID;
   readonly nodeType: ParamType = 'macro';

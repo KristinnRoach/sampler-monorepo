@@ -22,9 +22,9 @@ export function createMessageBus<T extends Message>(
 
   return {
     sendMessage(type, data) {
-      const message = { type, senderId, ...data } as T;
       const typeHandlers = handlers.get(type);
       if (typeHandlers) {
+        const message = { type, senderId, ...data } as T;
         typeHandlers.forEach((handler) => handler(message));
       }
     },

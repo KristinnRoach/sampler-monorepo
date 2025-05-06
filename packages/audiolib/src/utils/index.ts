@@ -20,4 +20,7 @@ export * from './load/xhr-utils';
 export * from './validate/environment';
 export * from './validate/audioparam';
 
+// Monitoring utils
+export * from './monitoring/LevelMonitor';
+
 // export * from './loadAudio'; // todo: fix idb decoding -> then fix or reimplement this

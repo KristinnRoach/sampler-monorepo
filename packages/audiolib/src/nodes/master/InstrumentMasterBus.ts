@@ -2,6 +2,7 @@ import { LibNode } from '@/LibNode';
 import { createNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
+import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';
 
 export class InstrumentMasterBus implements LibNode {
   readonly nodeId: NodeID;
@@ -13,6 +14,7 @@ export class InstrumentMasterBus implements LibNode {
   #output: GainNode;
   #messages;
   #compressorEnabled: boolean = true;
+  #levelMonitor: LevelMonitor | null = null;
 
   constructor() {
     this.nodeId = createNodeId(this.nodeType);
@@ -63,6 +65,75 @@ export class InstrumentMasterBus implements LibNode {
     } else {
       // Bypass compressor
       this.#input.connect(this.#output);
+    }
+  }
+
+  /**
+   * Start monitoring input and output levels
+   * @param intervalMs How often to log levels (in milliseconds)
+   * @param fftSize Size of FFT for analysis (larger = more precise but more CPU)
+   */
+  startLevelMonitoring(
+    intervalMs: number = 1000,
+    fftSize: number = 1024
+  ): void {
+    // Stop any existing monitoring
+    this.stopLevelMonitoring();
+
+    // Create level monitor if it doesn't exist
+    this.#levelMonitor = new LevelMonitor(
+      this.#context,
+      this.#input,
+      this.#output,
+      fftSize
+    );
+
+    // Start monitoring
+    this.#levelMonitor.start(intervalMs);
+
+    console.log('Level monitoring started');
+  }
+
+  /**
+   * Stop monitoring levels
+   */
+  stopLevelMonitoring(): void {
+    if (this.#levelMonitor) {
+      this.#levelMonitor.stop();
+      this.#levelMonitor = null;
+      console.log('Level monitoring stopped');
+    }
+  }
+
+  /**
+   * Log current levels once (without starting continuous monitoring)
+   */
+  logLevels(): void {
+    if (!this.#levelMonitor) {
+      // Create temporary monitor
+      const monitor = new LevelMonitor(
+        this.#context,
+        this.#input,
+        this.#output
+      );
+
+      // Get and log levels
+      const levels = monitor.getLevels();
+      console.log(
+        `InstrumentMasterBus Levels:
+         Input:  RMS ${levels.input.rmsDB.toFixed(1)} dB | Peak ${levels.input.peakDB.toFixed(1)} dB
+         Output: RMS ${levels.output.rmsDB.toFixed(1)} dB | Peak ${levels.output.peakDB.toFixed(1)} dB
+         Gain Reduction: ${levels.gainChangeDB > 0 ? levels.gainChangeDB.toFixed(1) : '0.0'} dB`
+      );
+    } else {
+      // Use existing monitor
+      const levels = this.#levelMonitor.getLevels();
+      console.log(
+        `InstrumentMasterBus Levels:
+         Input:  RMS ${levels.input.rmsDB.toFixed(1)} dB | Peak ${levels.input.peakDB.toFixed(1)} dB
+         Output: RMS ${levels.output.rmsDB.toFixed(1)} dB | Peak ${levels.output.peakDB.toFixed(1)} dB
+         Gain Reduction: ${levels.gainChangeDB > 0 ? levels.gainChangeDB.toFixed(1) : '0.0'} dB`
+      );
     }
   }
 
@@ -130,6 +201,7 @@ export class InstrumentMasterBus implements LibNode {
   }
 
   dispose(): void {
+    this.stopLevelMonitoring();
     this.disconnect();
     this.#input.disconnect();
     this.#compressor.disconnect();

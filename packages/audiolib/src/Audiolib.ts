@@ -17,8 +17,8 @@ import {
   MessageBus,
 } from '@/events';
 
-import { idb, initIdb, sampleLib } from './store/persistent/idb';
-import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
+import { idb, initIdb, sampleLib } from './storage/idb';
+import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
 import { Sampler, KarplusStrongSynth } from './nodes/instruments';
@@ -161,6 +161,9 @@ export class Audiolib implements LibNode {
 
     newSampler.connect(this.#masterGain);
     this.#instruments.set(newSampler.nodeId, newSampler);
+
+    // REMOVE AFTER TESTING:
+    newSampler.startLevelMonitoring();
 
     return newSampler;
   }

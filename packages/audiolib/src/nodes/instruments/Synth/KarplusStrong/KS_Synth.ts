@@ -6,6 +6,11 @@ import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { PressedModifiers } from '@/input/types';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
+import { Debouncer } from '@/utils/Debouncer';
+import { localStore } from '@/storage/local';
+
+// temp
+type KSS_ParamName = 'volume' | 'attackTime' | 'releaseTime';
 
 export class KarplusStrongSynth implements LibInstrument {
   readonly nodeId: NodeID;
@@ -17,16 +22,30 @@ export class KarplusStrongSynth implements LibInstrument {
   #messages;
 
   #activeNotes = new Map<number, Set<KarplusVoice>>();
-  #attackTime: number = 0;
-  #releaseTime: number = 0.3;
 
-  constructor(polyphony: number = 8) {
+  // use the paramMap in the Voice class for the actual setting of AudioParams.. i think
+  // #audioParams: Record<KSS_ParamName, AudioParam>;
+
+  #debouncer: Debouncer = new Debouncer();
+
+  // Moving this to Debouncer
+  // #debounceMs: number;
+  // #debounceTimers: Partial<
+  //   Record<KSS_ParamName, ReturnType<typeof setTimeout>>
+  // > = {};
+
+  // Moving this to localStorage
+  // #currentValues: Record<KSS_ParamName, number> = {
+  //   attackTime: 0.001,
+  //   releaseTime: 0.3,
+  //   // Todo: actual dynamics handling, temp fix for now:
+  //   volume: 0.2,
+  // };
+
+  constructor(polyphony: number = 8, options: Record<string, number> = {}) {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = getAudioContext();
     this.#output = new InstrumentMasterBus();
-
-    // Todo: actual dynamics handling, temp fix for now:
-    this.volume = 0.2;
 
     this.#messages = createMessageBus<Message>(this.nodeId);
     this.#voicePool = new Pool<KarplusVoice>();
@@ -91,7 +110,7 @@ export class KarplusStrongSynth implements LibInstrument {
     }
 
     voices.forEach((voice) => {
-      voice.release(this.#releaseTime);
+      voice.release(this.releaseSeconds);
     });
 
     this.sendMessage('note:off', { midiNote });
@@ -101,7 +120,7 @@ export class KarplusStrongSynth implements LibInstrument {
   stopAll(): this {
     this.#activeNotes.forEach((voices, midiNote) => {
       voices.forEach((voice) => {
-        voice.release(this.#releaseTime);
+        voice.release(this.releaseSeconds);
       });
     });
     this.#activeNotes.clear();
@@ -112,13 +131,34 @@ export class KarplusStrongSynth implements LibInstrument {
     return this.stopAll();
   }
 
-  setParamValue(name: string, value: number): this {
+  #getLocalStorageKey(paramName: string) {
+    return `${paramName}-${this.nodeId}`;
+  }
+
+  #setParamValueImmediate(name: string, value: number) {
     this.#voicePool.nodes.forEach((voice) => {
       const param = voice.getParam(name);
       if (param) {
         param.setValueAtTime(value, this.#context.currentTime);
       }
+      const storageKey = this.#getLocalStorageKey(name);
+      localStore.saveValue(storageKey, value);
     });
+  }
+
+  // ! Rethink default debounce-ing for non-gliding params (only debounce the storage?)
+  setParamValue(name: string, value: number, debounceMs = 65): this {
+    if (debounceMs === 0) {
+      this.#setParamValueImmediate(name, value);
+    } else {
+      // Get a debounced version for this param name
+      const debounced = this.#debouncer.debounce(
+        name,
+        (val: number) => this.#setParamValueImmediate(name, val),
+        debounceMs
+      );
+      debounced(value);
+    }
     return this;
   }
 
@@ -163,12 +203,27 @@ export class KarplusStrongSynth implements LibInstrument {
     this.#output.volume = value;
   }
 
+  get attackSeconds() {
+    return localStore.getValue(this.#getLocalStorageKey('attackSeconds'), 0.3);
+  }
+
+  // todo: check ms vs seconds everywhere for consistency
   set attackTime(timeMs: number) {
-    this.#attackTime = timeMs * 1000;
+    localStore.saveValue(
+      this.#getLocalStorageKey('attackSeconds'),
+      timeMs * 1000
+    );
+  }
+
+  get releaseSeconds() {
+    return localStore.getValue(this.#getLocalStorageKey('releaseSeconds'), 0.3);
   }
 
   set releaseTime(timeMs: number) {
-    this.#releaseTime = timeMs * 1000;
+    localStore.saveValue(
+      this.#getLocalStorageKey('releaseSeconds'),
+      timeMs * 1000
+    );
   }
 
   /** GETTERS */

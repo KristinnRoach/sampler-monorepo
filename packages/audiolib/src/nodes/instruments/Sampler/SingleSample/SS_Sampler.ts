@@ -12,7 +12,13 @@ import {
   createMessageBus,
   MessageBus,
 } from '@/events';
-import { assert, tryCatch, isMidiValue, findZeroCrossings } from '@/utils';
+import {
+  assert,
+  tryCatch,
+  isValidAudioBuffer,
+  isMidiValue,
+  findZeroCrossings,
+} from '@/utils';
 
 import { SampleVoice } from '@/nodes/instruments/Sampler/SingleSample/SampleVoice';
 import { Pool } from '@/nodes/collections/Pool';
@@ -163,6 +169,8 @@ export class Sampler implements LibInstrument {
     buffer: AudioBuffer,
     modSampleRate?: number
   ): Promise<boolean> {
+    assert(isValidAudioBuffer(buffer));
+
     this.stopAll();
     this.#isLoaded = false;
 
@@ -247,7 +255,7 @@ export class Sampler implements LibInstrument {
   release(midiNote: number, modifiers: Partial<PressedModifiers> = {}): this {
     const voices = this.#activeMidiNoteToVoice.get(midiNote);
     if (!voices || voices.size === 0) {
-      console.warn(`Could not release note ${midiNote}`);
+      // console.warn(`Could not release note ${midiNote}`);
       return this;
     }
 
@@ -377,6 +385,10 @@ export class Sampler implements LibInstrument {
         voice.enablePositionTracking = false;
       });
     }
+  }
+
+  startLevelMonitoring(intervalMs?: number) {
+    this.#output.startLevelMonitoring(intervalMs);
   }
 
   dispose(): void {
