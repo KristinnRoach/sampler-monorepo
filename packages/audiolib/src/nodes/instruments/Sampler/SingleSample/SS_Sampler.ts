@@ -1,5 +1,3 @@
-// Todo: only stop the most recent voice for midiNote
-// Sampler.ts
 import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
 import { createNodeId, NodeID } from '@/state/registry/NodeIDs';
 import { getAudioContext } from '@/context';
@@ -23,7 +21,7 @@ import {
 import { SampleVoice } from '@/nodes/instruments/Sampler/SingleSample/SampleVoice';
 import { Pool } from '@/nodes/collections/Pool';
 import { MacroParam } from '@/nodes/params';
-import { DEFAULT_SAMPLE_VOICE_SETTINGS, SampleVoiceSettings } from './defaults';
+// import { DEFAULT_SAMPLE_VOICE_SETTINGS, SampleVoiceSettings } from './defaults';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 export class Sampler implements LibInstrument {
@@ -38,9 +36,9 @@ export class Sampler implements LibInstrument {
   #messages: MessageBus<Message>;
 
   #activeMidiNoteToVoice = new Map<number, Set<SampleVoice>>();
-  // #state: SampleVoiceSettings = DEFAULT_SAMPLE_VOICE_SETTINGS;
 
-  // #loopEnabled: boolean = false; // todo: clean up after test
+  // todo: clean up and standardize all state management
+  // (starting with instrument user adjustable params + defults)
   #loopRampTime: number = 0.2;
 
   #macroLoopStart: MacroParam;
@@ -72,7 +70,7 @@ export class Sampler implements LibInstrument {
     this.#context = context;
     this.#messages = createMessageBus<Message>(this.nodeId);
 
-    // Create master bus as the only output
+    // Initialize the output bus
     this.#output = new InstrumentMasterBus();
 
     // Initialize macro params
@@ -162,7 +160,7 @@ export class Sampler implements LibInstrument {
     this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
     this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
 
-    // set scale - allowed durations ...
+    // todo: set scale - allowed durations ...
   }
 
   async loadSample(
@@ -199,7 +197,7 @@ export class Sampler implements LibInstrument {
       'Failed to load sample'
     );
     if (result.error) {
-      return false; // Loading failed
+      return false;
     }
 
     this.#resetMacros(buffer.duration);
@@ -320,6 +318,7 @@ export class Sampler implements LibInstrument {
     this.#endOffset = seconds;
   }
 
+  // todo: choose global vs passed in 'enabled' AFTER designing state mgmt
   setLoopEnabled(enabled: boolean): this {
     // Skip if no change
     // if (this.#loopEnabled === enabled) return this;

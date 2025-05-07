@@ -75,7 +75,8 @@ export class InstrumentMasterBus implements LibNode {
    */
   startLevelMonitoring(
     intervalMs: number = 1000,
-    fftSize: number = 1024
+    fftSize: number = 1024,
+    logOutput: boolean = false
   ): void {
     // Stop any existing monitoring
     this.stopLevelMonitoring();
@@ -89,7 +90,7 @@ export class InstrumentMasterBus implements LibNode {
     );
 
     // Start monitoring
-    this.#levelMonitor.start(intervalMs);
+    this.#levelMonitor.start(intervalMs), fftSize, logOutput;
 
     console.log('Level monitoring started');
   }

@@ -9,6 +9,9 @@ import {
 import { assert, cancelScheduledParamValues } from '@/utils';
 import { createScale } from '@/utils/musical/scales/createScale';
 import { NOTES } from '@/constants';
+import { Debouncer } from '@/utils/Debouncer';
+import { localStore } from '@/storage/local';
+import { C } from 'vitest/dist/chunks/reporters.d.CqBhtcTq';
 
 // Todo: add Debouncer!
 
@@ -19,8 +22,9 @@ export class MacroParam implements LibParamNode {
   #context: BaseAudioContext;
   #controlNode: GainNode;
   #constantSignal: ConstantSourceNode;
+  #debouncer: Debouncer = new Debouncer();
 
-  #slaveParams: AudioParam[] = []; // LibParam?
+  #slaveParams: AudioParam[] = [];
   #paramType: string = '';
   #allowedValues: number[] = [];
   #allowedPeriods: number[] = [];
@@ -47,7 +51,11 @@ export class MacroParam implements LibParamNode {
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     // TODO: implement proper message handling
-    return () => {};
+    return this.#messages.onMessage(type, handler);
+  }
+
+  protected sendMessage(type: string, data: any): void {
+    this.#messages.sendMessage(type, data);
   }
 
   connect(): this {
@@ -100,14 +108,12 @@ export class MacroParam implements LibParamNode {
   }
 
   processTargetValue(value: number, constant: number) {
-    let processedValue = value;
-    let targetPeriod = Math.abs(value - constant);
+    const targetPeriod = Math.abs(value - constant);
 
-    if (this.longestPeriod > targetPeriod) {
-      const zeroSnapped = this.snap(processedValue); // Testing
-      processedValue = this.snapToNotePeriod(zeroSnapped, constant);
+    let processedValue = value;
+    if (this.longestPeriod > targetPeriod && this.#allowedPeriods.length > 0) {
+      processedValue = this.snapToNotePeriod(processedValue, constant);
     } else if (this.snapEnabled) {
-      // only snapping to zero if not snapping to periods
       // todo: test if this sounds ok or optimize zero snapping for periods
       processedValue = this.snap(processedValue);
     }
@@ -119,11 +125,39 @@ export class MacroParam implements LibParamNode {
     rampTime: number,
     constant: number,
     style: 'linear' | 'exponential' | 'setTargetAtTime' = 'exponential',
-    onComplete?: () => void // optional user callback to run when ramp completes
+    onComplete?: () => void, // optional user callback to run when ramp completes
+    debounceMs = 100 // test
+  ): this {
+    const options = { targetValue, rampTime, constant, style, onComplete };
+    if (debounceMs === 0) {
+      this.#rampNow({ ...options });
+    } else {
+      // Get a debounced version for this param name
+      const debounced = this.#debouncer.debounce(
+        this.nodeId, // todo: key system for debouncing functions (same as localStorage key?)
+        (options) => this.#rampNow(options),
+        debounceMs
+      );
+      debounced(options);
+    }
+
+    return this;
+  }
+
+  #rampNow(
+    options: {
+      targetValue: number;
+      rampTime: number;
+      constant: number;
+      style: 'linear' | 'exponential' | 'setTargetAtTime';
+      onComplete?: () => void;
+    } // optional user callback to run when ramp completes
   ): this {
     const now = this.now;
     const param = this.macro;
-    // if (!this.#shouldRamp(targetValue, snapToPeriod)) return this;
+
+    const { targetValue, rampTime, constant, style, onComplete } = options;
+    style ? style : 'exponential';
 
     cancelScheduledParamValues(this.macro, now);
 
@@ -145,23 +179,36 @@ export class MacroParam implements LibParamNode {
         break;
     }
 
-    // Schedule callback if provided
-    if (onComplete) {
-      const durationSec = style === 'setTargetAtTime' ? rampTime * 2 : rampTime;
-      // const timeoutId = // Todo: cleanup considerations?
-      setTimeout(onComplete, durationSec * 1000); // ms
-    }
+    // Schedule callback to persist value and handle optional callbacks
+    const durationSec = style === 'setTargetAtTime' ? rampTime * 2 : rampTime;
+    // const timeoutId = // Todo: cleanup considerations?
+    setTimeout(() => {
+      this.#onRampComplete();
+      if (onComplete) onComplete();
+    }, durationSec * 1000); // ms
 
     return this;
   }
 
-  snap(inputValue: number) {
-    // snap to zero crossings
-    if (!this.snapEnabled) return inputValue;
+  #getLocalStorageKey() {
+    return `${this.#paramType}-${this.nodeId}`;
+  }
+
+  #onRampComplete() {
+    const storageKey = this.#getLocalStorageKey();
+    localStore.saveValue(storageKey, this.macro.value);
+  }
+
+  // snap to zero crossings
+  snap(timeInSeconds: number) {
+    // Seconds from start of audio buffer
+    if (!this.snapEnabled) return timeInSeconds;
     const values = this.#allowedValues;
 
     return values.reduce((prev, curr) =>
-      Math.abs(curr - inputValue) < Math.abs(prev - inputValue) ? curr : prev
+      Math.abs(curr - timeInSeconds) < Math.abs(prev - timeInSeconds)
+        ? curr
+        : prev
     );
   }
 
@@ -291,6 +338,7 @@ export class MacroParam implements LibParamNode {
     this.#constantSignal.stop();
     this.#constantSignal.disconnect();
     this.#controlNode.disconnect();
+    localStore.remove(this.#getLocalStorageKey()); // needed ?
     deleteNodeId(this.nodeId);
   }
 }

@@ -54,7 +54,8 @@ export class LevelMonitor {
    */
   start(
     intervalMs: number = 1000,
-    callback?: (levels: LevelData) => void
+    callback?: (levels: LevelData) => void,
+    logOutput: boolean = false
   ): this {
     // Stop any existing monitoring
     this.stop();
@@ -69,7 +70,9 @@ export class LevelMonitor {
       // Call callback if provided
       if (callback) {
         callback(levels);
-      } else {
+      }
+
+      if (logOutput) {
         // Default behavior: log to console
         this.#logLevels(levels);
       }

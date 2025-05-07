@@ -162,8 +162,8 @@ export class Audiolib implements LibNode {
     newSampler.connect(this.#masterGain);
     this.#instruments.set(newSampler.nodeId, newSampler);
 
-    // REMOVE AFTER TESTING:
-    newSampler.startLevelMonitoring();
+    // // For dev debugging levels
+    // newSampler.startLevelMonitoring();
 
     return newSampler;
   }

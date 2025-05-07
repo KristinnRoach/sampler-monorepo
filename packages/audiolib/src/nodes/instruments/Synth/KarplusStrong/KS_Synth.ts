@@ -34,7 +34,7 @@ export class KarplusStrongSynth implements LibInstrument {
   //   Record<KSS_ParamName, ReturnType<typeof setTimeout>>
   // > = {};
 
-  // Moving this to localStorage
+  // Moving this to localStorage for now (too slow?)
   // #currentValues: Record<KSS_ParamName, number> = {
   //   attackTime: 0.001,
   //   releaseTime: 0.3,
@@ -147,7 +147,7 @@ export class KarplusStrongSynth implements LibInstrument {
   }
 
   // ! Rethink default debounce-ing for non-gliding params (only debounce the storage?)
-  setParamValue(name: string, value: number, debounceMs = 65): this {
+  setParamValue(name: string, value: number, debounceMs = 40): this {
     if (debounceMs === 0) {
       this.#setParamValueImmediate(name, value);
     } else {
@@ -189,6 +189,8 @@ export class KarplusStrongSynth implements LibInstrument {
   dispose(): void {
     this.stopAll();
     this.disconnect();
+
+    // ? localStore.remove() needed ?
 
     this.#voicePool.dispose();
     this.#activeNotes.clear();

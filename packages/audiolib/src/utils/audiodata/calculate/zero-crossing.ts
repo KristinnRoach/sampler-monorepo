@@ -22,7 +22,7 @@ export function findZeroCrossings(
 }
 
 export function snapToNearestZeroCrossing(
-  time: number,
+  time: number, // Seconds from start of audio buffer
   zeroCrossings: number[]
 ): number {
   if (zeroCrossings.length === 0) {
