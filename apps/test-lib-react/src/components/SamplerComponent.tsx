@@ -16,7 +16,7 @@ const SamplerComponent = () => {
   const [loopEndNormalized, setLoopEndNormalized] = useState(1);
 
   const [sampleDuration, setSampleDuration] = useState(0);
-  const [rampTime, setRampTime] = useState(0.2);
+  const [rampTime, setRampTime] = useState(0.25);
   const [activeVoices, setActiveVoices] = useState(0);
   const samplerRef = useRef<Sampler | null>(null);
   const sampleDurationRef = useRef(0); // Add this ref to track sample duration

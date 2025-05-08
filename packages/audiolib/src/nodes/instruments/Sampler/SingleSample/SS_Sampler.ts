@@ -39,7 +39,7 @@ export class Sampler implements LibInstrument {
 
   // todo: clean up and standardize all state management
   // (starting with instrument user adjustable params + defults)
-  #loopRampTime: number = 0.2;
+  #loopRampDuration: number = 0.2;
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
@@ -354,12 +354,12 @@ export class Sampler implements LibInstrument {
     this.sendMessage('loop:state', { enabled });
     return this;
   }
-  setLoopStart(targetValue: number, rampTime: number = this.#loopRampTime) {
+  setLoopStart(targetValue: number, rampTime: number = this.#loopRampDuration) {
     this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
     return this;
   }
 
-  setLoopEnd(targetValue: number, rampTime: number = this.#loopRampTime) {
+  setLoopEnd(targetValue: number, rampTime: number = this.#loopRampDuration) {
     this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
     return this;
   }
@@ -368,14 +368,17 @@ export class Sampler implements LibInstrument {
     loopPoint: 'start' | 'end',
     start: number,
     end: number,
-    rampTime: number = this.#loopRampTime
+    rampDuration: number = this.#loopRampDuration
   ) {
     if (start < 0 || end > this.#bufferDuration || start >= end) return this;
 
+    const RAMP_FACTOR = 2;
+    const scaledRampTime = rampDuration * RAMP_FACTOR;
+
     if (loopPoint === 'start') {
-      this.#macroLoopStart.ramp(start, rampTime, end);
+      this.#macroLoopStart.ramp(start, scaledRampTime, end);
     } else {
-      this.#macroLoopEnd.ramp(end, rampTime, start);
+      this.#macroLoopEnd.ramp(end, scaledRampTime, start);
     }
 
     return this;
@@ -434,7 +437,7 @@ export class Sampler implements LibInstrument {
       this.#isLoaded = false;
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
-      this.#loopRampTime = 0;
+      this.#loopRampDuration = 0;
       // this.#loopEnabled = false;
 
       this.#context = null as unknown as AudioContext;

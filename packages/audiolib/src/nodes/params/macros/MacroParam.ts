@@ -11,9 +11,9 @@ import { createScale } from '@/utils/musical/scales/createScale';
 import { NOTES } from '@/constants';
 import { Debouncer } from '@/utils/Debouncer';
 import { localStore } from '@/storage/local';
-import { C } from 'vitest/dist/chunks/reporters.d.CqBhtcTq';
 
-// Todo: add Debouncer!
+type RampMethod = 'exponentialRampToValueAtTime' | 'linearRampToValueAtTime';
+// | 'setTargetAtTime';
 
 export class MacroParam implements LibParamNode {
   readonly nodeId: NodeID;
@@ -32,7 +32,11 @@ export class MacroParam implements LibParamNode {
 
   static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
-  constructor(context: BaseAudioContext, initialValue: number = 0) {
+  constructor(
+    context: BaseAudioContext,
+    initialValue: number = MacroParam.MIN_EXPONENTIAL_RAMP_VALUE,
+    rampMethod: RampMethod = 'exponentialRampToValueAtTime'
+  ) {
     this.#context = context;
     assert(context instanceof AudioContext, '', this);
 
@@ -44,6 +48,9 @@ export class MacroParam implements LibParamNode {
 
     this.#controlNode = new GainNode(context, { gain: initialValue });
     this.#constantSignal.connect(this.#controlNode);
+
+    // Set inital value to non-zero
+    this.macro[rampMethod](this.ensureNonZero(initialValue), this.now + 0.001);
 
     const PERIOD_DEFAULTS = {
       root: 'C', // add start octave
@@ -124,23 +131,32 @@ export class MacroParam implements LibParamNode {
 
     let processedValue = value;
     if (this.longestPeriod > targetPeriod && this.#allowedPeriods.length > 0) {
-      processedValue = this.snapToNotePeriod(processedValue, constant);
+      const safeConstant = this.ensureNonZero(constant);
+      processedValue = this.snapToNotePeriod(processedValue, safeConstant);
     } else if (this.snapEnabled) {
-      // todo: test if this sounds ok or optimize zero snapping for periods
+      // todo: customized strategy for zero snapping that does not make periods out of tune
+      //       preprocess and cache optimal (semi) zero snapped periods
       processedValue = this.snap(processedValue);
     }
-    return processedValue;
+
+    return this.ensureNonZero(processedValue);
   }
 
   ramp(
     targetValue: number,
-    rampTime: number,
+    rampDuration: number,
     constant: number,
-    style: 'linear' | 'exponential' | 'setTargetAtTime' = 'exponential',
+    style: RampMethod = 'exponentialRampToValueAtTime',
     onComplete?: () => void, // optional user callback to run when ramp completes
-    debounceMs = 100 // test
+    debounceMs = 30 // still testing values
   ): this {
-    const options = { targetValue, rampTime, constant, style, onComplete };
+    const options = {
+      targetValue,
+      rampDuration,
+      constant,
+      style,
+      onComplete,
+    };
     if (debounceMs === 0) {
       this.#rampNow({ ...options });
     } else {
@@ -159,45 +175,30 @@ export class MacroParam implements LibParamNode {
   #rampNow(
     options: {
       targetValue: number;
-      rampTime: number;
+      rampDuration: number;
       constant: number;
-      style: 'linear' | 'exponential' | 'setTargetAtTime';
+      style: RampMethod;
       onComplete?: () => void;
     } // optional user callback to run when ramp completes
   ): this {
     const now = this.now;
-    const param = this.macro;
 
-    const { targetValue, rampTime, constant, style, onComplete } = options;
-    style ? style : 'exponential';
-
-    cancelScheduledParamValues(this.macro, now);
+    const { targetValue, rampDuration, constant, style, onComplete } = options;
+    const rampStyle = style ? style : 'exponentialRampToValueAtTime';
 
     let processedValue = this.processTargetValue(targetValue, constant);
 
-    switch (style) {
-      case 'linear':
-        param.linearRampToValueAtTime(processedValue, now + rampTime);
-        break;
-      case 'exponential':
-        param.exponentialRampToValueAtTime(
-          this.ensureNonZero(processedValue),
-          now + rampTime
-        );
-        break;
-      case 'setTargetAtTime':
-        param.setTargetAtTime(processedValue, now, rampTime);
-        // need to approximate completion time for timeouts if using setTargetAtTime, test this
-        break;
-    }
+    cancelScheduledParamValues(this.macro, now);
+    this.macro[rampStyle](processedValue, now + rampDuration);
 
-    // Schedule callback to persist value and handle optional callbacks
-    const durationSec = style === 'setTargetAtTime' ? rampTime * 2 : rampTime;
     // const timeoutId = // Todo: cleanup considerations?
-    setTimeout(() => {
-      this.#onRampComplete();
-      if (onComplete) onComplete();
-    }, durationSec * 1000); // ms
+    setTimeout(
+      () => {
+        this.#onRampComplete();
+        if (onComplete) onComplete();
+      },
+      rampDuration * 1000 + 10
+    ); // ms
 
     return this;
   }
@@ -217,11 +218,13 @@ export class MacroParam implements LibParamNode {
     if (!this.snapEnabled) return timeInSeconds;
     const values = this.#allowedValues;
 
-    return values.reduce((prev, curr) =>
+    const snapped = values.reduce((prev, curr) =>
       Math.abs(curr - timeInSeconds) < Math.abs(prev - timeInSeconds)
         ? curr
         : prev
     );
+
+    return snapped ?? timeInSeconds;
   }
 
   snapToNotePeriod(target: number, constant: number) {
@@ -242,9 +245,9 @@ export class MacroParam implements LibParamNode {
       }
     }
 
-    const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // should not be needed
+    const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // Unnecessary?
 
-    let returnValue: number = 0; // target
+    let returnValue: number = target;
     if (this.#paramType === 'loopEnd') {
       returnValue = constant + safePeriod;
     } else if (this.#paramType === 'loopStart') {
@@ -253,12 +256,17 @@ export class MacroParam implements LibParamNode {
       console.warn("Macro's paramType not set");
     }
 
+    console.log(
+      { targetDist: initialTargetDistance },
+      { processedDist: returnValue }
+    );
+
     // console.debug(
     //   `\nparamType: ${this.#paramType}
     //   \nCurrent Value: ${this.getValue()},
     //   \nTarget Value: ${target},
     //   \nBound constant: ${constant}
-    //   \nReturn Value: ${returnValue}`
+    //   \nProcessed Value: ${returnValue}`
     // );
     return returnValue;
   }
@@ -375,19 +383,27 @@ export class MacroParam implements LibParamNode {
 //   allowedValues = this.#snapValues;
 // }
 
-// let testThreshold = 0.01;
-// let targetPeriod = allowedDistances.find(
-//   (period) => period - initialTargetDistance < testThreshold
-// );
+// before simplifying to use RampMethod:
 
-// if (targetPeriod) {
-//   console.warn(`Target PERIOD: ${targetPeriod}`); // Always: 0.00031888161838798966
-
-//   if (this.#paramType === 'loopEnd') return constant + targetPeriod;
-//   else if (this.#paramType === 'loopStart')
-//     return this.clampToMin(constant - targetPeriod);
+// switch (style) {
+//   case 'linear':
+//     param.linearRampToValueAtTime(processedValue, now + rampTime);
+//     break;
+//   case 'exponential':
+//     param.exponentialRampToValueAtTime(
+//       this.ensureNonZero(processedValue),
+//       now + rampTime
+//     );
+//     break;
+//   case 'setTargetAtTime':
+//     param.setTargetAtTime(processedValue, now, rampTime);
+//     // need to approximate completion time for timeouts if using setTargetAtTime, test this
+//     break;
 // }
-// TODO: Fix loopStart bug and Clean up ramp tracking logic!
+
+// Schedule callback to persist value and handle optional callbacks
+// const durationSec = style === 'setTargetAtTime' ? rampDuration * 2 : rampDuration;
+
 // Maybe it's best handled with custom interpolation in the source-processor ?
 //       gera  closestPeriod(targetValue, 'larger')
 
