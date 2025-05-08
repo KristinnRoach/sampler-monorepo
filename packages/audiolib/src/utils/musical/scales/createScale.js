@@ -3,7 +3,12 @@ import { ROOTS, NOTE_FREQUENCIES, SCALES, PERIODS, NOTES } from '@/constants';
 // todo: Should return midinotes as well ?
 // If not called often probly best to just get all the info in one place
 // todo: convert to typescript
-export function createScale(rootNote, scalePattern) {
+export function createScale(
+  rootNote,
+  scalePattern,
+  lowestOctave = 0,
+  highestOctave = 8
+) {
   if (!ROOTS[rootNote] && ROOTS[rootNote] !== 0) {
     throw new Error(`Unknown root note: ${rootNote}`);
   }
@@ -13,8 +18,9 @@ export function createScale(rootNote, scalePattern) {
   const periodsInSec = [];
   const noteNames = [];
 
-  // Generate scale notes across all octaves
-  for (let octave = 0; octave < 8; octave++) {
+  // Generate scale notes, Hz and periods in seconds
+  // across requested nr of octaves
+  for (let octave = lowestOctave; octave <= highestOctave; octave++) {
     scalePattern.forEach((interval) => {
       const absoluteIndex = octave * 12 + ((rootIdx + interval) % 12);
 

@@ -150,17 +150,20 @@ export class Sampler implements LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    this.#macroLoopEnd.macro.setValueAtTime(bufferDuration, this.now);
-    this.#macroLoopStart.macro.setValueAtTime(0, this.now);
+    const lastZero =
+      this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
+    const firstZero = this.#zeroCrossings[0] ?? 0;
+    this.#macroLoopEnd.macro.setValueAtTime(lastZero, this.now);
+    this.#macroLoopStart.macro.setValueAtTime(firstZero, this.now);
 
-    if (!this.#useZeroCrossings || !(this.#zeroCrossings.length > 0)) {
-      return this;
+    // consider whether startOffset and endOffset should be macros
+
+    if (this.#useZeroCrossings && this.#zeroCrossings.length > 0) {
+      this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
+      this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
     }
-    // set zero crossings
-    this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
-    this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
-
     // todo: set scale - allowed durations ...
+    return this;
   }
 
   async loadSample(
@@ -185,8 +188,21 @@ export class Sampler implements LibInstrument {
       );
     }
 
-    // Cache zero crossings, if being used
-    if (this.#useZeroCrossings) this.#zeroCrossings = findZeroCrossings(buffer);
+    if (this.#useZeroCrossings) {
+      const zeroes = findZeroCrossings(buffer);
+      // reset start and end offset
+      this.#startOffset = zeroes[0] || 0; // or saved value
+      const lastZero = zeroes[zeroes.length - 1];
+      this.#endOffset = buffer.duration - lastZero || 0;
+      // cache zero crossings
+      this.#zeroCrossings = zeroes;
+    }
+
+    console.debug(
+      `use zeroes ? ${this.#useZeroCrossings}, 
+      startOffset: ${this.#startOffset}, 
+      endOffset: ${this.#endOffset}`
+    );
 
     const allVoices = this.#voicePool.nodes;
     assert(allVoices.length > 0, 'No voices to load sample!');
@@ -202,7 +218,7 @@ export class Sampler implements LibInstrument {
 
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
-    this.setLoopEnd(buffer.duration);
+    this.setLoopEnd(buffer.duration); // for now, use saved loopEnd if exists, when implemented
 
     this.#isLoaded = true;
     return true;

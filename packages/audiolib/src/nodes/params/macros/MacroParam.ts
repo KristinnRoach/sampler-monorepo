@@ -45,7 +45,19 @@ export class MacroParam implements LibParamNode {
     this.#controlNode = new GainNode(context, { gain: initialValue });
     this.#constantSignal.connect(this.#controlNode);
 
-    const periods = createScale('C', [0, 7]).periodsInSec;
+    const PERIOD_DEFAULTS = {
+      root: 'C', // add start octave
+      intervals: [0, 7], // C and G
+      lowestOctave: 0,
+      highestOctave: 5,
+    };
+    const scale = createScale(
+      PERIOD_DEFAULTS.root,
+      PERIOD_DEFAULTS.intervals,
+      PERIOD_DEFAULTS.lowestOctave,
+      PERIOD_DEFAULTS.highestOctave
+    );
+    const periods = scale.periodsInSec;
     this.#allowedPeriods = periods.sort((a, b) => a - b);
   }
 
@@ -265,8 +277,10 @@ export class MacroParam implements LibParamNode {
 
   setAllowedParamValues(values: number[]) {
     assert(values.length > 1, 'allowed values must not be empty!', this);
-    this.#allowedValues = values.sort((a, b) => a - b); // !! Test whether sorting zero crossings is helpful or not!
-
+    this.#allowedValues = values.sort((a, b) => a - b);
+    // zero crossings should already be sorted, but can't hurt if fast enough..
+    // todo: test algos like binary sort and using prev value as starting point to utilize the fact it's sorted
+    // for both allowed values (zeroCrossings) and periods
     return this;
   }
 
