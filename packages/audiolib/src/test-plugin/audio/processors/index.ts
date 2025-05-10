@@ -10,5 +10,7 @@ export * from './test-processor';
 // Import JS version (note: JS files don't need explicit export since registration happens at import time)
 import './js-test-processor';
 
+import './sample-player-processor';
+
 // Import buffer player processor
 export * from './buffer-player-processor';

@@ -24,6 +24,8 @@ import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
 import { Sampler, KarplusStrongSynth } from './nodes/instruments';
 import { Recorder } from '@/nodes/recorder';
 
+import { loadAudioWorkletWithFallback } from './test-plugin';
+
 export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: ContainerType = 'audiolib';
@@ -92,6 +94,9 @@ export class Audiolib implements LibNode {
       'Processor registration failed',
       processorResult
     );
+
+    const pluginResult = await tryCatch(loadAudioWorkletWithFallback(ctx));
+    assert(!pluginResult.error, `Failed to register with plugin`, pluginResult);
 
     // Initialize Recorder node
     const recorder = new Recorder(ctx);
