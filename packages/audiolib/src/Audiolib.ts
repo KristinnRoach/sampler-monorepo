@@ -4,8 +4,8 @@ import {
   releaseGlobalAudioContext,
 } from '@/context';
 
-import { registry } from '@/state/registry/worklet-registry';
-import { createNodeId, deleteNodeId, NodeID } from '@/state/registry/NodeIDs';
+import { registry } from '@/registry/worklet-registry';
+import { createNodeId, deleteNodeId, NodeID } from '@/registry/NodeIDs';
 import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
 import { assert, tryCatch } from '@/utils';
 import { createAsyncInit, InitState } from '@/utils/async-initializable';
@@ -22,7 +22,7 @@ import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
 import { Sampler, KarplusStrongSynth } from './nodes/instruments';
-import { Recorder } from '@/recorder';
+import { Recorder } from '@/nodes/recorder';
 
 export class Audiolib implements LibNode {
   readonly nodeId: NodeID;

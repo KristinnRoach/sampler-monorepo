@@ -16,11 +16,10 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --emitDeclarationOnly && vite build",
-    "watch": "concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
-    "clean": "rimraf dist && pnpm prune",
+    "build": "rimraf dist && tsc --emitDeclarationOnly && vite build",
+    "watch": "rimraf dist && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
+    "clean": "rimraf dist && pnpm store prune && pnpm prune",
     "clean:turbo": "rimraf .turbo",
-    "clean:store": "pnpm store prune && pnpm prune",
     "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune",
     "lint": "eslint . ",
     "lint:fix": "eslint . --fix",

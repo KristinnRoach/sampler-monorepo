@@ -1,0 +1,86 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Recorder } from './Recorder';
+
+// Minimal test without AudioContext - needs manual testing for now
+vi.mock('@/context', () => ({
+  getAudioContext: () => ({ currentTime: 0 }),
+}));
+
+describe('RecorderNode', () => {
+  let recorder: Recorder;
+
+  beforeEach(() => {
+    recorder = new Recorder();
+  });
+
+  describe('Node Properties', () => {
+    it('should have correct nodeType', () => {
+      expect(recorder.nodeType).toBe('recorder');
+    });
+
+    it('should have valid nodeId', () => {
+      expect(recorder.nodeId).toBeDefined();
+      expect(typeof recorder.nodeId).toBe('string');
+      expect(recorder.nodeId).toContain('recorder');
+    });
+
+    it('should start with recording flag set to false', () => {
+      expect(recorder.isRecording).toBe(false);
+    });
+  });
+
+  describe('Message System', () => {
+    it('should allow message handler registration', () => {
+      const handler = vi.fn();
+      const unsubscribe = recorder.onMessage('test', handler);
+
+      expect(typeof unsubscribe).toBe('function');
+    });
+
+    it('should allow message handler unsubscription', () => {
+      const handler = vi.fn();
+      const unsubscribe = recorder.onMessage('test', handler);
+
+      unsubscribe();
+      // Handler is unsubscribed - implementation detail we can't easily test
+      // without exposing internals
+    });
+
+    it('should support multiple message handlers', () => {
+      const handler1 = vi.fn();
+      const handler2 = vi.fn();
+
+      const unsub1 = recorder.onMessage('test', handler1);
+      const unsub2 = recorder.onMessage('test', handler2);
+
+      expect(typeof unsub1).toBe('function');
+      expect(typeof unsub2).toBe('function');
+    });
+  });
+
+  describe('Error States', () => {
+    it('should throw when stopping without initialization', async () => {
+      await expect(recorder.stop()).rejects.toThrow('Recorder not initialized');
+    });
+
+    it('should throw when starting without initialization', async () => {
+      await expect(recorder.start()).rejects.toThrow(
+        'Recorder not initialized'
+      );
+    });
+  });
+
+  describe('Node Interface', () => {
+    it('should implement required LibNode methods', () => {
+      expect(recorder.connect).toBeDefined();
+      expect(recorder.disconnect).toBeDefined();
+      expect(recorder.dispose).toBeDefined();
+      expect(typeof recorder.now).toBe('number');
+    });
+
+    // todo:
+    // it('should return self from connect for method chaining', () => {
+    //   expect(recorder.connect()).toBe(recorder);
+    // });
+  });
+});

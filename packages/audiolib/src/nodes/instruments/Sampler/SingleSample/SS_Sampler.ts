@@ -1,5 +1,5 @@
 import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
-import { createNodeId, NodeID } from '@/state/registry/NodeIDs';
+import { createNodeId, NodeID } from '@/registry/NodeIDs';
 import { getAudioContext } from '@/context';
 
 import { PressedModifiers, checkGlobalLoopState } from '@/input'; // todo
@@ -19,7 +19,7 @@ import {
 } from '@/utils';
 
 import { SampleVoice } from '@/nodes/instruments/Sampler/SingleSample/SampleVoice';
-import { Pool } from '@/nodes/collections/Pool';
+import { Pool } from '@/nodes/helpers/collections/Pool';
 import { MacroParam } from '@/nodes/params';
 // import { DEFAULT_SAMPLE_VOICE_SETTINGS, SampleVoiceSettings } from './defaults';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
@@ -229,7 +229,7 @@ export class Sampler implements LibInstrument {
     velocity: number = 100,
     modifiers: Partial<PressedModifiers> = {}
   ): this {
-    console.debug(this.getDebugState());
+    // console.debug(this.getDebugState());
 
     const voice = this.#voicePool.allocateNode();
     if (!voice) return this;

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AudioWorklet Test</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1 {
+        margin-bottom: 0.5em;
+      }
+      .controls {
+        margin: 20px 0;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 8px;
+      }
+      .control-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      .control-row label {
+        width: 100px;
+        font-weight: bold;
+      }
+      input[type='range'] {
+        flex: 1;
+        margin: 0 15px;
+      }
+      .value-display {
+        width: 120px;
+        text-align: right;
+        font-family: monospace;
+      }
+      button {
+        padding: 12px 20px;
+        font-size: 16px;
+        background: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      button:hover {
+        background: #45a049;
+      }
+      button.secondary {
+        background: #2196f3;
+      }
+      button.secondary:hover {
+        background: #0b7dda;
+      }
+      #status {
+        margin: 20px 0;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #dff0d8;
+        color: #3c763d;
+      }
+      .error {
+        background: #f2dede;
+        color: #a94442;
+      }
+      .audioControl {
+        opacity: 0.5;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+      h3 {
+        margin: 0 0 15px 0;
+        color: #333;
+      }
+      .file-info {
+        padding: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        margin: 10px 0;
+        font-family: monospace;
+      }
+      .button-row {
+        display: flex;
+        gap: 10px;
+        margin: 15px 0;
+      }
+      button:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AudioWorklet Test</h1>
+    <p>
+      This is a simple test to verify that AudioWorklet processors can be loaded
+      with Vite and can import utility functions.
+    </p>
+
+    <button id="startButton">Start Audio</button>
+    <div id="status">Click the button above to start audio</div>
+
+    <div
+      id="versionToggle"
+      style="
+        display: none;
+        margin: 15px 0;
+        padding: 10px;
+        background: #e8f4fc;
+        border-radius: 4px;
+      "
+    >
+      <p>Current processor: <span id="currentVersion">TypeScript</span></p>
+      <button id="toggleVersion" class="secondary">
+        Switch Processor Version
+      </button>
+    </div>
+
+    <!-- Buffer Player Controls -->
+    <div
+      id="bufferPlayerControls"
+      class="controls audioControl"
+      style="display: none"
+    >
+      <h3>Sample Player</h3>
+
+      <div class="control-row">
+        <label for="sampleFileInput">Audio File:</label>
+        <input type="file" id="sampleFileInput" accept="audio/*" />
+      </div>
+
+      <div id="fileInfo" class="file-info">No file loaded</div>
+
+      <div class="button-row">
+        <button id="playButton" disabled>Play</button>
+        <button id="stopButton" disabled>Stop</button>
+      </div>
+
+      <div class="control-row">
+        <label for="sampleVolumeSlider">Volume:</label>
+        <input
+          type="range"
+          id="sampleVolumeSlider"
+          min="0"
+          max="1"
+          value="0"
+          step="0.01"
+        />
+        <div id="sampleVolumeDisplay" class="value-display">0.80</div>
+      </div>
+    </div>
+
+    <div class="controls audioControl">
+      <h3>Oscillator Controls</h3>
+      <div class="control-row">
+        <label for="noteSlider">Note:</label>
+        <input
+          type="range"
+          id="noteSlider"
+          min="36"
+          max="96"
+          value="69"
+          step="1"
+        />
+        <div id="noteDisplay" class="value-display">A4 (MIDI: 69)</div>
+      </div>
+
+      <div class="control-row">
+        <label for="volumeSlider">Volume:</label>
+        <input
+          type="range"
+          id="volumeSlider"
+          min="0"
+          max="1"
+          value="0.5"
+          step="0.01"
+        />
+        <div id="volumeDisplay" class="value-display">0.5</div>
+      </div>
+
+      <div class="control-row">
+        <label for="distortionSlider">Distortion:</label>
+        <input
+          type="range"
+          id="distortionSlider"
+          min="0"
+          max="1"
+          value="0"
+          step="0.01"
+        />
+        <div id="distortionDisplay" class="value-display">0</div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 import { LibNode, LibParamNode, ParamType } from '@/LibNode';
-import { createNodeId, deleteNodeId, NodeID } from '@/state/registry/NodeIDs';
+import { createNodeId, deleteNodeId, NodeID } from '@/registry/NodeIDs';
 import {
   MessageHandler,
   Message,
@@ -13,7 +13,6 @@ import { Debouncer } from '@/utils/Debouncer';
 import { localStore } from '@/storage/local';
 
 type RampMethod = 'exponentialRampToValueAtTime' | 'linearRampToValueAtTime';
-// | 'setTargetAtTime';
 
 export class MacroParam implements LibParamNode {
   readonly nodeId: NodeID;
@@ -218,6 +217,7 @@ export class MacroParam implements LibParamNode {
     if (!this.snapEnabled) return timeInSeconds;
     const values = this.#allowedValues;
 
+    // with access to playpos we could avoid iterating from start
     const snapped = values.reduce((prev, curr) =>
       Math.abs(curr - timeInSeconds) < Math.abs(prev - timeInSeconds)
         ? curr
@@ -237,6 +237,8 @@ export class MacroParam implements LibParamNode {
     let minDifference = Math.abs(initialTargetDistance - closestAllowed);
 
     // could use the fact allowedDistances are sorted (low to high)
+    // and keep track of current distance since the next one is likely next to it
+    // could also keep track of direction
     for (const dist of allowedDistances) {
       const difference = Math.abs(initialTargetDistance - dist);
       if (difference < minDifference) {
@@ -244,6 +246,14 @@ export class MacroParam implements LibParamNode {
         closestAllowed = dist;
       }
     }
+
+    // alternative, same results after quick non thorough testing
+    // const closestAllowed = allowedDistances.reduce((prev, curr) =>
+    //   Math.abs(curr - initialTargetDistance) <
+    //   Math.abs(prev - initialTargetDistance)
+    //     ? curr
+    //     : prev
+    // );
 
     const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // Unnecessary?
 
@@ -285,6 +295,7 @@ export class MacroParam implements LibParamNode {
 
   setAllowedParamValues(values: number[]) {
     assert(values.length > 1, 'allowed values must not be empty!', this);
+
     this.#allowedValues = values.sort((a, b) => a - b);
     // zero crossings should already be sorted, but can't hurt if fast enough..
     // todo: test algos like binary sort and using prev value as starting point to utilize the fact it's sorted
@@ -372,16 +383,6 @@ export class MacroParam implements LibParamNode {
 
 // Control all connected params at once
 // loopStartMacro.param.linearRampToValueAtTime(0.5, context.currentTime + 0.1);
-
-/** Snap tolerance / threshold if needed (made the code ugly) */
-// #snapTolerance: number = 0.01;
-// if (this.#snapTolerance > 0) {
-//   allowedValues = this.#snapValues.filter(
-//     (value) => Math.abs(value - inputValue) <= this.#snapTolerance
-//   );
-// } else {
-//   allowedValues = this.#snapValues;
-// }
 
 // before simplifying to use RampMethod:
 

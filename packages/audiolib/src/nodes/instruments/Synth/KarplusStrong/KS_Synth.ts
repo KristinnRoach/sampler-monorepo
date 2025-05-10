@@ -1,7 +1,7 @@
 import { LibInstrument, InstrumentType } from '@/LibNode';
 import { KarplusVoice } from '@/nodes/instruments/Synth/KarplusStrong/KS_Voice';
-import { Pool } from '@/nodes/collections/Pool';
-import { createNodeId, NodeID } from '@/state/registry/NodeIDs';
+import { Pool } from '@/nodes/helpers/collections/Pool';
+import { createNodeId, NodeID } from '@/registry/NodeIDs';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { PressedModifiers } from '@/input/types';
@@ -147,7 +147,7 @@ export class KarplusStrongSynth implements LibInstrument {
   }
 
   // ! Rethink default debounce-ing for non-gliding params (only debounce the storage?)
-  setParamValue(name: string, value: number, debounceMs = 40): this {
+  setParamValue(name: string, value: number, debounceMs = 20): this {
     if (debounceMs === 0) {
       this.#setParamValueImmediate(name, value);
     } else {

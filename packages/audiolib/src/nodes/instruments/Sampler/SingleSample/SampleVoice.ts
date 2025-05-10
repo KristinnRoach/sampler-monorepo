@@ -1,6 +1,6 @@
 import { LibVoiceNode, VoiceType } from '@/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, NodeID, deleteNodeId } from '@/state/registry/NodeIDs';
+import { createNodeId, NodeID, deleteNodeId } from '@/registry/NodeIDs';
 import {
   Message,
   MessageHandler,
