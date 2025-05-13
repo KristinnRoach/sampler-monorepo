@@ -1,5 +1,5 @@
-// Todo: REMOVE THIS TEST:
-export { setupAudio, setupBufferPlayer, getProcessorUrl } from './test-plugin';
+// // Todo: REMOVE THIS TEST:
+// export { setupAudio, setupBufferPlayer, getProcessorUrl } from './test-plugin';
 
 import { Audiolib } from './Audiolib';
 
@@ -18,4 +18,3 @@ export * as samplelib from './storage/idb/audioStorage';
 export * from './input';
 
 export { getAudioContext, ensureAudioCtx } from './context';
-export { registry } from '@/registry/worklet-registry/ProcessorRegistry';

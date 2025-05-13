@@ -2,15 +2,13 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
 import dts from 'vite-plugin-dts';
-import audioWorkletPlugin from './audioworklet-plugin';
 
 export default defineConfig({
-  base: './', // For fetching assets!
+  base: './',
   plugins: [
-    audioWorkletPlugin(),
     dts({
       include: ['src'],
-      exclude: ['**/*.test.ts', '**/__tests__/**', '**/test-setup.ts'], // Added test-setup.ts
+      exclude: ['**/*.test.ts', '**/__tests__/**', '**/test-setup.ts'],
       outDir: 'dist',
       rollupTypes: true,
     }),
@@ -18,22 +16,19 @@ export default defineConfig({
 
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
+    emptyOutDir: false, // prevent worklets being erased
+    assetsInlineLimit: 0, // Prevent inlining (possibly not needed when using build-processors.js)
 
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: '@repo/audiolib',
       formats: ['es'],
-      fileName: 'index', // skoða Vite docs for fileName, þarf að passa við package.json
-      // fileName: (format, entryName) => `my-lib-${entryName}.${format}.js`,
-      // fileName: (format) => `audiolib.${format}.js`,
+      fileName: 'index', // skoða
     },
     rollupOptions: {
       external: [/test-setup\.ts$/], // Exclude test setup from build
     },
-    // output: {
-    //   globals: {},
-    // },
+    // output: { globals: {}, }, // skoða
   },
   resolve: {
     extensions: ['.js', '.ts'], // TOdo: henda
@@ -42,12 +37,12 @@ export default defineConfig({
     },
   },
   // server configuration to serve html test files
-  server: {
-    fs: {
-      // Allow serving files from one level up
-      allow: ['..'],
-    },
-  },
+  // server: {
+  //   fs: {
+  //     // Allow serving files from one level up
+  //     allow: ['..', './dist'],
+  //   },
+  // },
   // Configured to serve test HTML files
-  publicDir: 'public',
+  // publicDir: 'public',
 });

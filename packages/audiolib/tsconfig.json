@@ -29,13 +29,11 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@test/*": ["src/test/*"]
-      // "dexie": ["node_modules/dexie"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "src/types/worklet.d.ts"],
-  "exclude": ["node_modules", "dist", "src/test/*"] // should test be excluded?
+  "exclude": ["node_modules", "dist", "src/test/*"]
 }
 
 // Under review:

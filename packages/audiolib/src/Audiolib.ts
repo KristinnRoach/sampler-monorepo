@@ -4,7 +4,6 @@ import {
   releaseGlobalAudioContext,
 } from '@/context';
 
-import { registry } from '@/registry/worklet-registry';
 import { createNodeId, deleteNodeId, NodeID } from '@/registry/NodeIDs';
 import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
 import { assert, tryCatch } from '@/utils';
@@ -24,7 +23,7 @@ import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
 import { Sampler, KarplusStrongSynth } from './nodes/instruments';
 import { Recorder } from '@/nodes/recorder';
 
-import { loadAudioWorkletWithFallback } from './test-plugin';
+import { initProcessors } from './worklets';
 
 export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
@@ -86,16 +85,8 @@ export class Audiolib implements LibNode {
     this.#currentAudioBuffer = sampleResult.data;
 
     // Register processors
-    const processorResult = await tryCatch(
-      registry.registerDefaultProcessors()
-    );
-    assert(
-      !processorResult.error,
-      'Processor registration failed',
-      processorResult
-    );
-
-    const pluginResult = await tryCatch(loadAudioWorkletWithFallback(ctx));
+    const pluginResult = await tryCatch(initProcessors(ctx));
+    console.log('Plugin registration result:', pluginResult);
     assert(!pluginResult.error, `Failed to register with plugin`, pluginResult);
 
     // Initialize Recorder node
@@ -352,7 +343,7 @@ export class Audiolib implements LibNode {
         this.#masterGain = null as unknown as GainNode;
       }
       idb.close();
-      registry.dispose();
+      // registry.dispose();
       deleteNodeId(this.nodeId);
       releaseGlobalAudioContext();
 
@@ -383,3 +374,13 @@ export class Audiolib implements LibNode {
 //     this.#instruments.forEach((s) => s.onGlobalLoopToggle(capsOn));
 //   }
 // }
+
+// Register processors
+// const processorResult = await tryCatch(
+//   registry.registerDefaultProcessors()
+// );
+// assert(
+//   !processorResult.error,
+//   'Processor registration failed',
+//   processorResult
+// );
