@@ -1,4 +1,4 @@
-import { NodeID } from '@/registry/NodeIDs';
+import { NodeID } from '@/nodes/node-store';
 import { Message, MessageHandler } from '@/events';
 import { PressedModifiers } from '@/input';
 

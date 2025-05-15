@@ -1,5 +1,5 @@
 import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
-import { createNodeId, NodeID } from '@/registry/NodeIDs';
+import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 
 import { PressedModifiers, checkGlobalLoopState } from '@/input'; // todo
@@ -10,6 +10,7 @@ import {
   createMessageBus,
   MessageBus,
 } from '@/events';
+
 import {
   assert,
   tryCatch,
@@ -19,10 +20,12 @@ import {
 } from '@/utils';
 
 import { SampleVoice } from '@/nodes/instruments/Sampler/SingleSample/SampleVoice';
-import { Pool } from '@/nodes/helpers/collections/Pool';
+// import { Pool } from '@/nodes/helpers/collections/Pool';
 import { MacroParam } from '@/nodes/params';
 // import { DEFAULT_SAMPLE_VOICE_SETTINGS, SampleVoiceSettings } from './defaults';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
+
+import { VoicePool } from '@/nodes/helpers/collections/VoicePool';
 
 export class Sampler implements LibInstrument {
   readonly nodeId: NodeID;
@@ -32,7 +35,8 @@ export class Sampler implements LibInstrument {
 
   #context: AudioContext;
   #output: InstrumentMasterBus;
-  #voicePool: Pool<SampleVoice>;
+  #voicePool: VoicePool;
+
   #messages: MessageBus<Message>;
 
   #activeMidiNoteToVoice = new Map<number, Set<SampleVoice>>();
@@ -78,42 +82,15 @@ export class Sampler implements LibInstrument {
     this.#macroLoopEnd = new MacroParam(context, 0);
 
     // Initialize pool with type only (removed polyphony parameter)
-    this.#voicePool = new Pool<SampleVoice>();
+    this.#voicePool = new VoicePool();
 
     // Pre-create voices, max num voices === polyphony
-    this.#preCreateVoices(context, polyphony);
-
-    // Set up voice event handling
-    this.#voicePool.applyToAll((voice) => {
-      // Connect each voice to the master bus input
-      voice.connect(this.#output.input);
-
-      voice.onMessage('voice:ended', (data) => {
-        // Handle voice ended in Sampler
-        this.#activeMidiNoteToVoice.forEach((voices, midiNote) => {
-          if (voices.has(voice)) {
-            voices.delete(voice);
-            if (voices.size === 0) {
-              this.#activeMidiNoteToVoice.delete(midiNote);
-            }
-          }
-        });
-
-        // Return voice to pool
-        this.#voicePool.returnNode(voice);
-
-        // Forward position tracking events
-        if (this.#mostRecentSource === voice) {
-          this.#mostRecentSource = null;
-        }
-      });
-    });
+    this.#initVoices(context, polyphony);
 
     this.#isInitialized = true;
 
     if (audioBuffer?.duration) {
       this.loadSample(audioBuffer, audioBuffer.sampleRate);
-      this.#voicePool.applyToAll((voice) => this.#connectToMacros(voice));
     } else {
       this.#isLoaded = false;
     }
@@ -136,17 +113,49 @@ export class Sampler implements LibInstrument {
     this.#output.disconnect();
   }
 
-  #preCreateVoices(context: AudioContext, polyphony: number): void {
+  #initVoices(context: AudioContext, polyphony: number): void {
     for (let i = 0; i < polyphony; i++) {
       const voice = new SampleVoice(context);
+
       voice.connect(this.#output.input);
+      this.#connectToMacros(voice);
+
       this.#voicePool.add(voice);
+
+      voice.onMessage('voice:releasing', (data) => {
+        this.#voicePool.releaseVoice(voice);
+      });
+
+      voice.onMessage('voice:ended', (data) => {
+        // todo: remove this or clarify respos sampler vs pool
+        this.#activeMidiNoteToVoice.forEach((voices, midiNote) => {
+          if (voices.has(voice)) {
+            voices.delete(voice);
+
+            this.#voicePool.allVoices.forEach((v) => console.log(v.nodeId));
+
+            // Return voice to pool
+            this.#voicePool.stopVoice(voice);
+
+            if (voices.size === 0) {
+              this.#activeMidiNoteToVoice.delete(midiNote);
+            }
+          }
+        });
+
+        // Forward position tracking events
+        if (this.#mostRecentSource === voice) {
+          this.#mostRecentSource = null;
+        }
+      });
     }
   }
 
   #connectToMacros(voice: SampleVoice): void {
-    this.#macroLoopStart.addTarget(voice.getParam('loopStart')!, 'loopStart');
-    this.#macroLoopEnd.addTarget(voice.getParam('loopEnd')!, 'loopEnd');
+    // assert(!voice.getParam('loopStart') || !voice.getParam('loopStart'));
+
+    this.#macroLoopStart.addTarget(voice.getParam('loopStart'), 'loopStart');
+    this.#macroLoopEnd.addTarget(voice.getParam('loopEnd'), 'loopEnd');
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
@@ -181,9 +190,9 @@ export class Sampler implements LibInstrument {
     ) {
       console.warn(
         `sample rate mismatch, 
-        buffer: ${buffer.sampleRate}, 
-        context: ${this.#context.sampleRate}
-        loadSample arg: ${modSampleRate}
+        buffer rate: ${buffer.sampleRate}, 
+        context rate: ${this.#context.sampleRate}
+        requested rate: ${modSampleRate}
         `
       );
     }
@@ -198,18 +207,17 @@ export class Sampler implements LibInstrument {
       this.#zeroCrossings = zeroes;
     }
 
-    console.debug(
-      `use zeroes ? ${this.#useZeroCrossings}, 
-      startOffset: ${this.#startOffset}, 
-      endOffset: ${this.#endOffset}`
-    );
-
-    const allVoices = this.#voicePool.nodes;
+    const allVoices = this.#voicePool.allVoices;
     assert(allVoices.length > 0, 'No voices to load sample!');
 
-    const promises = allVoices.map((voice) => voice.loadBuffer(buffer));
+    const promises = allVoices.map((voice) => {
+      // lazy temp casting
+      const v = voice as SampleVoice;
+      v.loadBuffer(buffer);
+    });
+
     const result = await tryCatch(
-      Promise.all(promises),
+      () => Promise.all(promises),
       'Failed to load sample'
     );
     if (result.error) {
@@ -218,6 +226,7 @@ export class Sampler implements LibInstrument {
 
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
+
     this.setLoopEnd(buffer.duration); // for now, use saved loopEnd if exists, when implemented
 
     this.#isLoaded = true;
@@ -231,7 +240,7 @@ export class Sampler implements LibInstrument {
   ): this {
     // console.debug(this.getDebugState());
 
-    const voice = this.#voicePool.allocateNode();
+    const voice = this.#voicePool.reserveVoice();
     if (!voice) return this;
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100; // default velocity
@@ -287,24 +296,14 @@ export class Sampler implements LibInstrument {
   }
 
   stopAll() {
-    const callback = (voice: LibVoiceNode) => voice.stop();
-
-    tryCatch(
-      () => this.#voicePool.applyToActive(callback),
-      'Failed to stop all voices'
-    );
-
+    const voices = this.#voicePool.allVoices;
+    voices.forEach((v) => v.stop());
     return this;
   }
 
   releaseAll(): this {
-    const callback = (voice: LibVoiceNode) => voice.release();
-
-    tryCatch(
-      () => this.#voicePool.applyToActive(callback),
-      'Failed to release all voices'
-    );
-
+    const voices = this.#voicePool.allVoices;
+    voices.forEach((v) => v.release());
     return this;
   }
 
@@ -345,10 +344,9 @@ export class Sampler implements LibInstrument {
     // Todo cleanup after test:
     enabled = checkGlobalLoopState();
 
-    // Update all active voices
-    this.#voicePool.applyToActive((voice: SampleVoice) => {
-      voice.setLoopEnabled(enabled);
-    });
+    // Update all voices
+    const voices = this.#voicePool.allVoices;
+    voices.forEach((v) => (v as any).setLoopEnabled(enabled)); // Lazy temp cast to any
 
     // Notify listeners
     this.sendMessage('loop:state', { enabled });
@@ -399,8 +397,8 @@ export class Sampler implements LibInstrument {
       // todo
     } else {
       // Disable tracking for all sources
-      this.#voicePool.nodes.forEach((voice) => {
-        voice.enablePositionTracking = false;
+      this.#voicePool.allVoices.forEach((voice) => {
+        (voice as any).enablePositionTracking = false;
       });
     }
   }
@@ -416,7 +414,7 @@ export class Sampler implements LibInstrument {
 
       if (this.#voicePool) {
         this.#voicePool.dispose();
-        this.#voicePool = null as unknown as Pool<SampleVoice>;
+        this.#voicePool = null as unknown as VoicePool;
       }
 
       this.#activeMidiNoteToVoice.clear();
@@ -469,7 +467,7 @@ export class Sampler implements LibInstrument {
   // }
 
   get isPlaying(): boolean {
-    return this.#voicePool.activeCount > 0;
+    return this.#voicePool.playingCount > 0;
   }
 
   get activeVoicesCount(): number {
@@ -480,7 +478,7 @@ export class Sampler implements LibInstrument {
   }
 
   get voiceCount(): number {
-    return this.#voicePool.nodes.length;
+    return this.#voicePool.allVoices.length;
   }
 
   get sampleDuration(): number {
@@ -514,8 +512,8 @@ export class Sampler implements LibInstrument {
   // Add a debug method to check state
   getDebugState(): object {
     return {
-      loopEnabled: checkGlobalLoopState(), // this.#loopEnabled,
-      activeVoices: this.#voicePool.activeCount,
+      loopEnabled: checkGlobalLoopState(),
+      activeVoices: this.#voicePool.playingCount,
       activeNotes: Array.from(this.#activeMidiNoteToVoice.keys()),
       loopStart: this.loopStart,
       loopEnd: this.loopEnd,

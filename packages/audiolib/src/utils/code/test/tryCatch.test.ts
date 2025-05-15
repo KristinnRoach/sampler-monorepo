@@ -32,19 +32,6 @@ describe('tryCatch', () => {
     expect(result.error?.message).toBe('async fail');
   });
 
-  it('handles direct Promise success', async () => {
-    const result = await tryCatch(Promise.resolve('direct'));
-    expect(result.data).toBe('direct');
-    expect(result.error).toBeNull();
-  });
-
-  it('handles direct Promise failure', async () => {
-    const result = await tryCatch(Promise.reject(new Error('direct fail')));
-    expect(result.data).toBeNull();
-    expect(result.error).toBeInstanceOf(Error);
-    expect(result.error?.message).toBe('direct fail');
-  });
-
   it('logs error with custom message', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     await tryCatch(() => {
@@ -75,10 +62,10 @@ describe('tryCatch', () => {
     expect(result.error).toBe('string error');
   });
 
-  it('throws if argument is not function or Promise', async () => {
+  it('throws if argument is not a function', async () => {
     // @ts-expect-error
     await expect(tryCatch(123)).rejects.toThrow(
-      'tryCatch argument must be a function or promise'
+      'tryCatch argument must be a function'
     );
   });
 
@@ -86,29 +73,5 @@ describe('tryCatch', () => {
     const result = await tryCatch(() => Promise.resolve(99));
     expect(result.data).toBe(99);
     expect(result.error).toBeNull();
-  });
-
-  it('correctly identifies promise-like objects', async () => {
-    // Custom promise-like object
-    const customPromiseLike = {
-      then: function (resolve: (value: any) => void) {
-        resolve('custom promise-like');
-      },
-    };
-
-    // @ts-ignore - Testing runtime behavior
-    const result = await tryCatch(customPromiseLike);
-    expect(result.data).toBe('custom promise-like');
-    expect(result.error).toBeNull();
-  });
-
-  it('throws for objects with non-function then property', async () => {
-    // Object with then property that is not a function
-    const nonPromiseLike = { then: 'not a function' };
-
-    // @ts-expect-error
-    await expect(tryCatch(nonPromiseLike)).rejects.toThrow(
-      'tryCatch argument must be a function or promise'
-    );
   });
 });

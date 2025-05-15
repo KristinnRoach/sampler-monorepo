@@ -4,7 +4,7 @@ import {
   releaseGlobalAudioContext,
 } from '@/context';
 
-import { createNodeId, deleteNodeId, NodeID } from '@/registry/NodeIDs';
+import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
 import { assert, tryCatch } from '@/utils';
 import { createAsyncInit, InitState } from '@/utils/async-initializable';
@@ -70,28 +70,28 @@ export class Audiolib implements LibNode {
   // Original implementation moved here
   async #initImpl(): Promise<Audiolib> {
     // Ensure audio context is available
-    const ctxResult = await tryCatch(ensureAudioCtx());
-    assert(ctxResult.data, 'Could not initialize audio context', ctxResult);
+    const ctxResult = await tryCatch(() => ensureAudioCtx());
+    assert(!ctxResult.error, 'Could not initialize audio context', ctxResult);
     await this.#validateContext(ctxResult.data);
     const ctx = ctxResult.data;
 
     // Initialize indexedDB
-    const idbResult = await tryCatch(initIdb());
+    const idbResult = await tryCatch(() => initIdb());
     assert(!idbResult.error, 'IndexedDB initialization failed', idbResult);
 
     // Fetch initial sample
-    const sampleResult = await tryCatch(fetchInitSampleAsAudioBuffer());
+    const sampleResult = await tryCatch(() => fetchInitSampleAsAudioBuffer());
     assert(!sampleResult.error, 'Failed to fetch initial sample');
     this.#currentAudioBuffer = sampleResult.data;
 
-    // Register processors
-    const pluginResult = await tryCatch(initProcessors(ctx));
-    console.log('Plugin registration result:', pluginResult);
-    assert(!pluginResult.error, `Failed to register with plugin`, pluginResult);
+    // Register worklet processors
+    const worklResult = await tryCatch(() => initProcessors(ctx));
+    console.log('Plugin registration result:', worklResult);
+    assert(!worklResult.error, `Failed to register with plugin`, worklResult);
 
     // Initialize Recorder node
     const recorder = new Recorder(ctx);
-    const recResult = await tryCatch(recorder.init());
+    const recResult = await tryCatch(() => recorder.init());
     assert(!recResult.error, `Failed to init Recorder`, recResult);
     this.#globalAudioRecorder = recorder;
 
@@ -283,7 +283,7 @@ export class Audiolib implements LibNode {
 
   async ensureAudioCtx(): Promise<AudioContext> {
     const result = await tryCatch(
-      ensureAudioCtx(),
+      () => ensureAudioCtx(),
       'Failed to ensure audio context'
     );
     if (result.error) {
@@ -377,7 +377,7 @@ export class Audiolib implements LibNode {
 
 // Register processors
 // const processorResult = await tryCatch(
-//   registry.registerDefaultProcessors()
+//   () => registry.registerDefaultProcessors()
 // );
 // assert(
 //   !processorResult.error,

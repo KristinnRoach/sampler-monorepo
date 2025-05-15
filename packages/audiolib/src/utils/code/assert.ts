@@ -19,14 +19,13 @@ export function assert<T>(
  * import { assert, tryCatch } from '@/utils';
  *
  * async function loadAndPlaySample(url: string) {
- *   const result = await tryCatch(fetchSample(url), "Failed to fetch sample");
- *
+ *   const result = await tryCatch(() => fetchSample(url), "Failed to fetch sample");
  *   // Check if we got an error or a valid result
  *   assert(!result.error, "Sample fetch failed", { url });
  *
  *   // At this point, TypeScript knows result.error is false
  *   // and result.result contains our sample
- *   return playSample(result.result);
+ *   return playSample(result.data);
  * }
  *
  *

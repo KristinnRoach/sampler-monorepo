@@ -4,7 +4,7 @@ import {
   softClip,
   generateSineWave,
   advancePhase,
-} from '../utils/processor-utils';
+} from '../shared/processor-utils';
 
 class JsTestOscillatorProcessor extends AudioWorkletProcessor {
   // Default values

@@ -73,13 +73,13 @@ export async function ensureAudioCtx(
   }
   if (context.state === 'closed') {
     globalAudioContext = null;
-    const ctxOrError = await tryCatch(ensureAudioCtx(config)); // creates a fresh context
+    const ctxResult = await tryCatch(() => ensureAudioCtx(config)); // creates a fresh context
     assert(
-      ctxOrError.data instanceof AudioContext && !ctxOrError.error,
+      ctxResult.data instanceof AudioContext && !ctxResult.error,
       'failed to re-created closed audio context',
-      ctxOrError.error
+      ctxResult.error
     );
-    return ctxOrError.data;
+    return ctxResult.data;
   }
   // If resumePromise is null, set it up
   resumePromise = resumePromise || setupAutoResume();

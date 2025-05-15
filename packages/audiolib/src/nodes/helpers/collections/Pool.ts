@@ -3,12 +3,10 @@ import {
   LibVoiceNode,
   ContainerType,
   LibContainerNode,
-  LibInstrument,
 } from '@/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, deleteNodeId, NodeID } from '@/registry/NodeIDs';
+import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { assert, tryCatch } from '@/utils';
 import { RoundRobin } from '@/nodes/helpers/allocation/strategies/RoundRobin';
 
 export class Pool<T extends LibVoiceNode> implements LibContainerNode {
@@ -19,12 +17,12 @@ export class Pool<T extends LibVoiceNode> implements LibContainerNode {
   #available = new Set<T>();
   #active = new Set<T>();
   #messages;
-  #allocationStrategy: RoundRobin<T>;
+  #allocationStrategy: RoundRobin;
 
   constructor() {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
-    this.#allocationStrategy = new RoundRobin<T>();
+    this.#allocationStrategy = new RoundRobin();
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
@@ -62,13 +60,16 @@ export class Pool<T extends LibVoiceNode> implements LibContainerNode {
 
     const node = this.#allocationStrategy.allocate(this.#available);
     if (!node) {
-      console.debug(`unable to allocate node using strategy`);
+      console.debug(
+        `unable to allocate node using strategy: ${this.#allocationStrategy}`
+      );
       return null;
     }
-    this.#available.delete(node);
-    this.#active.add(node);
 
-    return node;
+    this.#available.delete(node as T);
+    this.#active.add(node as T);
+
+    return node as T; // as T only for dev debugging
   }
 
   returnNode(node: T): this {

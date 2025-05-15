@@ -1,7 +1,7 @@
 import { LibInstrument, InstrumentType } from '@/LibNode';
 import { KarplusVoice } from '@/nodes/instruments/Synth/KarplusStrong/KS_Voice';
 import { Pool } from '@/nodes/helpers/collections/Pool';
-import { createNodeId, NodeID } from '@/registry/NodeIDs';
+import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { PressedModifiers } from '@/input/types';

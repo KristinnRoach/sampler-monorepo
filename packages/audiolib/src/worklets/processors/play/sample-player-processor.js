@@ -1,13 +1,8 @@
-import { PlaybackTiming } from '../utils/PlaybackTiming';
+import { PlaybackTiming } from '../shared/PlaybackTiming';
 
-const MIN_ABS_AMPLITUDE = 0.05; // for now
-
-// Todo: create with input handler callbacks if importing issues are not resolved easily
-// import { globalKeyboardInput } from '../../../../input';
+const MIN_ABS_AMPLITUDE = 0.05;
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {
-  // #keyboardHandler;
-
   constructor() {
     super();
 
@@ -180,6 +175,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.isPlaying = false;
     this.isReleasing = false;
     if (this.timing) this.timing.clear();
+
     this.playbackPosition = 0;
     this.port.postMessage({ type: 'voice:ended' });
   }

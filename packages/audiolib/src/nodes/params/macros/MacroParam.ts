@@ -1,5 +1,5 @@
 import { LibNode, LibParamNode, ParamType } from '@/LibNode';
-import { createNodeId, deleteNodeId, NodeID } from '@/registry/NodeIDs';
+import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import {
   MessageHandler,
   Message,

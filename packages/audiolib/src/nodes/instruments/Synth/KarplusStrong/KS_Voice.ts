@@ -1,4 +1,4 @@
-import { createNodeId, deleteNodeId } from '@/registry/NodeIDs';
+import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { LibVoiceNode, VoiceType } from '@/LibNode';
 import {

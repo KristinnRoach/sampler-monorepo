@@ -1,5 +1,5 @@
 import { LibNode } from '@/LibNode';
-import { createNodeId, NodeID } from '@/registry/NodeIDs';
+import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';

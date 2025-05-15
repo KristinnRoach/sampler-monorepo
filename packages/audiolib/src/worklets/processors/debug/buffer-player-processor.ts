@@ -1,5 +1,5 @@
 // buffer-player-processor.ts - Simple audio buffer playback processor
-import { AudioProcessorMessage } from '../utils/processor-utils';
+import { AudioProcessorMessage } from '../shared/processor-utils';
 
 class BufferPlayerProcessor extends AudioWorkletProcessor {
   private buffer: Float32Array[] | null = null;

@@ -9,7 +9,7 @@ import {
 
 async function setupDevices() {
   // Get microphone access
-  const micResult = await tryCatch(getMicrophone());
+  const micResult = await tryCatch(() => getMicrophone());
   if (micResult.error) {
     console.error('Microphone access error:', micResult.error.message);
     return;
@@ -17,7 +17,7 @@ async function setupDevices() {
   const micStream = micResult.data;
 
   // Get camera access
-  const camResult = await tryCatch(getCamera());
+  const camResult = await tryCatch(() => getCamera());
   if (camResult.error) {
     console.error('Camera access error:', camResult.error.message);
     return;
@@ -25,15 +25,15 @@ async function setupDevices() {
   const camStream = camResult.data;
 
   // Get MIDI access
-  const midiResult = await tryCatch(getMIDIAccess());
+  const midiResult = await tryCatch(() => getMIDIAccess());
   if (midiResult.error) {
     console.error('MIDI access error:', midiResult.error.message);
     return;
   }
   const midiAccess = midiResult.data;
-
+  console.log(`MIDI not implemented yet, midiAccess results: ${midiAccess}`);
   // List available audio input devices
-  const audioDevices = await getAudioInputDevices();
+  const audioDevices = await tryCatch(() => getAudioInputDevices());
   console.log('Available audio inputs:', audioDevices);
 
   // Monitor device changes

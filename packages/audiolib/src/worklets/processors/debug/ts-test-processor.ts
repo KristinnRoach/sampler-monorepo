@@ -5,7 +5,7 @@ import {
   generateSineWave,
   advancePhase,
   AudioProcessorMessage,
-} from '../utils/processor-utils';
+} from '../shared/processor-utils';
 
 class TestOscillatorProcessor extends AudioWorkletProcessor {
   // Default values

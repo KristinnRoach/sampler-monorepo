@@ -1,6 +1,6 @@
 import { LibVoiceNode, VoiceType } from '@/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, NodeID, deleteNodeId } from '@/registry/NodeIDs';
+import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import {
   Message,
   MessageHandler,
@@ -55,14 +55,13 @@ export class SampleVoice implements LibVoiceNode {
       // Todo: only send messages if someone has subscribed to them?
       switch (type) {
         case 'voice:started':
-          // this.isPlaying = true;
-          // this.isReleasing = false;
           this.messages.sendMessage('voice:started', {});
           break;
         case 'voice:ended':
-          // this.isPlaying = false;
-          // this.isReleasing = false;
           this.messages.sendMessage('voice:ended', {});
+          break;
+        case 'voice:releasing':
+          this.messages.sendMessage('voice:releasing', {});
           break;
         case 'voice:looped':
           this.messages.sendMessage('voice:looped', {
@@ -177,6 +176,7 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   stop(): this {
+    // todo: ensure idempotent!!
     // if (!this.isPlaying) return this;
     this.setParam('envGain', 0);
     this.sendToProcessor({ type: 'voice:stop' });
@@ -206,8 +206,13 @@ export class SampleVoice implements LibVoiceNode {
     const param = (this.worklet.parameters as Map<string, AudioParam>).get(
       name
     );
-    // ? Does the following check hurt performance significantly ? (if so revert to paramMap)
+    if (!(param instanceof AudioParam)) {
+      console.warn(
+        `sampleVoice.getParam received a non-AudioParam arg: ${param}`
+      );
+    }
     assert(
+      // to strict.. // todo: allow returning undefined and just log warning
       param instanceof AudioParam,
       `sampleVoice.getParam received a non-AudioParam arg: ${param}`
     );
@@ -217,10 +222,13 @@ export class SampleVoice implements LibVoiceNode {
   setParam(
     name: string,
     value: number,
-    options: { cancelPrevSchedules?: boolean } = {}
+    options: { cancelPrevSchedules?: boolean; secondsFromNow?: number } = {}
   ): this {
     const param = this.getParam(name);
-    if (!param) return this;
+    if (!param) {
+      console.warn;
+      return this;
+    }
 
     // Validate value
     if (!Number.isFinite(value)) {
@@ -256,7 +264,6 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   setLoopEnabled(enabled: boolean): this {
-    // Simple direct message to processor with no side effects
     this.sendToProcessor({
       type: 'setLoopEnabled',
       value: enabled,
