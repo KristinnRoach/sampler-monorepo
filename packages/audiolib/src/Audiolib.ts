@@ -5,7 +5,6 @@ import {
 } from '@/context';
 
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
 import { assert, tryCatch } from '@/utils';
 import { createAsyncInit, InitState } from '@/utils/async-initializable';
 
@@ -20,11 +19,7 @@ import { idb, initIdb, sampleLib } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
-import {
-  SampleInstrument,
-  Sampler,
-  KarplusStrongSynth,
-} from './nodes/instruments';
+import { Sampler, KarplusStrongSynth } from './nodes/instruments';
 import { Recorder } from '@/nodes/recorder';
 
 import { initProcessors } from './worklets';
@@ -37,10 +32,9 @@ export class Audiolib implements LibNode {
   #asyncInit = createAsyncInit<Audiolib>();
   #audioContext: AudioContext | null = null;
   #masterGain: GainNode; // todo: MasterBus
-  #instruments: Map<string, LibInstrument | SampleInstrument> = new Map();
+  #instruments: Map<string, LibInstrument> = new Map();
   #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null;
-  // #keyboardHandler: InputHandler | null = null;
 
   static getInstance(): Audiolib {
     if (!Audiolib.#instance) {
@@ -67,6 +61,10 @@ export class Audiolib implements LibNode {
     // Replace init method with wrapped version
     this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
   }
+
+  /** TODO: Review initialization approaches and standardize,
+   *        is "async-initializable.ts" beneficial to use everywhere
+   *        or just redundantly complex ? */
 
   // Public init method (will be replaced by wrapper)
   init!: () => Promise<Audiolib>;
@@ -168,37 +166,6 @@ export class Audiolib implements LibNode {
     return newSampler;
   }
 
-  createSampleInstrument(
-    audioSample?: AudioBuffer,
-    polyphony = 16,
-    ctx = this.#audioContext
-  ): SampleInstrument | null {
-    assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
-
-    let audioBuffer = audioSample || this.#currentAudioBuffer;
-    assert(audioBuffer, 'No audio buffer available for sampler', {
-      providedSample: !!audioSample,
-      initSampleAvailable: !!this.#currentAudioBuffer,
-    });
-
-    const options = { polyphony, output: this.#masterGain };
-
-    const newSampleInstrument = new SampleInstrument(ctx, options);
-    assert(newSampleInstrument, `Failed to create SampleInstrument`);
-
-    newSampleInstrument.loadSample(audioBuffer);
-    const alreadyLoaded = this.#instruments.has(newSampleInstrument.nodeId);
-    assert(
-      !alreadyLoaded,
-      `Sampler with id: ${newSampleInstrument.nodeId} already loaded`
-    );
-
-    // newSampleInstrument.connect(this.#masterGain);
-    this.#instruments.set(newSampleInstrument.nodeId, newSampleInstrument);
-
-    return newSampleInstrument;
-  }
-
   createKarplusStrongSynth(polyphony = 8, ctx = this.#audioContext) {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
@@ -215,48 +182,6 @@ export class Audiolib implements LibNode {
     this.#instruments.set(newSynth.nodeId, newSynth);
 
     return newSynth;
-  }
-
-  // #onNoteOn(
-  //   midiNote: number,
-  //   velocity: number = 100, // DEFAULT
-  //   modifiers: PressedModifiers
-  // ) {
-  //   this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
-  // }
-
-  // #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
-  //   this.#instruments.forEach((s) => s.release(midiNote, modifiers));
-  // }
-
-  // #onBlur() {
-  //   console.debug('Blur occured');
-  //   this.#instruments.forEach((s) => s.releaseAll());
-  // }
-
-  enableKeyboard() {
-    // Todo: just call enable for all instruments ?
-    // if (!this.#keyboardHandler) {
-    //   this.#keyboardHandler = {
-    //     onNoteOn: this.#onNoteOn.bind(this),
-    //     onNoteOff: this.#onNoteOff.bind(this),
-    //     onBlur: this.#onBlur.bind(this),
-    //     // onCapsToggled: this.#onCapsToggled.bind(this),
-    //   };
-    //   globalKeyboardInput.addHandler(this.#keyboardHandler);
-    // } else {
-    //   console.debug(`keyboard already enabled`);
-    // }
-  }
-
-  disableKeyboard() {
-    // Todo: just call disable for all instruments ?
-    // if (this.#keyboardHandler) {
-    //   globalKeyboardInput.removeHandler(this.#keyboardHandler);
-    //   this.#keyboardHandler = null;
-    // } else {
-    //   console.debug(`keyboard already disabled`);
-    // }
   }
 
   /** Message Bus **/
@@ -299,22 +224,20 @@ export class Audiolib implements LibNode {
   // Todo: change interface or adapt
 
   add(child: LibNode): this {
-    // this.nodes.push(child);
+    this.nodes.push(child);
     return this;
   }
 
   remove(child: LibNode): this {
-    // Todo
-    // const index = this.nodes.indexOf(child);
-    // if (index > -1) {
-    //   this.nodes.splice(index, 1);
-    // }
+    const index = this.nodes.indexOf(child);
+    if (index > -1) {
+      this.nodes.splice(index, 1);
+    }
     return this;
   }
 
   get nodes(): LibNode[] {
-    // Temp removed while testing SampleInstrument
-    return []; // Array.from(this.#instruments.values());
+    return Array.from(this.#instruments.values());
   }
 
   /** GETTERS & SETTERS **/
@@ -364,13 +287,6 @@ export class Audiolib implements LibNode {
   dispose(): void {
     try {
       console.debug('Audiolib dispose called');
-
-      // // Detach keyboard handler
-      // if (this.#keyboardHandler) {
-      //   globalKeyboardInput.removeHandler(this.#keyboardHandler);
-      //   this.#keyboardHandler = null;
-      // }
-
       for (const sampler of this.#instruments.values()) {
         sampler.dispose();
       }
@@ -381,7 +297,6 @@ export class Audiolib implements LibNode {
         this.#masterGain = null as unknown as GainNode;
       }
       idb.close();
-      // registry.dispose();
       deleteNodeId(this.nodeId);
       releaseGlobalAudioContext();
 
@@ -402,23 +317,83 @@ export class Audiolib implements LibNode {
   }
 }
 
-// let globalLoopState: boolean = false;
-
-// #onCapsToggled(capsOn: boolean, modifiers: TODO) {
-//   if (globalLoopState !== capsOn) {
-//     console.log('Audiolib mod.caps ENABLED: ', capsOn);
-
-//     globalLoopState = capsOn;
-//     this.#instruments.forEach((s) => s.onGlobalLoopToggle(capsOn));
+// Old global keyboard input for reffernce - clean up soon:
+// enableKeyboard() {
+// unnecessary or should just call enable for all instruments ?
+//   if (!this.#keyboardHandler) {
+//     this.#keyboardHandler = {
+//       onNoteOn: this.#onNoteOn.bind(this),
+//       onNoteOff: this.#onNoteOff.bind(this),
+//       onBlur: this.#onBlur.bind(this),
+//       // onCapsToggled: this.#onCapsToggled.bind(this),
+//     };
+//     globalKeyboardInput.addHandler(this.#keyboardHandler);
+//   } else {
+//     console.debug(`keyboard already enabled`);
 //   }
 // }
 
-// Register processors
-// const processorResult = await tryCatch(
-//   () => registry.registerDefaultProcessors()
-// );
-// assert(
-//   !processorResult.error,
-//   'Processor registration failed',
-//   processorResult
-// );
+// disableKeyboard() {
+//   if (this.#keyboardHandler) {
+//     globalKeyboardInput.removeHandler(this.#keyboardHandler);
+//     this.#keyboardHandler = null;
+//   } else {
+//     console.debug(`keyboard already disabled`);
+//   }
+// }
+
+// #onNoteOn(
+//   midiNote: number,
+//   velocity: number = 100, // DEFAULT
+//   modifiers: PressedModifiers
+// ) {
+//   this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
+// }
+
+// #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
+//   this.#instruments.forEach((s) => s.release(midiNote, modifiers));
+// }
+
+// #onBlur() {
+//   console.debug('Blur occured');
+//   this.#instruments.forEach((s) => s.releaseAll());
+// }
+
+// in dispose:
+// // Detach keyboard handler
+// if (this.#keyboardHandler) {
+//   globalKeyboardInput.removeHandler(this.#keyboardHandler);
+//   this.#keyboardHandler = null;
+// }
+
+// Old SampleInstrument test - remove:
+// createSampleInstrument(
+//   audioSample?: AudioBuffer,
+//   polyphony = 16,
+//   ctx = this.#audioContext
+// ): SampleInstrument | null {
+//   assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
+
+//   let audioBuffer = audioSample || this.#currentAudioBuffer;
+//   assert(audioBuffer, 'No audio buffer available for sampler', {
+//     providedSample: !!audioSample,
+//     initSampleAvailable: !!this.#currentAudioBuffer,
+//   });
+
+//   const options = { polyphony, output: this.#masterGain };
+
+//   const newSampleInstrument = new SampleInstrument(ctx, options);
+//   assert(newSampleInstrument, `Failed to create SampleInstrument`);
+
+//   newSampleInstrument.loadSample(audioBuffer);
+//   const alreadyLoaded = this.#instruments.has(newSampleInstrument.nodeId);
+//   assert(
+//     !alreadyLoaded,
+//     `Sampler with id: ${newSampleInstrument.nodeId} already loaded`
+//   );
+
+//   // newSampleInstrument.connect(this.#masterGain);
+//   this.#instruments.set(newSampleInstrument.nodeId, newSampleInstrument);
+
+//   return newSampleInstrument;
+// }
