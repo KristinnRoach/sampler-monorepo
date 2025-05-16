@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { audiolib, Sampler } from '@repo/audiolib';
 import RecorderComponent from './RecorderComponent';
 
-const SamplerComponent = () => {
+const SampleInstrumentComponent = () => {
   const [isInitialized, setInitialized] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
@@ -18,7 +18,7 @@ const SamplerComponent = () => {
   const [sampleDuration, setSampleDuration] = useState(0);
   const [rampTime, setRampTime] = useState(0.25);
   const [activeVoices, setActiveVoices] = useState(0);
-  const samplerRef = useRef<Sampler | null>(null);
+  const instrumentRef = useRef<any>(null);
   const sampleDurationRef = useRef(0); // Add this ref to track sample duration
 
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -76,43 +76,17 @@ const SamplerComponent = () => {
     }
   }, [loopStartNormalized, loopEndNormalized, sampleDuration]);
 
-  const createSampler = async () => {
+  const createSampleInstrument = async () => {
     if (isInitialized) return true;
 
     try {
-      samplerRef.current = audiolib.createSampler();
-      if (!samplerRef.current) {
-        console.error('Failed to create sampler');
+      instrumentRef.current = audiolib.createSampleInstrument();
+      if (!instrumentRef.current) {
+        console.error('Failed to create SampleInstrument');
         return false;
       }
 
-      // // Enable position tracking
-      // console.log('Enabling position tracking');
-      // samplerRef.current.enablePositionTracking(true, 'mostRecent');
-
-      samplerRef.current.onMessage('voice:position', (data: any) => {
-        // Force immediate state update
-        setPlaybackPosition((prev) => {
-          // Use the ref instead of the state
-          if (!sampleDurationRef.current) {
-            console.warn('Sample duration ref is 0 or not set');
-            return prev;
-          }
-          const newPos = data.position / sampleDurationRef.current;
-          // Clamp the position between 0 and 1
-          const clampedPos = Math.min(Math.max(newPos, 0), 1);
-          return clampedPos;
-        });
-      });
-
-      samplerRef.current.onMessage('voice:ended', () => {
-        setActiveVoices((prev) => Math.max(prev - 1, 0));
-      });
-      samplerRef.current.onMessage('voice:started', () => {
-        setActiveVoices((prev) => prev + 1);
-      });
-
-      samplerRef.current.enableKeyboard();
+      audiolib.enableKeyboard();
 
       setInitialized(true);
       return true;
@@ -135,12 +109,12 @@ const SamplerComponent = () => {
   };
 
   const loadSample = async (file: File) => {
-    if (!(await createSampler())) return;
+    if (!(await createSampleInstrument())) return;
     if (!file) {
       console.error('No file selected');
       return;
     }
-    if (!samplerRef.current) {
+    if (!instrumentRef.current) {
       console.error('Sampler not initialized');
       return;
     }
@@ -157,7 +131,7 @@ const SamplerComponent = () => {
     setSampleDuration(duration);
     sampleDurationRef.current = duration; // Set the ref immediately
 
-    samplerRef.current.loadSample(audioBuffer);
+    instrumentRef.current.loadSample(audioBuffer);
 
     // Reset normalized positions to defaults (start at beginning, end at full duration)
     setLoopStartNormalized(0);
@@ -192,7 +166,7 @@ const SamplerComponent = () => {
     const newLoopState = !isLoopEnabled;
     setIsLoopEnabled(newLoopState);
 
-    samplerRef.current?.setLoopEnabled(newLoopState);
+    instrumentRef.current?.setLoopEnabled(newLoopState);
   };
 
   // NOT using Logarithm:
@@ -203,7 +177,7 @@ const SamplerComponent = () => {
 
     // Calculate actual time value and update sampler
     const actualValue = clampedValue * sampleDuration;
-    samplerRef.current?.setLoopStart(actualValue, rampTime);
+    instrumentRef.current?.setLoopStart(actualValue, rampTime);
   };
 
   const handleLoopEndNormalizedChange = (normalizedValue: number) => {
@@ -213,7 +187,7 @@ const SamplerComponent = () => {
 
     // Calculate actual time value and update sampler
     const actualValue = clampedValue * sampleDuration;
-    samplerRef.current?.setLoopEnd(actualValue, rampTime);
+    instrumentRef.current?.setLoopEnd(actualValue, rampTime);
   };
 
   const handleRampTimeChange = (value: number) => {
@@ -249,8 +223,6 @@ const SamplerComponent = () => {
           {isLoopEnabled ? 'Disable Loop' : 'Enable Loop'}
         </button>
       </div>
-
-      <PlaybackVisualizer />
 
       {/* Position display */}
       <div style={{ margin: '10px 50px' }}>
@@ -316,11 +288,13 @@ const SamplerComponent = () => {
       <div>
         {' '}
         {/* TODO: useState to render info display instead of ref.current  */}
-        <p>Active Notes: {activeVoices}</p>
-        <p>Sample Duration: {samplerRef.current?.sampleDuration.toFixed(2)}s</p>
-        <p>Volume: {samplerRef.current?.volume.toFixed(2)}</p>
-        {/* <p>Voice Count: {samplerRef.current?.voiceCount}</p>
-        <p>Is Playing: {samplerRef.current?.isPlaying ? 'Yes' : 'No'}</p> */}
+        {/* <p>Active Notes: {activeVoices}</p>
+        <p>
+          Sample Duration: {instrumentRef.current?.sampleDuration.toFixed(2)}s
+        </p>
+        <p>Volume: {instrumentRef.current?.volume.toFixed(2)}</p>
+        <p>Voice Count: {instrumentRef.current?.voiceCount}</p>
+        <p>Is Playing: {instrumentRef.current?.isPlaying ? 'Yes' : 'No'}</p> */}
         {/* <p>Is Looping: {samplerRef.current?.isLooping ? 'Yes' : 'No'}</p> */}
         <p>Is Initialized: {isInitialized ? 'Yes' : 'No'}</p>
         <p>UI Looping: {isLoopEnabled ? 'Enabled' : 'Disabled'}</p>
@@ -336,32 +310,4 @@ const SamplerComponent = () => {
   );
 };
 
-export default SamplerComponent;
-
-// Using Logarithm:
-
-// const handleLoopStartNormalizedChange = (linearPosition: number) => {
-//   // Apply logarithmic scaling (more sensitive at beginning)
-//   const logValue = logScaleStart(linearPosition);
-
-//   // Clamp to make sure start doesn't exceed end position
-//   const clampedLogValue = Math.min(logValue, loopEndNormalized - 0.001);
-//   setLoopStartNormalized(inverseLogScaleStart(clampedLogValue));
-
-//   // Calculate actual time value and update sampler
-//   const actualValue = clampedLogValue * sampleDuration;
-//   samplerRef.current?.setLoopStart(actualValue, rampTime);
-// };
-
-// const handleLoopEndNormalizedChange = (linearPosition: number) => {
-//   // Apply logarithmic scaling (more sensitive at end)
-//   const logValue = logScaleEnd(linearPosition);
-
-//   // Clamp to make sure end doesn't go below start position
-//   const clampedLogValue = Math.max(logValue, loopStartNormalized + 0.001);
-//   setLoopEndNormalized(inverseLogScaleEnd(clampedLogValue));
-
-//   // Calculate actual time value and update sampler
-//   const actualValue = clampedLogValue * sampleDuration;
-//   samplerRef.current?.setLoopEnd(actualValue, rampTime);
-// };
+export default SampleInstrumentComponent;
