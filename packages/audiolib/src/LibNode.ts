@@ -1,6 +1,6 @@
 import { NodeID } from '@/nodes/node-store';
 import { Message, MessageHandler } from '@/events';
-import { PressedModifiers } from '@/input';
+import { PressedModifiers } from '@/io';
 
 export type BaseNodeType =
   | 'instrument'

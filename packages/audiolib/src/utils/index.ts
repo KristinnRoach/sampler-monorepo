@@ -4,9 +4,9 @@ export * from './audiodata/validate/audiobuffer';
 export * from './audiodata/calculate/zero-crossing';
 
 // Musical utils
-export * from './musical/midi/midiTo';
-export * from './musical/midi/normalize';
-export * from './musical/midi/guards';
+export * from './midi/midiTo';
+export * from './midi/normalize';
+export * from './midi/guards';
 
 // Code utils
 export * from './code/assert';

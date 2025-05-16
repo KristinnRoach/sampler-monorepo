@@ -1,13 +1,9 @@
-export type DeviceInfo = {
-  deviceId: string;
-  label: string;
-  kind: MediaDeviceKind;
-};
-
-// Device-specific type aliases for better type safety
-export type AudioInputDevice = DeviceInfo & { kind: 'audioinput' };
-export type AudioOutputDevice = DeviceInfo & { kind: 'audiooutput' };
-export type VideoInputDevice = DeviceInfo & { kind: 'videoinput' };
+import {
+  DeviceInfo,
+  AudioInputDevice,
+  AudioOutputDevice,
+  VideoInputDevice,
+} from './types';
 
 // Get list of available devices
 export async function getDevices(): Promise<DeviceInfo[]> {
@@ -23,6 +19,14 @@ export async function getDevices(): Promise<DeviceInfo[]> {
     console.error('Failed to enumerate devices:', error);
     return [];
   }
+}
+
+// MIDI Access
+export async function getMIDIAccess(): Promise<MIDIAccess> {
+  if (!navigator.requestMIDIAccess) {
+    throw new Error('MIDI access not supported in this browser');
+  }
+  return navigator.requestMIDIAccess();
 }
 
 // Audio Input (Microphone)
@@ -50,14 +54,6 @@ export async function getCamera(
   return navigator.mediaDevices.getUserMedia({
     video: constraints,
   });
-}
-
-// MIDI Access
-export async function getMIDIAccess(): Promise<MIDIAccess> {
-  if (!navigator.requestMIDIAccess) {
-    throw new Error('MIDI access not supported in this browser');
-  }
-  return navigator.requestMIDIAccess();
 }
 
 // Device Selection Helpers

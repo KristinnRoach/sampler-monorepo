@@ -4,7 +4,7 @@ import { Pool } from '@/nodes/helpers/collections/Pool';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { PressedModifiers } from '@/input/types';
+import { PressedModifiers } from '@/io/types';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { Debouncer } from '@/utils/Debouncer';
 import { localStore } from '@/storage/local';

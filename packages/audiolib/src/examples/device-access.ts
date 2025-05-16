@@ -5,7 +5,7 @@ import {
   getMIDIAccess,
   getAudioInputDevices,
   onDeviceChange,
-} from '../utils/devices/devices';
+} from '../io/devices/devices';
 
 async function setupDevices() {
   // Get microphone access

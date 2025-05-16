@@ -24,15 +24,20 @@ import { Recorder } from '@/nodes/recorder';
 
 import { initProcessors } from './worklets';
 
+import { MidiController } from '@/io';
+
 export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: ContainerType = 'audiolib';
   static #instance: Audiolib | null = null;
 
   #asyncInit = createAsyncInit<Audiolib>();
+  #midiController = new MidiController();
+
   #audioContext: AudioContext | null = null;
   #masterGain: GainNode; // todo: MasterBus
   #instruments: Map<string, LibInstrument> = new Map();
+
   #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null;
 
@@ -97,6 +102,9 @@ export class Audiolib implements LibNode {
     assert(!recResult.error, `Failed to init Recorder`, recResult);
     this.#globalAudioRecorder = recorder;
 
+    const midiSuccess = await this.initMidiController(); // move ?
+    console.debug(`midi initialized? : ${midiSuccess}`);
+
     // All is well
     console.log('Audiolib initialized successfully');
     return this;
@@ -135,6 +143,12 @@ export class Audiolib implements LibNode {
     });
   }
 
+  async initMidiController(): Promise<boolean> {
+    const result = await tryCatch(() => this.#midiController.initialize());
+    assert(!result.error, `Failed to initialize MIDI`);
+    return result.data;
+  }
+
   createSampler(
     ctx = this.#audioContext,
     polyphony = 16,
@@ -162,6 +176,9 @@ export class Audiolib implements LibNode {
 
     // // For dev debugging levels
     // newSampler.startLevelMonitoring();
+
+    // ! just while testing:
+    newSampler.enableMIDI(this.#midiController, 1);
 
     return newSampler;
   }

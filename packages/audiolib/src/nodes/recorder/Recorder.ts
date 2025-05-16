@@ -13,7 +13,7 @@ import {
   stopRecording,
   blobToAudioBuffer,
 } from './record-utils';
-import { getMicrophone } from '@/utils/devices/devices';
+import { getMicrophone } from '@/io/devices/devices';
 
 export interface SampleLoader {
   // todo: replace SampleLoader with Instrument<Sampler> | Voice<BufferSource> ??

@@ -1,5 +1,5 @@
 // Empty import to import the Keyboard interface from input/types
-import {} from '../../input/types';
+import {} from '../../io/types';
 
 interface AudioEnvironment {
   readonly cancelAndHoldSupported: boolean;

@@ -3,7 +3,12 @@ import { createNodeId, NodeID } from '@/nodes/node-store';
 import type { MIDINote, ActiveNoteId } from './types';
 import { getAudioContext } from '@/context';
 
-import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input'; // todo: create new instance instead of singleton
+import {
+  MidiController,
+  globalKeyboardInput,
+  InputHandler,
+  PressedModifiers,
+} from '@/io'; // instances versus singletons ??
 
 import {
   Message,
@@ -268,12 +273,14 @@ export class Sampler implements LibInstrument {
   #onBlur() {
     console.debug('Blur occured');
     this.panic();
+    return this;
   }
 
   #handleModifierKeys(modifiers: PressedModifiers) {
     if (modifiers.caps !== undefined) {
       this.setLoopEnabled(modifiers.caps);
     }
+    return this;
   }
 
   enableKeyboard() {
@@ -288,6 +295,7 @@ export class Sampler implements LibInstrument {
     } else {
       console.debug(`keyboard already enabled`);
     }
+    return this;
   }
 
   disableKeyboard() {
@@ -297,6 +305,21 @@ export class Sampler implements LibInstrument {
     } else {
       console.debug(`keyboard already disabled`);
     }
+    return this;
+  }
+
+  async enableMIDI(
+    midiController: MidiController,
+    channel: number = 0
+  ): Promise<this> {
+    assert(midiController.isInitialized, `MidiController must be initialized`);
+    midiController.connectInstrument(this, channel);
+    return this;
+  }
+
+  disableMIDI(midiController: MidiController, channel: number = 0): this {
+    midiController.disconnectInstrument(channel);
+    return this;
   }
 
   setAttackTime(seconds: number) {
@@ -398,6 +421,8 @@ export class Sampler implements LibInstrument {
         globalKeyboardInput.removeHandler(this.#keyboardHandler);
         this.#keyboardHandler = null;
       }
+
+      // todo: disableMIDI
     } catch (error) {
       console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }
