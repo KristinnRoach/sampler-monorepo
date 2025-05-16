@@ -195,23 +195,18 @@ const SamplerComponent = () => {
     samplerRef.current?.setLoopEnabled(newLoopState);
   };
 
-  // NOT using Logarithm:
   const handleLoopStartNormalizedChange = (normalizedValue: number) => {
-    // Clamp to make sure start doesn't exceed end position
-    const clampedValue = Math.min(normalizedValue, loopEndNormalized - 0.001);
-    setLoopStartNormalized(clampedValue);
+    const clampedValue = Math.min(normalizedValue, loopEndNormalized);
+    setLoopStartNormalized(clampedValue); // update ui
 
-    // Calculate actual time value and update sampler
-    const actualValue = clampedValue * sampleDuration;
+    const actualValue = normalizedValue * sampleDuration;
     samplerRef.current?.setLoopStart(actualValue, rampTime);
   };
 
   const handleLoopEndNormalizedChange = (normalizedValue: number) => {
-    // Clamp to make sure end doesn't go below start position
-    const clampedValue = Math.max(normalizedValue, loopStartNormalized + 0.001);
-    setLoopEndNormalized(clampedValue);
+    const clampedValue = Math.max(normalizedValue, loopStartNormalized);
+    setLoopEndNormalized(normalizedValue); // update ui
 
-    // Calculate actual time value and update sampler
     const actualValue = clampedValue * sampleDuration;
     samplerRef.current?.setLoopEnd(actualValue, rampTime);
   };
@@ -265,9 +260,9 @@ const SamplerComponent = () => {
         <input
           style={{ width: '65vw', height: '8vh', margin: '50px' }}
           type='range'
-          min={0}
+          min={0.00001}
           max={1}
-          step={0.0001}
+          step={0.01}
           value={loopStartNormalized}
           onChange={(e) =>
             handleLoopStartNormalizedChange(parseFloat(e.target.value))
@@ -285,9 +280,9 @@ const SamplerComponent = () => {
         <input
           style={{ width: '65vw', height: '8vh', margin: '50px' }}
           type='range'
-          min={0}
+          min={0.00001}
           max={1}
-          step={0.0001}
+          step={0.01}
           value={loopEndNormalized}
           onChange={(e) =>
             handleLoopEndNormalizedChange(parseFloat(e.target.value))

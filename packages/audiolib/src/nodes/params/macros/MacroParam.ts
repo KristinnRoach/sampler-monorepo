@@ -97,7 +97,7 @@ export class MacroParam implements LibParamNode {
   // add target audioparam to be controlled by the macro
   addTarget(
     targetParam: AudioParam,
-    paramType: string, // add id (paramInfo type based on AudioParam interface)
+    paramType: string,
     scaleFactor: number = 1
   ) {
     assert(targetParam !== undefined, 'target should be AudioParam!', this);
@@ -146,8 +146,8 @@ export class MacroParam implements LibParamNode {
     rampDuration: number,
     constant: number,
     style: RampMethod = 'exponentialRampToValueAtTime',
-    onComplete?: () => void, // optional user callback to run when ramp completes
-    debounceMs = 30 // still testing values
+    onComplete?: () => void,
+    debounceMs = 30
   ): this {
     const options = {
       targetValue,
@@ -233,27 +233,13 @@ export class MacroParam implements LibParamNode {
     const allowedDistances = this.#allowedPeriods;
     const initialTargetDistance = Math.abs(constant - target);
 
-    let closestAllowed = allowedDistances[0];
-    let minDifference = Math.abs(initialTargetDistance - closestAllowed);
-
-    // could use the fact allowedDistances are sorted (low to high)
-    // and keep track of current distance since the next one is likely next to it
-    // could also keep track of direction
-    for (const dist of allowedDistances) {
-      const difference = Math.abs(initialTargetDistance - dist);
-      if (difference < minDifference) {
-        minDifference = difference;
-        closestAllowed = dist;
-      }
-    }
-
     // alternative, same results after quick non thorough testing
-    // const closestAllowed = allowedDistances.reduce((prev, curr) =>
-    //   Math.abs(curr - initialTargetDistance) <
-    //   Math.abs(prev - initialTargetDistance)
-    //     ? curr
-    //     : prev
-    // );
+    const closestAllowed = allowedDistances.reduce((prev, curr) =>
+      Math.abs(curr - initialTargetDistance) <
+      Math.abs(prev - initialTargetDistance)
+        ? curr
+        : prev
+    );
 
     const safePeriod = Math.max(closestAllowed, this.shortestPeriod); // Unnecessary?
 
@@ -699,4 +685,19 @@ export class MacroParam implements LibParamNode {
 //   find = 'firstShorterPeriod';
 // } else {
 //   find = 'firstLongerPeriod';
+// }
+
+// most basic version:
+// let closestAllowed = allowedDistances[0];
+// let minDifference = Math.abs(initialTargetDistance - closestAllowed);
+
+// // could use the fact allowedDistances are sorted (low to high)
+// // and keep track of current distance since the next one is likely next to it
+// // could also keep track of direction
+// for (const dist of allowedDistances) {
+//   const difference = Math.abs(initialTargetDistance - dist);
+//   if (difference < minDifference) {
+//     minDifference = difference;
+//     closestAllowed = dist;
+//   }
 // }
