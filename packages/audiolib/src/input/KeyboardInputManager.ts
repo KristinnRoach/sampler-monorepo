@@ -6,23 +6,25 @@ import { defaultKeymap } from './keymap';
 export class KeyboardInputManager {
   static #instance: KeyboardInputManager;
 
-  /* todo: separate trigger handlers
-           to ensure the most time critical
-           handlers are called first 
-           (minimize audio latency)
-           ? Priority queue or latency categories
-  */
   #handlers: Set<InputHandler> = new Set();
-  #triggerHandlers: Set<InputHandler> = new Set(); // todo: Set<InputHandler<"NoteOn">>
+  // #triggerHandlers: Set<InputHandler> = new Set(); // todo: Set<InputHandler<"NoteOn">>
 
-  #pressedKeys: Set<string> = new Set();
-  #capsLockOn: boolean = false;
   #isModifierStateSupported: boolean = false;
   #isListening: boolean = false;
-  #keymap: KeyMap;
+
+  #pressedNoteKeys: Set<string> = new Set();
+  #pressedModKeys: Set<string> = new Set();
+
+  #noteKeyMap: KeyMap;
+
+  // just hardcoded e.code values since only using caps and space for now
+  #modifierKeys = { loopToggle: 'CapsLock', loopMomentary: 'Space' } as const;
+
+  #capslockOn: boolean = false;
+  #spacebarDown: boolean = false;
 
   private constructor(keymap: KeyMap = defaultKeymap) {
-    this.#keymap = keymap;
+    this.#noteKeyMap = keymap;
     this.#isModifierStateSupported = isModifierStateSupported();
   }
 
@@ -33,99 +35,146 @@ export class KeyboardInputManager {
     return KeyboardInputManager.#instance;
   }
 
-  isPressed(code: string): boolean {
-    if (code === 'CapsLock') return this.getCapslock();
-    else return this.#pressedKeys.has(code);
+  get pressedKeys() {
+    return new Set([...this.#pressedNoteKeys, ...this.#pressedModKeys]);
+  }
+
+  isPressed(keycode: string): boolean {
+    if (this.#modifierKeys.hasOwnProperty(keycode)) {
+      return this.#pressedModKeys.has(keycode);
+    } else return this.#pressedNoteKeys.has(keycode);
   }
 
   getCapslock(e?: KeyboardEvent): boolean {
     if (e && this.#isModifierStateSupported) {
       return e.getModifierState('CapsLock');
-    } else return this.#capsLockOn;
+    } else return this.#capslockOn;
   }
 
-  get pressedKeys(): Set<string> {
-    return new Set(this.#pressedKeys);
+  get pressedNoteKeys(): Set<string> {
+    return new Set(this.#pressedNoteKeys);
   }
 
-  getModifiers(e: KeyboardEvent): PressedModifiers {
+  getALLModifiers(e: KeyboardEvent): PressedModifiers {
     return {
       shift: e.shiftKey,
       ctrl: e.ctrlKey,
       alt: e.altKey,
       meta: e.metaKey,
       caps: this.getCapslock(e),
+      space: this.#spacebarDown,
     } as const;
+  }
+
+  #handleModKeyDown(e: KeyboardEvent) {
+    e.preventDefault();
+
+    if (this.#pressedModKeys.has(e.code)) return;
+
+    if (e.code === 'Space') {
+      this.#spacebarDown = true;
+    } else if (e.code === 'CapsLock') {
+      this.#capslockOn = this.getCapslock(e);
+    }
+
+    this.#pressedModKeys.add(e.code);
+
+    const modifiers = this.getALLModifiers(e); // todo: rethink / remove redundancy !
+    this.#handlers.forEach((handler) => {
+      if (handler.onModifierChange) {
+        handler.onModifierChange(modifiers);
+      }
+    });
+  }
+
+  #handleModKeyUp(e: KeyboardEvent) {
+    e.preventDefault();
+
+    if (!this.#pressedModKeys.has(e.code)) return;
+
+    if (e.code === 'Space') {
+      this.#spacebarDown = false;
+    }
+
+    this.#pressedModKeys.delete(e.code);
   }
 
   private handleKeyDown = (e: KeyboardEvent): void => {
     if (e.repeat) return;
+    const keycode = e.code; // consider switching to e.key
 
-    if (this.#pressedKeys.has(e.code)) return;
+    if (this.#modifierKeys.hasOwnProperty(keycode)) {
+      this.#handleModKeyDown(e);
+      return;
+    }
 
-    const midiNote = this.#keymap[e.code];
+    if (this.#pressedNoteKeys.has(keycode)) return;
+    this.#pressedNoteKeys.add(keycode);
+
+    const midiNote = this.#noteKeyMap[keycode];
     if (midiNote === undefined) return;
     e.preventDefault();
 
-    const modifiers = this.getModifiers(e);
-    // todo: move when space handling is implemented (just to avoid annoying scrolling behaviour for now)
-    if (e.key === 'Space') e.preventDefault();
+    const defaultVelocity = 100; // for now (no velocity for computer keyboard)
 
-    // debugKeyModifiers(e);
-    const defaultVelocity = 100; // todo: DEFAULT.MIDI.VELOCITY // ? check Web Midi API for standards
+    const modifiers = this.getALLModifiers(e); // todo: rethink / remove redundancy !
 
     this.#handlers.forEach((handler) =>
       handler.onNoteOn(midiNote, defaultVelocity, modifiers)
-    ); // no velocity for computer keyboard
-
-    // Moved after handlers to prevent stuck notes
-    this.#pressedKeys.add(e.code);
+    );
   };
 
   private handleKeyUp = (e: KeyboardEvent): void => {
-    if (!this.#pressedKeys.has(e.code)) return;
+    const keycode = e.code;
 
-    const midiNote = this.#keymap[e.code];
+    this.#capslockOn = this.getCapslock(e); // caps doesnt fire keyup so just always checking
+    if (this.#modifierKeys.hasOwnProperty(keycode)) {
+      this.#handleModKeyUp(e);
+      return;
+    }
+
+    const modifiers = this.getALLModifiers(e); // todo: rethink / remove redundancy !
+    this.#handlers.forEach((handler) => {
+      if (handler.onModifierChange) {
+        handler.onModifierChange(modifiers);
+      }
+    });
+
+    if (!this.#pressedNoteKeys.has(e.code)) return;
+
+    const midiNote = this.#noteKeyMap[e.code];
     if (midiNote === undefined) return;
 
-    const modifiers = this.getModifiers(e);
-    // debugKeyModifiers(e);
     this.#handlers.forEach((handler) => handler.onNoteOff(midiNote, modifiers));
 
-    // Moved after handlers to prevent stuck notes
-    this.#pressedKeys.delete(e.code);
-  };
-
-  // Specifically handling caps for robust cross-platform behavior
-  private handleCaps = (e: KeyboardEvent): void => {
-    // todo: add robust toggle handling for caps and space
-    // ensure no race conditions
-    if (e.key === 'CapsLock') {
-      this.#capsLockOn = this.getCapslock(e);
-    }
+    // Moved after handlers to prevent stuck notes (?)
+    this.#pressedNoteKeys.delete(e.code);
   };
 
   private handleBlur = (e: FocusEvent): void => {
     // Create a copy of pressed keys
-    const pressedKeyCodes = Array.from(this.#pressedKeys);
+    const pressedKeyCodes = Array.from(this.#pressedNoteKeys);
+
+    console.log(`Blur occured ${e}`);
 
     const modifiers = {
       shift: false,
       ctrl: false,
       alt: false,
       meta: false,
-      caps: this.getCapslock(), // Maintain caps lock state
+      caps: this.getCapslock(), // Maintains caps lock state
+      space: false,
     };
 
     // First notify handlers about each specific key release
     pressedKeyCodes.forEach((code) => {
-      const midiNote = this.#keymap[code];
+      const midiNote = this.#noteKeyMap[code];
       if (midiNote !== undefined) {
         this.#handlers.forEach((handler) =>
           handler.onNoteOff(midiNote, modifiers)
         );
       }
-      this.#pressedKeys.delete(code);
+      this.#pressedNoteKeys.delete(code);
     });
 
     // Then notify all handlers about the blur event
@@ -136,7 +185,7 @@ export class KeyboardInputManager {
     });
 
     // Clear pressed keys except for CapsLock
-    this.#pressedKeys.clear();
+    this.#pressedNoteKeys.clear();
   };
 
   public addHandler(handler: InputHandler): () => void {
@@ -165,30 +214,24 @@ export class KeyboardInputManager {
   }
 
   public setKeymap(keymap: KeyMap): void {
-    this.#keymap = keymap;
+    this.#noteKeyMap = keymap;
   }
 
   public getKeymap(): KeyMap {
-    return { ...this.#keymap };
+    return { ...this.#noteKeyMap };
   }
 
   private startListening(): void {
     if (this.#isListening) return;
     if (typeof document !== 'undefined') {
       // Use document for key & mouse events, window for blur & focus
+      // ? focus ?
+
       // Attach time critical handlers first (e.g. keydown triggering playback)
       document.addEventListener('keydown', this.handleKeyDown);
       document.addEventListener('keyup', this.handleKeyUp);
 
-      // Attempting to ensure robust capslock behavior
-      document.addEventListener('keydown', this.handleCaps);
-      document.addEventListener('keyup', this.handleCaps);
-      // document.addEventListener('keypress', this.handleCaps);
-
-      // Blur
       window.addEventListener('blur', this.handleBlur);
-
-      // ? focus ? check caps / modifiers on first keyevent ?
 
       this.#isListening = true;
     }
@@ -201,16 +244,9 @@ export class KeyboardInputManager {
       document.removeEventListener('keydown', this.handleKeyDown);
       document.removeEventListener('keyup', this.handleKeyUp);
 
-      // Attempting to ensure robust capslock behavior
-      document.removeEventListener('keydown', this.handleCaps);
-      document.removeEventListener('keyup', this.handleCaps);
-      // document.removeEventListener('keypress', this.handleCaps);
-
       if (typeof window !== 'undefined') {
         window.removeEventListener('blur', this.handleBlur);
       }
-
-      // ? focus ? check caps / modifiers on first keyevent ?
 
       this.#isListening = false;
     }
@@ -219,19 +255,12 @@ export class KeyboardInputManager {
   public dispose(): void {
     this.stopListening();
     this.#handlers.clear();
-    this.#pressedKeys.clear();
+    this.#pressedNoteKeys.clear();
   }
 }
 
-// Singleton instance for easy global access
+// Singleton instance for easy global access // TODO: Remove if not needed
 export const globalKeyboardInput = KeyboardInputManager.getInstance();
-
-export const checkGlobalLoopState = (e?: KeyboardEvent) =>
-  globalKeyboardInput.getCapslock(e);
-
-// Helper function for checking key state
-export const isKeyPressed = (code: string): boolean =>
-  KeyboardInputManager.getInstance().isPressed(code);
 
 export function debugKeyModifiers(e: KeyboardEvent, keys?: ModifierKey[]) {
   const modifiers: Record<ModifierKey, boolean> = {
@@ -252,6 +281,17 @@ export function debugKeyModifiers(e: KeyboardEvent, keys?: ModifierKey[]) {
     console.log(modifiers);
   }
 }
+
+// Attempting to ensure robust capslock behavior
+// check caps / modifiers on first keyevent ?
+
+// Attempting to ensure robust capslock behavior
+// document.addEventListener('keydown', this.handleCaps);
+// document.addEventListener('keyup', this.handleCaps);
+// document.addEventListener('keypress', this.handleCaps);
+// document.removeEventListener('keydown', this.handleCaps);
+// document.removeEventListener('keyup', this.handleCaps);
+// document.removeEventListener('keypress', this.handleCaps);
 
 // remove below, if/when verified to be redundant:
 // private handleFirstKeyEvent = (e: KeyboardEvent): void => {

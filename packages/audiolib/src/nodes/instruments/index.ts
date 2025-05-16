@@ -1,5 +1,6 @@
 /** INSTRUMENTS */
 export { Sampler } from './Sampler/SingleSample/SS_Sampler';
+export { SampleInstrument } from './Sampler/SampleInstrument/SampleInstrument';
 export { KarplusStrongSynth } from './Synth/KarplusStrong/KS_Synth';
 
 /** VOICES */

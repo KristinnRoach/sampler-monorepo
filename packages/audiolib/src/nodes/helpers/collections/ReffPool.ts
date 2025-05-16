@@ -4,8 +4,7 @@ import { assert } from '@/utils';
 
 export class VoicePool {
   readonly nodeId: NodeID;
-  readonly nodeType = 'pool'; // ContainerType
-  #allocationStrategy = 'LRU'; // for now
+  readonly nodeType = 'pool';
 
   #available = new Set<LibVoiceNode>();
   #playing = new Set<LibVoiceNode>(); // check if Map with Midi notes is needed
@@ -38,7 +37,7 @@ export class VoicePool {
       this.#playing.delete(voice);
       this.#releasing.add(voice);
     } else {
-      console.warn(`tried to release non-playing voice: ${voice}`);
+      console.warn(`tried to release non-playing voice: ${voice.nodeId}`);
     }
   }
 
@@ -47,14 +46,7 @@ export class VoicePool {
       this.#releasing.delete(voice);
       this.#available.add(voice);
     } else {
-      console.warn(
-        `tried to stop non-releasing voice: 
-        id: ${voice.nodeId},
-        releasing: ${this.#releasing.forEach((v) => v.nodeId)},
-        playing: ${this.#playing.forEach((v) => v.nodeId)},
-        available: ${this.#available.forEach((v) => v.nodeId)}.
-        `
-      );
+      console.warn(`tried to stop non-releasing voice: ${voice.nodeId}`);
     }
   }
 

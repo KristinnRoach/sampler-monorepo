@@ -1,44 +1,40 @@
 import { LibVoiceNode, VoiceType } from '@/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { VoiceState, ActiveNoteId } from './types';
+import { DEFAULT_TRIGGER_OPTIONS } from './constants';
+
 import {
   Message,
   MessageHandler,
   createMessageBus,
   MessageBus,
 } from '@/events';
+
 import {
   assert,
   cancelScheduledParamValues,
   midiToPlaybackRate,
 } from '@/utils';
 
-import { checkGlobalLoopState } from '@/input';
-
 export class SampleVoice implements LibVoiceNode {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
-  readonly processorNames = ['source-processor'];
 
-  private worklet: AudioWorkletNode;
-  private messages: MessageBus<Message>;
-  private bufferDuration: number | null;
-
-  // Playback Flags
-  // ! Keeping as comments for now,
-  // ! until I can verify whether these are needed
-  // private isPlaying = false;
-  // private isReleasing = false;
+  #worklet: AudioWorkletNode;
+  #messages: MessageBus<Message>;
+  #state: VoiceState = VoiceState.IDLE;
+  #currentNoteId: number | string | null = null;
+  #startedTimestamp: number = -1;
 
   constructor(
     private context: AudioContext = getAudioContext(),
     options: { processorOptions?: any } = {}
   ) {
     this.nodeId = createNodeId(this.nodeType);
-    this.messages = createMessageBus<Message>(this.nodeId);
-    this.bufferDuration = null;
+    this.#messages = createMessageBus<Message>(this.nodeId);
 
-    this.worklet = new AudioWorkletNode(context, 'sample-player-processor', {
+    this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       processorOptions: options.processorOptions || {},
@@ -49,35 +45,37 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   private setupMessageHandling() {
-    this.worklet.port.onmessage = (event: MessageEvent) => {
+    this.#worklet.port.onmessage = (event: MessageEvent) => {
       const { type, ...data } = event.data;
 
-      // Todo: only send messages if someone has subscribed to them?
-      switch (type) {
-        case 'voice:started':
-          this.messages.sendMessage('voice:started', {});
-          break;
-        case 'voice:ended':
-          this.messages.sendMessage('voice:ended', {});
-          break;
-        case 'voice:releasing':
-          this.messages.sendMessage('voice:releasing', {});
-          break;
-        case 'voice:looped':
-          this.messages.sendMessage('voice:looped', {
-            loopCount: data.loopCount,
-          });
-          break;
-        case 'voice:position':
-          this.getParam('playbackPosition')?.setValueAtTime(
-            data.position,
-            this.context.currentTime
-          );
-          this.messages.sendMessage('voice:position', {
-            position: data.position,
-          });
-          break;
-      }
+      this.#messages.sendMessage(type, data);
+
+      // // Todo: only send messages if someone has subscribed to them?
+      // switch (type) {
+      //   case 'voice:started':
+      //     this.messages.sendMessage('voice:started', {});
+      //     break;
+      //   case 'voice:ended':
+      //     this.messages.sendMessage('voice:ended', {});
+      //     break;
+      //   case 'voice:releasing':
+      //     this.messages.sendMessage('voice:releasing', {});
+      //     break;
+      //   case 'voice:looped':
+      //     this.messages.sendMessage('voice:looped', {
+      //       loopCount: data.loopCount,
+      //     });
+      //     break;
+      //   case 'voice:position':
+      //     this.getParam('playbackPosition')?.setValueAtTime(
+      //       data.position,
+      //       this.context.currentTime
+      //     );
+      //     this.messages.sendMessage('voice:position', {
+      //       position: data.position,
+      //     });
+      //     break;
+      // }
     };
   }
 
@@ -98,38 +96,30 @@ export class SampleVoice implements LibVoiceNode {
       duration: buffer.duration,
     });
 
-    this.bufferDuration = buffer.duration;
     return this;
   }
 
   trigger(options: {
-    midiNote: number;
-    velocity?: number;
-    when?: number;
+    midiNote: ActiveNoteId;
+    velocity: ActiveNoteId;
+    noteId: number | string;
+
+    secondsFromNow?: number;
     startOffset?: number;
-    endOffset?: number;
+
     attack_sec?: number;
-  }): this {
-    // if (this.isPlaying) {
-    //   // console.warn('Voice already playing');
-    //   // todo: return this; // when isPlaying is proven robust
-    // }
+  }): number | string | null {
+    if (this.#state === VoiceState.PLAYING) return null;
+    this.#state = VoiceState.PLAYING;
+    this.#currentNoteId = options.noteId;
 
-    const defaults = {
-      midiNote: 60,
-      velocity: 100,
-      when: this.now,
-      startOffset: 0,
-      endOffset: 0,
-      attack_sec: 0.02,
-    };
-
-    const { midiNote, velocity, when, startOffset, endOffset, attack_sec } = {
-      ...defaults,
+    const { midiNote, velocity, secondsFromNow, startOffset, attack_sec } = {
+      ...DEFAULT_TRIGGER_OPTIONS,
       ...options,
     };
 
-    // Add validation for velocity
+    const when = this.now + secondsFromNow;
+
     const normalizedVelocity = velocity ? velocity / 127 : 1;
 
     this.setParam('playbackRate', midiToPlaybackRate(midiNote));
@@ -145,77 +135,69 @@ export class SampleVoice implements LibVoiceNode {
       when,
       startOffset,
     });
-    // this.isPlaying = true;
 
-    // todo: cleanup after testing
-    const loop = checkGlobalLoopState();
-    this.setLoopEnabled(loop);
+    this.#startedTimestamp = when;
 
-    return this;
+    return this.#currentNoteId;
   }
 
-  release(options: { release_sec?: number } = {}): this {
-    // if (this.isReleasing) return this;
+  release({
+    release_sec = 0.1,
+    secondsFromNow = 0,
+  }: {
+    release_sec?: number;
+    secondsFromNow?: number;
+  }): this {
+    if (this.#state === VoiceState.RELEASING) return this;
+    this.#state = VoiceState.RELEASING;
 
-    // console.warn(this.isPlaying);
-
-    // this.isReleasing = true; // flag
-
-    const release_sec = options.release_sec ?? 0.1;
+    const when = this.now + secondsFromNow;
     const envGain = this.getParam('envGain')!;
-    cancelScheduledParamValues(envGain, this.now);
-    envGain.setValueAtTime(envGain.value, this.now);
-    envGain.linearRampToValueAtTime(0, this.now + release_sec);
-
-    // todo: cleanup after testing
-    const loop = checkGlobalLoopState();
-    this.setLoopEnabled(loop);
+    cancelScheduledParamValues(envGain, when);
+    envGain.setValueAtTime(envGain.value, when);
+    envGain.linearRampToValueAtTime(0, when + release_sec);
 
     this.sendToProcessor({ type: 'voice:release' });
     return this;
   }
 
   stop(): this {
-    // todo: ensure idempotent!!
-    // if (!this.isPlaying) return this;
+    if (this.#state === VoiceState.STOPPED) return this;
+    this.#state = VoiceState.STOPPED;
+    this.#currentNoteId = null;
+
     this.setParam('envGain', 0);
     this.sendToProcessor({ type: 'voice:stop' });
     return this;
   }
 
-  // Core LibVoiceNode interface methods
   connect(
     destination: AudioNode | AudioParam,
     output?: number,
     input?: number
   ): this {
     if (destination instanceof AudioParam) {
-      this.worklet.connect(destination, output);
+      this.#worklet.connect(destination, output);
     } else {
-      this.worklet.connect(destination, output, input);
+      this.#worklet.connect(destination, output, input);
     }
     return this;
   }
 
   disconnect(): this {
-    this.worklet.disconnect();
+    this.#worklet.disconnect();
     return this;
   }
 
-  getParam(name: string): AudioParam {
-    const param = (this.worklet.parameters as Map<string, AudioParam>).get(
+  getParam(name: string): AudioParam | null {
+    const param = (this.#worklet.parameters as Map<string, AudioParam>).get(
       name
     );
-    if (!(param instanceof AudioParam)) {
-      console.warn(
-        `sampleVoice.getParam received a non-AudioParam arg: ${param}`
-      );
+    if (!(param && param instanceof AudioParam)) {
+      console.warn(`Parameter ${name} not found`);
+      return null;
     }
-    assert(
-      // to strict.. // todo: allow returning undefined and just log warning
-      param instanceof AudioParam,
-      `sampleVoice.getParam received a non-AudioParam arg: ${param}`
-    );
+
     return param;
   }
 
@@ -225,36 +207,44 @@ export class SampleVoice implements LibVoiceNode {
     options: { cancelPrevSchedules?: boolean; secondsFromNow?: number } = {}
   ): this {
     const param = this.getParam(name);
-    if (!param) {
-      console.warn;
-      return this;
-    }
-
-    // Validate value
-    if (!Number.isFinite(value)) {
-      console.error(`Invalid value for param ${name}:`, value);
-      return this;
-    }
+    if (!param) return this;
 
     if (options.cancelPrevSchedules) {
       cancelScheduledParamValues(param, this.now);
     }
+
     param.setValueAtTime(value, this.now);
     return this;
   }
 
-  sendToProcessor(data: any): void {
-    this.worklet.port.postMessage(data);
+  sendToProcessor(data: any): this {
+    this.#worklet.port.postMessage(data);
+    return this;
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
-    return this.messages.onMessage(type, handler);
+    return this.#messages.onMessage(type, handler);
   }
 
-  // Utility methods
+  // Getters
+
+  get state(): VoiceState {
+    return this.#state;
+  }
+
   get now(): number {
     return this.context.currentTime;
   }
+
+  get activeNoteId(): number | string | null {
+    return this.#currentNoteId;
+  }
+
+  get startTime(): number {
+    return this.#startedTimestamp;
+  }
+
+  // Setters
 
   set enablePositionTracking(enabled: boolean) {
     this.sendToProcessor({
@@ -271,10 +261,24 @@ export class SampleVoice implements LibVoiceNode {
     return this;
   }
 
+  setLoopPoints(start: number, end: number): this {
+    this.setParam('loopStart', start);
+    this.setParam('loopEnd', end);
+    return this;
+  }
+
+  setPlaybackRate(rate: number): this {
+    return this.setParam('playbackRate', rate);
+  }
+
+  setEnvelopeGain(value: number): this {
+    return this.setParam('envGain', value);
+  }
+
   dispose(): void {
     this.stop();
     this.disconnect();
-    this.worklet.port.close();
+    this.#worklet.port.close();
     deleteNodeId(this.nodeId);
   }
 }

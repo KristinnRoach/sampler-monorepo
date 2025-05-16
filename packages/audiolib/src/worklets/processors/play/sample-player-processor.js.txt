@@ -1,26 +1,24 @@
+import { PlaybackTiming } from '../shared/PlaybackTiming';
 import { MIN_ABS_AMPLITUDE } from '../shared/constants';
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
-    this.buffer = null;
+    /* STATE */
 
+    // Data
+    this.buffer = null;
     this.playbackPosition = 0;
     this.loopCount = 0;
-    this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+    this.timing = new PlaybackTiming();
 
-    // Timing state (replacing PlaybackTiming)
-    this.isPlaying = false;
-    this.startTime = 0; // When playback started
-    this.startOffset = 0; // Starting position in seconds
-    this.scheduledEndTime = null; // When playback should end (if duration specified)
-
-    // Other flags
+    // FLAGS
     this.isReleasing = false;
     this.loopEnabled = false;
     this.usePlaybackPosition = false;
 
+    /* Message handling */
     this.port.onmessage = this.#handleMessage.bind(this);
   }
 
@@ -34,22 +32,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       case 'voice:set_buffer':
         this.#resetState();
-        this.buffer = null;
         this.buffer = buffer;
         break;
 
       case 'voice:start':
         this.isReleasing = false;
-        this.isPlaying = true;
-        this.startTime = when || currentTime;
-        this.startOffset = startOffset || 0;
-        this.playbackPosition = this.startOffset * sampleRate;
-
-        if (duration) {
-          this.scheduledEndTime = this.startTime + duration;
-        } else {
-          this.scheduledEndTime = null;
-        }
+        this.timing.start(when, startOffset || 0, duration);
+        this.playbackPosition = (startOffset || 0) * sampleRate;
 
         this.port.postMessage({
           type: 'voice:started',
@@ -62,7 +51,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'voice:stop':
-        this.isPlaying = false;
+        this.timing.stop(currentTime);
         break;
 
       case 'setLoopEnabled':
@@ -76,14 +65,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   #resetState() {
-    this.isPlaying = false;
-    this.isReleasing = false;
-    this.startTime = 0;
-    this.startOffset = 0;
-    this.scheduledEndTime = null;
+    this.timing.clear();
     this.playbackPosition = 0;
     this.loopCount = 0;
-    this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+    this.isReleasing = false;
   }
 
   static get parameterDescriptors() {
@@ -130,9 +115,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     ];
   }
 
+  #fillWithSilence(output) {
+    for (let channel = 0; channel < output.length; channel++) {
+      output[channel].fill(0);
+    }
+  }
+
   #onended(output) {
-    this.isPlaying = false;
     this.isReleasing = false;
+    if (this.timing) this.timing.clear();
+
     this.playbackPosition = 0;
     this.port.postMessage({ type: 'voice:ended' });
   }
@@ -141,9 +133,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return (
       !this.buffer ||
       !this.buffer.length ||
-      !this.isPlaying ||
-      (this.scheduledEndTime !== null &&
-        currentTime >= this.scheduledEndTime) ||
+      !this.timing.isActive(currentTime) ||
+      // this.timing.shouldStop(currentTime) ||
       (this.isReleasing && parameters.envGain[0] <= MIN_ABS_AMPLITUDE)
     );
   }
@@ -151,30 +142,37 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
+    // ? re-design flags to be set by input events and listen for them here
     if (!output || this.#shouldEnd(parameters)) {
       this.#onended(output);
-      return true;
+      return true; // AudioWorklet will zero-fill automatically
     }
 
     const pbRate = parameters.playbackRate[0];
     const loopStart = parameters.loopStart[0] * sampleRate;
     const loopEnd = parameters.loopEnd[0] * sampleRate;
     const envelopeGain = parameters.envGain[0];
-    const velocityGain = parameters.velocity[0];
+    const velocityGain = parameters.velocity[0]; // ? already normalized from midi ?
 
     const numChannels = Math.min(output.length, this.buffer.length);
     const bufferLength = this.buffer[0].length;
 
+    if (!this.timing.isActive(currentTime)) {
+      console.error('timing not active');
+      this.#onended(output);
+      return true;
+    }
+
     // Process samples
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
-      if (
-        this.loopEnabled &&
-        this.playbackPosition >= loopEnd &&
-        this.loopCount < this.maxLoopCount
-      ) {
+      if (this.loopEnabled && this.playbackPosition >= loopEnd) {
         this.playbackPosition = loopStart;
         this.loopCount++;
+        this.port.postMessage({
+          type: 'voice:looped',
+          loopCount: this.loopCount,
+        });
       }
 
       // Check for end of buffer

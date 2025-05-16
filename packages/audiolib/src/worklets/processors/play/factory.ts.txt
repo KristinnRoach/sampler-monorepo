@@ -1,0 +1,1 @@
+export function createSamplePlayer(ctx: AudioContext, buffer: AudioBuffer) {}

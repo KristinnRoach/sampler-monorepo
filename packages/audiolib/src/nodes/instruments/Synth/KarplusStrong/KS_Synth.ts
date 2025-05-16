@@ -136,7 +136,7 @@ export class KarplusStrongSynth implements LibInstrument {
   }
 
   #setParamValueImmediate(name: string, value: number) {
-    this.#voicePool.nodes.forEach((voice) => {
+    this.#voicePool.nodes.forEach((voice: any) => {
       const param = voice.getParam(name);
       if (param) {
         param.setValueAtTime(value, this.#context.currentTime);
