@@ -32,9 +32,13 @@ export class KarplusVoice implements LibVoiceNode {
   feedbackDelay: AudioWorkletNode;
   noiseGain: GainNode;
   outputGain: GainNode;
-  #volume: number = 0.3; // todo: standardize
 
-  #isPlaying: boolean = false;
+  #volume: number = 0.3; // todo: standardize
+  #startTime: number = 0;
+  #noteId: number | null = null;
+  #midiNote: number = 0;
+
+  #isPlaying: boolean = false; // todo: remove
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
@@ -111,11 +115,19 @@ export class KarplusVoice implements LibVoiceNode {
     this.#messages.sendMessage(type, data);
   }
 
-  trigger(options: { midiNote: number; velocity: number }): this {
+  trigger(options: {
+    midiNote: number;
+    velocity: number;
+    noteId?: number;
+  }): this {
     if (this.#isPlaying) return this;
 
     this.#isPlaying = true;
-    const { midiNote, velocity } = options;
+    this.#startTime = this.now;
+
+    const { midiNote, velocity, noteId } = options;
+    this.#midiNote = midiNote;
+    this.#noteId = noteId ?? null;
 
     const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
     const delayMs = 1000 / frequency;
@@ -148,24 +160,30 @@ export class KarplusVoice implements LibVoiceNode {
     return this;
   }
 
-  release(releaseTime: number): this {
+  release({
+    release_sec = 0.3,
+    secondsFromNow = 0,
+  }: {
+    release_sec?: number;
+    secondsFromNow?: number;
+  } = {}): this {
     if (!this.#isPlaying) return this;
 
-    const now = this.now;
-    cancelScheduledParamValues(this.outputGain.gain, this.now);
-    // this.outputGain.gain.setValueAtTime(this.outputGain.gain.value, now);
-    this.outputGain.gain.linearRampToValueAtTime(0.00001, now + releaseTime);
+    const now = this.now + secondsFromNow;
+    cancelScheduledParamValues(this.outputGain.gain, now);
+    this.outputGain.gain.linearRampToValueAtTime(0.00001, now + release_sec);
 
-    // timeout just for now, should be onEnded notification message
     setTimeout(
       () => {
         this.#isPlaying = false;
-        this.stop();
+        this.sendMessage('voice:ended', {
+          noteId: this.#noteId,
+          midiNote: this.#midiNote,
+        });
       },
-      releaseTime + 0.1 * 1000
+      (release_sec + secondsFromNow) * 1000
     );
 
-    this.sendMessage('voice:ended', {});
     return this;
   }
 
@@ -210,6 +228,10 @@ export class KarplusVoice implements LibVoiceNode {
 
   get ctx() {
     return this.audioContext;
+  }
+
+  get startTime(): number {
+    return this.#startTime;
   }
 
   get now() {

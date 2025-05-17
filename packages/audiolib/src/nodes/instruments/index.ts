@@ -1,8 +1,7 @@
 /** INSTRUMENTS */
-export { Sampler } from './Sampler/SingleSample/SS_Sampler';
-export { SampleInstrument } from './Sampler/SampleInstrument/SampleInstrument';
-export { KarplusStrongSynth } from './Synth/KarplusStrong/KS_Synth';
+export { SamplePlayer } from './Sample/SamplePlayer';
+export { KarplusStrongSynth } from './Synth/KarplusStrong/KarplusStrongSynth';
 
 /** VOICES */
-export { SampleVoice } from './Sampler/SingleSample/SampleVoice';
-export { KarplusVoice } from './Synth/KarplusStrong/KS_Voice';
+export { SampleVoice } from './Sample/SampleVoice';
+export { KarplusVoice } from './Synth/KarplusStrong/KarplusVoice';

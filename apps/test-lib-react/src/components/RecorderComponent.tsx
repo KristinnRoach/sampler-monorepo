@@ -15,11 +15,11 @@ const RecorderComponent = () => {
       await recorderRef.current.init();
 
       // Connect to existing sampler if available
-      const sampler = audiolib.getCurrentSampler();
-      if (sampler) {
-        recorderRef.current.connect(sampler);
+      const samplePlayer = audiolib.getCurrentSamplePlayer();
+      if (samplePlayer) {
+        recorderRef.current.connect(samplePlayer);
       } else {
-        console.warn('No sampler available to connect to');
+        console.warn('No sample player available to connect to');
       }
     };
 

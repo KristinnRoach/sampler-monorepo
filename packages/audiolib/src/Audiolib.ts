@@ -19,7 +19,7 @@ import { idb, initIdb, sampleLib } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
-import { Sampler, KarplusStrongSynth } from './nodes/instruments';
+import { SamplePlayer, KarplusStrongSynth } from './nodes/instruments';
 import { Recorder } from '@/nodes/recorder';
 
 import { initProcessors } from './worklets';
@@ -149,38 +149,36 @@ export class Audiolib implements LibNode {
     return result.data;
   }
 
-  createSampler(
+  createSamplePlayer(
     ctx = this.#audioContext,
     polyphony = 16,
     audioBuffer?: AudioBuffer
-  ): Sampler | null {
+  ): SamplePlayer | null {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
     let buffer = audioBuffer || this.#currentAudioBuffer;
-    assert(buffer, 'No audio buffer available for sampler', {
+    assert(buffer, 'No audio buffer available for SamplePlayer', {
       providedSample: !!audioBuffer,
       initSampleAvailable: !!this.#currentAudioBuffer,
     });
 
-    const newSampler = new Sampler(ctx, polyphony, buffer);
-    assert(newSampler, `Failed to create Sampler`);
+    const newSamplePlayer = new SamplePlayer(ctx, polyphony, buffer);
+    assert(newSamplePlayer, `Failed to create SamplePlayer`);
 
-    const alreadyLoaded = this.#instruments.has(newSampler.nodeId);
+    const alreadyLoaded = this.#instruments.has(newSamplePlayer.nodeId);
     assert(
       !alreadyLoaded,
-      `Sampler with id: ${newSampler.nodeId} already loaded`
+      `SamplePlayer with id: ${newSamplePlayer.nodeId} already loaded`
     );
 
-    newSampler.connect(this.#masterGain);
-    this.#instruments.set(newSampler.nodeId, newSampler);
+    newSamplePlayer.connect(this.#masterGain);
+    this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
 
-    // // For dev debugging levels
-    // newSampler.startLevelMonitoring();
+    // monitor levels -> sampler.startLevelMonitoring();
+    // add input handling -> sampler.enableKeyboard() and/or sampler.enableMidi()
+    // todo: allow calling sampler.enableMidi() without args for client
 
-    // ! just while testing:
-    newSampler.enableMIDI(this.#midiController, 1);
-
-    return newSampler;
+    return newSamplePlayer;
   }
 
   createKarplusStrongSynth(polyphony = 8, ctx = this.#audioContext) {
@@ -192,11 +190,17 @@ export class Audiolib implements LibNode {
     const alreadyLoaded = this.#instruments.has(newSynth.nodeId);
     assert(
       !alreadyLoaded,
-      `Sampler with id: ${newSynth.nodeId} already loaded`
+      `Instrument with id: ${newSynth.nodeId} already loaded`
     );
 
     newSynth.connect(this.#masterGain);
     this.#instruments.set(newSynth.nodeId, newSynth);
+
+    // remove after testing:
+    newSynth.enableMIDI(this.#midiController);
+
+    // add input handling -> synth.enableKeyboard()
+    // todo: allow calling synth.enableMidi() without args for client
 
     return newSynth;
   }
@@ -289,10 +293,10 @@ export class Audiolib implements LibNode {
   }
 
   // ? this is currently needed to connect Recorder, refactor later for flexibility
-  getCurrentSampler(): Sampler | null {
-    // Find the first Sampler instance in the instruments map
+  getCurrentSamplePlayer(): SamplePlayer | null {
+    // Find the first SamplePlayer instance in the instruments map
     for (const instrument of this.#instruments.values()) {
-      if (instrument instanceof Sampler) {
+      if (instrument instanceof SamplePlayer) {
         return instrument;
       }
     }
@@ -304,8 +308,8 @@ export class Audiolib implements LibNode {
   dispose(): void {
     try {
       console.debug('Audiolib dispose called');
-      for (const sampler of this.#instruments.values()) {
-        sampler.dispose();
+      for (const instrument of this.#instruments.values()) {
+        instrument.dispose();
       }
       this.#instruments.clear();
 

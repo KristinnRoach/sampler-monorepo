@@ -1,8 +1,8 @@
 import { LibVoiceNode, VoiceType } from '@/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
-import { VoiceState, ActiveNoteId } from './types';
-import { DEFAULT_TRIGGER_OPTIONS } from './constants';
+import { VoiceState, ActiveNoteId } from '../types';
+import { DEFAULT_TRIGGER_OPTIONS } from '../constants';
 
 import {
   Message,
@@ -113,7 +113,13 @@ export class SampleVoice implements LibVoiceNode {
     this.#state = VoiceState.PLAYING;
     this.#currentNoteId = options.noteId;
 
-    const { midiNote, velocity, secondsFromNow, startOffset, attack_sec } = {
+    const {
+      midiNote,
+      velocity,
+      secondsFromNow = 0,
+      startOffset = 0,
+      attack_sec = 0.001,
+    } = {
       ...DEFAULT_TRIGGER_OPTIONS,
       ...options,
     };
@@ -127,6 +133,7 @@ export class SampleVoice implements LibVoiceNode {
 
     const envGain = this.getParam('envGain')!;
     cancelScheduledParamValues(envGain, this.now);
+
     envGain.setValueAtTime(0, this.now);
     envGain.linearRampToValueAtTime(1, this.now + attack_sec);
 
@@ -154,8 +161,9 @@ export class SampleVoice implements LibVoiceNode {
     const when = this.now + secondsFromNow;
     const envGain = this.getParam('envGain')!;
     cancelScheduledParamValues(envGain, when);
+
     envGain.setValueAtTime(envGain.value, when);
-    envGain.linearRampToValueAtTime(0, when + release_sec);
+    envGain.linearRampToValueAtTime(0.0001, when + release_sec);
 
     this.sendToProcessor({ type: 'voice:release' });
     return this;

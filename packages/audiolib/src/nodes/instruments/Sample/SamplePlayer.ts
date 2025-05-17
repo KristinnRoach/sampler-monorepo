@@ -1,14 +1,15 @@
 import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
-import type { MIDINote, ActiveNoteId } from './types';
+import type { MIDINote, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
 
 import {
   MidiController,
+  // instances versus singletons?
   globalKeyboardInput,
   InputHandler,
   PressedModifiers,
-} from '@/io'; // instances versus singletons ??
+} from '@/io';
 
 import {
   Message,
@@ -28,9 +29,9 @@ import {
 import { MacroParam } from '@/nodes/params';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
-import { VoicePool } from './VoicePool';
+import { VoicePool } from '../../helpers/collections/VoicePool';
 
-export class Sampler implements LibInstrument {
+export class SamplePlayer implements LibInstrument {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'sampler';
 
@@ -217,7 +218,12 @@ export class Sampler implements LibInstrument {
     }
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
-    const noteId = this.#pool.noteOn(midiNote, velocity);
+    const noteId = this.#pool.noteOn(
+      midiNote,
+      velocity,
+      this.now,
+      this.#attack
+    );
 
     this.#midiNoteToId.set(midiNote, noteId);
 

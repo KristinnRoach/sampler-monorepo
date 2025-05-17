@@ -3,7 +3,6 @@ import { audiolib, KarplusStrongSynth } from '@repo/audiolib';
 
 const KarplusStrongSynthComponent = () => {
   const [initialized, setInitialized] = useState(false);
-  // const [activeVoices, setActiveVoices] = useState(0);
   const [volume, setVolume] = useState(1);
   const synthRef = useRef<KarplusStrongSynth | null>(null);
 
@@ -18,6 +17,8 @@ const KarplusStrongSynthComponent = () => {
       synthRef.current.dispose();
     }
     const synth = audiolib.createKarplusStrongSynth(16);
+    synth.enableKeyboard();
+
     synthRef.current = synth;
     setInitialized(true);
   };
@@ -78,7 +79,7 @@ const KarplusStrongSynthComponent = () => {
                     const value = parseFloat(e.target.value);
                     setVolume(value);
                     if (synthRef.current) {
-                      synthRef.current.setParamValue('volume', value);
+                      synthRef.current.volume = value;
                     }
                   }}
                 />
@@ -116,11 +117,6 @@ const KarplusStrongSynthComponent = () => {
               </label>
             </div>
           </div>
-
-          {/* <KeyboardController
-            onNoteOn={handleNoteOn}
-            onNoteOff={handleNoteOff}
-          /> */}
         </div>
       )}
     </div>

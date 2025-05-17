@@ -3,8 +3,8 @@ import { Audiolib } from './Audiolib';
 export const audiolib = Audiolib.getInstance();
 export { Audiolib };
 
-export { Sampler } from '@/nodes/instruments/Sampler/SingleSample/SS_Sampler';
-// export { KarplusStrongSynth } from '@/nodes/instruments/Synth/KarplusStrong/KS_Synth';
+export { SamplePlayer } from '@/nodes/instruments/Sample/SamplePlayer';
+export { KarplusStrongSynth } from '@/nodes/instruments/Synth/KarplusStrong/KarplusStrongSynth';
 
 export { Recorder } from '@/nodes/recorder';
 

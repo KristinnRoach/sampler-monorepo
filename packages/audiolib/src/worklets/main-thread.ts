@@ -1,6 +1,5 @@
 import { registry } from './worklet-registry';
 
-// Start with the most reliable path based on your logs
 const paths = [
   // Path that works in development (keep this as the first attempt)
   '/node_modules/@repo/audiolib/dist/processors/processors.js',
@@ -20,7 +19,7 @@ export async function initProcessors(context: AudioContext) {
       try {
         console.log(`Attempting to load AudioWorklet from: ${path}`);
         await context.audioWorklet.addModule(path);
-        registry.store(path);
+        registry.add(path);
         console.log('AudioWorklet module loaded successfully from:', path);
         return {
           sucess: true,

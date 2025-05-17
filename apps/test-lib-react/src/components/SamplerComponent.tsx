@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { audiolib, Sampler } from '@repo/audiolib';
+import { audiolib, SamplePlayer } from '@repo/audiolib';
 import RecorderComponent from './RecorderComponent';
 
 const SamplerComponent = () => {
@@ -17,8 +17,10 @@ const SamplerComponent = () => {
 
   const [sampleDuration, setSampleDuration] = useState(0);
   const [rampTime, setRampTime] = useState(0.25);
+  const [attackTime, setAttackTime] = useState(0.01); // Add attack time state
+  const [releaseTime, setReleaseTime] = useState(0.1); // Add release time state
   const [activeVoices, setActiveVoices] = useState(0);
-  const samplerRef = useRef<Sampler | null>(null);
+  const samplePlayerRef = useRef<SamplePlayer | null>(null);
   const sampleDurationRef = useRef(0); // Add this ref to track sample duration
 
   const [playbackPosition, setPlaybackPosition] = useState(0);
@@ -76,21 +78,17 @@ const SamplerComponent = () => {
     }
   }, [loopStartNormalized, loopEndNormalized, sampleDuration]);
 
-  const createSampler = async () => {
+  const createSamplePlayer = async () => {
     if (isInitialized) return true;
 
     try {
-      samplerRef.current = audiolib.createSampler();
-      if (!samplerRef.current) {
-        console.error('Failed to create sampler');
+      samplePlayerRef.current = audiolib.createSamplePlayer();
+      if (!samplePlayerRef.current) {
+        console.error('Failed to create SamplePlayer');
         return false;
       }
 
-      // // Enable position tracking
-      // console.log('Enabling position tracking');
-      // samplerRef.current.enablePositionTracking(true, 'mostRecent');
-
-      samplerRef.current.onMessage('voice:position', (data: any) => {
+      samplePlayerRef.current.onMessage('voice:position', (data: any) => {
         // Force immediate state update
         setPlaybackPosition((prev) => {
           // Use the ref instead of the state
@@ -105,14 +103,14 @@ const SamplerComponent = () => {
         });
       });
 
-      samplerRef.current.onMessage('voice:ended', () => {
+      samplePlayerRef.current.onMessage('voice:ended', () => {
         setActiveVoices((prev) => Math.max(prev - 1, 0));
       });
-      samplerRef.current.onMessage('voice:started', () => {
+      samplePlayerRef.current.onMessage('voice:started', () => {
         setActiveVoices((prev) => prev + 1);
       });
 
-      samplerRef.current.enableKeyboard();
+      samplePlayerRef.current.enableKeyboard();
 
       setInitialized(true);
       return true;
@@ -135,13 +133,13 @@ const SamplerComponent = () => {
   };
 
   const loadSample = async (file: File) => {
-    if (!(await createSampler())) return;
+    if (!(await createSamplePlayer())) return;
     if (!file) {
       console.error('No file selected');
       return;
     }
-    if (!samplerRef.current) {
-      console.error('Sampler not initialized');
+    if (!samplePlayerRef.current) {
+      console.error('SamplePlayer not initialized');
       return;
     }
 
@@ -157,7 +155,7 @@ const SamplerComponent = () => {
     setSampleDuration(duration);
     sampleDurationRef.current = duration; // Set the ref immediately
 
-    samplerRef.current.loadSample(audioBuffer);
+    samplePlayerRef.current.loadSample(audioBuffer);
 
     // Reset normalized positions to defaults (start at beginning, end at full duration)
     setLoopStartNormalized(0);
@@ -192,7 +190,7 @@ const SamplerComponent = () => {
     const newLoopState = !isLoopEnabled;
     setIsLoopEnabled(newLoopState);
 
-    samplerRef.current?.setLoopEnabled(newLoopState);
+    samplePlayerRef.current?.setLoopEnabled(newLoopState);
   };
 
   const handleLoopStartNormalizedChange = (normalizedValue: number) => {
@@ -200,7 +198,7 @@ const SamplerComponent = () => {
     setLoopStartNormalized(clampedValue); // update ui
 
     const actualValue = normalizedValue * sampleDuration;
-    samplerRef.current?.setLoopStart(actualValue, rampTime);
+    samplePlayerRef.current?.setLoopStart(actualValue, rampTime);
   };
 
   const handleLoopEndNormalizedChange = (normalizedValue: number) => {
@@ -208,11 +206,22 @@ const SamplerComponent = () => {
     setLoopEndNormalized(normalizedValue); // update ui
 
     const actualValue = clampedValue * sampleDuration;
-    samplerRef.current?.setLoopEnd(actualValue, rampTime);
+    samplePlayerRef.current?.setLoopEnd(actualValue, rampTime);
   };
 
   const handleRampTimeChange = (value: number) => {
     setRampTime(value);
+  };
+
+  // Add handlers for attack and release time changes
+  const handleAttackTimeChange = (value: number) => {
+    setAttackTime(value);
+    samplePlayerRef.current?.setAttackTime(value);
+  };
+
+  const handleReleaseTimeChange = (value: number) => {
+    setReleaseTime(value);
+    samplePlayerRef.current?.setReleaseTime(value);
   };
 
   // Add an effect to keep the ref in sync with the state
@@ -273,8 +282,6 @@ const SamplerComponent = () => {
       <div>
         <label style={{ display: 'block' }}>
           Loop End:
-          {/* {'         ' +
-            (logScaleEnd(loopEndNormalized) * sampleDuration).toFixed(8)}s */}
           {`           ${loopEnd.toFixed(8)}s`}
         </label>
         <input
@@ -306,57 +313,60 @@ const SamplerComponent = () => {
         </label>
       </div>
 
+      {/* Add attack time slider */}
+      <div>
+        <label>
+          Attack Time:
+          <input
+            style={{ width: '65vw', height: '8vh', margin: '50px' }}
+            type='range'
+            min={0.001}
+            max={1}
+            step={0.001}
+            value={attackTime}
+            onChange={(e) => handleAttackTimeChange(parseFloat(e.target.value))}
+          />
+          {attackTime.toFixed(4)}s
+        </label>
+      </div>
+
+      {/* Add release time slider */}
+      <div>
+        <label>
+          Release Time:
+          <input
+            style={{ width: '65vw', height: '8vh', margin: '50px' }}
+            type='range'
+            min={0.001}
+            max={1}
+            step={0.001}
+            value={releaseTime}
+            onChange={(e) =>
+              handleReleaseTimeChange(parseFloat(e.target.value))
+            }
+          />
+          {releaseTime.toFixed(4)}s
+        </label>
+      </div>
+
       <p>{isLoaded ? 'Ready to play!' : 'Click "Load Test Sound" to start'}</p>
 
       <div>
-        {' '}
-        {/* TODO: useState to render info display instead of ref.current  */}
         <p>Active Notes: {activeVoices}</p>
-        <p>Sample Duration: {samplerRef.current?.sampleDuration.toFixed(2)}s</p>
-        <p>Volume: {samplerRef.current?.volume.toFixed(2)}</p>
-        {/* <p>Voice Count: {samplerRef.current?.voiceCount}</p>
-        <p>Is Playing: {samplerRef.current?.isPlaying ? 'Yes' : 'No'}</p> */}
-        {/* <p>Is Looping: {samplerRef.current?.isLooping ? 'Yes' : 'No'}</p> */}
+        <p>
+          Sample Duration: {samplePlayerRef.current?.sampleDuration.toFixed(2)}s
+        </p>
+        <p>Volume: {samplePlayerRef.current?.volume.toFixed(2)}</p>
         <p>Is Initialized: {isInitialized ? 'Yes' : 'No'}</p>
         <p>UI Looping: {isLoopEnabled ? 'Enabled' : 'Disabled'}</p>
-        {/* <p>
-          Sampler Looping:{' '}
-          {samplerRef.current?.isLooping ? 'Enabled' : 'Disabled'}
-        </p> */}
         <p>UI Loop Start: {loopStart.toFixed(2)}s</p>
         <p>UI Loop End: {loopEnd.toFixed(2)}s</p>
         <p>UI Ramp Time: {rampTime.toFixed(2)}s</p>
+        <p>UI Attack Time: {attackTime.toFixed(2)}s</p>
+        <p>UI Release Time: {releaseTime.toFixed(2)}s</p>
       </div>
     </div>
   );
 };
 
 export default SamplerComponent;
-
-// Using Logarithm:
-
-// const handleLoopStartNormalizedChange = (linearPosition: number) => {
-//   // Apply logarithmic scaling (more sensitive at beginning)
-//   const logValue = logScaleStart(linearPosition);
-
-//   // Clamp to make sure start doesn't exceed end position
-//   const clampedLogValue = Math.min(logValue, loopEndNormalized - 0.001);
-//   setLoopStartNormalized(inverseLogScaleStart(clampedLogValue));
-
-//   // Calculate actual time value and update sampler
-//   const actualValue = clampedLogValue * sampleDuration;
-//   samplerRef.current?.setLoopStart(actualValue, rampTime);
-// };
-
-// const handleLoopEndNormalizedChange = (linearPosition: number) => {
-//   // Apply logarithmic scaling (more sensitive at end)
-//   const logValue = logScaleEnd(linearPosition);
-
-//   // Clamp to make sure end doesn't go below start position
-//   const clampedLogValue = Math.max(logValue, loopStartNormalized + 0.001);
-//   setLoopEndNormalized(inverseLogScaleEnd(clampedLogValue));
-
-//   // Calculate actual time value and update sampler
-//   const actualValue = clampedLogValue * sampleDuration;
-//   samplerRef.current?.setLoopEnd(actualValue, rampTime);
-// };

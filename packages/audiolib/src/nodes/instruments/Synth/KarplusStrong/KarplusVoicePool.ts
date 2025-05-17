@@ -1,14 +1,16 @@
-import { SampleVoice } from './SampleVoice';
+// KarplusVoicePool.ts
+
+import { KarplusVoice } from './KarplusVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { ActiveNoteId, MIDINote } from './types';
+import { ActiveNoteId, MIDINote } from '@/nodes/instruments/types';
 
-export class VoicePool {
+export class KarplusVoicePool {
   readonly nodeId: NodeID;
-  readonly nodeType = 'pool';
+  readonly nodeType = 'karplus-pool';
 
-  #allVoices: SampleVoice[];
+  #allVoices: KarplusVoice[];
   #context: AudioContext;
-  #activeVoices: Map<ActiveNoteId, SampleVoice>;
+  #activeVoices: Map<ActiveNoteId, KarplusVoice>;
   #nextNoteId: number;
 
   constructor(
@@ -19,39 +21,26 @@ export class VoicePool {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
 
+    // Create KarplusVoice instances rather than SampleVoice instances
     this.#allVoices = Array.from({ length: numVoices }, () =>
-      new SampleVoice(context).connect(destination)
+      new KarplusVoice(context).connect(destination)
     );
 
     this.#activeVoices = new Map(); // noteId -> voice
     this.#nextNoteId = 0;
   }
 
-  setBuffer(buffer: AudioBuffer) {
-    this.#allVoices.forEach((voice) => voice.loadBuffer(buffer));
-    return this;
-  }
-
   // Voice Allocation
   findVoice() {
     // First priority: find an inactive voice
-    const freeVoice = this.#allVoices.find(
-      (v) => v.state !== 'PLAYING' && v.state !== 'RELEASING'
-    );
+    const freeVoice = this.#allVoices.find((v) => !v.isPlaying);
     if (freeVoice) return freeVoice;
 
-    // Second priority: find a releasing voice
-    const releasingVoice = this.#allVoices.find((v) => v.state === 'RELEASING');
-    if (releasingVoice) {
-      releasingVoice.stop();
-      return releasingVoice;
-    }
-
-    // Third priority: find the oldest playing voice
+    // If all voices are active, steal the oldest voice
     return this.#allVoices.reduce(
       (oldest, voice) =>
         !oldest || voice.startTime < oldest.startTime ? voice : oldest,
-      null as SampleVoice | null
+      null as KarplusVoice | null
     );
   }
 
@@ -61,17 +50,22 @@ export class VoicePool {
     when: number = this.#context.currentTime
   ): ActiveNoteId {
     const noteId = this.#nextNoteId++; // increments for next note
-
     const voice = this.findVoice();
+
     if (!voice) return noteId; // Still return a valid noteId
 
+    // Stop the voice if it's currently playing
+    if (voice.isPlaying) {
+      voice.stop();
+    }
+
+    // Trigger the Karplus-Strong voice with the note parameters
     voice.trigger({
-      // voice.trigger also returns noteId, why should it?
       midiNote,
       velocity,
       noteId,
-      secondsFromNow: when,
     });
+
     this.#activeVoices.set(noteId, voice);
 
     return noteId;
@@ -94,25 +88,17 @@ export class VoicePool {
   }
 
   dispose() {
+    this.#allVoices.forEach((voice) => voice.dispose());
+    this.#allVoices = [];
+    this.#activeVoices.clear();
     deleteNodeId(this.nodeId);
   }
 
   get allVoices() {
-    return this.#allVoices;
+    return [...this.#allVoices];
   }
 
   get activeVoicesCount() {
     return this.#activeVoices.size;
   }
 }
-
-/* Todo: consider this for voice allocation - LATER (once everything else is working) */
-// #available = new Set();
-// #playing = new Set(); // maybe Map
-// #releasing = new Set();
-
-// #pop = (set: Set<any>) => {
-//   const v = set.values().next().value;
-//   set.delete(v);
-//   return v;
-// };

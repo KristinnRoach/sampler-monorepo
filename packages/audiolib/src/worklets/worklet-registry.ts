@@ -20,7 +20,7 @@ function clear(): boolean {
 
 export const registry = {
   has,
-  store: add,
+  add,
   getAll,
   clear,
 };
