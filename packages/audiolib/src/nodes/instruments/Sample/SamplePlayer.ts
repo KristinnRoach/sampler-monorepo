@@ -50,7 +50,8 @@ export class SamplePlayer implements LibInstrument {
 
   #loopRampDuration: number = 0.2;
 
-  #loopEnabled: boolean = false;
+  #loopEnabled = false;
+  #holdEnabled = false;
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
 
@@ -233,6 +234,7 @@ export class SamplePlayer implements LibInstrument {
 
   release(input: MIDINote | ActiveNoteId, modifiers?: PressedModifiers): this {
     if (modifiers) this.#handleModifierKeys(modifiers);
+    if (this.#holdEnabled) return this; // simple play through (one-shot mode)
 
     // Convert MIDI note to noteId if needed
     let noteId: ActiveNoteId;
@@ -330,18 +332,29 @@ export class SamplePlayer implements LibInstrument {
 
   setAttackTime(seconds: number) {
     this.#attack = seconds;
+    return this;
   }
 
   setReleaseTime(seconds: number) {
     this.#release = seconds;
+    return this;
   }
 
   setSampleStartOffset(seconds: number) {
     this.#startOffset = seconds;
+    return this;
   }
 
   setSampleEndOffset(seconds: number) {
     this.#endOffset = seconds;
+    return this;
+  }
+
+  setHoldEnabled(enabled: boolean) {
+    if (this.#holdEnabled === enabled) return this;
+    this.#holdEnabled = enabled;
+    this.sendMessage('hold:state', { enabled });
+    return this;
   }
 
   setLoopEnabled(enabled: boolean): this {

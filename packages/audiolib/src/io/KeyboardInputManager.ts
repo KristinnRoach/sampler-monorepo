@@ -1,7 +1,7 @@
 // src/input/KeyboardInputManager.ts
 import { InputHandler, KeyMap, PressedModifiers, ModifierKey } from './types';
 import { isKeyboardAPISupported, isModifierStateSupported } from '@/utils';
-import { defaultKeymap } from './keymap';
+import { defaultKeymap } from './mapping/keymap';
 
 export class KeyboardInputManager {
   static #instance: KeyboardInputManager;

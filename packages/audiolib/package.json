@@ -17,7 +17,7 @@
   "scripts": {
     "build:worklets": "node build-processors.js",
     "build": "rimraf dist && node build-processors.js && tsc --emitDeclarationOnly && vite build",
-    "watch": "rimraf dist && node build-processors.js && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
+    "dev": "rimraf dist && node build-processors.js && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
     "clean": "rimraf dist",
     "clean:turbo": "rimraf .turbo",
     "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune",
@@ -25,7 +25,6 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev": "vite",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Audio Elements Demo</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="component-container">
+        <sampler-element id="sampler1"></sampler-element>
+      </div>
+
+      <div class="component-container">
+        <output-element id="output1"></output-element>
+      </div>
+
+      <div class="connection-info" id="connection-info">
+        <p></p>
+      </div>
+    </div>
+
+    <script type="module" src="./src/register-components.js"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
