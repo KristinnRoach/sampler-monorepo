@@ -19,12 +19,19 @@ import { idb, initIdb, sampleLib } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
-import { SamplePlayer, KarplusStrongSynth } from './nodes/instruments';
+import {
+  SamplePlayer,
+  createSamplePlayer as createSamplePlayerFactory,
+  KarplusStrongSynth,
+  createKarplusStrongSynth as createKarplusStrongSynthFactory,
+} from './nodes/instruments';
 import { Recorder } from '@/nodes/recorder';
 
 import { initProcessors } from './worklets';
 
 import { MidiController } from '@/io';
+
+// Todo: export init and instrument factory functions separately (tree shake-able)
 
 export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
@@ -93,7 +100,6 @@ export class Audiolib implements LibNode {
 
     // Register worklet processors
     const worklResult = await tryCatch(() => initProcessors(ctx));
-    console.log('Plugin registration result:', worklResult);
     assert(!worklResult.error, `Failed to register with plugin`, worklResult);
 
     // Initialize Recorder node
@@ -162,8 +168,13 @@ export class Audiolib implements LibNode {
       initSampleAvailable: !!this.#currentAudioBuffer,
     });
 
-    const newSamplePlayer = new SamplePlayer(ctx, polyphony, buffer);
-    assert(newSamplePlayer, `Failed to create SamplePlayer`);
+    // Use the factory function instead of direct instantiation
+    const newSamplePlayer = createSamplePlayerFactory(
+      buffer,
+      polyphony,
+      ctx,
+      this.#midiController
+    );
 
     const alreadyLoaded = this.#instruments.has(newSamplePlayer.nodeId);
     assert(
@@ -174,17 +185,17 @@ export class Audiolib implements LibNode {
     newSamplePlayer.connect(this.#masterGain);
     this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
 
-    // monitor levels -> sampler.startLevelMonitoring();
-    // add input handling -> sampler.enableKeyboard() and/or sampler.enableMidi()
-    // todo: allow calling sampler.enableMidi() without args for client
-
     return newSamplePlayer;
   }
 
-  createKarplusStrongSynth(polyphony = 8, ctx = this.#audioContext) {
+  createKarplusStrongSynth(
+    polyphony = 8,
+    ctx = this.#audioContext
+  ): KarplusStrongSynth {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    const newSynth = new KarplusStrongSynth(polyphony);
+    // Use the factory function instead of direct instantiation
+    const newSynth = createKarplusStrongSynthFactory(polyphony, ctx);
     assert(newSynth, `Failed to create Karplus Strong synth`);
 
     const alreadyLoaded = this.#instruments.has(newSynth.nodeId);
@@ -196,11 +207,8 @@ export class Audiolib implements LibNode {
     newSynth.connect(this.#masterGain);
     this.#instruments.set(newSynth.nodeId, newSynth);
 
-    // remove after testing:
+    // Enable MIDI with our controller
     newSynth.enableMIDI(this.#midiController);
-
-    // add input handling -> synth.enableKeyboard()
-    // todo: allow calling synth.enableMidi() without args for client
 
     return newSynth;
   }
@@ -257,11 +265,11 @@ export class Audiolib implements LibNode {
     return this;
   }
 
+  /** GETTERS & SETTERS **/
+
   get nodes(): LibNode[] {
     return Array.from(this.#instruments.values());
   }
-
-  /** GETTERS & SETTERS **/
 
   async ensureAudioCtx(): Promise<AudioContext> {
     const result = await tryCatch(
@@ -284,6 +292,10 @@ export class Audiolib implements LibNode {
 
   get now() {
     return getAudioContext().currentTime;
+  }
+
+  get isInitialized(): boolean {
+    return this.#asyncInit.isReady();
   }
 
   async recordAudioSample(): Promise<AudioBuffer> {

@@ -17,6 +17,17 @@ import {
   midiToPlaybackRate,
 } from '@/utils';
 
+interface ParamConstraint {
+  min: number;
+  max: number;
+}
+
+interface ParamConstraints {
+  startOffset?: ParamConstraint;
+  endOffset?: ParamConstraint;
+  [key: string]: ParamConstraint | undefined;
+}
+
 export class SampleVoice implements LibVoiceNode {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
@@ -27,8 +38,10 @@ export class SampleVoice implements LibVoiceNode {
   #currentNoteId: number | string | null = null;
   #startedTimestamp: number = -1;
 
+  #paramConstraints: ParamConstraints = {};
+
   constructor(
-    private context: AudioContext = getAudioContext(),
+    private context: AudioContext = getAudioContext(), // remove getAudioContext
     options: { processorOptions?: any } = {}
   ) {
     this.nodeId = createNodeId(this.nodeType);
@@ -49,6 +62,22 @@ export class SampleVoice implements LibVoiceNode {
       const { type, ...data } = event.data;
 
       this.#messages.sendMessage(type, data);
+
+      // Handle param constraints message
+      if (type === 'voice:param_constraints') {
+        if (data.startOffset) {
+          const startOffsetParam = this.getParam('startOffset');
+          if (startOffsetParam) {
+            this.#paramConstraints.startOffset = data.startOffset;
+          }
+        }
+        if (data.endOffset) {
+          const endOffsetParam = this.getParam('endOffset');
+          if (endOffsetParam) {
+            this.#paramConstraints.endOffset = data.endOffset;
+          }
+        }
+      }
 
       // // Todo: only send messages if someone has subscribed to them?
       // switch (type) {
@@ -79,7 +108,17 @@ export class SampleVoice implements LibVoiceNode {
     };
   }
 
-  async loadBuffer(buffer: AudioBuffer): Promise<this> {
+  async loadBuffer(
+    buffer: AudioBuffer,
+    zeroCrossings?: number[]
+  ): Promise<this> {
+    if (zeroCrossings?.length) {
+      this.sendToProcessor({
+        type: 'voice:set_zero_crossings',
+        zeroCrossings,
+      });
+    }
+
     if (buffer.sampleRate !== this.context.sampleRate) {
       console.warn(
         `Sample rate mismatch - buffer: ${buffer.sampleRate}, context: ${this.context.sampleRate}`
@@ -124,6 +163,17 @@ export class SampleVoice implements LibVoiceNode {
       ...options,
     };
 
+    // IMPORTANT: Set both offsets BEFORE starting playback
+    // Set startOffset from options or use existing param value
+    const currentStartOffset = this.getParam('startOffset')?.value || 0;
+    const effectiveStartOffset =
+      startOffset > 0 ? startOffset : currentStartOffset;
+
+    // Apply startOffset through the params if available
+    if (startOffset > 0) {
+      this.setOffsetParams(effectiveStartOffset);
+    }
+
     const when = this.now + secondsFromNow;
 
     const normalizedVelocity = velocity ? velocity / 127 : 1;
@@ -140,7 +190,8 @@ export class SampleVoice implements LibVoiceNode {
     this.sendToProcessor({
       type: 'voice:start',
       when,
-      startOffset,
+      // check if unecessary to pass startoffset
+      // startOffset,
     });
 
     this.#startedTimestamp = when;
@@ -225,6 +276,68 @@ export class SampleVoice implements LibVoiceNode {
     return this;
   }
 
+  // Set offset parameters with constraint checking
+  setOffsetParams(startOffset?: number, endOffset?: number): this {
+    if (startOffset !== undefined) {
+      // Find nearest allowed value if constraints exist
+      let safeStartOffset = startOffset;
+      if (this.#paramConstraints.startOffset) {
+        const { min, max } = this.#paramConstraints.startOffset;
+        safeStartOffset = Math.max(min, Math.min(max, startOffset));
+      }
+
+      // Get the parameter and cancel any scheduled values
+      const startOffsetParam = this.getParam('startOffset');
+      if (startOffsetParam) {
+        cancelScheduledParamValues(startOffsetParam, this.now);
+        startOffsetParam.setValueAtTime(safeStartOffset, this.now);
+
+        // Log for debugging
+        console.log(`SampleVoice: Setting startOffset to ${safeStartOffset}`);
+      }
+    }
+
+    if (endOffset !== undefined) {
+      // Find nearest allowed value if constraints exist
+      let safeEndOffset = endOffset;
+      if (this.#paramConstraints.endOffset) {
+        const { min, max } = this.#paramConstraints.endOffset;
+        safeEndOffset = Math.max(min, Math.min(max, endOffset));
+      }
+
+      // Get the parameter and cancel any scheduled values
+      const endOffsetParam = this.getParam('endOffset');
+      if (endOffsetParam) {
+        cancelScheduledParamValues(endOffsetParam, this.now);
+        endOffsetParam.setValueAtTime(safeEndOffset, this.now);
+
+        // Log for debugging
+        console.log(`SampleVoice: Setting endOffset to ${safeEndOffset}`);
+      }
+    }
+
+    // IMPORTANT: Explicitly tell the processor we've updated the offsets
+    this.sendToProcessor({
+      type: 'voice:update_offsets',
+      startOffset:
+        startOffset !== undefined
+          ? this.getParam('startOffset')?.value
+          : undefined,
+      endOffset:
+        endOffset !== undefined ? this.getParam('endOffset')?.value : undefined,
+    });
+
+    return this;
+  }
+
+  setStartOffset(offset: number): this {
+    return this.setOffsetParams(offset, undefined);
+  }
+
+  setEndOffset(offset: number): this {
+    return this.setOffsetParams(undefined, offset);
+  }
+
   sendToProcessor(data: any): this {
     this.#worklet.port.postMessage(data);
     return this;
@@ -250,6 +363,10 @@ export class SampleVoice implements LibVoiceNode {
 
   get startTime(): number {
     return this.#startedTimestamp;
+  }
+
+  get paramConstraints(): ParamConstraints {
+    return this.#paramConstraints;
   }
 
   // Setters

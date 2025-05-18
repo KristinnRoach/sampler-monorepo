@@ -13,9 +13,12 @@ body {
     sans-serif;
   line-height: 1.6;
   color: white;
-  max-width: 1000px;
+
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+
   margin: 0 auto;
-  padding: 20px;
   background-color: #2c2d2e;
 }
 
@@ -23,14 +26,124 @@ body {
   background-color: 2c2d2e;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  padding: 20px;
+
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+}
+
+.draggable-element {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+
+  padding: 1rem;
+  margin: 1rem auto;
+
+  /* Positioning - absolutely critical */
+  position: absolute;
+
+  /* Improved stacking context for dragged elements */
+  z-index: 100;
+
+  /* Visual indication of draggability */
+  cursor: grab;
+
+  /* Prevent text selection while dragging */
+  user-select: none;
+
+  /* Prevent scrolling/touch actions while dragging on mobile */
+  touch-action: none;
+
+  /* Performance optimizations for smoother animations */
+  will-change: transform;
+
+  /* Initial transform state */
+  transform: translate(0, 0);
+}
+/* 
+.draggable-element::after {
+  content: '';
+  display: block;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  background-size: 5px 5px;
+  background-image: radial-gradient(
+      circle at center,
+      var(--black) 1px,
+      transparent 0
+    ),
+    radial-gradient(circle at center, var(--black) 1px, transparent 0);
+} */
+
+/* Visual indication for active dragging */
+.draggable-element:active {
+  cursor: grabbing;
+}
+
+/* Combined container class for draggable elements */
+.draggable-container {
+  /* Positioning - required for draggable children */
+  position: relative;
+  overflow: visible;
+  z-index: 2;
+
+  /* Dimensions */
+  height: fit-content;
+  width: fit-content;
+
+  /* Spacing */
+  margin: 20px 0;
+  padding: 15px;
+
+  /* Appearance */
+  background-color: #2c2d2e;
+  border-radius: 6px;
 }
 
 .component-container {
+  /* draggable */
+  position: relative;
+  overflow: visible;
+  z-index: 2;
+  /* draggable */
   margin: 20px 0;
   padding: 15px;
+
   background-color: #2c2d2e;
   border-radius: 6px;
+}
+
+sampler-element {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+
+  position: absolute; /* absolute-ly necessary for draggable */
+  z-index: 100;
+  cursor: grab;
+  user-select: none;
+  touch-action: none; /* prevent touch scrolling while dragging */
+
+  /* explicit dimensions */
+  /* width: 50%;
+  height: 50%; */
+
+  background-color: #333;
+  border: 1px solid #555;
+
+  transform: translate(0, 0); /* Initial transform state */
+  will-change: transform; /* Performance optimization for animations */
+}
+
+sampler-element:active {
+  cursor: grabbing;
 }
 
 /* Styling the custom elements - updated for Light DOM */

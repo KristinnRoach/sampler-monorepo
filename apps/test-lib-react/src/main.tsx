@@ -34,6 +34,7 @@ const App = () => {
             id='initAudiolib'
             onClick={async () => {
               await audiolibRef.current.init();
+              //while (!audiolibRef.current.isInitialized) { // wait.. }
               setInitialized(true);
             }}
           >

@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { audiolib, SamplePlayer } from '@repo/audiolib';
+import { audiolib, SamplePlayer } from '@repo/audiolib'; // todo: just import createSamplePlayer when treeshakeable
 import RecorderComponent from './RecorderComponent';
 
 const SamplerComponent = () => {

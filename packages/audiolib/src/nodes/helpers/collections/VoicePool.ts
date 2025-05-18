@@ -27,8 +27,8 @@ export class VoicePool {
     this.#nextNoteId = 0;
   }
 
-  setBuffer(buffer: AudioBuffer) {
-    this.#allVoices.forEach((voice) => voice.loadBuffer(buffer));
+  setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
+    this.#allVoices.forEach((voice) => voice.loadBuffer(buffer, zeroCrossings));
     return this;
   }
 

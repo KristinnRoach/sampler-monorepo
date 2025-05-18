@@ -8,20 +8,15 @@
   </head>
   <body>
     <div class="container">
-      <div class="component-container">
-        <sampler-element id="sampler1"></sampler-element>
-      </div>
-
-      <div class="component-container">
-        <output-element id="output1"></output-element>
-      </div>
-
-      <div class="connection-info" id="connection-info">
-        <p></p>
+      <div class="draggable-container">
+        <sampler-element
+          id="sampler1"
+          class="draggable-element"
+        ></sampler-element>
       </div>
     </div>
 
     <script type="module" src="./src/register-components.js"></script>
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/main.js" defer></script>
   </body>
 </html>

@@ -30,6 +30,7 @@ import { MacroParam } from '@/nodes/params';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 import { VoicePool } from '../../helpers/collections/VoicePool';
+import { V } from 'vitest/dist/chunks/reporters.d.CqBhtcTq';
 
 export class SamplePlayer implements LibInstrument {
   readonly nodeId: NodeID;
@@ -45,6 +46,7 @@ export class SamplePlayer implements LibInstrument {
 
   #messages: MessageBus<Message>;
   #keyboardHandler: InputHandler | null = null;
+  #midiController: MidiController | null = null;
 
   #midiNoteToId: Map<MIDINote, ActiveNoteId> = new Map();
 
@@ -74,7 +76,8 @@ export class SamplePlayer implements LibInstrument {
   constructor(
     context: AudioContext,
     polyphony: number = 16,
-    audioBuffer?: AudioBuffer
+    audioBuffer?: AudioBuffer,
+    midiController?: MidiController
   ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
@@ -90,6 +93,8 @@ export class SamplePlayer implements LibInstrument {
     // Initialize voice pool
     this.#pool = new VoicePool(context, polyphony, this.#outBus.input);
     this.#connectToMacros();
+
+    this.#midiController = midiController || null;
 
     this.#isInitialized = true;
 
@@ -184,7 +189,13 @@ export class SamplePlayer implements LibInstrument {
     const allVoices = this.#pool.allVoices;
     assert(allVoices.length > 0, 'No voices to load sample!');
 
-    const promises = allVoices.map((v) => v.loadBuffer(buffer));
+    const promises = allVoices.map((v) => {
+      v.loadBuffer(buffer, this.#zeroCrossings);
+      v.setStartOffset(this.#startOffset);
+      v.setEndOffset(
+        this.#zeroCrossings[this.#zeroCrossings.length - 1] || buffer.duration
+      );
+    });
 
     const result = await tryCatch(
       () => Promise.all(promises),
@@ -317,16 +328,28 @@ export class SamplePlayer implements LibInstrument {
   }
 
   async enableMIDI(
-    midiController: MidiController,
+    midiController?: MidiController,
     channel: number = 0
   ): Promise<this> {
-    assert(midiController.isInitialized, `MidiController must be initialized`);
-    midiController.connectInstrument(this, channel);
+    // Use provided controller, instance controller, or fail
+    const controller = midiController || this.#midiController;
+
+    assert(controller?.isInitialized, `MidiController must be initialized`);
+    controller.connectInstrument(this, channel);
     return this;
   }
 
-  disableMIDI(midiController: MidiController, channel: number = 0): this {
-    midiController.disconnectInstrument(channel);
+  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+    const controller = midiController || this.#midiController;
+
+    if (controller) {
+      controller.disconnectInstrument(channel);
+    }
+    return this;
+  }
+
+  setMidiController(midiController: MidiController): this {
+    this.#midiController = midiController;
     return this;
   }
 
@@ -342,11 +365,13 @@ export class SamplePlayer implements LibInstrument {
 
   setSampleStartOffset(seconds: number) {
     this.#startOffset = seconds;
+    this.#pool.allVoices.forEach((voice) => voice.setStartOffset(seconds));
     return this;
   }
 
   setSampleEndOffset(seconds: number) {
     this.#endOffset = seconds;
+    this.#pool.allVoices.forEach((voice) => voice.setEndOffset(seconds));
     return this;
   }
 
