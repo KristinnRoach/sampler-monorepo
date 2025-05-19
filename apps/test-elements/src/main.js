@@ -1,24 +1,29 @@
 import { animate, utils, createDraggable, createSpring } from 'animejs';
 
-// Get references to elements
-const playerEl = document.getElementById('sampler1');
+// document.addEventListener('keydown', (e) => console.log(e.code));
 
-// Get the specific container that contains the sampler
-const container = playerEl.closest('.component-container');
+const init = () => {
+  // Get references to elements
+  const playerEl = document.getElementById(`sampler-1`);
+  const loaderEl = document.getElementById(`loader-1`);
+  const recorderEl = document.getElementById('recorder-1');
 
-createDraggable('#sampler1', {
-  container: container,
-  containerPadding: 20,
-});
+  console.log(playerEl.getAttributeNames());
+  console.log(loaderEl.getAttributeNames());
+  console.log(recorderEl.getAttributeNames());
 
-// Event listeners
-playerEl.addEventListener('sampler-initialized', () => {
-  console.log(`playerEl.addEventListener('sampler-initialized'`);
-  // connectionInfo.innerHTML = '<p>Sampler initialized</p>';
-});
+  loaderEl.connect(playerEl);
+  recorderEl.connect(playerEl);
 
-playerEl.addEventListener('sample-loaded', (event) => {
-  console.log(`playerEl.addEventListener('sampler-loaded'`);
-});
+  // create draggables
+  const dragContainers = document.querySelectorAll('.draggable-container');
 
-console.log('Web Audio Elements app initialized');
+  const draggables = [];
+  dragContainers.forEach((container) => {
+    draggables.push(createDraggable(container.firstElementChild));
+  });
+
+  console.log('Web Audio Elements app initialized');
+};
+
+document.addEventListener('DOMContentLoaded', () => init());

@@ -3,6 +3,7 @@ import { NodeID } from '@/nodes/node-store';
 export interface Message {
   readonly type: string;
   readonly senderId: NodeID;
+  [key: string]: any; // Allow any additional properties in dev
 }
 
 export type MessageHandler<T> = (data: T) => void;

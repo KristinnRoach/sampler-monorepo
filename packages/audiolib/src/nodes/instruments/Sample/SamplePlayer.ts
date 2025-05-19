@@ -1,6 +1,6 @@
-import { LibInstrument, InstrumentType, LibVoiceNode } from '@/LibNode';
+import { LibInstrument, InstrumentType, SampleLoader } from '@/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
-import type { MIDINote, ActiveNoteId } from '../types';
+import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
 
 import {
@@ -29,30 +29,29 @@ import {
 import { MacroParam } from '@/nodes/params';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
-import { VoicePool } from '../../helpers/collections/VoicePool';
-import { V } from 'vitest/dist/chunks/reporters.d.CqBhtcTq';
+import { SampleVoicePool } from './SampleVoicePool';
 
-export class SamplePlayer implements LibInstrument {
+export class SamplePlayer implements LibInstrument, SampleLoader {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'sampler';
 
-  // todo: simplify, clean up and standardize all state management
-
-  #bufferDuration: number = 0;
-
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
-  #pool: VoicePool;
+  #pool: SampleVoicePool;
 
   #messages: MessageBus<Message>;
   #keyboardHandler: InputHandler | null = null;
   #midiController: MidiController | null = null;
 
-  #midiNoteToId: Map<MIDINote, ActiveNoteId> = new Map();
+  #midiNoteToId: Map<MidiValue, ActiveNoteId> = new Map();
+
+  // todo: simplify and standardize state management
+  #bufferDuration: number = 0;
 
   #loopRampDuration: number = 0.2;
 
   #loopEnabled = false;
+  #loopLocked = false;
   #holdEnabled = false;
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
@@ -91,7 +90,7 @@ export class SamplePlayer implements LibInstrument {
     this.#macroLoopEnd = new MacroParam(context, 0);
 
     // Initialize voice pool
-    this.#pool = new VoicePool(context, polyphony, this.#outBus.input);
+    this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input);
     this.#connectToMacros();
 
     this.#midiController = midiController || null;
@@ -160,7 +159,7 @@ export class SamplePlayer implements LibInstrument {
   ): Promise<boolean> {
     assert(isValidAudioBuffer(buffer));
 
-    this.stopAll();
+    this.releaseAll();
     this.#isLoaded = false;
 
     if (
@@ -186,24 +185,26 @@ export class SamplePlayer implements LibInstrument {
       this.#zeroCrossings = zeroes;
     }
 
-    const allVoices = this.#pool.allVoices;
-    assert(allVoices.length > 0, 'No voices to load sample!');
+    this.#pool.setBuffer(buffer, this.#zeroCrossings);
 
-    const promises = allVoices.map((v) => {
-      v.loadBuffer(buffer, this.#zeroCrossings);
-      v.setStartOffset(this.#startOffset);
-      v.setEndOffset(
-        this.#zeroCrossings[this.#zeroCrossings.length - 1] || buffer.duration
-      );
-    });
+    // const allVoices = this.#pool.allVoices;
+    // assert(allVoices.length > 0, 'No voices to load sample!');
 
-    const result = await tryCatch(
-      () => Promise.all(promises),
-      'Failed to load sample'
-    );
-    if (result.error) {
-      return false;
-    }
+    // const promises = allVoices.map((v) => {
+    //   v.loadBuffer(buffer, this.#zeroCrossings);
+    //   v.setStartOffset(this.#startOffset);
+    //   v.setEndOffset(
+    //     this.#zeroCrossings[this.#zeroCrossings.length - 1] || buffer.duration
+    //   );
+    // });
+
+    // const result = await tryCatch(
+    //   () => Promise.all(promises),
+    //   'Failed to load sample'
+    // );
+    // if (result.error) {
+    //   return false;
+    // }
 
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
@@ -215,13 +216,15 @@ export class SamplePlayer implements LibInstrument {
   }
 
   play(
-    midiNote: number,
-    velocity: number = 100,
+    midiNote: MidiValue,
+    velocity: MidiValue = 100,
     modifiers?: PressedModifiers
   ): ActiveNoteId {
-    // ??? Returns the noteId so callers can use it
+    // if (modifiers) this.#handleModifierKeys(modifiers);
 
-    if (modifiers) this.#handleModifierKeys(modifiers);
+    if (modifiers && modifiers.alt !== undefined && modifiers.alt === true) {
+      midiNote += 12;
+    }
 
     // If this MIDI note is already playing, release it first
     if (this.#midiNoteToId.has(midiNote)) {
@@ -243,17 +246,19 @@ export class SamplePlayer implements LibInstrument {
     return noteId;
   }
 
-  release(input: MIDINote | ActiveNoteId, modifiers?: PressedModifiers): this {
+  release(input: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
+    // todo: only handle modifiers if needed
     if (modifiers) this.#handleModifierKeys(modifiers);
+
     if (this.#holdEnabled) return this; // simple play through (one-shot mode)
 
     // Convert MIDI note to noteId if needed
     let noteId: ActiveNoteId;
-    let midiNote: MIDINote | undefined;
+    let midiNote: MidiValue | undefined;
 
     if (input >= 0 && input <= 127) {
       // It's a MIDI note
-      midiNote = input as MIDINote;
+      midiNote = input as MidiValue;
       noteId = this.#midiNoteToId.get(midiNote) ?? -1;
       if (noteId !== -1) {
         this.#midiNoteToId.delete(midiNote);
@@ -281,17 +286,11 @@ export class SamplePlayer implements LibInstrument {
     return this;
   }
 
-  panic = () => this.stopAll();
+  panic = (fadeOut_sec: number) => this.releaseAll(fadeOut_sec);
 
-  stopAll() {
-    this.#pool.allNotesOff();
+  releaseAll(fadeOut_sec: number = this.#release): this {
+    this.#pool.allNotesOff(fadeOut_sec);
     this.#midiNoteToId.clear();
-    return this;
-  }
-
-  #onBlur() {
-    console.debug('Blur occured');
-    this.panic();
     return this;
   }
 
@@ -299,6 +298,18 @@ export class SamplePlayer implements LibInstrument {
     if (modifiers.caps !== undefined) {
       this.setLoopEnabled(modifiers.caps);
     }
+    if (modifiers.shift !== undefined) {
+      this.setHoldEnabled(modifiers.shift);
+      // if (!this.#holdEnabled) this.setLoopEnabled(modifiers.shift);
+    }
+
+    if (modifiers.space !== undefined && modifiers.space === true) {
+      this.#pool.transposeSemitones -= 12;
+      console.log(
+        `Transposing down by 12 semitones, new value: ${this.#pool.transposeSemitones}`
+      );
+    }
+
     return this;
   }
 
@@ -307,7 +318,7 @@ export class SamplePlayer implements LibInstrument {
       this.#keyboardHandler = {
         onNoteOn: this.play.bind(this),
         onNoteOff: this.release.bind(this),
-        onBlur: this.#onBlur.bind(this),
+        onBlur: () => this.panic(0.1), // Wrap panic in a parameterless function
         onModifierChange: this.#handleModifierKeys.bind(this),
       };
       globalKeyboardInput.addHandler(this.#keyboardHandler);
@@ -378,18 +389,29 @@ export class SamplePlayer implements LibInstrument {
   setHoldEnabled(enabled: boolean) {
     if (this.#holdEnabled === enabled) return this;
     this.#holdEnabled = enabled;
+
+    if (!enabled) this.releaseAll(this.#release);
     this.sendMessage('hold:state', { enabled });
     return this;
   }
 
   setLoopEnabled(enabled: boolean): this {
     if (this.#loopEnabled === enabled) return this;
+    if (this.#loopLocked) return this;
 
     const voices = this.#pool.allVoices;
     voices.forEach((v) => v.setLoopEnabled(enabled));
 
     this.#loopEnabled = enabled;
-    this.sendMessage('loop:state', { enabled });
+    this.sendMessage('loop:enabled', { enabled });
+    return this;
+  }
+
+  setLoopLocked(locked: boolean): this {
+    if (this.#loopLocked === locked) return this;
+
+    this.#loopLocked = locked;
+    this.sendMessage('loop:locked', { locked });
     return this;
   }
 
@@ -411,8 +433,8 @@ export class SamplePlayer implements LibInstrument {
   ) {
     if (start < 0 || end > this.#bufferDuration || start >= end) return this;
 
-    const RAMP_FACTOR = 2;
-    const scaledRampTime = rampDuration * RAMP_FACTOR;
+    const RAMP_SENSITIVITY = 2;
+    const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start') {
       this.#macroLoopStart.ramp(start, scaledRampTime, end);
@@ -429,11 +451,11 @@ export class SamplePlayer implements LibInstrument {
 
   dispose(): void {
     try {
-      this.stopAll();
+      this.releaseAll();
 
       if (this.#pool) {
         this.#pool.dispose();
-        this.#pool = null as unknown as VoicePool;
+        this.#pool = null as unknown as SampleVoicePool;
       }
 
       this.#midiNoteToId.clear();
@@ -490,6 +512,10 @@ export class SamplePlayer implements LibInstrument {
 
   get loopEnabled(): boolean {
     return this.#loopEnabled;
+  }
+
+  get holdEnabled(): boolean {
+    return this.#holdEnabled;
   }
 
   get loopStart(): number {

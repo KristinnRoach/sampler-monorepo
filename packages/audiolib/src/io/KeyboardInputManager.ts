@@ -155,7 +155,7 @@ export class KeyboardInputManager {
     // Create a copy of pressed keys
     const pressedKeyCodes = Array.from(this.#pressedNoteKeys);
 
-    console.log(`Blur occured ${e}`);
+    console.log(`Blur occured`);
 
     const modifiers = {
       shift: false,
@@ -269,6 +269,7 @@ export function debugKeyModifiers(e: KeyboardEvent, keys?: ModifierKey[]) {
     alt: e.altKey,
     meta: e.metaKey,
     caps: globalKeyboardInput.getCapslock(e),
+    space: globalKeyboardInput.isPressed('Space'),
   };
 
   if (keys) {

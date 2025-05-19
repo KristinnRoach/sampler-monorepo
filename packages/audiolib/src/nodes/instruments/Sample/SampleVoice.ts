@@ -11,11 +11,7 @@ import {
   MessageBus,
 } from '@/events';
 
-import {
-  assert,
-  cancelScheduledParamValues,
-  midiToPlaybackRate,
-} from '@/utils';
+import { cancelScheduledParamValues, midiToPlaybackRate } from '@/utils';
 
 interface ParamConstraint {
   min: number;
@@ -25,6 +21,8 @@ interface ParamConstraint {
 interface ParamConstraints {
   startOffset?: ParamConstraint;
   endOffset?: ParamConstraint;
+  loopStart?: ParamConstraint;
+  loopEnd?: ParamConstraint;
   [key: string]: ParamConstraint | undefined;
 }
 
@@ -63,66 +61,42 @@ export class SampleVoice implements LibVoiceNode {
 
       this.#messages.sendMessage(type, data);
 
-      // Handle param constraints message
-      if (type === 'voice:param_constraints') {
-        if (data.startOffset) {
-          const startOffsetParam = this.getParam('startOffset');
-          if (startOffsetParam) {
-            this.#paramConstraints.startOffset = data.startOffset;
-          }
-        }
-        if (data.endOffset) {
-          const endOffsetParam = this.getParam('endOffset');
-          if (endOffsetParam) {
-            this.#paramConstraints.endOffset = data.endOffset;
-          }
-        }
+      switch (type) {
+        case 'voice:started':
+          this.#state = VoiceState.PLAYING;
+          break;
+        case 'voice:ended':
+          this.#state = VoiceState.IDLE;
+          this.#currentNoteId = null;
+          break;
+        case 'voice:releasing':
+          this.#state = VoiceState.RELEASING;
+          break;
+        case 'voice:looped':
+          // this.#state = VoiceState.LOOPED;
+          break;
+        case 'voice:position':
+          this.getParam('playbackPosition')?.setValueAtTime(
+            data.position,
+            this.context.currentTime
+          );
+          break;
+        default:
+          console.warn(`Unhandled message type: ${type}`);
+          break;
       }
-
-      // // Todo: only send messages if someone has subscribed to them?
-      // switch (type) {
-      //   case 'voice:started':
-      //     this.messages.sendMessage('voice:started', {});
-      //     break;
-      //   case 'voice:ended':
-      //     this.messages.sendMessage('voice:ended', {});
-      //     break;
-      //   case 'voice:releasing':
-      //     this.messages.sendMessage('voice:releasing', {});
-      //     break;
-      //   case 'voice:looped':
-      //     this.messages.sendMessage('voice:looped', {
-      //       loopCount: data.loopCount,
-      //     });
-      //     break;
-      //   case 'voice:position':
-      //     this.getParam('playbackPosition')?.setValueAtTime(
-      //       data.position,
-      //       this.context.currentTime
-      //     );
-      //     this.messages.sendMessage('voice:position', {
-      //       position: data.position,
-      //     });
-      //     break;
-      // }
     };
   }
 
   async loadBuffer(
     buffer: AudioBuffer,
     zeroCrossings?: number[]
-  ): Promise<this> {
-    if (zeroCrossings?.length) {
-      this.sendToProcessor({
-        type: 'voice:set_zero_crossings',
-        zeroCrossings,
-      });
-    }
-
+  ): Promise<boolean> {
     if (buffer.sampleRate !== this.context.sampleRate) {
       console.warn(
         `Sample rate mismatch - buffer: ${buffer.sampleRate}, context: ${this.context.sampleRate}`
       );
+      return false;
     }
 
     const bufferData = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
@@ -135,6 +109,16 @@ export class SampleVoice implements LibVoiceNode {
       duration: buffer.duration,
     });
 
+    if (zeroCrossings?.length) this.#setZeroCrossings(zeroCrossings);
+
+    return true;
+  }
+
+  #setZeroCrossings(zeroCrossings: number[]): this {
+    this.sendToProcessor({
+      type: 'voice:set_zero_crossings',
+      zeroCrossings,
+    });
     return this;
   }
 
@@ -151,35 +135,23 @@ export class SampleVoice implements LibVoiceNode {
     if (this.#state === VoiceState.PLAYING) return null;
     this.#state = VoiceState.PLAYING;
     this.#currentNoteId = options.noteId;
+    // this.#startedTimestamp = -1;
 
     const {
       midiNote,
       velocity,
       secondsFromNow = 0,
-      startOffset = 0,
+      startOffset = 0, // saving for later use
       attack_sec = 0.001,
     } = {
       ...DEFAULT_TRIGGER_OPTIONS,
       ...options,
     };
 
-    // IMPORTANT: Set both offsets BEFORE starting playback
-    // Set startOffset from options or use existing param value
-    const currentStartOffset = this.getParam('startOffset')?.value || 0;
-    const effectiveStartOffset =
-      startOffset > 0 ? startOffset : currentStartOffset;
-
-    // Apply startOffset through the params if available
-    if (startOffset > 0) {
-      this.setOffsetParams(effectiveStartOffset);
-    }
-
     const when = this.now + secondsFromNow;
 
-    const normalizedVelocity = velocity ? velocity / 127 : 1;
-
     this.setParam('playbackRate', midiToPlaybackRate(midiNote));
-    this.setParam('velocity', normalizedVelocity);
+    this.setParam('velocity', velocity);
 
     const envGain = this.getParam('envGain')!;
     cancelScheduledParamValues(envGain, this.now);
@@ -190,8 +162,6 @@ export class SampleVoice implements LibVoiceNode {
     this.sendToProcessor({
       type: 'voice:start',
       when,
-      // check if unecessary to pass startoffset
-      // startOffset,
     });
 
     this.#startedTimestamp = when;
@@ -199,22 +169,35 @@ export class SampleVoice implements LibVoiceNode {
     return this.#currentNoteId;
   }
 
+  // Move to constants when decided to use:
+  TARGET_AT_TIME_SCALAR = 0.3;
+  TARGET_AT_MIN_VALUE = 0.00001;
+  SCHEDULE_NOW_ADDER = 0.00001;
+
   release({
-    release_sec = 0.1,
-    secondsFromNow = 0,
+    release = 0.1, // clarify unit with regards to setTargetAtTime
+    secondsFromNow = this.SCHEDULE_NOW_ADDER,
   }: {
-    release_sec?: number;
+    release?: number;
     secondsFromNow?: number;
   }): this {
     if (this.#state === VoiceState.RELEASING) return this;
     this.#state = VoiceState.RELEASING;
 
-    const when = this.now + secondsFromNow;
     const envGain = this.getParam('envGain')!;
-    cancelScheduledParamValues(envGain, when);
 
-    envGain.setValueAtTime(envGain.value, when);
-    envGain.linearRampToValueAtTime(0.0001, when + release_sec);
+    const releaseStart = this.now + secondsFromNow;
+    // const releaseEnd = releaseStart + release;
+    const releaseTimeConstant = release * this.TARGET_AT_TIME_SCALAR;
+
+    cancelScheduledParamValues(envGain, this.now);
+    envGain.setValueAtTime(envGain.value, this.now);
+
+    envGain.setTargetAtTime(
+      this.TARGET_AT_MIN_VALUE,
+      releaseStart,
+      releaseTimeConstant
+    );
 
     this.sendToProcessor({ type: 'voice:release' });
     return this;
@@ -276,66 +259,25 @@ export class SampleVoice implements LibVoiceNode {
     return this;
   }
 
-  // Set offset parameters with constraint checking
   setOffsetParams(startOffset?: number, endOffset?: number): this {
-    if (startOffset !== undefined) {
-      // Find nearest allowed value if constraints exist
-      let safeStartOffset = startOffset;
-      if (this.#paramConstraints.startOffset) {
-        const { min, max } = this.#paramConstraints.startOffset;
-        safeStartOffset = Math.max(min, Math.min(max, startOffset));
-      }
-
-      // Get the parameter and cancel any scheduled values
-      const startOffsetParam = this.getParam('startOffset');
-      if (startOffsetParam) {
-        cancelScheduledParamValues(startOffsetParam, this.now);
-        startOffsetParam.setValueAtTime(safeStartOffset, this.now);
-
-        // Log for debugging
-        console.log(`SampleVoice: Setting startOffset to ${safeStartOffset}`);
-      }
-    }
-
-    if (endOffset !== undefined) {
-      // Find nearest allowed value if constraints exist
-      let safeEndOffset = endOffset;
-      if (this.#paramConstraints.endOffset) {
-        const { min, max } = this.#paramConstraints.endOffset;
-        safeEndOffset = Math.max(min, Math.min(max, endOffset));
-      }
-
-      // Get the parameter and cancel any scheduled values
-      const endOffsetParam = this.getParam('endOffset');
-      if (endOffsetParam) {
-        cancelScheduledParamValues(endOffsetParam, this.now);
-        endOffsetParam.setValueAtTime(safeEndOffset, this.now);
-
-        // Log for debugging
-        console.log(`SampleVoice: Setting endOffset to ${safeEndOffset}`);
-      }
-    }
-
-    // IMPORTANT: Explicitly tell the processor we've updated the offsets
-    this.sendToProcessor({
-      type: 'voice:update_offsets',
-      startOffset:
-        startOffset !== undefined
-          ? this.getParam('startOffset')?.value
-          : undefined,
-      endOffset:
-        endOffset !== undefined ? this.getParam('endOffset')?.value : undefined,
-    });
-
+    if (startOffset !== undefined) this.setStartOffset(startOffset);
+    if (endOffset !== undefined) this.setEndOffset(endOffset);
     return this;
   }
 
-  setStartOffset(offset: number): this {
-    return this.setOffsetParams(offset, undefined);
-  }
+  setStartOffset = (offset: number) => this.setParam('startOffset', offset);
+  setEndOffset = (offset: number) => this.setParam('endOffset', offset);
 
-  setEndOffset(offset: number): this {
-    return this.setOffsetParams(undefined, offset);
+  setLoopPoints(start?: number, end?: number): this {
+    if (start !== undefined) {
+      this.setParam('loopStart', start);
+    }
+
+    if (end !== undefined) {
+      this.setParam('loopEnd', end);
+    }
+
+    return this;
   }
 
   sendToProcessor(data: any): this {
@@ -345,6 +287,33 @@ export class SampleVoice implements LibVoiceNode {
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
+  }
+
+  setParamConstraints(
+    paramName: string,
+    min: number,
+    max: number,
+    fixToConstant?: number
+  ): this {
+    // Initialize the constraint object for this parameter if it doesn't exist
+    if (!this.#paramConstraints[paramName]) {
+      this.#paramConstraints[paramName] = { min: 0, max: 1 }; // Default values
+    }
+
+    // If a value is provided, set both min and max to that value
+    if (fixToConstant !== undefined) {
+      this.#paramConstraints[paramName] = {
+        min: fixToConstant,
+        max: fixToConstant,
+      };
+    }
+    // Otherwise update min/max if provided
+    else {
+      if (min !== undefined) this.#paramConstraints[paramName]!.min = min;
+      if (max !== undefined) this.#paramConstraints[paramName]!.max = max;
+    }
+
+    return this;
   }
 
   // Getters
@@ -386,12 +355,6 @@ export class SampleVoice implements LibVoiceNode {
     return this;
   }
 
-  setLoopPoints(start: number, end: number): this {
-    this.setParam('loopStart', start);
-    this.setParam('loopEnd', end);
-    return this;
-  }
-
   setPlaybackRate(rate: number): this {
     return this.setParam('playbackRate', rate);
   }
@@ -407,3 +370,53 @@ export class SampleVoice implements LibVoiceNode {
     deleteNodeId(this.nodeId);
   }
 }
+
+// todo: messaging overhaul
+// // ? only send messages if someone has subscribed to them?
+// switch (type) {
+//   case 'voice:started':
+//     this.messages.sendMessage('voice:started', {});
+//     break;
+//   case 'voice:ended':
+//     this.messages.sendMessage('voice:ended', {});
+//     break;
+//   case 'voice:releasing':
+//     this.messages.sendMessage('voice:releasing', {});
+//     break;
+//   case 'voice:looped':
+//     this.messages.sendMessage('voice:looped', {
+//       loopCount: data.loopCount,
+//     });
+//     break;
+//   case 'voice:position':
+//     this.getParam('playbackPosition')?.setValueAtTime(
+//       data.position,
+//       this.context.currentTime
+//     );
+//     this.messages.sendMessage('voice:position', {
+//       position: data.position,
+//     });
+//     break;
+// }
+
+// // General function to set any constrained parameter
+// setConstrainedParam(paramName: string, value: number): this {
+//   // Skip if value is undefined
+//   if (value === undefined) return this;
+
+//   // Apply constraints if they exist
+//   let safeValue = value;
+//   if (this.#paramConstraints[paramName]) {
+//     const { min, max } = this.#paramConstraints[paramName]!;
+//     safeValue = Math.max(min, Math.min(max, value));
+//   }
+
+//   // Get the parameter and set its value
+//   const param = this.getParam(paramName);
+//   if (param) {
+//     cancelScheduledParamValues(param, this.now);
+//     param.setValueAtTime(safeValue, this.now);
+//   }
+
+//   return this;
+// }

@@ -120,7 +120,10 @@ body {
   border-radius: 6px;
 }
 
-sampler-element {
+sampler-element,
+sample-loader-element,
+recorder-element,
+output-element {
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
@@ -131,9 +134,9 @@ sampler-element {
   user-select: none;
   touch-action: none; /* prevent touch scrolling while dragging */
 
-  /* explicit dimensions */
-  /* width: 50%;
-  height: 50%; */
+  /* Spacing */
+  margin: 20px 0;
+  padding: 15px;
 
   background-color: #333;
   border: 1px solid #555;

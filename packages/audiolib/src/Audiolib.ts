@@ -18,14 +18,15 @@ import {
 import { idb, initIdb, sampleLib } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
-import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
+import { LibInstrument, LibNode, ContainerType, SampleLoader } from '@/LibNode';
 import {
   SamplePlayer,
   createSamplePlayer as createSamplePlayerFactory,
   KarplusStrongSynth,
   createKarplusStrongSynth as createKarplusStrongSynthFactory,
 } from './nodes/instruments';
-import { Recorder } from '@/nodes/recorder';
+
+import { createAudioRecorder, Recorder } from '@/nodes/recorder';
 
 import { initProcessors } from './worklets';
 
@@ -83,6 +84,9 @@ export class Audiolib implements LibNode {
 
   // Original implementation moved here
   async #initImpl(): Promise<Audiolib> {
+    // If already initialized, just return this instance
+    if (this.isReady) return this;
+
     // Ensure audio context is available
     const ctxResult = await tryCatch(() => ensureAudioCtx());
     assert(!ctxResult.error, 'Could not initialize audio context', ctxResult);
@@ -103,21 +107,40 @@ export class Audiolib implements LibNode {
     assert(!worklResult.error, `Failed to register with plugin`, worklResult);
 
     // Initialize Recorder node
-    const recorder = new Recorder(ctx);
-    const recResult = await tryCatch(() => recorder.init());
-    assert(!recResult.error, `Failed to init Recorder`, recResult);
-    this.#globalAudioRecorder = recorder;
+    const recorderResult = await tryCatch(() => createAudioRecorder(ctx));
+    assert(
+      !recorderResult.error,
+      `Failed to create audio recorder`,
+      recorderResult
+    );
+    this.#globalAudioRecorder = recorderResult.data;
 
     const midiSuccess = await this.initMidiController(); // move ?
-    console.debug(`midi initialized? : ${midiSuccess}`);
+    console.debug(`midi initialized: ${midiSuccess}`);
 
     // All is well
     console.log('Audiolib initialized successfully');
     return this;
   }
 
+  async reset(): Promise<Audiolib> {
+    // Dispose of resources
+    if (this.#globalAudioRecorder) {
+      this.#globalAudioRecorder.dispose();
+      this.#globalAudioRecorder = null;
+    }
+
+    // Reset initialization state
+    this.#asyncInit = createAsyncInit<Audiolib>();
+    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
+
+    // Re-initialize
+    return this.init();
+  }
+
   // Public API for initialization state
-  isReady(): boolean {
+
+  get isReady(): boolean {
     return this.#asyncInit.isReady();
   }
 
@@ -127,7 +150,7 @@ export class Audiolib implements LibNode {
 
   onReady(callback: (instance: Audiolib) => void): () => void {
     const checkAndCall = () => {
-      if (this.isReady()) callback(this);
+      if (this.isReady) callback(this);
     };
 
     // Call immediately if already ready
@@ -153,6 +176,18 @@ export class Audiolib implements LibNode {
     const result = await tryCatch(() => this.#midiController.initialize());
     assert(!result.error, `Failed to initialize MIDI`);
     return result.data;
+  }
+
+  async createRecorder(
+    destination?: LibNode & SampleLoader
+  ): Promise<Recorder> {
+    const recorder = await createAudioRecorder(this.#audioContext || undefined);
+
+    if (destination) {
+      recorder.connect(destination);
+    }
+
+    return recorder;
   }
 
   createSamplePlayer(
@@ -211,6 +246,37 @@ export class Audiolib implements LibNode {
     newSynth.enableMIDI(this.#midiController);
 
     return newSynth;
+  }
+
+  /** Recorder  **/
+
+  async recordAudioSample(
+    destination?: LibNode & SampleLoader
+  ): Promise<AudioBuffer> {
+    assert(this.#globalAudioRecorder, 'Audio recorder not initialized');
+
+    const targetDestination = destination || this.getCurrentSamplePlayer();
+    if (targetDestination && this.#globalAudioRecorder) {
+      this.#globalAudioRecorder.connect(targetDestination);
+    }
+
+    await this.#globalAudioRecorder.start();
+    return this.#globalAudioRecorder.stop();
+  }
+
+  // ? this is currently needed to connect Recorder, refactor later for flexibility
+  getCurrentSamplePlayer(): SamplePlayer | null {
+    // Find the first SamplePlayer instance in the instruments map
+    for (const instrument of this.#instruments.values()) {
+      if (instrument instanceof SamplePlayer) {
+        return instrument;
+      }
+    }
+    return null;
+  }
+
+  get globalAudioRecorder() {
+    return this.#globalAudioRecorder;
   }
 
   /** Message Bus **/
@@ -292,27 +358,6 @@ export class Audiolib implements LibNode {
 
   get now() {
     return getAudioContext().currentTime;
-  }
-
-  get isInitialized(): boolean {
-    return this.#asyncInit.isReady();
-  }
-
-  async recordAudioSample(): Promise<AudioBuffer> {
-    assert(this.#globalAudioRecorder, 'Recorder not initialized');
-    await this.#globalAudioRecorder.start();
-    return this.#globalAudioRecorder.stop();
-  }
-
-  // ? this is currently needed to connect Recorder, refactor later for flexibility
-  getCurrentSamplePlayer(): SamplePlayer | null {
-    // Find the first SamplePlayer instance in the instruments map
-    for (const instrument of this.#instruments.values()) {
-      if (instrument instanceof SamplePlayer) {
-        return instrument;
-      }
-    }
-    return null;
   }
 
   /** CLEAN UP **/

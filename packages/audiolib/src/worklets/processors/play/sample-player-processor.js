@@ -51,39 +51,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.minZeroCrossing = this.zeroCrossings[0];
           this.maxZeroCrossing =
             this.zeroCrossings[this.zeroCrossings.length - 1];
-
-          // Update audio param constraints (though it's not standard to dynamically
-          // change param constraints, we can enforce them in our code)
-          this.port.postMessage({
-            type: 'voice:param_constraints',
-            startOffset: {
-              min: this.minZeroCrossing,
-              max: this.maxZeroCrossing,
-            },
-            endOffset: { min: this.minZeroCrossing, max: this.maxZeroCrossing },
-          });
         }
         break;
 
       case 'voice:start':
         this.isReleasing = false;
         this.isPlaying = true;
+        this.loopCount = 0;
         this.startTime = when || currentTime;
 
-        // Use nearest zero crossing if available
-        let requestedOffset = startOffset || 0;
-        const paramStartOffset = this.#getCurrentParamValue('startOffset');
-
-        // If startOffset parameter has been set, use it instead of the requested offset
-        if (paramStartOffset > 0) {
-          requestedOffset = paramStartOffset;
-        }
-
-        // Still find nearest zero crossing for safety
-        this.startOffset = this.#findNearestZeroCrossing(requestedOffset);
         this.playbackPosition = this.startOffset * sampleRate;
 
         if (duration) {
+          // todo: remove or use
           this.scheduledEndTime = this.startTime + duration;
 
           const paramEndOffset = this.#getCurrentParamValue('endOffset');
@@ -130,7 +110,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackPosition',
         defaultValue: 0,
-        minValue: 0,
+        minValue: -1000,
+        maxValue: 1000,
         automationRate: 'k-rate',
       },
       {
@@ -138,7 +119,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: 0,
         maxValue: 1,
-        automationRate: 'k-rate',
+        automationRate: 'k-rate', // a-rate ?
       },
       {
         name: 'velocity',
@@ -170,13 +151,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'k-rate',
+        automationRate: 'k-rate', // a-rate ?
       },
       {
         name: 'loopEnd',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'k-rate',
+        automationRate: 'k-rate', // a-rate ?
       },
     ];
   }
@@ -210,6 +191,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     );
   }
 
+  #clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  #clampZeroCrossing = (value) =>
+    this.#clamp(value, this.minZeroCrossing, this.maxZeroCrossing);
+
   #findNearestZeroCrossing(position) {
     if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
       return position;
@@ -230,6 +216,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     if (!param) return 0;
 
     return param.value || 0;
+  }
+
+  #normalizeMidi(midiValue) {
+    const norm = midiValue / 127;
+    return Math.max(0, Math.min(1, norm));
   }
 
   process(inputs, outputs, parameters) {
@@ -273,8 +264,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const envelopeGain = parameters.envGain[0];
 
-    const velocitySensitivity = 1.5;
-    const velocityGain = parameters.velocity[0] / velocitySensitivity;
+    const velocitySensitivity = 0.9;
+    const normalizedVelocity = this.#normalizeMidi(parameters.velocity[0]);
+    const velocityGain = normalizedVelocity * velocitySensitivity;
 
     const numChannels = Math.min(output.length, this.buffer.length);
     //const bufferLength = this.buffer[0].length;

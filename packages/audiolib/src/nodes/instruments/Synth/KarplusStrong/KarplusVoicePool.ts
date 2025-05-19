@@ -2,7 +2,7 @@
 
 import { KarplusVoice } from './KarplusVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { ActiveNoteId, MIDINote } from '@/nodes/instruments/types';
+import { ActiveNoteId, MidiValue } from '@/nodes/instruments/types';
 
 export class KarplusVoicePool {
   readonly nodeId: NodeID;

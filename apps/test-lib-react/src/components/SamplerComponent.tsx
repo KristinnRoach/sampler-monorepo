@@ -151,7 +151,6 @@ const SamplerComponent = () => {
 
     // Set both the state and the ref
     const duration = audioBuffer.duration;
-    console.log('Setting sample duration:', duration);
     setSampleDuration(duration);
     sampleDurationRef.current = duration; // Set the ref immediately
 
@@ -232,7 +231,9 @@ const SamplerComponent = () => {
   return (
     <div style={{ width: '100vw' }}>
       <h2>SourcePlayer Test</h2>
-      <RecorderComponent />
+      {samplePlayerRef.current && (
+        <RecorderComponent destination={samplePlayerRef.current} />
+      )}
       <button
         id='loadDefaultSample'
         onClick={async () => {

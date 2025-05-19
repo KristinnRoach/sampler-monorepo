@@ -1,4 +1,4 @@
-import { LibNode, BaseNodeType } from '@/LibNode';
+import { LibNode, SampleLoader } from '@/LibNode';
 import { NodeID, createNodeId, deleteNodeId } from '@/nodes/node-store';
 import {
   Message,
@@ -6,7 +6,7 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-import { getAudioContext } from '@/context';
+
 import {
   createMediaRecorder,
   startRecording,
@@ -15,23 +15,18 @@ import {
 } from './record-utils';
 import { getMicrophone } from '@/io/devices/devices';
 
-export interface SampleLoader {
-  // todo: replace SampleLoader with Instrument<Sampler> | Voice<BufferSource> ??
-  loadSample(buffer: AudioBuffer): Promise<boolean> | Promise<void>;
-}
-
 export class Recorder implements LibNode {
   readonly nodeId: NodeID;
-  readonly nodeType: BaseNodeType = 'recorder';
+  readonly nodeType = 'recorder';
 
   #context: AudioContext;
   #stream: MediaStream | null = null;
   #recorder: MediaRecorder | null = null;
   #messages: MessageBus<Message>;
   #isRecording: boolean = false;
-  #destination: (LibNode & SampleLoader) | null = null; // ? see comment above in SampleLoader
+  #destination: (LibNode & SampleLoader) | null = null;
 
-  constructor(context: AudioContext = getAudioContext()) {
+  constructor(context: AudioContext) {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
     this.#messages = createMessageBus<Message>(this.nodeId);
@@ -53,7 +48,7 @@ export class Recorder implements LibNode {
 
     startRecording(this.#recorder);
     this.#isRecording = true;
-    this.sendMessage('record:start', {});
+    this.sendMessage('record:start', { destination: this.#destination });
   }
 
   async stop(): Promise<AudioBuffer> {
@@ -107,5 +102,13 @@ export class Recorder implements LibNode {
 
   get isRecording(): boolean {
     return this.#isRecording;
+  }
+
+  /**
+   * Returns whether the recorder has been properly initialized with access to the microphone
+   * and is ready to start recording.
+   */
+  get isReady(): boolean {
+    return this.#recorder !== null && this.#stream !== null;
   }
 }

@@ -1,4 +1,4 @@
-import { BaseAudioElement } from '../base/BaseAudioElement';
+import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib, SamplePlayer } from '@repo/audiolib';
 // import { UNICODES } from './unicodes';
 
@@ -7,7 +7,7 @@ import { audiolib, SamplePlayer } from '@repo/audiolib';
  * Wraps the SamplePlayer class from audiolib
  */
 export class SamplerElement extends BaseAudioElement {
-  private samplePlayer: SamplePlayer | null = null;
+  protected samplePlayer: SamplePlayer | null = null;
 
   private attributeHandlers: Record<string, (value: string) => void> = {
     attack: (value) => this.setAttack(parseFloat(value)),
@@ -16,7 +16,6 @@ export class SamplerElement extends BaseAudioElement {
     'end-offset': (value) => this.setEndOffset(parseFloat(value)),
     'loop-start': (value) => this.setLoopStart(parseFloat(value)),
     'loop-end': (value) => this.setLoopEnd(parseFloat(value)),
-    // Define other handlers
   };
 
   // Define observed attributes
@@ -38,6 +37,9 @@ export class SamplerElement extends BaseAudioElement {
 
   constructor() {
     super('sample-player');
+
+    // Listen for sample loaded events targeting this sampler
+    document.addEventListener('sample-loaded', this.onSampleLoaded.bind(this));
 
     // Create basic UI template, using the light DOM
     // Styling is handled by consumers
@@ -88,12 +90,35 @@ export class SamplerElement extends BaseAudioElement {
     `;
   }
 
+  private onSampleLoaded(event: Event) {
+    const customEvent = event as CustomEvent;
+    // Only process events targeted at this sampler
+    if (customEvent.detail.targetId === this.elementId) {
+      this.handleSampleLoaded(customEvent.detail);
+    }
+  }
+
+  private handleSampleLoaded(detail: any) {
+    // async ?
+    const { audioBuffer, fileName, duration } = detail;
+
+    // Load sample into the player
+    this.samplePlayer?.loadSample(audioBuffer);
+
+    this.samplePlayer!.loadSample(audioBuffer);
+
+    this.updateStatus(`Sample loaded: ${fileName}`);
+
+    console.log(
+      `Sampler ${this.id} loaded sample: ${fileName}, duration: ${duration}`
+    );
+  }
+
   /**
    * Called when the element is added to the DOM
    */
   connectedCallback(): void {
     // Set up event listeners
-    const loadButton = this.querySelector('#load');
     const attackSlider = this.querySelector('#attack') as HTMLInputElement;
     const releaseSlider = this.querySelector('#release') as HTMLInputElement;
     const loopStartSlider = this.querySelector(
@@ -118,10 +143,6 @@ export class SamplerElement extends BaseAudioElement {
     const endOffsetSlider = this.querySelector(
       '#end-offset'
     ) as HTMLInputElement;
-
-    if (loadButton) {
-      loadButton.addEventListener('click', this.loadSample.bind(this));
-    }
 
     if (attackSlider) {
       attackSlider.addEventListener('input', () => {
@@ -218,7 +239,7 @@ export class SamplerElement extends BaseAudioElement {
   async initialize(): Promise<void> {
     try {
       // Initialize audiolib if not already initialized
-      if (!audiolib.isInitialized) await audiolib.init();
+      if (!audiolib.isReady) await audiolib.init();
 
       // Get polyphony from attribute or use default
       const polyphony = parseInt(this.getAttribute('polyphony') || '16');
@@ -487,11 +508,23 @@ export class SamplerElement extends BaseAudioElement {
     this.samplePlayer.setReleaseTime(value); // using seconds for now
   }
 
+  // Todo: Simple unified system for setting time points
+  //       For both looping and non-looping cases
+
   /**
    * Set sample start offset
    */
   setStartOffset(value: number): void {
     if (!this.samplePlayer) return;
+
+    // Ensure start doesn't exceed end
+    const endOffset = this.getAttribute('end-offset')
+      ? parseFloat(this.getAttribute('end-offset')!)
+      : 1;
+
+    if (value > endOffset) {
+      value = Math.max(0, endOffset);
+    }
 
     // Update attribute silently to avoid infinite loop
     if (this.getAttribute('start-offset') !== value.toString()) {
@@ -513,6 +546,15 @@ export class SamplerElement extends BaseAudioElement {
    */
   setEndOffset(value: number): void {
     if (!this.samplePlayer) return;
+
+    // Ensure start doesn't exceed end
+    const startOffset = this.getAttribute('start-offset')
+      ? parseFloat(this.getAttribute('start-offset')!)
+      : 1;
+
+    if (value < startOffset) {
+      value = Math.max(0, startOffset);
+    }
 
     // Update attribute silently to avoid infinite loop
     if (this.getAttribute('end-offset') !== value.toString()) {
@@ -544,6 +586,15 @@ export class SamplerElement extends BaseAudioElement {
       value = Math.max(0, loopEnd);
     }
 
+    // Ensure start doesn't exceed loop-start
+    const startOffset = this.getAttribute('start-offset')
+      ? parseFloat(this.getAttribute('start-offset')!)
+      : 0;
+
+    if (value < startOffset) {
+      value = Math.max(0, startOffset);
+    }
+
     // Update attribute silently to avoid infinite loop
     if (this.getAttribute('loop-start') !== value.toString()) {
       this.setAttribute('loop-start', value.toString());
@@ -559,7 +610,7 @@ export class SamplerElement extends BaseAudioElement {
     if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
 
     // Set loop start on sampler
-    if (value <= loopEnd) this.samplePlayer.setLoopStart(value);
+    this.samplePlayer.setLoopStart(value);
   }
 
   /**
@@ -575,6 +626,15 @@ export class SamplerElement extends BaseAudioElement {
 
     if (value < loopStart) {
       value = Math.min(this.samplePlayer.sampleDuration || 1, loopStart);
+    }
+
+    // Ensure loop end doesn't go below endOffset
+    const endOffset = this.getAttribute('end-offset')
+      ? parseFloat(this.getAttribute('end-offset')!)
+      : 1;
+
+    if (value > endOffset) {
+      value = Math.max(0, endOffset);
     }
 
     // Update attribute silently to avoid infinite loop
@@ -612,9 +672,9 @@ export class SamplerElement extends BaseAudioElement {
         this.samplePlayer.setHoldEnabled(enabled);
         break;
       case 'loop-locked':
-        // Implement when method is available
-        // this.samplePlayer.setLoopLocked(enabled);
-        console.warn('Loop lock functionality not implemented yet');
+        // test skipping "if (enabled)"
+        if (enabled) this.samplePlayer.setLoopEnabled(enabled);
+        this.samplePlayer.setLoopLocked(enabled);
         break;
       case 'keyboard-enabled':
         if (enabled) {
@@ -636,6 +696,13 @@ export class SamplerElement extends BaseAudioElement {
   }
 
   /**
+   * Get the SamplePlayer instance for external connections
+   */
+  getSamplePlayer(): SamplePlayer | null {
+    return this.samplePlayer;
+  }
+
+  /**
    * Update status message
    */
   private updateStatus(message: string): void {
@@ -649,7 +716,6 @@ export class SamplerElement extends BaseAudioElement {
    * Enable controls after initialization
    */
   private enableControls(): void {
-    const loadButton = this.querySelector('#load');
     const attackSlider = this.querySelector('#attack') as HTMLInputElement;
     const releaseSlider = this.querySelector('#release') as HTMLInputElement;
     const startOffsetSlider = this.querySelector(
@@ -666,7 +732,6 @@ export class SamplerElement extends BaseAudioElement {
       '#hold-enabled'
     ) as HTMLInputElement;
 
-    if (loadButton) loadButton.removeAttribute('disabled');
     if (attackSlider) attackSlider.removeAttribute('disabled');
     if (releaseSlider) releaseSlider.removeAttribute('disabled');
     if (startOffsetSlider) startOffsetSlider.removeAttribute('disabled');
@@ -690,4 +755,70 @@ export class SamplerElement extends BaseAudioElement {
     this.outputNode = null;
     this.audioContext = null;
   }
+
+  /**
+   * Called when the element is removed from the DOM
+   */
+  disconnectedCallback() {
+    this.dispose();
+    // Clean up global event listener
+    document.removeEventListener(
+      'sample-loaded',
+      this.onSampleLoaded.bind(this)
+    );
+  }
 }
+
+// // Update loop sliders with sample duration
+// const loopStartSlider = this.querySelector(
+//   '#loop-start'
+// ) as HTMLInputElement;
+// const loopEndSlider = this.querySelector(
+//   '#loop-end'
+// ) as HTMLInputElement;
+
+// if (loopStartSlider) {
+//   loopStartSlider.min = '0';
+//   loopStartSlider.max = audioBuffer.duration.toString();
+//   loopStartSlider.value = '0';
+//   const valueDisplay = this.querySelector('#loop-start-value');
+//   if (valueDisplay) valueDisplay.textContent = '0.00';
+// }
+
+// if (loopEndSlider) {
+//   loopEndSlider.min = '0';
+//   loopEndSlider.max = audioBuffer.duration.toString();
+//   loopEndSlider.value = audioBuffer.duration.toString();
+//   const valueDisplay = this.querySelector('#loop-end-value');
+//   if (valueDisplay)
+//     valueDisplay.textContent = audioBuffer.duration.toFixed(2);
+// }
+
+// // Update start and end offset sliders with sample duration
+// const startOffsetSlider = this.querySelector(
+//   '#start-offset'
+// ) as HTMLInputElement;
+// const endOffsetSlider = this.querySelector(
+//   '#end-offset'
+// ) as HTMLInputElement;
+
+// if (startOffsetSlider) {
+//   startOffsetSlider.min = '0';
+//   startOffsetSlider.max = audioBuffer.duration.toString();
+//   startOffsetSlider.value = '0';
+//   const valueDisplay = this.querySelector('#start-offset-value');
+//   if (valueDisplay) valueDisplay.textContent = '0.00';
+// }
+
+// if (endOffsetSlider) {
+//   endOffsetSlider.min = '0';
+//   endOffsetSlider.max = audioBuffer.duration.toString();
+//   endOffsetSlider.value = audioBuffer.duration.toString();
+//   const valueDisplay = this.querySelector('#end-offset-value');
+//   if (valueDisplay)
+//     valueDisplay.textContent = audioBuffer.duration.toFixed(2);
+// }
+
+// // Set the loop end parameter to the full duration
+// this.setLoopEnd(audioBuffer.duration);
+// this.setEndOffset(audioBuffer.duration);

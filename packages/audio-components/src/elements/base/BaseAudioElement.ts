@@ -3,7 +3,7 @@
  * Provides common functionality for audio routing and lifecycle management
  */
 export class BaseAudioElement extends HTMLElement {
-  protected elementId: string;
+  elementId: string; // todo: protected
   protected elementType: string;
 
   protected audioContext: AudioContext | null = null;
@@ -20,21 +20,24 @@ export class BaseAudioElement extends HTMLElement {
   /**
    * Connect this element's output to another audio element or AudioNode
    */
-  connect(destination: BaseAudioElement | AudioNode): this {
-    if (!this.outputNode) {
-      console.warn('Cannot connect - output node not initialized');
-      return this;
-    }
-
+  connect(destination: HTMLElement | BaseAudioElement | AudioNode): this {
     if (destination instanceof BaseAudioElement) {
+      // todo: create separate BaseElement class for non-audio elements
+      this.setAttribute('target-element-id', destination.elementId);
+
+      if (!this.outputNode || !destination?.getInput()) {
+        console.warn('Failed to connect elements');
+        return this;
+      }
+
       const inputNode = destination.getInput();
       if (inputNode) {
         this.outputNode.connect(inputNode);
       } else {
         console.warn('Cannot connect - destination has no input node');
       }
-    } else {
-      this.outputNode.connect(destination);
+    } else if (destination instanceof AudioNode) {
+      if (this.outputNode) this.outputNode.connect(destination);
     }
 
     // Dispatch connection event

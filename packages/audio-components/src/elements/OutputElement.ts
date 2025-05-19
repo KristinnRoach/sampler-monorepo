@@ -1,4 +1,4 @@
-import { BaseAudioElement } from '../base/BaseAudioElement';
+import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib } from '@repo/audiolib';
 
 /**

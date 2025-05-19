@@ -1,8 +1,8 @@
-import { SampleVoice } from '../../instruments/Sample/SampleVoice';
+import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { ActiveNoteId, MIDINote } from '../../instruments/types';
+import { ActiveNoteId } from '../types';
 
-export class VoicePool {
+export class SampleVoicePool {
   readonly nodeId: NodeID;
   readonly nodeType = 'pool';
 
@@ -10,6 +10,8 @@ export class VoicePool {
   #context: AudioContext;
   #activeVoices: Map<ActiveNoteId, SampleVoice>;
   #nextNoteId: number;
+
+  #transposeSemitones = 0;
 
   constructor(
     context: AudioContext,
@@ -57,9 +59,10 @@ export class VoicePool {
 
   noteOn(
     midiNote: number,
-    velocity: number = 100,
-    when: number = this.#context.currentTime,
-    attack_sec?: number
+    velocity = 100,
+    secondsFromNow = 0,
+    attack_sec = 0.01,
+    transposition = this.#transposeSemitones
   ): ActiveNoteId {
     const noteId = this.#nextNoteId++; // increments for next note
 
@@ -67,11 +70,11 @@ export class VoicePool {
     if (!voice) return noteId; // Still return a valid noteId
 
     voice.trigger({
-      // voice.trigger also returns noteId, why should it?
-      midiNote,
+      // voice.trigger also returns noteId (redundant?)
+      midiNote: midiNote + transposition,
       velocity,
       noteId,
-      secondsFromNow: when,
+      secondsFromNow,
       attack_sec,
     });
     this.#activeVoices.set(noteId, voice);
@@ -83,15 +86,22 @@ export class VoicePool {
     const voice = this.#activeVoices.get(noteId);
 
     if (voice) {
-      voice.release({ release_sec, secondsFromNow });
+      voice.release({ release: release_sec, secondsFromNow });
       this.#activeVoices.delete(noteId);
     }
     return this;
   }
 
-  allNotesOff() {
-    this.#allVoices.forEach((voice) => voice.stop());
+  allNotesOff(release_sec = 0) {
+    if (release_sec <= 0) {
+      this.#allVoices.forEach((voice) => voice.stop());
+    } else {
+      this.#allVoices.forEach((voice) => {
+        if (voice.state === 'PLAYING') voice.release({ release: release_sec });
+      });
+    }
     this.#activeVoices.clear();
+
     return this;
   }
 
@@ -105,6 +115,13 @@ export class VoicePool {
 
   get activeVoicesCount() {
     return this.#activeVoices.size;
+  }
+
+  get transposeSemitones() {
+    return this.#transposeSemitones;
+  }
+  set transposeSemitones(semitones) {
+    this.#transposeSemitones = semitones;
   }
 }
 

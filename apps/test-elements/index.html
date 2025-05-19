@@ -2,17 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Web Audio Elements Demo</title>
+
+    <meta
+      name="description"
+      content="Playground for demoing a musical web audio library (WIP)"
+    />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#000000" />
+    <meta name="theme-color" content="#000000" />
+
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div class="container">
       <div class="draggable-container">
         <sampler-element
-          id="sampler1"
+          id="sampler-1"
           class="draggable-element"
+          polyphony="32"
         ></sampler-element>
+
+        <div class="draggable-container">
+          <sample-loader-element
+            id="loader-1"
+            class="draggable-element"
+          ></sample-loader-element>
+        </div>
+        <div class="draggable-container">
+          <recorder-element
+            id="recorder-1"
+            destination="sampler-1"
+          ></recorder-element>
+        </div>
       </div>
     </div>
 
