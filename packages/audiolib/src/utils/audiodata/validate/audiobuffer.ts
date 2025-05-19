@@ -28,6 +28,8 @@ export function isValidAudioBuffer(
 
   // Check if all channels are silent
   let hasNonZeroData = false;
+  let peakAmplitude = 0;
+  let rmsAmplitude = 0;
 
   for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
     try {
@@ -36,18 +38,39 @@ export function isValidAudioBuffer(
         return false;
       }
 
-      // Check for any non-zero samples
+      let sumSquared = 0;
+      // Check for any non-zero samples and calculate peak/RMS
       for (let i = 0; i < channelData.length; i++) {
-        if (Math.abs(channelData[i]) > 0) {
+        const sampleValue = Math.abs(channelData[i]);
+        if (sampleValue > 0) {
           hasNonZeroData = true;
-          break;
         }
+        if (sampleValue > peakAmplitude) {
+          peakAmplitude = sampleValue;
+        }
+        sumSquared += sampleValue * sampleValue;
+      }
+
+      // Calculate RMS for this channel
+      const channelRMS = Math.sqrt(sumSquared / channelData.length);
+      if (channelRMS > rmsAmplitude) {
+        rmsAmplitude = channelRMS;
       }
 
       if (hasNonZeroData) break;
     } catch (error) {
       return false;
     }
+  }
+
+  // Log amplitude information
+  if (hasNonZeroData) {
+    const peakDB = 20 * Math.log10(peakAmplitude);
+    const rmsDB = 20 * Math.log10(rmsAmplitude);
+    console.log(`AudioBuffer Analysis:
+      Peak amplitude: ${peakAmplitude.toFixed(4)} (${peakDB.toFixed(1)} dB)
+      RMS amplitude: ${rmsAmplitude.toFixed(4)} (${rmsDB.toFixed(1)} dB)
+    `);
   }
 
   return hasNonZeroData;

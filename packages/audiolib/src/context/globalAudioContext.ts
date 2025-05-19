@@ -1,6 +1,7 @@
 // globalAudioContext.ts
 
 import { DEFAULT } from '@/constants';
+import { assert, tryCatch } from '@/utils';
 
 let globalAudioContext: AudioContext | null = null;
 let resumePromise: Promise<void> | null = null;
@@ -34,6 +35,10 @@ export function getAudioContext(config?: AudioContextConfig): AudioContext {
 }
 
 function setupAutoResume(): Promise<void> {
+  /* istanbul ignore next – browser-only safeguard */
+  if (typeof document === 'undefined') {
+    return Promise.resolve();
+  }
   const resumeEvents = ['click', 'touchstart', 'keydown'];
 
   return new Promise((resolve) => {
@@ -66,6 +71,16 @@ export async function ensureAudioCtx(
   if (context.state === 'running') {
     return context;
   }
+  if (context.state === 'closed') {
+    globalAudioContext = null;
+    const ctxResult = await tryCatch(() => ensureAudioCtx(config)); // creates a fresh context
+    assert(
+      ctxResult.data instanceof AudioContext && !ctxResult.error,
+      'failed to re-created closed audio context',
+      ctxResult.error
+    );
+    return ctxResult.data;
+  }
   // If resumePromise is null, set it up
   resumePromise = resumePromise || setupAutoResume();
   await resumePromise;
@@ -83,14 +98,19 @@ export async function decodeAudioData(
 
 export function releaseGlobalAudioContext(): void {
   if (globalAudioContext) {
-    globalAudioContext.close().then(() => {
-      // SystemEventBus.notify('audiocontext:closed', {
-      //   publisherId: 'GlobalAudioContext',
-      //   message: `ctx: ${globalAudioContext}`,
-      // });
-      globalAudioContext = null;
-      resumePromise = null;
-    });
+    globalAudioContext
+      .close()
+      .catch((err) => {
+        console.warn('[GlobalAudioContext] close() failed', err);
+      })
+      .then(() => {
+        // SystemEventBus.notify('audiocontext:closed', {
+        //   publisherId: 'GlobalAudioContext',
+        //   message: `ctx: ${globalAudioContext}`,
+        // });
+        globalAudioContext = null;
+        resumePromise = null;
+      });
   }
 }
 

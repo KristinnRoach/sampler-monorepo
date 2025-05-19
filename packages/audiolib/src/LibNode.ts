@@ -1,6 +1,5 @@
-import { NodeID } from '@/state/registry/NodeIDs';
+import { NodeID } from '@/nodes/node-store';
 import { Message, MessageHandler } from '@/events';
-import { PressedModifiers } from '@/input';
 
 export type BaseNodeType =
   | 'instrument'
@@ -64,23 +63,22 @@ export interface LibContainerNode extends LibNode {
   nodes: LibNode[];
 }
 
-// Instrument node - manages voices
+export interface SampleLoader {
+  loadSample(...args: TODO[]): Promise<TODO>;
+}
+
+// Instrument node
 export interface LibInstrument extends LibNode {
   readonly nodeType: InstrumentType;
 
-  play(midiNote: number, velocity: number, modifiers: PressedModifiers): this;
-  release(midiNote?: number, modifiers?: PressedModifiers): this;
-  releaseAll(): this;
-
-  setParamValue(name: string, value: number): this;
-  getParamValue(name: string): number | null;
+  play(...args: TODO[]): TODO;
+  release(...args: TODO[]): this;
+  panic(...args: TODO[]): this;
 }
 
 // Voice node - handles actual sound generation
 export interface LibVoiceNode extends LibNode {
   readonly nodeType: VoiceType;
-  readonly processorNames: string[];
-  // readonly paramMap: Map<string, AudioParam>;
 
   connect(
     destination?: LibVoiceNode | LibParamNode | AudioNode | AudioParam,
@@ -91,9 +89,9 @@ export interface LibVoiceNode extends LibNode {
   getParam(name: string): AudioParam | null; // todo: ParamType
   setParam(name: string, value: number, options: TODO): this;
 
-  trigger(options: TODO): this;
-  release(options?: TODO): this;
-  stop(): this;
+  trigger(options: TODO): TODO;
+  release(options?: TODO): TODO;
+  stop(): TODO;
   sendToProcessor(data: TODO): void;
 }
 

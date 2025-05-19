@@ -4,9 +4,7 @@ import {
   releaseGlobalAudioContext,
 } from '@/context';
 
-import { registry } from '@/state/registry/worklet-registry';
-import { createNodeId, deleteNodeId, NodeID } from '@/state/registry/NodeIDs';
-import { globalKeyboardInput, InputHandler, PressedModifiers } from '@/input';
+import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { assert, tryCatch } from '@/utils';
 import { createAsyncInit, InitState } from '@/utils/async-initializable';
 
@@ -17,12 +15,24 @@ import {
   MessageBus,
 } from '@/events';
 
-import { idb, initIdb, sampleLib } from './store/persistent/idb';
-import { fetchInitSampleAsAudioBuffer } from './store/assets/asset-utils';
+import { idb, initIdb, sampleLib } from './storage/idb';
+import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
-import { LibInstrument, LibNode, ContainerType } from '@/LibNode';
-import { Sampler, KarplusStrongSynth } from './nodes/instruments';
-import { Recorder } from '@/recorder';
+import { LibInstrument, LibNode, ContainerType, SampleLoader } from '@/LibNode';
+import {
+  SamplePlayer,
+  createSamplePlayer as createSamplePlayerFactory,
+  KarplusStrongSynth,
+  createKarplusStrongSynth as createKarplusStrongSynthFactory,
+} from './nodes/instruments';
+
+import { createAudioRecorder, Recorder } from '@/nodes/recorder';
+
+import { initProcessors } from './worklets';
+
+import { MidiController } from '@/io';
+
+// Todo: export init and instrument factory functions separately (tree shake-able)
 
 export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
@@ -30,12 +40,14 @@ export class Audiolib implements LibNode {
   static #instance: Audiolib | null = null;
 
   #asyncInit = createAsyncInit<Audiolib>();
+  #midiController = new MidiController();
+
   #audioContext: AudioContext | null = null;
-  #masterGain: GainNode;
+  #masterGain: GainNode; // todo: MasterBus
   #instruments: Map<string, LibInstrument> = new Map();
+
   #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null;
-  #keyboardHandler: InputHandler | null = null;
 
   static getInstance(): Audiolib {
     if (!Audiolib.#instance) {
@@ -56,56 +68,79 @@ export class Audiolib implements LibNode {
     });
 
     this.#masterGain = this.#audioContext.createGain();
-    this.#masterGain.gain.value = 0.5;
+    this.#masterGain.gain.value = 1.0;
     this.#masterGain.connect(this.#audioContext.destination);
 
     // Replace init method with wrapped version
     this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
   }
 
+  /** TODO: Review initialization approaches and standardize,
+   *        is "async-initializable.ts" beneficial to use everywhere
+   *        or just redundantly complex ? */
+
   // Public init method (will be replaced by wrapper)
   init!: () => Promise<Audiolib>;
 
   // Original implementation moved here
   async #initImpl(): Promise<Audiolib> {
+    // If already initialized, just return this instance
+    if (this.isReady) return this;
+
     // Ensure audio context is available
-    const ctxResult = await tryCatch(ensureAudioCtx());
-    assert(ctxResult.data, 'Could not initialize audio context', ctxResult);
+    const ctxResult = await tryCatch(() => ensureAudioCtx());
+    assert(!ctxResult.error, 'Could not initialize audio context', ctxResult);
     await this.#validateContext(ctxResult.data);
     const ctx = ctxResult.data;
 
     // Initialize indexedDB
-    const idbResult = await tryCatch(initIdb());
+    const idbResult = await tryCatch(() => initIdb());
     assert(!idbResult.error, 'IndexedDB initialization failed', idbResult);
 
     // Fetch initial sample
-    const sampleResult = await tryCatch(fetchInitSampleAsAudioBuffer());
+    const sampleResult = await tryCatch(() => fetchInitSampleAsAudioBuffer());
     assert(!sampleResult.error, 'Failed to fetch initial sample');
     this.#currentAudioBuffer = sampleResult.data;
 
-    // Register processors
-    const processorResult = await tryCatch(
-      registry.registerDefaultProcessors()
-    );
-    assert(
-      !processorResult.error,
-      'Processor registration failed',
-      processorResult
-    );
+    // Register worklet processors
+    const worklResult = await tryCatch(() => initProcessors(ctx));
+    assert(!worklResult.error, `Failed to register with plugin`, worklResult);
 
     // Initialize Recorder node
-    const recorder = new Recorder(ctx);
-    const recResult = await tryCatch(recorder.init());
-    assert(!recResult.error, `Failed to init Recorder`, recResult);
-    this.#globalAudioRecorder = recorder;
+    const recorderResult = await tryCatch(() => createAudioRecorder(ctx));
+    assert(
+      !recorderResult.error,
+      `Failed to create audio recorder`,
+      recorderResult
+    );
+    this.#globalAudioRecorder = recorderResult.data;
+
+    const midiSuccess = await this.initMidiController(); // move ?
+    console.debug(`midi initialized: ${midiSuccess}`);
 
     // All is well
     console.log('Audiolib initialized successfully');
     return this;
   }
 
+  async reset(): Promise<Audiolib> {
+    // Dispose of resources
+    if (this.#globalAudioRecorder) {
+      this.#globalAudioRecorder.dispose();
+      this.#globalAudioRecorder = null;
+    }
+
+    // Reset initialization state
+    this.#asyncInit = createAsyncInit<Audiolib>();
+    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
+
+    // Re-initialize
+    return this.init();
+  }
+
   // Public API for initialization state
-  isReady(): boolean {
+
+  get isReady(): boolean {
     return this.#asyncInit.isReady();
   }
 
@@ -115,7 +150,7 @@ export class Audiolib implements LibNode {
 
   onReady(callback: (instance: Audiolib) => void): () => void {
     const checkAndCall = () => {
-      if (this.isReady()) callback(this);
+      if (this.isReady) callback(this);
     };
 
     // Call immediately if already ready
@@ -137,90 +172,111 @@ export class Audiolib implements LibNode {
     });
   }
 
-  createSampler(
-    audioSample?: AudioBuffer,
+  async initMidiController(): Promise<boolean> {
+    const result = await tryCatch(() => this.#midiController.initialize());
+    assert(!result.error, `Failed to initialize MIDI`);
+    return result.data;
+  }
+
+  async createRecorder(
+    destination?: LibNode & SampleLoader
+  ): Promise<Recorder> {
+    const recorder = await createAudioRecorder(this.#audioContext || undefined);
+
+    if (destination) {
+      recorder.connect(destination);
+    }
+
+    return recorder;
+  }
+
+  createSamplePlayer(
+    ctx = this.#audioContext,
     polyphony = 16,
-    ctx = this.#audioContext
-  ): Sampler | null {
+    audioBuffer?: AudioBuffer
+  ): SamplePlayer | null {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    let audioBuffer = audioSample || this.#currentAudioBuffer;
-    assert(audioBuffer, 'No audio buffer available for sampler', {
-      providedSample: !!audioSample,
+    let buffer = audioBuffer || this.#currentAudioBuffer;
+    assert(buffer, 'No audio buffer available for SamplePlayer', {
+      providedSample: !!audioBuffer,
       initSampleAvailable: !!this.#currentAudioBuffer,
     });
 
-    const newSampler = new Sampler(polyphony, ctx, audioBuffer);
-    assert(newSampler, `Failed to create Sampler`);
-
-    const alreadyLoaded = this.#instruments.has(newSampler.nodeId);
-    assert(
-      !alreadyLoaded,
-      `Sampler with id: ${newSampler.nodeId} already loaded`
+    // Use the factory function instead of direct instantiation
+    const newSamplePlayer = createSamplePlayerFactory(
+      buffer,
+      polyphony,
+      ctx,
+      this.#midiController
     );
 
-    newSampler.connect(this.#masterGain);
-    this.#instruments.set(newSampler.nodeId, newSampler);
+    const alreadyLoaded = this.#instruments.has(newSamplePlayer.nodeId);
+    assert(
+      !alreadyLoaded,
+      `SamplePlayer with id: ${newSamplePlayer.nodeId} already loaded`
+    );
 
-    return newSampler;
+    newSamplePlayer.connect(this.#masterGain);
+    this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
+
+    return newSamplePlayer;
   }
 
-  createKarplusStrongSynth(polyphony = 8, ctx = this.#audioContext) {
+  createKarplusStrongSynth(
+    polyphony = 8,
+    ctx = this.#audioContext
+  ): KarplusStrongSynth {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    const newSynth = new KarplusStrongSynth(polyphony);
+    // Use the factory function instead of direct instantiation
+    const newSynth = createKarplusStrongSynthFactory(polyphony, ctx);
     assert(newSynth, `Failed to create Karplus Strong synth`);
 
     const alreadyLoaded = this.#instruments.has(newSynth.nodeId);
     assert(
       !alreadyLoaded,
-      `Sampler with id: ${newSynth.nodeId} already loaded`
+      `Instrument with id: ${newSynth.nodeId} already loaded`
     );
 
     newSynth.connect(this.#masterGain);
     this.#instruments.set(newSynth.nodeId, newSynth);
 
+    // Enable MIDI with our controller
+    newSynth.enableMIDI(this.#midiController);
+
     return newSynth;
   }
 
-  #onNoteOn(
-    midiNote: number,
-    velocity: number = 100,
-    modifiers: PressedModifiers
-  ) {
-    this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
-  }
+  /** Recorder  **/
 
-  #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
-    this.#instruments.forEach((s) => s.release(midiNote, modifiers));
-  }
+  async recordAudioSample(
+    destination?: LibNode & SampleLoader
+  ): Promise<AudioBuffer> {
+    assert(this.#globalAudioRecorder, 'Audio recorder not initialized');
 
-  #onBlur() {
-    console.debug('Blur occured');
-    this.#instruments.forEach((s) => s.releaseAll());
-  }
-
-  enableKeyboard() {
-    if (!this.#keyboardHandler) {
-      this.#keyboardHandler = {
-        onNoteOn: this.#onNoteOn.bind(this),
-        onNoteOff: this.#onNoteOff.bind(this),
-        onBlur: this.#onBlur.bind(this),
-        // onCapsToggled: this.#onCapsToggled.bind(this),
-      };
-      globalKeyboardInput.addHandler(this.#keyboardHandler);
-    } else {
-      console.debug(`keyboard already enabled`);
+    const targetDestination = destination || this.getCurrentSamplePlayer();
+    if (targetDestination && this.#globalAudioRecorder) {
+      this.#globalAudioRecorder.connect(targetDestination);
     }
+
+    await this.#globalAudioRecorder.start();
+    return this.#globalAudioRecorder.stop();
   }
 
-  disableKeyboard() {
-    if (this.#keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.#keyboardHandler);
-      this.#keyboardHandler = null;
-    } else {
-      console.debug(`keyboard already disabled`);
+  // ? this is currently needed to connect Recorder, refactor later for flexibility
+  getCurrentSamplePlayer(): SamplePlayer | null {
+    // Find the first SamplePlayer instance in the instruments map
+    for (const instrument of this.#instruments.values()) {
+      if (instrument instanceof SamplePlayer) {
+        return instrument;
+      }
     }
+    return null;
+  }
+
+  get globalAudioRecorder() {
+    return this.#globalAudioRecorder;
   }
 
   /** Message Bus **/
@@ -263,28 +319,27 @@ export class Audiolib implements LibNode {
   // Todo: change interface or adapt
 
   add(child: LibNode): this {
-    // this.nodes.push(child);
+    this.nodes.push(child);
     return this;
   }
 
   remove(child: LibNode): this {
-    // Todo
-    // const index = this.nodes.indexOf(child);
-    // if (index > -1) {
-    //   this.nodes.splice(index, 1);
-    // }
+    const index = this.nodes.indexOf(child);
+    if (index > -1) {
+      this.nodes.splice(index, 1);
+    }
     return this;
   }
+
+  /** GETTERS & SETTERS **/
 
   get nodes(): LibNode[] {
     return Array.from(this.#instruments.values());
   }
 
-  /** GETTERS & SETTERS **/
-
   async ensureAudioCtx(): Promise<AudioContext> {
     const result = await tryCatch(
-      ensureAudioCtx(),
+      () => ensureAudioCtx(),
       'Failed to ensure audio context'
     );
     if (result.error) {
@@ -305,31 +360,13 @@ export class Audiolib implements LibNode {
     return getAudioContext().currentTime;
   }
 
-  async recordAudioSample(): Promise<AudioBuffer> {
-    assert(this.#globalAudioRecorder, 'Recorder not initialized');
-    await this.#globalAudioRecorder.start();
-    return this.#globalAudioRecorder.stop();
-  }
-
-  // ? this is currently needed to connect Recorder, refactor later for flexibility
-  getCurrentSampler(): Sampler | null {
-    // Find the first Sampler instance in the instruments map
-    for (const instrument of this.#instruments.values()) {
-      if (instrument instanceof Sampler) {
-        return instrument;
-      }
-    }
-    return null;
-  }
-
   /** CLEAN UP **/
 
   dispose(): void {
     try {
       console.debug('Audiolib dispose called');
-
-      for (const sampler of this.#instruments.values()) {
-        sampler.dispose();
+      for (const instrument of this.#instruments.values()) {
+        instrument.dispose();
       }
       this.#instruments.clear();
 
@@ -338,15 +375,8 @@ export class Audiolib implements LibNode {
         this.#masterGain = null as unknown as GainNode;
       }
       idb.close();
-      registry.dispose();
       deleteNodeId(this.nodeId);
       releaseGlobalAudioContext();
-
-      // Detach keyboard handler
-      if (this.#keyboardHandler) {
-        globalKeyboardInput.removeHandler(this.#keyboardHandler);
-        this.#keyboardHandler = null;
-      }
 
       // Explicitly nullify resource-holding fields
       this.#audioContext?.close();
@@ -365,13 +395,83 @@ export class Audiolib implements LibNode {
   }
 }
 
-// let globalLoopState: boolean = false;
-
-// #onCapsToggled(capsOn: boolean, modifiers: TODO) {
-//   if (globalLoopState !== capsOn) {
-//     console.log('Audiolib mod.caps ENABLED: ', capsOn);
-
-//     globalLoopState = capsOn;
-//     this.#instruments.forEach((s) => s.onGlobalLoopToggle(capsOn));
+// Old global keyboard input for reffernce - clean up soon:
+// enableKeyboard() {
+// unnecessary or should just call enable for all instruments ?
+//   if (!this.#keyboardHandler) {
+//     this.#keyboardHandler = {
+//       onNoteOn: this.#onNoteOn.bind(this),
+//       onNoteOff: this.#onNoteOff.bind(this),
+//       onBlur: this.#onBlur.bind(this),
+//       // onCapsToggled: this.#onCapsToggled.bind(this),
+//     };
+//     globalKeyboardInput.addHandler(this.#keyboardHandler);
+//   } else {
+//     console.debug(`keyboard already enabled`);
 //   }
+// }
+
+// disableKeyboard() {
+//   if (this.#keyboardHandler) {
+//     globalKeyboardInput.removeHandler(this.#keyboardHandler);
+//     this.#keyboardHandler = null;
+//   } else {
+//     console.debug(`keyboard already disabled`);
+//   }
+// }
+
+// #onNoteOn(
+//   midiNote: number,
+//   velocity: number = 100, // DEFAULT
+//   modifiers: PressedModifiers
+// ) {
+//   this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
+// }
+
+// #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
+//   this.#instruments.forEach((s) => s.release(midiNote, modifiers));
+// }
+
+// #onBlur() {
+//   console.debug('Blur occured');
+//   this.#instruments.forEach((s) => s.releaseAll());
+// }
+
+// in dispose:
+// // Detach keyboard handler
+// if (this.#keyboardHandler) {
+//   globalKeyboardInput.removeHandler(this.#keyboardHandler);
+//   this.#keyboardHandler = null;
+// }
+
+// Old SampleInstrument test - remove:
+// createSampleInstrument(
+//   audioSample?: AudioBuffer,
+//   polyphony = 16,
+//   ctx = this.#audioContext
+// ): SampleInstrument | null {
+//   assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
+
+//   let audioBuffer = audioSample || this.#currentAudioBuffer;
+//   assert(audioBuffer, 'No audio buffer available for sampler', {
+//     providedSample: !!audioSample,
+//     initSampleAvailable: !!this.#currentAudioBuffer,
+//   });
+
+//   const options = { polyphony, output: this.#masterGain };
+
+//   const newSampleInstrument = new SampleInstrument(ctx, options);
+//   assert(newSampleInstrument, `Failed to create SampleInstrument`);
+
+//   newSampleInstrument.loadSample(audioBuffer);
+//   const alreadyLoaded = this.#instruments.has(newSampleInstrument.nodeId);
+//   assert(
+//     !alreadyLoaded,
+//     `Sampler with id: ${newSampleInstrument.nodeId} already loaded`
+//   );
+
+//   // newSampleInstrument.connect(this.#masterGain);
+//   this.#instruments.set(newSampleInstrument.nodeId, newSampleInstrument);
+
+//   return newSampleInstrument;
 // }

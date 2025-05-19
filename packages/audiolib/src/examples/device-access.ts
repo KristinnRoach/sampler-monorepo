@@ -5,11 +5,11 @@ import {
   getMIDIAccess,
   getAudioInputDevices,
   onDeviceChange,
-} from '../utils/devices/devices';
+} from '../io/devices/devices';
 
 async function setupDevices() {
   // Get microphone access
-  const micResult = await tryCatch(getMicrophone());
+  const micResult = await tryCatch(() => getMicrophone());
   if (micResult.error) {
     console.error('Microphone access error:', micResult.error.message);
     return;
@@ -17,7 +17,7 @@ async function setupDevices() {
   const micStream = micResult.data;
 
   // Get camera access
-  const camResult = await tryCatch(getCamera());
+  const camResult = await tryCatch(() => getCamera());
   if (camResult.error) {
     console.error('Camera access error:', camResult.error.message);
     return;
@@ -25,15 +25,15 @@ async function setupDevices() {
   const camStream = camResult.data;
 
   // Get MIDI access
-  const midiResult = await tryCatch(getMIDIAccess());
+  const midiResult = await tryCatch(() => getMIDIAccess());
   if (midiResult.error) {
     console.error('MIDI access error:', midiResult.error.message);
     return;
   }
   const midiAccess = midiResult.data;
-
+  console.log(`MIDI not implemented yet, midiAccess results: ${midiAccess}`);
   // List available audio input devices
-  const audioDevices = await getAudioInputDevices();
+  const audioDevices = await tryCatch(() => getAudioInputDevices());
   console.log('Available audio inputs:', audioDevices);
 
   // Monitor device changes
@@ -44,8 +44,11 @@ async function setupDevices() {
   // Cleanup when done
   return () => {
     cleanup();
-    micStream.getTracks().forEach((track) => track.stop());
-    camStream.getTracks().forEach((track) => track.stop());
+    const stopTracks = (stream: MediaStream) =>
+      stream.getTracks().map((track) => track.stop());
+
+    stopTracks(micStream);
+    stopTracks(camStream);
   };
 }
 

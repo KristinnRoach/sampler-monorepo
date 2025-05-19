@@ -11,55 +11,37 @@ function isPromiseLike<T>(value: any): value is PromiseLike<T> {
 }
 
 /**
- * Main tryCatch function that delegates to either trySync or tryAsync.
+ * Handles error handling for functions that may return sync or async values.
  * Always returns a Promise and must be awaited.
+ *
+ * @param fn A function that returns a value or a Promise
+ * @param errorMessage Optional custom error message
+ * @param logError Whether to log the error to console (defaults to true)
+ * @returns A Promise resolving to a Result object
  */
 export async function tryCatch<T, E = Error>(
-  fn: (() => T | Promise<T>) | Promise<T>,
+  fn: () => T | Promise<T>,
   errorMessage?: string,
   logError: boolean = true
 ): Promise<Result<T, E>> {
-  if (isPromiseLike<T>(fn)) {
-    return tryAsync(fn, errorMessage, logError);
+  if (typeof fn !== 'function') {
+    throw new Error('tryCatch argument must be a function');
   }
-  if (typeof fn === 'function') {
-    try {
-      const result = fn();
-      return isPromiseLike<T>(result)
-        ? await tryAsync(result, errorMessage, logError)
-        : { data: result, error: null };
-    } catch (error) {
-      return Promise.resolve(handleError(error as E, errorMessage, logError));
+
+  try {
+    const result = fn();
+
+    // If function returns a promise, handle it specially
+    if (isPromiseLike<T>(result)) {
+      try {
+        return { data: await result, error: null };
+      } catch (error) {
+        return handleError(error as E, errorMessage, logError);
+      }
     }
-  }
-  throw new Error('tryCatch argument must be a function or promise');
-}
 
-/**
- * Handles synchronous operations.
- */
-function trySync<T, E = Error>(
-  fn: () => T,
-  errorMessage?: string,
-  logError: boolean = true
-): Result<T, E> {
-  try {
-    return { data: fn(), error: null };
-  } catch (error) {
-    return handleError(error as E, errorMessage, logError);
-  }
-}
-
-/**
- * Handles asynchronous operations.
- */
-async function tryAsync<T, E = Error>(
-  promise: Promise<T>,
-  errorMessage?: string,
-  logError: boolean = true
-): Promise<Result<T, E>> {
-  try {
-    return { data: await promise, error: null };
+    // For synchronous results
+    return { data: result, error: null };
   } catch (error) {
     return handleError(error as E, errorMessage, logError);
   }

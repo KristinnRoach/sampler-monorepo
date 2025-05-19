@@ -24,17 +24,6 @@ if (result.error) {
 }
 ```
 
-### For Promises Directly
-
-```typescript
-const result = await tryCatch(fetch('/api/data'));
-if (result.error) {
-  // handle error
-} else {
-  // use result.data
-}
-```
-
 **Tip:**
 
 - Optionally pass a custom error message and set `logError` to `false` to suppress console errors:
@@ -44,7 +33,7 @@ if (result.error) {
 
 ## Implementation Details
 
-The utility uses the `isPromiseLike` function to detect promises:
+The utility uses the `isPromiseLike` function to detect promises returned from functions:
 
 ```typescript
 function isPromiseLike<T>(value: any): value is PromiseLike<T> {
@@ -56,4 +45,4 @@ function isPromiseLike<T>(value: any): value is PromiseLike<T> {
 }
 ```
 
-This allows `tryCatch` to handle both direct promises and functions that return promises.
+This allows `tryCatch` to handle functions that return promises.

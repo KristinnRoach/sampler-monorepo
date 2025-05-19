@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { audiolib, Recorder } from '@repo/audiolib';
+import {
+  audiolib,
+  Recorder,
+  type SamplePlayer,
+  type SampleLoader,
+  type LibNode,
+} from '@repo/audiolib';
 
-const RecorderComponent = () => {
+interface RecorderComponentProps {
+  destination?: (LibNode & SampleLoader) | SamplePlayer;
+}
+
+const RecorderComponent = ({ destination }: RecorderComponentProps) => {
+  const [isInitialized, setIsInitialized] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState<number | null>(
     null
@@ -10,29 +21,43 @@ const RecorderComponent = () => {
 
   useEffect(() => {
     const initRecorder = async () => {
-      const ctx = await audiolib.ensureAudioCtx();
-      recorderRef.current = new Recorder(ctx);
-      await recorderRef.current.init();
+      // if (!audiolib.isInitialized) await audiolib.init(); // ensure idempotent
 
-      // Connect to existing sampler if available
-      const sampler = audiolib.getCurrentSampler();
-      if (sampler) {
-        recorderRef.current.connect(sampler);
-      } else {
-        console.warn('No sampler available to connect to');
+      try {
+        recorderRef.current = await audiolib.createRecorder(destination);
+
+        // Listeners
+        recorderRef.current.onMessage('record:start', () => {
+          setIsRecording(true);
+        });
+
+        recorderRef.current.onMessage('record:stop', (message) => {
+          setRecordingDuration(message.data?.duration ?? 0);
+          setIsRecording(false);
+        });
+
+        console.log('Recorder initialized ->', recorderRef.current.isReady);
+        setIsInitialized(recorderRef.current.isReady);
+      } catch (error) {
+        console.error('Failed to create recorder:', error);
       }
     };
 
     initRecorder().catch(console.error);
 
     return () => {
-      recorderRef.current?.dispose();
+      if (recorderRef.current) {
+        recorderRef.current.dispose();
+        recorderRef.current = null;
+        setIsInitialized(false);
+      }
     };
-  }, []);
+  }, [destination]); // Re-run when destination changes
 
   const startRecording = async () => {
-    if (!recorderRef.current) {
+    if (!recorderRef.current?.isReady) {
       console.error('Recorder not initialized');
+      setIsInitialized(false);
       return;
     }
 
@@ -63,14 +88,17 @@ const RecorderComponent = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Recorder Test</h2>
-
-      <button
-        onClick={isRecording ? stopRecording : startRecording}
-        disabled={!recorderRef.current}
-      >
-        {isRecording ? 'Stop Recording' : 'Start Recording'}
-      </button>
+      {isInitialized && (
+        <>
+          <h2>Recorder Test</h2>
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={!recorderRef.current}
+          >
+            {isRecording ? 'Stop Recording' : 'Start Recording'}
+          </button>
+        </>
+      )}
 
       {recordingDuration && (
         <p>Last recording duration: {recordingDuration.toFixed(2)}s</p>

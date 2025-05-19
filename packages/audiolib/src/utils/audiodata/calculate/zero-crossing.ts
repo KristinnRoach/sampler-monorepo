@@ -1,6 +1,13 @@
+// 0.001 is to high, 0.0001 working well so far.
+// Stress test for performance
+// especially with loop-periods
+// when stereo is implemented
+// and periods algo optimized
+const THRESHOLD = 0.0001;
+
 export function findZeroCrossings(
   audioBuffer: AudioBuffer,
-  threshold: number = 0.001
+  threshold: number = THRESHOLD
 ): number[] {
   const channel = audioBuffer.getChannelData(0); // Assuming mono audio !
   const sampleRate = audioBuffer.sampleRate;
@@ -22,16 +29,16 @@ export function findZeroCrossings(
 }
 
 export function snapToNearestZeroCrossing(
-  time: number,
+  currTimeSec: number, // Seconds from start of audio buffer
   zeroCrossings: number[]
 ): number {
   if (zeroCrossings.length === 0) {
     console.warn('No zero crossings found');
-    return time;
+    return currTimeSec;
   }
 
   return zeroCrossings.reduce((prev, curr) =>
-    Math.abs(curr - time) < Math.abs(prev - time) ? curr : prev
+    Math.abs(curr - currTimeSec) < Math.abs(prev - currTimeSec) ? curr : prev
   );
 }
 

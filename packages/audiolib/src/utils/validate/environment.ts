@@ -1,19 +1,11 @@
+// Empty import to import the Keyboard interface from input/types
+import {} from '../../io/types';
+
 interface AudioEnvironment {
   readonly cancelAndHoldSupported: boolean;
   readonly workletSupported: boolean;
   readonly keyboardAPISupported: boolean;
   readonly modifierStateSupported: boolean;
-}
-
-interface Keyboard {
-  getLayoutMap(): Promise<Record<string, string>>;
-  [key: string]: any;
-}
-
-declare global {
-  interface Navigator {
-    keyboard?: Keyboard;
-  }
 }
 
 class Environment {

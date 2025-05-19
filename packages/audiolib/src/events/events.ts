@@ -1,8 +1,9 @@
-import { NodeID } from '@/state/registry/NodeIDs';
+import { NodeID } from '@/nodes/node-store';
 
 export interface Message {
-  type: string;
-  senderId: NodeID;
+  readonly type: string;
+  readonly senderId: NodeID;
+  [key: string]: any; // Allow any additional properties in dev
 }
 
 export type MessageHandler<T> = (data: T) => void;
@@ -22,9 +23,9 @@ export function createMessageBus<T extends Message>(
 
   return {
     sendMessage(type, data) {
-      const message = { type, senderId, ...data } as T;
       const typeHandlers = handlers.get(type);
       if (typeHandlers) {
+        const message = { type, senderId, ...data } as T;
         typeHandlers.forEach((handler) => handler(message));
       }
     },

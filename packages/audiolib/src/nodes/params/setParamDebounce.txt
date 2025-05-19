@@ -1,0 +1,52 @@
+// ParamHandler.ts
+
+class ParamHandler {
+  constructor() {
+    this._debounceTimers = {};
+    this._debounceDelay = 100; // ms, adjust as needed
+    this._params = {}; // Store current param values
+  }
+
+  // Called by UI on every slider movement
+  setParamDebounced(param, value) {
+    // Store the latest value in memory
+    this._params[param] = value;
+
+    // Clear any existing debounce timer
+    if (this._debounceTimers[param]) {
+      clearTimeout(this._debounceTimers[param]);
+    }
+
+    // Set a new debounce timer
+    this._debounceTimers[param] = setTimeout(() => {
+      this._applyParam(param, value);
+      this._persistParam(param, value);
+    }, this._debounceDelay);
+  }
+
+  // Actually apply the parameter to the AudioParam (with smoothing)
+  _applyParam(param, value) {
+    // Example: this.audioNode[param].setTargetAtTime(value, audioCtx.currentTime, 0.05);
+    console.log(`Applying ${param} to audio engine: ${value}`);
+    // ...your smoothing/interpolation logic here...
+  }
+
+  // Persist to localStorage
+  _persistParam(param, value) {
+    localStorage.setItem(`audioParam_${param}`, value);
+    console.log(`Persisted ${param}: ${value}`);
+  }
+
+  // On initialization, restore from localStorage
+  restoreParams(paramList) {
+    paramList.forEach((param) => {
+      const stored = localStorage.getItem(`audioParam_${param}`);
+      if (stored !== null) {
+        this._applyParam(param, stored);
+        this._params[param] = stored;
+      }
+    });
+  }
+}
+
+export const paramHandlerInstance = new ParamHandler();

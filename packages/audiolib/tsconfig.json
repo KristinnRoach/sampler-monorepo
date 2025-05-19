@@ -9,7 +9,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"], // WebWorker might be needed for worklet vite plugin config
 
     "declarationMap": true, //?
     "useDefineForClassFields": true,
@@ -29,13 +29,11 @@
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@test/*": ["src/test/*"]
-      // "dexie": ["node_modules/dexie"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "src/types/worklet.d.ts"],
-  "exclude": ["node_modules", "dist", "src/test/*"] // should test be excluded?
+  "exclude": ["node_modules", "dist", "src/test/*"]
 }
 
 // Under review:

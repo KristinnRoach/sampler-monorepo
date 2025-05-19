@@ -1,18 +1,22 @@
 import { Audiolib } from './Audiolib';
 
 export const audiolib = Audiolib.getInstance();
-// await audiolib.init(); // currently the user calls init
+export { Audiolib };
 
-export { Sampler } from '@/nodes/instruments/Sampler/Sampler';
-export { KarplusStrongSynth } from '@/nodes/instruments/KarplusStrongSynth';
-
-export { SampleVoice } from '@/nodes/voices/voice_nodes/sample/SampleVoice';
-
-export { Recorder } from '@/recorder';
-
-export * from './store/persistent/idb/idb';
-export * as samplelib from './store/persistent/idb/audioStorage';
-export * from './input';
+export { SamplePlayer } from '@/nodes/instruments/Sample/SamplePlayer';
+export { KarplusStrongSynth } from '@/nodes/instruments/Synth/KarplusStrong/KarplusStrongSynth';
+export { Recorder } from '@/nodes/recorder';
 
 export { getAudioContext, ensureAudioCtx } from './context';
-export { registry } from '@/state/registry/worklet-registry/ProcessorRegistry';
+
+// Factories // todo: document need to call audiolib.init or make 100% tree-shakeable
+export { createSamplePlayer } from '@/nodes/instruments/Sample/factory';
+export { createKarplusStrongSynth } from '@/nodes/instruments/Synth/KarplusStrong/factory';
+export { createAudioRecorder } from '@/nodes/recorder';
+
+// types
+export type { LibNode, SampleLoader } from '@/LibNode';
+
+// export * from './storage/idb/idb';
+// export * as samplelib from './storage/idb/audioStorage';
+// export * from './input';

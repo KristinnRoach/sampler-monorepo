@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --clearScreen false",
+    "clean": "rimraf node_modules dist",
+    "go": "pnpm clean && pnpm i && pnpm dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.ts\""

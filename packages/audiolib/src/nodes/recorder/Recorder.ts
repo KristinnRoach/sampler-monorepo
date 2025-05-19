@@ -1,0 +1,114 @@
+import { LibNode, SampleLoader } from '@/LibNode';
+import { NodeID, createNodeId, deleteNodeId } from '@/nodes/node-store';
+import {
+  Message,
+  MessageBus,
+  MessageHandler,
+  createMessageBus,
+} from '@/events';
+
+import {
+  createMediaRecorder,
+  startRecording,
+  stopRecording,
+  blobToAudioBuffer,
+} from './record-utils';
+import { getMicrophone } from '@/io/devices/devices';
+
+export class Recorder implements LibNode {
+  readonly nodeId: NodeID;
+  readonly nodeType = 'recorder';
+
+  #context: AudioContext;
+  #stream: MediaStream | null = null;
+  #recorder: MediaRecorder | null = null;
+  #messages: MessageBus<Message>;
+  #isRecording: boolean = false;
+  #destination: (LibNode & SampleLoader) | null = null;
+
+  constructor(context: AudioContext) {
+    this.nodeId = createNodeId(this.nodeType);
+    this.#context = context;
+    this.#messages = createMessageBus<Message>(this.nodeId);
+  }
+
+  async init(): Promise<Recorder> {
+    try {
+      this.#stream = await getMicrophone();
+      this.#recorder = await createMediaRecorder(this.#stream);
+      return this;
+    } catch (error) {
+      throw new Error(`Failed to get microphone: ${error}`);
+    }
+  }
+
+  async start(): Promise<void> {
+    if (!this.#recorder) throw new Error('Recorder not initialized');
+    if (this.#isRecording) return;
+
+    startRecording(this.#recorder);
+    this.#isRecording = true;
+    this.sendMessage('record:start', { destination: this.#destination });
+  }
+
+  async stop(): Promise<AudioBuffer> {
+    if (!this.#recorder) throw new Error('Recorder not initialized');
+    if (!this.#isRecording) throw new Error('Not recording');
+
+    const blob = await stopRecording(this.#recorder);
+    const buffer = await blobToAudioBuffer(blob, this.#context);
+
+    this.#isRecording = false;
+    this.sendMessage('record:stop', { duration: buffer.duration });
+
+    // Type checking no longer needed since destination is guaranteed to have loadSample
+    if (this.#destination) {
+      await this.#destination.loadSample(buffer);
+    }
+
+    return buffer;
+  }
+
+  // LibNode interface implementation
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  protected sendMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+  }
+
+  connect(destination: LibNode & SampleLoader): this {
+    if (destination) {
+      this.#destination = destination;
+    }
+    return this;
+  }
+
+  disconnect(): void {
+    this.#destination = null;
+  }
+
+  dispose(): void {
+    this.#stream?.getTracks().forEach((track) => track.stop());
+    this.#stream = null;
+    this.#recorder = null;
+    deleteNodeId(this.nodeId);
+  }
+
+  get now(): number {
+    return this.#context.currentTime;
+  }
+
+  get isRecording(): boolean {
+    return this.#isRecording;
+  }
+
+  /**
+   * Returns whether the recorder has been properly initialized with access to the microphone
+   * and is ready to start recording.
+   */
+  get isReady(): boolean {
+    return this.#recorder !== null && this.#stream !== null;
+  }
+}
