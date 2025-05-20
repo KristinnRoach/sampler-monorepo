@@ -1,6 +1,8 @@
 import { registerComponents } from '@repo/audio-components';
 
-// Register all web components
+/**  Registers all web components
+ *   from "audio-components" package
+ */
 registerComponents();
 
-console.log('Audio Web Components loaded');
+console.log('audio-component definitions loaded');

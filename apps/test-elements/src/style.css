@@ -123,6 +123,7 @@ body {
 sampler-element,
 sample-loader-element,
 recorder-element,
+envelope-element,
 output-element {
   display: flex;
   flex-direction: column;

@@ -322,8 +322,6 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
         onModifierChange: this.#handleModifierKeys.bind(this),
       };
       globalKeyboardInput.addHandler(this.#keyboardHandler);
-    } else {
-      console.debug(`keyboard already enabled`);
     }
     return this;
   }
@@ -332,8 +330,6 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     if (this.#keyboardHandler) {
       globalKeyboardInput.removeHandler(this.#keyboardHandler);
       this.#keyboardHandler = null;
-    } else {
-      console.debug(`keyboard already disabled`);
     }
     return this;
   }

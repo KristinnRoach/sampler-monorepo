@@ -3,7 +3,7 @@ import { registry } from './worklet-registry';
 
 // Static paths to try first
 const staticPaths = [
-  // Path that works in development (keep this as the first attempt)
+  // Path that works in development (first attempt)
   '/node_modules/@repo/audiolib/dist/processors/processors.js',
   // Relative path for production build
   './processors/processors.js',
@@ -32,7 +32,7 @@ async function getBlobUrl(context: AudioContext): Promise<string> {
     // Try each fetch URL until one works
     for (const fetchUrl of possibleFetchUrls) {
       try {
-        console.log(`Attempting to fetch processor code from: ${fetchUrl}`);
+        // console.debug(`Attempting to fetch processor code from: ${fetchUrl}`);
         const response = await fetch(fetchUrl);
         if (!response.ok) {
           throw new Error(`HTTP error ${response.status}`);
@@ -74,7 +74,7 @@ export async function initProcessors(context: AudioContext) {
   for (const path of staticPaths) {
     if (!registry.has(path)) {
       try {
-        console.log(`Attempting to load AudioWorklet from: ${path}`);
+        // console.debug(`Attempting to load AudioWorklet from: ${path}`);
         await context.audioWorklet.addModule(path);
         registry.add(path);
         console.log('AudioWorklet module loaded successfully from:', path);
@@ -93,7 +93,7 @@ export async function initProcessors(context: AudioContext) {
   // If all static paths failed, try the Blob URL approach as a last resort
   try {
     const blobUrl = await getBlobUrl(context);
-    console.log(`Attempting to load AudioWorklet from Blob URL`);
+    // console.debug(`Attempting to load AudioWorklet from Blob URL`);
     await context.audioWorklet.addModule(blobUrl);
     registry.add('blob-url');
     console.log('AudioWorklet module loaded successfully from Blob URL');

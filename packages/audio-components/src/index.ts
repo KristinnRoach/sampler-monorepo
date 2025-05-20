@@ -1,32 +1,34 @@
 // Export base classes
 export { BaseAudioElement } from './elements/base/BaseAudioElement';
 
-// Export elements
+// Import and export audio elements
 import { SamplerElement } from './elements/SamplerElement';
 import { SampleLoaderElement } from './elements/SampleLoaderElement';
 import { OutputElement } from './elements/OutputElement';
 import { RecorderElement } from './elements/RecorderElement';
+import { EnvelopeElement } from './elements/EnvelopeElement'; // Add this line
 
-export { SamplerElement, SampleLoaderElement, RecorderElement, OutputElement };
+export { SamplerElement, SampleLoaderElement, OutputElement, RecorderElement };
 
-// Function to register all components
-export function registerComponents() {
-  if (typeof window !== 'undefined') {
-    // Only register if in browser environment
-    if (!customElements.get('sampler-element')) {
-      customElements.define('sampler-element', SamplerElement);
+// Web component definitions
+const COMPONENTS = [
+  ['sampler-element', SamplerElement],
+  ['sample-loader-element', SampleLoaderElement],
+  ['output-element', OutputElement],
+  ['recorder-element', RecorderElement],
+  ['envelope-element', EnvelopeElement],
+] as const;
+
+/**
+ * Registers all audio components as custom elements if in browser environment
+ * Each component is only registered if it hasn't been registered already
+ */
+export function registerComponents(): void {
+  if (typeof window === 'undefined') return;
+
+  COMPONENTS.forEach(([name, component]) => {
+    if (!customElements.get(name)) {
+      customElements.define(name, component);
     }
-
-    if (!customElements.get('sample-loader-element')) {
-      customElements.define('sample-loader-element', SampleLoaderElement);
-    }
-
-    if (!customElements.get('output-element')) {
-      customElements.define('output-element', OutputElement);
-    }
-
-    if (!customElements.get('recorder-element')) {
-      customElements.define('recorder-element', RecorderElement);
-    }
-  }
+  });
 }

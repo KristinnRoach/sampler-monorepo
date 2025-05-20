@@ -223,6 +223,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return Math.max(0, Math.min(1, norm));
   }
 
+  #getParamValueInSamples(paramName, parameters) {
+    if (!parameters || !parameters[paramName]) return 0;
+
+    let valueInSamples = parameters[paramName][0] * sampleRate;
+
+    // Apply zero crossing constraint for "buffer-position" parameters
+    if (paramName === 'loopStart' || paramName === 'loopEnd') {
+      return this.#findNearestZeroCrossing(valueInSamples);
+    }
+
+    return valueInSamples;
+  }
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
@@ -256,11 +269,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     }
 
     // todo: optimize (move all zero crossing handling to processor or voice ?)
-    let loopStartReq = parameters.loopStart[0] * sampleRate;
-    const loopStart = this.#findNearestZeroCrossing(loopStartReq);
+    // let loopStartReq = parameters.loopStart[0] * sampleRate;
+    // const loopStart = this.#findNearestZeroCrossing(loopStartReq);
+    // const loopEndReq = parameters.loopEnd[0] * sampleRate;
+    // const loopEnd = this.#findNearestZeroCrossing(loopEndReq);
 
-    const loopEndReq = parameters.loopEnd[0] * sampleRate;
-    const loopEnd = this.#findNearestZeroCrossing(loopEndReq);
+    const loopStart = this.#getParamValueInSamples('loopStart', parameters);
+    const loopEnd = this.#getParamValueInSamples('loopEnd', parameters);
 
     const envelopeGain = parameters.envGain[0];
 

@@ -116,7 +116,7 @@ export class Audiolib implements LibNode {
     this.#globalAudioRecorder = recorderResult.data;
 
     const midiSuccess = await this.initMidiController(); // move ?
-    console.debug(`midi initialized: ${midiSuccess}`);
+    if (midiSuccess) console.log(`Midi initialized`);
 
     // All is well
     console.log('Audiolib initialized successfully');

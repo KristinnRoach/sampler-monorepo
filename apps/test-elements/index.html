@@ -24,19 +24,30 @@
           class="draggable-element"
           polyphony="32"
         ></sampler-element>
+      </div>
 
-        <div class="draggable-container">
-          <sample-loader-element
-            id="loader-1"
-            class="draggable-element"
-          ></sample-loader-element>
-        </div>
-        <div class="draggable-container">
-          <recorder-element
-            id="recorder-1"
-            destination="sampler-1"
-          ></recorder-element>
-        </div>
+      <div class="draggable-container">
+        <sample-loader-element
+          id="loader-1"
+          class="draggable-element"
+        ></sample-loader-element>
+      </div>
+
+      <div class="draggable-container">
+        <recorder-element
+          id="recorder-1"
+          destination="sampler-1"
+        ></recorder-element>
+      </div>
+
+      <div class="draggable-container">
+        <envelope-element
+          id="envelope-1"
+          class="draggable-element"
+          attack="0.05"
+          release="0.5"
+          destination="sampler-1"
+        ></envelope-element>
       </div>
     </div>
 

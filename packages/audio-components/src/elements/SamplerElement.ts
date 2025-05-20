@@ -1,6 +1,5 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib, SamplePlayer } from '@repo/audiolib';
-// import { UNICODES } from './unicodes';
 
 /**
  * Web component for a sample player instrument
@@ -8,22 +7,21 @@ import { audiolib, SamplePlayer } from '@repo/audiolib';
  */
 export class SamplerElement extends BaseAudioElement {
   protected samplePlayer: SamplePlayer | null = null;
+  private envelopeElement: HTMLElement | null = null;
 
   private attributeHandlers: Record<string, (value: string) => void> = {
-    attack: (value) => this.setAttack(parseFloat(value)),
-    release: (value) => this.setRelease(parseFloat(value)),
     'start-offset': (value) => this.setStartOffset(parseFloat(value)),
     'end-offset': (value) => this.setEndOffset(parseFloat(value)),
     'loop-start': (value) => this.setLoopStart(parseFloat(value)),
     'loop-end': (value) => this.setLoopEnd(parseFloat(value)),
+    // Attack and release moved to EnvelopeElement
   };
 
   // Define observed attributes
   static get observedAttributes(): string[] {
     return [
       'polyphony',
-      'attack',
-      'release',
+      // Attack and release will be handled by EnvelopeElement
       'start-offset',
       'end-offset',
       'loop-start',
@@ -48,13 +46,9 @@ export class SamplerElement extends BaseAudioElement {
         <div class="controls">
           <button class="load-button" id="load" disabled>Load Sample</button>
         </div>
+        <!-- Envelope controls now provided by EnvelopeElement -->
+        <envelope-element id="envelope"></envelope-element>
         <div class="parameters">
-          <label>
-            Attack: <input type="range" min="0" max="1" step="0.01" value="0.01" id="attack" disabled>
-          </label>
-          <label>
-            Release: <input type="range" min="0" max="2" step="0.01" value="0.3" id="release" disabled>
-          </label>
           <label>
             Start Offset: <input type="range" min="0" max="1" step="0.0005" value="0" id="start-offset" disabled>
           </label>
@@ -99,13 +93,10 @@ export class SamplerElement extends BaseAudioElement {
   }
 
   private handleSampleLoaded(detail: any) {
-    // async ?
     const { audioBuffer, fileName, duration } = detail;
 
     // Load sample into the player
     this.samplePlayer?.loadSample(audioBuffer);
-
-    this.samplePlayer!.loadSample(audioBuffer);
 
     this.updateStatus(`Sample loaded: ${fileName}`);
 
@@ -118,9 +109,42 @@ export class SamplerElement extends BaseAudioElement {
    * Called when the element is added to the DOM
    */
   connectedCallback(): void {
-    // Set up event listeners
-    const attackSlider = this.querySelector('#attack') as HTMLInputElement;
-    const releaseSlider = this.querySelector('#release') as HTMLInputElement;
+    // Get reference to the envelope element
+    this.envelopeElement = this.querySelector('envelope-element');
+
+    // Listen for envelope parameter changes
+    if (this.envelopeElement) {
+      this.envelopeElement.addEventListener('attack-changed', (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (this.samplePlayer) {
+          this.samplePlayer.setAttackTime(customEvent.detail.value);
+        }
+      });
+
+      this.envelopeElement.addEventListener('release-changed', (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (this.samplePlayer) {
+          this.samplePlayer.setReleaseTime(customEvent.detail.value);
+        }
+      });
+
+      // Initialize envelope with current values (if any)
+      if (this.hasAttribute('attack')) {
+        this.envelopeElement.setAttribute(
+          'attack',
+          this.getAttribute('attack') || '0.01'
+        );
+      }
+
+      if (this.hasAttribute('release')) {
+        this.envelopeElement.setAttribute(
+          'release',
+          this.getAttribute('release') || '0.3'
+        );
+      }
+    }
+
+    // Set up the rest of the event listeners (loop, offset sliders, checkboxes)
     const loopStartSlider = this.querySelector(
       '#loop-start'
     ) as HTMLInputElement;
@@ -143,24 +167,6 @@ export class SamplerElement extends BaseAudioElement {
     const endOffsetSlider = this.querySelector(
       '#end-offset'
     ) as HTMLInputElement;
-
-    if (attackSlider) {
-      attackSlider.addEventListener('input', () => {
-        const value = parseFloat(attackSlider.value);
-        this.setAttack(value);
-        const valueDisplay = this.querySelector('#attack-value');
-        if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
-      });
-    }
-
-    if (releaseSlider) {
-      releaseSlider.addEventListener('input', () => {
-        const value = parseFloat(releaseSlider.value);
-        this.setRelease(value);
-        const valueDisplay = this.querySelector('#release-value');
-        if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
-      });
-    }
 
     if (loopStartSlider) {
       loopStartSlider.addEventListener('input', () => {
@@ -271,15 +277,33 @@ export class SamplerElement extends BaseAudioElement {
           })
         );
 
+        // Get initial envelope values from the envelope element if available
+        if (this.envelopeElement) {
+          // Register callbacks with the envelope element
+          (this.envelopeElement as any).registerCallbacks({
+            onAttack: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setAttackTime(value);
+              }
+            },
+            onRelease: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setReleaseTime(value);
+              }
+            },
+          });
+
+          // Initialize with values from the envelope element
+          const attack = (this.envelopeElement as any).getAttack();
+          const release = (this.envelopeElement as any).getRelease();
+
+          if (this.samplePlayer) {
+            this.samplePlayer.setAttackTime(attack);
+            this.samplePlayer.setReleaseTime(release);
+          }
+        }
+
         // Apply initial attributes
-        if (this.hasAttribute('attack')) {
-          this.setAttack(parseFloat(this.getAttribute('attack') || '0.01'));
-        }
-
-        if (this.hasAttribute('release')) {
-          this.setRelease(parseFloat(this.getAttribute('release') || '0.3'));
-        }
-
         if (this.hasAttribute('loop-start')) {
           this.setLoopStart(parseFloat(this.getAttribute('loop-start') || '0'));
         }
@@ -479,39 +503,6 @@ export class SamplerElement extends BaseAudioElement {
   }
 
   /**
-   * Set attack time
-   */
-  setAttack(value: number): void {
-    if (!this.samplePlayer) return;
-
-    // Update attribute silently to avoid infinite loop
-    if (this.getAttribute('attack') !== value.toString()) {
-      this.setAttribute('attack', value.toString());
-    }
-
-    // Set attack time on sampler
-    this.samplePlayer.setAttackTime(value); // using seconds for now
-  }
-
-  /**
-   * Set release time
-   */
-  setRelease(value: number): void {
-    if (!this.samplePlayer) return;
-
-    // Update attribute silently to avoid infinite loop
-    if (this.getAttribute('release') !== value.toString()) {
-      this.setAttribute('release', value.toString());
-    }
-
-    // Set release time on sampler
-    this.samplePlayer.setReleaseTime(value); // using seconds for now
-  }
-
-  // Todo: Simple unified system for setting time points
-  //       For both looping and non-looping cases
-
-  /**
    * Set sample start offset
    */
   setStartOffset(value: number): void {
@@ -550,7 +541,7 @@ export class SamplerElement extends BaseAudioElement {
     // Ensure start doesn't exceed end
     const startOffset = this.getAttribute('start-offset')
       ? parseFloat(this.getAttribute('start-offset')!)
-      : 1;
+      : 0;
 
     if (value < startOffset) {
       value = Math.max(0, startOffset);
@@ -672,7 +663,6 @@ export class SamplerElement extends BaseAudioElement {
         this.samplePlayer.setHoldEnabled(enabled);
         break;
       case 'loop-locked':
-        // test skipping "if (enabled)"
         if (enabled) this.samplePlayer.setLoopEnabled(enabled);
         this.samplePlayer.setLoopLocked(enabled);
         break;
@@ -716,8 +706,6 @@ export class SamplerElement extends BaseAudioElement {
    * Enable controls after initialization
    */
   private enableControls(): void {
-    const attackSlider = this.querySelector('#attack') as HTMLInputElement;
-    const releaseSlider = this.querySelector('#release') as HTMLInputElement;
     const startOffsetSlider = this.querySelector(
       '#start-offset'
     ) as HTMLInputElement;
@@ -732,8 +720,6 @@ export class SamplerElement extends BaseAudioElement {
       '#hold-enabled'
     ) as HTMLInputElement;
 
-    if (attackSlider) attackSlider.removeAttribute('disabled');
-    if (releaseSlider) releaseSlider.removeAttribute('disabled');
     if (startOffsetSlider) startOffsetSlider.removeAttribute('disabled');
     if (endOffsetSlider) endOffsetSlider.removeAttribute('disabled');
     if (loopStartSlider) loopStartSlider.removeAttribute('disabled');
@@ -768,57 +754,3 @@ export class SamplerElement extends BaseAudioElement {
     );
   }
 }
-
-// // Update loop sliders with sample duration
-// const loopStartSlider = this.querySelector(
-//   '#loop-start'
-// ) as HTMLInputElement;
-// const loopEndSlider = this.querySelector(
-//   '#loop-end'
-// ) as HTMLInputElement;
-
-// if (loopStartSlider) {
-//   loopStartSlider.min = '0';
-//   loopStartSlider.max = audioBuffer.duration.toString();
-//   loopStartSlider.value = '0';
-//   const valueDisplay = this.querySelector('#loop-start-value');
-//   if (valueDisplay) valueDisplay.textContent = '0.00';
-// }
-
-// if (loopEndSlider) {
-//   loopEndSlider.min = '0';
-//   loopEndSlider.max = audioBuffer.duration.toString();
-//   loopEndSlider.value = audioBuffer.duration.toString();
-//   const valueDisplay = this.querySelector('#loop-end-value');
-//   if (valueDisplay)
-//     valueDisplay.textContent = audioBuffer.duration.toFixed(2);
-// }
-
-// // Update start and end offset sliders with sample duration
-// const startOffsetSlider = this.querySelector(
-//   '#start-offset'
-// ) as HTMLInputElement;
-// const endOffsetSlider = this.querySelector(
-//   '#end-offset'
-// ) as HTMLInputElement;
-
-// if (startOffsetSlider) {
-//   startOffsetSlider.min = '0';
-//   startOffsetSlider.max = audioBuffer.duration.toString();
-//   startOffsetSlider.value = '0';
-//   const valueDisplay = this.querySelector('#start-offset-value');
-//   if (valueDisplay) valueDisplay.textContent = '0.00';
-// }
-
-// if (endOffsetSlider) {
-//   endOffsetSlider.min = '0';
-//   endOffsetSlider.max = audioBuffer.duration.toString();
-//   endOffsetSlider.value = audioBuffer.duration.toString();
-//   const valueDisplay = this.querySelector('#end-offset-value');
-//   if (valueDisplay)
-//     valueDisplay.textContent = audioBuffer.duration.toFixed(2);
-// }
-
-// // Set the loop end parameter to the full duration
-// this.setLoopEnd(audioBuffer.duration);
-// this.setEndOffset(audioBuffer.duration);
