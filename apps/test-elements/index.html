@@ -17,39 +17,51 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div class="container">
-      <div class="draggable-container">
+    <!-- <div class="main-wrapper"> -->
+    <!-- <button class="test-button">Test</button> -->
+
+    <div class="node-container">
+      <div class="dynamic">
         <sampler-element
           id="sampler-1"
-          class="draggable-element"
+          class="lib-node draggable"
           polyphony="32"
         ></sampler-element>
       </div>
 
-      <div class="draggable-container">
+      <div class="dynamic">
         <sample-loader-element
           id="loader-1"
-          class="draggable-element"
+          class="lib-node draggable"
         ></sample-loader-element>
       </div>
 
-      <div class="draggable-container">
+      <div class="dynamic">
         <recorder-element
           id="recorder-1"
-          destination="sampler-1"
+          class="lib-node draggable"
         ></recorder-element>
       </div>
 
-      <div class="draggable-container">
+      <div class="dynamic">
         <envelope-element
           id="envelope-1"
-          class="draggable-element"
-          attack="0.05"
-          release="0.5"
+          class="lib-node draggable"
+          attack="0.005"
+          release="0.05"
           destination="sampler-1"
         ></envelope-element>
       </div>
+
+      <div class="dynamic">
+        <loop-control-element
+          id="loop-control-1"
+          class="lib-node draggable"
+          destination="sampler-1"
+        ></loop-control-element>
+      </div>
     </div>
+    <!-- </div> -->
 
     <script type="module" src="./src/register-components.js"></script>
     <script type="module" src="./src/main.js" defer></script>

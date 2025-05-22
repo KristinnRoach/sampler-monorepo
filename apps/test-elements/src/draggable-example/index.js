@@ -14,13 +14,13 @@ import {
 engine.timeUnit = 'ms';
 // engine.timeUnit = 's';
 
-const [ $log ] = utils.$('#log');
+const [$log] = utils.$('#log');
 
 createDraggable('#fixed', {
   container: document.body,
-  onDrag: self => {
+  onDrag: (self) => {
     $log.innerHTML = `${utils.round(self.velocity, 3)}`;
-  }
+  },
 });
 
 let scrollTop, scrollStyles;
@@ -30,7 +30,9 @@ function blockScrolling() {
   const $scroll = document.scrollingElement;
   scrollTop = $scroll.scrollTop;
   scrollStyles = utils.set([document.documentElement, $scroll], {
-    overflow: 'hidden', position: 'sticky', height: window.innerHeight - 1 + 'px'
+    overflow: 'hidden',
+    position: 'sticky',
+    height: window.innerHeight - 1 + 'px',
   });
 }
 
@@ -41,27 +43,39 @@ function enableScrolling() {
   window.scrollTo({ top: scrollTop, behavior: 'instant' });
 }
 
-const [ $drawer ] = /** @type {Array<HTMLElement>} */(utils.$('.drawer'));
+const [$drawer] = /** @type {Array<HTMLElement>} */ (utils.$('.drawer'));
 
 const drawerOpenAnim = createTimeline({
   autoplay: false,
-  defaults: { ease: 'linear' }
+  defaults: { ease: 'linear' },
 })
-.add('#draggables', {
-  y: [10, 0],
-  scale: $el => [1 - (20 / $el.offsetWidth), 1],
-  borderRadius: ['.5rem', 0],
-  opacity: [.5, 1],
-}, 0)
-.add(document.body, {
-  backgroundColor: { from: '#000' },
-}, 0)
-.add($drawer, {
-  opacity: [1, 0],
-  duration: 10,
-  delay: 990,
-  ease: 'out(4)',
-}, 0);
+  .add(
+    '#draggables',
+    {
+      y: [10, 0],
+      scale: ($el) => [1 - 20 / $el.offsetWidth, 1],
+      borderRadius: ['.5rem', 0],
+      opacity: [0.5, 1],
+    },
+    0
+  )
+  .add(
+    document.body,
+    {
+      backgroundColor: { from: '#000' },
+    },
+    0
+  )
+  .add(
+    $drawer,
+    {
+      opacity: [1, 0],
+      duration: 10,
+      delay: 990,
+      ease: 'out(4)',
+    },
+    0
+  );
 
 const drawer = createDraggable($drawer, {
   container: () => [0, $drawer.offsetWidth, $drawer.offsetHeight, 0],
@@ -71,11 +85,11 @@ const drawer = createDraggable($drawer, {
   containerFriction: 1,
   onUpdate: (self) => {
     drawerOpenAnim.progress = self.progressY;
-    self.progressY < .95 ? blockScrolling() : enableScrolling();
+    self.progressY < 0.95 ? blockScrolling() : enableScrolling();
   },
   onResize: (self) => {
-    self.progressY = self.progressY > .5 ? 1 : 0
-  }
+    self.progressY = self.progressY > 0.5 ? 1 : 0;
+  },
 });
 
 utils.$('#toggle-drawer')[0].onclick = () => {
@@ -85,7 +99,7 @@ utils.$('#toggle-drawer')[0].onclick = () => {
     duration: 375,
     ease: 'out(4)',
   });
-}
+};
 
 drawer.progressY = 1;
 
@@ -99,7 +113,7 @@ createDraggable('#body-snap', {
   y: { snap: 100 },
 });
 
-const [ $rangeX ] = utils.$('.range-x .draggable');
+const [$rangeX] = utils.$('.range-x .draggable');
 
 const rangeX = createDraggable($rangeX, {
   container: '.range-x',
@@ -109,15 +123,15 @@ const rangeX = createDraggable($rangeX, {
   onGrab: () => animateRangeX.pause(), // Here we manually pause the animation animating the draggable
   onSettle: () => {
     animateRangeX.refresh().restart();
-  }
+  },
 });
 
 const animateRangeX = animate(rangeX, {
-  progressX: el => el.progressX > .5 ? 0 : 1,
+  progressX: (el) => (el.progressX > 0.5 ? 0 : 1),
   // loop: true,
   duration: 1500,
   ease: 'inOut(3)',
-  onLoop: self => self.refresh()
+  onLoop: (self) => self.refresh(),
 });
 
 const rangeY = createDraggable('.range-y .draggable', {
@@ -133,7 +147,7 @@ const rangeY = createDraggable('.range-y .draggable', {
   releaseEase: createSpring({
     mass: 1,
     stiffness: 400,
-    damping: 30
+    damping: 30,
   }),
 });
 
@@ -170,14 +184,16 @@ const boundedFlicker = createDraggable('#bounded-flick .carousel', {
 });
 
 utils.set('#bounded-flick .carousel', {
-  width: `${boundedFlickLength * boundedFlickWidth - 10}`
+  width: `${boundedFlickLength * boundedFlickWidth - 10}`,
 });
 
 // Snap carousel
-const [ $snapCarousel ] = utils.$('#snap-carousel .carousel');
-const snapCarouselItems = /** @type {Array<HTMLElement>} */(utils.$('#snap-carousel .carousel-item'));
+const [$snapCarousel] = utils.$('#snap-carousel .carousel');
+const snapCarouselItems = /** @type {Array<HTMLElement>} */ (
+  utils.$('#snap-carousel .carousel-item')
+);
 
-const snapTo = snapCarouselItems.map($el => -$el.offsetLeft);
+const snapTo = snapCarouselItems.map(($el) => -$el.offsetLeft);
 
 createDraggable($snapCarousel, {
   trigger: '#snap-carousel',
@@ -189,7 +205,7 @@ createDraggable($snapCarousel, {
 
 // Object target
 
-const [ $flickCarousel ] = utils.$('#infinite-flick .carousel');
+const [$flickCarousel] = utils.$('#infinite-flick .carousel');
 const flickLength = utils.$('#infinite-flick .carousel-item').length;
 const flickData = { width: 290, speedX: 2, wheelY: 0 };
 
@@ -211,8 +227,13 @@ const flickDraggable = createDraggable(flickData, {
 createTimer({
   onUpdate: () => {
     const { x } = flickAnimatable;
-    x(/** @type {Number} */(x()) - flickData.speedX + flickDraggable.deltaX - flickData.wheelY);
-  }
+    x(
+      /** @type {Number} */ (x()) -
+        flickData.speedX +
+        flickDraggable.deltaX -
+        flickData.wheelY
+    );
+  },
 });
 
 // Support mousewheel
@@ -229,8 +250,8 @@ const wheelDeltaAnim = animate(flickData, {
  */
 function onWheel(e) {
   e.preventDefault();
-  flickData.wheelY = utils.lerp(flickData.wheelY, e.deltaY, .2);
-  wheelDeltaAnim.refresh().restart()
+  flickData.wheelY = utils.lerp(flickData.wheelY, e.deltaY, 0.2);
+  wheelDeltaAnim.refresh().restart();
 }
 
 $flickCarousel.addEventListener('wheel', onWheel, { passive: false });
@@ -247,17 +268,19 @@ utils.$('#onsnap-callback .draggable').forEach(($listItem, itemIndex) => {
     x: false,
     containerPadding: 10,
     snap,
-    onGrab: self => {
+    onGrab: (self) => {
       animate(self.$target, { scale: 1.05, duration: 350 });
-      bodySticky = utils.set(document.scrollingElement, { position: 'sticky' }) // Hack for Safari mobile
+      bodySticky = utils.set(document.scrollingElement, { position: 'sticky' }); // Hack for Safari mobile
     },
-    onRelease: self => {
-      animate(self.$target, { scale: 1.00, duration: 450 });
+    onRelease: (self) => {
+      animate(self.$target, { scale: 1.0, duration: 450 });
       bodySticky.revert();
     },
-    onSnap: self => {
+    onSnap: (self) => {
       const fromIndex = list.indexOf(self);
-      const toIndex = utils.round(0).clamp(0, list.length - 1)(self.destY / snap);
+      const toIndex = utils.round(0).clamp(0, list.length - 1)(
+        self.destY / snap
+      );
       if (toIndex !== fromIndex) {
         list.splice(fromIndex, 1);
         list.splice(toIndex, 0, self);
@@ -266,12 +289,12 @@ utils.$('#onsnap-callback .draggable').forEach(($listItem, itemIndex) => {
             animate(item, {
               y: i * snap,
               duration: 750,
-              ease: eases.outElastic(.8, 1)
+              ease: eases.outElastic(0.8, 1),
             });
           }
         });
       }
-    }
+    },
   });
   draggable.y = itemIndex * snap;
   utils.set($listItem, { willChange: 'transform', z: 10 });
@@ -298,28 +321,36 @@ const carousel = createDraggable('#map-props .carousel', {
   x: { mapTo: 'rotateY' },
   y: false,
   snap: itemAngle,
-  dragSpeed: .4,
+  dragSpeed: 0.4,
   releaseStiffness: 10,
   containerPadding: 10,
 });
 
-const [ $prev, $next ] = utils.$('.carousel-buttons .button');
+const [$prev, $next] = utils.$('.carousel-buttons .button');
 
-const prev = e => {
+const prev = (e) => {
   e.preventDefault();
-  animate(carousel, { x: utils.snap(carousel.x + 40, itemAngle), duration: 500, ease: 'out(4)' });
-}
-const next = e => {
+  animate(carousel, {
+    x: utils.snap(carousel.x + 40, itemAngle),
+    duration: 500,
+    ease: 'out(4)',
+  });
+};
+const next = (e) => {
   e.preventDefault();
-  animate(carousel, { x: utils.snap(carousel.x - 40, itemAngle), duration: 500, ease: 'out(4)' });
-}
+  animate(carousel, {
+    x: utils.snap(carousel.x - 40, itemAngle),
+    duration: 500,
+    ease: 'out(4)',
+  });
+};
 
 $prev.addEventListener('click', prev);
 $next.addEventListener('click', next);
 
 // Dynamic values
 
-const dynamicDraggables = utils.$('.dynamic .draggable').map($el => {
+const dynamicDraggables = utils.$('.dynamic .draggable').map(($el) => {
   return createDraggable($el, {
     container: '.dynamic',
     containerPadding: 10,
@@ -328,25 +359,30 @@ const dynamicDraggables = utils.$('.dynamic .draggable').map($el => {
   });
 });
 
-const [ left, right, center ] = dynamicDraggables;
+const [left, right, center] = dynamicDraggables;
 
 // Set the initial padding values
 left.containerPadding[1] = 100;
 right.containerPadding[3] = 100;
-center.parameters.containerPadding = () => [10, Math.abs(right.x - 10), 10, left.x + 10];
+center.parameters.containerPadding = () => [
+  10,
+  Math.abs(right.x - 10),
+  10,
+  left.x + 10,
+];
 center.refresh();
 
 // Update center and right padding on left drag
 left.onUpdate = ({ x }) => {
   right.containerPadding[3] = x + 90;
   center.refresh();
-}
+};
 
 // Update center and left padding on right drag
 right.onUpdate = ({ x }) => {
   left.containerPadding[1] = Math.abs(x - 90);
   center.refresh();
-}
+};
 
 // left.animateInView();
 // center.animateInView();

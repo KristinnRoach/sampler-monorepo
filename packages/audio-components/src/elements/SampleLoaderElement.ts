@@ -6,6 +6,7 @@ import { audiolib } from '@repo/audiolib';
  */
 export class SampleLoaderElement extends BaseAudioElement {
   private audioBuffer: AudioBuffer | null = null;
+  private arraybuffer: ArrayBuffer | null = null;
 
   constructor() {
     super('sample-loader');
@@ -13,7 +14,7 @@ export class SampleLoaderElement extends BaseAudioElement {
     this.innerHTML = `
       <div class="sample-loader">
         <button class="load-button" id="load" disabled>Load Sample</button>
-        <div class="status" id="status">Not initialized</div>
+        <!-- <div class="status" id="status">Not initialized</div> -->
       </div>
     `;
   }
@@ -66,8 +67,9 @@ export class SampleLoaderElement extends BaseAudioElement {
 
           try {
             const arrayBuffer = await file.arrayBuffer();
+            this.arraybuffer = arrayBuffer;
 
-            // for now just create a new AudioContext
+            // for now just create a new AudioContext // todo: remove dependency on audiolib
             const ctx = await audiolib.ensureAudioCtx();
             this.audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
@@ -78,6 +80,7 @@ export class SampleLoaderElement extends BaseAudioElement {
                 bubbles: true,
                 detail: {
                   targetId: this.getAttribute('target-element-id'),
+                  arraybuffer: this.arraybuffer,
                   audioBuffer: this.audioBuffer,
                   fileName: file.name,
                   duration: this.audioBuffer.duration,
@@ -102,7 +105,7 @@ export class SampleLoaderElement extends BaseAudioElement {
     }
   }
 
-  private updateStatus(message: string): void {
+  updateStatus(message: string): void {
     const statusElement = this.querySelector('#status');
     if (statusElement) {
       statusElement.textContent = message;
@@ -114,11 +117,16 @@ export class SampleLoaderElement extends BaseAudioElement {
     if (loadButton) loadButton.removeAttribute('disabled');
   }
 
+  getArrayBuffer(): ArrayBuffer | null {
+    return this.arraybuffer;
+  }
+
   getAudioBuffer(): AudioBuffer | null {
-    return this.audioBuffer;
+    return this.audioBuffer || null;
   }
 
   disconnectedCallback(): void {
     this.audioBuffer = null;
+    this.arraybuffer = null;
   }
 }

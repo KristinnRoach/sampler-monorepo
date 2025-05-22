@@ -37,6 +37,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
+  #destination: AudioNode | null = null;
   #pool: SampleVoicePool;
 
   #messages: MessageBus<Message>;
@@ -114,11 +115,13 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   connect(destination: AudioNode): this {
     this.#outBus.connect(destination);
+    this.#destination = destination;
     return this;
   }
 
   disconnect(): void {
     this.#outBus.disconnect();
+    this.#destination = null;
   }
 
   #connectToMacros(): this {
@@ -154,9 +157,14 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   }
 
   async loadSample(
-    buffer: AudioBuffer,
+    buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number
   ): Promise<boolean> {
+    if (buffer instanceof ArrayBuffer) {
+      const ctx = getAudioContext();
+      buffer = await ctx.decodeAudioData(buffer);
+    }
+
     assert(isValidAudioBuffer(buffer));
 
     this.releaseAll();
@@ -334,12 +342,30 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     return this;
   }
 
+  async initMidiController(): Promise<boolean> {
+    if (!this.#midiController) {
+      console.warn(`No MIDI controller provided`);
+      this.#midiController = new MidiController();
+    }
+
+    if (this.#midiController.isInitialized) {
+      console.log(`MIDI controller initialized`);
+      return true;
+    }
+
+    const result = await tryCatch(() => this.#midiController!.initialize());
+    assert(!result.error, `Failed to initialize MIDI`);
+    return result.data;
+  }
+
   async enableMIDI(
     midiController?: MidiController,
     channel: number = 0
   ): Promise<this> {
     // Use provided controller, instance controller, or fail
     const controller = midiController || this.#midiController;
+    const midiSuccess = await this.initMidiController(); // move ?
+    if (midiSuccess) console.log(`Midi initialized`);
 
     assert(controller?.isInitialized, `MidiController must be initialized`);
     controller.connectInstrument(this, channel);
@@ -492,6 +518,22 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   get now() {
     return getAudioContext().currentTime;
+  }
+
+  get audioContext() {
+    return this.#context;
+  }
+
+  get outputNode() {
+    return this.#outBus.outputNode;
+  }
+
+  get outBus() {
+    return this.#outBus;
+  }
+
+  get destination() {
+    return this.#destination;
   }
 
   get sampleDuration(): number {

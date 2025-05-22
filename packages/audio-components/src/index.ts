@@ -1,22 +1,32 @@
-// Export base classes
-export { BaseAudioElement } from './elements/base/BaseAudioElement';
-
 // Import and export audio elements
+import { BaseAudioElement } from './elements/base/BaseAudioElement';
 import { SamplerElement } from './elements/SamplerElement';
 import { SampleLoaderElement } from './elements/SampleLoaderElement';
-import { OutputElement } from './elements/OutputElement';
 import { RecorderElement } from './elements/RecorderElement';
-import { EnvelopeElement } from './elements/EnvelopeElement'; // Add this line
+import { EnvelopeElement } from './elements/EnvelopeElement';
+import { LoopControlElement } from './elements/LoopControlElement';
+import { StatusElement } from './elements/display/StatusElement';
 
-export { SamplerElement, SampleLoaderElement, OutputElement, RecorderElement };
+export {
+  SamplerElement,
+  SampleLoaderElement,
+  StatusElement,
+  RecorderElement,
+  EnvelopeElement,
+  LoopControlElement,
+  BaseAudioElement,
+};
 
 // Web component definitions
 const COMPONENTS = [
+  ['base-audio-element', BaseAudioElement],
+  ['status-element', StatusElement],
+
   ['sampler-element', SamplerElement],
   ['sample-loader-element', SampleLoaderElement],
-  ['output-element', OutputElement],
   ['recorder-element', RecorderElement],
   ['envelope-element', EnvelopeElement],
+  ['loop-control-element', LoopControlElement],
 ] as const;
 
 /**

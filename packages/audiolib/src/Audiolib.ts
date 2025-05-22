@@ -115,7 +115,7 @@ export class Audiolib implements LibNode {
     );
     this.#globalAudioRecorder = recorderResult.data;
 
-    const midiSuccess = await this.initMidiController(); // move ?
+    const midiSuccess = await this.initMidiController();
     if (midiSuccess) console.log(`Midi initialized`);
 
     // All is well
@@ -209,12 +209,6 @@ export class Audiolib implements LibNode {
       polyphony,
       ctx,
       this.#midiController
-    );
-
-    const alreadyLoaded = this.#instruments.has(newSamplePlayer.nodeId);
-    assert(
-      !alreadyLoaded,
-      `SamplePlayer with id: ${newSamplePlayer.nodeId} already loaded`
     );
 
     newSamplePlayer.connect(this.#masterGain);

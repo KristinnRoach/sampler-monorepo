@@ -1,6 +1,8 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib } from '@repo/audiolib';
 
+// Todo: remove dependency on audiolib class
+
 /**
  * Web component for recording audio directly to a sampler
  */
@@ -22,7 +24,6 @@ export class RecorderElement extends BaseAudioElement {
       <div class="recorder-element">
         <button class="record-button" id="record" disabled>Record</button>
         <button class="stop-button" id="stop" disabled>Stop</button>
-        <div class="status" id="status">Not initialized</div>
       </div>
     `;
   }
@@ -68,7 +69,7 @@ export class RecorderElement extends BaseAudioElement {
     if (destinationElement && destinationElement instanceof BaseAudioElement) {
       this.connect(destinationElement);
     } else {
-      console.warn(
+      console.debug(
         `Destination element with ID "${destinationId}" not found or not a BaseAudioElement`
       );
     }
@@ -81,7 +82,6 @@ export class RecorderElement extends BaseAudioElement {
 
       // Create a recorder instance
       this.recorder = await audiolib.createRecorder();
-
       this.updateStatus('Ready to record');
       this.enableControls();
 
@@ -90,6 +90,8 @@ export class RecorderElement extends BaseAudioElement {
       if (destinationId) {
         this.connectToDestinationById(destinationId);
       }
+
+      this.initialized = true;
 
       this.dispatchEvent(
         new CustomEvent('recorder-initialized', {
@@ -113,7 +115,7 @@ export class RecorderElement extends BaseAudioElement {
         : null;
 
     if (!this.recorder || !samplePlayer) {
-      console.warn(
+      console.debug(
         'Recorder not initialized or destination is not a sample player'
       );
       return this;
@@ -135,7 +137,11 @@ export class RecorderElement extends BaseAudioElement {
 
   async startRecording(): Promise<void> {
     if (!this.recorder || this.isRecording) return;
-
+    if (!this.destinationElement) {
+      console.warn('No destination element connected');
+      this.updateStatus('No destination element connected');
+      return;
+    }
     try {
       await this.recorder.start();
       this.isRecording = true;
@@ -181,13 +187,6 @@ export class RecorderElement extends BaseAudioElement {
       this.updateStatus(
         `Error stopping: ${error instanceof Error ? error.message : String(error)}`
       );
-    }
-  }
-
-  private updateStatus(message: string): void {
-    const statusElement = this.querySelector('#status');
-    if (statusElement) {
-      statusElement.textContent = message;
     }
   }
 

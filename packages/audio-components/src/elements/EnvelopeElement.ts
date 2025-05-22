@@ -6,7 +6,7 @@ import { BaseAudioElement } from './base/BaseAudioElement';
  */
 export class EnvelopeElement extends BaseAudioElement {
   private attackValue: number = 0.01;
-  private releaseValue: number = 0.3;
+  private releaseValue: number = 0.02;
 
   private targetElement: HTMLElement | null = null;
   private targetId: string | null = null;
@@ -29,14 +29,13 @@ export class EnvelopeElement extends BaseAudioElement {
         <div class="parameters">
           <label>
             Attack: <input type="range" min="0" max="1" step="0.01" value="0.01" id="attack">
-            <span id="attack-value">0.01</span>
           </label>
           <label>
             Release: <input type="range" min="0" max="2" step="0.01" value="0.3" id="release">
-            <span id="release-value">0.30</span>
           </label>
         </div>
-        <div class="status" id="status">Not connected</div>
+        <!-- <button id="toggle-status-btn">Toggle Status</button> -->
+        <!-- The status element will be inserted here programmatically -->
       </div>
     `;
   }
@@ -56,6 +55,16 @@ export class EnvelopeElement extends BaseAudioElement {
    * Called when the element is added to the DOM
    */
   connectedCallback(): void {
+    const toggleStatusButton = this.querySelector('#toggle-status-btn');
+    if (toggleStatusButton) {
+      toggleStatusButton.addEventListener('click', () => {
+        if (!this.statusElement) {
+          this.initializeStatus();
+        }
+        this.toggleStatusDisplay();
+      });
+    }
+
     // Set up event listeners for UI controls
     const attackSlider = this.querySelector('#attack') as HTMLInputElement;
     const releaseSlider = this.querySelector('#release') as HTMLInputElement;
@@ -88,7 +97,16 @@ export class EnvelopeElement extends BaseAudioElement {
       }
     }
 
-    this.initialized = true;
+    // Connect to target if destination attribute is set
+    if (this.hasAttribute('destination')) {
+      const destinationId = this.getAttribute('destination');
+      if (destinationId) {
+        // Delay connection slightly to ensure target is registered
+        setTimeout(() => {
+          this.connectToDestinationById(destinationId);
+        }, 0);
+      }
+    }
 
     // Dispatch initialization event
     this.dispatchEvent(
@@ -102,23 +120,10 @@ export class EnvelopeElement extends BaseAudioElement {
       })
     );
 
-    // Connect to target if destination attribute is set
-    if (this.hasAttribute('destination')) {
-      const destinationId = this.getAttribute('destination');
-      if (destinationId) {
-        // Delay connection slightly to ensure target is registered
-        setTimeout(() => {
-          this.connectToDestinationById(destinationId);
-        }, 0);
-      }
-    }
-  }
+    // Update the status (this won't be visible unless toggle is clicked)
+    this.updateStatus('Component ready', 'info');
 
-  /**
-   * Clean up resources when removed from DOM
-   */
-  disconnectedCallback(): void {
-    this.disconnect();
+    this.initialized = true;
   }
 
   /**
@@ -159,10 +164,6 @@ export class EnvelopeElement extends BaseAudioElement {
       this.setAttribute('attack', value.toString());
     }
 
-    // Update display value
-    const valueDisplay = this.querySelector('#attack-value');
-    if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
-
     // Notify callback if registered
     if (this.onAttackChange) {
       this.onAttackChange(value);
@@ -190,10 +191,6 @@ export class EnvelopeElement extends BaseAudioElement {
     if (this.getAttribute('release') !== value.toString()) {
       this.setAttribute('release', value.toString());
     }
-
-    // Update display value
-    const valueDisplay = this.querySelector('#release-value');
-    if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
 
     // Notify callback if registered
     if (this.onReleaseChange) {
@@ -312,12 +309,15 @@ export class EnvelopeElement extends BaseAudioElement {
   }
 
   /**
-   * Update status display
+   * Clean up resources
    */
-  private updateStatus(message: string): void {
-    const statusEl = this.querySelector('#status');
-    if (statusEl) {
-      statusEl.textContent = message;
-    }
+  dispose(): void {
+    super.dispose();
+
+    // Component-specific cleanup...
+
+    this.inputNode = null;
+    this.outputNode = null;
+    this.audioContext = null;
   }
 }
