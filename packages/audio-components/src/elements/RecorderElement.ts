@@ -1,7 +1,6 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib } from '@repo/audiolib';
-
-// Todo: remove dependency on audiolib class
+import './ui-core/ToggleButton';
 
 /**
  * Web component for recording audio directly to a sampler
@@ -9,8 +8,8 @@ import { audiolib } from '@repo/audiolib';
 export class RecorderElement extends BaseAudioElement {
   private recorder: any = null; // Will hold the Recorder instance
   private isRecording: boolean = false;
-  // @ts-ignore
   private destinationElement: BaseAudioElement | null = null;
+  private recordButton: HTMLElement | null = null;
 
   // Define observed attributes
   static get observedAttributes(): string[] {
@@ -22,17 +21,25 @@ export class RecorderElement extends BaseAudioElement {
 
     this.innerHTML = `
       <div class="recorder-element">
-        <button class="record-button" id="record" disabled>Record</button>
-        <button class="stop-button" id="stop" disabled>Stop</button>
+        <toggle-button id="record-toggle" 
+                      label-on="Recording..." 
+                      label-off="Record" 
+                      disabled>
+        </toggle-button>
       </div>
     `;
   }
 
   connectedCallback(): void {
-    this.querySelector('#record')?.addEventListener(
-      'click',
-      this.startRecording.bind(this)
-    );
+    this.recordButton = this.querySelector('#record-toggle');
+
+    // Add event listener to toggle button
+    this.recordButton?.addEventListener('toggle', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail.active) {
+        this.startRecording();
+      }
+    });
 
     this.querySelector('#stop')?.addEventListener(
       'click',
@@ -191,11 +198,15 @@ export class RecorderElement extends BaseAudioElement {
   }
 
   private updateButtons(isRecording: boolean): void {
-    const recordButton = this.querySelector('#record') as HTMLButtonElement;
+    const recordButton = this.querySelector('#record-toggle') as any;
     const stopButton = this.querySelector('#stop') as HTMLButtonElement;
 
     if (recordButton) {
-      recordButton.disabled = isRecording;
+      if (isRecording) {
+        recordButton.active = true;
+      } else {
+        recordButton.active = false;
+      }
     }
 
     if (stopButton) {
@@ -204,7 +215,7 @@ export class RecorderElement extends BaseAudioElement {
   }
 
   private enableControls(): void {
-    const recordButton = this.querySelector('#record');
+    const recordButton = this.querySelector('#record-toggle') as HTMLElement;
     if (recordButton) recordButton.removeAttribute('disabled');
   }
 

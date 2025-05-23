@@ -1,10 +1,10 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
-
+import { TwoThumbSlider } from './ui-core/TwoThumbSlider';
 /**
  * Web component for loop control
  * Manages loop start and loop end parameters for a sample player
  */
-export class LoopControlElement extends BaseAudioElement {
+export class LoopController extends BaseAudioElement {
   private loopStartValue: number = 0;
   private loopEndValue: number = 0.99;
 
@@ -14,6 +14,9 @@ export class LoopControlElement extends BaseAudioElement {
   // Callback functions for loop parameter changes
   private onLoopStartChange: ((value: number) => void) | null = null;
   private onLoopEndChange: ((value: number) => void) | null = null;
+  private onOffsetChange:
+    | ((startOffset: number, endOffset: number) => void)
+    | null = null;
 
   // Define observed attributes
   static get observedAttributes(): string[] {
@@ -21,71 +24,61 @@ export class LoopControlElement extends BaseAudioElement {
   }
 
   constructor() {
-    super('loop-control');
+    super('loop-controller');
 
     // Create UI template using light DOM
     this.innerHTML = `
-      <div class="loop-control-element">
+      <div class="loop-controller">
         <div class="parameters">
-          <label>
-            Loop Start: <input type="range" min="0" max="1" step="0.0005" value="0" id="loop-start">
-            <span id="loop-start-value">0.00</span>
-          </label>
-          <label>
-            Loop End: <input type="range" min="0" max="1" step="0.0005" value="0.99" id="loop-end">
-            <span id="loop-end-value">0.99</span>
-          </label>
+            <div class="loop-labels">
+            <p>Loop controller</p>
+            <!--
+              <span>Loop Start: <span id="loop-start-value">0.00</span></span>
+              <span>Loop End: <span id="loop-end-value">0.99</span></span>
+            -->
+            </div>
+            <two-thumb-slider 
+              id="loop-slider"
+              min="0" 
+              max="1" 
+              step="0.001" 
+              minimum-gap="0.001"
+              value-min="0" 
+              value-max="0.999">
+            </two-thumb-slider>
         </div>
       </div>
     `;
   }
 
-  /**
-   * Register callbacks to be invoked when loop parameters change
-   */
   registerCallbacks(options: {
     onLoopStart?: (value: number) => void;
     onLoopEnd?: (value: number) => void;
+    onOffsetChange?: (startOffset: number, endOffset: number) => void;
   }): void {
     if (options.onLoopStart) this.onLoopStartChange = options.onLoopStart;
     if (options.onLoopEnd) this.onLoopEndChange = options.onLoopEnd;
+    if (options.onOffsetChange) this.onOffsetChange = options.onOffsetChange;
   }
 
-  /**
-   * Called when the element is added to the DOM
-   */
   connectedCallback(): void {
-    // Set up event listeners for UI controls
-    const loopStartSlider = this.querySelector(
-      '#loop-start'
-    ) as HTMLInputElement;
-    const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
+    const loopSlider = this.querySelector('#loop-slider') as TwoThumbSlider;
 
-    if (loopStartSlider) {
-      loopStartSlider.addEventListener('input', () => {
-        const value = parseFloat(loopStartSlider.value);
-        this.setLoopStart(value);
-      });
+    if (loopSlider) {
+      // Single event listener for both values
+      loopSlider.addEventListener('range-change', ((e: CustomEvent) => {
+        this.setLoopStart(e.detail.min);
+        this.setLoopEnd(e.detail.max);
+      }) as EventListener);
 
-      // Initialize slider from attribute if present
+      // Initialize from attributes
       if (this.hasAttribute('loop-start')) {
-        const value = parseFloat(this.getAttribute('loop-start') || '0');
-        loopStartSlider.value = value.toString();
-        this.setLoopStart(value);
+        const startValue = parseFloat(this.getAttribute('loop-start') || '0');
+        loopSlider.valueMin = startValue;
       }
-    }
-
-    if (loopEndSlider) {
-      loopEndSlider.addEventListener('input', () => {
-        const value = parseFloat(loopEndSlider.value);
-        this.setLoopEnd(value);
-      });
-
-      // Initialize slider from attribute if present
       if (this.hasAttribute('loop-end')) {
-        const value = parseFloat(this.getAttribute('loop-end') || '0.99');
-        loopEndSlider.value = value.toString();
-        this.setLoopEnd(value);
+        const endValue = parseFloat(this.getAttribute('loop-end') || '0.99');
+        loopSlider.valueMax = endValue;
       }
     }
 
@@ -93,14 +86,13 @@ export class LoopControlElement extends BaseAudioElement {
     if (this.hasAttribute('destination')) {
       const destinationId = this.getAttribute('destination');
       if (destinationId) {
-        // Delay connection slightly to ensure target is registered
+        // tiny delay to ensure target is registered
         setTimeout(() => {
           this.connectToDestinationById(destinationId);
-        }, 0);
+        }, 3);
       }
     }
 
-    // Dispatch initialization event
     this.dispatchEvent(
       new CustomEvent('loop-control-initialized', {
         bubbles: true,
@@ -149,33 +141,17 @@ export class LoopControlElement extends BaseAudioElement {
    * Set the loop start time and notify connected elements
    */
   setLoopStart(value: number): void {
-    if (value > this.loopEndValue) {
-      value = Math.max(0, this.loopEndValue);
-    }
-
     this.loopStartValue = value;
+    this.setAttribute('loop-start', value.toString());
 
-    // Update attribute silently to avoid infinite loop
-    if (this.getAttribute('loop-start') !== value.toString()) {
-      this.setAttribute('loop-start', value.toString());
-    }
+    const valueDisplay = this.querySelector('#loop-start-value');
+    if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
 
-    // Update the UI slider to match the constrained value
-    const loopStartSlider = this.querySelector(
-      '#loop-start'
-    ) as HTMLInputElement;
-    if (loopStartSlider && loopStartSlider.value !== value.toString()) {
-      loopStartSlider.value = value.toString();
-    }
     // Notify callback if registered
-    if (this.onLoopStartChange) {
-      this.onLoopStartChange(value);
-    }
+    if (this.onLoopStartChange) this.onLoopStartChange(value);
 
-    // Apply to target
     this.applyLoopToTarget();
 
-    // Dispatch event for connected elements
     this.dispatchEvent(
       new CustomEvent('loop-start-changed', {
         bubbles: true,
@@ -188,31 +164,16 @@ export class LoopControlElement extends BaseAudioElement {
    * Set the loop end time and notify connected elements
    */
   setLoopEnd(value: number): void {
-    if (value < this.loopStartValue) {
-      value = Math.max(this.loopStartValue, 0);
-    }
-
     this.loopEndValue = value;
+    this.setAttribute('loop-end', value.toString());
 
-    // Update the UI slider to match the constrained value
-    const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
-    if (loopEndSlider && loopEndSlider.value !== value.toString()) {
-      loopEndSlider.value = value.toString();
-    }
-
-    // Update the display value
     const valueDisplay = this.querySelector('#loop-end-value');
     if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
 
-    // Notify callback if registered
-    if (this.onLoopEndChange) {
-      this.onLoopEndChange(value);
-    }
+    if (this.onLoopEndChange) this.onLoopEndChange(value);
 
-    // Apply to target
     this.applyLoopToTarget();
 
-    // Dispatch event for connected elements
     this.dispatchEvent(
       new CustomEvent('loop-end-changed', {
         bubbles: true,
@@ -323,33 +284,66 @@ export class LoopControlElement extends BaseAudioElement {
   /**
    * Update the slider ranges based on sample duration
    */
-  updateSampleDuration(duration: number): void {
-    const loopStartSlider = this.querySelector(
-      '#loop-start'
-    ) as HTMLInputElement;
-    const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
+  onSampleSwitch(
+    duration: number,
+    options: {
+      startOffset?: number;
+      endOffset?: number;
+      savedLoopStart?: number;
+      savedLoopEnd?: number;
+    } = {}
+  ) {
+    const {
+      startOffset = 0,
+      endOffset = duration,
+      savedLoopStart,
+      savedLoopEnd,
+    } = options;
+    const loopSlider = this.querySelector('#loop-slider') as any;
+    if (!loopSlider) return;
 
-    if (loopStartSlider) {
-      loopStartSlider.min = '0';
-      loopStartSlider.max = duration.toString();
-      const valueDisplay = this.querySelector('#loop-start-value');
-      if (valueDisplay)
-        valueDisplay.textContent = this.loopStartValue.toFixed(2);
+    // Update constraints first
+    loopSlider.min = startOffset;
+    loopSlider.max = endOffset;
+
+    // Determine new values
+    let newStart: number;
+    let newEnd: number;
+
+    if (savedLoopStart !== undefined && savedLoopEnd !== undefined) {
+      // Use saved values (clamped to valid range)
+      newStart = Math.max(startOffset, Math.min(savedLoopStart, endOffset));
+      newEnd = Math.max(startOffset, Math.min(savedLoopEnd, endOffset));
+    } else {
+      // Auto-adjust current values or use defaults
+      const wasAtMin = this.loopStartValue <= loopSlider.min;
+      const wasAtMax = this.loopEndValue >= loopSlider.max;
+
+      newStart = wasAtMin
+        ? startOffset
+        : Math.max(startOffset, this.loopStartValue);
+      newEnd = wasAtMax ? endOffset : Math.min(endOffset, this.loopEndValue);
     }
 
-    if (loopEndSlider) {
-      loopEndSlider.min = '0';
-      loopEndSlider.max = duration.toString();
+    // Apply new values
+    loopSlider.setValues(newStart, newEnd);
 
-      // Set to duration if currently at max
-      if (parseFloat(loopEndSlider.value) === parseFloat(loopEndSlider.max)) {
-        this.setLoopEnd(duration);
-        loopEndSlider.value = duration.toString();
-      }
+    // Notify callbacks
+    this.onOffsetChange?.(startOffset, endOffset);
 
-      const valueDisplay = this.querySelector('#loop-end-value');
-      if (valueDisplay) valueDisplay.textContent = this.loopEndValue.toFixed(2);
-    }
+    // Dispatch event
+    this.dispatchEvent(
+      new CustomEvent('loop-offset-changed', {
+        bubbles: true,
+        detail: {
+          startOffset,
+          endOffset,
+          duration,
+          loopStart: newStart,
+          loopEnd: newEnd,
+        },
+      })
+    );
   }
 
   /**

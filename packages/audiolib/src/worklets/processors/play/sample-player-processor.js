@@ -276,22 +276,22 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const loopStart = this.#getParamValueInSamples('loopStart', parameters);
     const loopEnd = this.#getParamValueInSamples('loopEnd', parameters);
+    // Constrain loop end to be within the effective buffer end
+    const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
 
     const envelopeGain = parameters.envGain[0];
-
     const velocitySensitivity = 0.9;
     const normalizedVelocity = this.#normalizeMidi(parameters.velocity[0]);
     const velocityGain = normalizedVelocity * velocitySensitivity;
 
     const numChannels = Math.min(output.length, this.buffer.length);
-    //const bufferLength = this.buffer[0].length;
 
     // Process samples
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
       if (
         this.loopEnabled &&
-        this.playbackPosition >= loopEnd &&
+        this.playbackPosition >= constrainedLoopEnd &&
         this.loopCount < this.maxLoopCount
       ) {
         this.playbackPosition = loopStart;

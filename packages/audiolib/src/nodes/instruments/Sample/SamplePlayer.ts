@@ -54,6 +54,8 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
+  #holdLocked = false;
+
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
 
@@ -255,17 +257,14 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   }
 
   release(input: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
-    // todo: only handle modifiers if needed
     if (modifiers) this.#handleModifierKeys(modifiers);
 
-    if (this.#holdEnabled) return this; // simple play through (one-shot mode)
+    if (this.#holdEnabled || this.#holdLocked) return this; // simple play through (one-shot mode)
 
-    // Convert MIDI note to noteId if needed
     let noteId: ActiveNoteId;
     let midiNote: MidiValue | undefined;
 
     if (input >= 0 && input <= 127) {
-      // It's a MIDI note
       midiNote = input as MidiValue;
       noteId = this.#midiNoteToId.get(midiNote) ?? -1;
       if (noteId !== -1) {
@@ -410,10 +409,20 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   setHoldEnabled(enabled: boolean) {
     if (this.#holdEnabled === enabled) return this;
+    if (this.#holdLocked) return this;
+
     this.#holdEnabled = enabled;
 
     if (!enabled) this.releaseAll(this.#release);
     this.sendMessage('hold:state', { enabled });
+    return this;
+  }
+
+  setHoldLocked(locked: boolean): this {
+    if (this.#holdLocked === locked) return this;
+
+    this.#holdLocked = locked;
+    this.sendMessage('hold:locked', { locked });
     return this;
   }
 

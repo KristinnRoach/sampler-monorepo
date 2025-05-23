@@ -15,9 +15,19 @@ const init = () => {
   const loaderEl = document.getElementById(`loader-1`);
   const recorderEl = document.getElementById('recorder-1');
   const envelopeEl = document.getElementById('envelope-1');
-  const loopControlEl = document.getElementById('loop-control-1');
+  const loopControllerEl = document.getElementById('loop-controller-1');
+  const offsetControllerEl = document.getElementById(
+    'sample-offset-controller-1'
+  );
 
-  logAttributes([playerEl, loaderEl, recorderEl, envelopeEl, loopControlEl]);
+  logAttributes([
+    playerEl,
+    loaderEl,
+    recorderEl,
+    envelopeEl,
+    loopControllerEl,
+    offsetControllerEl,
+  ]);
 
   loaderEl.connect(playerEl);
   recorderEl.addEventListener('recorder-initialized', (e) => {
@@ -27,20 +37,14 @@ const init = () => {
 
   // Manual connection (can also be passed target elementId as attribute)
   envelopeEl.connect(playerEl);
-  loopControlEl.connect(playerEl);
-
-  // Listen for envelope connection events
-  envelopeEl.addEventListener('envelope-connected', (e) => {
-    console.log('Envelope connected:', e.detail);
-  });
+  loopControllerEl.connect(playerEl);
+  offsetControllerEl.connect(playerEl);
 
   // create draggables
   const draggables = document.querySelectorAll('.draggable');
   draggables.forEach((el) => {
     createDraggable(el);
   });
-
-  console.log('Web Audio Elements app initialized');
 
   document.addEventListener('keydown', (e) => {
     if (e.key === ' ') {
@@ -53,6 +57,8 @@ const init = () => {
       });
     }
   });
+
+  console.log('Web Audio Elements app initialized');
 };
 
 document.addEventListener('DOMContentLoaded', () => init());

@@ -9,6 +9,7 @@ export class SamplerElement extends BaseAudioElement {
   protected samplePlayer: SamplePlayer | null = null;
   private envelopeElement: HTMLElement | null = null;
   private loopControlElement: HTMLElement | null = null;
+  private offsetControlElement: HTMLElement | null = null;
 
   private attributeHandlers: Record<string, (value: string) => void> = {
     'start-offset': (value) => this.setStartOffset(parseFloat(value)),
@@ -29,7 +30,7 @@ export class SamplerElement extends BaseAudioElement {
       'loop-start',
       'loop-end',
 
-      'hold-enabled',
+      'hold-locked',
       'loop-locked',
       'keyboard-enabled',
       'midi-enabled',
@@ -48,12 +49,6 @@ export class SamplerElement extends BaseAudioElement {
       <div class="sampler-element">
         <div class="parameters">
           <label>
-            Start Offset: <input type="range" min="0" max="1" step="0.0005" value="0" id="start-offset" disabled>
-          </label>
-          <label>
-            End Offset: <input type="range" min="0" max="1" step="0.0005" value="1" id="end-offset" disabled>
-          </label>
-          <label>
             <input type="checkbox" id="keyboard-enabled" checked> Keyboard
             </br>            
           </label>
@@ -62,7 +57,7 @@ export class SamplerElement extends BaseAudioElement {
           </label>
             </br>    
           <label>
-            <input type="checkbox" id="hold-enabled"> &#128274 Hold
+            <input type="checkbox" id="hold-locked"> &#128274 Hold
             </br>
           </label>
           <label>
@@ -101,12 +96,8 @@ export class SamplerElement extends BaseAudioElement {
    */
   connectedCallback(): void {
     // Set up the rest of the event listeners (loop, offset sliders, checkboxes)
-    const loopStartSlider = this.querySelector(
-      '#loop-start'
-    ) as HTMLInputElement;
-    const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
-    const holdCheckbox = this.querySelector(
-      '#hold-enabled'
+    const holdLockCheckbox = this.querySelector(
+      '#hold-locked'
     ) as HTMLInputElement;
     const loopLockCheckbox = this.querySelector(
       '#loop-locked'
@@ -117,30 +108,10 @@ export class SamplerElement extends BaseAudioElement {
     const midiCheckbox = this.querySelector(
       '#midi-enabled'
     ) as HTMLInputElement;
-    const startOffsetSlider = this.querySelector(
-      '#start-offset'
-    ) as HTMLInputElement;
-    const endOffsetSlider = this.querySelector(
-      '#end-offset'
-    ) as HTMLInputElement;
 
-    if (loopStartSlider) {
-      loopStartSlider.addEventListener('input', () => {
-        const value = parseFloat(loopStartSlider.value);
-        this.setLoopStart(value);
-      });
-    }
-
-    if (loopEndSlider) {
-      loopEndSlider.addEventListener('input', () => {
-        const value = parseFloat(loopEndSlider.value);
-        this.setLoopEnd(value);
-      });
-    }
-
-    if (holdCheckbox) {
-      holdCheckbox.addEventListener('change', () => {
-        this.setAttributeEnabled('hold-enabled', holdCheckbox.checked);
+    if (holdLockCheckbox) {
+      holdLockCheckbox.addEventListener('change', () => {
+        this.setAttributeEnabled('hold-locked', holdLockCheckbox.checked);
       });
     }
 
@@ -159,20 +130,6 @@ export class SamplerElement extends BaseAudioElement {
     if (midiCheckbox) {
       midiCheckbox.addEventListener('change', () => {
         this.setAttributeEnabled('midi-enabled', midiCheckbox.checked);
-      });
-    }
-
-    if (startOffsetSlider) {
-      startOffsetSlider.addEventListener('input', () => {
-        const value = parseFloat(startOffsetSlider.value);
-        this.setStartOffset(value);
-      });
-    }
-
-    if (endOffsetSlider) {
-      endOffsetSlider.addEventListener('input', () => {
-        const value = parseFloat(endOffsetSlider.value);
-        this.setEndOffset(value);
       });
     }
 
@@ -223,7 +180,6 @@ export class SamplerElement extends BaseAudioElement {
 
         // Update UI
         this.updateStatus('Initialized');
-        this.enableControls();
 
         // Dispatch event
         this.dispatchEvent(
@@ -285,6 +241,34 @@ export class SamplerElement extends BaseAudioElement {
           }
         }
 
+        // Get initial offset values from the offset control element if available
+        if (this.offsetControlElement) {
+          // Register callbacks with the offset control element
+          (this.offsetControlElement as any).registerCallbacks({
+            onStartOffset: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setSampleStartOffset(value);
+              }
+            },
+            onEndOffset: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setSampleEndOffset(value);
+              }
+            },
+          });
+
+          // Initialize with values from the offset control element
+          const startOffset = (
+            this.offsetControlElement as any
+          ).getStartOffset();
+          const endOffset = (this.offsetControlElement as any).getEndOffset();
+
+          if (this.samplePlayer) {
+            this.samplePlayer.setSampleStartOffset(startOffset);
+            this.samplePlayer.setSampleEndOffset(endOffset);
+          }
+        }
+
         // Apply initial attributes
         if (this.hasAttribute('loop-start')) {
           this.setLoopStart(parseFloat(this.getAttribute('loop-start') || '0'));
@@ -294,10 +278,10 @@ export class SamplerElement extends BaseAudioElement {
           this.setLoopEnd(parseFloat(this.getAttribute('loop-end') || '1'));
         }
 
-        if (this.hasAttribute('hold-enabled')) {
+        if (this.hasAttribute('hold-locked')) {
           this.setAttributeEnabled(
-            'hold-enabled',
-            this.getAttribute('hold-enabled') === 'true'
+            'hold-locked',
+            this.getAttribute('hold-locked') === 'true'
           );
         }
 
@@ -514,11 +498,13 @@ export class SamplerElement extends BaseAudioElement {
       this.setAttribute('start-offset', value.toString());
     }
 
-    // Update UI
-    const startOffsetSlider = this.querySelector(
-      '#start-offset'
-    ) as HTMLInputElement;
-    if (startOffsetSlider) startOffsetSlider.value = value.toString();
+    // Update offset controller if available
+    if (
+      this.offsetControlElement &&
+      typeof (this.offsetControlElement as any).setStartOffset === 'function'
+    ) {
+      (this.offsetControlElement as any).setStartOffset(value);
+    }
 
     // Set sample start offset on sampler
     this.samplePlayer.setSampleStartOffset(value);
@@ -544,14 +530,23 @@ export class SamplerElement extends BaseAudioElement {
       this.setAttribute('end-offset', value.toString());
     }
 
-    // Update UI
-    const endOffsetSlider = this.querySelector(
-      '#end-offset'
-    ) as HTMLInputElement;
-    if (endOffsetSlider) endOffsetSlider.value = value.toString();
+    // Update offset controller if available
+    if (
+      this.offsetControlElement &&
+      typeof (this.offsetControlElement as any).setEndOffset === 'function'
+    ) {
+      (this.offsetControlElement as any).setEndOffset(value);
+    }
 
     // Set sample end offset on sampler
     this.samplePlayer.setSampleEndOffset(value);
+  }
+
+  /**
+   * Set the offset control element
+   */
+  setOffsetControlElement(element: HTMLElement): void {
+    this.offsetControlElement = element;
   }
 
   /**
@@ -638,7 +633,7 @@ export class SamplerElement extends BaseAudioElement {
 
   /**
    * Set attribute enabled state and update the sampler
-   * @param attributeName The name of the attribute to update (e.g., 'hold-enabled')
+   * @param attributeName The name of the attribute to update (e.g., 'hold-locked')
    * @param enabled Whether the attribute is enabled
    */
   setAttributeEnabled(attributeName: string, enabled: boolean): void {
@@ -651,8 +646,9 @@ export class SamplerElement extends BaseAudioElement {
 
     // Call the appropriate method on the samplePlayer based on the attribute
     switch (attributeName) {
-      case 'hold-enabled':
-        this.samplePlayer.setHoldEnabled(enabled);
+      case 'hold-locked':
+        if (enabled) this.samplePlayer.setLoopEnabled(enabled);
+        this.samplePlayer.setHoldLocked(enabled);
         break;
       case 'loop-locked':
         if (enabled) this.samplePlayer.setLoopEnabled(enabled);
@@ -708,9 +704,7 @@ export class SamplerElement extends BaseAudioElement {
       '#loop-start'
     ) as HTMLInputElement;
     const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
-    const holdCheckbox = this.querySelector(
-      '#hold-enabled'
-    ) as HTMLInputElement;
+    const holdCheckbox = this.querySelector('#hold-locked') as HTMLInputElement;
 
     if (startOffsetSlider) startOffsetSlider.removeAttribute('disabled');
     if (endOffsetSlider) endOffsetSlider.removeAttribute('disabled');

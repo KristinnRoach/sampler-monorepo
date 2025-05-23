@@ -4,8 +4,10 @@ import { SamplerElement } from './elements/SamplerElement';
 import { SampleLoaderElement } from './elements/SampleLoaderElement';
 import { RecorderElement } from './elements/RecorderElement';
 import { EnvelopeElement } from './elements/EnvelopeElement';
-import { LoopControlElement } from './elements/LoopControlElement';
+import { LoopController } from './elements/LoopController';
+import { SampleOffsetController } from './elements/SampleOffsetController';
 import { StatusElement } from './elements/display/StatusElement';
+import { TwoThumbSlider } from './elements/ui-core/TwoThumbSlider';
 
 export {
   SamplerElement,
@@ -13,20 +15,25 @@ export {
   StatusElement,
   RecorderElement,
   EnvelopeElement,
-  LoopControlElement,
+  LoopController,
+  SampleOffsetController,
   BaseAudioElement,
+  TwoThumbSlider,
 };
 
 // Web component definitions
 const COMPONENTS = [
-  ['base-audio-element', BaseAudioElement],
+  // basics
   ['status-element', StatusElement],
+  ['two-thumb-slider', TwoThumbSlider],
 
+  // audiolib wrappers
   ['sampler-element', SamplerElement],
   ['sample-loader-element', SampleLoaderElement],
   ['recorder-element', RecorderElement],
   ['envelope-element', EnvelopeElement],
-  ['loop-control-element', LoopControlElement],
+  ['loop-controller', LoopController],
+  ['sample-offset-controller', SampleOffsetController],
 ] as const;
 
 /**

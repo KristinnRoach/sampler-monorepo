@@ -19,7 +19,7 @@ body {
   height: 100vh;
 
   margin: 0 auto;
-  background-color: #2c2d2e;
+  background-color: #323334;
 }
 
 .node-container {
@@ -77,9 +77,13 @@ body {
   will-change: transform; /* Performance optimization for animations */
 }
 
-/* Visual indication for active dragging */
+/* dragging */
 .lib-node:active {
   cursor: grabbing;
+}
+
+two-thumb-slider .slider-track {
+  width: 50vw;
 }
 
 /* Styling the custom elements - updated for Light DOM */
@@ -96,6 +100,20 @@ button {
 
 button:hover {
   background: #3e8e41;
+}
+
+recorder-element #record-toggle[active] button {
+  background-color: rgb(182, 6, 42);
+  color: whitesmoke;
+  animation: pulse 1.5s infinite;
+}
+
+#record-toggle:not([active]) button:hover {
+  background: #3e8e41;
+}
+
+#record-toggle[active] button:hover {
+  background: #7a0d24;
 }
 
 .lib-node .parameters {
