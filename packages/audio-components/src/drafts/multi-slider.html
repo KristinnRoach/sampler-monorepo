@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Two Thumb Range Slider</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        background: #f5f5f5;
+      }
+
+      .range-container {
+        max-width: 400px;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .input-wrapper {
+        position: relative;
+        flex: 1;
+      }
+
+      .input-label {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #666;
+        font-size: 12px;
+        pointer-events: none;
+      }
+
+      .range-input {
+        width: 100%;
+        height: 35px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 0 10px 0 35px;
+        font-size: 14px;
+      }
+
+      .range-input:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+
+      /* Slider Styles - Essential only */
+      two-thumb-slider {
+        display: block;
+        width: 100%;
+      }
+
+      .slider-track {
+        position: relative;
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        margin: 15px 0;
+      }
+
+      .slider-range {
+        position: absolute;
+        height: 100%;
+        background: #007bff;
+        border-radius: 3px;
+        top: 0;
+      }
+
+      .slider-thumb {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        background: #007bff;
+        border: 2px solid white;
+        border-radius: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        cursor: grab;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
+      .slider-thumb:active {
+        cursor: grabbing;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="range-container">
+      <div class="input-group">
+        <div class="input-wrapper">
+          <span class="input-label">min</span>
+          <input
+            type="number"
+            class="range-input"
+            id="min-input"
+            step="0.001"
+          />
+        </div>
+        <div class="input-wrapper">
+          <span class="input-label">max</span>
+          <input
+            type="number"
+            class="range-input"
+            id="max-input"
+            step="0.001"
+          />
+        </div>
+      </div>
+      <two-thumb-slider
+        min="0"
+        max="1"
+        step="0.001"
+        minimum-gap="0.001"
+        value-min="0"
+        value-max="1"
+      >
+      </two-thumb-slider>
+    </div>
+
+    <script>
+      class TwoThumbSlider extends HTMLElement {
+        static observedAttributes = [
+          'min',
+          'max',
+          'step',
+          'minimum-gap',
+          'value-min',
+          'value-max',
+        ];
+
+        constructor() {
+          super();
+          this.min = 0;
+          this.max = 1;
+          this.step = 0.001;
+          this.minimumGap = 0.001;
+          this.valueMin = 0;
+          this.valueMax = 1;
+          this.activeThumb = null;
+        }
+
+        connectedCallback() {
+          this.render();
+          this.setupEventListeners();
+          this.updateSlider();
+        }
+
+        attributeChangedCallback(name, oldValue, newValue) {
+          if (oldValue === newValue) return;
+
+          const value = parseFloat(newValue);
+          switch (name) {
+            case 'min':
+              this.min = value;
+              break;
+            case 'max':
+              this.max = value;
+              break;
+            case 'step':
+              this.step = value;
+              break;
+            case 'minimum-gap':
+              this.minimumGap = value;
+              break;
+            case 'value-min':
+              this.valueMin = value;
+              break;
+            case 'value-max':
+              this.valueMax = value;
+              break;
+          }
+
+          if (this.isConnected) {
+            this.updateSlider();
+          }
+        }
+
+        render() {
+          this.innerHTML = `
+                    <div class="slider-track">
+                        <div class="slider-range"></div>
+                        <div class="slider-thumb thumb-min"></div>
+                        <div class="slider-thumb thumb-max"></div>
+                    </div>
+                `;
+        }
+
+        setupEventListeners() {
+          const thumbMin = this.querySelector('.thumb-min');
+          const thumbMax = this.querySelector('.thumb-max');
+
+          thumbMin.addEventListener('mousedown', (e) =>
+            this.startDrag(e, 'min')
+          );
+          thumbMax.addEventListener('mousedown', (e) =>
+            this.startDrag(e, 'max')
+          );
+          thumbMin.addEventListener(
+            'touchstart',
+            (e) => this.startDrag(e, 'min'),
+            { passive: false }
+          );
+          thumbMax.addEventListener(
+            'touchstart',
+            (e) => this.startDrag(e, 'max'),
+            { passive: false }
+          );
+        }
+
+        startDrag(e, thumb) {
+          e.preventDefault();
+          this.activeThumb = thumb;
+
+          const handleMove = (e) => this.handleDrag(e);
+          const handleEnd = () => this.stopDrag(handleMove, handleEnd);
+
+          document.addEventListener('mousemove', handleMove);
+          document.addEventListener('mouseup', handleEnd);
+          document.addEventListener('touchmove', handleMove, {
+            passive: false,
+          });
+          document.addEventListener('touchend', handleEnd);
+        }
+
+        handleDrag(e) {
+          if (!this.activeThumb) return;
+
+          e.preventDefault();
+          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+          const track = this.querySelector('.slider-track');
+          const rect = track.getBoundingClientRect();
+
+          let position = Math.max(0, Math.min(clientX - rect.left, rect.width));
+          let percentage = position / rect.width;
+          let value = this.min + percentage * (this.max - this.min);
+
+          // Snap to step
+          value = Math.round(value / this.step) * this.step;
+
+          // Apply minimum gap constraint
+          if (this.activeThumb === 'min') {
+            value = Math.min(value, this.valueMax - this.minimumGap);
+            this.valueMin = Math.max(value, this.min);
+          } else {
+            value = Math.max(value, this.valueMin + this.minimumGap);
+            this.valueMax = Math.min(value, this.max);
+          }
+
+          this.updateSlider();
+          this.dispatchChange();
+        }
+
+        stopDrag(handleMove, handleEnd) {
+          this.activeThumb = null;
+          document.removeEventListener('mousemove', handleMove);
+          document.removeEventListener('mouseup', handleEnd);
+          document.removeEventListener('touchmove', handleMove);
+          document.removeEventListener('touchend', handleEnd);
+        }
+
+        updateSlider() {
+          const rangeElement = this.querySelector('.slider-range');
+          const thumbMin = this.querySelector('.thumb-min');
+          const thumbMax = this.querySelector('.thumb-max');
+
+          if (!rangeElement || !thumbMin || !thumbMax) return;
+
+          const track = this.querySelector('.slider-track');
+          const trackWidth = track.offsetWidth;
+
+          const positionMin =
+            ((this.valueMin - this.min) / (this.max - this.min)) * trackWidth;
+          const positionMax =
+            ((this.valueMax - this.min) / (this.max - this.min)) * trackWidth;
+
+          thumbMin.style.left = `${positionMin}px`;
+          thumbMax.style.left = `${positionMax}px`;
+          rangeElement.style.left = `${positionMin}px`;
+          rangeElement.style.width = `${positionMax - positionMin}px`;
+        }
+
+        dispatchChange() {
+          this.dispatchEvent(
+            new CustomEvent('range-change', {
+              detail: { min: this.valueMin, max: this.valueMax },
+              bubbles: true,
+            })
+          );
+        }
+
+        setValues(min, max) {
+          this.valueMin = Math.max(this.min, Math.min(min, this.max));
+          this.valueMax = Math.max(this.min, Math.min(max, this.max));
+
+          // Ensure minimum gap
+          if (this.valueMax - this.valueMin < this.minimumGap) {
+            this.valueMax = this.valueMin + this.minimumGap;
+          }
+
+          this.updateSlider();
+          this.dispatchChange();
+        }
+      }
+
+      customElements.define('two-thumb-slider', TwoThumbSlider);
+
+      // Initialize
+      const slider = document.querySelector('two-thumb-slider');
+      const minInput = document.getElementById('min-input');
+      const maxInput = document.getElementById('max-input');
+
+      // Set initial values
+      minInput.value = slider.valueMin;
+      maxInput.value = slider.valueMax;
+
+      // Sync slider to inputs
+      slider.addEventListener('range-change', (e) => {
+        minInput.value = e.detail.min.toFixed(3);
+        maxInput.value = e.detail.max.toFixed(3);
+      });
+
+      // Sync inputs to slider
+      minInput.addEventListener('input', () => {
+        const value = parseFloat(minInput.value) || slider.min;
+        slider.setValues(value, slider.valueMax);
+      });
+
+      maxInput.addEventListener('input', () => {
+        const value = parseFloat(maxInput.value) || slider.max;
+        slider.setValues(slider.valueMin, value);
+      });
+    </script>
+  </body>
+</html>

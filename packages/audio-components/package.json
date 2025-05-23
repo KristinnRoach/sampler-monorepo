@@ -12,6 +12,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "pnpm clean && vite build --watch",
+    "dev:server": "node scripts/dev.js",
     "clean": "rm -rf dist node_modules && pnpm prune"
   },
   "dependencies": {

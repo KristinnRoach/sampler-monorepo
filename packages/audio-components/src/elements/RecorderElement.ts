@@ -1,5 +1,6 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib } from '@repo/audiolib';
+import './ui-core/ToggleButton';
 
 /**
  * Web component for recording audio directly to a sampler
@@ -7,8 +8,8 @@ import { audiolib } from '@repo/audiolib';
 export class RecorderElement extends BaseAudioElement {
   private recorder: any = null; // Will hold the Recorder instance
   private isRecording: boolean = false;
-  // @ts-ignore
   private destinationElement: BaseAudioElement | null = null;
+  private recordButton: HTMLElement | null = null;
 
   // Define observed attributes
   static get observedAttributes(): string[] {
@@ -20,23 +21,27 @@ export class RecorderElement extends BaseAudioElement {
 
     this.innerHTML = `
       <div class="recorder-element">
-        <button class="record-button" id="record" disabled>Record</button>
-        <button class="stop-button" id="stop" disabled>Stop</button>
-        <div class="status" id="status">Not initialized</div>
+        <toggle-button id="record-toggle" 
+          label-on="Recording..." 
+          label-off="Record" 
+          disabled>
+        </toggle-button>
       </div>
     `;
   }
 
   connectedCallback(): void {
-    this.querySelector('#record')?.addEventListener(
-      'click',
-      this.startRecording.bind(this)
-    );
+    this.recordButton = this.querySelector('#record-toggle');
 
-    this.querySelector('#stop')?.addEventListener(
-      'click',
-      this.stopRecording.bind(this)
-    );
+    // Add event listener to toggle button
+    this.recordButton?.addEventListener('toggle', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail.active) {
+        this.startRecording();
+      } else {
+        this.stopRecording(); // Add this to handle the toggle-off event
+      }
+    });
 
     this.initialize();
   }
@@ -68,7 +73,7 @@ export class RecorderElement extends BaseAudioElement {
     if (destinationElement && destinationElement instanceof BaseAudioElement) {
       this.connect(destinationElement);
     } else {
-      console.warn(
+      console.debug(
         `Destination element with ID "${destinationId}" not found or not a BaseAudioElement`
       );
     }
@@ -81,7 +86,6 @@ export class RecorderElement extends BaseAudioElement {
 
       // Create a recorder instance
       this.recorder = await audiolib.createRecorder();
-
       this.updateStatus('Ready to record');
       this.enableControls();
 
@@ -90,6 +94,8 @@ export class RecorderElement extends BaseAudioElement {
       if (destinationId) {
         this.connectToDestinationById(destinationId);
       }
+
+      this.initialized = true;
 
       this.dispatchEvent(
         new CustomEvent('recorder-initialized', {
@@ -113,7 +119,7 @@ export class RecorderElement extends BaseAudioElement {
         : null;
 
     if (!this.recorder || !samplePlayer) {
-      console.warn(
+      console.debug(
         'Recorder not initialized or destination is not a sample player'
       );
       return this;
@@ -135,7 +141,11 @@ export class RecorderElement extends BaseAudioElement {
 
   async startRecording(): Promise<void> {
     if (!this.recorder || this.isRecording) return;
-
+    if (!this.destinationElement) {
+      console.warn('No destination element connected');
+      this.updateStatus('No destination element connected');
+      return;
+    }
     try {
       await this.recorder.start();
       this.isRecording = true;
@@ -184,28 +194,18 @@ export class RecorderElement extends BaseAudioElement {
     }
   }
 
-  private updateStatus(message: string): void {
-    const statusElement = this.querySelector('#status');
-    if (statusElement) {
-      statusElement.textContent = message;
-    }
-  }
-
   private updateButtons(isRecording: boolean): void {
-    const recordButton = this.querySelector('#record') as HTMLButtonElement;
-    const stopButton = this.querySelector('#stop') as HTMLButtonElement;
+    const recordButton = this.querySelector('#record-toggle') as any;
 
     if (recordButton) {
-      recordButton.disabled = isRecording;
-    }
-
-    if (stopButton) {
-      stopButton.disabled = !isRecording;
+      if (recordButton.active !== isRecording) {
+        recordButton.active = isRecording;
+      }
     }
   }
 
   private enableControls(): void {
-    const recordButton = this.querySelector('#record');
+    const recordButton = this.querySelector('#record-toggle') as HTMLElement;
     if (recordButton) recordButton.removeAttribute('disabled');
   }
 

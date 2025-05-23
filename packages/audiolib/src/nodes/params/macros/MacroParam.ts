@@ -252,18 +252,11 @@ export class MacroParam implements LibParamNode {
       console.warn("Macro's paramType not set");
     }
 
-    console.log(
-      { targetDist: initialTargetDistance },
-      { processedDist: returnValue }
-    );
-
-    // console.debug(
-    //   `\nparamType: ${this.#paramType}
-    //   \nCurrent Value: ${this.getValue()},
-    //   \nTarget Value: ${target},
-    //   \nBound constant: ${constant}
-    //   \nProcessed Value: ${returnValue}`
+    // console.log(
+    //   { targetDist: initialTargetDistance },
+    //   { processedDist: returnValue }
     // );
+
     return returnValue;
   }
 

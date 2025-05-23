@@ -1,11 +1,11 @@
 /* NOTE: Not currently in use. 
-   If needed, add "dev": "node scripts/dev.js"
-   to package json scripts and uncomment. 
+   If needed, add ./public/index.html 
+   and use "dev:server": "node scripts/dev.js"
+   from package json scripts */
 
 import { createServer } from 'vite';
 import { resolve } from 'path';
 import { fileURLToPath } from 'url';
-
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -32,4 +32,4 @@ startDevServer().catch((err) => {
   process.exit(1);
 });
 
-*/
+// */

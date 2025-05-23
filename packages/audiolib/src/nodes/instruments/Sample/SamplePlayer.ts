@@ -37,6 +37,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
+  #destination: AudioNode | null = null;
   #pool: SampleVoicePool;
 
   #messages: MessageBus<Message>;
@@ -53,6 +54,8 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
+  #holdLocked = false;
+
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
 
@@ -114,11 +117,13 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   connect(destination: AudioNode): this {
     this.#outBus.connect(destination);
+    this.#destination = destination;
     return this;
   }
 
   disconnect(): void {
     this.#outBus.disconnect();
+    this.#destination = null;
   }
 
   #connectToMacros(): this {
@@ -154,9 +159,14 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   }
 
   async loadSample(
-    buffer: AudioBuffer,
+    buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number
   ): Promise<boolean> {
+    if (buffer instanceof ArrayBuffer) {
+      const ctx = getAudioContext();
+      buffer = await ctx.decodeAudioData(buffer);
+    }
+
     assert(isValidAudioBuffer(buffer));
 
     this.releaseAll();
@@ -247,17 +257,14 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   }
 
   release(input: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
-    // todo: only handle modifiers if needed
     if (modifiers) this.#handleModifierKeys(modifiers);
 
-    if (this.#holdEnabled) return this; // simple play through (one-shot mode)
+    if (this.#holdEnabled || this.#holdLocked) return this; // simple play through (one-shot mode)
 
-    // Convert MIDI note to noteId if needed
     let noteId: ActiveNoteId;
     let midiNote: MidiValue | undefined;
 
     if (input >= 0 && input <= 127) {
-      // It's a MIDI note
       midiNote = input as MidiValue;
       noteId = this.#midiNoteToId.get(midiNote) ?? -1;
       if (noteId !== -1) {
@@ -322,8 +329,6 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
         onModifierChange: this.#handleModifierKeys.bind(this),
       };
       globalKeyboardInput.addHandler(this.#keyboardHandler);
-    } else {
-      console.debug(`keyboard already enabled`);
     }
     return this;
   }
@@ -332,10 +337,24 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     if (this.#keyboardHandler) {
       globalKeyboardInput.removeHandler(this.#keyboardHandler);
       this.#keyboardHandler = null;
-    } else {
-      console.debug(`keyboard already disabled`);
     }
     return this;
+  }
+
+  async initMidiController(): Promise<boolean> {
+    if (!this.#midiController) {
+      console.warn(`No MIDI controller provided`);
+      this.#midiController = new MidiController();
+    }
+
+    if (this.#midiController.isInitialized) {
+      console.log(`MIDI controller initialized`);
+      return true;
+    }
+
+    const result = await tryCatch(() => this.#midiController!.initialize());
+    assert(!result.error, `Failed to initialize MIDI`);
+    return result.data;
   }
 
   async enableMIDI(
@@ -344,6 +363,8 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   ): Promise<this> {
     // Use provided controller, instance controller, or fail
     const controller = midiController || this.#midiController;
+    const midiSuccess = await this.initMidiController(); // move ?
+    if (midiSuccess) console.log(`Midi initialized`);
 
     assert(controller?.isInitialized, `MidiController must be initialized`);
     controller.connectInstrument(this, channel);
@@ -388,10 +409,20 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   setHoldEnabled(enabled: boolean) {
     if (this.#holdEnabled === enabled) return this;
+    if (this.#holdLocked) return this;
+
     this.#holdEnabled = enabled;
 
     if (!enabled) this.releaseAll(this.#release);
     this.sendMessage('hold:state', { enabled });
+    return this;
+  }
+
+  setHoldLocked(locked: boolean): this {
+    if (this.#holdLocked === locked) return this;
+
+    this.#holdLocked = locked;
+    this.sendMessage('hold:locked', { locked });
     return this;
   }
 
@@ -496,6 +527,22 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   get now() {
     return getAudioContext().currentTime;
+  }
+
+  get audioContext() {
+    return this.#context;
+  }
+
+  get outputNode() {
+    return this.#outBus.outputNode;
+  }
+
+  get outBus() {
+    return this.#outBus;
+  }
+
+  get destination() {
+    return this.#destination;
   }
 
   get sampleDuration(): number {

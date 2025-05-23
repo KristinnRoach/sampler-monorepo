@@ -217,6 +217,14 @@ export class InstrumentMasterBus implements LibNode {
     return this.#context.currentTime;
   }
 
+  get inputNode() {
+    return this.#input;
+  }
+
+  get outputNode() {
+    return this.#output;
+  }
+
   get volume(): number {
     return this.#output.gain.value;
   }

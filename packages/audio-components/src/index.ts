@@ -1,32 +1,51 @@
-// Export base classes
-export { BaseAudioElement } from './elements/base/BaseAudioElement';
-
-// Export elements
+// Import and export audio elements
+import { BaseAudioElement } from './elements/base/BaseAudioElement';
 import { SamplerElement } from './elements/SamplerElement';
 import { SampleLoaderElement } from './elements/SampleLoaderElement';
-import { OutputElement } from './elements/OutputElement';
 import { RecorderElement } from './elements/RecorderElement';
+import { EnvelopeElement } from './elements/EnvelopeElement';
+import { LoopController } from './elements/LoopController';
+import { SampleOffsetController } from './elements/SampleOffsetController';
+import { StatusElement } from './elements/display/StatusElement';
+import { TwoThumbSlider } from './elements/ui-core/TwoThumbSlider';
 
-export { SamplerElement, SampleLoaderElement, RecorderElement, OutputElement };
+export {
+  SamplerElement,
+  SampleLoaderElement,
+  StatusElement,
+  RecorderElement,
+  EnvelopeElement,
+  LoopController,
+  SampleOffsetController,
+  BaseAudioElement,
+  TwoThumbSlider,
+};
 
-// Function to register all components
-export function registerComponents() {
-  if (typeof window !== 'undefined') {
-    // Only register if in browser environment
-    if (!customElements.get('sampler-element')) {
-      customElements.define('sampler-element', SamplerElement);
+// Web component definitions
+const COMPONENTS = [
+  // basics
+  ['status-element', StatusElement],
+  ['two-thumb-slider', TwoThumbSlider],
+
+  // audiolib wrappers
+  ['sampler-element', SamplerElement],
+  ['sample-loader-element', SampleLoaderElement],
+  ['recorder-element', RecorderElement],
+  ['envelope-element', EnvelopeElement],
+  ['loop-controller', LoopController],
+  ['sample-offset-controller', SampleOffsetController],
+] as const;
+
+/**
+ * Registers all audio components as custom elements if in browser environment
+ * Each component is only registered if it hasn't been registered already
+ */
+export function registerComponents(): void {
+  if (typeof window === 'undefined') return;
+
+  COMPONENTS.forEach(([name, component]) => {
+    if (!customElements.get(name)) {
+      customElements.define(name, component);
     }
-
-    if (!customElements.get('sample-loader-element')) {
-      customElements.define('sample-loader-element', SampleLoaderElement);
-    }
-
-    if (!customElements.get('output-element')) {
-      customElements.define('output-element', OutputElement);
-    }
-
-    if (!customElements.get('recorder-element')) {
-      customElements.define('recorder-element', RecorderElement);
-    }
-  }
+  });
 }

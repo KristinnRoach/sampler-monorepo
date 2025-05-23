@@ -82,7 +82,7 @@ const SamplerComponent = () => {
     if (isInitialized) return true;
 
     try {
-      samplePlayerRef.current = audiolib.createSamplePlayer();
+      samplePlayerRef.current = await audiolib.createSamplePlayer();
       if (!samplePlayerRef.current) {
         console.error('Failed to create SamplePlayer');
         return false;

@@ -223,6 +223,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return Math.max(0, Math.min(1, norm));
   }
 
+  #getParamValueInSamples(paramName, parameters) {
+    if (!parameters || !parameters[paramName]) return 0;
+
+    let valueInSamples = parameters[paramName][0] * sampleRate;
+
+    // Apply zero crossing constraint for "buffer-position" parameters
+    if (paramName === 'loopStart' || paramName === 'loopEnd') {
+      return this.#findNearestZeroCrossing(valueInSamples);
+    }
+
+    return valueInSamples;
+  }
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
@@ -256,27 +269,29 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     }
 
     // todo: optimize (move all zero crossing handling to processor or voice ?)
-    let loopStartReq = parameters.loopStart[0] * sampleRate;
-    const loopStart = this.#findNearestZeroCrossing(loopStartReq);
+    // let loopStartReq = parameters.loopStart[0] * sampleRate;
+    // const loopStart = this.#findNearestZeroCrossing(loopStartReq);
+    // const loopEndReq = parameters.loopEnd[0] * sampleRate;
+    // const loopEnd = this.#findNearestZeroCrossing(loopEndReq);
 
-    const loopEndReq = parameters.loopEnd[0] * sampleRate;
-    const loopEnd = this.#findNearestZeroCrossing(loopEndReq);
+    const loopStart = this.#getParamValueInSamples('loopStart', parameters);
+    const loopEnd = this.#getParamValueInSamples('loopEnd', parameters);
+    // Constrain loop end to be within the effective buffer end
+    const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
 
     const envelopeGain = parameters.envGain[0];
-
     const velocitySensitivity = 0.9;
     const normalizedVelocity = this.#normalizeMidi(parameters.velocity[0]);
     const velocityGain = normalizedVelocity * velocitySensitivity;
 
     const numChannels = Math.min(output.length, this.buffer.length);
-    //const bufferLength = this.buffer[0].length;
 
     // Process samples
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
       if (
         this.loopEnabled &&
-        this.playbackPosition >= loopEnd &&
+        this.playbackPosition >= constrainedLoopEnd &&
         this.loopCount < this.maxLoopCount
       ) {
         this.playbackPosition = loopStart;

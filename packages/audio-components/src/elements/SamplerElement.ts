@@ -1,6 +1,5 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib, SamplePlayer } from '@repo/audiolib';
-// import { UNICODES } from './unicodes';
 
 /**
  * Web component for a sample player instrument
@@ -8,27 +7,30 @@ import { audiolib, SamplePlayer } from '@repo/audiolib';
  */
 export class SamplerElement extends BaseAudioElement {
   protected samplePlayer: SamplePlayer | null = null;
+  private envelopeElement: HTMLElement | null = null;
+  private loopControlElement: HTMLElement | null = null;
+  private offsetControlElement: HTMLElement | null = null;
 
   private attributeHandlers: Record<string, (value: string) => void> = {
-    attack: (value) => this.setAttack(parseFloat(value)),
-    release: (value) => this.setRelease(parseFloat(value)),
     'start-offset': (value) => this.setStartOffset(parseFloat(value)),
     'end-offset': (value) => this.setEndOffset(parseFloat(value)),
-    'loop-start': (value) => this.setLoopStart(parseFloat(value)),
-    'loop-end': (value) => this.setLoopEnd(parseFloat(value)),
+    // 'loop-start': (value) => this.setLoopStart(parseFloat(value)),
+    // 'loop-end': (value) => this.setLoopEnd(parseFloat(value)),
+    // loop points moved to LoopControlElement
+    // Attack and release moved to EnvelopeElement
   };
 
   // Define observed attributes
   static get observedAttributes(): string[] {
     return [
       'polyphony',
-      'attack',
-      'release',
+      // Attack and release are handled by EnvelopeElement // ? should still be observed ?
       'start-offset',
       'end-offset',
       'loop-start',
       'loop-end',
-      'hold-enabled',
+
+      'hold-locked',
       'loop-locked',
       'keyboard-enabled',
       'midi-enabled',
@@ -45,28 +47,7 @@ export class SamplerElement extends BaseAudioElement {
     // Styling is handled by consumers
     this.innerHTML = `
       <div class="sampler-element">
-        <div class="controls">
-          <button class="load-button" id="load" disabled>Load Sample</button>
-        </div>
         <div class="parameters">
-          <label>
-            Attack: <input type="range" min="0" max="1" step="0.01" value="0.01" id="attack" disabled>
-          </label>
-          <label>
-            Release: <input type="range" min="0" max="2" step="0.01" value="0.3" id="release" disabled>
-          </label>
-          <label>
-            Start Offset: <input type="range" min="0" max="1" step="0.0005" value="0" id="start-offset" disabled>
-          </label>
-          <label>
-            End Offset: <input type="range" min="0" max="1" step="0.0005" value="1" id="end-offset" disabled>
-          </label>
-          <label>
-            Loop Start: <input type="range" min="0" max="1" step="0.0005" value="0" id="loop-start" disabled>
-          </label>
-          <label>
-            Loop End: <input type="range" min="0" max="1" step="0.0005" value="1" id="loop-end" disabled>
-          </label>
           <label>
             <input type="checkbox" id="keyboard-enabled" checked> Keyboard
             </br>            
@@ -76,7 +57,7 @@ export class SamplerElement extends BaseAudioElement {
           </label>
             </br>    
           <label>
-            <input type="checkbox" id="hold-enabled"> &#128274 Hold
+            <input type="checkbox" id="hold-locked"> &#128274 Hold
             </br>
           </label>
           <label>
@@ -84,7 +65,6 @@ export class SamplerElement extends BaseAudioElement {
             </br>
           </label>        
         </div>
-        <div class="status" id="status">Not initialized</div>
         <slot></slot>
       </div> 
     `;
@@ -99,13 +79,10 @@ export class SamplerElement extends BaseAudioElement {
   }
 
   private handleSampleLoaded(detail: any) {
-    // async ?
     const { audioBuffer, fileName, duration } = detail;
 
     // Load sample into the player
     this.samplePlayer?.loadSample(audioBuffer);
-
-    this.samplePlayer!.loadSample(audioBuffer);
 
     this.updateStatus(`Sample loaded: ${fileName}`);
 
@@ -118,15 +95,9 @@ export class SamplerElement extends BaseAudioElement {
    * Called when the element is added to the DOM
    */
   connectedCallback(): void {
-    // Set up event listeners
-    const attackSlider = this.querySelector('#attack') as HTMLInputElement;
-    const releaseSlider = this.querySelector('#release') as HTMLInputElement;
-    const loopStartSlider = this.querySelector(
-      '#loop-start'
-    ) as HTMLInputElement;
-    const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
-    const holdCheckbox = this.querySelector(
-      '#hold-enabled'
+    // Set up the rest of the event listeners (loop, offset sliders, checkboxes)
+    const holdLockCheckbox = this.querySelector(
+      '#hold-locked'
     ) as HTMLInputElement;
     const loopLockCheckbox = this.querySelector(
       '#loop-locked'
@@ -137,48 +108,10 @@ export class SamplerElement extends BaseAudioElement {
     const midiCheckbox = this.querySelector(
       '#midi-enabled'
     ) as HTMLInputElement;
-    const startOffsetSlider = this.querySelector(
-      '#start-offset'
-    ) as HTMLInputElement;
-    const endOffsetSlider = this.querySelector(
-      '#end-offset'
-    ) as HTMLInputElement;
 
-    if (attackSlider) {
-      attackSlider.addEventListener('input', () => {
-        const value = parseFloat(attackSlider.value);
-        this.setAttack(value);
-        const valueDisplay = this.querySelector('#attack-value');
-        if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
-      });
-    }
-
-    if (releaseSlider) {
-      releaseSlider.addEventListener('input', () => {
-        const value = parseFloat(releaseSlider.value);
-        this.setRelease(value);
-        const valueDisplay = this.querySelector('#release-value');
-        if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
-      });
-    }
-
-    if (loopStartSlider) {
-      loopStartSlider.addEventListener('input', () => {
-        const value = parseFloat(loopStartSlider.value);
-        this.setLoopStart(value);
-      });
-    }
-
-    if (loopEndSlider) {
-      loopEndSlider.addEventListener('input', () => {
-        const value = parseFloat(loopEndSlider.value);
-        this.setLoopEnd(value);
-      });
-    }
-
-    if (holdCheckbox) {
-      holdCheckbox.addEventListener('change', () => {
-        this.setAttributeEnabled('hold-enabled', holdCheckbox.checked);
+    if (holdLockCheckbox) {
+      holdLockCheckbox.addEventListener('change', () => {
+        this.setAttributeEnabled('hold-locked', holdLockCheckbox.checked);
       });
     }
 
@@ -197,20 +130,6 @@ export class SamplerElement extends BaseAudioElement {
     if (midiCheckbox) {
       midiCheckbox.addEventListener('change', () => {
         this.setAttributeEnabled('midi-enabled', midiCheckbox.checked);
-      });
-    }
-
-    if (startOffsetSlider) {
-      startOffsetSlider.addEventListener('input', () => {
-        const value = parseFloat(startOffsetSlider.value);
-        this.setStartOffset(value);
-      });
-    }
-
-    if (endOffsetSlider) {
-      endOffsetSlider.addEventListener('input', () => {
-        const value = parseFloat(endOffsetSlider.value);
-        this.setEndOffset(value);
       });
     }
 
@@ -238,19 +157,19 @@ export class SamplerElement extends BaseAudioElement {
    */
   async initialize(): Promise<void> {
     try {
-      // Initialize audiolib if not already initialized
+      // Initialize the audiolib context // todo: remove dependency on audiolib
       if (!audiolib.isReady) await audiolib.init();
 
       // Get polyphony from attribute or use default
       const polyphony = parseInt(this.getAttribute('polyphony') || '16');
 
-      // Create sampler
+      // Create sampler // todo: only import standalone createSamplePlayer factory
       this.samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
 
       if (this.samplePlayer) {
         // Set up audio nodes
-        this.outputNode = this.samplePlayer as unknown as AudioNode;
-        this.audioContext = audiolib.audioContext;
+        this.outputNode = this.samplePlayer.outputNode;
+        this.audioContext = this.samplePlayer.audioContext;
         this.initialized = true;
 
         // Auto enable keyboard by default
@@ -261,7 +180,6 @@ export class SamplerElement extends BaseAudioElement {
 
         // Update UI
         this.updateStatus('Initialized');
-        this.enableControls();
 
         // Dispatch event
         this.dispatchEvent(
@@ -271,15 +189,87 @@ export class SamplerElement extends BaseAudioElement {
           })
         );
 
+        // Get initial envelope values from the envelope element if available
+        if (this.envelopeElement) {
+          // Register callbacks with the envelope element
+          (this.envelopeElement as any).registerCallbacks({
+            onAttack: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setAttackTime(value);
+              }
+            },
+            onRelease: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setReleaseTime(value);
+              }
+            },
+          });
+
+          // Initialize with values from the envelope element
+          const attack = (this.envelopeElement as any).getAttack();
+          const release = (this.envelopeElement as any).getRelease();
+
+          if (this.samplePlayer) {
+            this.samplePlayer.setAttackTime(attack);
+            this.samplePlayer.setReleaseTime(release);
+          }
+        }
+
+        // Get initial loop values from the loop control element if available
+        if (this.loopControlElement) {
+          // Register callbacks with the loop control element
+          (this.loopControlElement as any).registerCallbacks({
+            onLoopStart: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setLoopStart(value);
+              }
+            },
+            onLoopEnd: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setLoopEnd(value);
+              }
+            },
+          });
+
+          // Initialize with values from the loop control element
+          const loopStart = (this.loopControlElement as any).getLoopStart();
+          const loopEnd = (this.loopControlElement as any).getLoopEnd();
+
+          if (this.samplePlayer) {
+            this.samplePlayer.setLoopStart(loopStart);
+            this.samplePlayer.setLoopEnd(loopEnd);
+          }
+        }
+
+        // Get initial offset values from the offset control element if available
+        if (this.offsetControlElement) {
+          // Register callbacks with the offset control element
+          (this.offsetControlElement as any).registerCallbacks({
+            onStartOffset: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setSampleStartOffset(value);
+              }
+            },
+            onEndOffset: (value: number) => {
+              if (this.samplePlayer) {
+                this.samplePlayer.setSampleEndOffset(value);
+              }
+            },
+          });
+
+          // Initialize with values from the offset control element
+          const startOffset = (
+            this.offsetControlElement as any
+          ).getStartOffset();
+          const endOffset = (this.offsetControlElement as any).getEndOffset();
+
+          if (this.samplePlayer) {
+            this.samplePlayer.setSampleStartOffset(startOffset);
+            this.samplePlayer.setSampleEndOffset(endOffset);
+          }
+        }
+
         // Apply initial attributes
-        if (this.hasAttribute('attack')) {
-          this.setAttack(parseFloat(this.getAttribute('attack') || '0.01'));
-        }
-
-        if (this.hasAttribute('release')) {
-          this.setRelease(parseFloat(this.getAttribute('release') || '0.3'));
-        }
-
         if (this.hasAttribute('loop-start')) {
           this.setLoopStart(parseFloat(this.getAttribute('loop-start') || '0'));
         }
@@ -288,10 +278,10 @@ export class SamplerElement extends BaseAudioElement {
           this.setLoopEnd(parseFloat(this.getAttribute('loop-end') || '1'));
         }
 
-        if (this.hasAttribute('hold-enabled')) {
+        if (this.hasAttribute('hold-locked')) {
           this.setAttributeEnabled(
-            'hold-enabled',
-            this.getAttribute('hold-enabled') === 'true'
+            'hold-locked',
+            this.getAttribute('hold-locked') === 'true'
           );
         }
 
@@ -393,6 +383,16 @@ export class SamplerElement extends BaseAudioElement {
                 valueDisplay.textContent = audioBuffer.duration.toFixed(2);
             }
 
+            if (
+              this.loopControlElement &&
+              typeof (this.loopControlElement as any).updateSampleDuration ===
+                'function'
+            ) {
+              (this.loopControlElement as any).updateSampleDuration(
+                audioBuffer.duration
+              );
+            }
+
             // Update start and end offset sliders with sample duration
             const startOffsetSlider = this.querySelector(
               '#start-offset'
@@ -479,39 +479,6 @@ export class SamplerElement extends BaseAudioElement {
   }
 
   /**
-   * Set attack time
-   */
-  setAttack(value: number): void {
-    if (!this.samplePlayer) return;
-
-    // Update attribute silently to avoid infinite loop
-    if (this.getAttribute('attack') !== value.toString()) {
-      this.setAttribute('attack', value.toString());
-    }
-
-    // Set attack time on sampler
-    this.samplePlayer.setAttackTime(value); // using seconds for now
-  }
-
-  /**
-   * Set release time
-   */
-  setRelease(value: number): void {
-    if (!this.samplePlayer) return;
-
-    // Update attribute silently to avoid infinite loop
-    if (this.getAttribute('release') !== value.toString()) {
-      this.setAttribute('release', value.toString());
-    }
-
-    // Set release time on sampler
-    this.samplePlayer.setReleaseTime(value); // using seconds for now
-  }
-
-  // Todo: Simple unified system for setting time points
-  //       For both looping and non-looping cases
-
-  /**
    * Set sample start offset
    */
   setStartOffset(value: number): void {
@@ -531,11 +498,13 @@ export class SamplerElement extends BaseAudioElement {
       this.setAttribute('start-offset', value.toString());
     }
 
-    // Update UI
-    const startOffsetSlider = this.querySelector(
-      '#start-offset'
-    ) as HTMLInputElement;
-    if (startOffsetSlider) startOffsetSlider.value = value.toString();
+    // Update offset controller if available
+    if (
+      this.offsetControlElement &&
+      typeof (this.offsetControlElement as any).setStartOffset === 'function'
+    ) {
+      (this.offsetControlElement as any).setStartOffset(value);
+    }
 
     // Set sample start offset on sampler
     this.samplePlayer.setSampleStartOffset(value);
@@ -550,7 +519,7 @@ export class SamplerElement extends BaseAudioElement {
     // Ensure start doesn't exceed end
     const startOffset = this.getAttribute('start-offset')
       ? parseFloat(this.getAttribute('start-offset')!)
-      : 1;
+      : 0;
 
     if (value < startOffset) {
       value = Math.max(0, startOffset);
@@ -561,14 +530,23 @@ export class SamplerElement extends BaseAudioElement {
       this.setAttribute('end-offset', value.toString());
     }
 
-    // Update UI
-    const endOffsetSlider = this.querySelector(
-      '#end-offset'
-    ) as HTMLInputElement;
-    if (endOffsetSlider) endOffsetSlider.value = value.toString();
+    // Update offset controller if available
+    if (
+      this.offsetControlElement &&
+      typeof (this.offsetControlElement as any).setEndOffset === 'function'
+    ) {
+      (this.offsetControlElement as any).setEndOffset(value);
+    }
 
     // Set sample end offset on sampler
     this.samplePlayer.setSampleEndOffset(value);
+  }
+
+  /**
+   * Set the offset control element
+   */
+  setOffsetControlElement(element: HTMLElement): void {
+    this.offsetControlElement = element;
   }
 
   /**
@@ -655,7 +633,7 @@ export class SamplerElement extends BaseAudioElement {
 
   /**
    * Set attribute enabled state and update the sampler
-   * @param attributeName The name of the attribute to update (e.g., 'hold-enabled')
+   * @param attributeName The name of the attribute to update (e.g., 'hold-locked')
    * @param enabled Whether the attribute is enabled
    */
   setAttributeEnabled(attributeName: string, enabled: boolean): void {
@@ -668,11 +646,11 @@ export class SamplerElement extends BaseAudioElement {
 
     // Call the appropriate method on the samplePlayer based on the attribute
     switch (attributeName) {
-      case 'hold-enabled':
-        this.samplePlayer.setHoldEnabled(enabled);
+      case 'hold-locked':
+        if (enabled) this.samplePlayer.setLoopEnabled(enabled);
+        this.samplePlayer.setHoldLocked(enabled);
         break;
       case 'loop-locked':
-        // test skipping "if (enabled)"
         if (enabled) this.samplePlayer.setLoopEnabled(enabled);
         this.samplePlayer.setLoopLocked(enabled);
         break;
@@ -705,7 +683,7 @@ export class SamplerElement extends BaseAudioElement {
   /**
    * Update status message
    */
-  private updateStatus(message: string): void {
+  updateStatus(message: string): void {
     const statusElement = this.querySelector('#status');
     if (statusElement) {
       statusElement.textContent = message;
@@ -716,8 +694,6 @@ export class SamplerElement extends BaseAudioElement {
    * Enable controls after initialization
    */
   private enableControls(): void {
-    const attackSlider = this.querySelector('#attack') as HTMLInputElement;
-    const releaseSlider = this.querySelector('#release') as HTMLInputElement;
     const startOffsetSlider = this.querySelector(
       '#start-offset'
     ) as HTMLInputElement;
@@ -728,12 +704,8 @@ export class SamplerElement extends BaseAudioElement {
       '#loop-start'
     ) as HTMLInputElement;
     const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
-    const holdCheckbox = this.querySelector(
-      '#hold-enabled'
-    ) as HTMLInputElement;
+    const holdCheckbox = this.querySelector('#hold-locked') as HTMLInputElement;
 
-    if (attackSlider) attackSlider.removeAttribute('disabled');
-    if (releaseSlider) releaseSlider.removeAttribute('disabled');
     if (startOffsetSlider) startOffsetSlider.removeAttribute('disabled');
     if (endOffsetSlider) endOffsetSlider.removeAttribute('disabled');
     if (loopStartSlider) loopStartSlider.removeAttribute('disabled');
@@ -768,57 +740,3 @@ export class SamplerElement extends BaseAudioElement {
     );
   }
 }
-
-// // Update loop sliders with sample duration
-// const loopStartSlider = this.querySelector(
-//   '#loop-start'
-// ) as HTMLInputElement;
-// const loopEndSlider = this.querySelector(
-//   '#loop-end'
-// ) as HTMLInputElement;
-
-// if (loopStartSlider) {
-//   loopStartSlider.min = '0';
-//   loopStartSlider.max = audioBuffer.duration.toString();
-//   loopStartSlider.value = '0';
-//   const valueDisplay = this.querySelector('#loop-start-value');
-//   if (valueDisplay) valueDisplay.textContent = '0.00';
-// }
-
-// if (loopEndSlider) {
-//   loopEndSlider.min = '0';
-//   loopEndSlider.max = audioBuffer.duration.toString();
-//   loopEndSlider.value = audioBuffer.duration.toString();
-//   const valueDisplay = this.querySelector('#loop-end-value');
-//   if (valueDisplay)
-//     valueDisplay.textContent = audioBuffer.duration.toFixed(2);
-// }
-
-// // Update start and end offset sliders with sample duration
-// const startOffsetSlider = this.querySelector(
-//   '#start-offset'
-// ) as HTMLInputElement;
-// const endOffsetSlider = this.querySelector(
-//   '#end-offset'
-// ) as HTMLInputElement;
-
-// if (startOffsetSlider) {
-//   startOffsetSlider.min = '0';
-//   startOffsetSlider.max = audioBuffer.duration.toString();
-//   startOffsetSlider.value = '0';
-//   const valueDisplay = this.querySelector('#start-offset-value');
-//   if (valueDisplay) valueDisplay.textContent = '0.00';
-// }
-
-// if (endOffsetSlider) {
-//   endOffsetSlider.min = '0';
-//   endOffsetSlider.max = audioBuffer.duration.toString();
-//   endOffsetSlider.value = audioBuffer.duration.toString();
-//   const valueDisplay = this.querySelector('#end-offset-value');
-//   if (valueDisplay)
-//     valueDisplay.textContent = audioBuffer.duration.toFixed(2);
-// }
-
-// // Set the loop end parameter to the full duration
-// this.setLoopEnd(audioBuffer.duration);
-// this.setEndOffset(audioBuffer.duration);
