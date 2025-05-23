@@ -23,12 +23,9 @@ body {
 }
 
 .node-container {
-  /* position: relative; */
-  /* padding: 20px; */
-  /* box-sizing: border-box; */
-  background-color: #323334;
-  border-radius: 8px;
-  /* height: 100vh; */
+  position: relative;
+  padding: 20px;
+  box-sizing: border-box;
 
   /* overflow: hidden; */
   display: flex;
@@ -45,8 +42,7 @@ body {
 }
 
 /* .dynamic {
-  width: calc(var(--one-cell) * 3);
-  height: calc(var(--one-cell) * 1);
+  border-radius: 1rem;
 } */
 
 /* Base styles for the custom elements */
@@ -82,8 +78,13 @@ body {
   cursor: grabbing;
 }
 
-two-thumb-slider .slider-track {
-  width: 50vw;
+.sampler two-thumb-slider .slider-track {
+  width: 25vw;
+}
+
+.sampler .dynamic envelope-element .parameters {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Styling the custom elements - updated for Light DOM */
@@ -124,7 +125,7 @@ recorder-element #record-toggle[active] button {
   /* background-color: #4caf50; */
 
   input[type='range'] {
-    width: 100%;
+    width: 25vw;
   }
 
   input:hover {

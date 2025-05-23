@@ -22,9 +22,9 @@ export class RecorderElement extends BaseAudioElement {
     this.innerHTML = `
       <div class="recorder-element">
         <toggle-button id="record-toggle" 
-                      label-on="Recording..." 
-                      label-off="Record" 
-                      disabled>
+          label-on="Recording..." 
+          label-off="Record" 
+          disabled>
         </toggle-button>
       </div>
     `;
@@ -38,13 +38,10 @@ export class RecorderElement extends BaseAudioElement {
       const customEvent = e as CustomEvent;
       if (customEvent.detail.active) {
         this.startRecording();
+      } else {
+        this.stopRecording(); // Add this to handle the toggle-off event
       }
     });
-
-    this.querySelector('#stop')?.addEventListener(
-      'click',
-      this.stopRecording.bind(this)
-    );
 
     this.initialize();
   }
@@ -199,18 +196,11 @@ export class RecorderElement extends BaseAudioElement {
 
   private updateButtons(isRecording: boolean): void {
     const recordButton = this.querySelector('#record-toggle') as any;
-    const stopButton = this.querySelector('#stop') as HTMLButtonElement;
 
     if (recordButton) {
-      if (isRecording) {
-        recordButton.active = true;
-      } else {
-        recordButton.active = false;
+      if (recordButton.active !== isRecording) {
+        recordButton.active = isRecording;
       }
-    }
-
-    if (stopButton) {
-      stopButton.disabled = !isRecording;
     }
   }
 

@@ -40,6 +40,9 @@ const init = () => {
   loopControllerEl.connect(playerEl);
   offsetControllerEl.connect(playerEl);
 
+  loopControllerEl.setMinimumGap(0.003);
+  offsetControllerEl.setMinimumGap(0.1);
+
   // create draggables
   const draggables = document.querySelectorAll('.draggable');
   draggables.forEach((el) => {
@@ -47,9 +50,7 @@ const init = () => {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === ' ') {
-      e.preventDefault();
-    }
+    if (e.key === ' ') e.preventDefault();
 
     if (e.key === 'Escape') {
       draggables.forEach((draggable) => {

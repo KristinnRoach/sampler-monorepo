@@ -17,6 +17,22 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
+    <div class="node-container">
+      <div class="dynamic">
+        <sample-loader-element
+          id="loader-1"
+          class="lib-node draggable"
+        ></sample-loader-element>
+      </div>
+
+      <div class="dynamic">
+        <recorder-element
+          id="recorder-1"
+          class="lib-node draggable"
+        ></recorder-element>
+      </div>
+    </div>
+
     <div class="sampler">
       <div class="node-container">
         <div class="dynamic">
@@ -53,22 +69,7 @@
           ></envelope-element>
         </div>
       </div>
-
-      <div class="dynamic">
-        <sample-loader-element
-          id="loader-1"
-          class="lib-node draggable"
-        ></sample-loader-element>
-      </div>
-
-      <div class="dynamic">
-        <recorder-element
-          id="recorder-1"
-          class="lib-node draggable"
-        ></recorder-element>
-      </div>
     </div>
-
     <script type="module" src="./src/register-components.js"></script>
     <script type="module" src="./src/main.js" defer></script>
   </body>

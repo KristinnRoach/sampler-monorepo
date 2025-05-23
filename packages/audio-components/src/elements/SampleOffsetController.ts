@@ -28,7 +28,10 @@ export class SampleOffsetController extends BaseAudioElement {
       <div class="sample-offset-controller">
         <div class="parameters">
             <div class="offset-labels">
-            <p>Sample offset controller</p>
+              <div class="slider-indicators">
+                <span class="indicator left">Start</span>
+                <span class="indicator right">End</span>
+              </div>
             </div>
             <two-thumb-slider 
               id="offset-slider"
@@ -41,6 +44,20 @@ export class SampleOffsetController extends BaseAudioElement {
             </two-thumb-slider>
         </div>
       </div>
+      <style>
+        .sample-offset-controller .slider-indicators {
+          display: flex;
+          justify-content: space-between;
+          margin: 5px 0;
+          font-size: 0.8em;
+        }
+        .sample-offset-controller .indicator {
+          padding: 2px 4px;
+          background: #333;
+          border-radius: 3px;
+          color: #fff;
+        }
+      </style>
     `;
   }
 
@@ -315,6 +332,50 @@ export class SampleOffsetController extends BaseAudioElement {
         },
       })
     );
+  }
+
+  /**
+   * Set the minimum allowed gap between the start and end thumbs
+   */
+  setMinimumGap(value: number): void {
+    const offsetSlider = this.querySelector('#offset-slider') as TwoThumbSlider;
+    if (offsetSlider) {
+      offsetSlider.setAttribute('minimum-gap', value.toString());
+    }
+  }
+
+  /**
+   * Get the current minimum gap value
+   */
+  getMinimumGap(): number {
+    const offsetSlider = this.querySelector('#offset-slider') as TwoThumbSlider;
+    if (offsetSlider) {
+      const gap = offsetSlider.getAttribute('minimum-gap');
+      return gap ? parseFloat(gap) : 0.001;
+    }
+    return 0.001;
+  }
+
+  /**
+   * Set the step increment for the offset slider
+   */
+  setStep(value: number): void {
+    const offsetSlider = this.querySelector('#offset-slider') as TwoThumbSlider;
+    if (offsetSlider) {
+      offsetSlider.setAttribute('step', value.toString());
+    }
+  }
+
+  /**
+   * Get the current step value
+   */
+  getStep(): number {
+    const offsetSlider = this.querySelector('#offset-slider') as TwoThumbSlider;
+    if (offsetSlider) {
+      const step = offsetSlider.getAttribute('step');
+      return step ? parseFloat(step) : 0.001;
+    }
+    return 0.001;
   }
 
   /**

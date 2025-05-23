@@ -31,11 +31,10 @@ export class LoopController extends BaseAudioElement {
       <div class="loop-controller">
         <div class="parameters">
             <div class="loop-labels">
-            <p>Loop controller</p>
-            <!--
-              <span>Loop Start: <span id="loop-start-value">0.00</span></span>
-              <span>Loop End: <span id="loop-end-value">0.99</span></span>
-            -->
+              <div class="slider-indicators">
+                <span class="indicator left">Loop Start</span>
+                <span class="indicator right">Loop End</span>
+              </div>
             </div>
             <two-thumb-slider 
               id="loop-slider"
@@ -48,6 +47,20 @@ export class LoopController extends BaseAudioElement {
             </two-thumb-slider>
         </div>
       </div>
+      <style>
+        .loop-controller .slider-indicators {
+          display: flex;
+          justify-content: space-between;
+          margin: 5px 0;
+          font-size: 0.8em;
+        }
+        .loop-controller .indicator {
+          padding: 2px 4px;
+          background: #333;
+          border-radius: 3px;
+          color: #fff;
+        }
+      </style>
     `;
   }
 
@@ -344,6 +357,50 @@ export class LoopController extends BaseAudioElement {
         },
       })
     );
+  }
+
+  /**
+   * Set the minimum allowed gap between the loop start and end thumbs
+   */
+  setMinimumGap(value: number): void {
+    const loopSlider = this.querySelector('#loop-slider') as TwoThumbSlider;
+    if (loopSlider) {
+      loopSlider.setAttribute('minimum-gap', value.toString());
+    }
+  }
+
+  /**
+   * Get the current minimum gap value
+   */
+  getMinimumGap(): number {
+    const loopSlider = this.querySelector('#loop-slider') as TwoThumbSlider;
+    if (loopSlider) {
+      const gap = loopSlider.getAttribute('minimum-gap');
+      return gap ? parseFloat(gap) : 0.001;
+    }
+    return 0.001;
+  }
+
+  /**
+   * Set the step increment for the loop slider
+   */
+  setStep(value: number): void {
+    const loopSlider = this.querySelector('#loop-slider') as TwoThumbSlider;
+    if (loopSlider) {
+      loopSlider.setAttribute('step', value.toString());
+    }
+  }
+
+  /**
+   * Get the current step value
+   */
+  getStep(): number {
+    const loopSlider = this.querySelector('#loop-slider') as TwoThumbSlider;
+    if (loopSlider) {
+      const step = loopSlider.getAttribute('step');
+      return step ? parseFloat(step) : 0.001;
+    }
+    return 0.001;
   }
 
   /**
