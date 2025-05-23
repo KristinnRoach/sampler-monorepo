@@ -5,7 +5,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, onended_fn, shouldEnd_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, getCurrentParamValue_fn, normalizeMidi_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, onended_fn, shouldEnd_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, getCurrentParamValue_fn, normalizeMidi_fn, getParamValueInSamples_fn;
 const MIN_ABS_AMPLITUDE = 0.05;
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -106,17 +106,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     if (endOffsetSec > 0) {
       effectiveBufferEnd = Math.min(bufferLength, endOffsetSec * sampleRate);
     }
-    let loopStartReq = parameters.loopStart[0] * sampleRate;
-    const loopStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, loopStartReq);
-    const loopEndReq = parameters.loopEnd[0] * sampleRate;
-    const loopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, loopEndReq);
+    const loopStart = __privateMethod(this, _SamplePlayerProcessor_instances, getParamValueInSamples_fn).call(this, "loopStart", parameters);
+    const loopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, getParamValueInSamples_fn).call(this, "loopEnd", parameters);
+    const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
     const envelopeGain = parameters.envGain[0];
     const velocitySensitivity = 0.9;
     const normalizedVelocity = __privateMethod(this, _SamplePlayerProcessor_instances, normalizeMidi_fn).call(this, parameters.velocity[0]);
     const velocityGain = normalizedVelocity * velocitySensitivity;
     const numChannels = Math.min(output.length, this.buffer.length);
     for (let i = 0; i < output[0].length; i++) {
-      if (this.loopEnabled && this.playbackPosition >= loopEnd && this.loopCount < this.maxLoopCount) {
+      if (this.loopEnabled && this.playbackPosition >= constrainedLoopEnd && this.loopCount < this.maxLoopCount) {
         this.playbackPosition = loopStart;
         this.loopCount++;
       }
@@ -242,6 +241,14 @@ getCurrentParamValue_fn = function(paramName) {
 normalizeMidi_fn = function(midiValue) {
   const norm = midiValue / 127;
   return Math.max(0, Math.min(1, norm));
+};
+getParamValueInSamples_fn = function(paramName, parameters) {
+  if (!parameters || !parameters[paramName]) return 0;
+  let valueInSamples = parameters[paramName][0] * sampleRate;
+  if (paramName === "loopStart" || paramName === "loopEnd") {
+    return __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, valueInSamples);
+  }
+  return valueInSamples;
 };
 registerProcessor("sample-player-processor", SamplePlayerProcessor);
 class RandomNoiseProcessor extends AudioWorkletProcessor {
