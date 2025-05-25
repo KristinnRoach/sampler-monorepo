@@ -7,34 +7,36 @@
 export class AudioContextManager {
   static #instance;
   #context;
-  
+
   constructor() {
     // Singleton pattern
     if (AudioContextManager.#instance) {
       return AudioContextManager.#instance;
     }
-    
+
     // Create audio context with best options for low latency
     const contextOptions = {
       latencyHint: 'interactive',
-      sampleRate: 44100
+      sampleRate: 48000,
     };
-    
-    this.#context = new (window.AudioContext || window.webkitAudioContext)(contextOptions);
+
+    this.#context = new (window.AudioContext || window.webkitAudioContext)(
+      contextOptions
+    );
     AudioContextManager.#instance = this;
   }
-  
+
   get context() {
     return this.#context;
   }
-  
+
   async resume() {
     if (this.#context.state === 'suspended') {
       await this.#context.resume();
     }
     return this.#context.state;
   }
-  
+
   suspend() {
     return this.#context.suspend();
   }
@@ -59,24 +61,24 @@ const fileUploadTemplate = `
 // Add this to your component class
 async loadAudioFile(file) {
   if (!file) return null;
-  
+
   try {
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
-    
+
     // Decode audio data
     const audioContext = new AudioContextManager().context;
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
+
     // Set the buffer to your audio node
     this.#audioNode.setBuffer(audioBuffer);
-    
+
     // Dispatch event
     this.dispatchEvent(new CustomEvent('sampleloaded', {
       bubbles: true,
       detail: { filename: file.name, duration: audioBuffer.duration }
     }));
-    
+
     return audioBuffer;
   } catch (error) {
     console.error('Error loading audio file:', error);
@@ -91,7 +93,7 @@ async loadAudioFile(file) {
 // Add this to your setupEventListeners method
 setupEventListeners() {
   // ...existing code
-  
+
   const fileInput = this.shadowRoot.querySelector('#audio-upload');
   if (fileInput) {
     fileInput.addEventListener('change', (event) => {
@@ -111,14 +113,14 @@ setupEventListeners() {
 const sliderTemplate = `
   <div class="slider-container">
     <label for="gain-slider">Gain</label>
-    <input 
-      type="range" 
-      id="gain-slider" 
-      name="gain" 
-      min="0" 
-      max="1" 
-      step="0.01" 
-      value="0.8" 
+    <input
+      type="range"
+      id="gain-slider"
+      name="gain"
+      min="0"
+      max="1"
+      step="0.01"
+      value="0.8"
     />
     <span class="value-display">0.8</span>
   </div>
@@ -127,16 +129,16 @@ const sliderTemplate = `
 // Add this to your handleInput method
 handleInput(event) {
   const { name, value, type, id } = event.target;
-  
+
   if (type === 'range') {
     const numValue = parseFloat(value);
-    
+
     // Update value display
     const valueDisplay = this.shadowRoot.querySelector(`#${id}`).nextElementSibling;
     if (valueDisplay) {
       valueDisplay.textContent = numValue.toFixed(2);
     }
-    
+
     // Update audio parameter
     switch (name) {
       case 'gain':
@@ -147,7 +149,7 @@ handleInput(event) {
         break;
       // Add other parameters as needed
     }
-    
+
     // Dispatch event
     this.dispatchEvent(new CustomEvent('paramchange', {
       bubbles: true,
@@ -171,18 +173,18 @@ const transportTemplate = `
 // Add these methods to your component class
 play() {
   if (!this.#audioNode) return;
-  
+
   // Resume AudioContext if suspended
   new AudioContextManager().resume().then(() => {
     this.#audioNode.play();
-    
+
     // Update UI
     const playButton = this.shadowRoot.querySelector('#play-button');
     if (playButton) {
       playButton.textContent = 'Pause';
       playButton.dataset.state = 'playing';
     }
-    
+
     // Dispatch event
     this.dispatchEvent(new CustomEvent('playstart', {
       bubbles: true
@@ -192,16 +194,16 @@ play() {
 
 stop() {
   if (!this.#audioNode) return;
-  
+
   this.#audioNode.stop();
-  
+
   // Update UI
   const playButton = this.shadowRoot.querySelector('#play-button');
   if (playButton) {
     playButton.textContent = 'Play';
     playButton.dataset.state = 'stopped';
   }
-  
+
   // Dispatch event
   this.dispatchEvent(new CustomEvent('playstop', {
     bubbles: true
@@ -211,10 +213,10 @@ stop() {
 // Add this to your setupEventListeners method
 setupEventListeners() {
   // ...existing code
-  
+
   const playButton = this.shadowRoot.querySelector('#play-button');
   const stopButton = this.shadowRoot.querySelector('#stop-button');
-  
+
   if (playButton) {
     playButton.addEventListener('click', () => {
       if (playButton.dataset.state !== 'playing') {
@@ -224,7 +226,7 @@ setupEventListeners() {
       }
     });
   }
-  
+
   if (stopButton) {
     stopButton.addEventListener('click', () => {
       this.stop();
@@ -243,15 +245,15 @@ export class SamplePlayerElement extends HTMLElement {
   #audioNode;
   #buffer = null;
   #isPlaying = false;
-  
+
   static get observedAttributes() {
     return ['gain', 'enabled', 'loop', 'playback-rate'];
   }
-  
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    
+
     // Initialize shadow DOM with all controls
     this.shadowRoot.innerHTML = `
       <style>
@@ -319,44 +321,44 @@ export class SamplePlayerElement extends HTMLElement {
         </div>
       </div>
     `;
-    
+
     // Bind methods
     this.handleInput = this.handleInput.bind(this);
     this.loadAudioFile = this.loadAudioFile.bind(this);
     this.play = this.play.bind(this);
     this.stop = this.stop.bind(this);
   }
-  
+
   connectedCallback() {
     // Get AudioContext
     const audioContext = new AudioContextManager().context;
-    
+
     // Create audio node from your library
     this.#audioNode = new SamplePlayer(audioContext);
-    
+
     // Set up event listeners
     this.setupEventListeners();
-    
+
     // Initialize from attributes
     this.initializeFromAttributes();
   }
-  
+
   disconnectedCallback() {
     // Clean up
     this.removeEventListeners();
-    
+
     if (this.#isPlaying) {
       this.stop();
     }
-    
+
     if (this.#audioNode) {
       this.#audioNode.disconnect();
     }
   }
-  
+
   attributeChangedCallback(name, oldValue, newValue) {
     if (oldValue === newValue) return;
-    
+
     switch (name) {
       case 'gain':
         this.updateGain(parseFloat(newValue));
@@ -372,26 +374,26 @@ export class SamplePlayerElement extends HTMLElement {
         break;
     }
   }
-  
+
   // All the implementation methods as described in previous snippets
-  
+
   // Connect method for audio routing
   connect(destination) {
     if (!this.#audioNode) return null;
-    
+
     this.#audioNode.connect(destination.audioNode || destination);
     return destination;
   }
-  
+
   // Public API
   get audioNode() {
     return this.#audioNode;
   }
-  
+
   get buffer() {
     return this.#buffer;
   }
-  
+
   get isPlaying() {
     return this.#isPlaying;
   }

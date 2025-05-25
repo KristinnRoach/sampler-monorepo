@@ -68,7 +68,6 @@ export class MacroParam implements LibParamNode {
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
-    // TODO: implement proper message handling
     return this.#messages.onMessage(type, handler);
   }
 
@@ -509,8 +508,6 @@ export class MacroParam implements LibParamNode {
 //     scheduledCompletion: -1,
 //   };
 // }
-
-// TODO: finna útúr þessu ef ég nenni
 
 // snapToNotePeriod(options: {
 //   paramToProcess: 'start' | 'end';

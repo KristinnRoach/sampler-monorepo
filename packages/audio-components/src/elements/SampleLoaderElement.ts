@@ -13,7 +13,7 @@ export class SampleLoaderElement extends BaseAudioElement {
 
     this.innerHTML = `
       <div class="sample-loader">
-        <button class="load-button" id="load" disabled>Load Sample</button>
+        <button class="load-button" id="load" disabled>UpLoad Sample</button>
         <!-- <div class="status" id="status">Not initialized</div> -->
       </div>
     `;

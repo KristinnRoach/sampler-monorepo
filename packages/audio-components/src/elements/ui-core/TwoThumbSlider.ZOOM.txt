@@ -6,7 +6,6 @@ export class TwoThumbSlider extends HTMLElement {
     'minimum-gap',
     'value-min',
     'value-max',
-    'zoom-factor',
   ];
 
   min: number;
@@ -15,7 +14,6 @@ export class TwoThumbSlider extends HTMLElement {
   minimumGap: number;
   valueMin: number;
   valueMax: number;
-  zoomFactor: number; // 0 = no zoom, 1 = full zoom
   activeThumb: 'min' | 'max' | null;
 
   constructor() {
@@ -26,7 +24,6 @@ export class TwoThumbSlider extends HTMLElement {
     this.minimumGap = 0.001;
     this.valueMin = 0;
     this.valueMax = 1;
-    this.zoomFactor = 0.1; // Default: moderate zoom
     this.activeThumb = null;
   }
 
@@ -63,9 +60,6 @@ export class TwoThumbSlider extends HTMLElement {
         break;
       case 'value-max':
         this.valueMax = value;
-        break;
-      case 'zoom-factor':
-        this.zoomFactor = Math.max(0, Math.min(1, value)); // Clamp 0-1
         break;
     }
 
@@ -116,26 +110,19 @@ export class TwoThumbSlider extends HTMLElement {
 
   // Get zoomed bounds for visual scaling
   getZoomedBounds() {
-    if (this.zoomFactor === 0) {
-      return { min: this.min, max: this.max }; // No zoom
-    }
-
     const currentRange = this.valueMax - this.valueMin;
     const totalRange = this.max - this.min;
 
-    // Simple zoom: interpolate between full range and current range
-    const zoomAmount = this.zoomFactor;
-    const zoomedRange =
-      totalRange * (1 - zoomAmount) + currentRange * zoomAmount;
+    // Zoom when range is less than 20% of total
+    if (currentRange < totalRange * 0.2) {
+      const padding = currentRange * 0.5; // 50% padding on each side
+      return {
+        min: Math.max(this.min, this.valueMin - padding),
+        max: Math.min(this.max, this.valueMax + padding),
+      };
+    }
 
-    // Center the zoom on current selection
-    const center = (this.valueMin + this.valueMax) / 2;
-    const halfZoomedRange = zoomedRange / 2;
-
-    return {
-      min: Math.max(this.min, center - halfZoomedRange),
-      max: Math.min(this.max, center + halfZoomedRange),
-    };
+    return { min: this.min, max: this.max };
   }
 
   handleDrag(e: MouseEvent | TouchEvent): void {
@@ -219,11 +206,6 @@ export class TwoThumbSlider extends HTMLElement {
         bubbles: true,
       })
     );
-  }
-
-  setZoomFactor(factor: number): void {
-    this.zoomFactor = Math.max(0, Math.min(1, factor));
-    this.updateSlider();
   }
 
   setValues(min: number, max: number): void {

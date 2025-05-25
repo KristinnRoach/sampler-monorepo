@@ -8,6 +8,7 @@ import { LoopController } from './elements/LoopController';
 import { SampleOffsetController } from './elements/SampleOffsetController';
 import { StatusElement } from './elements/display/StatusElement';
 import { TwoThumbSlider } from './elements/ui-core/TwoThumbSlider';
+import { KnobElement } from './elements/ui-core/KnobElement';
 
 export {
   SamplerElement,
@@ -19,6 +20,7 @@ export {
   SampleOffsetController,
   BaseAudioElement,
   TwoThumbSlider,
+  KnobElement,
 };
 
 // Web component definitions
@@ -26,6 +28,7 @@ const COMPONENTS = [
   // basics
   ['status-element', StatusElement],
   ['two-thumb-slider', TwoThumbSlider],
+  ['knob-element', KnobElement],
 
   // audiolib wrappers
   ['sampler-element', SamplerElement],

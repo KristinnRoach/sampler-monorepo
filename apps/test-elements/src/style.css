@@ -73,13 +73,17 @@ body {
   will-change: transform; /* Performance optimization for animations */
 }
 
+.lib-node .loop-controller .fine-tune-control #fine-tune-knob {
+  border: solid 1px #555;
+}
+
 /* dragging */
 .lib-node:active {
   cursor: grabbing;
 }
 
-.sampler two-thumb-slider .slider-track {
-  width: 25vw;
+.sampler two-thumb-slider {
+  width: 90%;
 }
 
 .sampler .dynamic envelope-element .parameters {

@@ -14,10 +14,6 @@ export class SamplerElement extends BaseAudioElement {
   private attributeHandlers: Record<string, (value: string) => void> = {
     'start-offset': (value) => this.setStartOffset(parseFloat(value)),
     'end-offset': (value) => this.setEndOffset(parseFloat(value)),
-    // 'loop-start': (value) => this.setLoopStart(parseFloat(value)),
-    // 'loop-end': (value) => this.setLoopEnd(parseFloat(value)),
-    // loop points moved to LoopControlElement
-    // Attack and release moved to EnvelopeElement
   };
 
   // Define observed attributes
@@ -40,11 +36,8 @@ export class SamplerElement extends BaseAudioElement {
   constructor() {
     super('sample-player');
 
-    // Listen for sample loaded events targeting this sampler
     document.addEventListener('sample-loaded', this.onSampleLoaded.bind(this));
 
-    // Create basic UI template, using the light DOM
-    // Styling is handled by consumers
     this.innerHTML = `
       <div class="sampler-element">
         <div class="parameters">
@@ -690,32 +683,6 @@ export class SamplerElement extends BaseAudioElement {
     }
   }
 
-  /**
-   * Enable controls after initialization
-   */
-  private enableControls(): void {
-    const startOffsetSlider = this.querySelector(
-      '#start-offset'
-    ) as HTMLInputElement;
-    const endOffsetSlider = this.querySelector(
-      '#end-offset'
-    ) as HTMLInputElement;
-    const loopStartSlider = this.querySelector(
-      '#loop-start'
-    ) as HTMLInputElement;
-    const loopEndSlider = this.querySelector('#loop-end') as HTMLInputElement;
-    const holdCheckbox = this.querySelector('#hold-locked') as HTMLInputElement;
-
-    if (startOffsetSlider) startOffsetSlider.removeAttribute('disabled');
-    if (endOffsetSlider) endOffsetSlider.removeAttribute('disabled');
-    if (loopStartSlider) loopStartSlider.removeAttribute('disabled');
-    if (loopEndSlider) loopEndSlider.removeAttribute('disabled');
-    if (holdCheckbox) holdCheckbox.removeAttribute('disabled');
-  }
-
-  /**
-   * Clean up resources
-   */
   dispose(): void {
     super.dispose();
 
@@ -728,12 +695,8 @@ export class SamplerElement extends BaseAudioElement {
     this.audioContext = null;
   }
 
-  /**
-   * Called when the element is removed from the DOM
-   */
   disconnectedCallback() {
     this.dispose();
-    // Clean up global event listener
     document.removeEventListener(
       'sample-loaded',
       this.onSampleLoaded.bind(this)
