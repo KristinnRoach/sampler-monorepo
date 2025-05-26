@@ -1,0 +1,37 @@
+{
+  "name": "@repo/vanjs-core",
+  "version": "1.5.5",
+  "description": "VanJS. A minimalist React-like UI library based on vanilla JavaScript and DOM.",
+  "files": [
+    "src/van.js",
+    "src/van.d.ts",
+    "src/van.debug.js",
+    "src/van.debug.d.ts",
+    "src/van-element/van-element.js",
+    "src/van-element/van-element.d.ts"
+  ],
+  "main": "src/van.js",
+  "browser": "src/van.js",
+  "exports": {
+    ".": "./src/van.js",
+    "./debug": "./src/van.debug.js",
+    "./element": "./src/van-element/van-element.js"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"No build required for VanJS\""
+  },
+  "keywords": [
+    "Vanjs",
+    "van-element"
+  ],
+  "author": "Tao Xin (VanJs) & Atmos4 (van-element)",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.3",
+    "terser": "^5.22.0",
+    "typescript": "^5.1.6"
+  },
+  "homepage": "https://vanjs.org"
+}

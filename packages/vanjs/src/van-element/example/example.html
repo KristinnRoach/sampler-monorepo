@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Van Element</title>
+    <script type="module" src="example.ts"></script>
+    <meta name="color-scheme" content="dark light" />
+    <style>
+      :not(:defined) {
+        display: none;
+      }
+
+      html {
+        font-size: 1.2em;
+        width: min(100% - 3rem, 80ch);
+        margin: 2rem auto;
+        background: #bbbbbb10;
+        font-family: system-ui;
+      }
+
+      input,
+      button,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      h4::before {
+        content: '🟢';
+      }
+    </style>
+    <script>
+      if (localStorage.getItem('colorScheme')) {
+        document
+          .querySelector('meta[name="color-scheme"]')
+          ?.setAttribute('content', localStorage.getItem('colorScheme'));
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Van Element showcase</h1>
+
+    <h4>Theme switch</h4>
+    <theme-switch></theme-switch>
+    <h4>Dynamic attribute injection</h4>
+    <p>
+      Here is
+      <font-preview size="6" color="orange"
+        >a Van Element with attributes!</font-preview
+      >
+    </p>
+    <p>(Attributes can have <font-preview>default values</font-preview>)</p>
+    <p>It can be used inside other Van Elements:</p>
+    <demo-component>Reactive to attribute change! 🎉</demo-component>
+
+    <h4>Mount and dismount</h4>
+    <mount-showcase></mount-showcase>
+
+    <h4>Modal</h4>
+    <custom-modal>
+      <button slot="open-button">Open me!</button>
+      <h1>Hello there!</h1>
+      <p>I am a custom modal 🔥</p>
+      <p>To close me you can either:</p>
+      <ul>
+        <li>click the ❌</li>
+        <li>click outside</li>
+        <li>press <code>ESC</code></li>
+      </ul>
+    </custom-modal>
+    <h4>Without Shadow DOM</h4>
+    <light-dom></light-dom>
+    <h4>Tabs</h4>
+    <tab-panel>
+      <p slot="tab">
+        How is it going? I am just a casual tab 🫡<br />Clicking other tabs will
+        assign the <code>tabs</code> slot to another element!
+      </p>
+      <article>
+        <p>
+          The slotted content can be any HTML element or custom element,
+          including Van Elements.
+        </p>
+        <p>
+          <font-preview size="12" color="cyan"
+            >Let's reuse some elements as an example</font-preview
+          >
+        </p>
+        <custom-modal>
+          <button slot="open-button">Look, another modal</button>
+          <p>I am another custom modal. Same component, but reused!</p>
+          <custom-modal>
+            <button slot="open-button">Nested modal?</button>
+            <h1>Here you go!</h1>
+            <p>
+              It's that easy to do. No duplicated code or hydration boilerplate.
+              Just reusing the exact same component.
+            </p>
+          </custom-modal>
+        </custom-modal>
+      </article>
+      <p data-tab="Custom tab name">Pretty cool right? Try to add more tabs!</p>
+    </tab-panel>
+  </body>
+</html>

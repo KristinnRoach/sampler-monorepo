@@ -1,0 +1,3 @@
+- [ ] Clean up unnecessary files, if any (debug files)
+- [ ] Refactor into a generic "@repo/utils", including my reusable util stuff?
+- [ ] See if I want to improve, adjust or expand on the existing vanjs and van-element code

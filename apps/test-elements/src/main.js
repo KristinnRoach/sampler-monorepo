@@ -1,3 +1,5 @@
+import van from '@repo/vanjs-core';
+
 import {
   utils,
   stagger,

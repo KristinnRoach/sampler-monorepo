@@ -10,10 +10,12 @@ const SamplerComponent = () => {
   // Actual loop points (in seconds)
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(0);
+  const [fineTuneloopEnd, setFineTuneloopEnd] = useState(0);
 
   // Normalized slider positions (0-1)
   const [loopStartNormalized, setLoopStartNormalized] = useState(0);
   const [loopEndNormalized, setLoopEndNormalized] = useState(1);
+  const [fineTuneloopEndNorm, setFineTuneloopEndNorm] = useState(0);
 
   const [sampleDuration, setSampleDuration] = useState(0);
   const [rampTime, setRampTime] = useState(0.25);
@@ -159,6 +161,7 @@ const SamplerComponent = () => {
     // Reset normalized positions to defaults (start at beginning, end at full duration)
     setLoopStartNormalized(0);
     setLoopEndNormalized(1);
+    setFineTuneloopEnd(0);
 
     setIsLoaded(true);
   };
@@ -202,9 +205,12 @@ const SamplerComponent = () => {
 
   const handleLoopEndNormalizedChange = (normalizedValue: number) => {
     const clampedValue = Math.max(normalizedValue, loopStartNormalized);
-    setLoopEndNormalized(normalizedValue); // update ui
+    setLoopEndNormalized(clampedValue); // update ui
 
-    const actualValue = clampedValue * sampleDuration;
+    const actualValue = clampedValue * sampleDuration + fineTuneloopEnd;
+
+    setLoopEnd(actualValue);
+
     samplePlayerRef.current?.setLoopEnd(actualValue, rampTime);
   };
 
@@ -227,6 +233,23 @@ const SamplerComponent = () => {
   useEffect(() => {
     sampleDurationRef.current = sampleDuration;
   }, [sampleDuration]);
+
+  const handleFineTuneLoopEndChange = (normalizedValue: number) => {
+    setFineTuneloopEndNorm(normalizedValue);
+
+    // Convert from normalized 0-1 to a small value in seconds (e.g., +/- 0.1s)
+    // This allows for fine adjustments after setting the main loop end point
+    const fineTuneValue = (normalizedValue - 0.5) * 0.2; // -0.1s to +0.1s range
+    setFineTuneloopEnd(fineTuneValue);
+
+    // Calculate the actual loop end time: main position + fine tune offset
+    const actualLoopEnd = loopEndNormalized * sampleDuration + fineTuneValue;
+
+    // Update the displayed loopEnd value
+    setLoopEnd(actualLoopEnd);
+
+    samplePlayerRef.current?.setLoopEnd(actualLoopEnd, rampTime);
+  };
 
   return (
     <div style={{ width: '100vw' }}>
@@ -272,7 +295,7 @@ const SamplerComponent = () => {
           type='range'
           min={0.00001}
           max={1}
-          step={0.01}
+          step={0.0001}
           value={loopStartNormalized}
           onChange={(e) =>
             handleLoopStartNormalizedChange(parseFloat(e.target.value))
@@ -290,10 +313,28 @@ const SamplerComponent = () => {
           type='range'
           min={0.00001}
           max={1}
-          step={0.01}
+          step={0.0001}
           value={loopEndNormalized}
           onChange={(e) =>
             handleLoopEndNormalizedChange(parseFloat(e.target.value))
+          }
+        />
+      </div>
+
+      <div>
+        <label style={{ display: 'block' }}>
+          Fine Tune Loop End:
+          {`           ${fineTuneloopEnd.toFixed(8)}s`}
+        </label>
+        <input
+          style={{ width: '65vw', height: '8vh', margin: '50px' }}
+          type='range'
+          min={0}
+          max={1}
+          step={0.0001}
+          value={fineTuneloopEndNorm}
+          onChange={(e) =>
+            handleFineTuneLoopEndChange(parseFloat(e.target.value))
           }
         />
       </div>

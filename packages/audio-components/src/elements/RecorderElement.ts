@@ -1,6 +1,6 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { audiolib } from '@repo/audiolib';
-import './ui-core/ToggleButton';
+import './ui-core/RecordButton';
 
 /**
  * Web component for recording audio directly to a sampler
@@ -21,11 +21,11 @@ export class RecorderElement extends BaseAudioElement {
 
     this.innerHTML = `
       <div class="recorder-element">
-        <toggle-button id="record-toggle" 
+        <record-button id="record-toggle" 
           label-on="Recording..." 
           label-off="Record" 
           disabled>
-        </toggle-button>
+        </record-button>
       </div>
     `;
   }
@@ -33,13 +33,17 @@ export class RecorderElement extends BaseAudioElement {
   connectedCallback(): void {
     this.recordButton = this.querySelector('#record-toggle');
 
+    console.log('RecordButton found:', this.recordButton);
     // Add event listener to toggle button
     this.recordButton?.addEventListener('toggle', (e: Event) => {
+      console.log('Toggle event received:', (e as CustomEvent).detail);
       const customEvent = e as CustomEvent;
       if (customEvent.detail.active) {
+        console.log('Starting recording');
         this.startRecording();
       } else {
-        this.stopRecording(); // Add this to handle the toggle-off event
+        console.log('Stopping recording');
+        this.stopRecording();
       }
     });
 
@@ -195,18 +199,22 @@ export class RecorderElement extends BaseAudioElement {
   }
 
   private updateButtons(isRecording: boolean): void {
-    const recordButton = this.querySelector('#record-toggle') as any;
+    const recordButton = this.querySelector('#record-toggle') as HTMLElement;
 
     if (recordButton) {
-      if (recordButton.active !== isRecording) {
-        recordButton.active = isRecording;
+      if (isRecording) {
+        recordButton.setAttribute('active', '');
+      } else {
+        recordButton.removeAttribute('active');
       }
     }
   }
 
   private enableControls(): void {
     const recordButton = this.querySelector('#record-toggle') as HTMLElement;
-    if (recordButton) recordButton.removeAttribute('disabled');
+    if (recordButton) {
+      recordButton.removeAttribute('disabled');
+    }
   }
 
   disconnectedCallback(): void {

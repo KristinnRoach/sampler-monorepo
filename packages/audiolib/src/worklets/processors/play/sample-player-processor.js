@@ -25,6 +25,12 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.loopEnabled = false;
     this.usePlaybackPosition = false;
 
+    // Cache quantized values per process block
+    this.blockQuantizedLoopStart = 0;
+    this.blockQuantizedLoopEnd = 0;
+    this.lastProcessedLoopStart = -1;
+    this.lastProcessedLoopEnd = -1;
+
     this.port.onmessage = this.#handleMessage.bind(this);
   }
 
@@ -44,7 +50,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'voice:set_zero_crossings':
-        this.zeroCrossings = zeroCrossings || [];
+        // this.zeroCrossings = zeroCrossings || [];
+        this.zeroCrossings = (zeroCrossings || []).map(
+          (timeSec) => timeSec * sampleRate
+        );
 
         // Set min/max zero crossings for parameter constraints
         if (this.zeroCrossings.length > 0) {
@@ -151,13 +160,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'k-rate', // a-rate ?
+        automationRate: 'a-rate', // a or k ?
       },
       {
         name: 'loopEnd',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'k-rate', // a-rate ?
+        automationRate: 'a-rate', // a or k ?
       },
     ];
   }
@@ -196,17 +205,37 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   #clampZeroCrossing = (value) =>
     this.#clamp(value, this.minZeroCrossing, this.maxZeroCrossing);
 
-  #findNearestZeroCrossing(position) {
+  // #findNearestZeroCrossing(position) {
+  //   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
+  //     return position;
+  //   }
+
+  //   // Find the closest zero crossing to the requested position
+  //   return this.zeroCrossings.reduce(
+  //     (prev, curr) =>
+  //       Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
+  //     position
+  //   );
+  // }
+
+  #findNearestZeroCrossing(position, maxDistance = null) {
     if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
       return position;
     }
 
-    // Find the closest zero crossing to the requested position
-    return this.zeroCrossings.reduce(
+    // Find closest zero crossing
+    const closest = this.zeroCrossings.reduce(
       (prev, curr) =>
         Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
-      position
+      this.zeroCrossings[0]
     );
+
+    // If maxDistance specified and closest is too far, use original position
+    if (maxDistance !== null && Math.abs(closest - position) > maxDistance) {
+      return position;
+    }
+
+    return closest;
   }
 
   #getCurrentParamValue(paramName) {
@@ -268,14 +297,86 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       effectiveBufferEnd = Math.min(bufferLength, endOffsetSec * sampleRate);
     }
 
-    // todo: optimize (move all zero crossing handling to processor or voice ?)
-    // let loopStartReq = parameters.loopStart[0] * sampleRate;
-    // const loopStart = this.#findNearestZeroCrossing(loopStartReq);
-    // const loopEndReq = parameters.loopEnd[0] * sampleRate;
-    // const loopEnd = this.#findNearestZeroCrossing(loopEndReq);
+    // Quantize once per block, not per sample
+    const rawLoopStart = parameters.loopStart[0] * sampleRate;
+    const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
 
-    const loopStart = this.#getParamValueInSamples('loopStart', parameters);
-    const loopEnd = this.#getParamValueInSamples('loopEnd', parameters);
+    // Calculate max acceptable distance based on loop length with scaling
+    const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
+
+    let maxDistance;
+    if (loopLength < 50) {
+      // Very short loops (< ~1ms at 44.1kHz)
+      maxDistance = Math.min(loopLength * 0.3, 20); // 30% tolerance, max 20 samples
+    } else if (loopLength < 200) {
+      // Short loops (< ~4.5ms)
+      maxDistance = Math.min(loopLength * 0.15, 50); // 15% tolerance
+    } else {
+      maxDistance = Math.min(loopLength * 0.1, 100); // Original formula for longer loops
+    }
+
+    if (rawLoopStart !== this.lastProcessedLoopStart) {
+      this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
+        rawLoopStart,
+        maxDistance
+      );
+      this.lastProcessedLoopStart = rawLoopStart;
+    }
+
+    if (rawLoopEnd !== this.lastProcessedLoopEnd) {
+      this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(
+        rawLoopEnd,
+        maxDistance
+      );
+      this.lastProcessedLoopEnd = rawLoopEnd;
+    }
+
+    // Use cached values in the sample loop
+    const loopStart = this.blockQuantizedLoopStart;
+    const loopEnd = this.blockQuantizedLoopEnd;
+
+    // // Quantize once per block, not per sample
+    // const rawLoopStart = parameters.loopStart[0] * sampleRate;
+    // const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
+
+    // // Calculate max acceptable distance based on loop length
+    // const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
+    // const maxDistance = Math.min(loopLength * 0.1, 100); // 10% of loop or 100 samples max
+
+    // if (rawLoopStart !== this.lastProcessedLoopStart) {
+    //   this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
+    //     rawLoopStart,
+    //     maxDistance
+    //   );
+    //   this.lastProcessedLoopStart = rawLoopStart;
+    // }
+
+    // if (rawLoopEnd !== this.lastProcessedLoopEnd) {
+    //   this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(
+    //     rawLoopEnd,
+    //     maxDistance
+    //   );
+    //   this.lastProcessedLoopEnd = rawLoopEnd;
+    // }
+
+    // // if (rawLoopStart !== this.lastProcessedLoopStart) {
+    // //   this.blockQuantizedLoopStart =
+    // //     this.#findNearestZeroCrossing(rawLoopStart);
+    // //   this.lastProcessedLoopStart = rawLoopStart;
+    // // }
+
+    // // if (rawLoopEnd !== this.lastProcessedLoopEnd) {
+    // //   this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(rawLoopEnd);
+    // //   this.lastProcessedLoopEnd = rawLoopEnd;
+    // // }
+
+    // // Use cached values in the sample loop
+    // const loopStart = this.blockQuantizedLoopStart;
+    // const loopEnd = this.blockQuantizedLoopEnd;
+
+    // older:
+    // const loopStart = this.#getParamValueInSamples('loopStart', parameters);
+    // const loopEnd = this.#getParamValueInSamples('loopEnd', parameters);
     // Constrain loop end to be within the effective buffer end
     const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
 

@@ -72,6 +72,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
+  #loopEndFineTune: number = 0;
 
   #startOffset: number = 0;
   #endOffset: number = 0;
@@ -525,7 +526,13 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampDuration) {
-    this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
+    const fineTuned = targetValue + this.#loopEndFineTune;
+    this.setLoopPoint('end', this.loopStart, fineTuned, rampTime);
+    return this;
+  }
+
+  setFineTuneLoopEnd(valueToAdd: number) {
+    this.#loopEndFineTune = valueToAdd;
     return this;
   }
 
