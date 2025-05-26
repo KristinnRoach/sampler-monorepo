@@ -1,5 +1,6 @@
 import { NodeID } from '@/nodes/node-store';
-import { Message, MessageHandler } from '@/events';
+import { LibParam } from './nodes/params';
+import { Message, MessageHandler, MessageBus } from '@/events';
 
 export type BaseNodeType =
   | 'instrument'
@@ -39,10 +40,11 @@ export type NodeType =
 export interface LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
-  readonly now: number;
 
-  onMessage(type: string, handler: MessageHandler<Message>): () => void;
+  dispose(): void;
+}
 
+export interface Connectable {
   connect(
     destination?: TODO,
     outputIndex?: number,
@@ -50,8 +52,18 @@ export interface LibNode {
   ): this | TODO;
 
   disconnect(destination?: TODO): void;
+}
 
-  dispose(): void;
+export interface Messenger {
+  onMessage(type: string, handler: MessageHandler<Message>): () => TODO;
+}
+
+export interface TimeKeeper {
+  readonly now: number;
+}
+
+export interface SampleLoader {
+  loadSample(...args: TODO[]): Promise<TODO>;
 }
 
 // Container node
@@ -61,10 +73,6 @@ export interface LibContainerNode extends LibNode {
   add(child: LibNode): this;
   remove(child: LibNode): this;
   nodes: LibNode[];
-}
-
-export interface SampleLoader {
-  loadSample(...args: TODO[]): Promise<TODO>;
 }
 
 // Instrument node
@@ -81,7 +89,7 @@ export interface LibVoiceNode extends LibNode {
   readonly nodeType: VoiceType;
 
   connect(
-    destination?: LibVoiceNode | LibParamNode | AudioNode | AudioParam,
+    destination?: LibVoiceNode | LibParam | AudioNode | AudioParam,
     outputIndex?: number,
     inputIndex?: number
   ): this;
@@ -93,14 +101,6 @@ export interface LibVoiceNode extends LibNode {
   release(options?: TODO): TODO;
   stop(): TODO;
   sendToProcessor(data: TODO): void;
-}
-
-// Parameter node
-export interface LibParamNode extends LibNode {
-  readonly nodeType: ParamType;
-
-  getValue(): number;
-  setValue(value: number): this;
 }
 
 // Effect node

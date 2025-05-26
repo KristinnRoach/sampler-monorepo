@@ -1,4 +1,10 @@
-import { LibInstrument, InstrumentType, SampleLoader } from '@/LibNode';
+import {
+  LibInstrument,
+  InstrumentType,
+  SampleLoader,
+  Messenger,
+} from '@/LibNode';
+
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
@@ -26,12 +32,18 @@ import {
   findZeroCrossings,
 } from '@/utils';
 
-import { MacroParam } from '@/nodes/params';
+import {
+  ParamManager,
+  MacroParam,
+  ParamDescriptor,
+  DEFAULT_PARAM_DESCRIPTORS,
+} from '@/nodes/params';
+
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 import { SampleVoicePool } from './SampleVoicePool';
 
-export class SamplePlayer implements LibInstrument, SampleLoader {
+export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'sampler';
 
@@ -55,6 +67,8 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   #loopLocked = false;
   #holdEnabled = false;
   #holdLocked = false;
+
+  #params = new ParamManager();
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
@@ -88,9 +102,17 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     // Initialize the output bus
     this.#outBus = new InstrumentMasterBus();
 
-    // Initialize macro params
-    this.#macroLoopStart = new MacroParam(context, 0);
-    this.#macroLoopEnd = new MacroParam(context, 0);
+    // Initialize params
+    this.#macroLoopStart = new MacroParam(
+      this.#context,
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+    );
+    this.#macroLoopEnd = new MacroParam(
+      this.#context,
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+    );
+
+    this.#registerParameters();
 
     // Initialize voice pool
     this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input);
@@ -107,12 +129,18 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     }
   }
 
+  #registerParameters(): void {
+    this.#params.register(this.#macroLoopStart);
+    this.#params.register(this.#macroLoopEnd);
+  }
+
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
 
-  protected sendMessage(type: string, data: any): void {
+  protected sendUpstreamMessage(type: string, data: any) {
     this.#messages.sendMessage(type, data);
+    return this;
   }
 
   connect(destination: AudioNode): this {
@@ -252,7 +280,11 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
     this.#midiNoteToId.set(midiNote, noteId);
 
-    this.sendMessage('note:on', { midiNote, velocity: safeVelocity, noteId });
+    this.sendUpstreamMessage('note:on', {
+      midiNote,
+      velocity: safeVelocity,
+      noteId,
+    });
     return noteId;
   }
 
@@ -289,7 +321,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
     this.#pool.noteOff(noteId, this.#release, 0);
 
-    this.sendMessage('note:off', { noteId, midiNote });
+    this.sendUpstreamMessage('note:off', { noteId, midiNote });
     return this;
   }
 
@@ -414,7 +446,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     this.#holdEnabled = enabled;
 
     if (!enabled) this.releaseAll(this.#release);
-    this.sendMessage('hold:state', { enabled });
+    this.sendUpstreamMessage('hold:state', { enabled });
     return this;
   }
 
@@ -422,7 +454,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     if (this.#holdLocked === locked) return this;
 
     this.#holdLocked = locked;
-    this.sendMessage('hold:locked', { locked });
+    this.sendUpstreamMessage('hold:locked', { locked });
     return this;
   }
 
@@ -434,7 +466,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     voices.forEach((v) => v.setLoopEnabled(enabled));
 
     this.#loopEnabled = enabled;
-    this.sendMessage('loop:enabled', { enabled });
+    this.sendUpstreamMessage('loop:enabled', { enabled });
     return this;
   }
 
@@ -442,7 +474,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     if (this.#loopLocked === locked) return this;
 
     this.#loopLocked = locked;
-    this.sendMessage('loop:locked', { locked });
+    this.sendUpstreamMessage('loop:locked', { locked });
     return this;
   }
 

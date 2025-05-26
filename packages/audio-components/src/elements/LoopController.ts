@@ -104,7 +104,7 @@ export class LoopController extends BaseAudioElement {
 
   connectedCallback(): void {
     const loopSliderEl = this.querySelector('#loop-slider') as TwoThumbSlider;
-    const fineTuneSliderEl = this.querySelector('#fine-tune') as any;
+    // const fineTuneSliderEl = this.querySelector('#fine-tune') as any;
 
     if (loopSliderEl) {
       // Single event listener for both values

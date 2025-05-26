@@ -3,7 +3,7 @@ import { audiolib, KarplusStrongSynth } from '@repo/audiolib';
 
 const KarplusStrongSynthComponent = () => {
   const [initialized, setInitialized] = useState(false);
-  const [volume, setVolume] = useState(1);
+  const [volume, setVolume] = useState(0.5);
   const synthRef = useRef<KarplusStrongSynth | null>(null);
 
   // Parameter states
@@ -18,6 +18,13 @@ const KarplusStrongSynthComponent = () => {
     }
     const synth = audiolib.createKarplusStrongSynth(16);
     synth.enableKeyboard();
+
+    // Set init values
+    if (synth) {
+      synth.volume = volume; // standardize
+      synth.setParamValue('decay', decay);
+      synth.setParamValue('noiseTime', noiseTime);
+    }
 
     synthRef.current = synth;
     setInitialized(true);

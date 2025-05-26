@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { noteNameToFreq, noteNamesToPeriod } from './notes';
+import { noteNameToFreq, noteNamesToPeriod } from '../index';
 
 describe('notes constants', () => {
   it('should have matching keys in noteNameToFreq and noteNamesToPeriod', () => {

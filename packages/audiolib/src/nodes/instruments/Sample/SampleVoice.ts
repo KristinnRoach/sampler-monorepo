@@ -1,4 +1,4 @@
-import { LibVoiceNode, VoiceType } from '@/LibNode';
+import { LibVoiceNode, VoiceType, Messenger } from '@/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { VoiceState, ActiveNoteId } from '../types';
@@ -26,7 +26,7 @@ interface ParamConstraints {
   [key: string]: ParamConstraint | undefined;
 }
 
-export class SampleVoice implements LibVoiceNode {
+export class SampleVoice implements LibVoiceNode, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
 
@@ -55,11 +55,16 @@ export class SampleVoice implements LibVoiceNode {
     this.sendToProcessor({ type: 'voice:init' });
   }
 
+  protected sendUpstreamMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+    return this;
+  }
+
   private setupMessageHandling() {
     this.#worklet.port.onmessage = (event: MessageEvent) => {
       const { type, ...data } = event.data;
 
-      this.#messages.sendMessage(type, data);
+      this.sendUpstreamMessage(type, data);
 
       switch (type) {
         case 'voice:started':
