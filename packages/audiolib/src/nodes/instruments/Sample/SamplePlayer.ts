@@ -78,6 +78,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   #attack: number = 0.01;
   #release: number = 0.1;
+  #playbackRate: number = 1;
 
   #isInitialized = false;
   #isLoaded = false;
@@ -102,7 +103,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     // Initialize the output bus
     this.#outBus = new InstrumentMasterBus();
 
-    // Initialize params
+    // Initialize only the loop macros
     this.#macroLoopStart = new MacroParam(
       this.#context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
@@ -130,6 +131,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   }
 
   #registerParameters(): void {
+    // Only register the loop macros
     this.#params.register(this.#macroLoopStart);
     this.#params.register(this.#macroLoopEnd);
   }
@@ -158,6 +160,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     const voices = this.#pool.allVoices;
 
     voices.forEach((voice) => {
+      // Connect only the loop points
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
       if (loopStartParam && loopEndParam) {
@@ -275,7 +278,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       midiNote,
       velocity,
       this.now,
-      this.#attack
+      this.#attack // Pass the attack time directly
     );
 
     this.#midiNoteToId.set(midiNote, noteId);
@@ -319,7 +322,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       }
     }
 
-    this.#pool.noteOff(noteId, this.#release, 0);
+    this.#pool.noteOff(noteId, this.#release, 0); // Pass the release time directly
 
     this.sendUpstreamMessage('note:off', { noteId, midiNote });
     return this;
@@ -417,26 +420,64 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return this;
   }
 
-  setAttackTime(seconds: number) {
+  setAttackTime(seconds: number): this {
     this.#attack = seconds;
     return this;
   }
 
-  setReleaseTime(seconds: number) {
+  getAttackTime(): number {
+    return this.#attack;
+  }
+
+  setReleaseTime(seconds: number): this {
     this.#release = seconds;
     return this;
   }
 
-  setSampleStartOffset(seconds: number) {
+  getReleaseTime(): number {
+    return this.#release;
+  }
+
+  setSampleStartOffset(seconds: number): this {
     this.#startOffset = seconds;
     this.#pool.allVoices.forEach((voice) => voice.setStartOffset(seconds));
     return this;
   }
 
-  setSampleEndOffset(seconds: number) {
+  getSampleStartOffset(): number {
+    return this.#startOffset;
+  }
+
+  setSampleEndOffset(seconds: number): this {
     this.#endOffset = seconds;
     this.#pool.allVoices.forEach((voice) => voice.setEndOffset(seconds));
     return this;
+  }
+
+  getSampleEndOffset(): number {
+    return this.#endOffset;
+  }
+
+  getLoopRampDuration(): number {
+    return this.#loopRampDuration;
+  }
+
+  setLoopRampDuration(seconds: number): this {
+    this.#loopRampDuration = seconds;
+    return this;
+  }
+
+  setPlaybackRate(rate: number): this {
+    this.#playbackRate = rate;
+    this.#pool.allVoices.forEach((voice) => {
+      const param = voice.getParam('playbackRate');
+      if (param) param.setValueAtTime(rate, this.now);
+    });
+    return this;
+  }
+
+  getPlaybackRate(): number {
+    return this.#playbackRate;
   }
 
   setHoldEnabled(enabled: boolean) {
@@ -611,6 +652,66 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   get isLoaded() {
     return this.#isLoaded;
+  }
+
+  // For UI integration, provide a method to get parameter descriptors
+  getParameterDescriptors(): Record<string, ParamDescriptor> {
+    return {
+      attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
+      release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
+      startOffset: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
+      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET,
+      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
+      loopStart: this.#macroLoopStart.descriptor,
+      loopEnd: this.#macroLoopEnd.descriptor,
+      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+    };
+  }
+
+  // For UI integration, provide a method to get parameter values
+  getParameterValues(): Record<string, number> {
+    return {
+      attack: this.#attack,
+      release: this.#release,
+      startOffset: this.#startOffset,
+      endOffset: this.#endOffset,
+      playbackRate: this.#playbackRate,
+      loopStart: this.#macroLoopStart.getValue(),
+      loopEnd: this.#macroLoopEnd.getValue(),
+      loopRampDuration: this.#loopRampDuration,
+    };
+  }
+
+  // For UI integration, provide a method to set parameter values
+  setParameterValue(name: string, value: number): this {
+    switch (name) {
+      case 'attack':
+        this.setAttackTime(value);
+        break;
+      case 'release':
+        this.setReleaseTime(value);
+        break;
+      case 'startOffset':
+        this.setSampleStartOffset(value);
+        break;
+      case 'endOffset':
+        console.log(`Setting end offset to THE ${value}`);
+        this.setSampleEndOffset(value);
+        break;
+      case 'playbackRate':
+        this.setPlaybackRate(value);
+        break;
+      case 'loopStart':
+        this.setLoopStart(value);
+        break;
+      case 'loopEnd':
+        this.setLoopEnd(value);
+        break;
+      case 'loopRampDuration':
+        this.setLoopRampDuration(value);
+        break;
+    }
+    return this;
   }
 }
 

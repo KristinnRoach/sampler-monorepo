@@ -24,6 +24,17 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'loop-points',
   },
 
+  LOOP_RAMP_DURATION: {
+    id: 'loop-point-ramp',
+    name: 'loop-point-ramp',
+    type: 'number' as const,
+    min: 0.001,
+    max: 2.0,
+    step: 0.001,
+    defaultValue: 0.2,
+    group: 'loop-points',
+  },
+
   ATTACK: {
     id: 'attack-time',
     name: 'attack-time',

@@ -272,9 +272,9 @@ export class SampleOffsetController extends BaseAudioElement {
     if (target.getSamplePlayer) {
       // Target has a getSamplePlayer method (like SamplerElement)
       const player = target.getSamplePlayer();
-      if (player && player.setSampleStartOffset && player.setSampleEndOffset) {
-        player.setSampleStartOffset(this.startOffsetValue);
-        player.setSampleEndOffset(this.endOffsetValue);
+      if (player && player.setParameterValue) {
+        player.setParameterValue('startOffset', this.startOffsetValue);
+        player.setParameterValue('endOffset', this.endOffsetValue);
       }
     } else if (target.setStartOffset && target.setEndOffset) {
       // Target has direct methods
