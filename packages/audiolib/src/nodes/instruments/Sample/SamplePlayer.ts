@@ -49,6 +49,8 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
+  #lpf: BiquadFilterNode;
+  #hpf: BiquadFilterNode;
   #destination: AudioNode | null = null;
   #pool: SampleVoicePool;
 
@@ -104,7 +106,27 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     // Initialize the output bus
     this.#outBus = new InstrumentMasterBus();
 
-    // Initialize only the loop macros
+    // Init filters
+    this.#hpf = new BiquadFilterNode(context, {
+      type: 'highpass',
+      frequency: 100,
+      Q: 1,
+    });
+
+    this.#lpf = new BiquadFilterNode(context, {
+      type: 'lowpass',
+      frequency: 20000,
+      Q: 1,
+    });
+
+    // Initialize voice pool
+    this.#pool = new SampleVoicePool(context, polyphony, this.#hpf);
+
+    // Connect audiochain
+    this.#hpf.connect(this.#lpf);
+    this.#lpf.connect(this.#outBus.input);
+
+    // Setup parameters
     this.#macroLoopStart = new MacroParam(
       this.#context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
@@ -115,10 +137,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     );
 
     this.#registerParameters();
-
-    // Initialize voice pool
-    this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input);
-    this.#connectToMacros();
+    this.#connectVoicesToMacros();
 
     this.#midiController = midiController || null;
 
@@ -132,9 +151,22 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   }
 
   #registerParameters(): void {
-    // Only register the loop macros
+    // Register the loop macros (already LibParams)
     this.#params.register(this.#macroLoopStart);
     this.#params.register(this.#macroLoopEnd);
+
+    // Register native AudioParams with descriptors
+    this.#params.register(
+      this.#hpf.frequency,
+      DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_FILTER_FREQ
+    );
+
+    this.#params.register(
+      this.#lpf.frequency,
+      DEFAULT_PARAM_DESCRIPTORS.LOWPASS_FILTER_FREQ
+    );
+
+    // todo: register env params (all params)
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
@@ -157,7 +189,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     this.#destination = null;
   }
 
-  #connectToMacros(): this {
+  #connectVoicesToMacros(): this {
     const voices = this.#pool.allVoices;
 
     voices.forEach((voice) => {
@@ -186,7 +218,16 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
       this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
     }
-    // todo: set scale - allowed durations ...
+    // todo: pre-compute gaddem allowed periods with optimized zero snapping!! (þegar é nenni)
+    this.#macroLoopStart.setScale('C', [0], {
+      lowestOctave: 0,
+      highestOctave: 5,
+    });
+    this.#macroLoopEnd.setScale('C', [0], {
+      lowestOctave: 0,
+      highestOctave: 5,
+    });
+
     return this;
   }
 
@@ -292,7 +333,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return noteId;
   }
 
-  release(input: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
+  release(note: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
     if (modifiers) this.#handleModifierKeys(modifiers);
 
     if (this.#holdEnabled || this.#holdLocked) return this; // simple play through (one-shot mode)
@@ -300,8 +341,8 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     let noteId: ActiveNoteId;
     let midiNote: MidiValue | undefined;
 
-    if (input >= 0 && input <= 127) {
-      midiNote = input as MidiValue;
+    if (note >= 0 && note <= 127) {
+      midiNote = note as MidiValue;
       noteId = this.#midiNoteToId.get(midiNote) ?? -1;
       if (noteId !== -1) {
         this.#midiNoteToId.delete(midiNote);
@@ -311,7 +352,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       }
     } else {
       // It's already a noteId
-      noteId = input as ActiveNoteId;
+      noteId = note as ActiveNoteId;
 
       // Find and remove from midiNoteToId if present
       for (const [midi, id] of this.#midiNoteToId.entries()) {

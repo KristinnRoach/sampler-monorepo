@@ -6,14 +6,25 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-
-import {
-  createMediaRecorder,
-  startRecording,
-  stopRecording,
-  blobToAudioBuffer,
-} from './record-utils';
 import { getMicrophone } from '@/io/devices/devices';
+
+// Todo: simplify confusing threshold params
+
+const DEFAULT_REC_THRESHOLD = {
+  START: -30,
+  STOP: -40,
+  SILENCE_TIMEOUT: 1000,
+};
+
+export const AudioRecorderState = {
+  IDLE: 'IDLE',
+  ARMED: 'ARMED',
+  RECORDING: 'RECORDING',
+  STOPPED: 'STOPPED',
+} as const;
+
+export type AudioRecorderState =
+  (typeof AudioRecorderState)[keyof typeof AudioRecorderState];
 
 export class Recorder implements LibNode {
   readonly nodeId: NodeID;
@@ -22,9 +33,15 @@ export class Recorder implements LibNode {
   #context: AudioContext;
   #stream: MediaStream | null = null;
   #recorder: MediaRecorder | null = null;
+  #armedThreshold: number | null = null;
   #messages: MessageBus<Message>;
-  #isRecording: boolean = false;
   #destination: (LibNode & SampleLoader) | null = null;
+  #state: AudioRecorderState = AudioRecorderState.IDLE;
+
+  // Threshold detection resources
+  #thresholdSource: MediaStreamAudioSourceNode | null = null;
+  #thresholdAnalyser: AnalyserNode | null = null;
+  #animationFrame: number | null = null;
 
   constructor(context: AudioContext) {
     this.nodeId = createNodeId(this.nodeType);
@@ -35,38 +52,222 @@ export class Recorder implements LibNode {
   async init(): Promise<Recorder> {
     try {
       this.#stream = await getMicrophone();
-      this.#recorder = await createMediaRecorder(this.#stream);
+      this.#recorder = new MediaRecorder(this.#stream, {
+        mimeType: 'audio/webm',
+      });
       return this;
     } catch (error) {
       throw new Error(`Failed to get microphone: ${error}`);
     }
   }
 
-  async start(): Promise<void> {
-    if (!this.#recorder) throw new Error('Recorder not initialized');
-    if (this.#isRecording) return;
+  #isReasonableThreshold = (threshold: number) =>
+    threshold > -60 && threshold < 0;
 
-    startRecording(this.#recorder);
-    this.#isRecording = true;
+  async start(
+    useThreshold = true,
+    startThreshold = DEFAULT_REC_THRESHOLD.START,
+    autoStop = false,
+    stopThreshold = DEFAULT_REC_THRESHOLD.STOP,
+    silenceTimeout = DEFAULT_REC_THRESHOLD.SILENCE_TIMEOUT
+  ): Promise<this> {
+    if (!this.#recorder) throw new Error('Recorder not initialized');
+    if (this.#state === AudioRecorderState.RECORDING) return this;
+
+    if (!useThreshold)
+      return this.#startRecording(autoStop, stopThreshold, silenceTimeout);
+
+    if (!this.#isReasonableThreshold(startThreshold)) {
+      console.warn(`Threshold ${startThreshold}dB out of range (-60 to 0)`);
+      return this;
+    }
+
+    // Armed recording - wait for threshold
+    this.#setupThresholdDetection(
+      startThreshold,
+      autoStop,
+      silenceTimeout,
+      false // Not for silence detection
+    );
+    return this;
+  }
+
+  #startRecording(
+    autoStop = false,
+    silenceThreshold = DEFAULT_REC_THRESHOLD.STOP,
+    silenceTimeout = DEFAULT_REC_THRESHOLD.SILENCE_TIMEOUT
+  ): this {
+    if (this.#recorder!.state === 'inactive') {
+      this.#recorder!.start();
+    }
+    this.#state = AudioRecorderState.RECORDING;
     this.sendMessage('record:start', { destination: this.#destination });
+
+    if (autoStop) {
+      // Setup with silence threshold and flag it as silence detection
+      this.#setupThresholdDetection(
+        silenceThreshold, // Now we pass the silence threshold directly
+        true, // autoStop is true
+        silenceTimeout,
+        true // This is for silence detection
+      );
+    }
+
+    return this;
+  }
+
+  #setupThresholdDetection(
+    threshold: number,
+    autoStop = true,
+    silenceTimeout = DEFAULT_REC_THRESHOLD.SILENCE_TIMEOUT,
+    isForSilenceDetection = false // Flag to indicate purpose
+  ): void {
+    // Set state only if this is for initial armed detection, not for silence detection
+    if (!isForSilenceDetection) {
+      this.#state = AudioRecorderState.ARMED;
+      this.#armedThreshold = threshold;
+      this.sendMessage('record:armed', {
+        threshold,
+        destination: this.#destination,
+      });
+    }
+
+    // Set up threshold detection
+    this.#thresholdSource = this.#context.createMediaStreamSource(
+      this.#stream!
+    );
+    this.#thresholdAnalyser = this.#context.createAnalyser();
+    this.#thresholdAnalyser.fftSize = 1024;
+
+    this.#thresholdSource.connect(this.#thresholdAnalyser);
+    const dataArray = new Float32Array(this.#thresholdAnalyser.fftSize);
+
+    // For silence detection
+    let silenceStartTime: number | null = null;
+
+    const checkLevel = () => {
+      // Already cleaned up
+      if (!this.#thresholdAnalyser) return;
+
+      if (this.#state === AudioRecorderState.ARMED) {
+        // ARMED state: check if audio exceeds threshold to start recording
+        this.#thresholdAnalyser.getFloatTimeDomainData(dataArray);
+        const peak = Math.max(...dataArray.map(Math.abs));
+        const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
+
+        if (peakDB >= threshold) {
+          // Threshold reached, start recording
+          this.#armedThreshold = null; // Clear armed state
+
+          if (!autoStop) {
+            // If we're not doing auto-stop, clean up threshold detection
+            this.#cleanupThresholdDetection();
+          }
+
+          // Start recording (but don't set up another detection)
+          this.#startRecording(false);
+        } else {
+          this.#animationFrame = requestAnimationFrame(checkLevel);
+        }
+      } else if (this.#state === AudioRecorderState.RECORDING && autoStop) {
+        // RECORDING state: check for silence (audio below threshold)
+        this.#thresholdAnalyser.getFloatTimeDomainData(dataArray);
+        const peak = Math.max(...dataArray.map(Math.abs));
+        const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
+
+        const now = performance.now();
+
+        if (peakDB < threshold) {
+          // Using the same threshold parameter
+          // Below threshold - potential silence
+          if (silenceStartTime === null) {
+            silenceStartTime = now;
+          } else if (now - silenceStartTime >= silenceTimeout) {
+            // Silence duration exceeded timeout - stop recording
+            this.#cleanupThresholdDetection();
+            this.stop().catch((err) =>
+              console.error('Error auto-stopping recording:', err)
+            );
+            return;
+          }
+        } else {
+          // Above threshold - reset silence timer
+          silenceStartTime = null;
+        }
+
+        this.#animationFrame = requestAnimationFrame(checkLevel);
+      } else {
+        // Any other state: stop monitoring
+        this.#cleanupThresholdDetection();
+      }
+    };
+
+    this.#animationFrame = requestAnimationFrame(checkLevel);
+  }
+
+  #cleanupThresholdDetection(): void {
+    if (this.#animationFrame !== null) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = null;
+    }
+
+    if (this.#thresholdSource) {
+      this.#thresholdSource.disconnect();
+      this.#thresholdSource = null;
+    }
+
+    if (this.#thresholdAnalyser) {
+      this.#thresholdAnalyser.disconnect();
+      this.#thresholdAnalyser = null;
+    }
   }
 
   async stop(): Promise<AudioBuffer> {
     if (!this.#recorder) throw new Error('Recorder not initialized');
-    if (!this.#isRecording) throw new Error('Not recording');
 
-    const blob = await stopRecording(this.#recorder);
-    const buffer = await blobToAudioBuffer(blob, this.#context);
+    // Handle armed state - user cancelled before threshold was reached
+    if (this.#state === AudioRecorderState.ARMED) {
+      this.#cleanupThresholdDetection();
+      this.#armedThreshold = null;
+      this.#state = AudioRecorderState.STOPPED;
+      this.sendMessage('record:cancelled', {});
+      throw new Error('Recording was armed but never triggered');
+    }
 
-    this.#isRecording = false;
+    if (this.#state !== AudioRecorderState.RECORDING)
+      throw new Error('Not recording');
+
+    const blob = await this.#stopRecording();
+    const buffer = await this.#blobToAudioBuffer(blob);
+
+    this.#state = AudioRecorderState.STOPPED;
     this.sendMessage('record:stop', { duration: buffer.duration });
 
-    // Type checking no longer needed since destination is guaranteed to have loadSample
     if (this.#destination) {
       await this.#destination.loadSample(buffer);
     }
 
     return buffer;
+  }
+
+  #stopRecording(): Promise<Blob> {
+    return new Promise((resolve) => {
+      if (this.#recorder!.state !== 'inactive') {
+        this.#recorder!.addEventListener(
+          'dataavailable',
+          (e) => {
+            resolve(e.data);
+          },
+          { once: true }
+        );
+        this.#recorder!.stop();
+      }
+    });
+  }
+
+  async #blobToAudioBuffer(blob: Blob): Promise<AudioBuffer> {
+    const arrayBuffer = await blob.arrayBuffer();
+    return await this.#context.decodeAudioData(arrayBuffer);
   }
 
   // LibNode interface implementation
@@ -90,10 +291,28 @@ export class Recorder implements LibNode {
   }
 
   dispose(): void {
+    this.#cleanupThresholdDetection();
+    this.#armedThreshold = null;
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     this.#recorder = null;
+    this.#state = AudioRecorderState.IDLE;
     deleteNodeId(this.nodeId);
+  }
+
+  set recordStartThreshold(db: number) {
+    this.#armedThreshold = db;
+  }
+
+  get armedThreshold() {
+    return this.#armedThreshold;
+  }
+
+  /**
+   * Returns whether the recorder is armed and waiting for threshold
+   */
+  get isArmed(): boolean {
+    return this.#state === AudioRecorderState.ARMED;
   }
 
   get now(): number {
@@ -101,7 +320,14 @@ export class Recorder implements LibNode {
   }
 
   get isRecording(): boolean {
-    return this.#isRecording;
+    return this.#state === AudioRecorderState.RECORDING;
+  }
+
+  /**
+   * Returns the current state of the recorder
+   */
+  get state(): AudioRecorderState {
+    return this.#state;
   }
 
   /**

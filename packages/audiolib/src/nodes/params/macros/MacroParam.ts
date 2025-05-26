@@ -92,11 +92,7 @@ export class MacroParam implements LibParam {
       this.#snapper.hasPeriodSnapping &&
       targetPeriod < this.#snapper.longestPeriod
     ) {
-      return this.#snapper.snapToPeriod(
-        value,
-        constant,
-        this.#paramType as any
-      );
+      return this.#snapper.snapToPeriod(value, constant);
     } else if (this.#snapper.hasValueSnapping) {
       return this.#snapper.snapToValue(value);
     }
@@ -117,19 +113,15 @@ export class MacroParam implements LibParam {
 
   setScale(
     rootNote: string,
-    scale: keyof typeof SCALE_PATTERNS,
+    scale: keyof typeof SCALE_PATTERNS | number[],
     options: {
-      customPattern?: readonly number[] | number[];
       lowestOctave?: number;
       highestOctave?: number;
     } = {}
   ): this {
-    const { customPattern, lowestOctave = 0, highestOctave = 8 } = options;
+    const { lowestOctave = 0, highestOctave = 8 } = options;
 
-    // If customPattern is provided, create a copy to ensure it's mutable
-    const scalePattern = customPattern
-      ? [...customPattern]
-      : [...SCALE_PATTERNS[scale]];
+    const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
     this.#snapper.setScale(rootNote, scalePattern, lowestOctave, highestOctave);
     return this;

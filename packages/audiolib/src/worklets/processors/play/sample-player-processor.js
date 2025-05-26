@@ -301,47 +301,20 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const rawLoopStart = parameters.loopStart[0] * sampleRate;
     const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
 
-    // Calculate max acceptable distance based on loop length with scaling
-    const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
-
-    let maxDistance;
-    if (loopLength < 50) {
-      // Very short loops (< ~1ms at 44.1kHz)
-      maxDistance = Math.min(loopLength * 0.3, 20); // 30% tolerance, max 20 samples
-    } else if (loopLength < 200) {
-      // Short loops (< ~4.5ms)
-      maxDistance = Math.min(loopLength * 0.15, 50); // 15% tolerance
-    } else {
-      maxDistance = Math.min(loopLength * 0.1, 100); // Original formula for longer loops
-    }
-
-    if (rawLoopStart !== this.lastProcessedLoopStart) {
-      this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
-        rawLoopStart,
-        maxDistance
-      );
-      this.lastProcessedLoopStart = rawLoopStart;
-    }
-
-    if (rawLoopEnd !== this.lastProcessedLoopEnd) {
-      this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(
-        rawLoopEnd,
-        maxDistance
-      );
-      this.lastProcessedLoopEnd = rawLoopEnd;
-    }
-
-    // Use cached values in the sample loop
-    const loopStart = this.blockQuantizedLoopStart;
-    const loopEnd = this.blockQuantizedLoopEnd;
-
-    // // Quantize once per block, not per sample
-    // const rawLoopStart = parameters.loopStart[0] * sampleRate;
-    // const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
-
-    // // Calculate max acceptable distance based on loop length
+    // TODO: test with and without internal zero snapping. Remove this if works well without it.
+    // // Calculate max acceptable distance based on loop length with scaling
     // const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
-    // const maxDistance = Math.min(loopLength * 0.1, 100); // 10% of loop or 100 samples max
+
+    // let maxDistance;
+    // if (loopLength < 50) {
+    //   // Very short loops (< ~1ms at 44.1kHz)
+    //   maxDistance = Math.min(loopLength * 0.3, 20); // 30% tolerance, max 20 samples
+    // } else if (loopLength < 200) {
+    //   // Short loops (< ~4.5ms)
+    //   maxDistance = Math.min(loopLength * 0.15, 50); // 15% tolerance
+    // } else {
+    //   maxDistance = Math.min(loopLength * 0.1, 100); // Original formula for longer loops
+    // }
 
     // if (rawLoopStart !== this.lastProcessedLoopStart) {
     //   this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
@@ -359,25 +332,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     //   this.lastProcessedLoopEnd = rawLoopEnd;
     // }
 
-    // // if (rawLoopStart !== this.lastProcessedLoopStart) {
-    // //   this.blockQuantizedLoopStart =
-    // //     this.#findNearestZeroCrossing(rawLoopStart);
-    // //   this.lastProcessedLoopStart = rawLoopStart;
-    // // }
-
-    // // if (rawLoopEnd !== this.lastProcessedLoopEnd) {
-    // //   this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(rawLoopEnd);
-    // //   this.lastProcessedLoopEnd = rawLoopEnd;
-    // // }
-
-    // // Use cached values in the sample loop
+    // Use cached values in the sample loop
     // const loopStart = this.blockQuantizedLoopStart;
     // const loopEnd = this.blockQuantizedLoopEnd;
+    // TODO: test with and without internal zero snapping. Remove this if works well without it.
 
-    // older:
-    // const loopStart = this.#getParamValueInSamples('loopStart', parameters);
-    // const loopEnd = this.#getParamValueInSamples('loopEnd', parameters);
-    // Constrain loop end to be within the effective buffer end
+    const loopStart = rawLoopStart;
+    const loopEnd = rawLoopEnd;
+
     const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
 
     const envelopeGain = parameters.envGain[0];

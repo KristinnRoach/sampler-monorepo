@@ -6,8 +6,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'loop-start',
     name: 'loop-start',
     type: 'number',
-    min: 0,
-    max: 1, // Updated when sample loads
+    minValue: 0,
+    maxValue: 1, // Updated when sample loads
     step: 0.001,
     defaultValue: 0,
     group: 'loop-points',
@@ -17,8 +17,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'loop-start',
     name: 'loop-start',
     type: 'number',
-    min: 0,
-    max: 1, // Updated when sample loads
+    minValue: 0,
+    maxValue: 1, // Updated when sample loads
     step: 0.001,
     defaultValue: 0, // Updated when sample loads
     group: 'loop-points',
@@ -28,8 +28,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'loop-point-ramp',
     name: 'loop-point-ramp',
     type: 'number' as const,
-    min: 0.001,
-    max: 2.0,
+    minValue: 0.001,
+    maxValue: 2.0,
     step: 0.001,
     defaultValue: 0.2,
     group: 'loop-points',
@@ -39,8 +39,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'attack-time',
     name: 'attack-time',
     type: 'number',
-    min: 0,
-    max: 5,
+    minValue: 0,
+    maxValue: 5,
     step: 0.001,
     defaultValue: 0.01,
     group: 'envelope',
@@ -50,8 +50,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'release-time',
     name: 'release-time',
     type: 'number',
-    min: 0,
-    max: 5,
+    minValue: 0,
+    maxValue: 5,
     step: 0.001,
     defaultValue: 0.05,
     group: 'envelope',
@@ -61,8 +61,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'start-offset',
     name: 'start-offset',
     type: 'number',
-    min: 0,
-    max: 1, // Updated when sample loads
+    minValue: 0,
+    maxValue: 1, // Updated when sample loads
     step: 0.001,
     defaultValue: 0,
     group: 'sample-offsets',
@@ -72,8 +72,8 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'end-offset',
     name: 'end-offset',
     type: 'number',
-    min: 0,
-    max: 1, // Updated when sample loads
+    minValue: 0,
+    maxValue: 1, // Updated when sample loads
     step: 0.001,
     defaultValue: 1, // Updated when sample loads
     group: 'sample-offsets',
@@ -83,10 +83,32 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     id: 'playback-rate',
     name: 'playback-rate',
     type: 'number',
-    min: 0.25,
-    max: 4,
+    minValue: 0.25,
+    maxValue: 4,
     step: 0.01,
     defaultValue: 1,
     group: 'playback',
+  },
+
+  LOWPASS_FILTER_FREQ: {
+    id: 'lpf-freq',
+    name: 'lpf-freq',
+    type: 'number',
+    minValue: 0,
+    maxValue: 20000,
+    step: 1,
+    defaultValue: 20000,
+    group: 'filter:lpf',
+  },
+
+  HIGHPASS_FILTER_FREQ: {
+    id: 'hpf-freq',
+    name: 'hpf-freq',
+    type: 'number',
+    minValue: 0,
+    maxValue: 20000,
+    step: 1,
+    defaultValue: 100,
+    group: 'filter:hpf',
   },
 };

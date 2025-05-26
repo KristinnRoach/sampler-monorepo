@@ -3,6 +3,10 @@ import { createScale } from '@/utils/musical/utils/scale-utils';
 // Value processor for snapping/quantization
 export class ValueSnapper {
   #allowedValues: number[] = [];
+
+  // TODO: If I want zero-snapping for periods
+  // -> Just pre-compute the optimal values onLoad
+  // and store them as the allowedPeriods !!
   #allowedPeriods: number[] = [];
 
   setAllowedValues(values: number[]): this {
@@ -38,24 +42,33 @@ export class ValueSnapper {
     );
   }
 
-  snapToPeriod(
-    target: number,
-    constant: number,
-    paramType: 'loopStart' | 'loopEnd'
-  ): number {
-    if (this.#allowedPeriods.length === 0) return target;
+  // TODO: If I want zero-snapping for periods -> Just pre-compute the optimal values and store them as the allowedPeriods !!
+  snapToPeriod(targetValue: number, referenceValue: number): number {
+    if (this.#allowedPeriods.length === 0) return targetValue;
 
-    const targetDistance = Math.abs(constant - target);
-    const closestPeriod = this.#allowedPeriods.reduce((prev, curr) =>
-      Math.abs(curr - targetDistance) < Math.abs(prev - targetDistance)
-        ? curr
-        : prev
+    const musicalPositions = this.#allowedPeriods
+      .flatMap((period) => [
+        referenceValue + period, // Forward positions
+        referenceValue - period, // Backward positions
+      ])
+      .filter((pos) => pos >= 0); // Keep only valid positions
+
+    // Find the closest musical position to target
+    return musicalPositions.reduce((prev, curr) =>
+      Math.abs(curr - targetValue) < Math.abs(prev - targetValue) ? curr : prev
     );
-
-    return paramType === 'loopEnd'
-      ? constant + closestPeriod
-      : constant - closestPeriod;
   }
+  //   const targetDistance = Math.abs(referenceValue - targetValue);
+  //   const closestPeriod = this.#allowedPeriods.reduce((prev, curr) =>
+  //     Math.abs(curr - targetDistance) < Math.abs(prev - targetDistance)
+  //       ? curr
+  //       : prev
+  //   );
+
+  //   return adjusting === 'loopEnd'
+  //     ? referenceValue + closestPeriod
+  //     : referenceValue - closestPeriod;
+  // }
 
   get shortestPeriod() {
     return this.#allowedPeriods[0];
