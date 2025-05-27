@@ -26,6 +26,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.isReleasing = false;
     this.loopEnabled = false;
     this.usePlaybackPosition = false;
+    this.blockQuantizedLoopStart = 0;
+    this.blockQuantizedLoopEnd = 0;
+    this.lastProcessedLoopStart = -1;
+    this.lastProcessedLoopEnd = -1;
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
   }
   static get parameterDescriptors() {
@@ -55,8 +59,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: "playbackRate",
         defaultValue: 1,
-        minValue: -4,
-        maxValue: 4,
+        minValue: -8,
+        maxValue: 10,
         automationRate: "a-rate"
       },
       {
@@ -75,15 +79,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: "loopStart",
         defaultValue: 0,
         minValue: 0,
-        automationRate: "k-rate"
-        // a-rate ?
+        automationRate: "a-rate"
+        // a or k ?
       },
       {
         name: "loopEnd",
         defaultValue: 0,
         minValue: 0,
-        automationRate: "k-rate"
-        // a-rate ?
+        automationRate: "a-rate"
+        // a or k ?
       }
     ];
   }
@@ -106,8 +110,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     if (endOffsetSec > 0) {
       effectiveBufferEnd = Math.min(bufferLength, endOffsetSec * sampleRate);
     }
-    const loopStart = __privateMethod(this, _SamplePlayerProcessor_instances, getParamValueInSamples_fn).call(this, "loopStart", parameters);
-    const loopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, getParamValueInSamples_fn).call(this, "loopEnd", parameters);
+    const rawLoopStart = parameters.loopStart[0] * sampleRate;
+    const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
+    const loopStart = rawLoopStart;
+    const loopEnd = rawLoopEnd;
     const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
     const envelopeGain = parameters.envGain[0];
     const velocitySensitivity = 0.9;
@@ -156,7 +162,9 @@ handleMessage_fn = function(event) {
       this.buffer = buffer;
       break;
     case "voice:set_zero_crossings":
-      this.zeroCrossings = zeroCrossings || [];
+      this.zeroCrossings = (zeroCrossings || []).map(
+        (timeSec) => timeSec * sampleRate
+      );
       if (this.zeroCrossings.length > 0) {
         this.minZeroCrossing = this.zeroCrossings[0];
         this.maxZeroCrossing = this.zeroCrossings[this.zeroCrossings.length - 1];
@@ -223,14 +231,29 @@ shouldEnd_fn = function(parameters) {
 };
 _clamp = new WeakMap();
 _clampZeroCrossing = new WeakMap();
-findNearestZeroCrossing_fn = function(position) {
+// #findNearestZeroCrossing(position) {
+//   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
+//     return position;
+//   }
+//   // Find the closest zero crossing to the requested position
+//   return this.zeroCrossings.reduce(
+//     (prev, curr) =>
+//       Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
+//     position
+//   );
+// }
+findNearestZeroCrossing_fn = function(position, maxDistance = null) {
   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
     return position;
   }
-  return this.zeroCrossings.reduce(
+  const closest = this.zeroCrossings.reduce(
     (prev, curr) => Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
-    position
+    this.zeroCrossings[0]
   );
+  if (maxDistance !== null && Math.abs(closest - position) > maxDistance) {
+    return position;
+  }
+  return closest;
 };
 getCurrentParamValue_fn = function(paramName) {
   if (!this.parameters) return 0;
