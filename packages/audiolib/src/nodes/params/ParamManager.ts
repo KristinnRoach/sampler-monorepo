@@ -45,7 +45,7 @@ export class ParamManager {
   register(param: LibParam | AudioParam, descriptor?: ParamDescriptor): void {
     if (param instanceof AudioParam) {
       if (!descriptor) {
-        throw new Error('Descriptor required when registering AudioParam');
+        throw new Error(`Descriptor required when registering AudioParam.`);
       }
 
       const wrappedParam = this.wrapAudioParam(param, descriptor);

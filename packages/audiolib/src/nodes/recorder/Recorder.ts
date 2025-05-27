@@ -7,14 +7,7 @@ import {
   createMessageBus,
 } from '@/events';
 import { getMicrophone } from '@/io/devices/devices';
-
-// Todo: simplify confusing threshold params
-
-const DEFAULT_REC_THRESHOLD = {
-  START: -30,
-  STOP: -40,
-  SILENCE_TIMEOUT: 1000,
-};
+// import { assert, tryCatch } from '@/utils';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -26,6 +19,16 @@ export const AudioRecorderState = {
 export type AudioRecorderState =
   (typeof AudioRecorderState)[keyof typeof AudioRecorderState];
 
+export const DEFAULT_RECORDER_OPTIONS = {
+  useThreshold: true,
+  startThreshold: -30,
+  autoStop: false,
+  stopThreshold: -40, // todo: guard ensuring stopTreshold < startTreshold
+  silenceTimeoutMs: 1000,
+};
+
+export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;
+
 export class Recorder implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'recorder';
@@ -33,15 +36,16 @@ export class Recorder implements LibNode {
   #context: AudioContext;
   #stream: MediaStream | null = null;
   #recorder: MediaRecorder | null = null;
-  #armedThreshold: number | null = null;
   #messages: MessageBus<Message>;
   #destination: (LibNode & SampleLoader) | null = null;
   #state: AudioRecorderState = AudioRecorderState.IDLE;
 
-  // Threshold detection resources
-  #thresholdSource: MediaStreamAudioSourceNode | null = null;
-  #thresholdAnalyser: AnalyserNode | null = null;
+  // Single audio monitoring setup
+  #audioSource: MediaStreamAudioSourceNode | null = null;
+  #analyser: AnalyserNode | null = null;
   #animationFrame: number | null = null;
+  #silenceStartTime: number | null = null;
+  #currentConfig: RecorderOptions | null = null;
 
   constructor(context: AudioContext) {
     this.nodeId = createNodeId(this.nodeType);
@@ -61,181 +65,150 @@ export class Recorder implements LibNode {
     }
   }
 
-  #isReasonableThreshold = (threshold: number) =>
-    threshold > -60 && threshold < 0;
-
-  async start(
-    useThreshold = true,
-    startThreshold = DEFAULT_REC_THRESHOLD.START,
-    autoStop = false,
-    stopThreshold = DEFAULT_REC_THRESHOLD.STOP,
-    silenceTimeout = DEFAULT_REC_THRESHOLD.SILENCE_TIMEOUT
-  ): Promise<this> {
+  async start(options?: Partial<RecorderOptions>): Promise<this> {
     if (!this.#recorder) throw new Error('Recorder not initialized');
     if (this.#state === AudioRecorderState.RECORDING) return this;
 
-    if (!useThreshold)
-      return this.#startRecording(autoStop, stopThreshold, silenceTimeout);
+    this.#currentConfig = { ...DEFAULT_RECORDER_OPTIONS, ...options };
 
-    if (!this.#isReasonableThreshold(startThreshold)) {
-      console.warn(`Threshold ${startThreshold}dB out of range (-60 to 0)`);
+    console.info('Recording with options:', this.#currentConfig);
+
+    try {
+      if (!this.#currentConfig.useThreshold) {
+        this.#startRecordingImmediate();
+      } else {
+        this.#startArmedRecording();
+      }
       return this;
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      throw error;
     }
-
-    // Armed recording - wait for threshold
-    this.#setupThresholdDetection(
-      startThreshold,
-      autoStop,
-      silenceTimeout,
-      false // Not for silence detection
-    );
-    return this;
   }
 
-  #startRecording(
-    autoStop = false,
-    silenceThreshold = DEFAULT_REC_THRESHOLD.STOP,
-    silenceTimeout = DEFAULT_REC_THRESHOLD.SILENCE_TIMEOUT
-  ): this {
-    if (this.#recorder!.state === 'inactive') {
-      this.#recorder!.start();
+  #startArmedRecording(): void {
+    if (!this.#isValidThreshold(this.#currentConfig!.startThreshold)) {
+      console.warn(
+        `Threshold ${this.#currentConfig!.startThreshold}dB out of range (-60 to 0)`
+      );
+      return;
     }
+
+    this.#state = AudioRecorderState.ARMED;
+    this.sendMessage('record:armed', {
+      threshold: this.#currentConfig!.startThreshold,
+      destination: this.#destination,
+    });
+
+    this.#setupAudioMonitoring();
+  }
+
+  #startRecordingImmediate(): void {
+    this.#recorder!.start();
     this.#state = AudioRecorderState.RECORDING;
     this.sendMessage('record:start', { destination: this.#destination });
 
-    if (autoStop) {
-      // Setup with silence threshold and flag it as silence detection
-      this.#setupThresholdDetection(
-        silenceThreshold, // Now we pass the silence threshold directly
-        true, // autoStop is true
-        silenceTimeout,
-        true // This is for silence detection
-      );
+    if (this.#currentConfig!.autoStop) {
+      this.#setupAudioMonitoring();
     }
-
-    return this;
   }
 
-  #setupThresholdDetection(
-    threshold: number,
-    autoStop = true,
-    silenceTimeout = DEFAULT_REC_THRESHOLD.SILENCE_TIMEOUT,
-    isForSilenceDetection = false // Flag to indicate purpose
-  ): void {
-    // Set state only if this is for initial armed detection, not for silence detection
-    if (!isForSilenceDetection) {
-      this.#state = AudioRecorderState.ARMED;
-      this.#armedThreshold = threshold;
-      this.sendMessage('record:armed', {
-        threshold,
-        destination: this.#destination,
-      });
-    }
+  // Single, unified audio monitoring method
+  #setupAudioMonitoring(): void {
+    this.#audioSource = this.#context.createMediaStreamSource(this.#stream!);
+    this.#analyser = this.#context.createAnalyser();
+    this.#analyser.fftSize = 1024;
+    this.#audioSource.connect(this.#analyser);
 
-    // Set up threshold detection
-    this.#thresholdSource = this.#context.createMediaStreamSource(
-      this.#stream!
-    );
-    this.#thresholdAnalyser = this.#context.createAnalyser();
-    this.#thresholdAnalyser.fftSize = 1024;
+    const dataArray = new Float32Array(this.#analyser.fftSize);
 
-    this.#thresholdSource.connect(this.#thresholdAnalyser);
-    const dataArray = new Float32Array(this.#thresholdAnalyser.fftSize);
+    const monitorAudio = () => {
+      if (!this.#analyser) return; // Cleaned up
 
-    // For silence detection
-    let silenceStartTime: number | null = null;
-
-    const checkLevel = () => {
-      // Already cleaned up
-      if (!this.#thresholdAnalyser) return;
+      this.#analyser.getFloatTimeDomainData(dataArray);
+      const peak = Math.max(...dataArray.map(Math.abs));
+      const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
 
       if (this.#state === AudioRecorderState.ARMED) {
-        // ARMED state: check if audio exceeds threshold to start recording
-        this.#thresholdAnalyser.getFloatTimeDomainData(dataArray);
-        const peak = Math.max(...dataArray.map(Math.abs));
-        const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
-
-        if (peakDB >= threshold) {
-          // Threshold reached, start recording
-          this.#armedThreshold = null; // Clear armed state
-
-          if (!autoStop) {
-            // If we're not doing auto-stop, clean up threshold detection
-            this.#cleanupThresholdDetection();
-          }
-
-          // Start recording (but don't set up another detection)
-          this.#startRecording(false);
-        } else {
-          this.#animationFrame = requestAnimationFrame(checkLevel);
-        }
-      } else if (this.#state === AudioRecorderState.RECORDING && autoStop) {
-        // RECORDING state: check for silence (audio below threshold)
-        this.#thresholdAnalyser.getFloatTimeDomainData(dataArray);
-        const peak = Math.max(...dataArray.map(Math.abs));
-        const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
-
-        const now = performance.now();
-
-        if (peakDB < threshold) {
-          // Using the same threshold parameter
-          // Below threshold - potential silence
-          if (silenceStartTime === null) {
-            silenceStartTime = now;
-          } else if (now - silenceStartTime >= silenceTimeout) {
-            // Silence duration exceeded timeout - stop recording
-            this.#cleanupThresholdDetection();
-            this.stop().catch((err) =>
-              console.error('Error auto-stopping recording:', err)
-            );
-            return;
-          }
-        } else {
-          // Above threshold - reset silence timer
-          silenceStartTime = null;
-        }
-
-        this.#animationFrame = requestAnimationFrame(checkLevel);
+        this.#handleArmedState(peakDB);
+      } else if (this.#state === AudioRecorderState.RECORDING) {
+        this.#handleRecordingState(peakDB);
       } else {
-        // Any other state: stop monitoring
-        this.#cleanupThresholdDetection();
+        this.#cleanupMonitoring();
+        return;
       }
+
+      this.#animationFrame = requestAnimationFrame(monitorAudio);
     };
 
-    this.#animationFrame = requestAnimationFrame(checkLevel);
+    this.#animationFrame = requestAnimationFrame(monitorAudio);
   }
 
-  #cleanupThresholdDetection(): void {
+  #handleArmedState(peakDB: number): void {
+    if (peakDB >= this.#currentConfig!.startThreshold) {
+      // Threshold reached - start recording
+      this.#startRecordingImmediate();
+    }
+  }
+
+  #handleRecordingState(peakDB: number): void {
+    if (!this.#currentConfig!.autoStop) return;
+
+    const now = performance.now();
+
+    if (peakDB < this.#currentConfig!.stopThreshold) {
+      // Below threshold - track silence
+      if (this.#silenceStartTime === null) {
+        this.#silenceStartTime = now;
+      } else if (
+        now - this.#silenceStartTime >=
+        this.#currentConfig!.silenceTimeoutMs
+      ) {
+        // Silence timeout reached
+        this.sendMessage('record:stopping', {});
+        this.stop().catch((err) => console.error('Error auto-stopping:', err));
+      }
+    } else {
+      // Above threshold - reset silence timer
+      this.#silenceStartTime = null;
+    }
+  }
+
+  #cleanupMonitoring(): void {
     if (this.#animationFrame !== null) {
       cancelAnimationFrame(this.#animationFrame);
       this.#animationFrame = null;
     }
 
-    if (this.#thresholdSource) {
-      this.#thresholdSource.disconnect();
-      this.#thresholdSource = null;
+    if (this.#audioSource) {
+      this.#audioSource.disconnect();
+      this.#audioSource = null;
     }
 
-    if (this.#thresholdAnalyser) {
-      this.#thresholdAnalyser.disconnect();
-      this.#thresholdAnalyser = null;
+    if (this.#analyser) {
+      this.#analyser.disconnect();
+      this.#analyser = null;
     }
+
+    this.#silenceStartTime = null;
   }
 
   async stop(): Promise<AudioBuffer> {
     if (!this.#recorder) throw new Error('Recorder not initialized');
 
-    // Handle armed state - user cancelled before threshold was reached
+    // Handle armed state cancellation
     if (this.#state === AudioRecorderState.ARMED) {
-      this.#cleanupThresholdDetection();
-      this.#armedThreshold = null;
+      this.#cleanupMonitoring();
       this.#state = AudioRecorderState.STOPPED;
       this.sendMessage('record:cancelled', {});
       throw new Error('Recording was armed but never triggered');
     }
 
-    if (this.#state !== AudioRecorderState.RECORDING)
+    if (this.#state !== AudioRecorderState.RECORDING) {
       throw new Error('Not recording');
+    }
+
+    this.#cleanupMonitoring();
 
     const blob = await this.#stopRecording();
     const buffer = await this.#blobToAudioBuffer(blob);
@@ -255,9 +228,7 @@ export class Recorder implements LibNode {
       if (this.#recorder!.state !== 'inactive') {
         this.#recorder!.addEventListener(
           'dataavailable',
-          (e) => {
-            resolve(e.data);
-          },
+          (e) => resolve(e.data),
           { once: true }
         );
         this.#recorder!.stop();
@@ -270,7 +241,11 @@ export class Recorder implements LibNode {
     return await this.#context.decodeAudioData(arrayBuffer);
   }
 
-  // LibNode interface implementation
+  #isValidThreshold(threshold: number): boolean {
+    return threshold > -60 && threshold < 0;
+  }
+
+  // LibNode interface
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
@@ -280,9 +255,7 @@ export class Recorder implements LibNode {
   }
 
   connect(destination: LibNode & SampleLoader): this {
-    if (destination) {
-      this.#destination = destination;
-    }
+    this.#destination = destination;
     return this;
   }
 
@@ -291,50 +264,33 @@ export class Recorder implements LibNode {
   }
 
   dispose(): void {
-    this.#cleanupThresholdDetection();
-    this.#armedThreshold = null;
+    this.#cleanupMonitoring();
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     this.#recorder = null;
     this.#state = AudioRecorderState.IDLE;
+    this.#currentConfig = null;
     deleteNodeId(this.nodeId);
   }
 
-  set recordStartThreshold(db: number) {
-    this.#armedThreshold = db;
-  }
-
-  get armedThreshold() {
-    return this.#armedThreshold;
-  }
-
-  /**
-   * Returns whether the recorder is armed and waiting for threshold
-   */
+  // Getters
   get isArmed(): boolean {
     return this.#state === AudioRecorderState.ARMED;
-  }
-
-  get now(): number {
-    return this.#context.currentTime;
   }
 
   get isRecording(): boolean {
     return this.#state === AudioRecorderState.RECORDING;
   }
 
-  /**
-   * Returns the current state of the recorder
-   */
   get state(): AudioRecorderState {
     return this.#state;
   }
 
-  /**
-   * Returns whether the recorder has been properly initialized with access to the microphone
-   * and is ready to start recording.
-   */
   get isReady(): boolean {
     return this.#recorder !== null && this.#stream !== null;
+  }
+
+  get now(): number {
+    return this.#context.currentTime;
   }
 }

@@ -49,8 +49,8 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
-  #lpf: BiquadFilterNode;
-  #hpf: BiquadFilterNode;
+  #lpf: BiquadFilterNode | null = null;
+  #hpf: BiquadFilterNode | null = null;
   #destination: AudioNode | null = null;
   #pool: SampleVoicePool;
 
@@ -120,11 +120,18 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     });
 
     // Initialize voice pool
-    this.#pool = new SampleVoicePool(context, polyphony, this.#hpf);
+    this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input); // this.#hpf);
 
     // Connect audiochain
     this.#hpf.connect(this.#lpf);
-    this.#lpf.connect(this.#outBus.input);
+
+    // TODO: simplify and standardize (type-safe) "connect" methods across all LibNode Connectables
+    // todo: explicit connect method on pool
+    // todo: simplify and standardize "init" methods across all LibNode Connectables
+    // this.#lpf.connect(this.#outBus.input);
+
+    // this.#pool.connect(this.#outBus.input);
+    // this.#outBus.connect(context.destination);
 
     // Setup parameters
     this.#macroLoopStart = new MacroParam(
@@ -155,18 +162,20 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     this.#params.register(this.#macroLoopStart);
     this.#params.register(this.#macroLoopEnd);
 
+    if (!this.#hpf || !this.#lpf) return; // todo: remove when filters fixed
+
     // Register native AudioParams with descriptors
     this.#params.register(
       this.#hpf.frequency,
-      DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_FILTER_FREQ
+      DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
     );
 
     this.#params.register(
       this.#lpf.frequency,
-      DEFAULT_PARAM_DESCRIPTORS.LOWPASS_FILTER_FREQ
+      DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
     );
 
-    // todo: register env params (all params)
+    // todo: register env params (all params?)
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
@@ -289,6 +298,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     //   return false;
     // }
 
+    this.setSampleEndOffset(buffer.duration);
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
 
@@ -460,6 +470,24 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   setMidiController(midiController: MidiController): this {
     this.#midiController = midiController;
     return this;
+  }
+
+  setHpfCutoff(hz: number) {
+    this.#hpf?.frequency.setValueAtTime(hz, this.now);
+    return this;
+  }
+
+  get hpfCutoff() {
+    return this.#hpf?.frequency.value;
+  }
+
+  setLpfCutoff(hz: number) {
+    this.#lpf?.frequency.setValueAtTime(hz, this.now);
+    return this;
+  }
+
+  get lpfCutoff() {
+    return this.#lpf?.frequency.value;
   }
 
   setAttackTime(seconds: number): this {
@@ -702,21 +730,23 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return this.#isLoaded;
   }
 
-  // For UI integration, provide a method to get parameter descriptors
+  // todo: use for UI integration
   getParameterDescriptors(): Record<string, ParamDescriptor> {
     return {
       attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
       release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
       startOffset: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
-      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET,
+      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // TODO: Ensure the endOffset is updated on loadSample !!!
       playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
       loopStart: this.#macroLoopStart.descriptor,
       loopEnd: this.#macroLoopEnd.descriptor,
       loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
+      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
     };
   }
 
-  // For UI integration, provide a method to get parameter values
+  // todo: use for UI integration
   getParameterValues(): Record<string, number> {
     return {
       attack: this.#attack,
@@ -727,10 +757,12 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       loopStart: this.#macroLoopStart.getValue(),
       loopEnd: this.#macroLoopEnd.getValue(),
       loopRampDuration: this.#loopRampDuration,
+      // hpfCutoff: this.hpfCutoff, // todo
+      // lpfCutoff: this.lpfCutoff,
     };
   }
 
-  // For UI integration, provide a method to set parameter values
+  // todo: use for UI integration
   setParameterValue(name: string, value: number): this {
     switch (name) {
       case 'attack':
@@ -743,7 +775,6 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
         this.setSampleStartOffset(value);
         break;
       case 'endOffset':
-        console.log(`Setting end offset to THE ${value}`);
         this.setSampleEndOffset(value);
         break;
       case 'playbackRate':
@@ -757,6 +788,12 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
         break;
       case 'loopRampDuration':
         this.setLoopRampDuration(value);
+        break;
+      case 'hpfCutoff':
+        this.setHpfCutoff(value);
+        break;
+      case 'lpfCutoff':
+        this.setLpfCutoff(value);
         break;
     }
     return this;

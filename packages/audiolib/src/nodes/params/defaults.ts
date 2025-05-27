@@ -1,5 +1,9 @@
 import { ParamDescriptor } from './types';
 
+const MAX_HZ = 22000;
+const MIN_HZ = 1;
+const DEFAULT_HPF_CUTOFF = 100;
+
 // Default ParamDescriptors
 export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   LOOP_START: {
@@ -73,7 +77,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     name: 'end-offset',
     type: 'number',
     minValue: 0,
-    maxValue: 1, // Updated when sample loads
+    maxValue: 100, // Updated when sample loads
     step: 0.001,
     defaultValue: 1, // Updated when sample loads
     group: 'sample-offsets',
@@ -90,25 +94,25 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'playback',
   },
 
-  LOWPASS_FILTER_FREQ: {
+  LOWPASS_CUTOFF: {
     id: 'lpf-freq',
     name: 'lpf-freq',
     type: 'number',
-    minValue: 0,
-    maxValue: 20000,
+    minValue: MIN_HZ,
+    maxValue: MAX_HZ,
     step: 1,
-    defaultValue: 20000,
+    defaultValue: MAX_HZ,
     group: 'filter:lpf',
   },
 
-  HIGHPASS_FILTER_FREQ: {
+  HIGHPASS_CUTOFF: {
     id: 'hpf-freq',
     name: 'hpf-freq',
     type: 'number',
-    minValue: 0,
-    maxValue: 20000,
+    minValue: MIN_HZ,
+    maxValue: MAX_HZ,
     step: 1,
-    defaultValue: 100,
+    defaultValue: DEFAULT_HPF_CUTOFF,
     group: 'filter:hpf',
   },
 };

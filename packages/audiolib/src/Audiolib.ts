@@ -181,7 +181,11 @@ export class Audiolib implements LibNode {
   async createRecorder(
     destination?: LibNode & SampleLoader
   ): Promise<Recorder> {
-    const recorder = await createAudioRecorder(this.#audioContext || undefined);
+    assert(
+      this.#audioContext,
+      'AudioContext must be initialized before creating Recorder'
+    );
+    const recorder = await createAudioRecorder(this.#audioContext);
 
     if (destination) {
       recorder.connect(destination);
