@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "pnpm clean && vite",
     "build": "pnpm clean && vite build",
-    "publish": "gh-pages -d dist",
+    "publish": "gh-pages -d dist gh-pages",
     "preview": "vite preview",
     "clean": "rm -rf node_modules dist && pnpm prune"
   },
