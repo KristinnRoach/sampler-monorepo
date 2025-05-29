@@ -18,6 +18,7 @@ export class ParamManager {
     // Add existing AudioParam properties to descriptor when possible
     const descrWithAudioParamValues = {
       ...descriptor,
+      id: nodeId,
       defaultValue: descriptor.defaultValue ?? audioParam.defaultValue,
       minValue: descriptor.minValue ?? audioParam.minValue,
       maxValue: descriptor.maxValue ?? audioParam.maxValue,
@@ -27,10 +28,11 @@ export class ParamManager {
     const libParam: LibParam = {
       nodeId,
       nodeType: 'param',
+      isReady: true,
       descriptor: descrWithAudioParamValues,
       getValue: () => audioParam.value,
       setValue: (value: number) => {
-        audioParam.setValueAtTime(value, 0); // todo: check if "0" is cool
+        audioParam.setValueAtTime(value, 0.0001);
       },
       onMessage: () => () => {}, // No-op implementation
       dispose: () => {},
@@ -49,10 +51,12 @@ export class ParamManager {
       }
 
       const wrappedParam = this.wrapAudioParam(param, descriptor);
-      this.params.set(descriptor.id, wrappedParam);
+      this.params.set(descriptor.nodeId, wrappedParam);
     } else {
       // It's already a LibParam
-      this.params.set(param.descriptor.id, param);
+      // todo: ensure descriptor id consistently uses the nodeId
+      param.descriptor.nodeId = param.nodeId;
+      this.params.set(param.descriptor.nodeId, param);
     }
   }
 

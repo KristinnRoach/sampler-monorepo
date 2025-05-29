@@ -58,6 +58,7 @@ export class ValueSnapper {
       Math.abs(curr - targetValue) < Math.abs(prev - targetValue) ? curr : prev
     );
   }
+
   //   const targetDistance = Math.abs(referenceValue - targetValue);
   //   const closestPeriod = this.#allowedPeriods.reduce((prev, curr) =>
   //     Math.abs(curr - targetDistance) < Math.abs(prev - targetDistance)

@@ -10,10 +10,6 @@ export const createNodeId = (nodeType: string) => {
   return nodeId;
 };
 
-export const idToNum = (nodeId: string) => parseInt(nodeId.split('-')[0]);
-
-export const numToId = (num: number, nodeType: string) => `${num}-${nodeType}`;
-
 export const deleteNodeId = (nodeId: string) => {
   const index = NodeIDs.indexOf(nodeId);
   if (index > -1) {
@@ -30,3 +26,7 @@ export const getIdsByType = (type: string) => {
 export const getAllIds = () => [...NodeIDs];
 
 export const hasId = (id: string) => NodeIDs.includes(id);
+
+// Converters
+export const idToNum = (nodeId: string) => parseInt(nodeId.split('-')[0]);
+export const numToId = (num: number, nodeType: string) => `${num}-${nodeType}`;

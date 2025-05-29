@@ -13,6 +13,11 @@ export class KarplusVoicePool {
   #activeVoices: Map<ActiveNoteId, KarplusVoice>;
   #nextNoteId: number;
 
+  #isReady: boolean = false;
+  get isReady() {
+    return this.#isReady;
+  }
+
   constructor(
     context: AudioContext,
     numVoices: number,
@@ -28,6 +33,8 @@ export class KarplusVoicePool {
 
     this.#activeVoices = new Map(); // noteId -> voice
     this.#nextNoteId = 0;
+
+    this.#isReady = true;
   }
 
   // Voice Allocation

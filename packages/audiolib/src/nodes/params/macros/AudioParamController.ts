@@ -8,6 +8,7 @@ export class AudioParamController {
   #controlNode: GainNode;
   #constantSignal: ConstantSourceNode;
   #targets: Array<{ param: AudioParam; scaler?: GainNode }> = [];
+  #isReady: boolean = false;
 
   static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
@@ -23,6 +24,8 @@ export class AudioParamController {
 
     this.#controlNode = new GainNode(context, { gain: initialValue });
     this.#constantSignal.connect(this.#controlNode);
+
+    this.#isReady = true;
   }
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
@@ -71,6 +74,10 @@ export class AudioParamController {
 
   get value(): number {
     return this.param.value;
+  }
+
+  get isReady() {
+    return this.#isReady;
   }
 
   dispose(): void {

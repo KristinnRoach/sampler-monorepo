@@ -3,7 +3,8 @@ import {
   InstrumentType,
   SampleLoader,
   Messenger,
-} from '@/LibNode';
+  LibAudioNode,
+} from '@/nodes/LibNode';
 
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import type { MidiValue, ActiveNoteId } from '../types';
@@ -45,13 +46,14 @@ import { SampleVoicePool } from './SampleVoicePool';
 
 export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   readonly nodeId: NodeID;
-  readonly nodeType: InstrumentType = 'sampler';
+  readonly nodeType: InstrumentType = 'sample-player';
+  #children: Array<LibAudioNode | AudioNode> = [];
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
   #lpf: BiquadFilterNode | null = null;
   #hpf: BiquadFilterNode | null = null;
-  #destination: AudioNode | null = null;
+  #destination: LibAudioNode | AudioNode | AudioDestinationNode | null = null;
   #pool: SampleVoicePool;
 
   #messages: MessageBus<Message>;
@@ -83,7 +85,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   #release: number = 0.1;
   #playbackRate: number = 1;
 
-  #isInitialized = false;
+  #isReady = false;
   #isLoaded = false;
 
   #zeroCrossings: number[] = []; // cache maybe needed later
@@ -148,7 +150,18 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
     this.#midiController = midiController || null;
 
-    this.#isInitialized = true;
+    // Populate SamplePlayers sub-graph
+    this.#addChildren([
+      this.#outBus,
+      this.#hpf,
+      this.#lpf,
+      this.#pool,
+      // this.#params // TODO: move LibParams, only one "params" object in LibInstrument ?
+      // this.#macroLoopStart,
+      // this.#macroLoopEnd,
+    ]);
+
+    this.#isReady = true;
 
     if (audioBuffer?.duration) {
       this.loadSample(audioBuffer, audioBuffer.sampleRate);
@@ -156,6 +169,13 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       this.#isLoaded = false;
     }
   }
+
+  #addChild = (node: LibAudioNode | AudioNode) => this.#children.push(node);
+
+  #addChildren = (nodes: Array<LibAudioNode | AudioNode>) => {
+    nodes.forEach((n) => this.#children.push(n));
+    return this;
+  };
 
   #registerParameters(): void {
     // Register the loop macros (already LibParams)
@@ -187,7 +207,8 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return this;
   }
 
-  connect(destination: AudioNode): this {
+  connect(destination: TODO): this {
+    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
     this.#outBus.connect(destination);
     this.#destination = destination;
     return this;
@@ -652,7 +673,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
       // Reset state variables
       this.#bufferDuration = 0;
-      this.#isInitialized = false;
+      this.#isReady = false;
       this.#isLoaded = false;
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
@@ -674,15 +695,13 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     }
   }
 
-  get now() {
-    return getAudioContext().currentTime;
+  get firstChildren() {
+    return this.#children;
   }
 
-  get audioContext() {
-    return this.#context;
-  }
+  // get in() { this.#hpf }
 
-  get outputNode() {
+  get out() {
     return this.#outBus.outputNode;
   }
 
@@ -692,6 +711,14 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   get destination() {
     return this.#destination;
+  }
+
+  get now() {
+    return getAudioContext().currentTime;
+  }
+
+  get audioContext() {
+    return this.#context;
   }
 
   get sampleDuration(): number {
@@ -722,8 +749,8 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return this.#macroLoopEnd.getValue();
   }
 
-  get isInitialized() {
-    return this.#isInitialized;
+  get isReady() {
+    return this.#isReady;
   }
 
   get isLoaded() {

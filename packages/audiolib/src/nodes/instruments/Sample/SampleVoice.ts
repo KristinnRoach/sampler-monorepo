@@ -1,4 +1,4 @@
-import { LibVoiceNode, VoiceType, Messenger } from '@/LibNode';
+import { LibVoiceNode, VoiceType, Messenger } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { VoiceState, ActiveNoteId } from '../types';
@@ -18,7 +18,7 @@ import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
 // Define descriptors for voice parameters
 export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   playbackRate: {
-    id: 'playbackRate',
+    nodeId: 'playbackRate',
     name: 'playbackRate',
     type: 'number',
     minValue: 0.1,
@@ -27,7 +27,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'playback',
   },
   envGain: {
-    id: 'envGain',
+    nodeId: 'envGain',
     name: 'envGain',
     type: 'number',
     minValue: 0,
@@ -36,7 +36,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'envelope',
   },
   startOffset: {
-    id: 'startOffset',
+    nodeId: 'startOffset',
     name: 'startOffset',
     type: 'number',
     minValue: 0,
@@ -44,7 +44,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'playback',
   },
   endOffset: {
-    id: 'endOffset',
+    nodeId: 'endOffset',
     name: 'endOffset',
     type: 'number',
     minValue: 0,
@@ -52,7 +52,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'playback',
   },
   loopStart: {
-    id: 'loopStart',
+    nodeId: 'loopStart',
     name: 'loopStart',
     type: 'number',
     minValue: 0,
@@ -60,7 +60,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'loop',
   },
   loopEnd: {
-    id: 'loopEnd',
+    nodeId: 'loopEnd',
     name: 'loopEnd',
     type: 'number',
     minValue: 0,
@@ -68,7 +68,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     group: 'loop',
   },
   velocity: {
-    id: 'velocity',
+    nodeId: 'velocity',
     name: 'velocity',
     type: 'number',
     minValue: 0,
@@ -85,6 +85,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   #worklet: AudioWorkletNode;
   #messages: MessageBus<Message>;
   #state: VoiceState = VoiceState.IDLE;
+  #isReady: boolean = false;
   #currentNoteId: number | string | null = null;
   #startedTimestamp: number = -1;
 
@@ -381,8 +382,22 @@ export class SampleVoice implements LibVoiceNode, Messenger {
 
   // Getters
 
+  get in() {
+    return null; // possibly add support for connecting to "in": this.#worklet;
+  }
+
+  get out() {
+    return this.#worklet; // or this.#worklet.parameters.envGain ?
+  }
+
+  // get firstChildren() { return this.#worklet; }
+
   get state(): VoiceState {
     return this.#state;
+  }
+
+  get isReady() {
+    return this.#isReady;
   }
 
   get now(): number {

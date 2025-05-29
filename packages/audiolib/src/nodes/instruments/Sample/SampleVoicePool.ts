@@ -13,6 +13,11 @@ export class SampleVoicePool {
 
   #transposeSemitones = 0;
 
+  #isReady: boolean = false;
+  get isReady() {
+    return this.#isReady;
+  }
+
   constructor(
     context: AudioContext,
     numVoices: number,
@@ -27,6 +32,8 @@ export class SampleVoicePool {
 
     this.#activeVoices = new Map(); // noteId -> voice
     this.#nextNoteId = 0;
+
+    this.#isReady = true;
   }
 
   setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
@@ -40,6 +47,7 @@ export class SampleVoicePool {
     const freeVoice = this.#allVoices.find(
       (v) => v.state !== 'PLAYING' && v.state !== 'RELEASING'
     );
+
     if (freeVoice) return freeVoice;
 
     // Second priority: find a releasing voice

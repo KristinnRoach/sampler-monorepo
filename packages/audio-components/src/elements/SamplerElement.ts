@@ -161,7 +161,7 @@ export class SamplerElement extends BaseAudioElement {
 
       if (this.samplePlayer) {
         // Set up audio nodes
-        this.outputNode = this.samplePlayer.outputNode;
+        this.outputNode = this.samplePlayer.out;
         this.audioContext = this.samplePlayer.audioContext;
         this.initialized = true;
 

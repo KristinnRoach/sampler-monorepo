@@ -11,7 +11,7 @@ import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
 
 export class MacroParam implements LibParam {
-  readonly nodeType: ParamType = 'macro';
+  readonly nodeType: ParamType = 'param';
   readonly nodeId: NodeID;
 
   #controller: AudioParamController;
@@ -19,6 +19,7 @@ export class MacroParam implements LibParam {
   #debouncer: Debouncer;
   #messages: MessageBus<Message>;
   #paramType: string = '';
+  #isReady: boolean = false;
 
   descriptor: ParamDescriptor;
 
@@ -33,6 +34,8 @@ export class MacroParam implements LibParam {
 
     this.#messages = createMessageBus(this.#controller.nodeId);
     this.nodeId = this.#controller.nodeId;
+
+    this.#isReady = true;
   }
 
   addTarget(
@@ -136,6 +139,10 @@ export class MacroParam implements LibParam {
 
   getValue(): number {
     return this.#controller.value;
+  }
+
+  get isReady() {
+    return this.#isReady;
   }
 
   get now(): number {

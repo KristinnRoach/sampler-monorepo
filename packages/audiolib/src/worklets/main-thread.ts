@@ -14,7 +14,7 @@ const staticPaths = [
 ];
 
 // Helper function to create a Blob URL from the processor code
-async function getBlobUrl(context: AudioContext): Promise<string> {
+async function getBlobUrl(): Promise<string> {
   try {
     // Try to fetch the processors code
     const possibleFetchUrls = [
@@ -92,7 +92,7 @@ export async function initProcessors(context: AudioContext) {
 
   // If all static paths failed, try the Blob URL approach as a last resort
   try {
-    const blobUrl = await getBlobUrl(context);
+    const blobUrl = await getBlobUrl();
     // console.debug(`Attempting to load AudioWorklet from Blob URL`);
     await context.audioWorklet.addModule(blobUrl);
     registry.add('blob-url');

@@ -7,7 +7,7 @@ const DEFAULT_HPF_CUTOFF = 100;
 // Default ParamDescriptors
 export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   LOOP_START: {
-    id: 'loop-start',
+    nodeId: 'loop-start', // todo: remove default id's, ensure they are created when param is registered
     name: 'loop-start',
     type: 'number',
     minValue: 0,
@@ -18,7 +18,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   LOOP_END: {
-    id: 'loop-start',
+    nodeId: 'loop-start',
     name: 'loop-start',
     type: 'number',
     minValue: 0,
@@ -29,7 +29,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   LOOP_RAMP_DURATION: {
-    id: 'loop-point-ramp',
+    nodeId: 'loop-point-ramp',
     name: 'loop-point-ramp',
     type: 'number' as const,
     minValue: 0.001,
@@ -40,7 +40,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   ATTACK: {
-    id: 'attack-time',
+    nodeId: 'attack-time',
     name: 'attack-time',
     type: 'number',
     minValue: 0,
@@ -51,7 +51,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   RELEASE: {
-    id: 'release-time',
+    nodeId: 'release-time',
     name: 'release-time',
     type: 'number',
     minValue: 0,
@@ -62,7 +62,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   START_OFFSET: {
-    id: 'start-offset',
+    nodeId: 'start-offset',
     name: 'start-offset',
     type: 'number',
     minValue: 0,
@@ -73,7 +73,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   END_OFFSET: {
-    id: 'end-offset',
+    nodeId: 'end-offset',
     name: 'end-offset',
     type: 'number',
     minValue: 0,
@@ -84,7 +84,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   PLAYBACK_RATE: {
-    id: 'playback-rate',
+    nodeId: 'playback-rate',
     name: 'playback-rate',
     type: 'number',
     minValue: 0.25,
@@ -95,7 +95,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   LOWPASS_CUTOFF: {
-    id: 'lpf-freq',
+    nodeId: 'lpf-freq',
     name: 'lpf-freq',
     type: 'number',
     minValue: MIN_HZ,
@@ -106,7 +106,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   },
 
   HIGHPASS_CUTOFF: {
-    id: 'hpf-freq',
+    nodeId: 'hpf-freq',
     name: 'hpf-freq',
     type: 'number',
     minValue: MIN_HZ,

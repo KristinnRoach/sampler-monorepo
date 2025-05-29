@@ -1,6 +1,6 @@
 import { NodeID } from '@/nodes/node-store';
-import { LibParam } from './nodes/params';
-import { Message, MessageHandler, MessageBus } from '@/events';
+import { LibParam, ParamType } from './params';
+import { Message, MessageHandler } from '@/events';
 
 export type BaseNodeType =
   | 'instrument'
@@ -11,13 +11,11 @@ export type BaseNodeType =
   | 'recorder'
   | 'audiolib';
 
-export type InstrumentType = 'sampler' | 'synth';
+export type InstrumentType = 'sample-player' | 'synth';
 
 export type ContainerType = 'pool' | 'chain' | 'audiolib';
 
 export type VoiceType = 'sample' | 'karplus-strong' | 'osc';
-
-export type ParamType = 'macro' | 'lib-param' | 'web-audio-param'; // 'AudioParam';
 
 export type FxType =
   | 'feedback-delay'
@@ -36,10 +34,32 @@ export type NodeType =
   | ParamType
   | FxType;
 
+export type AudioGraph = {
+  root: LibAudioNode;
+};
+
 // Base interface for all nodes
-export interface LibNode {
+export interface LibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
+  readonly isReady: boolean;
+
+  // parent?: LibAudioNode | 'isRoot';
+  destination?: LibAudioNode | AudioDestinationNode | AudioNode | null; // TODO: make required and consolidate types
+
+  in?: LibAudioNode[] | AudioNode | MediaStreamAudioSourceNode | null;
+  out?: LibAudioNode[] | AudioNode | null; // TODO: Standardize so don't have to distinguish between LibAudioNodes and AudioNodes, make required and remove "| AudioNode"
+  firstChildren?: Array<LibAudioNode | AudioNode>;
+
+  // subGraph?: {
+  //   parent: LibAudioNode;
+  //   in?: LibAudioNode[];
+  //   out: LibAudioNode[];
+  //   firstChildren?: LibAudioNode[];
+  // };
+
+  // TODO: subGraph: { in: LibNode[], out: LibNode[]} ,
+  // get in, get out, children or subGraph?: LibC
 
   dispose(): void;
 }
@@ -67,16 +87,16 @@ export interface SampleLoader {
 }
 
 // Container node
-export interface LibContainerNode extends LibNode {
+export interface LibContainerNode extends LibAudioNode {
   readonly nodeType: ContainerType;
 
-  add(child: LibNode): this;
-  remove(child: LibNode): this;
-  nodes: LibNode[];
+  add(child: LibAudioNode): this;
+  remove(child: LibAudioNode): this;
+  nodes: LibAudioNode[];
 }
 
 // Instrument node
-export interface LibInstrument extends LibNode {
+export interface LibInstrument extends LibAudioNode {
   readonly nodeType: InstrumentType;
 
   play(...args: TODO[]): TODO;
@@ -85,7 +105,7 @@ export interface LibInstrument extends LibNode {
 }
 
 // Voice node - handles actual sound generation
-export interface LibVoiceNode extends LibNode {
+export interface LibVoiceNode extends LibAudioNode {
   readonly nodeType: VoiceType;
 
   connect(
@@ -104,7 +124,7 @@ export interface LibVoiceNode extends LibNode {
 }
 
 // Effect node
-export interface LibFxNode extends LibNode {
+export interface LibFxNode extends LibAudioNode {
   readonly nodeType: FxType;
 
   bypass(shouldBypass: boolean): this;

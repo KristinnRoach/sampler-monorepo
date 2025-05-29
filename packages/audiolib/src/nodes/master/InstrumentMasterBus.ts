@@ -1,10 +1,10 @@
-import { LibNode } from '@/LibNode';
+import { LibAudioNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';
 
-export class InstrumentMasterBus implements LibNode {
+export class InstrumentMasterBus implements LibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'fx';
 
@@ -15,6 +15,10 @@ export class InstrumentMasterBus implements LibNode {
   #messages;
   #compressorEnabled: boolean = true;
   #levelMonitor: LevelMonitor | null = null;
+  #isReady: boolean = false;
+  get isReady() {
+    return this.#isReady;
+  }
 
   constructor() {
     this.nodeId = createNodeId(this.nodeType);
@@ -28,6 +32,8 @@ export class InstrumentMasterBus implements LibNode {
 
     // Connect nodes
     this.#setupRouting();
+
+    this.#isReady = true;
   }
 
   /**

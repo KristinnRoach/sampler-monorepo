@@ -15,7 +15,11 @@ export type { Audiolib };
 export type { SamplePlayer } from '@/nodes/instruments/Sample/SamplePlayer';
 export type { KarplusStrongSynth } from '@/nodes/instruments/Synth/KarplusStrong/KarplusStrongSynth';
 export type { Recorder } from '@/nodes/recorder';
-export type { LibInstrument, LibNode, SampleLoader } from '@/LibNode';
+export type {
+  LibInstrument,
+  LibAudioNode as LibNode,
+  SampleLoader,
+} from '@/nodes/LibNode';
 export type {
   LibParam,
   ParamDescriptor,

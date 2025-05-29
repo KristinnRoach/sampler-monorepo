@@ -30,7 +30,7 @@ export function fromAudioParamDescriptor(
   }
 ): ParamDescriptor {
   return {
-    id: options.id,
+    nodeId: options.id,
     name: audioParam.name,
     type: options.type || 'number',
     defaultValue: audioParam.defaultValue ?? 0,

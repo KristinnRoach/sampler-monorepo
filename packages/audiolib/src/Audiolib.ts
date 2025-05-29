@@ -18,7 +18,12 @@ import {
 import { idb, initIdb, sampleLib } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
-import { LibInstrument, LibNode, ContainerType, SampleLoader } from '@/LibNode';
+import {
+  LibInstrument,
+  LibAudioNode,
+  ContainerType,
+  SampleLoader,
+} from '@/nodes/LibNode';
 import {
   SamplePlayer,
   createSamplePlayer as createSamplePlayerFactory,
@@ -34,7 +39,7 @@ import { MidiController } from '@/io';
 
 // Todo: export init and instrument factory functions separately (tree shake-able)
 
-export class Audiolib implements LibNode {
+export class Audiolib implements LibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType: ContainerType = 'audiolib';
   static #instance: Audiolib | null = null;
@@ -179,7 +184,7 @@ export class Audiolib implements LibNode {
   }
 
   async createRecorder(
-    destination?: LibNode & SampleLoader
+    destination?: LibAudioNode & SampleLoader
   ): Promise<Recorder> {
     assert(
       this.#audioContext,
@@ -249,7 +254,7 @@ export class Audiolib implements LibNode {
   /** Recorder  **/
 
   async recordAudioSample(
-    destination?: LibNode & SampleLoader
+    destination?: LibAudioNode & SampleLoader
   ): Promise<AudioBuffer> {
     assert(this.#globalAudioRecorder, 'Audio recorder not initialized');
 
@@ -316,22 +321,34 @@ export class Audiolib implements LibNode {
   /** LibContainerNode required methods */
   // Todo: change interface or adapt
 
-  add(child: LibNode): this {
-    this.nodes.push(child);
+  add(child: LibAudioNode): this {
+    this.firstChildren.push(child);
     return this;
   }
 
-  remove(child: LibNode): this {
-    const index = this.nodes.indexOf(child);
+  remove(child: LibAudioNode): this {
+    const index = this.firstChildren.indexOf(child);
     if (index > -1) {
-      this.nodes.splice(index, 1);
+      this.firstChildren.splice(index, 1);
     }
     return this;
   }
 
   /** GETTERS & SETTERS **/
 
-  get nodes(): LibNode[] {
+  get in() {
+    return this.#masterGain;
+  }
+
+  get out() {
+    return this.#masterGain;
+  }
+
+  get destination() {
+    return this.#audioContext?.destination;
+  }
+
+  get firstChildren(): LibAudioNode[] {
     return Array.from(this.#instruments.values());
   }
 

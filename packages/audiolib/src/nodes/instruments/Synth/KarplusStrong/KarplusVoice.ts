@@ -1,6 +1,6 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
-import { LibVoiceNode, VoiceType } from '@/LibNode';
+import { LibVoiceNode, VoiceType } from '@/nodes/LibNode';
 import {
   Message,
   MessageHandler,
@@ -39,6 +39,11 @@ export class KarplusVoice implements LibVoiceNode {
   #midiNote: number = 0;
 
   #isPlaying: boolean = false; // todo: remove
+
+  #isReady: boolean = false;
+  get isReady() {
+    return this.#isReady;
+  }
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
@@ -89,6 +94,8 @@ export class KarplusVoice implements LibVoiceNode {
     this.noiseGain.connect(this.outputGain);
     this.noiseGain.connect(this.feedbackDelay);
     this.feedbackDelay.connect(this.outputGain);
+
+    this.#isReady = true;
   }
 
   getParam(name: string): AudioParam | null {

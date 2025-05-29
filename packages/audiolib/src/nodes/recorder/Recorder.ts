@@ -1,4 +1,4 @@
-import { LibNode, SampleLoader } from '@/LibNode';
+import { LibAudioNode, SampleLoader } from '@/nodes/LibNode';
 import { NodeID, createNodeId, deleteNodeId } from '@/nodes/node-store';
 import {
   Message,
@@ -29,7 +29,7 @@ export const DEFAULT_RECORDER_OPTIONS = {
 
 export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;
 
-export class Recorder implements LibNode {
+export class Recorder implements LibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'recorder';
 
@@ -37,7 +37,7 @@ export class Recorder implements LibNode {
   #stream: MediaStream | null = null;
   #recorder: MediaRecorder | null = null;
   #messages: MessageBus<Message>;
-  #destination: (LibNode & SampleLoader) | null = null;
+  #destination: (LibAudioNode & SampleLoader) | null = null;
   #state: AudioRecorderState = AudioRecorderState.IDLE;
 
   // Single audio monitoring setup
@@ -254,7 +254,7 @@ export class Recorder implements LibNode {
     this.#messages.sendMessage(type, data);
   }
 
-  connect(destination: LibNode & SampleLoader): this {
+  connect(destination: LibAudioNode & SampleLoader): this {
     this.#destination = destination;
     return this;
   }
@@ -293,4 +293,18 @@ export class Recorder implements LibNode {
   get now(): number {
     return this.#context.currentTime;
   }
+
+  get destination() {
+    return this.#destination;
+  }
+  // get in() {
+  //   return this.#audioSource;
+  // }
+
+  // get out() {
+  //   return this.#audioSource;
+  // }
+
+  // get firstChildren(): LibAudioNode[] {
+  // }
 }

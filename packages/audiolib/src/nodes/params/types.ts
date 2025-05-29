@@ -1,8 +1,8 @@
-import { LibNode, Messenger, ParamType } from '@/LibNode';
+import { LibAudioNode, Messenger } from '@/nodes/LibNode';
 import { MessageHandler, Message } from '@/events';
 
 export interface ParamDescriptor {
-  id: string;
+  nodeId: NodeID;
   name: string;
   type: 'number' | 'boolean' | 'enum';
 
@@ -20,7 +20,9 @@ export interface ParamDescriptor {
   automationRate?: 'a-rate' | 'k-rate';
 }
 
-export interface LibParam extends LibNode, Messenger {
+export interface LibParam extends LibAudioNode, Messenger {
+  readonly nodeType: ParamType;
+
   getValue: () => any;
   setValue: (value: any) => void;
 
@@ -29,4 +31,18 @@ export interface LibParam extends LibNode, Messenger {
   onChange?: (callback: MessageHandler<Message>) => () => void;
 }
 
-export { type ParamType };
+export type ParamType =
+  | 'macro'
+  | 'param'
+  // todo: switch to the more specific types below
+  | 'loopStart'
+  | 'loopEnd'
+  | 'start'
+  | 'end'
+  | 'attack'
+  | 'decay'
+  | 'sustain'
+  | 'release'
+  | 'rampTime'
+  | 'volume'
+  | 'playbackRate';

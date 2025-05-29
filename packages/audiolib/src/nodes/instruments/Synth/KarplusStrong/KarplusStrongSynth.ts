@@ -1,4 +1,4 @@
-import { LibInstrument, InstrumentType, Messenger } from '@/LibNode';
+import { LibInstrument, InstrumentType, Messenger } from '@/nodes/LibNode';
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
@@ -32,6 +32,11 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
   #debouncer: Debouncer = new Debouncer();
 
+  #isReady: boolean = false;
+  get isReady() {
+    return this.#isReady;
+  }
+
   constructor(polyphony: number = 8, options: Record<string, number> = {}) {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = getAudioContext();
@@ -43,6 +48,8 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
       polyphony,
       this.#output.input
     );
+
+    this.#isReady = true;
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {

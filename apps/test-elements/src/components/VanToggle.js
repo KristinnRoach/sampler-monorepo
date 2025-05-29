@@ -1,4 +1,5 @@
 import van from '@repo/vanjs-core';
+import { toStyleStr, stateOf } from './comp-utils';
 
 /** Usage
   // van.add(
@@ -11,17 +12,7 @@ import van from '@repo/vanjs-core';
   // );
  */
 
-// Quote all tag names so that they're not mangled by minifier
-const { input: input, label: label, span: span } = van.tags;
-
-const toStyleStr = (style) =>
-  Object.entries(style)
-    .map(([k, v]) => `${k}: ${v};`)
-    .join('');
-
-const stateProto = Object.getPrototypeOf(van.state(null));
-const stateOf = (v) =>
-  Object.getPrototypeOf(v ?? 0) === stateProto ? v : van.state(v);
+const { input, label, span } = van.tags;
 
 export const Toggle = ({
   on = false,

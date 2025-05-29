@@ -1,5 +1,5 @@
 // import van from '@repo/vanjs-core';
-
+// import { Toggle } from './components/VanToggle.js';
 import { createDraggable } from 'animejs';
 import { getAttributesArr } from './utils/log.js';
 
@@ -44,6 +44,15 @@ const init = () => {
 
   loopControllerEl.setMinimumGap(0.003);
   offsetControllerEl.setMinimumGap(0.1);
+
+  // van.add(
+  //   loopControllerEl,
+  //   Toggle({
+  //     on: false,
+  //     size: 2,
+  //     onColor: '#4CAF50',
+  //   })
+  // );
 
   // create draggables
   const draggables = document.querySelectorAll('.draggable');
