@@ -11,6 +11,10 @@ export class SamplerElement extends BaseAudioElement {
   private loopControlElement: HTMLElement | null = null;
   private offsetControlElement: HTMLElement | null = null;
 
+  get player() {
+    return this.samplePlayer;
+  }
+
   private attributeHandlers: Record<string, (value: string) => void> = {
     'start-offset': (value) => this.setStartOffset(parseFloat(value)),
     'end-offset': (value) => this.setEndOffset(parseFloat(value)),

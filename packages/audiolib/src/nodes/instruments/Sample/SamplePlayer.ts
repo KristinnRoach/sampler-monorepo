@@ -209,8 +209,15 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   connect(destination: TODO): this {
     assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+    // also todo: make sure no accidental multiple connections
     this.#outBus.connect(destination);
     this.#destination = destination;
+    return this;
+  }
+
+  connectAltOut(destination: AudioNode): this {
+    this.#outBus.connectAltOut(destination);
+
     return this;
   }
 

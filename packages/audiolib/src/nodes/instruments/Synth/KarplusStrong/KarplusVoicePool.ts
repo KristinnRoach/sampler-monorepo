@@ -37,6 +37,10 @@ export class KarplusVoicePool {
     this.#isReady = true;
   }
 
+  connect = (destination: AudioNode) => {
+    this.#allVoices.forEach((v) => v.connect(destination));
+  };
+
   // Voice Allocation
   findVoice() {
     // First priority: find an inactive voice
@@ -107,5 +111,19 @@ export class KarplusVoicePool {
 
   get activeVoicesCount() {
     return this.#activeVoices.size;
+  }
+
+  // get auxIn() {
+  //   this.in.forEach((input) => stream.connect(input));
+  // }
+
+  set auxIn(stream: AudioNode) {
+    this.ins.forEach((input) => stream.connect(input));
+  }
+
+  get ins() {
+    const inputs: AudioNode[] = [];
+    this.#allVoices.forEach((v) => inputs.push(v.in));
+    return inputs;
   }
 }

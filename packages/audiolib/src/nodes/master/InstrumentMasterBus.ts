@@ -12,6 +12,7 @@ export class InstrumentMasterBus implements LibAudioNode {
   #input: GainNode;
   #compressor: DynamicsCompressorNode;
   #output: GainNode;
+  #altOut: GainNode | null = null;
   #messages;
   #compressorEnabled: boolean = true;
   #levelMonitor: LevelMonitor | null = null;
@@ -200,6 +201,13 @@ export class InstrumentMasterBus implements LibAudioNode {
 
   connect(destination: AudioNode): this {
     this.#output.connect(destination);
+    return this;
+  }
+
+  connectAltOut(destination: AudioNode) {
+    if (!this.#altOut) this.#altOut = new GainNode(this.#context);
+    this.#altOut.connect(destination);
+
     return this;
   }
 

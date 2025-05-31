@@ -1,4 +1,4 @@
-import { getAudioContext } from '@/context';
+import { ensureAudioCtx, getAudioContext } from '@/context';
 import { KarplusStrongSynth } from './KarplusStrongSynth';
 import { assert } from '@/utils';
 import { MidiController } from '@/io';
@@ -18,10 +18,13 @@ export function createKarplusStrongSynth(
   enableMidi: boolean = false,
   midiController?: MidiController
 ): KarplusStrongSynth {
+  // Promise<KarplusStrongSynth> {
   assert(ctx, 'Audio context is not available');
 
+  // if (!ctx || ctx.state !== 'running') ctx = await ensureAudioCtx();
+
   // Create the synthesizer
-  const synth = new KarplusStrongSynth(polyphony);
+  const synth = new KarplusStrongSynth(polyphony, ctx);
   assert(synth, 'Failed to create KarplusStrongSynth');
 
   // Enable MIDI if requested

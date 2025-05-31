@@ -1,13 +1,17 @@
-// import van from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 // import { Toggle } from './components/VanToggle.js';
 import { createDraggable } from 'animejs';
 import { getAttributesArr } from './utils/log.js';
+import { KarplusSynthComponent, ksSynth } from './components/Karplus.js';
 
 // logKeyDown();
 
 const init = () => {
   // Get references to elements
+
   const playerEl = document.getElementById(`sampler-1`);
+  const karplusEl = document.getElementById('karplus-1');
+
   const loaderEl = document.getElementById(`loader-1`);
   const recorderEl = document.getElementById('recorder-1');
 
@@ -26,6 +30,7 @@ const init = () => {
       envelopeEl,
       loopControllerEl,
       offsetControllerEl,
+      karplusEl,
     ])
   );
 
@@ -40,6 +45,24 @@ const init = () => {
     envelopeEl.connect(playerEl);
     loopControllerEl.connect(playerEl);
     offsetControllerEl.connect(playerEl);
+
+    // Testing out Karplus synth
+    van.add(karplusEl, KarplusSynthComponent());
+
+    // MEGA TEST __________________________
+    const player = playerEl.player;
+    console.table(player);
+
+    const ctx = ksSynth.context;
+    const eXtraGain = new GainNode(ctx);
+    eXtraGain.gain.setValueAtTime(1.5, ctx.currentTime);
+
+    player.connectAltOut(eXtraGain);
+
+    console.info(ksSynth.auxIn);
+    eXtraGain.connect(ksSynth.auxIn);
+
+    // MEGA TEST __________________________
   });
 
   loopControllerEl.setMinimumGap(0.003);

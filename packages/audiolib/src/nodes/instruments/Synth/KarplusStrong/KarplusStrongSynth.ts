@@ -1,13 +1,19 @@
-import { LibInstrument, InstrumentType, Messenger } from '@/nodes/LibNode';
+import {
+  LibInstrument,
+  InstrumentType,
+  Messenger,
+  LibAudioNode,
+} from '@/nodes/LibNode';
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { createNodeId, NodeID } from '@/nodes/node-store';
-import { getAudioContext } from '@/context';
+import { ensureAudioCtx, getAudioContext } from '@/context';
 import {
   Message,
   MessageBus,
   MessageHandler,
   createMessageBus,
 } from '@/events';
+
 import {
   MidiController,
   globalKeyboardInput,
@@ -25,10 +31,12 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
 
   #context: AudioContext;
   #output: InstrumentMasterBus;
+  #auxInput: GainNode;
   #voicePool: KarplusVoicePool;
   #messages: MessageBus<Message>;
 
   #keyboardHandler: InputHandler | null = null;
+  #midiController: MidiController | null = null;
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
   #debouncer: Debouncer = new Debouncer();
 
@@ -37,17 +45,26 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
     return this.#isReady;
   }
 
-  constructor(polyphony: number = 8, options: Record<string, number> = {}) {
+  constructor(
+    polyphony: number = 8,
+    ctx?: AudioContext,
+    options: Record<string, number> = {}
+  ) {
     this.nodeId = createNodeId(this.nodeType);
-    this.#context = getAudioContext();
-    this.#output = new InstrumentMasterBus();
     this.#messages = createMessageBus<Message>(this.nodeId);
+
+    this.#context = ctx || getAudioContext(); // || ensureAudioCtx()
+    this.#output = new InstrumentMasterBus();
 
     this.#voicePool = new KarplusVoicePool(
       this.#context,
       polyphony,
       this.#output.input
     );
+
+    // TEST
+    this.#auxInput = new GainNode(this.#context);
+    this.#voicePool.ins.forEach((input) => this.#auxInput.connect(input));
 
     this.#isReady = true;
   }
@@ -147,6 +164,7 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
   }
 
   connect(destination: AudioNode): this {
+    // | LibAudioNode
     this.#output.connect(destination);
     return this;
   }
@@ -181,17 +199,24 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
   }
 
   async enableMIDI(
-    midiController: MidiController,
+    midiController = this.#midiController, // todo: u know
     channel: number = 0
   ): Promise<this> {
+    if (!midiController) {
+      midiController = new MidiController();
+      await midiController.initialize();
+    }
     if (midiController.isInitialized) {
       midiController.connectInstrument(this, channel);
     }
     return this;
   }
 
-  disableMIDI(midiController: MidiController, channel: number = 0): this {
-    midiController.disconnectInstrument(channel);
+  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+    // todo: u know
+    midiController?.disconnectInstrument(channel);
+    this.#midiController?.disconnectInstrument(channel);
+
     return this;
   }
 
@@ -226,6 +251,14 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
     this.#output.volume = value;
   }
 
+  // set auxInput(stream: AudioNode) {
+  //   this.#voicePool.auxIn = stream;
+  // }
+
+  get auxIn() {
+    return this.#auxInput; // auxIn;
+  }
+
   get attackSeconds() {
     return localStore.getValue(this.#getLocalStorageKey('attackSeconds'), 0.3);
   }
@@ -249,6 +282,11 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
   }
 
   /** GETTERS */
+
+  get context() {
+    return this.#context;
+  }
+
   get now() {
     return getAudioContext().currentTime;
   }

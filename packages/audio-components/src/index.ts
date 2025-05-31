@@ -1,3 +1,9 @@
+// Re-exporting Audiolib components that don't have elements yet for testing
+export {
+  createKarplusStrongSynth,
+  type KarplusStrongSynth,
+} from '@repo/audiolib';
+
 // Import and export audio elements
 import { BaseAudioElement } from './elements/base/BaseAudioElement';
 import { SamplerElement } from './elements/SamplerElement';

@@ -1,13 +1,8 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { LibVoiceNode, VoiceType } from '@/nodes/LibNode';
-import {
-  Message,
-  MessageHandler,
-  createMessageBus,
-  MessageBus,
-} from '@/events';
-import { assert, cancelScheduledParamValues } from '@/utils';
+import { Message, createMessageBus, MessageBus } from '@/events';
+import { cancelScheduledParamValues } from '@/utils';
 
 export class KarplusVoice implements LibVoiceNode {
   readonly nodeId: NodeID;
@@ -96,6 +91,10 @@ export class KarplusVoice implements LibVoiceNode {
     this.feedbackDelay.connect(this.outputGain);
 
     this.#isReady = true;
+  }
+
+  get in() {
+    return this.noiseGain;
   }
 
   getParam(name: string): AudioParam | null {
