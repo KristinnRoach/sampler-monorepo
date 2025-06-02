@@ -15,7 +15,7 @@ import {
   MessageBus,
 } from '@/events';
 
-import { idb, initIdb, sampleLib } from './storage/idb';
+import { idb, initIdb } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import {
@@ -24,6 +24,7 @@ import {
   ContainerType,
   SampleLoader,
 } from '@/nodes/LibNode';
+
 import {
   SamplePlayer,
   createSamplePlayer as createSamplePlayerFactory,
@@ -37,12 +38,9 @@ import { initProcessors } from './worklets';
 
 import { MidiController } from '@/io';
 
-// Todo: export init and instrument factory functions separately (tree shake-able)
-
 export class Audiolib implements LibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType: ContainerType = 'audiolib';
-  static #instance: Audiolib | null = null;
 
   #asyncInit = createAsyncInit<Audiolib>();
   #midiController = new MidiController();
@@ -54,29 +52,28 @@ export class Audiolib implements LibAudioNode {
   #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null;
 
-  static getInstance(): Audiolib {
-    if (!Audiolib.#instance) {
-      Audiolib.#instance = new Audiolib();
-    }
-    return Audiolib.#instance;
-  }
-
   #messages: MessageBus<Message>;
 
-  private constructor() {
+  constructor(
+    options: {
+      audioContext?: AudioContext;
+      midiController?: MidiController;
+    } = {}
+  ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
-    this.#audioContext = getAudioContext();
+    this.#audioContext = options.audioContext || getAudioContext();
     assert(this.#audioContext, 'Failed to get audio context', {
       nodeId: this.nodeId,
     });
+
+    this.#midiController = options.midiController || new MidiController();
 
     this.#masterGain = this.#audioContext.createGain();
     this.#masterGain.gain.value = 1.0;
     this.#masterGain.connect(this.#audioContext.destination);
 
-    // Replace init method with wrapped version
     this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
   }
 
@@ -87,9 +84,7 @@ export class Audiolib implements LibAudioNode {
   // Public init method (will be replaced by wrapper)
   init!: () => Promise<Audiolib>;
 
-  // Original implementation moved here
   async #initImpl(): Promise<Audiolib> {
-    // If already initialized, just return this instance
     if (this.isReady) return this;
 
     // Ensure audio context is available
@@ -399,13 +394,10 @@ export class Audiolib implements LibAudioNode {
       this.#globalAudioRecorder?.dispose();
       this.#globalAudioRecorder = null;
       this.#currentAudioBuffer = null;
-
-      Audiolib.#instance = null;
     } catch (error) {
       console.error(
         `Error during Audiolib disposal: ${error instanceof Error ? error.message : String(error)}`
       );
-      Audiolib.#instance = null;
     }
   }
 }

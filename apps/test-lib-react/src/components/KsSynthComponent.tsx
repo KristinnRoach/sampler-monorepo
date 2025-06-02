@@ -1,7 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { audiolib, KarplusStrongSynth } from '@repo/audiolib';
+import {
+  createKarplusStrongSynth,
+  type KarplusStrongSynth,
+  type Audiolib,
+} from '@repo/audiolib';
 
-const KarplusStrongSynthComponent = () => {
+interface KarplusStrongSynthComponentProps {
+  audiolib: Audiolib | null;
+}
+
+const KarplusStrongSynthComponent = ({
+  audiolib,
+}: KarplusStrongSynthComponentProps) => {
   const [initialized, setInitialized] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const synthRef = useRef<KarplusStrongSynth | null>(null);
@@ -16,12 +26,20 @@ const KarplusStrongSynthComponent = () => {
     if (synthRef.current) {
       synthRef.current.dispose();
     }
-    const synth = audiolib.createKarplusStrongSynth(16);
+
+    // Use the audiolib prop if provided, otherwise use the factory function directly
+    let synth: KarplusStrongSynth;
+    if (audiolib) {
+      synth = audiolib.createKarplusStrongSynth(16);
+    } else {
+      synth = createKarplusStrongSynth(16);
+    }
+
     synth.enableKeyboard();
 
     // Set init values
     if (synth) {
-      synth.volume = volume; // standardize
+      synth.volume = volume;
       synth.setParamValue('decay', decay);
       synth.setParamValue('noiseTime', noiseTime);
     }

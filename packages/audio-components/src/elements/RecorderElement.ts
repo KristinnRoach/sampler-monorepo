@@ -1,5 +1,5 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
-import { audiolib, Recorder, createAudioRecorder } from '@repo/audiolib';
+import { getInstance, Recorder, createAudioRecorder } from '@repo/audiolib';
 import './ui-core/RecordButton';
 
 /**
@@ -83,6 +83,7 @@ export class RecorderElement extends BaseAudioElement {
   async initialize(): Promise<void> {
     try {
       // Initialize the audiolib context
+      const audiolib = getInstance();
       await audiolib.init();
 
       // Create a recorder instance

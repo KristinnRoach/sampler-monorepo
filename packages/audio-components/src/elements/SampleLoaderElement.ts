@@ -1,5 +1,5 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
-import { audiolib } from '@repo/audiolib';
+import { getInstance } from '@repo/audiolib';
 
 /**
  * Web component for loading audio samples
@@ -69,7 +69,8 @@ export class SampleLoaderElement extends BaseAudioElement {
             const arrayBuffer = await file.arrayBuffer();
             this.arraybuffer = arrayBuffer;
 
-            // for now just create a new AudioContext // todo: remove dependency on audiolib
+            // todo: remove dependency on audiolib
+            const audiolib = getInstance();
             const ctx = await audiolib.ensureAudioCtx();
             this.audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 

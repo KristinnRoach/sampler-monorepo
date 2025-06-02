@@ -1,8 +1,16 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { audiolib, SamplePlayer } from '@repo/audiolib'; // todo: just import createSamplePlayer when treeshakeable
+import {
+  Audiolib,
+  createSamplePlayer,
+  type SamplePlayer,
+} from '@repo/audiolib';
 import RecorderComponent from './RecorderComponent';
 
-const SamplerComponent = () => {
+interface SamplerComponentProps {
+  context: Audiolib | null; // AudioContext |
+}
+
+const SamplerComponent = ({ context: audiolib }: SamplerComponentProps) => {
   const [isInitialized, setInitialized] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
@@ -80,11 +88,17 @@ const SamplerComponent = () => {
     }
   }, [loopStartNormalized, loopEndNormalized, sampleDuration]);
 
-  const createSamplePlayer = async () => {
+  const createInstrument = async () => {
     if (isInitialized) return true;
 
     try {
-      samplePlayerRef.current = await audiolib.createSamplePlayer();
+      // Use the audiolib prop if provided, otherwise use the factory function directly
+      if (audiolib instanceof Audiolib) {
+        samplePlayerRef.current = audiolib.createSamplePlayer();
+      } else {
+        samplePlayerRef.current = createSamplePlayer();
+      }
+
       if (!samplePlayerRef.current) {
         console.error('Failed to create SamplePlayer');
         return false;
@@ -93,13 +107,11 @@ const SamplerComponent = () => {
       samplePlayerRef.current.onMessage('voice:position', (data: any) => {
         // Force immediate state update
         setPlaybackPosition((prev) => {
-          // Use the ref instead of the state
           if (!sampleDurationRef.current) {
             console.warn('Sample duration ref is 0 or not set');
             return prev;
           }
           const newPos = data.position / sampleDurationRef.current;
-          // Clamp the position between 0 and 1
           const clampedPos = Math.min(Math.max(newPos, 0), 1);
           return clampedPos;
         });
@@ -108,6 +120,7 @@ const SamplerComponent = () => {
       samplePlayerRef.current.onMessage('voice:ended', () => {
         setActiveVoices((prev) => Math.max(prev - 1, 0));
       });
+
       samplePlayerRef.current.onMessage('voice:started', () => {
         setActiveVoices((prev) => prev + 1);
       });
@@ -135,7 +148,7 @@ const SamplerComponent = () => {
   };
 
   const loadSample = async (file: File) => {
-    if (!(await createSamplePlayer())) return;
+    if (!(await createInstrument())) return;
     if (!file) {
       console.error('No file selected');
       return;
@@ -145,7 +158,7 @@ const SamplerComponent = () => {
       return;
     }
 
-    const ctx = await audiolib.ensureAudioCtx();
+    const ctx = samplePlayerRef.current.audioContext;
     if (!ctx) return;
 
     const arrayBuffer = await file.arrayBuffer();
@@ -257,19 +270,6 @@ const SamplerComponent = () => {
       {samplePlayerRef.current && (
         <RecorderComponent destination={samplePlayerRef.current} />
       )}
-      <button
-        id='loadDefaultSample'
-        onClick={async () => {
-          const file = await fetchInitSample();
-          if (!file) {
-            console.error('Failed to fetch initial sample');
-            return;
-          }
-          loadSample(file);
-        }}
-      >
-        Load default sample
-      </button>
 
       <div>
         <input type='file' accept='audio/*' onChange={handleFileChange} />
@@ -278,12 +278,10 @@ const SamplerComponent = () => {
         </button>
       </div>
 
-      <PlaybackVisualizer />
-
-      {/* Position display */}
-      <div style={{ margin: '10px 50px' }}>
+      {/* <PlaybackVisualizer />
+      {/*<div style={{ margin: '10px 50px' }}>
         Playback Position: {(playbackPosition * sampleDuration).toFixed(3)}s
-      </div>
+      </div> */}
 
       <div style={{ width: '100vw' }}>
         <label style={{ display: 'flex', justifyContent: 'center' }}>
@@ -355,7 +353,6 @@ const SamplerComponent = () => {
         </label>
       </div>
 
-      {/* Add attack time slider */}
       <div>
         <label>
           Attack Time:
@@ -372,7 +369,6 @@ const SamplerComponent = () => {
         </label>
       </div>
 
-      {/* Add release time slider */}
       <div>
         <label>
           Release Time:
@@ -390,8 +386,6 @@ const SamplerComponent = () => {
           {releaseTime.toFixed(4)}s
         </label>
       </div>
-
-      <p>{isLoaded ? 'Ready to play!' : 'Click "Load Test Sound" to start'}</p>
 
       <div>
         <p>Active Notes: {activeVoices}</p>

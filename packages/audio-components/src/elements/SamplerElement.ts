@@ -1,5 +1,5 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
-import { audiolib, SamplePlayer } from '@repo/audiolib';
+import { getInstance, SamplePlayer } from '@repo/audiolib';
 
 /**
  * Web component for a sample player instrument
@@ -155,6 +155,7 @@ export class SamplerElement extends BaseAudioElement {
   async initialize(): Promise<void> {
     try {
       // Initialize the audiolib context // todo: remove dependency on audiolib
+      const audiolib = getInstance();
       if (!audiolib.isReady) await audiolib.init();
 
       // Get polyphony from attribute or use default
