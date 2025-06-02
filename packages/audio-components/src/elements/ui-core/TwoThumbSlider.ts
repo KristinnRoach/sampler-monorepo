@@ -6,6 +6,7 @@ export class TwoThumbSlider extends HTMLElement {
     'minimum-gap',
     'value-min',
     'value-max',
+    'zoom-factor',
   ];
 
   min: number;
@@ -14,6 +15,7 @@ export class TwoThumbSlider extends HTMLElement {
   minimumGap: number;
   valueMin: number;
   valueMax: number;
+  zoomFactor: number; // 0 = no zoom, 1 = full zoom
   activeThumb: 'min' | 'max' | null;
 
   constructor() {
@@ -24,6 +26,7 @@ export class TwoThumbSlider extends HTMLElement {
     this.minimumGap = 0.001;
     this.valueMin = 0;
     this.valueMax = 1;
+    this.zoomFactor = 0.1; // Default: moderate zoom
     this.activeThumb = null;
   }
 
@@ -60,6 +63,9 @@ export class TwoThumbSlider extends HTMLElement {
         break;
       case 'value-max':
         this.valueMax = value;
+        break;
+      case 'zoom-factor':
+        this.zoomFactor = Math.max(0, Math.min(1, value)); // Clamp 0-1
         break;
     }
 
@@ -108,6 +114,30 @@ export class TwoThumbSlider extends HTMLElement {
     document.addEventListener('touchend', handleEnd);
   }
 
+  // Get zoomed bounds for visual scaling
+  getZoomedBounds() {
+    if (this.zoomFactor === 0) {
+      return { min: this.min, max: this.max }; // No zoom
+    }
+
+    const currentRange = this.valueMax - this.valueMin;
+    const totalRange = this.max - this.min;
+
+    // Simple zoom: interpolate between full range and current range
+    const zoomAmount = this.zoomFactor;
+    const zoomedRange =
+      totalRange * (1 - zoomAmount) + currentRange * zoomAmount;
+
+    // Center the zoom on current selection
+    const center = (this.valueMin + this.valueMax) / 2;
+    const halfZoomedRange = zoomedRange / 2;
+
+    return {
+      min: Math.max(this.min, center - halfZoomedRange),
+      max: Math.min(this.max, center + halfZoomedRange),
+    };
+  }
+
   handleDrag(e: MouseEvent | TouchEvent): void {
     if (!this.activeThumb) return;
 
@@ -121,7 +151,10 @@ export class TwoThumbSlider extends HTMLElement {
 
     let position = Math.max(0, Math.min(clientX - rect.left, rect.width));
     let percentage = position / rect.width;
-    let value = this.min + percentage * (this.max - this.min);
+
+    // Use zoomed bounds for calculation
+    const bounds = this.getZoomedBounds();
+    let value = bounds.min + percentage * (bounds.max - bounds.min);
 
     // Snap to step
     value = Math.round(value / this.step) * this.step;
@@ -159,11 +192,14 @@ export class TwoThumbSlider extends HTMLElement {
 
     if (!rangeElement || !thumbMin || !thumbMax) return;
 
-    // Calculate positions as percentages instead of pixels
+    // Use zoomed bounds for positioning
+    const bounds = this.getZoomedBounds();
+
+    // Calculate positions as percentages within zoomed bounds
     const percentMin =
-      ((this.valueMin - this.min) / (this.max - this.min)) * 100;
+      ((this.valueMin - bounds.min) / (bounds.max - bounds.min)) * 100;
     const percentMax =
-      ((this.valueMax - this.min) / (this.max - this.min)) * 100;
+      ((this.valueMax - bounds.min) / (bounds.max - bounds.min)) * 100;
 
     // Use percentages for positioning
     thumbMin.style.left = `${percentMin}%`;
@@ -175,10 +211,19 @@ export class TwoThumbSlider extends HTMLElement {
   dispatchChange(): void {
     this.dispatchEvent(
       new CustomEvent('range-change', {
-        detail: { min: this.valueMin, max: this.valueMax },
+        detail: {
+          min: this.valueMin,
+          max: this.valueMax,
+          zoomedBounds: this.getZoomedBounds(), // Include zoom info for debugging
+        },
         bubbles: true,
       })
     );
+  }
+
+  setZoomFactor(factor: number): void {
+    this.zoomFactor = Math.max(0, Math.min(1, factor));
+    this.updateSlider();
   }
 
   setValues(min: number, max: number): void {

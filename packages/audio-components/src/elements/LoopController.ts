@@ -1,5 +1,6 @@
 import { BaseAudioElement } from './base/BaseAudioElement';
 import { TwoThumbSlider } from './ui-core/TwoThumbSlider';
+
 /**
  * Web component for loop control
  * Manages loop start and loop end parameters for a sample player
@@ -8,25 +9,27 @@ export class LoopController extends BaseAudioElement {
   private loopStartValue: number = 0;
   private loopEndValue: number = 0.99;
 
+  // private loopDuration: number = this.loopEndValue - this.loopStartValue;
+  private fineTuneValue: number = 0;
+
   private targetElement: HTMLElement | null = null;
   private targetId: string | null = null;
 
-  // Callback functions for loop parameter changes
+  // Callbacks
   private onLoopStartChange: ((value: number) => void) | null = null;
   private onLoopEndChange: ((value: number) => void) | null = null;
+
   private onOffsetChange:
     | ((startOffset: number, endOffset: number) => void)
     | null = null;
 
-  // Define observed attributes
   static get observedAttributes(): string[] {
-    return ['loop-start', 'loop-end', 'destination'];
+    return ['loop-start', 'loop-end', 'fine-tune', 'destination'];
   }
 
   constructor() {
     super('loop-controller');
 
-    // Create UI template using light DOM
     this.innerHTML = `
       <div class="loop-controller">
         <div class="parameters">
@@ -45,22 +48,13 @@ export class LoopController extends BaseAudioElement {
               value-min="0" 
               value-max="0.999">
             </two-thumb-slider>
+            <div class="fine-tune-control">
+              <label for="fine-tune">Fine Tune (ms):</label>
+              <input type="range" id="fine-tune" value="0" min="-0.5" max="0.5" step="0.01">
+              <span class="fine-tune-value">0</span>
+            </div>
         </div>
       </div>
-      <style>
-        .loop-controller .slider-indicators {
-          display: flex;
-          justify-content: space-between;
-          margin: 5px 0;
-          font-size: 0.8em;
-        }
-        .loop-controller .indicator {
-          padding: 2px 4px;
-          background: #333;
-          border-radius: 3px;
-          color: #fff;
-        }
-      </style>
     `;
   }
 
@@ -75,11 +69,11 @@ export class LoopController extends BaseAudioElement {
   }
 
   connectedCallback(): void {
-    const loopSlider = this.querySelector('#loop-slider') as TwoThumbSlider;
+    const loopSliderEl = this.querySelector('#loop-slider') as TwoThumbSlider;
 
-    if (loopSlider) {
+    if (loopSliderEl) {
       // Single event listener for both values
-      loopSlider.addEventListener('range-change', ((e: CustomEvent) => {
+      loopSliderEl.addEventListener('range-change', ((e: CustomEvent) => {
         this.setLoopStart(e.detail.min);
         this.setLoopEnd(e.detail.max);
       }) as EventListener);
@@ -87,40 +81,42 @@ export class LoopController extends BaseAudioElement {
       // Initialize from attributes
       if (this.hasAttribute('loop-start')) {
         const startValue = parseFloat(this.getAttribute('loop-start') || '0');
-        loopSlider.valueMin = startValue;
+        loopSliderEl.valueMin = startValue;
       }
       if (this.hasAttribute('loop-end')) {
         const endValue = parseFloat(this.getAttribute('loop-end') || '0.99');
-        loopSlider.valueMax = endValue;
+        loopSliderEl.valueMax = endValue;
       }
-    }
 
-    // Connect to target if destination attribute is set
-    if (this.hasAttribute('destination')) {
-      const destinationId = this.getAttribute('destination');
-      if (destinationId) {
-        // tiny delay to ensure target is registered
-        setTimeout(() => {
-          this.connectToDestinationById(destinationId);
-        }, 3);
+      // Connect to target if destination attribute is set
+      if (this.hasAttribute('destination')) {
+        const destinationId = this.getAttribute('destination');
+        if (destinationId) {
+          // tiny delay to ensure target is registered
+          setTimeout(() => {
+            this.connectToDestinationById(destinationId);
+          }, 3);
+        }
       }
+
+      this.dispatchEvent(
+        new CustomEvent('loop-control-initialized', {
+          bubbles: true,
+          detail: {
+            loopControl: this,
+            loopStart: this.loopStartValue,
+            loopEnd: this.loopEndValue,
+            target: this.targetElement,
+            targetId: this.targetId,
+          },
+        })
+      );
+
+      // Update the status
+      this.updateStatus('Component ready', 'info');
+
+      this.initialized = true;
     }
-
-    this.dispatchEvent(
-      new CustomEvent('loop-control-initialized', {
-        bubbles: true,
-        detail: {
-          loopControl: this,
-          loopStart: this.loopStartValue,
-          loopEnd: this.loopEndValue,
-        },
-      })
-    );
-
-    // Update the status
-    this.updateStatus('Component ready', 'info');
-
-    this.initialized = true;
   }
 
   /**
@@ -140,6 +136,9 @@ export class LoopController extends BaseAudioElement {
       case 'loop-end':
         this.setLoopEnd(parseFloat(newValue || '0.99'));
         break;
+      // case 'fine-tune':
+      //   this.setFineTune(parseFloat(newValue || '0'));
+      //   break;
       case 'destination':
         if (newValue && newValue !== this.targetId) {
           this.connectToDestinationById(newValue);
@@ -278,19 +277,23 @@ export class LoopController extends BaseAudioElement {
   private applyLoopToTarget(): void {
     if (!this.targetElement) return;
 
-    // Try different ways to set values on target
+    // this.loopDuration = this.loopEndValue - this.loopStartValue;
+
     const target = this.targetElement as any;
+    const effectiveEndValue = this.loopEndValue + (this.fineTuneValue ?? 0);
+
+    // Try different ways to set values on target
     if (target.getSamplePlayer) {
       // Target has a getSamplePlayer method (like SamplerElement)
       const player = target.getSamplePlayer();
       if (player && player.setLoopStart && player.setLoopEnd) {
         player.setLoopStart(this.loopStartValue);
-        player.setLoopEnd(this.loopEndValue);
+        player.setLoopEnd(effectiveEndValue);
       }
     } else if (target.setLoopStart && target.setLoopEnd) {
       // Target has direct methods
       target.setLoopStart(this.loopStartValue);
-      target.setLoopEnd(this.loopEndValue);
+      target.setLoopEnd(effectiveEndValue);
     }
   }
 
@@ -312,12 +315,12 @@ export class LoopController extends BaseAudioElement {
       savedLoopStart,
       savedLoopEnd,
     } = options;
-    const loopSlider = this.querySelector('#loop-slider') as any;
-    if (!loopSlider) return;
+    const loopSliderEl = this.querySelector('#loop-slider') as any;
+    if (!loopSliderEl) return;
 
     // Update constraints first
-    loopSlider.min = startOffset;
-    loopSlider.max = endOffset;
+    loopSliderEl.min = startOffset;
+    loopSliderEl.max = endOffset;
 
     // Determine new values
     let newStart: number;
@@ -329,8 +332,8 @@ export class LoopController extends BaseAudioElement {
       newEnd = Math.max(startOffset, Math.min(savedLoopEnd, endOffset));
     } else {
       // Auto-adjust current values or use defaults
-      const wasAtMin = this.loopStartValue <= loopSlider.min;
-      const wasAtMax = this.loopEndValue >= loopSlider.max;
+      const wasAtMin = this.loopStartValue <= loopSliderEl.min;
+      const wasAtMax = this.loopEndValue >= loopSliderEl.max;
 
       newStart = wasAtMin
         ? startOffset
@@ -339,7 +342,7 @@ export class LoopController extends BaseAudioElement {
     }
 
     // Apply new values
-    loopSlider.setValues(newStart, newEnd);
+    loopSliderEl.setValues(newStart, newEnd);
 
     // Notify callbacks
     this.onOffsetChange?.(startOffset, endOffset);

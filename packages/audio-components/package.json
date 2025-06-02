@@ -16,7 +16,8 @@
     "clean": "rm -rf dist node_modules && pnpm prune"
   },
   "dependencies": {
-    "@repo/audiolib": "workspace:*"
+    "@repo/audiolib": "workspace:*",
+    "@repo/vanjs-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

@@ -1,8 +1,13 @@
-import { LibInstrument, InstrumentType } from '@/LibNode';
+import { LibInstrument, InstrumentType, Messenger } from '@/LibNode';
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
-import { Message, MessageHandler, createMessageBus } from '@/events';
+import {
+  Message,
+  MessageBus,
+  MessageHandler,
+  createMessageBus,
+} from '@/events';
 import {
   MidiController,
   globalKeyboardInput,
@@ -14,14 +19,14 @@ import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { Debouncer } from '@/utils/Debouncer';
 import { localStore } from '@/storage/local';
 
-export class KarplusStrongSynth implements LibInstrument {
+export class KarplusStrongSynth implements LibInstrument, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'synth';
 
   #context: AudioContext;
   #output: InstrumentMasterBus;
   #voicePool: KarplusVoicePool;
-  #messages;
+  #messages: MessageBus<Message>;
 
   #keyboardHandler: InputHandler | null = null;
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
@@ -44,8 +49,9 @@ export class KarplusStrongSynth implements LibInstrument {
     return this.#messages.onMessage(type, handler);
   }
 
-  protected sendMessage(type: string, data: any): void {
+  protected sendUpstreamMessage(type: string, data: any) {
     this.#messages.sendMessage(type, data);
+    return this;
   }
 
   play(
@@ -58,8 +64,6 @@ export class KarplusStrongSynth implements LibInstrument {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
       this.#voicePool.noteOff(oldNoteId, 0); // Quick release
     }
-
-    // Get frequency for the midiNote
     // const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
 
     // Assign a voice and play the note
@@ -68,7 +72,7 @@ export class KarplusStrongSynth implements LibInstrument {
     // Store the noteId for this midiNote
     this.#midiNoteToId.set(midiNote, noteId);
 
-    this.sendMessage('note:on', { midiNote, velocity, noteId });
+    this.sendUpstreamMessage('note:on', { midiNote, velocity, noteId });
 
     return this;
   }
@@ -83,7 +87,7 @@ export class KarplusStrongSynth implements LibInstrument {
     this.#voicePool.noteOff(noteId, this.releaseSeconds);
     this.#midiNoteToId.delete(midiNote);
 
-    this.sendMessage('note:off', { midiNote });
+    this.sendUpstreamMessage('note:off', { midiNote });
     return this;
   }
 

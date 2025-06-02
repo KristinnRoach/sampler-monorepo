@@ -1,4 +1,4 @@
-import { LibVoiceNode, VoiceType } from '@/LibNode';
+import { LibVoiceNode, VoiceType, Messenger } from '@/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { VoiceState, ActiveNoteId } from '../types';
@@ -12,21 +12,73 @@ import {
 } from '@/events';
 
 import { cancelScheduledParamValues, midiToPlaybackRate } from '@/utils';
+import { ParamDescriptor } from '@/nodes/params/types';
+import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
 
-interface ParamConstraint {
-  min: number;
-  max: number;
-}
+// Define descriptors for voice parameters
+export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
+  playbackRate: {
+    id: 'playbackRate',
+    name: 'playbackRate',
+    type: 'number',
+    minValue: 0.1,
+    maxValue: 10,
+    defaultValue: 1,
+    group: 'playback',
+  },
+  envGain: {
+    id: 'envGain',
+    name: 'envGain',
+    type: 'number',
+    minValue: 0,
+    maxValue: 1,
+    defaultValue: 1,
+    group: 'envelope',
+  },
+  startOffset: {
+    id: 'startOffset',
+    name: 'startOffset',
+    type: 'number',
+    minValue: 0,
+    defaultValue: 0,
+    group: 'playback',
+  },
+  endOffset: {
+    id: 'endOffset',
+    name: 'endOffset',
+    type: 'number',
+    minValue: 0,
+    defaultValue: 1,
+    group: 'playback',
+  },
+  loopStart: {
+    id: 'loopStart',
+    name: 'loopStart',
+    type: 'number',
+    minValue: 0,
+    defaultValue: 0,
+    group: 'loop',
+  },
+  loopEnd: {
+    id: 'loopEnd',
+    name: 'loopEnd',
+    type: 'number',
+    minValue: 0,
+    defaultValue: 1,
+    group: 'loop',
+  },
+  velocity: {
+    id: 'velocity',
+    name: 'velocity',
+    type: 'number',
+    minValue: 0,
+    maxValue: 127,
+    defaultValue: 64,
+    group: 'voice',
+  },
+};
 
-interface ParamConstraints {
-  startOffset?: ParamConstraint;
-  endOffset?: ParamConstraint;
-  loopStart?: ParamConstraint;
-  loopEnd?: ParamConstraint;
-  [key: string]: ParamConstraint | undefined;
-}
-
-export class SampleVoice implements LibVoiceNode {
+export class SampleVoice implements LibVoiceNode, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
 
@@ -36,7 +88,15 @@ export class SampleVoice implements LibVoiceNode {
   #currentNoteId: number | string | null = null;
   #startedTimestamp: number = -1;
 
-  #paramConstraints: ParamConstraints = {};
+  // Add this static property for discovery
+  static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
+
+  // Add this method to convert descriptors to AudioWorkletNode format
+  static getAudioParamDescriptors(): AudioParamDescriptor[] {
+    return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
+      toAudioParamDescriptor
+    );
+  }
 
   constructor(
     private context: AudioContext = getAudioContext(), // remove getAudioContext
@@ -55,11 +115,16 @@ export class SampleVoice implements LibVoiceNode {
     this.sendToProcessor({ type: 'voice:init' });
   }
 
+  protected sendUpstreamMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+    return this;
+  }
+
   private setupMessageHandling() {
     this.#worklet.port.onmessage = (event: MessageEvent) => {
       const { type, ...data } = event.data;
 
-      this.#messages.sendMessage(type, data);
+      this.sendUpstreamMessage(type, data);
 
       switch (type) {
         case 'voice:started':
@@ -289,28 +354,26 @@ export class SampleVoice implements LibVoiceNode {
     return this.#messages.onMessage(type, handler);
   }
 
-  setParamConstraints(
+  setParamLimits(
     paramName: string,
-    min: number,
-    max: number,
+    minValue?: number,
+    maxValue?: number,
     fixToConstant?: number
   ): this {
-    // Initialize the constraint object for this parameter if it doesn't exist
-    if (!this.#paramConstraints[paramName]) {
-      this.#paramConstraints[paramName] = { min: 0, max: 1 }; // Default values
+    const descriptor = SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName];
+    if (!descriptor) {
+      console.warn(`Parameter ${paramName} not found in descriptors`);
+      return this;
     }
 
-    // If a value is provided, set both min and max to that value
+    // If fixing to a constant value
     if (fixToConstant !== undefined) {
-      this.#paramConstraints[paramName] = {
-        min: fixToConstant,
-        max: fixToConstant,
-      };
-    }
-    // Otherwise update min/max if provided
-    else {
-      if (min !== undefined) this.#paramConstraints[paramName]!.min = min;
-      if (max !== undefined) this.#paramConstraints[paramName]!.max = max;
+      descriptor.minValue = fixToConstant;
+      descriptor.maxValue = fixToConstant;
+    } else {
+      // Otherwise update min/max if provided
+      if (minValue !== undefined) descriptor.minValue = minValue;
+      if (maxValue !== undefined) descriptor.maxValue = maxValue;
     }
 
     return this;
@@ -332,10 +395,6 @@ export class SampleVoice implements LibVoiceNode {
 
   get startTime(): number {
     return this.#startedTimestamp;
-  }
-
-  get paramConstraints(): ParamConstraints {
-    return this.#paramConstraints;
   }
 
   // Setters
@@ -368,6 +427,11 @@ export class SampleVoice implements LibVoiceNode {
     this.disconnect();
     this.#worklet.port.close();
     deleteNodeId(this.nodeId);
+  }
+
+  // 8. Add a method to get all parameter descriptors
+  getParamDescriptors(): Record<string, ParamDescriptor> {
+    return SAMPLE_VOICE_PARAM_DESCRIPTORS;
   }
 }
 

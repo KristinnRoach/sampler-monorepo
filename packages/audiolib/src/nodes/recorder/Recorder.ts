@@ -6,14 +6,28 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-
-import {
-  createMediaRecorder,
-  startRecording,
-  stopRecording,
-  blobToAudioBuffer,
-} from './record-utils';
 import { getMicrophone } from '@/io/devices/devices';
+// import { assert, tryCatch } from '@/utils';
+
+export const AudioRecorderState = {
+  IDLE: 'IDLE',
+  ARMED: 'ARMED',
+  RECORDING: 'RECORDING',
+  STOPPED: 'STOPPED',
+} as const;
+
+export type AudioRecorderState =
+  (typeof AudioRecorderState)[keyof typeof AudioRecorderState];
+
+export const DEFAULT_RECORDER_OPTIONS = {
+  useThreshold: true,
+  startThreshold: -30,
+  autoStop: false,
+  stopThreshold: -40, // todo: guard ensuring stopTreshold < startTreshold
+  silenceTimeoutMs: 1000,
+};
+
+export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;
 
 export class Recorder implements LibNode {
   readonly nodeId: NodeID;
@@ -23,8 +37,15 @@ export class Recorder implements LibNode {
   #stream: MediaStream | null = null;
   #recorder: MediaRecorder | null = null;
   #messages: MessageBus<Message>;
-  #isRecording: boolean = false;
   #destination: (LibNode & SampleLoader) | null = null;
+  #state: AudioRecorderState = AudioRecorderState.IDLE;
+
+  // Single audio monitoring setup
+  #audioSource: MediaStreamAudioSourceNode | null = null;
+  #analyser: AnalyserNode | null = null;
+  #animationFrame: number | null = null;
+  #silenceStartTime: number | null = null;
+  #currentConfig: RecorderOptions | null = null;
 
   constructor(context: AudioContext) {
     this.nodeId = createNodeId(this.nodeType);
@@ -35,33 +56,166 @@ export class Recorder implements LibNode {
   async init(): Promise<Recorder> {
     try {
       this.#stream = await getMicrophone();
-      this.#recorder = await createMediaRecorder(this.#stream);
+      this.#recorder = new MediaRecorder(this.#stream, {
+        mimeType: 'audio/webm',
+      });
       return this;
     } catch (error) {
       throw new Error(`Failed to get microphone: ${error}`);
     }
   }
 
-  async start(): Promise<void> {
+  async start(options?: Partial<RecorderOptions>): Promise<this> {
     if (!this.#recorder) throw new Error('Recorder not initialized');
-    if (this.#isRecording) return;
+    if (this.#state === AudioRecorderState.RECORDING) return this;
 
-    startRecording(this.#recorder);
-    this.#isRecording = true;
+    this.#currentConfig = { ...DEFAULT_RECORDER_OPTIONS, ...options };
+
+    console.info('Recording with options:', this.#currentConfig);
+
+    try {
+      if (!this.#currentConfig.useThreshold) {
+        this.#startRecordingImmediate();
+      } else {
+        this.#startArmedRecording();
+      }
+      return this;
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      throw error;
+    }
+  }
+
+  #startArmedRecording(): void {
+    if (!this.#isValidThreshold(this.#currentConfig!.startThreshold)) {
+      console.warn(
+        `Threshold ${this.#currentConfig!.startThreshold}dB out of range (-60 to 0)`
+      );
+      return;
+    }
+
+    this.#state = AudioRecorderState.ARMED;
+    this.sendMessage('record:armed', {
+      threshold: this.#currentConfig!.startThreshold,
+      destination: this.#destination,
+    });
+
+    this.#setupAudioMonitoring();
+  }
+
+  #startRecordingImmediate(): void {
+    this.#recorder!.start();
+    this.#state = AudioRecorderState.RECORDING;
     this.sendMessage('record:start', { destination: this.#destination });
+
+    if (this.#currentConfig!.autoStop) {
+      this.#setupAudioMonitoring();
+    }
+  }
+
+  // Single, unified audio monitoring method
+  #setupAudioMonitoring(): void {
+    this.#audioSource = this.#context.createMediaStreamSource(this.#stream!);
+    this.#analyser = this.#context.createAnalyser();
+    this.#analyser.fftSize = 1024;
+    this.#audioSource.connect(this.#analyser);
+
+    const dataArray = new Float32Array(this.#analyser.fftSize);
+
+    const monitorAudio = () => {
+      if (!this.#analyser) return; // Cleaned up
+
+      this.#analyser.getFloatTimeDomainData(dataArray);
+      const peak = Math.max(...dataArray.map(Math.abs));
+      const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
+
+      if (this.#state === AudioRecorderState.ARMED) {
+        this.#handleArmedState(peakDB);
+      } else if (this.#state === AudioRecorderState.RECORDING) {
+        this.#handleRecordingState(peakDB);
+      } else {
+        this.#cleanupMonitoring();
+        return;
+      }
+
+      this.#animationFrame = requestAnimationFrame(monitorAudio);
+    };
+
+    this.#animationFrame = requestAnimationFrame(monitorAudio);
+  }
+
+  #handleArmedState(peakDB: number): void {
+    if (peakDB >= this.#currentConfig!.startThreshold) {
+      // Threshold reached - start recording
+      this.#startRecordingImmediate();
+    }
+  }
+
+  #handleRecordingState(peakDB: number): void {
+    if (!this.#currentConfig!.autoStop) return;
+
+    const now = performance.now();
+
+    if (peakDB < this.#currentConfig!.stopThreshold) {
+      // Below threshold - track silence
+      if (this.#silenceStartTime === null) {
+        this.#silenceStartTime = now;
+      } else if (
+        now - this.#silenceStartTime >=
+        this.#currentConfig!.silenceTimeoutMs
+      ) {
+        // Silence timeout reached
+        this.sendMessage('record:stopping', {});
+        this.stop().catch((err) => console.error('Error auto-stopping:', err));
+      }
+    } else {
+      // Above threshold - reset silence timer
+      this.#silenceStartTime = null;
+    }
+  }
+
+  #cleanupMonitoring(): void {
+    if (this.#animationFrame !== null) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = null;
+    }
+
+    if (this.#audioSource) {
+      this.#audioSource.disconnect();
+      this.#audioSource = null;
+    }
+
+    if (this.#analyser) {
+      this.#analyser.disconnect();
+      this.#analyser = null;
+    }
+
+    this.#silenceStartTime = null;
   }
 
   async stop(): Promise<AudioBuffer> {
     if (!this.#recorder) throw new Error('Recorder not initialized');
-    if (!this.#isRecording) throw new Error('Not recording');
 
-    const blob = await stopRecording(this.#recorder);
-    const buffer = await blobToAudioBuffer(blob, this.#context);
+    // Handle armed state cancellation
+    if (this.#state === AudioRecorderState.ARMED) {
+      this.#cleanupMonitoring();
+      this.#state = AudioRecorderState.STOPPED;
+      this.sendMessage('record:cancelled', {});
+      throw new Error('Recording was armed but never triggered');
+    }
 
-    this.#isRecording = false;
+    if (this.#state !== AudioRecorderState.RECORDING) {
+      throw new Error('Not recording');
+    }
+
+    this.#cleanupMonitoring();
+
+    const blob = await this.#stopRecording();
+    const buffer = await this.#blobToAudioBuffer(blob);
+
+    this.#state = AudioRecorderState.STOPPED;
     this.sendMessage('record:stop', { duration: buffer.duration });
 
-    // Type checking no longer needed since destination is guaranteed to have loadSample
     if (this.#destination) {
       await this.#destination.loadSample(buffer);
     }
@@ -69,7 +223,29 @@ export class Recorder implements LibNode {
     return buffer;
   }
 
-  // LibNode interface implementation
+  #stopRecording(): Promise<Blob> {
+    return new Promise((resolve) => {
+      if (this.#recorder!.state !== 'inactive') {
+        this.#recorder!.addEventListener(
+          'dataavailable',
+          (e) => resolve(e.data),
+          { once: true }
+        );
+        this.#recorder!.stop();
+      }
+    });
+  }
+
+  async #blobToAudioBuffer(blob: Blob): Promise<AudioBuffer> {
+    const arrayBuffer = await blob.arrayBuffer();
+    return await this.#context.decodeAudioData(arrayBuffer);
+  }
+
+  #isValidThreshold(threshold: number): boolean {
+    return threshold > -60 && threshold < 0;
+  }
+
+  // LibNode interface
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
@@ -79,9 +255,7 @@ export class Recorder implements LibNode {
   }
 
   connect(destination: LibNode & SampleLoader): this {
-    if (destination) {
-      this.#destination = destination;
-    }
+    this.#destination = destination;
     return this;
   }
 
@@ -90,25 +264,33 @@ export class Recorder implements LibNode {
   }
 
   dispose(): void {
+    this.#cleanupMonitoring();
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     this.#recorder = null;
+    this.#state = AudioRecorderState.IDLE;
+    this.#currentConfig = null;
     deleteNodeId(this.nodeId);
+  }
+
+  // Getters
+  get isArmed(): boolean {
+    return this.#state === AudioRecorderState.ARMED;
+  }
+
+  get isRecording(): boolean {
+    return this.#state === AudioRecorderState.RECORDING;
+  }
+
+  get state(): AudioRecorderState {
+    return this.#state;
+  }
+
+  get isReady(): boolean {
+    return this.#recorder !== null && this.#stream !== null;
   }
 
   get now(): number {
     return this.#context.currentTime;
-  }
-
-  get isRecording(): boolean {
-    return this.#isRecording;
-  }
-
-  /**
-   * Returns whether the recorder has been properly initialized with access to the microphone
-   * and is ready to start recording.
-   */
-  get isReady(): boolean {
-    return this.#recorder !== null && this.#stream !== null;
   }
 }

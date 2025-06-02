@@ -73,13 +73,17 @@ body {
   will-change: transform; /* Performance optimization for animations */
 }
 
+.lib-node .loop-controller .fine-tune-control #fine-tune-knob {
+  border: solid 1px #555;
+}
+
 /* dragging */
 .lib-node:active {
   cursor: grabbing;
 }
 
-.sampler two-thumb-slider .slider-track {
-  width: 25vw;
+.sampler two-thumb-slider {
+  width: 90%;
 }
 
 .sampler .dynamic envelope-element .parameters {
@@ -131,4 +135,48 @@ recorder-element #record-toggle[active] button {
   input:hover {
     cursor: pointer;
   }
+}
+
+/* Filter element styles */
+filter-element .filter-control {
+  width: 100%;
+  padding: 8px;
+}
+
+filter-element .filter-header {
+  margin-bottom: 12px;
+}
+
+filter-element .filter-title {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+filter-element .filter-body {
+  display: flex;
+  flex-direction: column;
+}
+
+filter-element .filter-values {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+filter-element .hpf-value,
+filter-element .lpf-value {
+  padding: 4px 8px;
+  background: #333;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.9em;
+}
+
+filter-element .freq-value {
+  font-weight: bold;
+}
+
+filter-element two-thumb-slider {
+  width: 100%;
+  margin: 8px 0;
 }

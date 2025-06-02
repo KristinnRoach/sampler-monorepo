@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "pnpm clean && vite",
     "build": "pnpm clean && vite build",
+    "gh-pages-publish": "gh-pages -d dist -b gh-pages",
     "preview": "vite preview",
     "clean": "rm -rf node_modules dist && pnpm prune"
   },
   "dependencies": {
     "@repo/audio-components": "workspace:*",
+    "@repo/vanjs-core": "workspace:*",
     "animejs": "^4.0.2"
   },
   "devDependencies": {

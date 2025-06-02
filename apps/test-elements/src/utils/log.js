@@ -1,4 +1,4 @@
-export const logAttributes = (elementsArray) => {
+export const getAttributesArr = (elementsArray) => {
   const attributesArray = [];
   elementsArray.forEach((element) => {
     const attributes = element.attributes;

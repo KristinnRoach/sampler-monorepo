@@ -18,7 +18,7 @@ export class KeyboardInputManager {
   #noteKeyMap: KeyMap;
 
   // just hardcoded e.code values since only using caps and space for now
-  #modifierKeys = { loopToggle: 'CapsLock', loopMomentary: 'Space' } as const;
+  #momentaryKeys = { loopToggle: 'CapsLock', loopMomentary: 'Space' } as const;
 
   #capslockOn: boolean = false;
   #spacebarDown: boolean = false;
@@ -39,23 +39,11 @@ export class KeyboardInputManager {
     return new Set([...this.#pressedNoteKeys, ...this.#pressedModKeys]);
   }
 
-  isPressed(keycode: string): boolean {
-    if (this.#modifierKeys.hasOwnProperty(keycode)) {
-      return this.#pressedModKeys.has(keycode);
-    } else return this.#pressedNoteKeys.has(keycode);
-  }
-
-  getCapslock(e?: KeyboardEvent): boolean {
-    if (e && this.#isModifierStateSupported) {
-      return e.getModifierState('CapsLock');
-    } else return this.#capslockOn;
-  }
-
   get pressedNoteKeys(): Set<string> {
     return new Set(this.#pressedNoteKeys);
   }
 
-  getALLModifiers(e: KeyboardEvent): PressedModifiers {
+  getMomentaryModifiers(e: KeyboardEvent): PressedModifiers {
     return {
       shift: e.shiftKey,
       ctrl: e.ctrlKey,
@@ -66,20 +54,40 @@ export class KeyboardInputManager {
     } as const;
   }
 
-  #handleModKeyDown(e: KeyboardEvent) {
+  getCapslock(e?: KeyboardEvent): boolean {
+    if (e && this.#isModifierStateSupported) {
+      return e.getModifierState('CapsLock');
+    } else return this.#capslockOn;
+  }
+
+  getToggleKeysState(e?: KeyboardEvent): Record<string, boolean> {
+    const toggleKeys = {
+      CapsLock: this.getCapslock(e),
+    };
+    return toggleKeys;
+  }
+
+  isPressed(keycode: string): boolean {
+    if (this.#momentaryKeys.hasOwnProperty(keycode)) {
+      return this.#pressedModKeys.has(keycode);
+    } else return this.#pressedNoteKeys.has(keycode);
+  }
+
+  #handleMomentaryModifierDown(e: KeyboardEvent) {
     e.preventDefault();
 
     if (this.#pressedModKeys.has(e.code)) return;
 
     if (e.code === 'Space') {
       this.#spacebarDown = true;
-    } else if (e.code === 'CapsLock') {
-      this.#capslockOn = this.getCapslock(e);
     }
+    // else if (e.code === 'CapsLock') {
+    //   this.#capslockOn = this.getCapslock(e);
+    // }
 
     this.#pressedModKeys.add(e.code);
 
-    const modifiers = this.getALLModifiers(e); // todo: rethink / remove redundancy !
+    const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
     this.#handlers.forEach((handler) => {
       if (handler.onModifierChange) {
         handler.onModifierChange(modifiers);
@@ -87,7 +95,7 @@ export class KeyboardInputManager {
     });
   }
 
-  #handleModKeyUp(e: KeyboardEvent) {
+  #handleMomentaryModifierUp(e: KeyboardEvent) {
     e.preventDefault();
 
     if (!this.#pressedModKeys.has(e.code)) return;
@@ -101,10 +109,12 @@ export class KeyboardInputManager {
 
   private handleKeyDown = (e: KeyboardEvent): void => {
     if (e.repeat) return;
-    const keycode = e.code; // consider switching to e.key
+    // using e."code" because it represents the physical layout,
+    // no matter the language / region
+    const keycode = e.code;
 
-    if (this.#modifierKeys.hasOwnProperty(keycode)) {
-      this.#handleModKeyDown(e);
+    if (this.#momentaryKeys.hasOwnProperty(keycode)) {
+      this.#handleMomentaryModifierDown(e);
       return;
     }
 
@@ -117,7 +127,7 @@ export class KeyboardInputManager {
 
     const defaultVelocity = 100; // for now (no velocity for computer keyboard)
 
-    const modifiers = this.getALLModifiers(e); // todo: rethink / remove redundancy !
+    const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
 
     this.#handlers.forEach((handler) =>
       handler.onNoteOn(midiNote, defaultVelocity, modifiers)
@@ -128,12 +138,12 @@ export class KeyboardInputManager {
     const keycode = e.code;
 
     this.#capslockOn = this.getCapslock(e); // caps doesnt fire keyup so just always checking
-    if (this.#modifierKeys.hasOwnProperty(keycode)) {
-      this.#handleModKeyUp(e);
+    if (this.#momentaryKeys.hasOwnProperty(keycode)) {
+      this.#handleMomentaryModifierUp(e);
       return;
     }
 
-    const modifiers = this.getALLModifiers(e); // todo: rethink / remove redundancy !
+    const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
     this.#handlers.forEach((handler) => {
       if (handler.onModifierChange) {
         handler.onModifierChange(modifiers);
@@ -259,7 +269,7 @@ export class KeyboardInputManager {
   }
 }
 
-// Singleton instance for easy global access // TODO: Remove if not needed
+// Singleton instance for easy global access // todo: Remove if not needed
 export const globalKeyboardInput = KeyboardInputManager.getInstance();
 
 export function debugKeyModifiers(e: KeyboardEvent, keys?: ModifierKey[]) {

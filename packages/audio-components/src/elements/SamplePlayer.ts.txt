@@ -1,0 +1,74 @@
+import van from '@repo/vanjs-core';
+import { define } from '@repo/vanjs-core/element';
+import { createSamplePlayer, type SamplePlayer } from '@repo/audiolib';
+
+const { div, input, label } = van.tags;
+
+define('audio-sample-player', ({ attr, mount, $this }) => {
+  const src = attr('src');
+  let samplePlayer: SamplePlayer | null = null;
+
+  mount(() => {
+    samplePlayer = createSamplePlayer();
+
+    const descriptors = samplePlayer.getParameterDescriptors();
+    const values = samplePlayer.getParameterValues();
+
+    // Create param elements and append to container
+    const container = $this.querySelector('#param-container');
+    if (container) {
+      Object.entries(descriptors).forEach(([name, desc]) => {
+        const paramElement = document.createElement('audio-param');
+        paramElement.setAttribute('name', name);
+        paramElement.setAttribute('value', values[name]?.toString() || '0');
+        paramElement.setAttribute('min', desc.minValue?.toString() || '0');
+        paramElement.setAttribute('max', desc.maxValue?.toString() || '1');
+        paramElement.setAttribute('step', desc.step?.toString() || '0.01');
+        container.appendChild(paramElement);
+      });
+    }
+
+    $this.addEventListener('param-change', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { name, value } = customEvent.detail;
+      samplePlayer?.setParameterValue(name, value);
+    });
+  });
+
+  return div(
+    div(`Sample Player: ${src.val || 'No source'}`),
+    div({ id: 'param-container' }) // Empty container filled in mount()
+  );
+});
+
+define('audio-param', ({ attr }) => {
+  const name = attr('name');
+  const value = attr('value', '0');
+  const min = attr('min', '0');
+  const max = attr('max', '1');
+  const step = attr('step', '0.01');
+
+  return div(
+    label(name.val + ': '),
+    input({
+      type: 'range',
+      min: min.val,
+      max: max.val,
+      step: step.val,
+      value: value.val,
+      oninput: (e) => {
+        const target = e.target as HTMLInputElement;
+        const newValue = parseFloat(target.value);
+        value.val = newValue.toString();
+
+        target.dispatchEvent(
+          new CustomEvent('param-change', {
+            detail: { name: name.val, value: newValue },
+            bubbles: true,
+          })
+        );
+      },
+    }),
+    ` ${value.val}`
+  );
+});

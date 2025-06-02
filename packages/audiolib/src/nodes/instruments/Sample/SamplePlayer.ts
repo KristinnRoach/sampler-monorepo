@@ -1,4 +1,10 @@
-import { LibInstrument, InstrumentType, SampleLoader } from '@/LibNode';
+import {
+  LibInstrument,
+  InstrumentType,
+  SampleLoader,
+  Messenger,
+} from '@/LibNode';
+
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
@@ -26,17 +32,25 @@ import {
   findZeroCrossings,
 } from '@/utils';
 
-import { MacroParam } from '@/nodes/params';
+import {
+  ParamManager,
+  MacroParam,
+  ParamDescriptor,
+  DEFAULT_PARAM_DESCRIPTORS,
+} from '@/nodes/params';
+
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 import { SampleVoicePool } from './SampleVoicePool';
 
-export class SamplePlayer implements LibInstrument, SampleLoader {
+export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'sampler';
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
+  #lpf: BiquadFilterNode | null = null;
+  #hpf: BiquadFilterNode | null = null;
   #destination: AudioNode | null = null;
   #pool: SampleVoicePool;
 
@@ -56,14 +70,18 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   #holdEnabled = false;
   #holdLocked = false;
 
+  #params = new ParamManager();
+
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
+  #loopEndFineTune: number = 0;
 
   #startOffset: number = 0;
   #endOffset: number = 0;
 
   #attack: number = 0.01;
   #release: number = 0.1;
+  #playbackRate: number = 1;
 
   #isInitialized = false;
   #isLoaded = false;
@@ -88,13 +106,45 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     // Initialize the output bus
     this.#outBus = new InstrumentMasterBus();
 
-    // Initialize macro params
-    this.#macroLoopStart = new MacroParam(context, 0);
-    this.#macroLoopEnd = new MacroParam(context, 0);
+    // Init filters
+    this.#hpf = new BiquadFilterNode(context, {
+      type: 'highpass',
+      frequency: 100,
+      Q: 1,
+    });
+
+    this.#lpf = new BiquadFilterNode(context, {
+      type: 'lowpass',
+      frequency: 20000,
+      Q: 1,
+    });
 
     // Initialize voice pool
-    this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input);
-    this.#connectToMacros();
+    this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input); // this.#hpf);
+
+    // Connect audiochain
+    this.#hpf.connect(this.#lpf);
+
+    // TODO: simplify and standardize (type-safe) "connect" methods across all LibNode Connectables
+    // todo: explicit connect method on pool
+    // todo: simplify and standardize "init" methods across all LibNode Connectables
+    // this.#lpf.connect(this.#outBus.input);
+
+    // this.#pool.connect(this.#outBus.input);
+    // this.#outBus.connect(context.destination);
+
+    // Setup parameters
+    this.#macroLoopStart = new MacroParam(
+      this.#context,
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+    );
+    this.#macroLoopEnd = new MacroParam(
+      this.#context,
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+    );
+
+    this.#registerParameters();
+    this.#connectVoicesToMacros();
 
     this.#midiController = midiController || null;
 
@@ -107,12 +157,34 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     }
   }
 
+  #registerParameters(): void {
+    // Register the loop macros (already LibParams)
+    this.#params.register(this.#macroLoopStart);
+    this.#params.register(this.#macroLoopEnd);
+
+    if (!this.#hpf || !this.#lpf) return; // todo: remove when filters fixed
+
+    // Register native AudioParams with descriptors
+    this.#params.register(
+      this.#hpf.frequency,
+      DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
+    );
+
+    this.#params.register(
+      this.#lpf.frequency,
+      DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
+    );
+
+    // todo: register env params (all params?)
+  }
+
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
 
-  protected sendMessage(type: string, data: any): void {
+  protected sendUpstreamMessage(type: string, data: any) {
     this.#messages.sendMessage(type, data);
+    return this;
   }
 
   connect(destination: AudioNode): this {
@@ -126,10 +198,11 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     this.#destination = null;
   }
 
-  #connectToMacros(): this {
+  #connectVoicesToMacros(): this {
     const voices = this.#pool.allVoices;
 
     voices.forEach((voice) => {
+      // Connect only the loop points
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
       if (loopStartParam && loopEndParam) {
@@ -154,7 +227,16 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
       this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
       this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
     }
-    // todo: set scale - allowed durations ...
+    // todo: pre-compute gaddem allowed periods with optimized zero snapping!! (þegar é nenni)
+    this.#macroLoopStart.setScale('C', [0], {
+      lowestOctave: 0,
+      highestOctave: 5,
+    });
+    this.#macroLoopEnd.setScale('C', [0], {
+      lowestOctave: 0,
+      highestOctave: 5,
+    });
+
     return this;
   }
 
@@ -216,6 +298,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     //   return false;
     // }
 
+    this.setSampleEndOffset(buffer.duration);
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
 
@@ -247,16 +330,20 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
       midiNote,
       velocity,
       this.now,
-      this.#attack
+      this.#attack // Pass the attack time directly
     );
 
     this.#midiNoteToId.set(midiNote, noteId);
 
-    this.sendMessage('note:on', { midiNote, velocity: safeVelocity, noteId });
+    this.sendUpstreamMessage('note:on', {
+      midiNote,
+      velocity: safeVelocity,
+      noteId,
+    });
     return noteId;
   }
 
-  release(input: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
+  release(note: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
     if (modifiers) this.#handleModifierKeys(modifiers);
 
     if (this.#holdEnabled || this.#holdLocked) return this; // simple play through (one-shot mode)
@@ -264,8 +351,8 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     let noteId: ActiveNoteId;
     let midiNote: MidiValue | undefined;
 
-    if (input >= 0 && input <= 127) {
-      midiNote = input as MidiValue;
+    if (note >= 0 && note <= 127) {
+      midiNote = note as MidiValue;
       noteId = this.#midiNoteToId.get(midiNote) ?? -1;
       if (noteId !== -1) {
         this.#midiNoteToId.delete(midiNote);
@@ -275,7 +362,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
       }
     } else {
       // It's already a noteId
-      noteId = input as ActiveNoteId;
+      noteId = note as ActiveNoteId;
 
       // Find and remove from midiNoteToId if present
       for (const [midi, id] of this.#midiNoteToId.entries()) {
@@ -287,9 +374,9 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
       }
     }
 
-    this.#pool.noteOff(noteId, this.#release, 0);
+    this.#pool.noteOff(noteId, this.#release, 0); // Pass the release time directly
 
-    this.sendMessage('note:off', { noteId, midiNote });
+    this.sendUpstreamMessage('note:off', { noteId, midiNote });
     return this;
   }
 
@@ -385,26 +472,82 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     return this;
   }
 
-  setAttackTime(seconds: number) {
+  setHpfCutoff(hz: number) {
+    this.#hpf?.frequency.setValueAtTime(hz, this.now);
+    return this;
+  }
+
+  get hpfCutoff() {
+    return this.#hpf?.frequency.value;
+  }
+
+  setLpfCutoff(hz: number) {
+    this.#lpf?.frequency.setValueAtTime(hz, this.now);
+    return this;
+  }
+
+  get lpfCutoff() {
+    return this.#lpf?.frequency.value;
+  }
+
+  setAttackTime(seconds: number): this {
     this.#attack = seconds;
     return this;
   }
 
-  setReleaseTime(seconds: number) {
+  getAttackTime(): number {
+    return this.#attack;
+  }
+
+  setReleaseTime(seconds: number): this {
     this.#release = seconds;
     return this;
   }
 
-  setSampleStartOffset(seconds: number) {
+  getReleaseTime(): number {
+    return this.#release;
+  }
+
+  setSampleStartOffset(seconds: number): this {
     this.#startOffset = seconds;
     this.#pool.allVoices.forEach((voice) => voice.setStartOffset(seconds));
     return this;
   }
 
-  setSampleEndOffset(seconds: number) {
+  getSampleStartOffset(): number {
+    return this.#startOffset;
+  }
+
+  setSampleEndOffset(seconds: number): this {
     this.#endOffset = seconds;
     this.#pool.allVoices.forEach((voice) => voice.setEndOffset(seconds));
     return this;
+  }
+
+  getSampleEndOffset(): number {
+    return this.#endOffset;
+  }
+
+  getLoopRampDuration(): number {
+    return this.#loopRampDuration;
+  }
+
+  setLoopRampDuration(seconds: number): this {
+    this.#loopRampDuration = seconds;
+    return this;
+  }
+
+  setPlaybackRate(rate: number): this {
+    this.#playbackRate = rate;
+    this.#pool.allVoices.forEach((voice) => {
+      const param = voice.getParam('playbackRate');
+      if (param) param.setValueAtTime(rate, this.now);
+    });
+    return this;
+  }
+
+  getPlaybackRate(): number {
+    return this.#playbackRate;
   }
 
   setHoldEnabled(enabled: boolean) {
@@ -414,7 +557,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     this.#holdEnabled = enabled;
 
     if (!enabled) this.releaseAll(this.#release);
-    this.sendMessage('hold:state', { enabled });
+    this.sendUpstreamMessage('hold:state', { enabled });
     return this;
   }
 
@@ -422,7 +565,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     if (this.#holdLocked === locked) return this;
 
     this.#holdLocked = locked;
-    this.sendMessage('hold:locked', { locked });
+    this.sendUpstreamMessage('hold:locked', { locked });
     return this;
   }
 
@@ -434,7 +577,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     voices.forEach((v) => v.setLoopEnabled(enabled));
 
     this.#loopEnabled = enabled;
-    this.sendMessage('loop:enabled', { enabled });
+    this.sendUpstreamMessage('loop:enabled', { enabled });
     return this;
   }
 
@@ -442,7 +585,7 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
     if (this.#loopLocked === locked) return this;
 
     this.#loopLocked = locked;
-    this.sendMessage('loop:locked', { locked });
+    this.sendUpstreamMessage('loop:locked', { locked });
     return this;
   }
 
@@ -452,7 +595,13 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
   }
 
   setLoopEnd(targetValue: number, rampTime: number = this.#loopRampDuration) {
-    this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
+    const fineTuned = targetValue + this.#loopEndFineTune;
+    this.setLoopPoint('end', this.loopStart, fineTuned, rampTime);
+    return this;
+  }
+
+  setFineTuneLoopEnd(valueToAdd: number) {
+    this.#loopEndFineTune = valueToAdd;
     return this;
   }
 
@@ -579,6 +728,75 @@ export class SamplePlayer implements LibInstrument, SampleLoader {
 
   get isLoaded() {
     return this.#isLoaded;
+  }
+
+  // todo: use for UI integration
+  getParameterDescriptors(): Record<string, ParamDescriptor> {
+    return {
+      attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
+      release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
+      startOffset: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
+      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // TODO: Ensure the endOffset is updated on loadSample !!!
+      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
+      loopStart: this.#macroLoopStart.descriptor,
+      loopEnd: this.#macroLoopEnd.descriptor,
+      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
+      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
+    };
+  }
+
+  // todo: use for UI integration
+  getParameterValues(): Record<string, number> {
+    return {
+      attack: this.#attack,
+      release: this.#release,
+      startOffset: this.#startOffset,
+      endOffset: this.#endOffset,
+      playbackRate: this.#playbackRate,
+      loopStart: this.#macroLoopStart.getValue(),
+      loopEnd: this.#macroLoopEnd.getValue(),
+      loopRampDuration: this.#loopRampDuration,
+      // hpfCutoff: this.hpfCutoff, // todo
+      // lpfCutoff: this.lpfCutoff,
+    };
+  }
+
+  // todo: use for UI integration
+  setParameterValue(name: string, value: number): this {
+    switch (name) {
+      case 'attack':
+        this.setAttackTime(value);
+        break;
+      case 'release':
+        this.setReleaseTime(value);
+        break;
+      case 'startOffset':
+        this.setSampleStartOffset(value);
+        break;
+      case 'endOffset':
+        this.setSampleEndOffset(value);
+        break;
+      case 'playbackRate':
+        this.setPlaybackRate(value);
+        break;
+      case 'loopStart':
+        this.setLoopStart(value);
+        break;
+      case 'loopEnd':
+        this.setLoopEnd(value);
+        break;
+      case 'loopRampDuration':
+        this.setLoopRampDuration(value);
+        break;
+      case 'hpfCutoff':
+        this.setHpfCutoff(value);
+        break;
+      case 'lpfCutoff':
+        this.setLpfCutoff(value);
+        break;
+    }
+    return this;
   }
 }
 

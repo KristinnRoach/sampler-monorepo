@@ -1,0 +1,127 @@
+import type { SamplePlayer } from '@repo/audiolib';
+
+class ParamElement extends HTMLElement {
+  private sampler: SamplePlayer | null = null;
+  private paramName: string = '';
+  private input: HTMLInputElement;
+  private label: HTMLLabelElement;
+  private valueDisplay: HTMLSpanElement;
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+
+    // Create minimal structure
+    this.label = document.createElement('label');
+    this.input = document.createElement('input');
+    this.valueDisplay = document.createElement('span');
+
+    this.input.type = 'range';
+    this.valueDisplay.style.cssText =
+      'font-family: monospace; font-size: 0.8em; color: #666;';
+
+    const container = document.createElement('div');
+    container.style.cssText =
+      'display: flex; flex-direction: column; gap: 2px; min-width: 120px;';
+
+    const topRow = document.createElement('div');
+    topRow.style.cssText =
+      'display: flex; justify-content: space-between; align-items: center;';
+
+    topRow.appendChild(this.label);
+    topRow.appendChild(this.valueDisplay);
+    container.appendChild(topRow);
+    container.appendChild(this.input);
+
+    this.shadowRoot!.appendChild(container);
+
+    // Handle input changes
+    this.input.addEventListener('input', this.onInputChange.bind(this));
+  }
+
+  connectedCallback() {
+    this.paramName = this.getAttribute('param') || '';
+    this.updateFromSampler();
+  }
+
+  static get observedAttributes() {
+    return ['param', 'sampler'];
+  }
+
+  attributeChangedCallback() {
+    this.paramName = this.getAttribute('param') || '';
+    this.updateFromSampler();
+  }
+
+  setSampler(sampler: SamplePlayer) {
+    this.sampler = sampler;
+    this.updateFromSampler();
+  }
+
+  private updateFromSampler() {
+    if (!this.sampler || !this.paramName) return;
+
+    const descriptors = this.sampler.getParameterDescriptors();
+    const values = this.sampler.getParameterValues();
+    const descriptor = descriptors[this.paramName];
+    const currentValue = values[this.paramName];
+
+    if (!descriptor) return;
+
+    // Update input attributes
+    this.input.min = descriptor.minValue?.toString() ?? '0';
+    this.input.max = descriptor.maxValue?.toString() ?? '1';
+    this.input.step = this.calculateStep(
+      descriptor.minValue ?? 0,
+      descriptor.maxValue ?? 1
+    );
+    this.input.value = currentValue.toString();
+
+    // Update labels
+    this.label.textContent = descriptor.name || this.paramName;
+    this.updateValueDisplay(currentValue, ''); // add descriptor.unit
+  }
+
+  private calculateStep(min: number, max: number): string {
+    const range = max - min;
+    if (range > 1000) return '10';
+    if (range > 100) return '1';
+    if (range > 10) return '0.1';
+    return '0.01';
+  }
+
+  private updateValueDisplay(value: number, unit?: string) {
+    const formatted = value < 10 ? value.toFixed(3) : value.toFixed(1);
+    this.valueDisplay.textContent = `${formatted}${unit || ''}`;
+  }
+
+  private onInputChange() {
+    if (!this.sampler || !this.paramName) return;
+
+    const value = parseFloat(this.input.value);
+    const descriptors = this.sampler.getParameterDescriptors();
+    const descriptor = descriptors[this.paramName];
+
+    // Update sampler parameter
+    this.sampler.setParameterValue(this.paramName, value);
+
+    // Update display
+    this.updateValueDisplay(value, ''); // descriptor?.unit);
+  }
+}
+
+// Register the custom element
+customElements.define('param-element', ParamElement);
+
+// Usage example:
+/*
+// In your HTML:
+<param-element param="attack"></param-element>
+<param-element param="release"></param-element>
+<param-element param="loopStart"></param-element>
+
+// In your JavaScript:
+const sampler = new SamplePlayer(audioContext);
+const controls = document.querySelectorAll('param-element');
+controls.forEach(control => control.setSampler(sampler));
+*/
