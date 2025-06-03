@@ -143,7 +143,7 @@ export class MacroParam implements LibParam {
     return this.#controller.value;
   }
 
-  get #isReady() {
+  get isReady() {
     return this.#isReady;
   }
 

@@ -1,10 +1,15 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
-import { Destination, LibVoiceNode, VoiceType } from '@/nodes/LibNode';
+import {
+  Destination,
+  LibVoiceNode,
+  VoiceType,
+  Connectable,
+} from '@/nodes/LibNode';
 import { Message, createMessageBus, MessageBus } from '@/events';
 import { cancelScheduledParamValues } from '@/utils';
 
-export class KarplusVoice implements LibVoiceNode {
+export class KarplusVoice implements LibVoiceNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'karplus-strong';
   readonly processorNames: string[] = [
@@ -36,7 +41,8 @@ export class KarplusVoice implements LibVoiceNode {
   #isPlaying: boolean = false; // todo: remove
 
   #isReady: boolean = false;
-  get #isReady() {
+
+  get isReady() {
     return this.#isReady;
   }
 

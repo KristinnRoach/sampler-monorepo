@@ -3,6 +3,7 @@
 import { KarplusVoice } from './KarplusVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { ActiveNoteId, MidiValue } from '@/nodes/instruments/types';
+import { Connectable, Destination } from '@/nodes/LibNode';
 
 export class KarplusVoicePool {
   readonly nodeId: NodeID;
@@ -14,6 +15,7 @@ export class KarplusVoicePool {
   #nextNoteId: number;
 
   #isReady: boolean = false;
+
   get isReady() {
     return this.#isReady;
   }
@@ -38,6 +40,7 @@ export class KarplusVoicePool {
   }
 
   connect = (destination: AudioNode) => {
+    // Destination
     this.#allVoices.forEach((v) => v.connect(destination));
   };
 
@@ -117,12 +120,12 @@ export class KarplusVoicePool {
   //   this.in.forEach((input) => stream.connect(input));
   // }
 
-  set auxIn(stream: AudioNode) {
+  set auxIn(stream: Connectable) {
     this.ins.forEach((input) => stream.connect(input));
   }
 
-  get ins() {
-    const inputs: AudioNode[] = [];
+  get ins(): Connectable[] {
+    const inputs: Connectable[] = [];
     this.#allVoices.forEach((v) => inputs.push(v.in));
     return inputs;
   }

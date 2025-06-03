@@ -13,7 +13,7 @@ import { MidiController } from '@/io';
  * @returns A new KarplusStrongSynth instance
  */
 export function createKarplusStrongSynth(
-  polyphony: number = 8,
+  polyphony: number = 16,
   ctx: AudioContext = getAudioContext(),
   enableMidi: boolean = false,
   midiController?: MidiController

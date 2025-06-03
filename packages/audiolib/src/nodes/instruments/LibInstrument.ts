@@ -34,7 +34,6 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   protected midiController: MidiController | null = null;
 
   protected params = new ParamManager();
-
   protected voices: SampleVoicePool | KarplusVoicePool | null = null;
 
   protected context: AudioContext;
@@ -54,13 +53,8 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     this.messages = createMessageBus<Message>(this.nodeId);
     this.outBus = new InstrumentMasterBus();
 
-    //     // Load envelope settings from storage
-    // this._attackSeconds = this.getStoredParam('attackSeconds', 0.01);
-    // this._releaseSeconds = this.getStoredParam('releaseSeconds', 0.3);
-    // Delegate out-bus methods
-    // this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
-    // this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
-    // this.mute = (...args) => this.outBus.mute(...args);
+    // Initialize MIDI controller if provided
+    this.midiController = midiController || null;
   }
 
   // ===== ABSTRACT METHODS - Must be implemented by subclasses =====
@@ -206,7 +200,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // State getters
-  abstract get #isInitialized(): boolean;
+  abstract get isReady(): boolean;
 
   get now(): number {
     return this.context.currentTime;
@@ -240,5 +234,10 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     }
 
     // todo: disableMIDI
+  }
+
+  // Add releaseAll as an alias for stopAll to maintain compatibility
+  releaseAll(fadeOut_sec?: number): this {
+    return this.stopAll();
   }
 }

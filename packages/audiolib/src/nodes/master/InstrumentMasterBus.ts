@@ -1,14 +1,16 @@
-import { Connectable, LibNode } from '@/nodes/LibNode';
+import { Connectable, Destination, LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';
+import { assert } from '@/utils';
 
 export class InstrumentMasterBus implements LibNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'fx';
 
   #context: AudioContext;
+  #destination: Destination | null = null;
   #input: GainNode;
   #compressor: DynamicsCompressorNode;
   #output: GainNode;
@@ -17,7 +19,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   #compressorEnabled: boolean = true;
   #levelMonitor: LevelMonitor | null = null;
   #isReady: boolean = false;
-  get #isReady() {
+
+  get isReady() {
     return this.#isReady;
   }
 
@@ -213,9 +216,11 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     }
   }
 
-  connect(destination: AudioNode): this {
+  connect(destination: Destination): Destination {
+    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+    this.#destination = destination;
     this.#output.connect(destination);
-    return this;
+    return destination;
   }
 
   connectAltOut(destination: AudioNode) {
@@ -224,7 +229,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     return this;
   }
 
-  disconnect(output: 'main' | 'alt' | 'all' = 'all'): void {
+  disconnect(output: 'main' | 'alt' | 'all' = 'all') {
     switch (output) {
       case 'main':
         this.#output.disconnect();
@@ -239,6 +244,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
         this.#output.disconnect();
         this.#altOut?.disconnect();
     }
+    return this;
   }
 
   dispose(): void {

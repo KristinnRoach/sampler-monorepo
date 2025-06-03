@@ -49,56 +49,34 @@ import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 import { SampleVoicePool } from './SampleVoicePool';
 
-export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
-  readonly nodeId: NodeID;
-  readonly nodeType: InstrumentType = 'sample-player';
+export class SamplePlayer extends LibInstrument {
+  // Keep truly SamplePlayer-specific fields private with #
   #children: Array<LibNode | AudioNode> = [];
-
-  #context: AudioContext;
-  #outBus: InstrumentMasterBus;
   #lpf: BiquadFilterNode | null = null;
   #hpf: BiquadFilterNode | null = null;
-  #destination: Destination | null = null; // LibNode | AudioNode | AudioDestinationNode | null = null;
   #pool: SampleVoicePool;
-
-  #messages: MessageBus<Message>;
-  #keyboardHandler: InputHandler | null = null;
-  #midiController: MidiController | null = null;
-
   #midiNoteToId: Map<MidiValue, ActiveNoteId> = new Map();
-
-  // todo: simplify and standardize state management
   #bufferDuration: number = 0;
-
   #loopRampDuration: number = 0.2;
-
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
   #holdLocked = false;
-
-  #params = new ParamManager();
-
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
   #loopEndFineTune: number = 0;
-
   #startOffset: number = 0;
   #endOffset: number = 0;
-
   #attack: number = 0.01;
   #release: number = 0.1;
   #playbackRate: number = 1;
-
   #isReady = false;
   #isLoaded = false;
-
-  #zeroCrossings: number[] = []; // cache maybe needed later
+  #zeroCrossings: number[] = [];
   #useZeroCrossings = true;
-
   #trackPlaybackPosition = false;
 
-  randomizeVelocity = false; // for testing, refactor later
+  randomizeVelocity = false;
 
   connectAltOut: InstrumentMasterBus['connectAltOut'];
   setAltOutVolume: InstrumentMasterBus['setAltOutVolume'];
@@ -110,14 +88,9 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     audioBuffer?: AudioBuffer,
     midiController?: MidiController
   ) {
-    this.nodeId = createNodeId(this.nodeType);
-    this.#context = context;
-    this.#messages = createMessageBus<Message>(this.nodeId);
+    super('sample-player', context, polyphony, audioBuffer, midiController);
 
-    // Initialize the output bus
-    this.#outBus = new InstrumentMasterBus();
-
-    // Delegate out-bus methods
+    // Initialize the output bus methods
     this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
     this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
     this.mute = (...args) => this.outBus.mute(...args);
@@ -136,44 +109,27 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     });
 
     // Initialize voice pool
-    this.#pool = new SampleVoicePool(context, polyphony, this.#outBus.input); // this.#hpf);
+    this.#pool = new SampleVoicePool(context, polyphony, this.outBus.input);
+    this.voices = this.#pool; // Assign to protected property in base class
 
     // Connect audiochain
     this.#hpf.connect(this.#lpf);
 
-    // TODO: simplify and standardize (type-safe) "connect" methods across all LibNode Connectables
-    // todo: explicit connect method on pool
-    // todo: simplify and standardize "init" methods across all LibNode Connectables
-    // this.#lpf.connect(this.#outBus.input);
-
-    // this.#pool.connect(this.#outBus.input);
-    // this.#outBus.connect(context.destination);
-
     // Setup parameters
     this.#macroLoopStart = new MacroParam(
-      this.#context,
+      context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
     );
     this.#macroLoopEnd = new MacroParam(
-      this.#context,
+      context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
     this.#registerParameters();
     this.#connectVoicesToMacros();
 
-    this.#midiController = midiController || null;
-
     // Populate SamplePlayers sub-graph
-    this.#addChildren([
-      this.#outBus,
-      this.#hpf,
-      this.#lpf,
-      this.#pool,
-      // this.#params // TODO: move LibParams, only one "params" object in LibInstrument ?
-      // this.#macroLoopStart,
-      // this.#macroLoopEnd,
-    ]);
+    this.#addChildren([this.outBus, this.#hpf, this.#lpf, this.#pool]);
 
     this.#isReady = true;
 
@@ -193,43 +149,41 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   #registerParameters(): void {
     // Register the loop macros (already LibParams)
-    this.#params.register(this.#macroLoopStart);
-    this.#params.register(this.#macroLoopEnd);
+    this.params.register(this.#macroLoopStart);
+    this.params.register(this.#macroLoopEnd);
 
     if (!this.#hpf || !this.#lpf) return; // todo: remove when filters fixed
 
     // Register native AudioParams with descriptors
-    this.#params.register(
+    this.params.register(
       this.#hpf.frequency,
       DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
     );
 
-    this.#params.register(
+    this.params.register(
       this.#lpf.frequency,
       DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
     );
-
-    // todo: register env params (all params?)
   }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
-    return this.#messages.onMessage(type, handler);
+    return this.messages.onMessage(type, handler);
   }
 
   protected sendUpstreamMessage(type: string, data: any) {
-    this.#messages.sendMessage(type, data);
+    this.messages.sendMessage(type, data);
     return this;
   }
 
   // connect(destination: TODO): this {
   //   assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
-  //   this.#outBus.connect(destination);
+  //   this.outBus.connect(destination);
   //   this.#destination = destination;
   //   return this;
   // }
 
   // disconnect(): void {
-  //   this.#outBus.disconnect();
+  //   this.outBus.disconnect();
   //   this.#destination = null;
   // }
 
@@ -290,13 +244,13 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     this.#isLoaded = false;
 
     if (
-      buffer.sampleRate !== this.#context.sampleRate ||
-      (modSampleRate && this.#context.sampleRate !== modSampleRate)
+      buffer.sampleRate !== this.context.sampleRate ||
+      (modSampleRate && this.context.sampleRate !== modSampleRate)
     ) {
       console.warn(
         `sample rate mismatch, 
         buffer rate: ${buffer.sampleRate}, 
-        context rate: ${this.#context.sampleRate}
+        context rate: ${this.context.sampleRate}
         requested rate: ${modSampleRate}
         `
       );
@@ -443,39 +397,44 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   }
 
   enableKeyboard() {
-    if (!this.#keyboardHandler) {
-      this.#keyboardHandler = {
+    if (!this.keyboardHandler) {
+      this.keyboardHandler = {
         onNoteOn: this.play.bind(this),
         onNoteOff: this.release.bind(this),
-        onBlur: () => this.panic(0.1), // Wrap panic in a parameterless function
+        onBlur: () => this.panic(),
         onModifierChange: this.#handleModifierKeys.bind(this),
       };
-      globalKeyboardInput.addHandler(this.#keyboardHandler);
+      globalKeyboardInput.addHandler(this.keyboardHandler);
     }
     return this;
   }
 
   disableKeyboard() {
-    if (this.#keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.#keyboardHandler);
-      this.#keyboardHandler = null;
+    if (this.keyboardHandler) {
+      globalKeyboardInput.removeHandler(this.keyboardHandler);
+      this.keyboardHandler = null;
     }
     return this;
   }
 
   async initMidiController(): Promise<boolean> {
-    if (!this.#midiController) {
-      console.warn(`No MIDI controller provided`);
-      this.#midiController = new MidiController();
-    }
-
-    if (this.#midiController.isInitialized) {
-      console.log(`MIDI controller initialized`);
+    if (this.midiController?.isInitialized) {
+      console.log(`SamplePlayer: MIDI controller initialized`);
       return true;
     }
 
-    const result = await tryCatch(() => this.#midiController!.initialize());
-    assert(!result.error, `Failed to initialize MIDI`);
+    if (!this.midiController) {
+      console.debug(`SamplePlayer: Creating MIDI controller.`);
+      this.midiController = new MidiController();
+    }
+
+    assert(
+      this.midiController,
+      `SamplePlayer: Failed to create MIDI controller`
+    );
+
+    const result = await tryCatch(() => this.midiController!.initialize());
+    assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
     return result.data;
   }
 
@@ -483,27 +442,23 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     midiController?: MidiController,
     channel: number = 0
   ): Promise<this> {
-    // Use provided controller, instance controller, or fail
-    const controller = midiController || this.#midiController;
+    const controller = midiController || this.midiController;
     const midiSuccess = await this.initMidiController(); // move ?
-    if (midiSuccess) console.log(`Midi initialized`);
 
-    assert(controller?.isInitialized, `MidiController must be initialized`);
-    controller.connectInstrument(this, channel);
-    return this;
-  }
-
-  disableMIDI(midiController?: MidiController, channel: number = 0): this {
-    const controller = midiController || this.#midiController;
-
-    if (controller) {
-      controller.disconnectInstrument(channel);
+    if (midiSuccess && controller?.isInitialized) {
+      controller.connectInstrument(this, channel);
     }
     return this;
   }
 
+  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+    const controller = midiController || this.midiController;
+    if (controller) controller.disconnectInstrument(channel);
+    return this;
+  }
+
   setMidiController(midiController: MidiController): this {
-    this.#midiController = midiController;
+    this.midiController = midiController;
     return this;
   }
 
@@ -661,7 +616,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   }
 
   startLevelMonitoring(intervalMs?: number) {
-    this.#outBus.startLevelMonitoring(intervalMs);
+    this.outBus.startLevelMonitoring(intervalMs);
   }
 
   dispose(): void {
@@ -675,9 +630,9 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
       this.#midiNoteToId.clear();
 
-      if (this.#outBus) {
-        this.#outBus.dispose();
-        this.#outBus = null as unknown as InstrumentMasterBus;
+      if (this.outBus) {
+        this.outBus.dispose();
+        this.outBus = null as unknown as InstrumentMasterBus;
       }
 
       this.#macroLoopStart?.dispose();
@@ -694,13 +649,13 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
       this.#loopRampDuration = 0;
       // this.#loopEnabled = false;
 
-      this.#context = null as unknown as AudioContext;
-      this.#messages = null as unknown as MessageBus<Message>;
+      this.context = null as unknown as AudioContext;
+      this.messages = null as unknown as MessageBus<Message>;
 
       // Detach keyboard handler
-      if (this.#keyboardHandler) {
-        globalKeyboardInput.removeHandler(this.#keyboardHandler);
-        this.#keyboardHandler = null;
+      if (this.keyboardHandler) {
+        globalKeyboardInput.removeHandler(this.keyboardHandler);
+        this.keyboardHandler = null;
       }
 
       // todo: disableMIDI
@@ -716,23 +671,23 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   // get in() { this.#hpf }
 
   get out() {
-    return this.#outBus.output;
+    return this.outBus.output;
   }
 
-  get outBus() {
-    return this.#outBus;
+  get outputBus() {
+    return this.outBus;
   }
 
-  get destination() {
-    return this.#destination;
-  }
+  // get destination() {
+  //   return this.destination;
+  // }
 
   get now() {
-    return getAudioContext().currentTime;
+    return this.context.currentTime;
   }
 
   get audioContext() {
-    return this.#context;
+    return this.context;
   }
 
   get sampleDuration(): number {
@@ -740,11 +695,11 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   }
 
   get volume(): number {
-    return this.#outBus.volume;
+    return this.outBus.volume;
   }
 
   set volume(value: number) {
-    this.#outBus.volume = value;
+    this.outBus.volume = value;
   }
 
   get loopEnabled(): boolean {
@@ -839,6 +794,15 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     }
     return this;
   }
+
+  // Implement abstract methods from LibInstrument
+  stopAll(fadeOut_sec: number = this.#release): this {
+    return this.releaseAll(fadeOut_sec);
+  }
+
+  get #isInitialized(): boolean {
+    return this.#isReady && this.#isLoaded;
+  }
 }
 
 // #onNoteOn(
@@ -905,7 +869,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 //   for (let i = 0; i < polyphony; i++) {
 //     const voice = new SampleVoice(context);
 
-//     voice.connect(this.#outBus.input);
+//     voice.connect(this.outBus.input);
 //     this.#connectToMacros(voice);
 
 //     this.#pool.add(voice);
