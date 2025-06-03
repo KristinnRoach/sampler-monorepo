@@ -1,5 +1,6 @@
 import { NodeID } from '@/nodes/node-store';
 import { LibParam, ParamType } from './params';
+import { InstrumentType, LibInstrument } from './instruments';
 import { Message, MessageHandler } from '@/events';
 
 export type BaseNodeType =
@@ -10,8 +11,6 @@ export type BaseNodeType =
   | 'container'
   | 'recorder'
   | 'audiolib';
-
-export type InstrumentType = 'sample-player' | 'synth';
 
 export type ContainerType = 'pool' | 'chain' | 'audiolib';
 
@@ -35,43 +34,42 @@ export type NodeType =
   | FxType;
 
 export type AudioGraph = {
-  root: LibAudioNode;
+  root: LibNode;
 };
 
 // Base interface for all nodes
-export interface LibAudioNode {
+export interface LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
   readonly isReady: boolean;
+  dispose(): void;
 
   // parent?: LibAudioNode | 'isRoot';
-  destination?: LibAudioNode | AudioDestinationNode | AudioNode | null; // TODO: make required and consolidate types
-
-  in?: LibAudioNode[] | AudioNode | MediaStreamAudioSourceNode | null;
-  out?: LibAudioNode[] | AudioNode | null; // TODO: Standardize so don't have to distinguish between LibAudioNodes and AudioNodes, make required and remove "| AudioNode"
-  firstChildren?: Array<LibAudioNode | AudioNode>;
-
+  // firstChildren?: Array<LibNode | AudioNode>;
   // subGraph?: {
   //   parent: LibAudioNode;
   //   in?: LibAudioNode[];
   //   out: LibAudioNode[];
   //   firstChildren?: LibAudioNode[];
   // };
-
   // TODO: subGraph: { in: LibNode[], out: LibNode[]} ,
   // get in, get out, children or subGraph?: LibC
-
-  dispose(): void;
 }
 
-export interface Connectable {
-  connect(
-    destination?: TODO,
-    outputIndex?: number,
-    inputIndex?: number
-  ): this | TODO;
+export type Destination = Connectable | AudioNode | AudioParam;
 
-  disconnect(destination?: TODO): void;
+export interface Connectable {
+  // destination: Destination | null; //LibNode | AudioDestinationNode | AudioNode | null;
+  // in?: Connectable[] | AudioNode | null;
+  // out?: Connectable[] | AudioNode | null; // TODO: Standardize so don't have to distinguish between LibAudioNodes and AudioNodes, make required and remove "| AudioNode"
+
+  connect(
+    destination: Destination,
+    output?: number | 'main' | 'alt' | 'all',
+    input?: number | 'main' | 'alt' | 'all'
+  ): Destination;
+
+  disconnect(output?: 'main' | 'alt' | 'all', destination?: Destination): this;
 }
 
 export interface Messenger {
@@ -87,32 +85,17 @@ export interface SampleLoader {
 }
 
 // Container node
-export interface LibContainerNode extends LibAudioNode {
+export interface LibContainerNode extends LibNode, Connectable {
   readonly nodeType: ContainerType;
 
-  add(child: LibAudioNode): this;
-  remove(child: LibAudioNode): this;
-  nodes: LibAudioNode[];
-}
-
-// Instrument node
-export interface LibInstrument extends LibAudioNode {
-  readonly nodeType: InstrumentType;
-
-  play(...args: TODO[]): TODO;
-  release(...args: TODO[]): this;
-  panic(...args: TODO[]): this;
+  add(child: LibNode): this;
+  remove(child: LibNode): this;
+  nodes: LibNode[];
 }
 
 // Voice node - handles actual sound generation
-export interface LibVoiceNode extends LibAudioNode {
+export interface LibVoiceNode extends LibNode, Connectable {
   readonly nodeType: VoiceType;
-
-  connect(
-    destination?: LibVoiceNode | LibParam | AudioNode | AudioParam,
-    outputIndex?: number,
-    inputIndex?: number
-  ): this;
 
   getParam(name: string): AudioParam | null; // todo: ParamType
   setParam(name: string, value: number, options: TODO): this;
@@ -124,7 +107,7 @@ export interface LibVoiceNode extends LibAudioNode {
 }
 
 // Effect node
-export interface LibFxNode extends LibAudioNode {
+export interface LibFxNode extends LibNode {
   readonly nodeType: FxType;
 
   bypass(shouldBypass: boolean): this;

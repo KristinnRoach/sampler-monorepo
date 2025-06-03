@@ -20,7 +20,7 @@ import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
 import {
   LibInstrument,
-  LibAudioNode,
+  LibNode,
   ContainerType,
   SampleLoader,
 } from '@/nodes/LibNode';
@@ -38,7 +38,7 @@ import { initProcessors } from './worklets';
 
 import { MidiController } from '@/io';
 
-export class Audiolib implements LibAudioNode {
+export class Audiolib implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: ContainerType = 'audiolib';
 
@@ -85,7 +85,7 @@ export class Audiolib implements LibAudioNode {
   init!: () => Promise<Audiolib>;
 
   async #initImpl(): Promise<Audiolib> {
-    if (this.isReady) return this;
+    if (this.#isReady) return this;
 
     // Ensure audio context is available
     const ctxResult = await tryCatch(() => ensureAudioCtx());
@@ -140,7 +140,7 @@ export class Audiolib implements LibAudioNode {
 
   // Public API for initialization state
 
-  get isReady(): boolean {
+  get #isReady(): boolean {
     return this.#asyncInit.isReady();
   }
 
@@ -150,7 +150,7 @@ export class Audiolib implements LibAudioNode {
 
   onReady(callback: (instance: Audiolib) => void): () => void {
     const checkAndCall = () => {
-      if (this.isReady) callback(this);
+      if (this.#isReady) callback(this);
     };
 
     // Call immediately if already ready
@@ -179,7 +179,7 @@ export class Audiolib implements LibAudioNode {
   }
 
   async createRecorder(
-    destination?: LibAudioNode & SampleLoader
+    destination?: LibNode & SampleLoader
   ): Promise<Recorder> {
     assert(
       this.#audioContext,
@@ -249,7 +249,7 @@ export class Audiolib implements LibAudioNode {
   /** Recorder  **/
 
   async recordAudioSample(
-    destination?: LibAudioNode & SampleLoader
+    destination?: LibNode & SampleLoader
   ): Promise<AudioBuffer> {
     assert(this.#globalAudioRecorder, 'Audio recorder not initialized');
 
@@ -316,12 +316,12 @@ export class Audiolib implements LibAudioNode {
   /** LibContainerNode required methods */
   // Todo: change interface or adapt
 
-  add(child: LibAudioNode): this {
+  add(child: LibNode): this {
     this.firstChildren.push(child);
     return this;
   }
 
-  remove(child: LibAudioNode): this {
+  remove(child: LibNode): this {
     const index = this.firstChildren.indexOf(child);
     if (index > -1) {
       this.firstChildren.splice(index, 1);
@@ -343,7 +343,7 @@ export class Audiolib implements LibAudioNode {
     return this.#audioContext?.destination;
   }
 
-  get firstChildren(): LibAudioNode[] {
+  get firstChildren(): LibNode[] {
     return Array.from(this.#instruments.values());
   }
 

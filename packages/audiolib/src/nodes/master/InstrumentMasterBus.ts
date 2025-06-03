@@ -1,10 +1,10 @@
-import { LibAudioNode } from '@/nodes/LibNode';
+import { Connectable, LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';
 
-export class InstrumentMasterBus implements LibAudioNode {
+export class InstrumentMasterBus implements LibNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'fx';
 
@@ -17,7 +17,7 @@ export class InstrumentMasterBus implements LibAudioNode {
   #compressorEnabled: boolean = true;
   #levelMonitor: LevelMonitor | null = null;
   #isReady: boolean = false;
-  get isReady() {
+  get #isReady() {
     return this.#isReady;
   }
 
@@ -199,6 +199,20 @@ export class InstrumentMasterBus implements LibAudioNode {
     return this.#messages.onMessage(type, handler);
   }
 
+  setAltOutVolume(gain: number) {
+    this.#altOut?.gain.setValueAtTime(gain, this.now);
+    return this;
+  }
+
+  mute(output: 'main' | 'alt' | 'all' = 'all') {
+    if (output === 'main') this.volume = 0;
+    else if (output === 'alt') this.altVolume = 0;
+    else {
+      this.volume = 0;
+      this.altVolume = 0;
+    }
+  }
+
   connect(destination: AudioNode): this {
     this.#output.connect(destination);
     return this;
@@ -207,12 +221,24 @@ export class InstrumentMasterBus implements LibAudioNode {
   connectAltOut(destination: AudioNode) {
     if (!this.#altOut) this.#altOut = new GainNode(this.#context);
     this.#altOut.connect(destination);
-
     return this;
   }
 
-  disconnect(): void {
-    this.#output.disconnect();
+  disconnect(output: 'main' | 'alt' | 'all' = 'all'): void {
+    switch (output) {
+      case 'main':
+        this.#output.disconnect();
+        break;
+
+      case 'alt':
+        this.#altOut?.disconnect();
+        break;
+
+      case 'all':
+      default:
+        this.#output.disconnect();
+        this.#altOut?.disconnect();
+    }
   }
 
   dispose(): void {
@@ -231,11 +257,11 @@ export class InstrumentMasterBus implements LibAudioNode {
     return this.#context.currentTime;
   }
 
-  get inputNode() {
+  get input(): AudioNode {
     return this.#input;
   }
 
-  get outputNode() {
+  get output() {
     return this.#output;
   }
 
@@ -243,14 +269,17 @@ export class InstrumentMasterBus implements LibAudioNode {
     return this.#output.gain.value;
   }
 
+  get altVolume(): number | null {
+    return this.#altOut?.gain.value ?? null;
+  }
+
+  set altVolume(value: number) {
+    this.#altOut?.gain.setValueAtTime(value, this.now);
+  }
+
   set volume(value: number) {
     // Ensure value is between 0 and 1
     const safeValue = Math.max(0, Math.min(1, value));
     this.#output.gain.setValueAtTime(safeValue, this.now);
-  }
-
-  // Input node for connecting instruments
-  get input(): AudioNode {
-    return this.#input;
   }
 }

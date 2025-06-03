@@ -1,4 +1,10 @@
-import { LibVoiceNode, VoiceType, Messenger } from '@/nodes/LibNode';
+import {
+  LibVoiceNode,
+  VoiceType,
+  Messenger,
+  Destination,
+  Connectable,
+} from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { VoiceState, ActiveNoteId } from '../types';
@@ -20,7 +26,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   playbackRate: {
     nodeId: 'playbackRate',
     name: 'playbackRate',
-    type: 'number',
+    valueType: 'number',
     minValue: 0.1,
     maxValue: 10,
     defaultValue: 1,
@@ -29,7 +35,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   envGain: {
     nodeId: 'envGain',
     name: 'envGain',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 1,
     defaultValue: 1,
@@ -38,7 +44,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   startOffset: {
     nodeId: 'startOffset',
     name: 'startOffset',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     defaultValue: 0,
     group: 'playback',
@@ -46,7 +52,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   endOffset: {
     nodeId: 'endOffset',
     name: 'endOffset',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     defaultValue: 1,
     group: 'playback',
@@ -54,7 +60,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   loopStart: {
     nodeId: 'loopStart',
     name: 'loopStart',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     defaultValue: 0,
     group: 'loop',
@@ -62,7 +68,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   loopEnd: {
     nodeId: 'loopEnd',
     name: 'loopEnd',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     defaultValue: 1,
     group: 'loop',
@@ -70,7 +76,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   velocity: {
     nodeId: 'velocity',
     name: 'velocity',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 127,
     defaultValue: 64,
@@ -88,7 +94,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   #isReady: boolean = false;
   #currentNoteId: number | string | null = null;
   #startedTimestamp: number = -1;
-
+  #destination: Destination | null = null;
   // Add this static property for discovery
   static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
 
@@ -280,20 +286,31 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   }
 
   connect(
-    destination: AudioNode | AudioParam,
+    destination: Destination,
     output?: number,
     input?: number
-  ): this {
+  ): Destination {
     if (destination instanceof AudioParam) {
       this.#worklet.connect(destination, output);
-    } else {
+    } else if (destination instanceof AudioNode) {
       this.#worklet.connect(destination, output, input);
+    } else {
+      console.warn(`SampleVoice: Unsupported destination: ${destination}`);
     }
-    return this;
+    return destination;
   }
 
-  disconnect(): this {
-    this.#worklet.disconnect();
+  disconnect(output = 'main', destination?: Destination): this {
+    if (output === 'alt') {
+      console.warn(`SampleVoice has no "alt" output to disconnect`);
+      return this;
+    }
+
+    if (destination instanceof AudioNode) {
+      this.#worklet.disconnect(destination);
+    } else if (destination instanceof AudioParam) {
+      this.#worklet.disconnect(destination);
+    }
     return this;
   }
 
@@ -390,6 +407,10 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     return this.#worklet; // or this.#worklet.parameters.envGain ?
   }
 
+  get destination() {
+    return this.#destination;
+  }
+
   // get firstChildren() { return this.#worklet; }
 
   get state(): VoiceState {
@@ -397,7 +418,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   }
 
   get isReady() {
-    return this.#isReady;
+    return this.#isReady; // && this.#isLoaded;
   }
 
   get now(): number {

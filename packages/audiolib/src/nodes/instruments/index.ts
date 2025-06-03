@@ -9,3 +9,6 @@ export { createKarplusStrongSynth } from './Synth/KarplusStrong/factory';
 /** VOICES */
 export { SampleVoice } from './Sample/SampleVoice';
 export { KarplusVoice } from './Synth/KarplusStrong/KarplusVoice';
+
+/** INTERFACE & TYPES */
+export * from './LibInstrument';

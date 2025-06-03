@@ -32,7 +32,7 @@ export function fromAudioParamDescriptor(
   return {
     nodeId: options.id,
     name: audioParam.name,
-    type: options.type || 'number',
+    valueType: options.type || 'number',
     defaultValue: audioParam.defaultValue ?? 0,
     minValue: audioParam.minValue,
     maxValue: audioParam.maxValue,

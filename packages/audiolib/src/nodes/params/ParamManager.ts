@@ -28,7 +28,7 @@ export class ParamManager {
     const libParam: LibParam = {
       nodeId,
       nodeType: 'param',
-      isReady: true,
+      #isReady: true,
       descriptor: descrWithAudioParamValues,
       getValue: () => audioParam.value,
       setValue: (value: number) => {

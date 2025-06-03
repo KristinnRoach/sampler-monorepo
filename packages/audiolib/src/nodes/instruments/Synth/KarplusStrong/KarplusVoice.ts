@@ -1,6 +1,6 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
-import { LibVoiceNode, VoiceType } from '@/nodes/LibNode';
+import { Destination, LibVoiceNode, VoiceType } from '@/nodes/LibNode';
 import { Message, createMessageBus, MessageBus } from '@/events';
 import { cancelScheduledParamValues } from '@/utils';
 
@@ -36,7 +36,7 @@ export class KarplusVoice implements LibVoiceNode {
   #isPlaying: boolean = false; // todo: remove
 
   #isReady: boolean = false;
-  get isReady() {
+  get #isReady() {
     return this.#isReady;
   }
 
@@ -205,16 +205,23 @@ export class KarplusVoice implements LibVoiceNode {
   }
 
   connect(
-    destination: AudioNode,
-    outputIndex?: number,
-    inputIndex?: number
-  ): this {
-    this.outputGain.connect(destination); // , outputIndex, inputIndex);
-    return this;
+    destination: Destination,
+    output?: number,
+    input?: number
+  ): Destination {
+    if (destination instanceof AudioParam) {
+      this.outputGain.connect(destination, output);
+    } else if (destination instanceof AudioNode) {
+      this.outputGain.connect(destination, output, input);
+    } else {
+      console.warn(`SampleVoice: Unsupported destination: ${destination}`);
+    }
+    return destination;
   }
 
-  disconnect() {
+  disconnect(): this {
     this.outputGain.disconnect();
+    return this;
   }
 
   dispose(): void {

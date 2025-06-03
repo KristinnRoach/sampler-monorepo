@@ -16,8 +16,8 @@ export default defineConfig({
 
   build: {
     outDir: 'dist',
-    emptyOutDir: false, // prevent worklets being erased
-    assetsInlineLimit: 0, // Prevent inlining (possibly not needed when using build-processors.js)
+    emptyOutDir: false, // necessary to prevent worklets being erased (when using build-processors.js)
+    // assetsInlineLimit: 0, // Prevent inlining (not needed when using build-processors.js)
 
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
@@ -31,7 +31,7 @@ export default defineConfig({
     // output: { globals: {}, }, // skoða
   },
   resolve: {
-    extensions: ['.js', '.ts'], // TOdo: henda
+    // extensions: ['.js', '.ts'], // TOdo: henda
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },

@@ -19,7 +19,7 @@ export type { KarplusStrongSynth } from './nodes/instruments/Synth/KarplusStrong
 export type { Recorder } from './nodes/recorder';
 export type {
   LibInstrument,
-  LibAudioNode as LibNode,
+  LibNode as LibNode,
   SampleLoader,
 } from './nodes/LibNode';
 export type {

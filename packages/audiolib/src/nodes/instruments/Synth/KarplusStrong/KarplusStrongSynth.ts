@@ -1,9 +1,10 @@
+import { Messenger, LibNode } from '@/nodes/LibNode';
+
 import {
   LibInstrument,
   InstrumentType,
-  Messenger,
-  LibAudioNode,
-} from '@/nodes/LibNode';
+} from '@/nodes/instruments/LibInstrument';
+
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { ensureAudioCtx, getAudioContext } from '@/context';
@@ -28,12 +29,12 @@ import { localStore } from '@/storage/local';
 export class KarplusStrongSynth implements LibInstrument, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'synth';
-
+  #messages: MessageBus<Message>;
   #context: AudioContext;
+
   #output: InstrumentMasterBus;
   #auxInput: GainNode;
   #voicePool: KarplusVoicePool;
-  #messages: MessageBus<Message>;
 
   #keyboardHandler: InputHandler | null = null;
   #midiController: MidiController | null = null;
@@ -41,7 +42,7 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
   #debouncer: Debouncer = new Debouncer();
 
   #isReady: boolean = false;
-  get isReady() {
+  get #isReady() {
     return this.#isReady;
   }
 
@@ -250,10 +251,6 @@ export class KarplusStrongSynth implements LibInstrument, Messenger {
   set volume(value: number) {
     this.#output.volume = value;
   }
-
-  // set auxInput(stream: AudioNode) {
-  //   this.#voicePool.auxIn = stream;
-  // }
 
   get auxIn() {
     return this.#auxInput; // auxIn;

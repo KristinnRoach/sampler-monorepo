@@ -2,8 +2,4 @@
 
 type TODO = unknown;
 
-type IsReady = boolean;
-
-type AudioContextTimeSeconds = number;
-
 type NodeID = string; // | number; // | symbol; // TODO -> Standardize id's

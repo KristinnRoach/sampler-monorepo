@@ -1,10 +1,15 @@
 import {
-  LibInstrument,
-  InstrumentType,
   SampleLoader,
   Messenger,
-  LibAudioNode,
+  LibNode,
+  Connectable,
+  Destination,
 } from '@/nodes/LibNode';
+
+import {
+  LibInstrument,
+  InstrumentType,
+} from '@/nodes/instruments/LibInstrument';
 
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import type { MidiValue, ActiveNoteId } from '../types';
@@ -47,13 +52,13 @@ import { SampleVoicePool } from './SampleVoicePool';
 export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType = 'sample-player';
-  #children: Array<LibAudioNode | AudioNode> = [];
+  #children: Array<LibNode | AudioNode> = [];
 
   #context: AudioContext;
   #outBus: InstrumentMasterBus;
   #lpf: BiquadFilterNode | null = null;
   #hpf: BiquadFilterNode | null = null;
-  #destination: LibAudioNode | AudioNode | AudioDestinationNode | null = null;
+  #destination: Destination | null = null; // LibNode | AudioNode | AudioDestinationNode | null = null;
   #pool: SampleVoicePool;
 
   #messages: MessageBus<Message>;
@@ -95,6 +100,10 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
   randomizeVelocity = false; // for testing, refactor later
 
+  connectAltOut: InstrumentMasterBus['connectAltOut'];
+  setAltOutVolume: InstrumentMasterBus['setAltOutVolume'];
+  mute: InstrumentMasterBus['mute'];
+
   constructor(
     context: AudioContext,
     polyphony: number = 16,
@@ -107,6 +116,11 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
 
     // Initialize the output bus
     this.#outBus = new InstrumentMasterBus();
+
+    // Delegate out-bus methods
+    this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
+    this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
+    this.mute = (...args) => this.outBus.mute(...args);
 
     // Init filters
     this.#hpf = new BiquadFilterNode(context, {
@@ -170,9 +184,9 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     }
   }
 
-  #addChild = (node: LibAudioNode | AudioNode) => this.#children.push(node);
+  #addChild = (node: LibNode | AudioNode) => this.#children.push(node);
 
-  #addChildren = (nodes: Array<LibAudioNode | AudioNode>) => {
+  #addChildren = (nodes: Array<LibNode | AudioNode>) => {
     nodes.forEach((n) => this.#children.push(n));
     return this;
   };
@@ -207,24 +221,17 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return this;
   }
 
-  connect(destination: TODO): this {
-    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
-    // also todo: make sure no accidental multiple connections
-    this.#outBus.connect(destination);
-    this.#destination = destination;
-    return this;
-  }
+  // connect(destination: TODO): this {
+  //   assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+  //   this.#outBus.connect(destination);
+  //   this.#destination = destination;
+  //   return this;
+  // }
 
-  connectAltOut(destination: AudioNode): this {
-    this.#outBus.connectAltOut(destination);
-
-    return this;
-  }
-
-  disconnect(): void {
-    this.#outBus.disconnect();
-    this.#destination = null;
-  }
+  // disconnect(): void {
+  //   this.#outBus.disconnect();
+  //   this.#destination = null;
+  // }
 
   #connectVoicesToMacros(): this {
     const voices = this.#pool.allVoices;
@@ -408,7 +415,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
     return this;
   }
 
-  panic = (fadeOut_sec: number) => this.releaseAll(fadeOut_sec);
+  // panic = (fadeOut_sec: number) => this.releaseAll(fadeOut_sec);
 
   releaseAll(fadeOut_sec: number = this.#release): this {
     this.#pool.allNotesOff(fadeOut_sec);
@@ -709,7 +716,7 @@ export class SamplePlayer implements LibInstrument, Messenger, SampleLoader {
   // get in() { this.#hpf }
 
   get out() {
-    return this.#outBus.outputNode;
+    return this.#outBus.output;
   }
 
   get outBus() {

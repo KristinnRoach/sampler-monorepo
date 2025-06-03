@@ -11,7 +11,7 @@
     "moduleResolution": "node",
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"], // WebWorker might be needed for worklet vite plugin config
 
-    "declarationMap": true, //?
+    "declarationMap": true, // ?
     "useDefineForClassFields": true,
 
     "sourceMap": true,
@@ -32,8 +32,8 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "src/types/worklet.d.ts"],
-  "exclude": ["node_modules", "dist", "src/test/*"]
+  "include": ["src"], // , "src/types/worklet.d.ts"
+  "exclude": ["node_modules", "dist", "src/test/*", "src/**/*.test*"]
 }
 
 // Under review:

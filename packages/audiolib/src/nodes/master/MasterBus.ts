@@ -1,10 +1,10 @@
-import { LibAudioNode } from '@/nodes/LibNode';
+import { LibNode, Connectable } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
 import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';
 
-export class MasterBus implements LibAudioNode {
+export class MasterBus implements LibNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'fx';
 
@@ -16,7 +16,7 @@ export class MasterBus implements LibAudioNode {
   #limiterEnabled: boolean = true;
   #levelMonitor: LevelMonitor | null = null;
   #isReady: boolean = false;
-  get isReady() {
+  get #isReady() {
     return this.#isReady;
   }
 

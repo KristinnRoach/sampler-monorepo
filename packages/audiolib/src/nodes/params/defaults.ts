@@ -1,15 +1,16 @@
 import { ParamDescriptor } from './types';
 
 const MAX_HZ = 22000;
-const MIN_HZ = 1;
+const MIN_HZ = 0.1;
 const DEFAULT_HPF_CUTOFF = 100;
+const DEFAULT_LPF_CUTOFF = MAX_HZ;
 
 // Default ParamDescriptors
 export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   LOOP_START: {
     nodeId: 'loop-start', // todo: remove default id's, ensure they are created when param is registered
     name: 'loop-start',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 1, // Updated when sample loads
     step: 0.001,
@@ -20,7 +21,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   LOOP_END: {
     nodeId: 'loop-start',
     name: 'loop-start',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 1, // Updated when sample loads
     step: 0.001,
@@ -31,7 +32,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   LOOP_RAMP_DURATION: {
     nodeId: 'loop-point-ramp',
     name: 'loop-point-ramp',
-    type: 'number' as const,
+    valueType: 'number' as const,
     minValue: 0.001,
     maxValue: 2.0,
     step: 0.001,
@@ -42,7 +43,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   ATTACK: {
     nodeId: 'attack-time',
     name: 'attack-time',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 5,
     step: 0.001,
@@ -53,7 +54,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   RELEASE: {
     nodeId: 'release-time',
     name: 'release-time',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 5,
     step: 0.001,
@@ -64,7 +65,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   START_OFFSET: {
     nodeId: 'start-offset',
     name: 'start-offset',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 1, // Updated when sample loads
     step: 0.001,
@@ -75,7 +76,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   END_OFFSET: {
     nodeId: 'end-offset',
     name: 'end-offset',
-    type: 'number',
+    valueType: 'number',
     minValue: 0,
     maxValue: 100, // Updated when sample loads
     step: 0.001,
@@ -86,7 +87,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   PLAYBACK_RATE: {
     nodeId: 'playback-rate',
     name: 'playback-rate',
-    type: 'number',
+    valueType: 'number',
     minValue: 0.25,
     maxValue: 4,
     step: 0.01,
@@ -97,18 +98,18 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
   LOWPASS_CUTOFF: {
     nodeId: 'lpf-freq',
     name: 'lpf-freq',
-    type: 'number',
+    valueType: 'number',
     minValue: MIN_HZ,
     maxValue: MAX_HZ,
     step: 1,
-    defaultValue: MAX_HZ,
+    defaultValue: DEFAULT_LPF_CUTOFF,
     group: 'filter:lpf',
   },
 
   HIGHPASS_CUTOFF: {
     nodeId: 'hpf-freq',
     name: 'hpf-freq',
-    type: 'number',
+    valueType: 'number',
     minValue: MIN_HZ,
     maxValue: MAX_HZ,
     step: 1,

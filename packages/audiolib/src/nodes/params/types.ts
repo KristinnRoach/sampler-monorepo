@@ -1,10 +1,10 @@
-import { LibAudioNode, Messenger } from '@/nodes/LibNode';
+import { LibNode, Messenger } from '@/nodes/LibNode';
 import { MessageHandler, Message } from '@/events';
 
 export interface ParamDescriptor {
   nodeId: NodeID;
   name: string;
-  type: 'number' | 'boolean' | 'enum';
+  valueType: 'number' | 'boolean' | 'enum';
 
   // Aligned with AudioParam properties
   minValue?: number;
@@ -20,7 +20,7 @@ export interface ParamDescriptor {
   automationRate?: 'a-rate' | 'k-rate';
 }
 
-export interface LibParam extends LibAudioNode, Messenger {
+export interface LibParam extends LibNode, Messenger {
   readonly nodeType: ParamType;
 
   getValue: () => any;

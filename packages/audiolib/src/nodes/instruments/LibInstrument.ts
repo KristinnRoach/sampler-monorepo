@@ -1,0 +1,244 @@
+import { createNodeId, NodeID } from '@/nodes/node-store';
+import { assert, tryCatch } from '@/utils';
+import { LibNode, Connectable, Messenger, Destination } from '@/nodes/LibNode';
+import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
+import { ParamManager } from '@/nodes/params';
+
+import {
+  MidiController,
+  globalKeyboardInput,
+  InputHandler,
+  PressedModifiers,
+} from '@/io';
+
+import {
+  Message,
+  MessageBus,
+  MessageHandler,
+  createMessageBus,
+} from '@/events';
+
+import type { MidiValue, ActiveNoteId } from '@/nodes/instruments/types';
+import { SampleVoicePool } from '@/nodes/instruments/Sample/SampleVoicePool';
+import { KarplusVoicePool } from '@/nodes/instruments/Synth/KarplusStrong/KarplusVoicePool';
+import { localStore } from '@/storage/local';
+
+export type InstrumentType = 'sample-player' | 'synth';
+
+export abstract class LibInstrument implements LibNode, Connectable, Messenger {
+  readonly nodeId: NodeID;
+  readonly nodeType: InstrumentType;
+
+  protected messages: MessageBus<Message>;
+  protected keyboardHandler: InputHandler | null = null;
+  protected midiController: MidiController | null = null;
+
+  protected params = new ParamManager();
+
+  protected voices: SampleVoicePool | KarplusVoicePool | null = null;
+
+  protected context: AudioContext;
+  protected outBus: InstrumentMasterBus;
+  protected destination: Destination | null = null;
+
+  constructor(
+    nodeType: InstrumentType,
+    context: AudioContext,
+    polyphony: number = 16,
+    audioBuffer?: AudioBuffer,
+    midiController?: MidiController
+  ) {
+    this.nodeType = nodeType;
+    this.nodeId = createNodeId(this.nodeType);
+    this.context = context;
+    this.messages = createMessageBus<Message>(this.nodeId);
+    this.outBus = new InstrumentMasterBus();
+
+    //     // Load envelope settings from storage
+    // this._attackSeconds = this.getStoredParam('attackSeconds', 0.01);
+    // this._releaseSeconds = this.getStoredParam('releaseSeconds', 0.3);
+    // Delegate out-bus methods
+    // this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
+    // this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
+    // this.mute = (...args) => this.outBus.mute(...args);
+  }
+
+  // ===== ABSTRACT METHODS - Must be implemented by subclasses =====
+
+  /**
+   * Start playing a note. Must return a unique note ID.
+   */
+  abstract play(
+    midiNote: MidiValue,
+    velocity?: number,
+    modifiers?: Partial<PressedModifiers>
+  ): ActiveNoteId;
+
+  /**
+   * Stop playing a note by MIDI note number.
+   */
+  abstract release(
+    midiNote: MidiValue,
+    modifiers?: Partial<PressedModifiers>
+  ): this;
+
+  /**
+   * Stop all currently playing notes.
+   */
+  abstract stopAll(): this;
+
+  // ===== COMMON FUNCTIONALITY =====
+
+  // Messaging
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.messages.onMessage(type, handler);
+  }
+
+  protected sendUpstreamMessage(type: string, data: any): this {
+    this.messages.sendMessage(type, data);
+    return this;
+  }
+
+  connect(destination: Destination): Destination {
+    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+    this.outBus.connect(destination);
+    this.destination = destination;
+    return destination;
+  }
+
+  disconnect(output?: 'main' | 'alt' | 'all'): this {
+    // destination?: Destination
+    // if (destination instanceof AudioNode || destination instanceof AudioParam) {
+    //   this.outBus.disconnect(output, destination);
+    // }
+
+    this.outBus.disconnect(output);
+    if (output === 'main' || output === 'all') {
+      this.destination = null;
+    }
+    return this;
+  }
+
+  // Keyboard input
+  enableKeyboard(): this {
+    if (!this.keyboardHandler) {
+      this.keyboardHandler = {
+        onNoteOn: this.play.bind(this),
+        onNoteOff: this.release.bind(this),
+        onBlur: this.handleBlur.bind(this),
+        onModifierChange: this.handleModifierKeys.bind(this),
+      };
+      globalKeyboardInput.addHandler(this.keyboardHandler);
+    }
+    return this;
+  }
+
+  disableKeyboard(): this {
+    if (this.keyboardHandler) {
+      globalKeyboardInput.removeHandler(this.keyboardHandler);
+      this.keyboardHandler = null;
+    }
+    return this;
+  }
+
+  // MIDI input
+  async enableMIDI(
+    midiController?: MidiController,
+    channel: number = 0
+  ): Promise<this> {
+    if (!midiController) {
+      midiController = new MidiController();
+      await midiController.initialize();
+    }
+
+    if (midiController.isInitialized) {
+      this.midiController = midiController;
+      midiController.connectInstrument(this, channel);
+    }
+    return this;
+  }
+
+  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+    const controller = midiController || this.midiController;
+    controller?.disconnectInstrument(channel);
+    if (controller === this.midiController) {
+      this.midiController = null;
+    }
+    return this;
+  }
+
+  // Event handlers (can be overridden)
+  protected handleBlur(): this {
+    this.panic();
+    return this;
+  }
+
+  protected handleModifierKeys(modifiers: PressedModifiers): this {
+    // Default implementation - subclasses can override for custom behavior
+    return this;
+  }
+
+  // Convenience methods
+  panic = (): this => this.stopAll();
+
+  // Parameter storage helpers
+  protected getLocalStorageKey(paramName: string): string {
+    return `${paramName}-${this.nodeId}`;
+  }
+
+  protected storeParam(name: string, value: number): void {
+    const key = this.getLocalStorageKey(name);
+    localStore.saveValue(key, value);
+  }
+
+  protected getStoredParam(name: string, defaultValue: number): number {
+    const key = this.getLocalStorageKey(name);
+    return localStore.getValue(key, defaultValue);
+  }
+
+  // Volume control
+  get volume(): number {
+    return this.outBus.volume;
+  }
+
+  set volume(value: number) {
+    this.outBus.volume = value;
+  }
+
+  // State getters
+  abstract get #isInitialized(): boolean;
+
+  get now(): number {
+    return this.context.currentTime;
+  }
+
+  // get isPlaying(): boolean {
+  //   return this.midiNoteToId.size > 0;
+  // }
+
+  // get activeVoices(): number {
+  //   return this.midiNoteToId.size;
+  // }
+
+  /**
+   * Clean up all resources.
+   */
+  dispose() {
+    this.stopAll();
+    this.disconnect();
+    this.disableKeyboard();
+    this.disableMIDI();
+    // this.clearAllTrackedNotes();
+
+    this.context = null as unknown as AudioContext;
+    this.messages = null as unknown as MessageBus<Message>;
+
+    // Detach keyboard handler
+    if (this.keyboardHandler) {
+      globalKeyboardInput.removeHandler(this.keyboardHandler);
+      this.keyboardHandler = null;
+    }
+
+    // todo: disableMIDI
+  }
+}

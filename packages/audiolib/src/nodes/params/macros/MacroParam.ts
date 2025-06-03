@@ -9,6 +9,7 @@ import { SCALE_PATTERNS } from '@/utils/musical/constants';
 import { Debouncer } from '@/utils/Debouncer';
 import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
+import { NodeType } from '@/nodes/LibNode';
 
 export class MacroParam implements LibParam {
   readonly nodeType: ParamType = 'param';
@@ -45,6 +46,7 @@ export class MacroParam implements LibParam {
   ): this {
     if (!this.#paramType) this.#paramType = paramType;
     assert(
+      // todo: allow multiple types
       paramType === this.#paramType,
       'Macros only support a single ParamType'
     );
@@ -141,7 +143,7 @@ export class MacroParam implements LibParam {
     return this.#controller.value;
   }
 
-  get isReady() {
+  get #isReady() {
     return this.#isReady;
   }
 
@@ -188,10 +190,12 @@ export class MacroParam implements LibParam {
   }
 
   // Stub methods for interface compliance
-  connect(): this {
-    throw new Error('Not implemented');
+  connect(target: AudioParam, nodeType: NodeType, scaleFactor?: number): this {
+    this.addTarget(target, nodeType, scaleFactor);
+    return this;
   }
-  disconnect(): void {
+
+  disconnect(target?: AudioParam | LibParam): void {
     throw new Error('Not implemented');
   }
 }
