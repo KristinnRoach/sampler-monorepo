@@ -100,7 +100,10 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   /**
    * Helper method to retrieve parameter values from local storage
    */
-  protected getStoredParamValue(paramId: string, defaultValue: any): any {
+  protected getStoredParamValue<T extends number | string>(
+    paramId: string,
+    defaultValue: T
+  ): T {
     const key = this.getLocalStorageKey(paramId);
     return localStore.getValue(key, defaultValue);
   }
@@ -131,20 +134,14 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
 
   abstract release(
     midiNote: MidiValue,
-    modifiers?: Partial<PressedModifiers>
+    modifiers?: Partial<PressedModifiers> // , fadeOut_sec?: number
   ): this;
 
-  abstract stopAll(): this;
-
-  // Add releaseAll as an alias for stopAll to maintain compatibility
-  releaseAll(fadeOut_sec?: number): this {
-    return this.stopAll();
-  }
+  abstract releaseAll(fadeOut_sec?: number): this;
 
   // Common functionality for all instruments
-  panic(): this {
-    return this.stopAll();
-  }
+
+  panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
 
   // Keyboard input
   enableKeyboard(): this {
@@ -240,7 +237,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
    * Clean up all resources.
    */
   dispose() {
-    this.stopAll();
+    this.panic(0);
     this.disconnect();
     this.disableKeyboard();
     this.disableMIDI();

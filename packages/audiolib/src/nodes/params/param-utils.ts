@@ -1,5 +1,7 @@
 import { ParamDescriptor } from './types';
 
+// TODO: Check usage - redundant or keep ?
+
 /**
  * Converts a ParamDescriptor to a standard AudioParamDescriptor
  * for use with AudioWorkletProcessor parameter definitions
@@ -42,7 +44,7 @@ export function fromAudioParamDescriptor(
   };
 }
 
-// TODO: check whether the example below should be applied to worklet nodes
+// ? check whether the example below should be applied to worklet nodes
 // // Example usage in an AudioWorkletNode wrapper
 // import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
 // import { ParamDescriptor } from '@/nodes/params/types';

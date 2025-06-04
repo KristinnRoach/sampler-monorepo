@@ -1,4 +1,3 @@
-import { LibNode } from '@/nodes/LibNode';
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
@@ -16,7 +15,6 @@ import {
 import {
   MacroParam,
   ParamDescriptor,
-  // LibParam,
   DEFAULT_PARAM_DESCRIPTORS,
 } from '@/nodes/params';
 
@@ -32,7 +30,6 @@ export class SamplePlayer extends LibInstrument {
   #pool: SampleVoicePool;
   #midiNoteToId: Map<MidiValue, ActiveNoteId> = new Map();
   #bufferDuration: number = 0;
-  #loopRampDuration: number = 0.2;
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
@@ -40,11 +37,6 @@ export class SamplePlayer extends LibInstrument {
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
   #loopEndFineTune: number = 0;
-  #startOffset: number = 0;
-  #endOffset: number = 0;
-  #attack: number = 0.01;
-  #release: number = 0.1;
-  #playbackRate: number = 1;
   #isReady = false;
   #isLoaded = false;
   #zeroCrossings: number[] = [];
@@ -83,11 +75,7 @@ export class SamplePlayer extends LibInstrument {
       Q: 1,
     });
 
-    // Load stored param values
-    // Load stored values
-    this.setAttackTime(this.getStoredParamValue('attack', 0.01));
-    this.setReleaseTime(this.getStoredParamValue('release', 0.1));
-    // ... etc for other stored params
+    // ? Load stored values ?
 
     // Initialize voice pool
     this.#pool = new SampleVoicePool(context, polyphony, this.outBus.input);
@@ -121,68 +109,6 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
-  // #addChild = (node: LibNode | AudioNode) => this.#children.push(node);
-
-  // #addChildren = (nodes: Array<LibNode | AudioNode>) => {
-  //   nodes.forEach((n) => this.#children.push(n));
-  //   return this;
-  // };
-
-  // #registerParameters(): void {
-  //   // Register the loop macros (already LibParams)
-  //   this.params.register(this.#macroLoopStart);
-  //   this.params.register(this.#macroLoopEnd);
-
-  //   this.params.register(
-  //     // Need to wrap these simple values as LibParams:
-  //     new LibParam('attack', DEFAULT_PARAM_DESCRIPTORS.ATTACK, this.#attack)
-  //   );
-  //   this.params.register(
-  //     new LibParam('release', DEFAULT_PARAM_DESCRIPTORS.RELEASE, this.#release)
-  //   );
-  //   this.params.register(
-  //     new LibParam(
-  //       'start-offset',
-  //       DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
-  //       this.#startOffset
-  //     )
-  //   );
-  //   this.params.register(
-  //     new LibParam(
-  //       'end-offset',
-  //       DEFAULT_PARAM_DESCRIPTORS.END_OFFSET,
-  //       this.#endOffset
-  //     )
-  //   );
-  //   this.params.register(
-  //     new LibParam(
-  //       'playback-rate',
-  //       DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
-  //       this.#playbackRate
-  //     )
-  //   );
-  //   this.params.register(
-  //     new LibParam(
-  //       'loop-ramp-duration',
-  //       DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
-  //       this.#loopRampDuration
-  //     )
-  //   );
-
-  //   if (!this.#hpf || !this.#lpf) return;
-
-  //   // Register native AudioParams with descriptors
-  //   this.params.register(
-  //     this.#hpf.frequency,
-  //     DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
-  //   );
-
-  //   this.params.register(
-  //     this.#lpf.frequency,
-  //     DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
-  //   );
-  // }
-
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
   }
@@ -191,18 +117,6 @@ export class SamplePlayer extends LibInstrument {
     this.messages.sendMessage(type, data);
     return this;
   }
-
-  // connect(destination: TODO): this {
-  //   assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
-  //   this.outBus.connect(destination);
-  //   this.#destination = destination;
-  //   return this;
-  // }
-
-  // disconnect(): void {
-  //   this.outBus.disconnect();
-  //   this.#destination = null;
-  // }
 
   #connectVoicesToMacros(): this {
     const voices = this.#pool.allVoices;
@@ -275,34 +189,24 @@ export class SamplePlayer extends LibInstrument {
 
     if (this.#useZeroCrossings) {
       const zeroes = findZeroCrossings(buffer);
+
       // reset start and end offset
-      this.#startOffset = zeroes[0] || 0; // or saved value
-      const lastZero = zeroes[zeroes.length - 1];
-      this.#endOffset = buffer.duration - lastZero || 0;
+      const storedStart = this.getStoredParamValue('startOffset', 0);
+      this.setParameterValue('startOffset', storedStart || zeroes[0]);
+
+      const storedOffFromEnd = this.getStoredParamValue('endOffset', 0);
+      const lastZeroOffFromEnd =
+        buffer.duration - zeroes[zeroes.length - 1] || 0;
+      this.setParameterValue(
+        'endOffset',
+        storedOffFromEnd || lastZeroOffFromEnd
+      );
+
       // cache zero crossings
       this.#zeroCrossings = zeroes;
     }
 
     this.#pool.setBuffer(buffer, this.#zeroCrossings);
-
-    // const allVoices = this.#pool.allVoices;
-    // assert(allVoices.length > 0, 'No voices to load sample!');
-
-    // const promises = allVoices.map((v) => {
-    //   v.loadBuffer(buffer, this.#zeroCrossings);
-    //   v.setStartOffset(this.#startOffset);
-    //   v.setEndOffset(
-    //     this.#zeroCrossings[this.#zeroCrossings.length - 1] || buffer.duration
-    //   );
-    // });
-
-    // const result = await tryCatch(
-    //   () => Promise.all(promises),
-    //   'Failed to load sample'
-    // );
-    // if (result.error) {
-    //   return false;
-    // }
 
     this.setSampleEndOffset(buffer.duration);
     this.#resetMacros(buffer.duration);
@@ -336,7 +240,7 @@ export class SamplePlayer extends LibInstrument {
       midiNote,
       velocity,
       this.now,
-      this.#attack // Pass the attack time directly
+      this.getAttackTime() // Pass the attack time directly
     );
 
     this.#midiNoteToId.set(midiNote, noteId);
@@ -380,19 +284,22 @@ export class SamplePlayer extends LibInstrument {
       }
     }
 
-    this.#pool.noteOff(noteId, this.#release, 0); // Pass the release time directly
+    this.#pool.noteOff(noteId, this.getReleaseTime(), 0); // Pass the release time directly
 
     this.sendUpstreamMessage('note:off', { noteId, midiNote });
     return this;
   }
 
-  // panic = (fadeOut_sec: number) => this.releaseAll(fadeOut_sec);
-
-  releaseAll(fadeOut_sec: number = this.#release): this {
+  releaseAll(fadeOut_sec: number = this.getReleaseTime()): this {
     this.#pool.allNotesOff(fadeOut_sec);
     this.#midiNoteToId.clear();
     return this;
   }
+
+  panic = (fadeOut_sec?: number) => {
+    this.releaseAll(fadeOut_sec);
+    return this;
+  };
 
   #handleModifierKeys(modifiers: PressedModifiers) {
     if (modifiers.caps !== undefined) {
@@ -479,19 +386,46 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  /** PARAM SETTERS  */
+
+  setAttackTime(value: number): this {
+    this.storeParamValue('attack', value);
+    return this;
+  }
+
+  setReleaseTime(value: number): this {
+    this.storeParamValue('release', value);
+    return this;
+  }
+
+  setSampleStartOffset(seconds: number): this {
+    this.storeParamValue('startOffset', seconds);
+    this.#pool.allVoices.forEach((voice) => voice.setStartOffset(seconds));
+    return this;
+  }
+
+  setSampleEndOffset(seconds: number): this {
+    this.storeParamValue('endOffset', seconds);
+    this.#pool.allVoices.forEach((voice) => voice.setEndOffset(seconds));
+    return this;
+  }
+
+  setLoopRampDuration(seconds: number): this {
+    this.storeParamValue('loopRampDuration', seconds);
+    return this;
+  }
+
+  setPlaybackRate(value: number): this {
+    // this.#pool.setPlaybackRate(value);
+    this.storeParamValue('playbackRate', value);
+    return this;
+  }
+
   setHpfCutoff(value: number): this {
     if (!this.#hpf) return this;
     this.#hpf.frequency.setValueAtTime(value, this.now);
     this.storeParamValue('hpfCutoff', value);
     return this;
-  }
-
-  get hpfCutoff() {
-    return this.getStoredParamValue(
-      'hpfCutoff',
-      this.#hpf?.frequency.value || 100
-    );
-    // return this.getParamValue('hpf-freq');
   }
 
   setLpfCutoff(value: number): this {
@@ -501,100 +435,10 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  get lpfCutoff() {
-    return this.getStoredParamValue(
-      'lpfCutoff',
-      this.#lpf?.frequency.value || 22000
-    );
-    // return this.getParamValue('lpf-freq');
-  }
-
-  getAttackTime(): number {
-    return this.getStoredParamValue('attack', this.#attack);
-  }
-
-  setAttackTime(value: number): this {
-    this.#attack = value;
-    this.storeParamValue('attack', value);
-    return this;
-  }
-
-  setReleaseTime(value: number): this {
-    this.#release = value;
-    this.storeParamValue('release', value);
-    return this;
-  }
-
-  getReleaseTime(): number {
-    return this.getStoredParamValue('release', this.#release);
-    // return this.getParamValue('release') || this.#release;
-  }
-
-  setSampleStartOffset(seconds: number): this {
-    this.#startOffset = seconds;
-    this.#pool.allVoices.forEach((voice) => voice.setStartOffset(seconds));
-    return this;
-  }
-
-  getSampleStartOffset(): number {
-    return this.getStoredParamValue('startOffset', this.#startOffset);
-    // return this.getParamValue('start-offset') || this.#startOffset;
-  }
-
-  setSampleEndOffset(seconds: number): this {
-    this.#endOffset = seconds;
-    this.#pool.allVoices.forEach((voice) => voice.setEndOffset(seconds));
-    return this;
-  }
-
-  getSampleEndOffset(): number {
-    return this.getStoredParamValue('endOffset', this.#endOffset);
-    // return this.getParamValue('end-offset') || this.#endOffset;
-  }
-
-  getLoopRampDuration(): number {
-    return this.#loopRampDuration;
-  }
-
-  setLoopRampDuration(seconds: number): this {
-    this.#loopRampDuration = seconds;
-    return this;
-  }
-
-  setPlaybackRate(value: number): this {
-    this.#playbackRate = value;
-    // this.#pool.setPlaybackRate(value);
-    this.storeParamValue('playback-rate', value);
-    return this;
-  }
-
-  getPlaybackRate(): number {
-    return this.getStoredParamValue('playbackRate', this.#playbackRate);
-    // return this.getParamValue('playback-rate') || this.#playbackRate;
-  }
-
-  setHoldEnabled(enabled: boolean) {
-    if (this.#holdEnabled === enabled) return this;
-    if (this.#holdLocked) return this;
-
-    this.#holdEnabled = enabled;
-
-    if (!enabled) this.releaseAll(this.#release);
-    this.sendUpstreamMessage('hold:state', { enabled });
-    return this;
-  }
-
-  setHoldLocked(locked: boolean): this {
-    if (this.#holdLocked === locked) return this;
-
-    this.#holdLocked = locked;
-    this.sendUpstreamMessage('hold:locked', { locked });
-    return this;
-  }
-
   setLoopEnabled(enabled: boolean): this {
     if (this.#loopEnabled === enabled) return this;
-    if (this.#loopLocked) return this;
+    // if loop is locked (ON), turning it off is disabled but turning it on should work
+    if (this.#loopLocked && !enabled) return this;
 
     const voices = this.#pool.allVoices;
     voices.forEach((v) => v.setLoopEnabled(enabled));
@@ -604,20 +448,50 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  setHoldEnabled(enabled: boolean) {
+    if (this.#holdEnabled === enabled) return this;
+    // if hold is locked (ON), turning it off is disabled but turning it on should work
+    if (this.#holdLocked && !enabled) return this;
+
+    this.#holdEnabled = enabled;
+
+    if (!enabled) this.releaseAll(this.getReleaseTime());
+    this.sendUpstreamMessage('hold:state', { enabled });
+    return this;
+  }
+
   setLoopLocked(locked: boolean): this {
     if (this.#loopLocked === locked) return this;
 
     this.#loopLocked = locked;
+
+    this.setLoopEnabled(locked);
     this.sendUpstreamMessage('loop:locked', { locked });
     return this;
   }
 
-  setLoopStart(targetValue: number, rampTime: number = this.#loopRampDuration) {
+  setHoldLocked(locked: boolean): this {
+    if (this.#holdLocked === locked) return this;
+
+    this.#holdLocked = locked;
+    this.setHoldEnabled(locked);
+
+    this.sendUpstreamMessage('hold:locked', { locked });
+    return this;
+  }
+
+  setLoopStart(
+    targetValue: number,
+    rampTime: number = this.getLoopRampDuration()
+  ) {
     this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
     return this;
   }
 
-  setLoopEnd(targetValue: number, rampTime: number = this.#loopRampDuration) {
+  setLoopEnd(
+    targetValue: number,
+    rampTime: number = this.getLoopRampDuration()
+  ) {
     const fineTuned = targetValue + this.#loopEndFineTune;
     this.setLoopPoint('end', this.loopStart, fineTuned, rampTime);
     return this;
@@ -632,20 +506,90 @@ export class SamplePlayer extends LibInstrument {
     loopPoint: 'start' | 'end',
     start: number,
     end: number,
-    rampDuration: number = this.#loopRampDuration
+    rampDuration: number = this.getLoopRampDuration()
   ) {
     if (start < 0 || end > this.#bufferDuration || start >= end) return this;
 
     const RAMP_SENSITIVITY = 2;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
+    // ? refactor
     if (loopPoint === 'start') {
-      this.#macroLoopStart.ramp(start, scaledRampTime, end);
+      const storeLoopStart = () => this.storeParamValue('loopStart', start);
+      this.#macroLoopStart.ramp(start, scaledRampTime, end, {
+        onComplete: storeLoopStart,
+      });
     } else {
-      this.#macroLoopEnd.ramp(end, scaledRampTime, start);
+      const storeLoopEnd = () => this.storeParamValue('loopEnd', end);
+
+      this.#macroLoopEnd.ramp(end, scaledRampTime, start, {
+        onComplete: storeLoopEnd,
+      });
     }
 
     return this;
+  }
+
+  /** PARAM GETTERS  */
+
+  getAttackTime(): number {
+    return this.getStoredParamValue(
+      'attack',
+      DEFAULT_PARAM_DESCRIPTORS.ATTACK.defaultValue
+    );
+  }
+
+  getReleaseTime(): number {
+    return this.getStoredParamValue(
+      'release',
+      DEFAULT_PARAM_DESCRIPTORS.RELEASE.defaultValue
+    );
+  }
+
+  getSampleStartOffset(): number {
+    return this.getStoredParamValue(
+      'startOffset',
+      DEFAULT_PARAM_DESCRIPTORS.START_OFFSET.defaultValue
+    );
+  }
+
+  getSampleEndOffset(): number {
+    return this.getStoredParamValue(
+      'endOffset',
+      DEFAULT_PARAM_DESCRIPTORS.END_OFFSET.defaultValue
+    );
+  }
+
+  getLoopRampDuration(): number {
+    return this.getStoredParamValue(
+      'loopRampDuration',
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION.defaultValue
+    );
+  }
+
+  // NOTE: MacroParams (e.g. loopStart and loopEnd) use direct access property getters (get loopStart() etc)
+
+  getPlaybackRate(): number {
+    return this.getStoredParamValue(
+      'playbackRate',
+      DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE.defaultValue
+    );
+  }
+
+  getHpfCutoff() {
+    return this.getStoredParamValue(
+      'hpfCutoff',
+      this.#hpf?.frequency.value ||
+        DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF.defaultValue
+    );
+  }
+
+  getLpfCutoff() {
+    return this.getStoredParamValue(
+      'lpfCutoff',
+      this.#lpf?.frequency.value ||
+        DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF.defaultValue
+    );
   }
 
   startLevelMonitoring(intervalMs?: number) {
@@ -679,8 +623,7 @@ export class SamplePlayer extends LibInstrument {
       this.#isLoaded = false;
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
-      this.#loopRampDuration = 0;
-      // this.#loopEnabled = false;
+      this.#loopEnabled = false;
 
       this.context = null as unknown as AudioContext;
       this.messages = null as unknown as MessageBus<Message>;
@@ -775,22 +718,6 @@ export class SamplePlayer extends LibInstrument {
     };
   }
 
-  // todo: use for UI integration
-  // getParameterValues(): Record<string, number> {
-  //   return {
-  //     attack: this.getParamValue('attack') || this.#attack,
-  //     release: this.getParamValue('release') || this.#release,
-  //     startOffset: this.getParamValue('start-offset') || this.#startOffset,
-  //     endOffset: this.getParamValue('end-offset') || this.#endOffset,
-  //     playbackRate: this.getParamValue('playback-rate') || this.#playbackRate,
-  //     loopStart: this.#macroLoopStart.getValue(),
-  //     loopEnd: this.#macroLoopEnd.getValue(),
-  //     loopRampDuration: this.#loopRampDuration,
-  //     hpfCutoff: this.getParamValue('hpf-freq'),
-  //     lpfCutoff: this.getParamValue('lpf-freq'),
-  //   };
-  // }
-
   getParameterValue(name: string): number | undefined {
     switch (name) {
       case 'loopStart':
@@ -810,9 +737,9 @@ export class SamplePlayer extends LibInstrument {
       case 'playbackRate':
         return this.getPlaybackRate();
       case 'hpfCutoff':
-        return this.hpfCutoff;
+        return this.getHpfCutoff();
       case 'lpfCutoff':
-        return this.lpfCutoff;
+        return this.getLpfCutoff();
       default:
         console.warn(`Unknown parameter: ${name}`);
         return undefined;
@@ -857,15 +784,13 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  // Implement abstract methods from LibInstrument
-  stopAll(fadeOut_sec: number = this.#release): this {
-    return this.releaseAll(fadeOut_sec);
-  }
-
-  get #isInitialized(): boolean {
-    return this.#isReady && this.#isLoaded;
-  }
+  // // Todo: change this to "panic" // abstract method from LibInstrument
+  // stopAll(fadeOut_sec: number = this.getReleaseTime()): this {
+  //   return this.releaseAll(fadeOut_sec);
+  // }
 }
+
+// IGNORE ALL COMMENTS BELOW - will clean up later
 
 // #onNoteOn(
 //   midiNote: number,
@@ -958,4 +883,100 @@ export class SamplePlayer extends LibInstrument {
 //       }
 //     });
 //   }
+// }
+
+// getParameterValues(): Record<string, number> {
+//   return {
+//     attack: this.getParamValue('attack') || this.#attack,
+//     release: this.getParamValue('release') || this.#release,
+//     startOffset: this.getParamValue('start-offset') || this.#startOffset,
+//     endOffset: this.getParamValue('end-offset') || this.#endOffset,
+//     playbackRate: this.getParamValue('playback-rate') || this.#playbackRate,
+//     loopStart: this.#macroLoopStart.getValue(),
+//     loopEnd: this.#macroLoopEnd.getValue(),
+//     loopRampDuration: this.#loopRampDuration,
+//     hpfCutoff: this.getParamValue('hpf-freq'),
+//     lpfCutoff: this.getParamValue('lpf-freq'),
+//   };
+// }
+
+// #addChild = (node: LibNode | AudioNode) => this.#children.push(node);
+
+// #addChildren = (nodes: Array<LibNode | AudioNode>) => {
+//   nodes.forEach((n) => this.#children.push(n));
+//   return this;
+// };
+
+// #registerParameters(): void {
+//   // Register the loop macros (already LibParams)
+//   this.params.register(this.#macroLoopStart);
+//   this.params.register(this.#macroLoopEnd);
+
+//   this.params.register(
+//     // Need to wrap these simple values as LibParams:
+//     new LibParam('attack', DEFAULT_PARAM_DESCRIPTORS.ATTACK, this.#attack)
+//   );
+//   this.params.register(
+//     new LibParam('release', DEFAULT_PARAM_DESCRIPTORS.RELEASE, this.#release)
+//   );
+//   this.params.register(
+//     new LibParam(
+//       'start-offset',
+//       DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
+//       this.#startOffset
+//     )
+//   );
+//   this.params.register(
+//     new LibParam(
+//       'end-offset',
+//       DEFAULT_PARAM_DESCRIPTORS.END_OFFSET,
+//       this.#endOffset
+//     )
+//   );
+//   this.params.register(
+//     new LibParam(
+//       'playback-rate',
+//       DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
+//       this.#playbackRate
+//     )
+//   );
+//   this.params.register(
+//     new LibParam(
+//       'loop-ramp-duration',
+//       DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+//       this.#loopRampDuration
+//     )
+//   );
+
+//   if (!this.#hpf || !this.#lpf) return;
+
+//   // Register native AudioParams with descriptors
+//   this.params.register(
+//     this.#hpf.frequency,
+//     DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
+//   );
+
+//   this.params.register(
+//     this.#lpf.frequency,
+//     DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
+//   );
+// }
+
+// const allVoices = this.#pool.allVoices;
+// assert(allVoices.length > 0, 'No voices to load sample!');
+
+// const promises = allVoices.map((v) => {
+//   v.loadBuffer(buffer, this.#zeroCrossings);
+//   v.setStartOffset(this.#startOffset);
+//   v.setEndOffset(
+//     this.#zeroCrossings[this.#zeroCrossings.length - 1] || buffer.duration
+//   );
+// });
+
+// const result = await tryCatch(
+//   () => Promise.all(promises),
+//   'Failed to load sample'
+// );
+// if (result.error) {
+//   return false;
 // }

@@ -1,4 +1,4 @@
-import { ParamDescriptor } from './types';
+import { ParamDescriptor } from '../../params/types';
 
 const MAX_HZ = 22000;
 const MIN_HZ = 0.1;

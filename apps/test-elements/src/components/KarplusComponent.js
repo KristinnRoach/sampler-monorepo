@@ -15,7 +15,7 @@ export const KarplusSynthComponent = () => {
   const volume = van.state(0.5);
   const attack = van.state(0.001);
   const decay = van.state(0.9);
-  //   const noiseTime
+  const noiseTime = van.state(50);
 
   ksSynth.connect(ksSynth.context.destination); // for now
 
@@ -41,14 +41,16 @@ export const KarplusSynthComponent = () => {
   });
 
   van.derive(() => {
-    ksSynth.setParamValue('attack', attack.val);
+    ksSynth.setParameterValue('attack', attack.val);
   });
 
   van.derive(() => {
-    ksSynth.setParamValue('decay', decay.val);
+    ksSynth.setParameterValue('decay', decay.val);
   });
 
-  // synth.setParamValue('noiseTime', noiseTime); // if i want to add noise time later
+  van.derive(() => {
+    ksSynth.setParameterValue('noiseTime', noiseTime.val);
+  });
 
   return div(
     { class: 'karplus-synth', style: 'padding: 20px; font-family: Arial;' },
@@ -110,6 +112,25 @@ export const KarplusSynthComponent = () => {
       )
     ),
 
+    // Noise hold time control
+    div(
+      { style: 'margin-bottom: 20px;' },
+      label('Noise Hold: '),
+      input({
+        type: 'range',
+        min: 0,
+        max: 100,
+        step: 1,
+        value: () => noiseTime.val,
+        oninput: (e) => (noiseTime.val = parseFloat(e.target.value)),
+        style: 'margin-left: 10px;',
+      }),
+      span(
+        { style: 'margin-left: 10px;' },
+        () => Math.round(noiseTime.val * 100) + '%'
+      )
+    ),
+
     // Control buttons
     div(
       { style: 'display: flex; gap: 10px;' },
@@ -124,7 +145,7 @@ export const KarplusSynthComponent = () => {
           checked: () => keyboardEnabled.val,
           onchange: (e) => (keyboardEnabled.val = e.target.checked),
         }),
-        'Enable Keyboard'
+        'Keyboard'
       ),
       label(
         {
@@ -136,7 +157,7 @@ export const KarplusSynthComponent = () => {
           checked: () => midiEnabled.val,
           onchange: (e) => (midiEnabled.val = e.target.checked),
         }),
-        'Enable MIDI'
+        'MIDI'
       )
     )
   );

@@ -1,20 +1,14 @@
-import {
-  LibInstrument,
-  InstrumentType,
-} from '@/nodes/instruments/LibInstrument';
-import { ParamDescriptor, LibParam } from '@/nodes/params';
+import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { KarplusVoicePool } from './KarplusVoicePool';
-import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler } from '@/events';
-import { MidiController, InputHandler, PressedModifiers } from '@/io';
+import { MidiController, PressedModifiers } from '@/io';
 import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
-import { localStore } from '@/storage/local';
 
 export class KarplusStrongSynth extends LibInstrument {
-  // Keep truly KarplusStrongSynth-specific fields private with #
+  // KarplusStrongSynth-specific private # fields
   #auxInput: GainNode;
   #voicePool: KarplusVoicePool;
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
@@ -44,64 +38,19 @@ export class KarplusStrongSynth extends LibInstrument {
     this.#auxInput = new GainNode(this.context);
     this.#voicePool.auxIn = this.#auxInput;
 
-    // Register parameters
-    // this.#registerParameters();
-
     this.#isReady = true;
   }
-
-  // #registerParameters(): void {
-  //   // Register common parameters
-  //   // For KarplusStrongSynth, we might need to create LibParam wrappers
-  //   // for parameters that are currently handled differently
-
-  //   // Example of registering a parameter with a custom descriptor
-  //   const decayDescriptor: ParamDescriptor = {
-  //     nodeId: 'decay',
-  //     name: 'decay',
-  //     valueType: 'number',
-  //     minValue: 0.01,
-  //     maxValue: 0.99,
-  //     defaultValue: 0.5,
-  //     group: 'envelope',
-  //   };
-
-  //   // Create a LibParam for decay
-  //   const decayParam: LibParam = {
-  //     nodeId: 'decay',
-  //     nodeType: 'param',
-  //     isReady: true,
-  //     descriptor: decayDescriptor,
-  //     getValue: () => this.getStoredParamValue('decay', 0.5),
-  //     setValue: (value: number) => {
-  //       this.#voicePool.allVoices.forEach((voice) => {
-  //         const param = voice.getParam('decay');
-  //         if (param) {
-  //           param.setValueAtTime(value, this.context.currentTime);
-  //         }
-  //       });
-  //       this.storeParamValue('decay', value);
-  //     },
-  //     onMessage: () => () => {}, // No-op implementation
-  //     dispose: () => {},
-  //   };
-
-  //   this.params.register(decayParam);
-
-  //   // Similarly register other parameters
-  //   // ...
-  // }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
   }
 
   play(
+    // returns noteId, which is currently just the midi note
     midiNote: number,
     velocity: number = 100,
     modifiers: Partial<PressedModifiers> = {}
   ): number {
-    // Changed return type from 'this' to 'number'
     // Release any existing note with same midiNote
     if (this.#midiNoteToId.has(midiNote)) {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
@@ -141,32 +90,6 @@ export class KarplusStrongSynth extends LibInstrument {
     return this;
   }
 
-  // #getLocalStorageKey(paramName: string) {
-  //   return `${paramName}-${this.nodeId}`;
-  // }
-
-  // setParamValue(paramId: string, value: number, debounceMs = 20): this {
-  //   // Special case for volume, which is a property of the synth
-  //   if (paramId === 'volume') {
-  //     this.volume = value;
-  //     return this;
-  //   }
-
-  //   // Use the base class implementation with debouncing
-  //   if (debounceMs <= 0) {
-  //     super.setParamValue(paramId, value, 0);
-  //   } else {
-  //     const debounced = this.#debouncer.debounce(
-  //       paramId,
-  //       (val: number) => super.setParamValue(paramId, val, 0),
-  //       debounceMs
-  //     );
-  //     debounced(value);
-  //   }
-
-  //   return this;
-  // }
-
   setParameterValue(name: string, value: number, debounceMs = 20): this {
     const executeSet = () => {
       switch (name) {
@@ -174,6 +97,14 @@ export class KarplusStrongSynth extends LibInstrument {
           this.volume = value;
           this.storeParamValue('volume', value);
           break;
+
+        case 'attack':
+          this.#voicePool.allVoices.forEach((voice) => {
+            voice.attack = value;
+          });
+          this.storeParamValue('attack', value);
+          break;
+
         case 'decay':
           this.#voicePool.allVoices.forEach((voice) => {
             const param = voice.getParam('decay');
@@ -183,6 +114,7 @@ export class KarplusStrongSynth extends LibInstrument {
           });
           this.storeParamValue('decay', value);
           break;
+
         case 'noiseTime':
           this.#voicePool.allVoices.forEach((voice) => {
             const param = voice.getParam('noiseTime');
@@ -192,9 +124,9 @@ export class KarplusStrongSynth extends LibInstrument {
           });
           this.storeParamValue('noiseTime', value);
           break;
+
         default:
           console.warn(`Unknown parameter: ${name}`);
-          this.storeParamValue(name, value);
       }
     };
 
@@ -345,3 +277,73 @@ export class KarplusStrongSynth extends LibInstrument {
     return this.#voicePool.allVoices.length;
   }
 }
+
+// Register parameters
+// this.#registerParameters();
+// #registerParameters(): void {
+//   // Register common parameters
+//   // For KarplusStrongSynth, we might need to create LibParam wrappers
+//   // for parameters that are currently handled differently
+
+//   // Example of registering a parameter with a custom descriptor
+//   const decayDescriptor: ParamDescriptor = {
+//     nodeId: 'decay',
+//     name: 'decay',
+//     valueType: 'number',
+//     minValue: 0.01,
+//     maxValue: 0.99,
+//     defaultValue: 0.5,
+//     group: 'envelope',
+//   };
+
+//   // Create a LibParam for decay
+//   const decayParam: LibParam = {
+//     nodeId: 'decay',
+//     nodeType: 'param',
+//     isReady: true,
+//     descriptor: decayDescriptor,
+//     getValue: () => this.getStoredParamValue('decay', 0.5),
+//     setValue: (value: number) => {
+//       this.#voicePool.allVoices.forEach((voice) => {
+//         const param = voice.getParam('decay');
+//         if (param) {
+//           param.setValueAtTime(value, this.context.currentTime);
+//         }
+//       });
+//       this.storeParamValue('decay', value);
+//     },
+//     onMessage: () => () => {}, // No-op implementation
+//     dispose: () => {},
+//   };
+
+//   this.params.register(decayParam);
+
+//   // Similarly register other parameters
+//   // ...
+// }
+
+// #getLocalStorageKey(paramName: string) {
+//   return `${paramName}-${this.nodeId}`;
+// }
+
+// setParamValue(paramId: string, value: number, debounceMs = 20): this {
+//   // Special case for volume, which is a property of the synth
+//   if (paramId === 'volume') {
+//     this.volume = value;
+//     return this;
+//   }
+
+//   // Use the base class implementation with debouncing
+//   if (debounceMs <= 0) {
+//     super.setParamValue(paramId, value, 0);
+//   } else {
+//     const debounced = this.#debouncer.debounce(
+//       paramId,
+//       (val: number) => super.setParamValue(paramId, val, 0),
+//       debounceMs
+//     );
+//     debounced(value);
+//   }
+
+//   return this;
+// }

@@ -2,15 +2,21 @@ import van from '@repo/vanjs-core';
 // import { Toggle } from './components/VanToggle.js';
 import { createDraggable } from 'animejs';
 import { getAttributesArr } from './utils/log.js';
-import { KarplusSynthComponent, ksSynth } from './components/Karplus.js';
 
-// logKeyDown();
+import {
+  KarplusSynthComponent,
+  ksSynth,
+} from './components/KarplusComponent.js';
+
+import { defineKarplusSynth } from './components/KarplusElement.js';
 
 const init = () => {
   // Get references to elements
 
   const playerEl = document.getElementById(`sampler-1`);
-  const karplusEl = document.getElementById('karplus-1');
+
+  // const karplusCompBox = document.getElementById('karplus-1');
+  const karplusEl = document.getElementById('karplus-2');
 
   const loaderEl = document.getElementById(`loader-1`);
   const recorderEl = document.getElementById('recorder-1');
@@ -31,6 +37,7 @@ const init = () => {
       loopControllerEl,
       offsetControllerEl,
       karplusEl,
+      // karplusCompBox,
     ])
   );
 
@@ -46,36 +53,29 @@ const init = () => {
     loopControllerEl.connect(playerEl);
     offsetControllerEl.connect(playerEl);
 
-    // Testing out Karplus synth
-    van.add(karplusEl, KarplusSynthComponent());
+    // // Testing out Karplus synth
+    // van.add(karplusCompBox, KarplusSynthComponent());
+
+    defineKarplusSynth();
 
     // MEGA TEST __________________________
-    const player = playerEl.player;
-    console.table(player);
+    // const player = playerEl.player;
+    // console.table(player);
 
-    const ctx = ksSynth.context;
-    const eXtraGain = new GainNode(ctx);
-    eXtraGain.gain.setValueAtTime(1.5, ctx.currentTime);
+    // const ctx = ksSynth.context;
+    // const eXtraGain = new GainNode(ctx);
+    // eXtraGain.gain.setValueAtTime(1.5, ctx.currentTime);
 
-    player.connectAltOut(eXtraGain);
+    // player.connectAltOut(eXtraGain);
 
-    console.info(ksSynth.auxIn);
-    eXtraGain.connect(ksSynth.auxIn);
+    // console.info(ksSynth.auxIn);
+    // eXtraGain.connect(ksSynth.auxIn);
 
     // MEGA TEST __________________________
   });
 
   loopControllerEl.setMinimumGap(0.003);
   offsetControllerEl.setMinimumGap(0.1);
-
-  // van.add(
-  //   loopControllerEl,
-  //   Toggle({
-  //     on: false,
-  //     size: 2,
-  //     onColor: '#4CAF50',
-  //   })
-  // );
 
   // create draggables
   const draggables = document.querySelectorAll('.draggable');

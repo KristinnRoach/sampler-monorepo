@@ -34,6 +34,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
   outputGain: GainNode;
 
   #volume: number = 0.3; // todo: standardize
+  #attackTime: number = 0;
   #startTime: number = 0;
   #noteId: number | null = null;
   #midiNote: number = 0;
@@ -107,6 +108,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return this.paramMap.get(name) || null;
   }
 
+  // TODO: Standardize
   setParam(name: string, value: number): this {
     const param = this.paramMap.get(name);
     if (param) {
@@ -117,6 +119,10 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
       }
     }
     return this;
+  }
+
+  set attack(value: number) {
+    this.#attackTime = value;
   }
 
   onMessage(type: string, handler: (data: any) => void) {
@@ -160,12 +166,12 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     // Schedule noise burst to excite the string using current holdMs value
     this.noiseGain.gain.linearRampToValueAtTime(
       this.#volume * velocity,
-      this.now //+ this.#attackTime
+      this.now + this.#attackTime
     );
 
     this.noiseGain.gain.linearRampToValueAtTime(
       0,
-      this.now + this.holdMs / 1000 // + this.#attackTime
+      this.now + this.holdMs / 1000 + this.#attackTime
     );
 
     this.sendMessage('voice:started', { ...options });

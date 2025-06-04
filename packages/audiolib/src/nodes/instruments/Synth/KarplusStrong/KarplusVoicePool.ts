@@ -61,7 +61,7 @@ export class KarplusVoicePool {
 
   noteOn(
     midiNote: number,
-    velocity: number = 100,
+    velocity = 100,
     when: number = this.#context.currentTime
   ): ActiveNoteId {
     const noteId = this.#nextNoteId++; // increments for next note

@@ -61,18 +61,24 @@ export class MacroParam implements LibParam {
     constant: number,
     options: {
       method?: 'exponential' | 'linear';
-      onComplete?: () => void;
       debounceMs?: number;
+      onComplete?: () => void;
+      onCompleteDelayMs?: number;
     } = {}
   ): this {
-    const { method = 'exponential', onComplete, debounceMs = 30 } = options;
+    const {
+      method = 'exponential',
+      debounceMs = 30,
+      onComplete,
+      onCompleteDelayMs = 30,
+    } = options;
 
     const executeRamp = () => {
       let processedValue = this.#processValue(targetValue, constant);
       this.#controller.ramp(processedValue, duration, method);
 
       if (onComplete) {
-        setTimeout(onComplete, duration * 1000 + 10);
+        setTimeout(onComplete, duration * 1000 + onCompleteDelayMs);
       }
     };
 
