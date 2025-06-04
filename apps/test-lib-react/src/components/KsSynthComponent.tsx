@@ -40,8 +40,8 @@ const KarplusStrongSynthComponent = ({
     // Set init values
     if (synth) {
       synth.volume = volume;
-      synth.setParamValue('decay', decay);
-      synth.setParamValue('noiseTime', noiseTime);
+      synth.setParameterValue('decay', decay);
+      synth.setParameterValue('noiseTime', noiseTime);
     }
 
     synthRef.current = synth;
@@ -52,7 +52,7 @@ const KarplusStrongSynthComponent = ({
     const value = parseFloat(event.target.value);
     setDecay(value);
     if (synthRef.current) {
-      synthRef.current.setParamValue('decay', value);
+      synthRef.current.setParameterValue('decay', value);
     }
   };
 
@@ -62,7 +62,7 @@ const KarplusStrongSynthComponent = ({
     const value = parseFloat(event.target.value);
     setNoiseTime(value);
     if (synthRef.current) {
-      synthRef.current.setParamValue('noiseTime', value);
+      synthRef.current.setParameterValue('noiseTime', value);
     }
   };
 

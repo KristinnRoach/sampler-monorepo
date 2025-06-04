@@ -28,10 +28,11 @@ export class KarplusVoicePool {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
 
-    // Create KarplusVoice instances rather than SampleVoice instances
-    this.#allVoices = Array.from({ length: numVoices }, () =>
-      new KarplusVoice(context).connect(destination)
-    );
+    this.#allVoices = Array.from({ length: numVoices }, () => {
+      const voice = new KarplusVoice(context);
+      voice.connect(destination);
+      return voice;
+    });
 
     this.#activeVoices = new Map(); // noteId -> voice
     this.#nextNoteId = 0;
@@ -120,12 +121,20 @@ export class KarplusVoicePool {
   //   this.in.forEach((input) => stream.connect(input));
   // }
 
-  set auxIn(stream: Connectable) {
-    this.ins.forEach((input) => stream.connect(input));
+  set auxIn(stream: Connectable | AudioNode) {
+    this.ins.forEach((input) => {
+      if ('connect' in stream) {
+        if (stream instanceof AudioNode) {
+          stream.connect(input as unknown as AudioNode);
+        } else if ('connect' in stream) {
+          (stream as Connectable).connect(input);
+        }
+      }
+    });
   }
 
-  get ins(): Connectable[] {
-    const inputs: Connectable[] = [];
+  get ins(): AudioNode[] {
+    const inputs: AudioNode[] = [];
     this.#allVoices.forEach((v) => inputs.push(v.in));
     return inputs;
   }

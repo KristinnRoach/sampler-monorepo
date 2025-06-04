@@ -18,12 +18,9 @@ import {
 import { idb, initIdb } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
-import {
-  LibInstrument,
-  LibNode,
-  ContainerType,
-  SampleLoader,
-} from '@/nodes/LibNode';
+import { LibNode, ContainerType, SampleLoader } from '@/nodes/LibNode';
+
+import { LibInstrument } from '@/nodes/instruments';
 
 import {
   SamplePlayer,
@@ -85,7 +82,7 @@ export class Audiolib implements LibNode {
   init!: () => Promise<Audiolib>;
 
   async #initImpl(): Promise<Audiolib> {
-    if (this.#isReady) return this;
+    if (this.isReady) return this;
 
     // Ensure audio context is available
     const ctxResult = await tryCatch(() => ensureAudioCtx());
@@ -140,7 +137,7 @@ export class Audiolib implements LibNode {
 
   // Public API for initialization state
 
-  get #isReady(): boolean {
+  get isReady(): boolean {
     return this.#asyncInit.isReady();
   }
 
@@ -150,7 +147,7 @@ export class Audiolib implements LibNode {
 
   onReady(callback: (instance: Audiolib) => void): () => void {
     const checkAndCall = () => {
-      if (this.#isReady) callback(this);
+      if (this.isReady) callback(this);
     };
 
     // Call immediately if already ready

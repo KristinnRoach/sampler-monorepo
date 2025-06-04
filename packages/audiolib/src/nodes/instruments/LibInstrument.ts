@@ -2,7 +2,7 @@ import { createNodeId, NodeID } from '@/nodes/node-store';
 import { assert, tryCatch } from '@/utils';
 import { LibNode, Connectable, Messenger, Destination } from '@/nodes/LibNode';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
-import { ParamManager } from '@/nodes/params';
+// import { ParamManager, LibParam } from '@/nodes/params';
 
 import {
   MidiController,
@@ -33,7 +33,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   protected keyboardHandler: InputHandler | null = null;
   protected midiController: MidiController | null = null;
 
-  protected params = new ParamManager();
+  // protected params = new ParamManager();
   protected voices: SampleVoicePool | KarplusVoicePool | null = null;
 
   protected context: AudioContext;
@@ -57,31 +57,60 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     this.midiController = midiController || null;
   }
 
-  // ===== ABSTRACT METHODS - Must be implemented by subclasses =====
+  // // Standard parameter management methods
+  // /**
+  //  * Sets a parameter value with optional debouncing
+  //  */
+  // setParamValue(paramId: string, value: any, debounceMs: number = 0): this {
+  //   this.params.setValue(paramId, value, debounceMs);
+  //   this.sendUpstreamMessage('param:change', { paramId, value });
+  //   return this;
+  // }
+
+  // /**
+  //  * Gets a parameter value by ID
+  //  */
+  // getParamValue(paramId: string): any {
+  //   const param = this.params.get(paramId);
+  //   return param ? param.getValue() : undefined;
+  // }
+
+  // /**
+  //  * Gets all parameters
+  //  */
+  // getAllParams(): LibParam[] {
+  //   return this.params.getAll();
+  // }
+
+  // /**
+  //  * Gets parameters by group
+  //  */
+  // getParamsByGroup(group: string): LibParam[] {
+  //   return this.params.getByGroup(group);
+  // }
 
   /**
-   * Start playing a note. Must return a unique note ID.
+   * Helper method to store parameter values in local storage
    */
-  abstract play(
-    midiNote: MidiValue,
-    velocity?: number,
-    modifiers?: Partial<PressedModifiers>
-  ): ActiveNoteId;
+  protected storeParamValue(paramId: string, value: any): void {
+    const key = this.getLocalStorageKey(paramId);
+    localStore.saveValue(key, value);
+  }
 
   /**
-   * Stop playing a note by MIDI note number.
+   * Helper method to retrieve parameter values from local storage
    */
-  abstract release(
-    midiNote: MidiValue,
-    modifiers?: Partial<PressedModifiers>
-  ): this;
+  protected getStoredParamValue(paramId: string, defaultValue: any): any {
+    const key = this.getLocalStorageKey(paramId);
+    return localStore.getValue(key, defaultValue);
+  }
 
   /**
-   * Stop all currently playing notes.
+   * Creates a consistent local storage key for parameters
    */
-  abstract stopAll(): this;
-
-  // ===== COMMON FUNCTIONALITY =====
+  protected getLocalStorageKey(paramName: string): string {
+    return `${paramName}-${this.nodeId}`;
+  }
 
   // Messaging
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
@@ -93,24 +122,28 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return this;
   }
 
-  connect(destination: Destination): Destination {
-    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
-    this.outBus.connect(destination);
-    this.destination = destination;
-    return destination;
+  // Abstract methods that must be implemented by subclasses
+  abstract play(
+    midiNote: MidiValue,
+    velocity?: number,
+    modifiers?: Partial<PressedModifiers>
+  ): ActiveNoteId;
+
+  abstract release(
+    midiNote: MidiValue,
+    modifiers?: Partial<PressedModifiers>
+  ): this;
+
+  abstract stopAll(): this;
+
+  // Add releaseAll as an alias for stopAll to maintain compatibility
+  releaseAll(fadeOut_sec?: number): this {
+    return this.stopAll();
   }
 
-  disconnect(output?: 'main' | 'alt' | 'all'): this {
-    // destination?: Destination
-    // if (destination instanceof AudioNode || destination instanceof AudioParam) {
-    //   this.outBus.disconnect(output, destination);
-    // }
-
-    this.outBus.disconnect(output);
-    if (output === 'main' || output === 'all') {
-      this.destination = null;
-    }
-    return this;
+  // Common functionality for all instruments
+  panic(): this {
+    return this.stopAll();
   }
 
   // Keyboard input
@@ -172,25 +205,29 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return this;
   }
 
-  // Convenience methods
-  panic = (): this => this.stopAll();
-
-  // Parameter storage helpers
-  protected getLocalStorageKey(paramName: string): string {
-    return `${paramName}-${this.nodeId}`;
+  // Connection methods
+  connect(destination: Destination): Destination {
+    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+    this.outBus.connect(destination);
+    this.destination = destination;
+    return destination;
   }
 
-  protected storeParam(name: string, value: number): void {
-    const key = this.getLocalStorageKey(name);
-    localStore.saveValue(key, value);
+  disconnect(output?: 'main' | 'alt' | 'all'): this {
+    this.outBus.disconnect(output);
+    if (output === 'main' || output === 'all') {
+      this.destination = null;
+    }
+    return this;
   }
 
-  protected getStoredParam(name: string, defaultValue: number): number {
-    const key = this.getLocalStorageKey(name);
-    return localStore.getValue(key, defaultValue);
+  abstract isReady: boolean;
+
+  // Common getters
+  get now(): number {
+    return this.context.currentTime;
   }
 
-  // Volume control
   get volume(): number {
     return this.outBus.volume;
   }
@@ -198,21 +235,6 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   set volume(value: number) {
     this.outBus.volume = value;
   }
-
-  // State getters
-  abstract get isReady(): boolean;
-
-  get now(): number {
-    return this.context.currentTime;
-  }
-
-  // get isPlaying(): boolean {
-  //   return this.midiNoteToId.size > 0;
-  // }
-
-  // get activeVoices(): number {
-  //   return this.midiNoteToId.size;
-  // }
 
   /**
    * Clean up all resources.
@@ -222,7 +244,6 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     this.disconnect();
     this.disableKeyboard();
     this.disableMIDI();
-    // this.clearAllTrackedNotes();
 
     this.context = null as unknown as AudioContext;
     this.messages = null as unknown as MessageBus<Message>;
@@ -232,12 +253,5 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
       globalKeyboardInput.removeHandler(this.keyboardHandler);
       this.keyboardHandler = null;
     }
-
-    // todo: disableMIDI
-  }
-
-  // Add releaseAll as an alias for stopAll to maintain compatibility
-  releaseAll(fadeOut_sec?: number): this {
-    return this.stopAll();
   }
 }

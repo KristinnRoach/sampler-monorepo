@@ -43,26 +43,11 @@ export interface LibNode {
   readonly nodeType: NodeType;
   readonly isReady: boolean;
   dispose(): void;
-
-  // parent?: LibAudioNode | 'isRoot';
-  // firstChildren?: Array<LibNode | AudioNode>;
-  // subGraph?: {
-  //   parent: LibAudioNode;
-  //   in?: LibAudioNode[];
-  //   out: LibAudioNode[];
-  //   firstChildren?: LibAudioNode[];
-  // };
-  // TODO: subGraph: { in: LibNode[], out: LibNode[]} ,
-  // get in, get out, children or subGraph?: LibC
 }
 
 export type Destination = Connectable | AudioNode | AudioParam;
 
 export interface Connectable {
-  // destination: Destination | null; //LibNode | AudioDestinationNode | AudioNode | null;
-  // in?: Connectable[] | AudioNode | null;
-  // out?: Connectable[] | AudioNode | null; // TODO: Standardize so don't have to distinguish between LibAudioNodes and AudioNodes, make required and remove "| AudioNode"
-
   connect(
     destination: Destination,
     output?: number | 'main' | 'alt' | 'all',
@@ -113,3 +98,7 @@ export interface LibFxNode extends LibNode {
   bypass(shouldBypass: boolean): this;
   setMix(value: number): this;
 }
+
+// destination: Destination | null; //LibNode | AudioDestinationNode | AudioNode | null;
+// in?: Connectable[] | AudioNode | null;
+// out?: Connectable[] | AudioNode | null; // TODO: Standardize so don't have to distinguish between LibAudioNodes and AudioNodes, make required and remove "| AudioNode"

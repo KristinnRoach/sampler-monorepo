@@ -26,9 +26,11 @@ export class SampleVoicePool {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
 
-    this.#allVoices = Array.from({ length: numVoices }, () =>
-      new SampleVoice(context).connect(destination)
-    );
+    this.#allVoices = Array.from({ length: numVoices }, () => {
+      const voice = new SampleVoice(context);
+      voice.connect(destination);
+      return voice;
+    });
 
     this.#activeVoices = new Map(); // noteId -> voice
     this.#nextNoteId = 0;

@@ -1,13 +1,8 @@
 import { createRoot } from 'react-dom/client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './style.css';
 
-import {
-  createAudiolib,
-  type SamplePlayer,
-  type KarplusStrongSynth,
-  Audiolib,
-} from '@repo/audiolib';
+import { createAudiolib, Audiolib } from '@repo/audiolib';
 
 import SamplerComponent from './components/SamplerComponent';
 import KarplusStrongSynthComponent from './components/KsSynthComponent';

@@ -2,6 +2,7 @@ import {
   LibInstrument,
   InstrumentType,
 } from '@/nodes/instruments/LibInstrument';
+import { ParamDescriptor, LibParam } from '@/nodes/params';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { createNodeId, NodeID } from '@/nodes/node-store';
@@ -41,10 +42,55 @@ export class KarplusStrongSynth extends LibInstrument {
 
     // Create auxiliary input
     this.#auxInput = new GainNode(this.context);
-    this.#voicePool.ins.forEach((input) => this.#auxInput.connect(input));
+    this.#voicePool.auxIn = this.#auxInput;
+
+    // Register parameters
+    // this.#registerParameters();
 
     this.#isReady = true;
   }
+
+  // #registerParameters(): void {
+  //   // Register common parameters
+  //   // For KarplusStrongSynth, we might need to create LibParam wrappers
+  //   // for parameters that are currently handled differently
+
+  //   // Example of registering a parameter with a custom descriptor
+  //   const decayDescriptor: ParamDescriptor = {
+  //     nodeId: 'decay',
+  //     name: 'decay',
+  //     valueType: 'number',
+  //     minValue: 0.01,
+  //     maxValue: 0.99,
+  //     defaultValue: 0.5,
+  //     group: 'envelope',
+  //   };
+
+  //   // Create a LibParam for decay
+  //   const decayParam: LibParam = {
+  //     nodeId: 'decay',
+  //     nodeType: 'param',
+  //     isReady: true,
+  //     descriptor: decayDescriptor,
+  //     getValue: () => this.getStoredParamValue('decay', 0.5),
+  //     setValue: (value: number) => {
+  //       this.#voicePool.allVoices.forEach((voice) => {
+  //         const param = voice.getParam('decay');
+  //         if (param) {
+  //           param.setValueAtTime(value, this.context.currentTime);
+  //         }
+  //       });
+  //       this.storeParamValue('decay', value);
+  //     },
+  //     onMessage: () => () => {}, // No-op implementation
+  //     dispose: () => {},
+  //   };
+
+  //   this.params.register(decayParam);
+
+  //   // Similarly register other parameters
+  //   // ...
+  // }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
@@ -54,7 +100,8 @@ export class KarplusStrongSynth extends LibInstrument {
     midiNote: number,
     velocity: number = 100,
     modifiers: Partial<PressedModifiers> = {}
-  ): this {
+  ): number {
+    // Changed return type from 'this' to 'number'
     // Release any existing note with same midiNote
     if (this.#midiNoteToId.has(midiNote)) {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
@@ -69,7 +116,7 @@ export class KarplusStrongSynth extends LibInstrument {
 
     this.sendUpstreamMessage('note:on', { midiNote, velocity, noteId });
 
-    return this;
+    return noteId; // Return the noteId instead of 'this'
   }
 
   release(midiNote: number, modifiers: Partial<PressedModifiers> = {}): this {
@@ -94,44 +141,81 @@ export class KarplusStrongSynth extends LibInstrument {
     return this;
   }
 
-  #getLocalStorageKey(paramName: string) {
-    return `${paramName}-${this.nodeId}`;
-  }
+  // #getLocalStorageKey(paramName: string) {
+  //   return `${paramName}-${this.nodeId}`;
+  // }
 
-  setParamValue(name: string, value: number, debounceMs = 20): this {
-    // Special case for volume, which is a property of the synth, not individual voices
-    if (name === 'volume') {
-      this.volume = value; // This will set the output bus volume
-      return this;
-    }
-    // other params
-    if (debounceMs === 0) {
-      this.#setParamValueImmediate(name, value);
+  // setParamValue(paramId: string, value: number, debounceMs = 20): this {
+  //   // Special case for volume, which is a property of the synth
+  //   if (paramId === 'volume') {
+  //     this.volume = value;
+  //     return this;
+  //   }
+
+  //   // Use the base class implementation with debouncing
+  //   if (debounceMs <= 0) {
+  //     super.setParamValue(paramId, value, 0);
+  //   } else {
+  //     const debounced = this.#debouncer.debounce(
+  //       paramId,
+  //       (val: number) => super.setParamValue(paramId, val, 0),
+  //       debounceMs
+  //     );
+  //     debounced(value);
+  //   }
+
+  //   return this;
+  // }
+
+  setParameterValue(name: string, value: number, debounceMs = 20): this {
+    const executeSet = () => {
+      switch (name) {
+        case 'volume':
+          this.volume = value;
+          this.storeParamValue('volume', value);
+          break;
+        case 'decay':
+          this.#voicePool.allVoices.forEach((voice) => {
+            const param = voice.getParam('decay');
+            if (param) {
+              param.setValueAtTime(value, this.context.currentTime);
+            }
+          });
+          this.storeParamValue('decay', value);
+          break;
+        case 'noiseTime':
+          this.#voicePool.allVoices.forEach((voice) => {
+            const param = voice.getParam('noiseTime');
+            if (param) {
+              param.setValueAtTime(value, this.context.currentTime);
+            }
+          });
+          this.storeParamValue('noiseTime', value);
+          break;
+        default:
+          console.warn(`Unknown parameter: ${name}`);
+          this.storeParamValue(name, value);
+      }
+    };
+
+    if (debounceMs <= 0) {
+      executeSet();
     } else {
-      const debounced = this.#debouncer.debounce(
-        name,
-        (val: number) => this.#setParamValueImmediate(name, val),
-        debounceMs
-      );
-      debounced(value);
+      const debounced = this.#debouncer.debounce(name, executeSet, debounceMs);
+      debounced();
     }
+
     return this;
   }
 
-  #setParamValueImmediate(name: string, value: number) {
-    this.#voicePool.allVoices.forEach((voice: any) => {
-      const param = voice.getParam(name);
-      if (param) {
-        param.setValueAtTime(value, this.context.currentTime);
-      }
-      const storageKey = this.#getLocalStorageKey(name);
-      localStore.saveValue(storageKey, value);
-    });
-  }
+  // getParamValue(paramId: string): any {
+  //   return (
+  //     super.getParamValue(paramId) || this.getStoredParamValue(paramId, NaN)
+  //   );
+  // }
 
-  getParamValue(name: string) {
-    const storageKey = this.#getLocalStorageKey(name);
-    return localStore.getValue(storageKey, NaN);
+  getParamValue(paramId: string): any {
+    return this.getStoredParamValue(paramId, NaN);
   }
 
   // connect(destination: AudioNode): this {
@@ -224,26 +308,20 @@ export class KarplusStrongSynth extends LibInstrument {
     return this.#auxInput;
   }
 
-  get attackSeconds() {
-    return localStore.getValue(this.#getLocalStorageKey('attackSeconds'), 0.3);
+  get attackSeconds(): number {
+    return this.getStoredParamValue('attackSeconds', 0.3);
   }
 
   set attackTime(timeMs: number) {
-    localStore.saveValue(
-      this.#getLocalStorageKey('attackSeconds'),
-      timeMs / 1000
-    );
+    this.storeParamValue('attackSeconds', timeMs / 1000);
   }
 
-  get releaseSeconds() {
-    return localStore.getValue(this.#getLocalStorageKey('releaseSeconds'), 0.3);
+  get releaseSeconds(): number {
+    return this.getStoredParamValue('releaseSeconds', 0.3);
   }
 
   set releaseTime(timeMs: number) {
-    localStore.saveValue(
-      this.#getLocalStorageKey('releaseSeconds'),
-      timeMs / 1000
-    );
+    this.storeParamValue('releaseSeconds', timeMs / 1000);
   }
 
   /** GETTERS */

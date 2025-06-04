@@ -1,34 +1,9 @@
-import {
-  SampleLoader,
-  Messenger,
-  LibNode,
-  Connectable,
-  Destination,
-} from '@/nodes/LibNode';
-
-import {
-  LibInstrument,
-  InstrumentType,
-} from '@/nodes/instruments/LibInstrument';
-
-import { createNodeId, NodeID } from '@/nodes/node-store';
+import { LibNode } from '@/nodes/LibNode';
+import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
-
-import {
-  MidiController,
-  // instances versus singletons?
-  globalKeyboardInput,
-  InputHandler,
-  PressedModifiers,
-} from '@/io';
-
-import {
-  Message,
-  MessageHandler,
-  createMessageBus,
-  MessageBus,
-} from '@/events';
+import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
+import { Message, MessageHandler, MessageBus } from '@/events';
 
 import {
   assert,
@@ -39,9 +14,9 @@ import {
 } from '@/utils';
 
 import {
-  ParamManager,
   MacroParam,
   ParamDescriptor,
+  // LibParam,
   DEFAULT_PARAM_DESCRIPTORS,
 } from '@/nodes/params';
 
@@ -50,8 +25,8 @@ import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 
 export class SamplePlayer extends LibInstrument {
-  // Keep truly SamplePlayer-specific fields private with #
-  #children: Array<LibNode | AudioNode> = [];
+  // SamplePlayer-specific fields private with #
+  // #children: Array<LibNode | AudioNode> = [];
   #lpf: BiquadFilterNode | null = null;
   #hpf: BiquadFilterNode | null = null;
   #pool: SampleVoicePool;
@@ -108,6 +83,12 @@ export class SamplePlayer extends LibInstrument {
       Q: 1,
     });
 
+    // Load stored param values
+    // Load stored values
+    this.setAttackTime(this.getStoredParamValue('attack', 0.01));
+    this.setReleaseTime(this.getStoredParamValue('release', 0.1));
+    // ... etc for other stored params
+
     // Initialize voice pool
     this.#pool = new SampleVoicePool(context, polyphony, this.outBus.input);
     this.voices = this.#pool; // Assign to protected property in base class
@@ -125,11 +106,11 @@ export class SamplePlayer extends LibInstrument {
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
-    this.#registerParameters();
+    // this.#registerParameters();
     this.#connectVoicesToMacros();
 
-    // Populate SamplePlayers sub-graph
-    this.#addChildren([this.outBus, this.#hpf, this.#lpf, this.#pool]);
+    // // Populate SamplePlayers sub-graph
+    // this.#addChildren([this.outBus, this.#hpf, this.#lpf, this.#pool]);
 
     this.#isReady = true;
 
@@ -140,31 +121,67 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
-  #addChild = (node: LibNode | AudioNode) => this.#children.push(node);
+  // #addChild = (node: LibNode | AudioNode) => this.#children.push(node);
 
-  #addChildren = (nodes: Array<LibNode | AudioNode>) => {
-    nodes.forEach((n) => this.#children.push(n));
-    return this;
-  };
+  // #addChildren = (nodes: Array<LibNode | AudioNode>) => {
+  //   nodes.forEach((n) => this.#children.push(n));
+  //   return this;
+  // };
 
-  #registerParameters(): void {
-    // Register the loop macros (already LibParams)
-    this.params.register(this.#macroLoopStart);
-    this.params.register(this.#macroLoopEnd);
+  // #registerParameters(): void {
+  //   // Register the loop macros (already LibParams)
+  //   this.params.register(this.#macroLoopStart);
+  //   this.params.register(this.#macroLoopEnd);
 
-    if (!this.#hpf || !this.#lpf) return; // todo: remove when filters fixed
+  //   this.params.register(
+  //     // Need to wrap these simple values as LibParams:
+  //     new LibParam('attack', DEFAULT_PARAM_DESCRIPTORS.ATTACK, this.#attack)
+  //   );
+  //   this.params.register(
+  //     new LibParam('release', DEFAULT_PARAM_DESCRIPTORS.RELEASE, this.#release)
+  //   );
+  //   this.params.register(
+  //     new LibParam(
+  //       'start-offset',
+  //       DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
+  //       this.#startOffset
+  //     )
+  //   );
+  //   this.params.register(
+  //     new LibParam(
+  //       'end-offset',
+  //       DEFAULT_PARAM_DESCRIPTORS.END_OFFSET,
+  //       this.#endOffset
+  //     )
+  //   );
+  //   this.params.register(
+  //     new LibParam(
+  //       'playback-rate',
+  //       DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
+  //       this.#playbackRate
+  //     )
+  //   );
+  //   this.params.register(
+  //     new LibParam(
+  //       'loop-ramp-duration',
+  //       DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+  //       this.#loopRampDuration
+  //     )
+  //   );
 
-    // Register native AudioParams with descriptors
-    this.params.register(
-      this.#hpf.frequency,
-      DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
-    );
+  //   if (!this.#hpf || !this.#lpf) return;
 
-    this.params.register(
-      this.#lpf.frequency,
-      DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
-    );
-  }
+  //   // Register native AudioParams with descriptors
+  //   this.params.register(
+  //     this.#hpf.frequency,
+  //     DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
+  //   );
+
+  //   this.params.register(
+  //     this.#lpf.frequency,
+  //     DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
+  //   );
+  // }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
@@ -462,40 +479,55 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setHpfCutoff(hz: number) {
-    this.#hpf?.frequency.setValueAtTime(hz, this.now);
+  setHpfCutoff(value: number): this {
+    if (!this.#hpf) return this;
+    this.#hpf.frequency.setValueAtTime(value, this.now);
+    this.storeParamValue('hpfCutoff', value);
     return this;
   }
 
   get hpfCutoff() {
-    return this.#hpf?.frequency.value;
+    return this.getStoredParamValue(
+      'hpfCutoff',
+      this.#hpf?.frequency.value || 100
+    );
+    // return this.getParamValue('hpf-freq');
   }
 
-  setLpfCutoff(hz: number) {
-    this.#lpf?.frequency.setValueAtTime(hz, this.now);
+  setLpfCutoff(value: number): this {
+    if (!this.#lpf) return this;
+    this.#lpf.frequency.setValueAtTime(value, this.now);
+    this.storeParamValue('lpfCutoff', value);
     return this;
   }
 
   get lpfCutoff() {
-    return this.#lpf?.frequency.value;
-  }
-
-  setAttackTime(seconds: number): this {
-    this.#attack = seconds;
-    return this;
+    return this.getStoredParamValue(
+      'lpfCutoff',
+      this.#lpf?.frequency.value || 22000
+    );
+    // return this.getParamValue('lpf-freq');
   }
 
   getAttackTime(): number {
-    return this.#attack;
+    return this.getStoredParamValue('attack', this.#attack);
   }
 
-  setReleaseTime(seconds: number): this {
-    this.#release = seconds;
+  setAttackTime(value: number): this {
+    this.#attack = value;
+    this.storeParamValue('attack', value);
+    return this;
+  }
+
+  setReleaseTime(value: number): this {
+    this.#release = value;
+    this.storeParamValue('release', value);
     return this;
   }
 
   getReleaseTime(): number {
-    return this.#release;
+    return this.getStoredParamValue('release', this.#release);
+    // return this.getParamValue('release') || this.#release;
   }
 
   setSampleStartOffset(seconds: number): this {
@@ -505,7 +537,8 @@ export class SamplePlayer extends LibInstrument {
   }
 
   getSampleStartOffset(): number {
-    return this.#startOffset;
+    return this.getStoredParamValue('startOffset', this.#startOffset);
+    // return this.getParamValue('start-offset') || this.#startOffset;
   }
 
   setSampleEndOffset(seconds: number): this {
@@ -515,7 +548,8 @@ export class SamplePlayer extends LibInstrument {
   }
 
   getSampleEndOffset(): number {
-    return this.#endOffset;
+    return this.getStoredParamValue('endOffset', this.#endOffset);
+    // return this.getParamValue('end-offset') || this.#endOffset;
   }
 
   getLoopRampDuration(): number {
@@ -527,17 +561,16 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setPlaybackRate(rate: number): this {
-    this.#playbackRate = rate;
-    this.#pool.allVoices.forEach((voice) => {
-      const param = voice.getParam('playbackRate');
-      if (param) param.setValueAtTime(rate, this.now);
-    });
+  setPlaybackRate(value: number): this {
+    this.#playbackRate = value;
+    // this.#pool.setPlaybackRate(value);
+    this.storeParamValue('playback-rate', value);
     return this;
   }
 
   getPlaybackRate(): number {
-    return this.#playbackRate;
+    return this.getStoredParamValue('playbackRate', this.#playbackRate);
+    // return this.getParamValue('playback-rate') || this.#playbackRate;
   }
 
   setHoldEnabled(enabled: boolean) {
@@ -664,9 +697,9 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
-  get firstChildren() {
-    return this.#children;
-  }
+  // get firstChildren() {
+  //   return this.#children;
+  // }
 
   // get in() { this.#hpf }
 
@@ -743,22 +776,49 @@ export class SamplePlayer extends LibInstrument {
   }
 
   // todo: use for UI integration
-  getParameterValues(): Record<string, number> {
-    return {
-      attack: this.#attack,
-      release: this.#release,
-      startOffset: this.#startOffset,
-      endOffset: this.#endOffset,
-      playbackRate: this.#playbackRate,
-      loopStart: this.#macroLoopStart.getValue(),
-      loopEnd: this.#macroLoopEnd.getValue(),
-      loopRampDuration: this.#loopRampDuration,
-      // hpfCutoff: this.hpfCutoff, // todo
-      // lpfCutoff: this.lpfCutoff,
-    };
+  // getParameterValues(): Record<string, number> {
+  //   return {
+  //     attack: this.getParamValue('attack') || this.#attack,
+  //     release: this.getParamValue('release') || this.#release,
+  //     startOffset: this.getParamValue('start-offset') || this.#startOffset,
+  //     endOffset: this.getParamValue('end-offset') || this.#endOffset,
+  //     playbackRate: this.getParamValue('playback-rate') || this.#playbackRate,
+  //     loopStart: this.#macroLoopStart.getValue(),
+  //     loopEnd: this.#macroLoopEnd.getValue(),
+  //     loopRampDuration: this.#loopRampDuration,
+  //     hpfCutoff: this.getParamValue('hpf-freq'),
+  //     lpfCutoff: this.getParamValue('lpf-freq'),
+  //   };
+  // }
+
+  getParameterValue(name: string): number | undefined {
+    switch (name) {
+      case 'loopStart':
+        return this.loopStart;
+      case 'loopEnd':
+        return this.loopEnd;
+      case 'loopRampDuration':
+        return this.getLoopRampDuration();
+      case 'attack':
+        return this.getAttackTime();
+      case 'release':
+        return this.getReleaseTime();
+      case 'startOffset':
+        return this.getSampleStartOffset();
+      case 'endOffset':
+        return this.getSampleEndOffset();
+      case 'playbackRate':
+        return this.getPlaybackRate();
+      case 'hpfCutoff':
+        return this.hpfCutoff;
+      case 'lpfCutoff':
+        return this.lpfCutoff;
+      default:
+        console.warn(`Unknown parameter: ${name}`);
+        return undefined;
+    }
   }
 
-  // todo: use for UI integration
   setParameterValue(name: string, value: number): this {
     switch (name) {
       case 'attack':
@@ -791,6 +851,8 @@ export class SamplePlayer extends LibInstrument {
       case 'lpfCutoff':
         this.setLpfCutoff(value);
         break;
+      default:
+        console.warn(`Unknown parameter: ${name}`);
     }
     return this;
   }

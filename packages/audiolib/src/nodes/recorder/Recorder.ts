@@ -7,7 +7,6 @@ import {
   createMessageBus,
 } from '@/events';
 import { getMicrophone } from '@/io/devices/devices';
-// import { assert, tryCatch } from '@/utils';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -59,6 +58,7 @@ export class Recorder implements LibNode {
       this.#recorder = new MediaRecorder(this.#stream, {
         mimeType: 'audio/webm',
       });
+
       return this;
     } catch (error) {
       throw new Error(`Failed to get microphone: ${error}`);
@@ -286,7 +286,7 @@ export class Recorder implements LibNode {
     return this.#state;
   }
 
-  get #isReady(): boolean {
+  get isReady(): boolean {
     return this.#recorder !== null && this.#stream !== null;
   }
 

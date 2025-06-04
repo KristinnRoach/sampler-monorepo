@@ -17,11 +17,8 @@ export { createAudioRecorder } from './nodes/recorder';
 export type { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
 export type { KarplusStrongSynth } from './nodes/instruments/Synth/KarplusStrong/KarplusStrongSynth';
 export type { Recorder } from './nodes/recorder';
-export type {
-  LibInstrument,
-  LibNode as LibNode,
-  SampleLoader,
-} from './nodes/LibNode';
+export type { LibNode as LibNode, SampleLoader } from './nodes/LibNode';
+export type { LibInstrument } from '@/nodes/instruments';
 export type {
   LibParam,
   ParamDescriptor,
