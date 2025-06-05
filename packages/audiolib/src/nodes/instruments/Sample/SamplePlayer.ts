@@ -192,7 +192,7 @@ export class SamplePlayer extends LibInstrument {
 
       // reset start and end offset
       const storedStart = this.getStoredParamValue('startOffset', 0);
-      this.setParameterValue('startOffset', storedStart || zeroes[0]);
+      this.setParameterValue('startOffset', storedStart ?? zeroes[0]);
 
       const storedOffFromEnd = this.getStoredParamValue('endOffset', 0);
       const lastZeroOffFromEnd =
@@ -208,7 +208,6 @@ export class SamplePlayer extends LibInstrument {
 
     this.#pool.setBuffer(buffer, this.#zeroCrossings);
 
-    this.setSampleEndOffset(buffer.duration);
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
 

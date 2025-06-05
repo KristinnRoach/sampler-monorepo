@@ -3,7 +3,7 @@ registerProcessor(
   class extends AudioWorkletProcessor {
     static get parameterDescriptors() {
       return [
-        { name: 'gain', defaultValue: 0.9, minValue: -1, maxValue: 1 },
+        { name: 'gain', defaultValue: 0.5, minValue: 0, maxValue: 1 }, // ? minValue used to be -1, why ?
         { name: 'delayTime', defaultValue: 10, minValue: 0, maxValue: 1000 },
       ];
     }

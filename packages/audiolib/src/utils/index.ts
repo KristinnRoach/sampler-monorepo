@@ -18,6 +18,9 @@ export * from './validate/audioparam';
 // Monitoring utils
 export * from './monitoring/LevelMonitor';
 
+// Math utils
+export * from './math/normalize';
+
 // Loading utils
 // export * from './load/xhr-utils';
 // export * from './loadAudio'; // todo: fix idb decoding -> then fix or reimplement this

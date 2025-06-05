@@ -1,4 +1,6 @@
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
+import { ParamDescriptor } from '@/nodes/params';
+import type { MidiValue, ActiveNoteId } from '@/nodes/instruments/types';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { getAudioContext } from '@/context';
@@ -6,6 +8,7 @@ import { Message, MessageHandler } from '@/events';
 import { MidiController, PressedModifiers } from '@/io';
 import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
+import { normalizeRange, cancelScheduledParamValues } from '@/utils';
 
 export class KarplusStrongSynth extends LibInstrument {
   // KarplusStrongSynth-specific private # fields
@@ -38,6 +41,15 @@ export class KarplusStrongSynth extends LibInstrument {
     this.#auxInput = new GainNode(this.context);
     this.#voicePool.auxIn = this.#auxInput;
 
+    // Load stored parameter values
+    this.setParameterValue('volume', this.getStoredParamValue('volume', 1));
+    this.setParameterValue('attack', this.getStoredParamValue('attack', 0.01));
+    this.setParameterValue('decay', this.getStoredParamValue('decay', 0.9));
+    this.setParameterValue(
+      'noiseTime',
+      this.getStoredParamValue('noiseTime', 0.1)
+    );
+
     this.#isReady = true;
   }
 
@@ -47,10 +59,11 @@ export class KarplusStrongSynth extends LibInstrument {
 
   play(
     // returns noteId, which is currently just the midi note
-    midiNote: number,
+    midiNote: MidiValue,
     velocity: number = 100,
     modifiers: Partial<PressedModifiers> = {}
-  ): number {
+  ): ActiveNoteId {
+    // ActiveNoteId vs MidiValue / midiNote
     // Release any existing note with same midiNote
     if (this.#midiNoteToId.has(midiNote)) {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
@@ -75,14 +88,24 @@ export class KarplusStrongSynth extends LibInstrument {
       return this;
     }
 
-    this.#voicePool.noteOff(noteId, this.releaseSeconds);
+    this.#voicePool.noteOff(noteId, this.decaySeconds);
     this.#midiNoteToId.delete(midiNote);
 
     this.sendUpstreamMessage('note:off', { midiNote });
     return this;
   }
 
-  panic = () => this.stopAll();
+  panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
+
+  releaseAll(fadeOut_sec?: number): this {
+    // todo: use "fadeOut_sec"
+    console.debug(
+      `todo: implement fade out. 
+      Curr fadeout value is ${fadeOut_sec}`
+    );
+    this.stopAll();
+    return this;
+  }
 
   stopAll(): this {
     this.#voicePool.allNotesOff();
@@ -90,7 +113,8 @@ export class KarplusStrongSynth extends LibInstrument {
     return this;
   }
 
-  setParameterValue(name: string, value: number, debounceMs = 20): this {
+  // setParameterValue(name: string, value: number, debounceMs = 20): this {
+  setParameterValue(name: string, value: number): this {
     const executeSet = () => {
       switch (name) {
         case 'volume':
@@ -102,14 +126,16 @@ export class KarplusStrongSynth extends LibInstrument {
           this.#voicePool.allVoices.forEach((voice) => {
             voice.attack = value;
           });
-          this.storeParamValue('attack', value);
+          const useableAttack = normalizeRange(value, 0, 1, 0.1, 1);
+          this.storeParamValue('attack', useableAttack);
           break;
 
         case 'decay':
           this.#voicePool.allVoices.forEach((voice) => {
             const param = voice.getParam('decay');
             if (param) {
-              param.setValueAtTime(value, this.context.currentTime);
+              const useableDecay = normalizeRange(value, 0, 1, 0.35, 0.995);
+              param.setValueAtTime(useableDecay, this.context.currentTime);
             }
           });
           this.storeParamValue('decay', value);
@@ -119,7 +145,8 @@ export class KarplusStrongSynth extends LibInstrument {
           this.#voicePool.allVoices.forEach((voice) => {
             const param = voice.getParam('noiseTime');
             if (param) {
-              param.setValueAtTime(value, this.context.currentTime);
+              const useableNoiseTime = normalizeRange(value, 0.0, 1, 0.1, 0.99);
+              param.setValueAtTime(useableNoiseTime, this.context.currentTime);
             }
           });
           this.storeParamValue('noiseTime', value);
@@ -130,34 +157,80 @@ export class KarplusStrongSynth extends LibInstrument {
       }
     };
 
-    if (debounceMs <= 0) {
-      executeSet();
-    } else {
-      const debounced = this.#debouncer.debounce(name, executeSet, debounceMs);
-      debounced();
-    }
+    // if (debounceMs <= 0) {
+    //   executeSet();
+    // } else {
+    //   const debounced = this.#debouncer.debounce(name, executeSet, debounceMs);
+    //   debounced();
+    // }
+    // todo: remove comment above or make debouncing of params consistent for all LibInstruments
+    // for now let's just:
+    executeSet();
 
     return this;
   }
 
-  // getParamValue(paramId: string): any {
-  //   return (
-  //     super.getParamValue(paramId) || this.getStoredParamValue(paramId, NaN)
-  //   );
-  // }
-
-  getParamValue(paramId: string): any {
-    return this.getStoredParamValue(paramId, NaN);
+  getParameterValue(name: string): number | undefined {
+    switch (name) {
+      case 'volume':
+        return this.volume;
+      case 'attack':
+        return this.getStoredParamValue('attack', 0.01);
+      case 'decay':
+        return this.getStoredParamValue('decay', 0.9);
+      case 'noiseTime':
+        return this.getStoredParamValue('noiseTime', 0.1);
+      default:
+        console.warn(`Unknown parameter: ${name}`);
+        return undefined;
+    }
   }
-
-  // connect(destination: AudioNode): this {
-  //   this.outBus.connect(destination);
-  //   return this;
+  // could also be simplified to something like:
+  // getParamValue(paramId: string): any {
+  //   return this.getStoredParamValue(paramId, NaN);
   // }
 
-  // disconnect(): void {
-  //   this.outBus.disconnect();
-  // }
+  // TODO: review and standardize these param descriptors, this was added as quick placeholders to align the interfaces
+  getParameterDescriptors(): Record<string, ParamDescriptor> {
+    return {
+      volume: {
+        nodeId: `${this.nodeId}-volume`,
+        name: 'Volume',
+        valueType: 'number',
+        defaultValue: 0.5,
+        minValue: 0,
+        maxValue: 2,
+        group: 'output',
+      },
+      attack: {
+        nodeId: `${this.nodeId}-attack`,
+        name: 'Attack',
+        valueType: 'number',
+        defaultValue: 0.01,
+        minValue: 0,
+        maxValue: 2,
+        group: 'envelope',
+      },
+      decay: {
+        nodeId: `${this.nodeId}-decay`,
+        name: 'Decay',
+        valueType: 'number',
+        defaultValue: 0.9,
+        minValue: 0,
+        maxValue: 5,
+        group: 'envelope',
+      },
+      noiseTime: {
+        nodeId: `${this.nodeId}-noiseTime`,
+        name: 'Noise Time',
+        valueType: 'number',
+        defaultValue: 0.1,
+        minValue: 0,
+        maxValue: 1,
+        group: 'synthesis',
+      },
+    };
+  }
 
   enableKeyboard(): this {
     if (!this.keyboardHandler) {
@@ -240,20 +313,21 @@ export class KarplusStrongSynth extends LibInstrument {
     return this.#auxInput;
   }
 
+  // todo: align with samplePlayer's param getters / setters naming convention
   get attackSeconds(): number {
-    return this.getStoredParamValue('attackSeconds', 0.3);
+    return this.getStoredParamValue('attack', 0.3);
   }
 
   set attackTime(timeMs: number) {
-    this.storeParamValue('attackSeconds', timeMs / 1000);
+    this.storeParamValue('attack', timeMs / 1000);
   }
 
-  get releaseSeconds(): number {
-    return this.getStoredParamValue('releaseSeconds', 0.3);
+  get decaySeconds(): number {
+    return this.getStoredParamValue('decay', 0.3);
   }
 
-  set releaseTime(timeMs: number) {
-    this.storeParamValue('releaseSeconds', timeMs / 1000);
+  set decayTime(timeMs: number) {
+    this.storeParamValue('decay', timeMs / 1000);
   }
 
   /** GETTERS */
@@ -277,6 +351,15 @@ export class KarplusStrongSynth extends LibInstrument {
     return this.#voicePool.allVoices.length;
   }
 }
+
+// connect(destination: AudioNode): this {
+//   this.outBus.connect(destination);
+//   return this;
+// }
+
+// disconnect(): void {
+//   this.outBus.disconnect();
+// }
 
 // Register parameters
 // this.#registerParameters();

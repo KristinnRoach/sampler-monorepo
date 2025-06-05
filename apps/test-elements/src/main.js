@@ -8,6 +8,8 @@ import {
   ksSynth,
 } from './components/KarplusComponent.js';
 
+import { saveState, loadState, debouncedSaveState } from './state.js';
+
 import { defineKarplusSynth } from './components/KarplusElement.js';
 
 const init = () => {
@@ -72,6 +74,32 @@ const init = () => {
     // eXtraGain.connect(ksSynth.auxIn);
 
     // MEGA TEST __________________________
+
+    // Load saved state
+    loadState();
+
+    // Set up event listeners to save state on changes
+    document.querySelectorAll('.draggable').forEach((el) => {
+      el.addEventListener('mouseup', debouncedSaveState);
+    });
+
+    // Add event listeners to elements to detect changes
+    [
+      playerEl,
+      loaderEl,
+      recorderEl,
+      envelopeEl,
+      loopControllerEl,
+      offsetControllerEl,
+      karplusEl,
+    ].forEach((el) => {
+      if (el) {
+        el.addEventListener('change', debouncedSaveState);
+      }
+    });
+
+    // Save state before page unload
+    window.addEventListener('beforeunload', saveState);
   });
 
   loopControllerEl.setMinimumGap(0.003);

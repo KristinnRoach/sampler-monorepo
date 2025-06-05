@@ -133,7 +133,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   ): ActiveNoteId;
 
   abstract release(
-    midiNote: MidiValue,
+    note: MidiValue | ActiveNoteId,
     modifiers?: Partial<PressedModifiers> // , fadeOut_sec?: number
   ): this;
 
@@ -198,7 +198,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   protected handleModifierKeys(modifiers: PressedModifiers): this {
-    // Default implementation - subclasses can override for custom behavior
+    // todo: Default implementation - subclasses can override for custom behavior
     return this;
   }
 

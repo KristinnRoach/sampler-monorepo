@@ -20,7 +20,8 @@ export interface ParamDescriptor {
   automationRate?: 'a-rate' | 'k-rate';
 }
 
-export interface LibParam extends LibNode, Messenger {
+export interface LibParam extends LibNode {
+  // , Messenger {
   readonly nodeType: ParamType;
 
   getValue: () => any;

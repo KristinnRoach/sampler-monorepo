@@ -1,5 +1,4 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
-import { type LibParam } from '@/nodes/params';
 import { cancelScheduledParamValues } from '@/utils';
 
 // TODO: try using the constant signal offset directly ?

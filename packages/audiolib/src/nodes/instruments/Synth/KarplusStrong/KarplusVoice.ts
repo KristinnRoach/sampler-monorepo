@@ -63,7 +63,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
       {
         parameterData: {
           delayTime: 5, // Initial delay time
-          gain: 0.8 * this.#volume, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
+          gain: 0.8, // ? research init value for this * this.#volume, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
         },
       }
     );
@@ -76,7 +76,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
     // Create a combined parameter map for all parameters
     this.paramMap = new Map([
-      ['decay', this.fbParamMap.get('gain')!], // todo: clarify decayFactor vs decayTime vs noiseTime
+      ['decay', this.fbParamMap.get('gain')!], // todo: clarify
       [
         'noiseTime',
         {
@@ -189,7 +189,10 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
     const now = this.now + secondsFromNow;
     cancelScheduledParamValues(this.outputGain.gain, now);
-    this.outputGain.gain.linearRampToValueAtTime(0.00001, now + release_sec);
+    this.noiseGain.gain.linearRampToValueAtTime(0, now + release_sec);
+
+    cancelScheduledParamValues(this.noiseGain.gain, this.now);
+    this.outputGain.gain.linearRampToValueAtTime(0, now + release_sec);
 
     setTimeout(
       () => {

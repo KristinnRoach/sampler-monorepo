@@ -1,6 +1,6 @@
 import { NodeID } from '@/nodes/node-store';
-import { LibParam, ParamType } from './params';
-import { InstrumentType, LibInstrument } from './instruments';
+import { ParamType } from './params';
+import { InstrumentType } from './instruments';
 import { Message, MessageHandler } from '@/events';
 
 export type BaseNodeType =
