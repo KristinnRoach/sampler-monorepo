@@ -1,7 +1,6 @@
-// Raw binary audio utils
+// audio data utils
 export * from './audiodata/convert/parseWavHeader';
 export * from './audiodata/validate/audiobuffer';
-export * from './audiodata/calculate/zero-crossing';
 
 // Musical utils & constants
 export * from './musical';
@@ -20,6 +19,8 @@ export * from './monitoring/LevelMonitor';
 
 // Math utils
 export * from './math/normalize';
+export * from './math/zero-crossing';
+export * from './math/second-diff';
 
 // Loading utils
 // export * from './load/xhr-utils';

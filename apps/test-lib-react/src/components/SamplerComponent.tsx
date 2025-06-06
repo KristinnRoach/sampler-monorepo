@@ -267,8 +267,13 @@ const SamplerComponent = ({ context: audiolib }: SamplerComponentProps) => {
   return (
     <div style={{ width: '100vw' }}>
       <h2>SourcePlayer Test</h2>
-      {samplePlayerRef.current && (
-        <RecorderComponent destination={samplePlayerRef.current} />
+      {samplePlayerRef.current && audiolib && isInitialized ? (
+        <RecorderComponent
+          destination={samplePlayerRef.current}
+          audiolib={audiolib}
+        />
+      ) : (
+        <p>Loading Recorder...</p>
       )}
 
       <div>

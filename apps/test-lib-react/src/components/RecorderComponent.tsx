@@ -19,7 +19,6 @@ const RecorderComponent = ({
 }: RecorderComponentProps) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
   const recorderRef = useRef<Recorder | null>(null);
 
   // Initialize recorder
@@ -29,13 +28,11 @@ const RecorderComponent = ({
     const initRecorder = async () => {
       try {
         // Use audiolib if provided, otherwise use the factory function
-        if (audiolib) {
-          recorderRef.current = await audiolib.createRecorder(destination);
+        recorderRef.current = await createAudioRecorder();
+        if (recorderRef.current) {
+          recorderRef.current.connect(destination);
           setIsInitialized(true);
         }
-        // else {
-        //   recorderRef.current = createAudioRecorder(destination);
-        // }
       } catch (error) {
         console.error('Failed to initialize recorder:', error);
       }
@@ -74,8 +71,7 @@ const RecorderComponent = ({
     }
 
     try {
-      const buffer = await recorderRef.current.stop();
-      setRecordingDuration(buffer.duration);
+      await recorderRef.current.stop();
     } catch (error) {
       console.error('Failed to stop recording:', error);
     } finally {
@@ -84,16 +80,14 @@ const RecorderComponent = ({
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ backgroundColor: 'green', padding: '20px' }}>
       {isInitialized && (
-        <>
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={!recorderRef.current}
-          >
-            {isRecording ? 'Stop Recording' : 'Start Recording'}
-          </button>
-        </>
+        <button
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={!recorderRef.current}
+        >
+          {isRecording ? 'Stop Recording' : 'Start Recording'}
+        </button>
       )}
     </div>
   );

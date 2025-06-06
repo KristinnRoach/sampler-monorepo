@@ -14,7 +14,6 @@ import { defineKarplusSynth } from './components/KarplusElement.js';
 
 const init = () => {
   // Get references to elements
-
   const playerEl = document.getElementById(`sampler-1`);
 
   // const karplusCompBox = document.getElementById('karplus-1');

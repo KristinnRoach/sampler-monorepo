@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import './style.css';
 
 import { createAudiolib, Audiolib } from '@repo/audiolib';
@@ -12,11 +12,16 @@ const App = () => {
   const [isInitialized, setInitialized] = useState(false);
   const [chosenInstrument, setChosenInstrument] = useState<string>('');
 
-  const initializeAudio = async () => {
-    const lib = await createAudiolib();
-    setAudiolib(lib);
-    setInitialized(true);
-  };
+  const initializeAudio = useCallback(async () => {
+    try {
+      const lib = await createAudiolib();
+      console.table(lib);
+      setAudiolib(lib);
+      setInitialized(true);
+    } catch (error) {
+      console.error('Failed to initialize audiolib:', error);
+    }
+  }, []);
 
   return (
     <div>

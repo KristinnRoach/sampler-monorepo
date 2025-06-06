@@ -1,4 +1,4 @@
-function second_difference(input: number[]) {
+export const second_difference = (input: number[]) => {
   // Computes the second discrete difference of the input array.
   // Returns a new array of length len(input_array) - 2.
 
@@ -11,7 +11,7 @@ function second_difference(input: number[]) {
   }
 
   return output;
-}
+};
 
 /*
 // Example with audio sample data (simulated)

@@ -78,11 +78,13 @@ export class SamplePlayer extends LibInstrument {
     // ? Load stored values ?
 
     // Initialize voice pool
-    this.#pool = new SampleVoicePool(context, polyphony, this.outBus.input);
-    this.voices = this.#pool; // Assign to protected property in base class
+    // this.#pool = new SampleVoicePool(context, polyphony, this.outBus.input);
+    this.#pool = new SampleVoicePool(context, polyphony, this.#hpf);
+    this.voices = this.#pool;
 
     // Connect audiochain
     this.#hpf.connect(this.#lpf);
+    this.#lpf.connect(this.outBus.input);
 
     // Setup parameters
     this.#macroLoopStart = new MacroParam(
@@ -172,6 +174,7 @@ export class SamplePlayer extends LibInstrument {
     assert(isValidAudioBuffer(buffer));
 
     this.releaseAll();
+    this.#pool.transposeSemitones = 0; // or possibly stored value
     this.#isLoaded = false;
 
     if (
@@ -222,7 +225,7 @@ export class SamplePlayer extends LibInstrument {
     velocity: MidiValue = 100,
     modifiers?: PressedModifiers
   ): ActiveNoteId {
-    // if (modifiers) this.#handleModifierKeys(modifiers);
+    if (modifiers) this.#handleModifierKeys(modifiers);
 
     if (modifiers && modifiers.alt !== undefined && modifiers.alt === true) {
       midiNote += 12;
@@ -306,16 +309,8 @@ export class SamplePlayer extends LibInstrument {
     }
     if (modifiers.shift !== undefined) {
       this.setHoldEnabled(modifiers.shift);
-      // if (!this.#holdEnabled) this.setLoopEnabled(modifiers.shift);
     }
-
-    if (modifiers.space !== undefined && modifiers.space === true) {
-      this.#pool.transposeSemitones -= 12;
-      console.log(
-        `Transposing down by 12 semitones, new value: ${this.#pool.transposeSemitones}`
-      );
-    }
-
+    // if (modifiers.space !== undefined) {
     return this;
   }
 
@@ -415,22 +410,38 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setPlaybackRate(value: number): this {
-    // this.#pool.setPlaybackRate(value);
-    this.storeParamValue('playbackRate', value);
+    // todo: this.#pool.setPlaybackRate(value);
+    // this.#pool.allVoices.forEach((voice) => {
+    //   const param = voice.getParam('playbackRate');
+    //   if (param) param.setValueAtTime(value, this.now);
+    // });
+    // this.storeParamValue('playbackRate', value);
+
+    console.warn(`SamplePlayer: setPlaybackRate is not implemented yet.`);
     return this;
   }
 
   setHpfCutoff(value: number): this {
     if (!this.#hpf) return this;
-    this.#hpf.frequency.setValueAtTime(value, this.now);
-    this.storeParamValue('hpfCutoff', value);
+    // Add safety clamps to prevent unstable filter coefficients
+    const safeValue = Math.max(
+      20,
+      Math.min(value, this.context.sampleRate / 2 - 1)
+    );
+    this.#hpf.frequency.setTargetAtTime(safeValue, this.now, 0.01);
+    this.storeParamValue('hpfCutoff', safeValue);
     return this;
   }
 
   setLpfCutoff(value: number): this {
     if (!this.#lpf) return this;
-    this.#lpf.frequency.setValueAtTime(value, this.now);
-    this.storeParamValue('lpfCutoff', value);
+    // Add safety clamps to prevent unstable filter coefficients
+    const safeValue = Math.max(
+      20,
+      Math.min(value, this.context.sampleRate / 2 - 1)
+    );
+    this.#lpf.frequency.setTargetAtTime(safeValue, this.now, 0.01);
+    this.storeParamValue('lpfCutoff', safeValue);
     return this;
   }
 
@@ -975,7 +986,3 @@ export class SamplePlayer extends LibInstrument {
 // const result = await tryCatch(
 //   () => Promise.all(promises),
 //   'Failed to load sample'
-// );
-// if (result.error) {
-//   return false;
-// }

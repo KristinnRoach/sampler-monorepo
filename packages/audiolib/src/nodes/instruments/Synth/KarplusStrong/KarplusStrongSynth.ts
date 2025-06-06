@@ -78,7 +78,7 @@ export class KarplusStrongSynth extends LibInstrument {
 
     this.sendUpstreamMessage('note:on', { midiNote, velocity, noteId });
 
-    return noteId; // Return the noteId instead of 'this'
+    return noteId;
   }
 
   release(midiNote: number, modifiers: Partial<PressedModifiers> = {}): this {
