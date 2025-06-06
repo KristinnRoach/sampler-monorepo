@@ -89,12 +89,12 @@ export class RecorderElement extends BaseAudioElement {
       // Create a recorder instance
       this.recorder = await audiolib.createRecorder();
 
-      this.recorder.onMessage('record:start', () => {
+      this.recorder?.onMessage('record:start', () => {
         console.info('record:start');
       });
 
       // Listen for stop events from the recorder (for auto-stop functionality)
-      this.recorder.onMessage('record:stopping', () => {
+      this.recorder?.onMessage('record:stopping', () => {
         console.info('record:stopping');
 
         // Update UI state when recording is automatically stopped
@@ -114,12 +114,12 @@ export class RecorderElement extends BaseAudioElement {
       });
 
       // Listen for stop events from the recorder (for auto-stop functionality)
-      this.recorder.onMessage('record:stop', () => {
+      this.recorder?.onMessage('record:stop', () => {
         console.info('record:stop');
         this.updateStatus('Recording stopped (auto)');
       });
 
-      this.recorder.onMessage('record:cancelled', () => {
+      this.recorder?.onMessage('record:cancelled', () => {
         console.info('record:cancelled');
         this.updateStatus('Recording cancelled');
         this.updateButtons(false);

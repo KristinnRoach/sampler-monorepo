@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --clearScreen false",
-    "clean": "rimraf node_modules dist",
-    "go": "pnpm clean && pnpm i && pnpm dev",
-    "build": "tsc && vite build",
+    "clean": "rimraf dist && mkdir -p dist",
+    "clean:deps": "rimraf node_modules && pnpm install",
+    "watch": "pnpm clean && pnpm dev",
+    "build": "pnpm clean && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.ts\""
   },

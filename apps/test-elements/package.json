@@ -4,11 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm clean && vite",
+    "watch": "pnpm clean && vite",
     "build": "pnpm clean && vite build",
+    "clean": "rimraf dist && mkdir -p dist",
+    "clean:deps": "rimraf node_modules && pnpm install",
+    "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune",
     "gh-pages-publish": "gh-pages -d dist -b gh-pages",
-    "preview": "vite preview",
-    "clean": "rm -rf node_modules dist && pnpm prune"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@repo/audio-components": "workspace:*",

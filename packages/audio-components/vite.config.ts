@@ -8,16 +8,16 @@ export default defineConfig({
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'AudioWebComponents',
       formats: ['es'],
-      fileName: 'index'
+      fileName: 'index',
     },
     rollupOptions: {
       external: ['@repo/audiolib'],
       output: {
         globals: {
-          '@repo/audiolib': 'audiolib'
-        }
-      }
-    }
+          '@repo/audiolib': 'audiolib',
+        },
+      },
+    },
   },
   plugins: [
     dts({
@@ -25,11 +25,11 @@ export default defineConfig({
       exclude: ['**/*.test.ts', '**/__tests__/**'],
       outDir: 'dist',
       rollupTypes: true,
-    })
+    }),
   ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src')
-    }
-  }
+      '@': resolve(__dirname, './src'),
+    },
+  },
 });

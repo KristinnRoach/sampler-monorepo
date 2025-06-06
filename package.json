@@ -17,6 +17,8 @@
     "check-types": "turbo run check-types",
     "clean": "turbo run clean",
     "dev": "turbo run dev",
+    "watch": "pnpm install && turbo run watch",
+    "watch:clean": "pnpm clean && pnpm install && turbo run watch",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "go": "turbo lint && turbo check-types && turbo build",
     "lint": "turbo run lint",

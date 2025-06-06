@@ -19,7 +19,7 @@
 
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**"]
     },
 
     "dev": {
@@ -27,8 +27,16 @@
       "persistent": true
     },
 
+    "watch": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "cache": false,
+      "persistent": true
+    },
+
     "clean": {
-      "dependsOn": ["^clean"]
+      "dependsOn": ["^clean"],
+      "cache": false
     }
   }
 }
