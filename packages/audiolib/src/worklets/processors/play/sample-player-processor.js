@@ -119,8 +119,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackPosition',
         defaultValue: 0,
-        minValue: -1000,
-        maxValue: 1000,
+        minValue: 0, // ???
+        maxValue: 1000, // ???
         automationRate: 'k-rate',
       },
       {
@@ -128,7 +128,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: 0,
         maxValue: 1,
-        automationRate: 'k-rate', // a-rate ?
+        automationRate: 'k-rate',
       },
       {
         name: 'velocity',
@@ -140,9 +140,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackRate',
         defaultValue: 1,
-        minValue: -8,
-        maxValue: 10,
-        automationRate: 'a-rate',
+        minValue: 0.1, // ? test negative -8,
+        maxValue: 4, // ? test 10,
+        automationRate: 'k-rate', // ! a or k ?
       },
       {
         name: 'startOffset',
@@ -160,13 +160,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'a-rate', // a or k ?
+        automationRate: 'k-rate', // a or k ?
       },
       {
         name: 'loopEnd',
         defaultValue: 0,
         minValue: 0,
-        automationRate: 'a-rate', // a or k ?
+        automationRate: 'k-rate', // a or k ?
       },
     ];
   }
@@ -204,19 +204,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
   #clampZeroCrossing = (value) =>
     this.#clamp(value, this.minZeroCrossing, this.maxZeroCrossing);
-
-  // #findNearestZeroCrossing(position) {
-  //   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
-  //     return position;
-  //   }
-
-  //   // Find the closest zero crossing to the requested position
-  //   return this.zeroCrossings.reduce(
-  //     (prev, curr) =>
-  //       Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
-  //     position
-  //   );
-  // }
 
   #findNearestZeroCrossing(position, maxDistance = null) {
     if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
@@ -301,42 +288,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const rawLoopStart = parameters.loopStart[0] * sampleRate;
     const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
 
-    // TODO: test with and without internal zero snapping. Remove this if works well without it.
-    // // Calculate max acceptable distance based on loop length with scaling
-    // const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
-
-    // let maxDistance;
-    // if (loopLength < 50) {
-    //   // Very short loops (< ~1ms at 44.1kHz)
-    //   maxDistance = Math.min(loopLength * 0.3, 20); // 30% tolerance, max 20 samples
-    // } else if (loopLength < 200) {
-    //   // Short loops (< ~4.5ms)
-    //   maxDistance = Math.min(loopLength * 0.15, 50); // 15% tolerance
-    // } else {
-    //   maxDistance = Math.min(loopLength * 0.1, 100); // Original formula for longer loops
-    // }
-
-    // if (rawLoopStart !== this.lastProcessedLoopStart) {
-    //   this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
-    //     rawLoopStart,
-    //     maxDistance
-    //   );
-    //   this.lastProcessedLoopStart = rawLoopStart;
-    // }
-
-    // if (rawLoopEnd !== this.lastProcessedLoopEnd) {
-    //   this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(
-    //     rawLoopEnd,
-    //     maxDistance
-    //   );
-    //   this.lastProcessedLoopEnd = rawLoopEnd;
-    // }
-
-    // Use cached values in the sample loop
-    // const loopStart = this.blockQuantizedLoopStart;
-    // const loopEnd = this.blockQuantizedLoopEnd;
-    // TODO: test with and without internal zero snapping. Remove this if works well without it.
-
     const loopStart = rawLoopStart;
     const loopEnd = rawLoopEnd;
 
@@ -397,3 +348,52 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
+
+// TODO: test with and without internal zero snapping. Remove this if works well without it.
+// // Calculate max acceptable distance based on loop length with scaling
+// const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
+
+// let maxDistance;
+// if (loopLength < 50) {
+//   // Very short loops (< ~1ms at 44.1kHz)
+//   maxDistance = Math.min(loopLength * 0.3, 20); // 30% tolerance, max 20 samples
+// } else if (loopLength < 200) {
+//   // Short loops (< ~4.5ms)
+//   maxDistance = Math.min(loopLength * 0.15, 50); // 15% tolerance
+// } else {
+//   maxDistance = Math.min(loopLength * 0.1, 100); // Original formula for longer loops
+// }
+
+// if (rawLoopStart !== this.lastProcessedLoopStart) {
+//   this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
+//     rawLoopStart,
+//     maxDistance
+//   );
+//   this.lastProcessedLoopStart = rawLoopStart;
+// }
+
+// if (rawLoopEnd !== this.lastProcessedLoopEnd) {
+//   this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(
+//     rawLoopEnd,
+//     maxDistance
+//   );
+//   this.lastProcessedLoopEnd = rawLoopEnd;
+// }
+
+// Use cached values in the sample loop
+// const loopStart = this.blockQuantizedLoopStart;
+// const loopEnd = this.blockQuantizedLoopEnd;
+// TODO: test with and without internal zero snapping. Remove this if works well without it.
+
+// #findNearestZeroCrossing(position) {
+//   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
+//     return position;
+//   }
+
+//   // Find the closest zero crossing to the requested position
+//   return this.zeroCrossings.reduce(
+//     (prev, curr) =>
+//       Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
+//     position
+//   );
+// }

@@ -13,7 +13,7 @@ import { normalizeRange, cancelScheduledParamValues } from '@/utils';
 export class KarplusStrongSynth extends LibInstrument {
   // KarplusStrongSynth-specific private # fields
   #auxInput: GainNode;
-  #voicePool: KarplusVoicePool;
+  #pool: KarplusVoicePool;
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
   #debouncer: Debouncer = new Debouncer();
   #isReady: boolean = false;
@@ -30,16 +30,16 @@ export class KarplusStrongSynth extends LibInstrument {
     super('synth', ctx || getAudioContext(), polyphony);
 
     // Initialize voice pool
-    this.#voicePool = new KarplusVoicePool(
+    this.#pool = new KarplusVoicePool(
       this.context,
       polyphony,
       this.outBus.input
     );
-    this.voices = this.#voicePool;
+    this.voices = this.#pool;
 
     // Create auxiliary input
     this.#auxInput = new GainNode(this.context);
-    this.#voicePool.auxIn = this.#auxInput;
+    this.#pool.auxIn = this.#auxInput;
 
     // Load stored parameter values
     this.setParameterValue('volume', this.getStoredParamValue('volume', 1));
@@ -67,11 +67,11 @@ export class KarplusStrongSynth extends LibInstrument {
     // Release any existing note with same midiNote
     if (this.#midiNoteToId.has(midiNote)) {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
-      this.#voicePool.noteOff(oldNoteId, 0); // Quick release
+      this.#pool.noteOff(oldNoteId, 0); // Quick release
     }
 
     // Assign a voice and play the note
-    const noteId = this.#voicePool.noteOn(midiNote, velocity);
+    const noteId = this.#pool.noteOn(midiNote, velocity);
 
     // Store the noteId for this midiNote
     this.#midiNoteToId.set(midiNote, noteId);
@@ -88,7 +88,7 @@ export class KarplusStrongSynth extends LibInstrument {
       return this;
     }
 
-    this.#voicePool.noteOff(noteId, this.decaySeconds);
+    this.#pool.noteOff(noteId, this.decaySeconds);
     this.#midiNoteToId.delete(midiNote);
 
     this.sendUpstreamMessage('note:off', { midiNote });
@@ -108,7 +108,7 @@ export class KarplusStrongSynth extends LibInstrument {
   }
 
   stopAll(): this {
-    this.#voicePool.allNotesOff();
+    this.#pool.allNotesOff();
     this.#midiNoteToId.clear();
     return this;
   }
@@ -123,7 +123,7 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'attack':
-          this.#voicePool.allVoices.forEach((voice) => {
+          this.#pool.allVoices.forEach((voice) => {
             voice.attack = value;
           });
           const useableAttack = normalizeRange(value, 0, 1, 0.1, 1);
@@ -131,7 +131,7 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'decay':
-          this.#voicePool.allVoices.forEach((voice) => {
+          this.#pool.allVoices.forEach((voice) => {
             const param = voice.getParam('decay');
             if (param) {
               const useableDecay = normalizeRange(value, 0, 1, 0.35, 0.995);
@@ -142,7 +142,7 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'noiseTime':
-          this.#voicePool.allVoices.forEach((voice) => {
+          this.#pool.allVoices.forEach((voice) => {
             const param = voice.getParam('noiseTime');
             if (param) {
               const useableNoiseTime = normalizeRange(value, 0.0, 1, 0.1, 0.99);
@@ -241,9 +241,8 @@ export class KarplusStrongSynth extends LibInstrument {
         onModifierChange: this.#handleModifierKeys.bind(this),
       };
       globalKeyboardInput.addHandler(this.keyboardHandler);
-    } else {
-      console.debug(`keyboard already enabled`);
     }
+    console.info(`Karplus-strong synth: keyboard enabled`);
     return this;
   }
 
@@ -251,9 +250,8 @@ export class KarplusStrongSynth extends LibInstrument {
     if (this.keyboardHandler) {
       globalKeyboardInput.removeHandler(this.keyboardHandler);
       this.keyboardHandler = null;
-    } else {
-      console.debug(`keyboard already disabled`);
     }
+    console.info(`Karplus-strong synth: keyboard disabled`);
     return this;
   }
 
@@ -267,6 +265,7 @@ export class KarplusStrongSynth extends LibInstrument {
     }
     if (midiController.isInitialized) {
       midiController.connectInstrument(this, channel);
+      console.info(`Karplus-strong synth: MIDI enabled`);
     }
     return this;
   }
@@ -274,6 +273,7 @@ export class KarplusStrongSynth extends LibInstrument {
   disableMIDI(midiController?: MidiController, channel: number = 0): this {
     midiController?.disconnectInstrument(channel);
     this.midiController?.disconnectInstrument(channel);
+    console.info(`Karplus-strong synth: MIDI disabled`);
     return this;
   }
 
@@ -297,7 +297,7 @@ export class KarplusStrongSynth extends LibInstrument {
       this.keyboardHandler = null;
     }
 
-    this.#voicePool.dispose();
+    this.#pool.dispose();
     this.#midiNoteToId.clear();
     this.outBus.dispose();
     this.outBus = null as unknown as InstrumentMasterBus;
@@ -330,6 +330,71 @@ export class KarplusStrongSynth extends LibInstrument {
     this.storeParamValue('decay', timeMs / 1000);
   }
 
+  // TODO: Standardize filters
+  // todo: test optimal safe values and move to constants
+  SET_TARGET_TIMECONSTANT = 0.05; // 50ms
+  #lastHpfUpdateTime = 0;
+  #lastLpfUpdateTime = 0;
+  #minFilterUpdateInterval = 0.05; // 50ms minimum between updates
+
+  setHpfCutoff(hz: number): this {
+    // if (!this.#pool.filtersEnabled) return this;
+    if (isNaN(hz) || !isFinite(hz)) {
+      console.warn(`Invalid LPF frequency: ${hz}`);
+      return this;
+    }
+
+    const currentTime = this.now;
+    if (currentTime - this.#lastHpfUpdateTime < this.#minFilterUpdateInterval) {
+      return this;
+    }
+
+    this.storeParamValue('karplus:hpfCutoff', hz);
+    this.#pool.applyToAllVoices((voice) => voice.setParam('hpf', hz));
+
+    this.#lastHpfUpdateTime = currentTime;
+
+    console.info(`Karplus: setHpfCutoff to ${hz} Hz`);
+    return this;
+  }
+
+  setLpfCutoff(hz: number): this {
+    // if (!this.#pool.filtersEnabled) return this;
+    const maxFilterFreq = this.context.sampleRate / 1 - 100;
+
+    // Ensure the frequency is a valid number and within safe range
+    if (isNaN(hz) || !isFinite(hz)) {
+      console.warn(`Invalid LPF frequency: ${hz}`);
+      return this;
+    }
+
+    const safeValue = Math.max(20, Math.min(hz, maxFilterFreq));
+    this.storeParamValue('karplus:lpfCutoff', safeValue);
+
+    const currentTime = this.now;
+    if (currentTime - this.#lastLpfUpdateTime < this.#minFilterUpdateInterval) {
+      return this;
+    }
+
+    this.#pool.applyToAllVoices((voice) => {
+      if (!voice.lpf) return;
+      voice.lpf.frequency.cancelScheduledValues(currentTime);
+      voice.lpf.frequency.setValueAtTime(
+        voice.lpf.frequency.value,
+        currentTime
+      );
+      voice.lpf.frequency.setTargetAtTime(
+        safeValue,
+        currentTime,
+        this.SET_TARGET_TIMECONSTANT
+      );
+    });
+
+    this.#lastLpfUpdateTime = currentTime;
+
+    return this;
+  }
+
   /** GETTERS */
   get now() {
     return this.context.currentTime;
@@ -348,7 +413,7 @@ export class KarplusStrongSynth extends LibInstrument {
   }
 
   get maxVoices(): number {
-    return this.#voicePool.allVoices.length;
+    return this.#pool.allVoices.length;
   }
 }
 

@@ -84,7 +84,7 @@ export async function initProcessors(context: AudioContext) {
           timestamp: new Date().toISOString(),
         };
       } catch (error) {
-        console.debug(`Failed to load AudioWorklet from ${path}:`, error);
+        // console.debug(`Failed to load AudioWorklet from ${path}:`, error);
         lastError = error;
       }
     }

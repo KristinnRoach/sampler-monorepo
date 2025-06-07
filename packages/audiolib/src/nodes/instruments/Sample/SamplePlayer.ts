@@ -18,6 +18,8 @@ import {
   DEFAULT_PARAM_DESCRIPTORS,
 } from '@/nodes/params';
 
+import { getMaxFilterFreq } from '@/nodes/instruments/Sample/param-defaults';
+
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
 import { SampleVoicePool } from './SampleVoicePool';
@@ -25,8 +27,8 @@ import { SampleVoicePool } from './SampleVoicePool';
 export class SamplePlayer extends LibInstrument {
   // SamplePlayer-specific fields private with #
   // #children: Array<LibNode | AudioNode> = [];
-  #lpf: BiquadFilterNode | null = null;
-  #hpf: BiquadFilterNode | null = null;
+  // #lpf: BiquadFilterNode | null = null;
+  // #hpf: BiquadFilterNode | null = null;
   #pool: SampleVoicePool;
   #midiNoteToId: Map<MidiValue, ActiveNoteId> = new Map();
   #bufferDuration: number = 0;
@@ -63,30 +65,38 @@ export class SamplePlayer extends LibInstrument {
     this.mute = (...args) => this.outBus.mute(...args);
 
     // Init filters
-    this.#hpf = new BiquadFilterNode(context, {
-      type: 'highpass',
-      frequency: 100,
-      Q: 1,
-    });
+    // const safeMaxFrequency = this.context.sampleRate / 2.1; // Slightly below Nyquist
+    // const defaultLpfCutoff = Math.min(20000, safeMaxFrequency);
 
-    this.#lpf = new BiquadFilterNode(context, {
-      type: 'lowpass',
-      frequency: 20000,
-      Q: 1,
-    });
+    // this.#hpf = new BiquadFilterNode(context, {
+    //   type: 'highpass',
+    //   frequency: 100,
+    //   Q: 1,
+    // });
+
+    // this.#lpf = new BiquadFilterNode(context, {
+    //   type: 'lowpass',
+    //   frequency: defaultLpfCutoff,
+    //   Q: 1,
+    // });
 
     // ? Load stored values ?
 
     // Initialize voice pool
-    // this.#pool = new SampleVoicePool(context, polyphony, this.outBus.input);
-    this.#pool = new SampleVoicePool(context, polyphony, this.#hpf);
+    this.#pool = new SampleVoicePool(
+      context,
+      polyphony,
+      this.outBus.input, // todo: explicit connect
+      true // enable voice filters (lpf and hpf)
+    );
+    // this.#pool = new SampleVoicePool(context, polyphony, this.#hpf);
     this.voices = this.#pool;
 
     // Connect audiochain
-    this.#hpf.connect(this.#lpf);
-    this.#lpf.connect(this.outBus.input);
+    // this.#hpf.connect(this.#lpf);
+    // this.#lpf.connect(this.outBus.input);
 
-    // Setup parameters
+    // Setup macro params
     this.#macroLoopStart = new MacroParam(
       context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
@@ -241,8 +251,7 @@ export class SamplePlayer extends LibInstrument {
     const noteId = this.#pool.noteOn(
       midiNote,
       velocity,
-      this.now,
-      this.getAttackTime() // Pass the attack time directly
+      0 // zero delay
     );
 
     this.#midiNoteToId.set(midiNote, noteId);
@@ -252,6 +261,7 @@ export class SamplePlayer extends LibInstrument {
       velocity: safeVelocity,
       noteId,
     });
+
     return noteId;
   }
 
@@ -310,7 +320,7 @@ export class SamplePlayer extends LibInstrument {
     if (modifiers.shift !== undefined) {
       this.setHoldEnabled(modifiers.shift);
     }
-    // if (modifiers.space !== undefined) {
+    // if (modifiers.space !== undefined)
     return this;
   }
 
@@ -382,25 +392,27 @@ export class SamplePlayer extends LibInstrument {
 
   /** PARAM SETTERS  */
 
-  setAttackTime(value: number): this {
-    this.storeParamValue('attack', value);
+  setAttackTime(seconds: number): this {
+    this.storeParamValue('attack', seconds);
+    this.#pool.applyToAllVoices((voice) => voice.setAttack(seconds));
     return this;
   }
 
-  setReleaseTime(value: number): this {
-    this.storeParamValue('release', value);
+  setReleaseTime(seconds: number): this {
+    this.storeParamValue('release', seconds);
+    this.#pool.applyToAllVoices((voice) => voice.setAttack(seconds));
     return this;
   }
 
   setSampleStartOffset(seconds: number): this {
     this.storeParamValue('startOffset', seconds);
-    this.#pool.allVoices.forEach((voice) => voice.setStartOffset(seconds));
+    this.#pool.applyToAllVoices((voice) => voice.setStartOffset(seconds));
     return this;
   }
 
   setSampleEndOffset(seconds: number): this {
     this.storeParamValue('endOffset', seconds);
-    this.#pool.allVoices.forEach((voice) => voice.setEndOffset(seconds));
+    this.#pool.applyToAllVoices((voice) => voice.setEndOffset(seconds));
     return this;
   }
 
@@ -410,38 +422,58 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setPlaybackRate(value: number): this {
-    // todo: this.#pool.setPlaybackRate(value);
-    // this.#pool.allVoices.forEach((voice) => {
-    //   const param = voice.getParam('playbackRate');
-    //   if (param) param.setValueAtTime(value, this.now);
-    // });
-    // this.storeParamValue('playbackRate', value);
-
+    this.storeParamValue('playbackRate', value);
+    this.#pool.applyToAllVoices((voice) => voice.setPlaybackRate(value));
     console.warn(`SamplePlayer: setPlaybackRate is not implemented yet.`);
     return this;
   }
 
-  setHpfCutoff(value: number): this {
-    if (!this.#hpf) return this;
-    // Add safety clamps to prevent unstable filter coefficients
-    const safeValue = Math.max(
-      20,
-      Math.min(value, this.context.sampleRate / 2 - 1)
-    );
-    this.#hpf.frequency.setTargetAtTime(safeValue, this.now, 0.01);
-    this.storeParamValue('hpfCutoff', safeValue);
+  // todo: test optimal safe values and move to constants
+  SET_TARGET_TIMECONSTANT = 0.05; // 50ms
+  #lastHpfUpdateTime = 0;
+  #lastLpfUpdateTime = 0;
+  #minFilterUpdateInterval = 0.05; // 50ms minimum between updates
+
+  setHpfCutoff(hz: number): this {
+    // if (!this.#pool.filtersEnabled) return this;
+    const currentTime = this.now;
+    if (currentTime - this.#lastHpfUpdateTime < this.#minFilterUpdateInterval) {
+      return this;
+    }
+
+    this.storeParamValue('hpfCutoff', hz);
+    this.#pool.applyToAllVoices((voice) => {
+      voice.hpf?.frequency.cancelAndHoldAtTime(currentTime);
+      voice.hpf?.frequency.setTargetAtTime(hz, currentTime, 1);
+    });
+
+    this.#lastHpfUpdateTime = currentTime;
+
+    console.info(`SamplePlayer: setHpfCutoff to ${hz} Hz`);
     return this;
   }
 
-  setLpfCutoff(value: number): this {
-    if (!this.#lpf) return this;
-    // Add safety clamps to prevent unstable filter coefficients
-    const safeValue = Math.max(
-      20,
-      Math.min(value, this.context.sampleRate / 2 - 1)
-    );
-    this.#lpf.frequency.setTargetAtTime(safeValue, this.now, 0.01);
+  maxFilterFreq = getMaxFilterFreq(this.context.sampleRate);
+  setLpfCutoff(hz: number): this {
+    // if (!this.#pool.filtersEnabled) return this;
+
+    const safeValue = Math.max(20, Math.min(hz, this.maxFilterFreq));
     this.storeParamValue('lpfCutoff', safeValue);
+
+    const currentTime = this.now;
+    if (currentTime - this.#lastLpfUpdateTime < this.#minFilterUpdateInterval) {
+      return this;
+    }
+
+    this.storeParamValue('hpfCutoff', hz);
+    this.#pool.applyToAllVoices((voice) => {
+      voice.lpf?.frequency.cancelAndHoldAtTime(currentTime);
+      voice.lpf?.frequency.setTargetAtTime(hz, currentTime, 1);
+    });
+
+    this.#lastLpfUpdateTime = currentTime;
+
+    console.info(`SamplePlayer: setLpfCutoff to ${hz} Hz`);
     return this;
   }
 
@@ -577,8 +609,6 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  // NOTE: MacroParams (e.g. loopStart and loopEnd) use direct access property getters (get loopStart() etc)
-
   getPlaybackRate(): number {
     return this.getStoredParamValue(
       'playbackRate',
@@ -586,21 +616,8 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  getHpfCutoff() {
-    return this.getStoredParamValue(
-      'hpfCutoff',
-      this.#hpf?.frequency.value ||
-        DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF.defaultValue
-    );
-  }
-
-  getLpfCutoff() {
-    return this.getStoredParamValue(
-      'lpfCutoff',
-      this.#lpf?.frequency.value ||
-        DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF.defaultValue
-    );
-  }
+  getHpfCutoff = () => this.getStoredParamValue('hpfCutoff', NaN);
+  getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
   startLevelMonitoring(intervalMs?: number) {
     this.outBus.startLevelMonitoring(intervalMs);
@@ -746,10 +763,10 @@ export class SamplePlayer extends LibInstrument {
         return this.getSampleEndOffset();
       case 'playbackRate':
         return this.getPlaybackRate();
-      case 'hpfCutoff':
-        return this.getHpfCutoff();
-      case 'lpfCutoff':
-        return this.getLpfCutoff();
+      // case 'hpfCutoff':
+      //   return this.getHpfCutoff();
+      // case 'lpfCutoff':
+      //   return this.getLpfCutoff();
       default:
         console.warn(`Unknown parameter: ${name}`);
         return undefined;
@@ -782,12 +799,12 @@ export class SamplePlayer extends LibInstrument {
       case 'loopRampDuration':
         this.setLoopRampDuration(value);
         break;
-      case 'hpfCutoff':
-        this.setHpfCutoff(value);
-        break;
-      case 'lpfCutoff':
-        this.setLpfCutoff(value);
-        break;
+      // case 'hpfCutoff':
+      //   this.setHpfCutoff(value);
+      //   break;
+      // case 'lpfCutoff':
+      //   this.setLpfCutoff(value);
+      //   break;
       default:
         console.warn(`Unknown parameter: ${name}`);
     }

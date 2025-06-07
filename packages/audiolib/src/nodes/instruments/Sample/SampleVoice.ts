@@ -7,7 +7,7 @@ import {
 } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
-import { VoiceState, ActiveNoteId } from '../types';
+import { VoiceState, ActiveNoteId, MidiValue } from '../types';
 import { DEFAULT_TRIGGER_OPTIONS } from '../constants';
 
 import {
@@ -17,7 +17,11 @@ import {
   MessageBus,
 } from '@/events';
 
-import { cancelScheduledParamValues, midiToPlaybackRate } from '@/utils';
+import {
+  assert,
+  cancelScheduledParamValues,
+  midiToPlaybackRate,
+} from '@/utils';
 import { ParamDescriptor } from '@/nodes/params/types';
 import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
 
@@ -88,6 +92,8 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
 
+  #outputNode: AudioNode;
+
   #worklet: AudioWorkletNode;
   #messages: MessageBus<Message>;
   #state: VoiceState = VoiceState.IDLE;
@@ -95,7 +101,19 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   #currentNoteId: number | string | null = null;
   #startedTimestamp: number = -1;
   #destination: Destination | null = null;
-  // Add this static property for discovery
+
+  #hpf: BiquadFilterNode | null = null;
+  #lpf: BiquadFilterNode | null = null;
+  #filtersEnabled: boolean;
+
+  #attackSec: number = 0.001; // Default attack time
+  #releaseSec: number = 0.1; // Default release time
+
+  #hpfHz: number = 100; // High-pass filter frequency
+  #lpfHz: number; // Low-pass filter frequency needs to be set using audio context sample rate
+  #lpfQ: number = 1; // Low-pass filter Q factor
+  #hpfQ: number = 1; // High-pass filter Q factor
+
   static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
 
   // Add this method to convert descriptors to AudioWorkletNode format
@@ -106,21 +124,67 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   }
 
   constructor(
-    private context: AudioContext = getAudioContext(), // remove getAudioContext
-    options: { processorOptions?: any } = {}
+    private context: AudioContext = getAudioContext(),
+    options: { processorOptions?: any; enableFilters?: boolean } = {}
   ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
+    // Update AudioWorkletNode initialization with parameter data
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
+      // Initialize with parameter data
+      parameterData: {
+        envGain: SAMPLE_VOICE_PARAM_DESCRIPTORS.envGain.defaultValue,
+        playbackRate: SAMPLE_VOICE_PARAM_DESCRIPTORS.playbackRate.defaultValue,
+        startOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.startOffset.defaultValue,
+        endOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.endOffset.defaultValue,
+        loopStart: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopStart.defaultValue,
+        loopEnd: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopEnd.defaultValue,
+        velocity: SAMPLE_VOICE_PARAM_DESCRIPTORS.velocity.defaultValue,
+        playbackPosition: 0, // Also defined in the processor
+      },
       processorOptions: options.processorOptions || {},
     });
+
+    // Set low-pass filter frequency based on context sample rate
+    this.#lpfHz = this.context.sampleRate / 2 - 100;
+    this.#filtersEnabled = options.enableFilters ?? true;
+
+    // Create filters if enabled
+    if (this.#filtersEnabled) {
+      this.#hpf = new BiquadFilterNode(context, {
+        type: 'highpass',
+        frequency: this.#hpfHz,
+        Q: this.#hpfQ,
+      });
+      this.#lpf = new BiquadFilterNode(context, {
+        type: 'lowpass',
+        frequency: this.#lpfHz,
+        Q: this.#lpfQ,
+      });
+
+      // Connect chain: worklet → hpf → lpf
+      this.#worklet.connect(this.#hpf);
+      this.#hpf.connect(this.#lpf);
+      // todo: set destination here also ?
+      this.#outputNode = this.#lpf;
+    } else {
+      // No filters, worklet is the output node
+      this.#outputNode = this.#worklet;
+    }
 
     this.setupMessageHandling();
     this.sendToProcessor({ type: 'voice:init' });
   }
+
+  logAvailableParams = () => {
+    console.table(
+      'Available parameters:',
+      Array.from(this.#worklet.parameters.keys())
+    );
+  };
 
   protected sendUpstreamMessage(type: string, data: any) {
     this.#messages.sendMessage(type, data);
@@ -195,83 +259,69 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   }
 
   trigger(options: {
-    midiNote: ActiveNoteId;
-    velocity: ActiveNoteId;
-    noteId: number | string;
-
+    midiNote: MidiValue;
+    velocity: MidiValue;
+    noteId: ActiveNoteId;
     secondsFromNow?: number;
-    startOffset?: number;
-
-    attack_sec?: number;
-  }): number | string | null {
+    // startOffset?: number;
+  }): number | string | null | undefined {
     if (this.#state === VoiceState.PLAYING) return null;
     this.#state = VoiceState.PLAYING;
-    this.#currentNoteId = options.noteId;
-    // this.#startedTimestamp = -1;
 
     const {
-      midiNote,
-      velocity,
+      midiNote = 60,
+      velocity = 100,
       secondsFromNow = 0,
-      startOffset = 0, // saving for later use
-      attack_sec = 0.001,
+      // startOffset = 0,
     } = {
       ...DEFAULT_TRIGGER_OPTIONS,
       ...options,
-    };
+    }; // console.table({ ...DEFAULT_TRIGGER_OPTIONS, ...options });
 
-    const when = this.now + secondsFromNow;
+    const timestamp = this.now + secondsFromNow;
 
-    this.setParam('playbackRate', midiToPlaybackRate(midiNote));
-    this.setParam('velocity', velocity);
+    // Use setParams with to ensure all params executed using the exact same timestamp
+    this.setParams(
+      [
+        { name: 'playbackRate', value: midiToPlaybackRate(midiNote) },
+        { name: 'velocity', value: velocity },
+        { name: 'envGain', value: 0 },
 
-    const envGain = this.getParam('envGain')!;
-    cancelScheduledParamValues(envGain, this.now);
+        // todo: set all other params (e.g. startOffset & endOffset) via param handlers (not in trigger method)
+      ],
+      timestamp
+    );
 
-    envGain.setValueAtTime(0, this.now);
-    envGain.linearRampToValueAtTime(1, this.now + attack_sec);
+    // Trigger attack envelope
+    const envGain = this.getParam('envGain');
+    if (!envGain) throw new Error('Cannot trigger - envGain parameter is null');
+    envGain?.linearRampToValueAtTime(1, timestamp + this.#attackSec);
 
     this.sendToProcessor({
       type: 'voice:start',
-      when,
+      when: timestamp,
     });
 
-    this.#startedTimestamp = when;
-
+    this.#startedTimestamp = timestamp;
+    this.#currentNoteId = options.noteId;
     return this.#currentNoteId;
   }
 
-  // Move to constants when decided to use:
-  TARGET_AT_TIME_SCALAR = 0.3;
-  TARGET_AT_MIN_VALUE = 0.00001;
-  SCHEDULE_NOW_ADDER = 0.00001;
-
-  release({
-    release = 0.1, // clarify unit with regards to setTargetAtTime
-    secondsFromNow = this.SCHEDULE_NOW_ADDER,
-  }: {
-    release?: number;
-    secondsFromNow?: number;
-  }): this {
+  release({ release = this.#releaseSec, secondsFromNow = 0 }): this {
     if (this.#state === VoiceState.RELEASING) return this;
+    const envGain = this.getParam('envGain');
+    if (!envGain) throw new Error('Cannot release - envGain parameter is null');
+
     this.#state = VoiceState.RELEASING;
+    const timestamp = this.now + secondsFromNow;
 
-    const envGain = this.getParam('envGain')!;
-
-    const releaseStart = this.now + secondsFromNow;
-    // const releaseEnd = releaseStart + release;
-    const releaseTimeConstant = release * this.TARGET_AT_TIME_SCALAR;
-
-    cancelScheduledParamValues(envGain, this.now);
-    envGain.setValueAtTime(envGain.value, this.now);
-
-    envGain.setTargetAtTime(
-      this.TARGET_AT_MIN_VALUE,
-      releaseStart,
-      releaseTimeConstant
-    );
+    // trigger release envelope
+    cancelScheduledParamValues(envGain, timestamp);
+    envGain.setValueAtTime(envGain.value, timestamp);
+    envGain.exponentialRampToValueAtTime(0.0000001, timestamp + release);
 
     this.sendToProcessor({ type: 'voice:release' });
+
     return this;
   }
 
@@ -280,7 +330,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     this.#state = VoiceState.STOPPED;
     this.#currentNoteId = null;
 
-    this.setParam('envGain', 0);
+    this.setParam('envGain', 0, this.now);
     this.sendToProcessor({ type: 'voice:stop' });
     return this;
   }
@@ -291,9 +341,9 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     input?: number
   ): Destination {
     if (destination instanceof AudioParam) {
-      this.#worklet.connect(destination, output);
+      this.out.connect(destination, output);
     } else if (destination instanceof AudioNode) {
-      this.#worklet.connect(destination, output, input);
+      this.out.connect(destination, output, input);
     } else {
       console.warn(`SampleVoice: Unsupported destination: ${destination}`);
     }
@@ -305,64 +355,97 @@ export class SampleVoice implements LibVoiceNode, Messenger {
       console.warn(`SampleVoice has no "alt" output to disconnect`);
       return this;
     }
-
-    if (destination instanceof AudioNode) {
-      this.#worklet.disconnect(destination);
+    if (!destination) {
+      this.out.disconnect();
+    } else if (destination instanceof AudioNode) {
+      this.out.disconnect(destination);
     } else if (destination instanceof AudioParam) {
-      this.#worklet.disconnect(destination);
+      this.out.disconnect(destination);
     }
     return this;
   }
 
-  getParam(name: string): AudioParam | null {
-    const param = (this.#worklet.parameters as Map<string, AudioParam>).get(
-      name
-    );
-    if (!(param && param instanceof AudioParam)) {
-      console.warn(`Parameter ${name} not found`);
-      return null;
+  #sanitizeParamValue(paramName: string, value: number): number {
+    // Guard against NaN, Infinity, and extreme values // todo: remove if not useful
+    if (!isFinite(value) || isNaN(value)) {
+      console.warn(`Invalid ${paramName} value: ${value}, using default`);
+      return SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName]?.defaultValue || 1;
     }
-
-    return param;
+    return value;
   }
 
   setParam(
     name: string,
     value: number,
-    options: { cancelPrevSchedules?: boolean; secondsFromNow?: number } = {}
+    atTime: number, // Direct timestamp (in audio contexts time)
+    options: {
+      glideTime?: number;
+      cancelPrevious?: boolean;
+    } = {}
   ): this {
     const param = this.getParam(name);
-    if (!param) return this;
+    if (!param || param.value === value) return this;
 
-    if (options.cancelPrevSchedules) {
-      cancelScheduledParamValues(param, this.now);
+    const opts = {
+      glideTime: 0,
+      cancelPrevious: true,
+      ...options,
+    };
+
+    const safeValue = this.#sanitizeParamValue(name, value);
+
+    if (opts.cancelPrevious) {
+      cancelScheduledParamValues(param, atTime);
     }
 
-    param.setValueAtTime(value, this.now);
+    if (opts.glideTime <= 0) {
+      param.setValueAtTime(safeValue, atTime);
+    } else {
+      param.setTargetAtTime(safeValue, atTime, Math.max(opts.glideTime, 0.001));
+    }
     return this;
   }
 
-  setOffsetParams(startOffset?: number, endOffset?: number): this {
-    if (startOffset !== undefined) this.setStartOffset(startOffset);
-    if (endOffset !== undefined) this.setEndOffset(endOffset);
+  protected setParams(
+    paramsAndValues: Array<{ name: string; value: number }>,
+    atTime: number,
+    options: {
+      glideTime?: number;
+      cancelPrevious?: boolean;
+    } = {}
+  ): this {
+    const validParams = paramsAndValues.filter(
+      (pv) => this.getParam(pv.name) !== null
+    );
+    if (validParams.length === 0) return this;
+
+    validParams.forEach(({ name, value }) => {
+      // Pass the absolute timestamp to ensure all parameters use the same timestamp
+      this.setParam(name, value, atTime, { ...options });
+    });
     return this;
   }
 
-  setStartOffset = (offset: number) => this.setParam('startOffset', offset);
-  setEndOffset = (offset: number) => this.setParam('endOffset', offset);
+  setAttack = (attack_sec: number) => (this.#attackSec = attack_sec);
+  setRelease = (release_sec: number) => (this.#releaseSec = release_sec);
 
-  setLoopPoints(start?: number, end?: number): this {
+  setStartOffset = (offset: number, timestamp = this.now) =>
+    this.setParam('startOffset', offset, timestamp);
+
+  setEndOffset = (offset: number, timestamp = this.now) =>
+    this.setParam('endOffset', offset, timestamp);
+
+  setLoopPoints(start?: number, end?: number, timestamp = this.now): this {
     if (start !== undefined) {
-      this.setParam('loopStart', start);
+      this.setParam('loopStart', start, timestamp);
     }
-
     if (end !== undefined) {
-      this.setParam('loopEnd', end);
+      this.setParam('loopEnd', end, timestamp);
     }
-
     return this;
   }
 
+  /** MESSAGES */
   sendToProcessor(data: any): this {
     this.#worklet.port.postMessage(data);
     return this;
@@ -372,39 +455,22 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     return this.#messages.onMessage(type, handler);
   }
 
-  setParamLimits(
-    paramName: string,
-    minValue?: number,
-    maxValue?: number,
-    fixToConstant?: number
-  ): this {
-    const descriptor = SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName];
-    if (!descriptor) {
-      console.warn(`Parameter ${paramName} not found in descriptors`);
-      return this;
-    }
+  // Getters
 
-    // If fixing to a constant value
-    if (fixToConstant !== undefined) {
-      descriptor.minValue = fixToConstant;
-      descriptor.maxValue = fixToConstant;
-    } else {
-      // Otherwise update min/max if provided
-      if (minValue !== undefined) descriptor.minValue = minValue;
-      if (maxValue !== undefined) descriptor.maxValue = maxValue;
-    }
-
-    return this;
+  get hpf() {
+    return this.#hpf;
   }
 
-  // Getters
+  get lpf() {
+    return this.#lpf;
+  }
 
   get in() {
     return null; // possibly add support for connecting to "in": this.#worklet;
   }
 
   get out() {
-    return this.#worklet; // or this.#worklet.parameters.envGain ?
+    return this.#outputNode;
   }
 
   get destination() {
@@ -418,7 +484,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   }
 
   get isReady() {
-    return this.#isReady; // && this.#isLoaded;
+    return this.#isReady;
   }
 
   get now(): number {
@@ -435,11 +501,13 @@ export class SampleVoice implements LibVoiceNode, Messenger {
 
   // Setters
 
-  set enablePositionTracking(enabled: boolean) {
+  enablePositionTracking(enabled: boolean) {
     this.sendToProcessor({
       type: 'voice:usePlaybackPosition',
       value: enabled,
     });
+
+    return this;
   }
 
   setLoopEnabled(enabled: boolean): this {
@@ -450,12 +518,15 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     return this;
   }
 
-  setPlaybackRate(rate: number): this {
-    return this.setParam('playbackRate', rate);
-  }
-
-  setEnvelopeGain(value: number): this {
-    return this.setParam('envGain', value);
+  setPlaybackRate(
+    rate: number,
+    atTime = this.now,
+    options?: {
+      glideTime?: number;
+      cancelPrevious?: boolean;
+    }
+  ): this {
+    return this.setParam('playbackRate', rate, atTime, options);
   }
 
   dispose(): void {
@@ -465,9 +536,44 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     deleteNodeId(this.nodeId);
   }
 
-  // 8. Add a method to get all parameter descriptors
   getParamDescriptors(): Record<string, ParamDescriptor> {
     return SAMPLE_VOICE_PARAM_DESCRIPTORS;
+  }
+
+  getParam(name: string): AudioParam | null {
+    // Just while debugging:
+    const param = this.#worklet.parameters.get(name);
+    if (!param && name === 'envGain') {
+      console.log(
+        'Available parameters:',
+        Array.from(this.#worklet.parameters.keys()),
+        'Looking for:',
+        name
+      );
+    }
+
+    if (this.#worklet && this.#worklet.parameters.has(name)) {
+      return this.#worklet.parameters.get(name) ?? null;
+    }
+
+    // Special case for filter parameters if they exist
+    if (this.#filtersEnabled) {
+      switch (name) {
+        case 'highpass':
+        case 'hpf':
+          return this.#hpf?.frequency || null;
+        case 'lowpass':
+        case 'lpf':
+          return this.#lpf?.frequency || null;
+        case 'hpfQ':
+          return this.#hpf?.Q || null;
+        case 'lpfQ':
+          return this.#lpf?.Q || null;
+      }
+    }
+
+    // Parameter not found
+    return null;
   }
 }
 
@@ -519,4 +625,65 @@ export class SampleVoice implements LibVoiceNode, Messenger {
 //   }
 
 //   return this;
+// }
+
+// const now = this.now + options.secondsFromNow;
+
+// Get all parameters
+// const params = paramsAndValues
+//   .map((pv) => ({ param: this.getParam(pv.name), value: pv.value }))
+//   .filter((pv) => pv.param !== null) as Array<{
+//   param: AudioParam;
+//   value: number;
+// }>;
+// if (params.length === 0) return this;
+// // Cancel all scheduled values if requested
+// if (cancelPrevious) {
+//   cancelScheduledParamValues(
+//     params.map((pv) => pv.param),
+//     now
+//   );
+// }
+
+// // Set all values at the specified time
+// params.forEach(({ param, value }) => {
+//   param.setValueAtTime(value, now);
+// });
+
+// setParamLimits(
+//   paramName: string,
+//   minValue?: number,
+//   maxValue?: number,
+//   fixToConstant?: number
+// ): this {
+//   const descriptor = SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName];
+//   if (!descriptor) {
+//     console.warn(`Parameter ${paramName} not found in descriptors`);
+//     return this;
+//   }
+
+//   // If fixing to a constant value
+//   if (fixToConstant !== undefined) {
+//     descriptor.minValue = fixToConstant;
+//     descriptor.maxValue = fixToConstant;
+//   } else {
+//     // Otherwise update min/max if provided
+//     if (minValue !== undefined) descriptor.minValue = minValue;
+//     if (maxValue !== undefined) descriptor.maxValue = maxValue;
+//   }
+//   return this;
+// }
+
+// protected executeAtTime(
+//   secondsFromNow: number,
+//   operations: (ctxCurrentTime: number) => void
+// ): void {
+//   assert(
+//     typeof operations === 'function',
+//     'executeSimultaneously: arg !== function'
+//   );
+//   // Capture current time once (important for triggering multiple operations)
+//   const executionTime = this.now + secondsFromNow;
+//   // Execute all scheduling operations with the same timestamp
+//   operations(executionTime);
 // }

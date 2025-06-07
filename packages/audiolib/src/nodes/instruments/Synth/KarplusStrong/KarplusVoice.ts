@@ -43,11 +43,19 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   #isReady: boolean = false;
 
-  get isReady() {
-    return this.#isReady;
-  }
+  #hpf: BiquadFilterNode | null = null;
+  #lpf: BiquadFilterNode | null = null;
+  #filtersEnabled: boolean;
 
-  constructor(context: AudioContext = getAudioContext()) {
+  #hpfHz: number = 100; // High-pass filter frequency
+  #lpfHz: number; // Low-pass filter frequency needs to be set using audio context sample rate
+  #lpfQ: number = 1; // Low-pass filter Q factor
+  #hpfQ: number = 1; // High-pass filter Q factor
+
+  constructor(
+    context: AudioContext = getAudioContext(),
+    options: { enableFilters?: boolean } = {}
+  ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
     this.audioContext = context;
@@ -91,11 +99,37 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
     this.delayParam = this.fbParamMap.get('delayTime')!;
 
-    // Connect
-    this.noiseGenerator.connect(this.noiseGain);
-    this.noiseGain.connect(this.outputGain);
-    this.noiseGain.connect(this.feedbackDelay);
-    this.feedbackDelay.connect(this.outputGain);
+    // Set low-pass filter frequency based on context sample rate
+    this.#lpfHz = this.audioContext.sampleRate / 2 - 100;
+    this.#filtersEnabled = options.enableFilters ?? true;
+
+    // Create filters if enabled
+    if (this.#filtersEnabled) {
+      this.#hpf = new BiquadFilterNode(context, {
+        type: 'highpass',
+        frequency: this.#hpfHz,
+        Q: this.#hpfQ,
+      });
+      this.#lpf = new BiquadFilterNode(context, {
+        type: 'lowpass',
+        frequency: this.#lpfHz,
+        Q: this.#lpfQ,
+      });
+
+      // Connect with filters
+      this.noiseGenerator.connect(this.noiseGain);
+      this.noiseGain.connect(this.feedbackDelay);
+      this.noiseGain.connect(this.#hpf);
+      this.feedbackDelay.connect(this.#hpf);
+      this.#hpf.connect(this.#lpf);
+      this.#lpf.connect(this.outputGain);
+    } else {
+      // Connect without filters
+      this.noiseGenerator.connect(this.noiseGain);
+      this.noiseGain.connect(this.outputGain);
+      this.noiseGain.connect(this.feedbackDelay);
+      this.feedbackDelay.connect(this.outputGain);
+    }
 
     this.#isReady = true;
   }
@@ -104,8 +138,31 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return this.noiseGain;
   }
 
+  get isReady() {
+    return this.#isReady;
+  }
+
   getParam(name: string): AudioParam | null {
-    return this.paramMap.get(name) || null;
+    const param = this.paramMap.get(name);
+    if (param) return param;
+
+    // Special case for filter parameters if they exist
+    if (this.#filtersEnabled) {
+      switch (name) {
+        case 'highpass':
+        case 'hpf':
+          return this.#hpf?.frequency || null;
+        case 'lowpass':
+        case 'lpf':
+          return this.#lpf?.frequency || null;
+        case 'hpfQ':
+          return this.#hpf?.Q || null;
+        case 'lpfQ':
+          return this.#lpf?.Q || null;
+      }
+    }
+
+    return null;
   }
 
   // TODO: Standardize
@@ -116,6 +173,26 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
         this.holdMs = value;
       } else {
         param.setValueAtTime(value, this.now + 0.0001);
+      }
+    } else if (this.#filtersEnabled) {
+      // Handle filter parameters
+      switch (name) {
+        case 'highpass':
+        case 'hpf':
+          if (this.#hpf)
+            this.#hpf.frequency.setValueAtTime(value, this.now + 0.0001);
+          break;
+        case 'lowpass':
+        case 'lpf':
+          if (this.#lpf)
+            this.#lpf.frequency.setValueAtTime(value, this.now + 0.0001);
+          break;
+        case 'hpfQ':
+          if (this.#hpf) this.#hpf.Q.setValueAtTime(value, this.now + 0.0001);
+          break;
+        case 'lpfQ':
+          if (this.#lpf) this.#lpf.Q.setValueAtTime(value, this.now + 0.0001);
+          break;
       }
     }
     return this;
@@ -256,6 +333,14 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   get ctx() {
     return this.audioContext;
+  }
+
+  get hpf() {
+    return this.#hpf;
+  }
+
+  get lpf() {
+    return this.#lpf;
   }
 
   get startTime(): number {

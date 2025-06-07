@@ -1,9 +1,15 @@
 import { ParamDescriptor } from '../../params/types';
+import { DEFAULT_SAMPLE_RATE } from '@/constants/defaults/common';
 
-const MAX_HZ = 22000;
-const MIN_HZ = 0.1;
+// Allowed Hz range for native web audio filters is 10 to the Nyquist frequency (half the sample rate).
+export const getMaxFilterFreq = (ctxSampleRate: number) =>
+  Math.floor(ctxSampleRate / 2 - 100);
+
+const MAX_HZ = getMaxFilterFreq(DEFAULT_SAMPLE_RATE); // Using default sample rate
+const MIN_HZ = 10; // Minimum frequency for filters
 const DEFAULT_HPF_CUTOFF = 100;
 const DEFAULT_LPF_CUTOFF = MAX_HZ;
+const FILTER_STEP = 10; // Step size for filter frequency adjustments
 
 // Default ParamDescriptors
 export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
@@ -101,7 +107,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     valueType: 'number',
     minValue: MIN_HZ,
     maxValue: MAX_HZ,
-    step: 1,
+    step: FILTER_STEP,
     defaultValue: DEFAULT_LPF_CUTOFF,
     group: 'filter:lpf',
   },
@@ -112,7 +118,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     valueType: 'number',
     minValue: MIN_HZ,
     maxValue: MAX_HZ,
-    step: 1,
+    step: FILTER_STEP,
     defaultValue: DEFAULT_HPF_CUTOFF,
     group: 'filter:hpf',
   },

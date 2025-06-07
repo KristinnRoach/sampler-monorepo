@@ -21,13 +21,14 @@ export class SampleVoicePool {
   constructor(
     context: AudioContext,
     numVoices: number,
-    destination: AudioNode
+    destination: AudioNode,
+    enableFilters: boolean = true
   ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
-      const voice = new SampleVoice(context);
+      const voice = new SampleVoice(context, { enableFilters });
       voice.connect(destination);
       return voice;
     });
@@ -71,7 +72,7 @@ export class SampleVoicePool {
     midiNote: number,
     velocity = 100,
     secondsFromNow = 0,
-    attack_sec = 0.01,
+    // attack_sec = 0.01,
     transposition = this.#transposeSemitones
   ): ActiveNoteId {
     const noteId = this.#nextNoteId++; // increments for next note
@@ -85,7 +86,7 @@ export class SampleVoicePool {
       velocity,
       noteId,
       secondsFromNow,
-      attack_sec,
+      // attack_sec, // todo - make param in Voice
     });
     this.#activeVoices.set(noteId, voice);
 
@@ -115,9 +116,33 @@ export class SampleVoicePool {
     return this;
   }
 
+  applyToAllVoices(fn: (voice: SampleVoice) => void) {
+    this.#allVoices.forEach((voice) => fn(voice));
+  }
+
+  applyToActiveVoices(fn: (voice: SampleVoice) => void) {
+    this.#activeVoices.forEach((voice) => fn(voice));
+  }
+
+  applyToVoice(noteId: ActiveNoteId, fn: (voice: SampleVoice) => void) {
+    const voice = this.#activeVoices.get(noteId);
+    if (voice) {
+      fn(voice);
+    } else {
+      console.warn(`No active voice found for noteId: ${noteId}`);
+    }
+  }
+
   dispose() {
+    this.applyToAllVoices((voice) => voice.dispose());
+    this.#allVoices = [];
+    this.#activeVoices.clear();
+    this.#context = null as any;
+    this.#isReady = false;
     deleteNodeId(this.nodeId);
   }
+
+  // todo: get filtersEnabled() & setFiltersEnabled
 
   get allVoices() {
     return this.#allVoices;

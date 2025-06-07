@@ -14,6 +14,8 @@ const KarplusSynthComponent = (attributes) => {
   const attack = van.state(0.001);
   const decay = van.state(0.9);
   const noiseTime = van.state(10);
+  const lpfFreq = van.state(18000); // Low-pass filter frequency
+  const hpfFreq = van.state(20); // High-pass filter frequency
 
   // Initialize synth when element mounts
   attributes.mount(() => {
@@ -53,9 +55,17 @@ const KarplusSynthComponent = (attributes) => {
       ksSynth.setParameterValue('noiseTime', noiseTime.val);
     });
 
+    van.derive(() => {
+      ksSynth.setLpfCutoff(lpfFreq.val);
+    });
+
+    van.derive(() => {
+      ksSynth.setHpfCutoff(hpfFreq.val);
+    });
+
     return () => {
       // Cleanup when element unmounts
-      ksSynth?.disconnect();
+      ksSynth?.dispose();
     };
   });
 
@@ -136,6 +146,37 @@ const KarplusSynthComponent = (attributes) => {
         { style: 'margin-left: 10px;' },
         () => Math.round(noiseTime.val) + '%'
       )
+    ),
+
+    // Low-pass filter frequency control
+    div(
+      { style: 'margin-bottom: 20px;' },
+      label('LPF Frequency: '),
+      input({
+        type: 'range',
+        min: 20,
+        max: 20000,
+        step: 1,
+        value: () => lpfFreq.val,
+        oninput: (e) => (lpfFreq.val = parseFloat(e.target.value)),
+        style: 'margin-left: 10px;',
+      }),
+      span({ style: 'margin-left: 10px;' }, () => lpfFreq.val + ' Hz')
+    ),
+    // High-pass filter frequency control
+    div(
+      { style: 'margin-bottom: 20px;' },
+      label('HPF Frequency: '),
+      input({
+        type: 'range',
+        min: 20,
+        max: 20000,
+        step: 1,
+        value: () => hpfFreq.val,
+        oninput: (e) => (hpfFreq.val = parseFloat(e.target.value)),
+        style: 'margin-left: 10px;',
+      }),
+      span({ style: 'margin-left: 10px;' }, () => hpfFreq.val + ' Hz')
     ),
 
     // Control buttons

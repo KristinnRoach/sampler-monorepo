@@ -2,14 +2,7 @@ import van from '@repo/vanjs-core';
 // import { Toggle } from './components/VanToggle.js';
 import { createDraggable } from 'animejs';
 import { getAttributesArr } from './utils/log.js';
-
-import {
-  KarplusSynthComponent,
-  ksSynth,
-} from './components/KarplusComponent.js';
-
 import { saveState, loadState, debouncedSaveState } from './state.js';
-
 import { defineKarplusSynth } from './components/KarplusElement.js';
 
 const init = () => {
@@ -59,6 +52,9 @@ const init = () => {
 
     defineKarplusSynth();
 
+    const lpfFreqSlider = createTestFilterSlider(playerEl);
+    van.add(envelopeEl, lpfFreqSlider);
+
     // MEGA TEST __________________________
     // const player = playerEl.player;
     // console.table(player);
@@ -106,9 +102,7 @@ const init = () => {
 
   // create draggables
   const draggables = document.querySelectorAll('.draggable');
-  draggables.forEach((el) => {
-    createDraggable(el);
-  });
+  draggables.forEach((el) => createDraggable(el));
 
   document.addEventListener('keydown', (e) => {
     if (e.key === ' ') e.preventDefault();
@@ -124,3 +118,26 @@ const init = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => init());
+
+function createTestFilterSlider(playerEl) {
+  /** Test filter sliders */
+  const { input, div, label, span } = van.tags;
+
+  const lfpHz = van.state(18000);
+  van.derive(() => playerEl.player.setLpfCutoff(lfpHz.val));
+
+  return div(
+    { style: 'margin-bottom: 20px;' },
+    label('LPF: '),
+    input({
+      type: 'range',
+      min: 20,
+      max: 20000,
+      step: 10,
+      value: () => lfpHz.val,
+      oninput: (e) => (lfpHz.val = parseFloat(e.target.value)),
+      style: 'margin-left: 10px;',
+    }),
+    span({ style: 'margin-left: 10px;' }, () => lfpHz.val + 'Hz')
+  );
+}

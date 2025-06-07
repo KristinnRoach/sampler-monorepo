@@ -102,6 +102,23 @@ export class KarplusVoicePool {
     return this;
   }
 
+  applyToAllVoices(fn: (voice: KarplusVoice) => void) {
+    this.#allVoices.forEach((voice) => fn(voice));
+  }
+
+  applyToActiveVoices(fn: (voice: KarplusVoice) => void) {
+    this.#activeVoices.forEach((voice) => fn(voice));
+  }
+
+  applyToVoice(noteId: ActiveNoteId, fn: (voice: KarplusVoice) => void) {
+    const voice = this.#activeVoices.get(noteId);
+    if (voice) {
+      fn(voice);
+    } else {
+      console.warn(`No active voice found for noteId: ${noteId}`);
+    }
+  }
+
   dispose() {
     this.#allVoices.forEach((voice) => voice.dispose());
     this.#allVoices = [];
