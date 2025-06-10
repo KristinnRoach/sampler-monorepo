@@ -15,7 +15,7 @@ import {
 
 import {
   MacroParam,
-  ParamDescriptor,
+  LibParamDescriptor,
   DEFAULT_PARAM_DESCRIPTORS,
 } from '@/nodes/params';
 
@@ -139,9 +139,7 @@ export class SamplePlayer extends LibInstrument {
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
 
-      console.log('Voice loopEnd param exists:', !!loopEndParam);
       if (loopEndParam) {
-        console.log('Default value:', loopEndParam.defaultValue);
         this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
       }
       if (loopStartParam) {
@@ -783,7 +781,7 @@ export class SamplePlayer extends LibInstrument {
   }
 
   // todo: use for UI integration
-  getParameterDescriptors(): Record<string, ParamDescriptor> {
+  getParameterDescriptors(): Record<string, LibParamDescriptor> {
     return {
       attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
       release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,

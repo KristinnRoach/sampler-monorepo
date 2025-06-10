@@ -22,13 +22,16 @@ import {
   cancelScheduledParamValues,
   midiToPlaybackRate,
 } from '@/utils';
-import { ParamDescriptor } from '@/nodes/params/types';
+import { LibParamDescriptor } from '@/nodes/params/types';
 // import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
 
 // TODO: UNITE PARAM DESCRIPTORS FOR VOICES AND INSTRUMENTS
 
 // Define descriptors for voice parameters
-export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
+export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<
+  string,
+  LibParamDescriptor
+> = {
   playbackRate: {
     nodeId: 'playbackRate',
     name: 'playbackRate',
@@ -37,6 +40,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     maxValue: 10,
     defaultValue: 0,
     group: 'playback',
+    automationRate: 'k-rate', // Ensure consistency with actual AudioParamDescriptor in processor
   },
   envGain: {
     nodeId: 'envGain',
@@ -46,6 +50,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     maxValue: 1,
     defaultValue: 1,
     group: 'envelope',
+    automationRate: 'k-rate',
   },
   startOffset: {
     nodeId: 'startOffset',
@@ -54,6 +59,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     minValue: 0,
     defaultValue: 0,
     group: 'playback',
+    automationRate: 'k-rate',
   },
   endOffset: {
     nodeId: 'endOffset',
@@ -62,6 +68,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     minValue: 0,
     defaultValue: 1,
     group: 'playback',
+    automationRate: 'k-rate',
   },
   loopStart: {
     nodeId: 'loopStart',
@@ -70,6 +77,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     minValue: 0,
     defaultValue: 0,
     group: 'loop',
+    automationRate: 'k-rate',
   },
   loopEnd: {
     nodeId: 'loopEnd',
@@ -78,6 +86,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     minValue: 0,
     defaultValue: 1,
     group: 'loop',
+    automationRate: 'k-rate',
   },
   velocity: {
     nodeId: 'velocity',
@@ -87,6 +96,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     maxValue: 127,
     defaultValue: 64,
     group: 'voice',
+    automationRate: 'k-rate',
   },
 };
 
@@ -537,7 +547,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     deleteNodeId(this.nodeId);
   }
 
-  getParamDescriptors(): Record<string, ParamDescriptor> {
+  getParamDescriptors(): Record<string, LibParamDescriptor> {
     return SAMPLE_VOICE_PARAM_DESCRIPTORS;
   }
 

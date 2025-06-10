@@ -1,5 +1,5 @@
 import { NodeID } from '@/nodes/node-store';
-import { ParamType } from './params';
+// import { ParamType } from './params';
 import { InstrumentType } from './instruments';
 import { Message, MessageHandler } from '@/events';
 
@@ -28,10 +28,11 @@ export type FxType =
 export type NodeType =
   | BaseNodeType
   | InstrumentType
-  | ContainerType
   | VoiceType
-  | ParamType
-  | FxType;
+  | ContainerType
+  | string;
+// | ParamType
+// | FxType;
 
 export type AudioGraph = {
   root: LibNode;

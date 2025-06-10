@@ -1,5 +1,5 @@
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
-import { ParamDescriptor } from '@/nodes/params';
+import { LibParamDescriptor } from '@/nodes/params';
 import type { MidiValue, ActiveNoteId } from '@/nodes/instruments/types';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { KarplusVoicePool } from './KarplusVoicePool';
@@ -191,7 +191,7 @@ export class KarplusStrongSynth extends LibInstrument {
   // }
 
   // TODO: review and standardize these param descriptors, this was added as quick placeholders to align the interfaces
-  getParameterDescriptors(): Record<string, ParamDescriptor> {
+  getParameterDescriptors(): Record<string, LibParamDescriptor> {
     return {
       volume: {
         nodeId: `${this.nodeId}-volume`,
@@ -201,6 +201,7 @@ export class KarplusStrongSynth extends LibInstrument {
         minValue: 0,
         maxValue: 2,
         group: 'output',
+        automationRate: 'k-rate',
       },
       attack: {
         nodeId: `${this.nodeId}-attack`,
@@ -210,6 +211,7 @@ export class KarplusStrongSynth extends LibInstrument {
         minValue: 0,
         maxValue: 2,
         group: 'envelope',
+        automationRate: 'k-rate',
       },
       decay: {
         nodeId: `${this.nodeId}-decay`,
@@ -219,6 +221,7 @@ export class KarplusStrongSynth extends LibInstrument {
         minValue: 0,
         maxValue: 5,
         group: 'envelope',
+        automationRate: 'k-rate',
       },
       noiseTime: {
         nodeId: `${this.nodeId}-noiseTime`,
@@ -228,6 +231,7 @@ export class KarplusStrongSynth extends LibInstrument {
         minValue: 0,
         maxValue: 1,
         group: 'synthesis',
+        automationRate: 'k-rate',
       },
     };
   }

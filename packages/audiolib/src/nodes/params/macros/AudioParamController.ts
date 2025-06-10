@@ -31,16 +31,8 @@ export class AudioParamController {
   }
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
-    console.log(
-      'AudioParamController connecting to:',
-      targetParam.constructor.name,
-      'with scale:',
-      scaleFactor
-    );
-
     if (scaleFactor === 1) {
       this.#controlNode.connect(targetParam);
-      console.log('Connection made');
       this.#targets.push({ param: targetParam });
     } else {
       const scaler = new GainNode(this.#context, { gain: scaleFactor });

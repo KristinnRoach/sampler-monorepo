@@ -1,4 +1,4 @@
-import { LibParam, ParamDescriptor, ParamType } from '@/nodes/params';
+import { AudioParamDescriptor, LibParamDescriptor } from '@/nodes/params';
 import {
   Message,
   MessageBus,
@@ -11,8 +11,9 @@ import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
 import { NodeType } from '@/nodes/LibNode';
 
-export class MacroParam implements LibParam {
-  readonly nodeType: ParamType = 'param';
+export class MacroParam {
+  // implements LibParam {
+  readonly nodeType: string = 'macro'; // Temporarily removed dependency on LibParam and ParamType
   readonly nodeId: NodeID;
 
   #controller: AudioParamController;
@@ -22,9 +23,9 @@ export class MacroParam implements LibParam {
   #paramType: string = '';
   #isReady: boolean = false;
 
-  descriptor: ParamDescriptor;
+  descriptor: LibParamDescriptor;
 
-  constructor(context: BaseAudioContext, descriptor: ParamDescriptor) {
+  constructor(context: BaseAudioContext, descriptor: LibParamDescriptor) {
     this.descriptor = descriptor;
     this.#controller = new AudioParamController(
       context,
@@ -51,18 +52,7 @@ export class MacroParam implements LibParam {
       'Macros only support a single ParamType'
     );
 
-    console.log(
-      'MacroParam addTarget called:',
-      paramType,
-      'scaleFactor:',
-      scaleFactor,
-      'param:',
-      targetParam
-    );
-
     this.#controller.addTarget(targetParam, scaleFactor);
-    console.log('Connected directly to targetParam');
-
     return this;
   }
 
@@ -212,7 +202,7 @@ export class MacroParam implements LibParam {
     return this;
   }
 
-  disconnect(target?: AudioParam | LibParam): void {
+  disconnect(target?: AudioParam | TODO): void {
     throw new Error('Not implemented');
   }
 }

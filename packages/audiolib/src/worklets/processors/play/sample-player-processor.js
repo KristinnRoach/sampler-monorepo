@@ -140,8 +140,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackRate',
         defaultValue: 1,
-        minValue: 0.1, // ? test negative -8,
-        maxValue: 4, // ? test 10,
+        minValue: -8, // 0.1, // ? test negative -8,
+        maxValue: 8, // ? test 10,
         automationRate: 'k-rate', // ! a or k ?
       },
       {

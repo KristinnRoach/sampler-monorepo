@@ -1,4 +1,4 @@
-import { ParamDescriptor } from '../../params/types';
+import { LibParamDescriptor } from '../../params/types';
 import { DEFAULT_SAMPLE_RATE } from '@/constants/defaults/common';
 
 // Allowed Hz range for native web audio filters is 10 to the Nyquist frequency (half the sample rate).
@@ -12,7 +12,7 @@ const DEFAULT_LPF_CUTOFF = MAX_HZ;
 const FILTER_STEP = 10; // Step size for filter frequency adjustments
 
 // Default ParamDescriptors
-export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
+export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   LOOP_START: {
     nodeId: 'loop-start', // todo: remove default id's, ensure they are created when param is registered
     name: 'loop-start',
@@ -22,6 +22,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 0,
     group: 'loop-points',
+    automationRate: 'k-rate',
   },
 
   LOOP_END: {
@@ -33,6 +34,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 0, // Updated when sample loads
     group: 'loop-points',
+    automationRate: 'k-rate',
   },
 
   LOOP_RAMP_DURATION: {
@@ -44,6 +46,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 0.2,
     group: 'loop-points',
+    automationRate: 'k-rate',
   },
 
   ATTACK: {
@@ -55,6 +58,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 0.01,
     group: 'envelope',
+    automationRate: 'k-rate',
   },
 
   RELEASE: {
@@ -66,6 +70,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 0.05,
     group: 'envelope',
+    automationRate: 'k-rate',
   },
 
   START_OFFSET: {
@@ -77,6 +82,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 0,
     group: 'sample-offsets',
+    automationRate: 'k-rate',
   },
 
   END_OFFSET: {
@@ -88,6 +94,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.001,
     defaultValue: 1, // Updated when sample loads
     group: 'sample-offsets',
+    automationRate: 'k-rate',
   },
 
   PLAYBACK_RATE: {
@@ -99,6 +106,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: 0.01,
     defaultValue: 1,
     group: 'playback',
+    automationRate: 'k-rate',
   },
 
   LOWPASS_CUTOFF: {
@@ -110,6 +118,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: FILTER_STEP,
     defaultValue: DEFAULT_LPF_CUTOFF,
     group: 'filter:lpf',
+    automationRate: 'k-rate',
   },
 
   HIGHPASS_CUTOFF: {
@@ -121,5 +130,6 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     step: FILTER_STEP,
     defaultValue: DEFAULT_HPF_CUTOFF,
     group: 'filter:hpf',
+    automationRate: 'k-rate',
   },
 };

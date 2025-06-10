@@ -1,57 +1,67 @@
-import { LibNode, Messenger } from '@/nodes/LibNode';
-import { MessageHandler, Message } from '@/events';
+// import { LibNode, Messenger } from '@/nodes/LibNode';
+// import { MessageHandler, Message } from '@/events';
 
-// interface AudioParamDescriptor {
-//   name: string;
-//   defaultValue?: number;
-//   minValue?: number;
-//   maxValue?: number;
-//   automationRate: 'a-rate' | 'k-rate';
-// }
-
-export interface ParamDescriptor {
-  nodeId: NodeID;
+export interface AudioParamDescriptor {
   name: string;
-  valueType: 'number' | 'boolean' | 'enum';
-
-  // Aligned with AudioParam properties
+  defaultValue?: number;
   minValue?: number;
   maxValue?: number;
-  defaultValue: any;
+  automationRate: 'a-rate' | 'k-rate';
+}
+
+export interface LibParamDescriptor extends AudioParamDescriptor {
+  nodeId: NodeID;
+  valueType: 'number' | 'boolean' | 'enum';
+  defaultValue: any; // Override to make required and allow any type
 
   // Additional properties
   step?: number;
   enumValues?: string[];
   group?: string;
-
-  // Optional automation rate
-  automationRate?: 'a-rate' | 'k-rate';
 }
 
-export interface LibParam extends LibNode {
-  // , Messenger {
-  readonly nodeType: ParamType;
+// export interface ParamDescriptor {
+//   nodeId: NodeID;
+//   name: string;
+//   valueType: 'number' | 'boolean' | 'enum';
 
-  getValue: () => any;
-  setValue: (value: any) => void;
+//   // Aligned with AudioParam properties
+//   minValue?: number;
+//   maxValue?: number;
+//   defaultValue: any;
 
-  // UI integration
-  descriptor: ParamDescriptor;
-  onChange?: (callback: MessageHandler<Message>) => () => void;
-}
+//   // Additional properties
+//   step?: number;
+//   enumValues?: string[];
+//   group?: string;
 
-export type ParamType =
-  | 'macro'
-  | 'param'
-  // todo: switch to the more specific types below
-  | 'loopStart'
-  | 'loopEnd'
-  | 'start'
-  | 'end'
-  | 'attack'
-  | 'decay'
-  | 'sustain'
-  | 'release'
-  | 'rampTime'
-  | 'volume'
-  | 'playbackRate';
+//   // Optional automation rate
+//   automationRate?: 'a-rate' | 'k-rate';
+// }
+
+// export interface LibParam extends LibNode {
+//   // , AudioParam
+//   readonly nodeType: ParamType;
+
+//   getValue: () => any;
+//   setValue: (value: any) => void;
+
+//   // UI integration
+//   descriptor: ParamDescriptor;
+//   onChange?: (callback: MessageHandler<Message>) => () => void;
+// }
+
+// export type ParamType = 'macro' | 'webNative' | string; // ! keep flexible for now
+
+// export type LibParamName =
+//   | 'loopStart'
+//   | 'loopEnd'
+//   | 'start'
+//   | 'end'
+//   | 'attack'
+//   | 'decay'
+//   | 'sustain'
+//   | 'release'
+//   | 'rampTime'
+//   | 'volume'
+//   | 'playbackRate';

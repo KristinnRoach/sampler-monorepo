@@ -20,8 +20,7 @@ export type { Recorder } from './nodes/recorder';
 export type { LibNode as LibNode, SampleLoader } from './nodes/LibNode';
 export type { LibInstrument } from '@/nodes/instruments';
 export type {
-  LibParam,
-  ParamDescriptor,
+  LibParamDescriptor as ParamDescriptor,
   DEFAULT_PARAM_DESCRIPTORS,
 } from './nodes/params';
 
