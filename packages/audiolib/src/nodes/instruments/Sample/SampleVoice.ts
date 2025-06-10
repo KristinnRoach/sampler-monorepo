@@ -23,7 +23,9 @@ import {
   midiToPlaybackRate,
 } from '@/utils';
 import { ParamDescriptor } from '@/nodes/params/types';
-import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
+// import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
+
+// TODO: UNITE PARAM DESCRIPTORS FOR VOICES AND INSTRUMENTS
 
 // Define descriptors for voice parameters
 export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
@@ -33,7 +35,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<string, ParamDescriptor> = {
     valueType: 'number',
     minValue: 0.1,
     maxValue: 10,
-    defaultValue: 1,
+    defaultValue: 0,
     group: 'playback',
   },
   envGain: {
@@ -114,14 +116,13 @@ export class SampleVoice implements LibVoiceNode, Messenger {
   #lpfQ: number = 1; // Low-pass filter Q factor
   #hpfQ: number = 1; // High-pass filter Q factor
 
-  static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
-
-  // Add this method to convert descriptors to AudioWorkletNode format
-  static getAudioParamDescriptors(): AudioParamDescriptor[] {
-    return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
-      toAudioParamDescriptor
-    );
-  }
+  // static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
+  // // Converts descriptors to AudioWorkletNode format
+  // static getAudioParamDescriptors(): AudioParamDescriptor[] {
+  //   return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
+  //     toAudioParamDescriptor
+  //   );
+  // }
 
   constructor(
     private context: AudioContext = getAudioContext(),
@@ -135,16 +136,16 @@ export class SampleVoice implements LibVoiceNode, Messenger {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       // Initialize with parameter data
-      parameterData: {
-        envGain: SAMPLE_VOICE_PARAM_DESCRIPTORS.envGain.defaultValue,
-        playbackRate: SAMPLE_VOICE_PARAM_DESCRIPTORS.playbackRate.defaultValue,
-        startOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.startOffset.defaultValue,
-        endOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.endOffset.defaultValue,
-        loopStart: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopStart.defaultValue,
-        loopEnd: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopEnd.defaultValue,
-        velocity: SAMPLE_VOICE_PARAM_DESCRIPTORS.velocity.defaultValue,
-        playbackPosition: 0, // Also defined in the processor
-      },
+      // parameterData: {
+      //   envGain: SAMPLE_VOICE_PARAM_DESCRIPTORS.envGain.defaultValue,
+      //   playbackRate: SAMPLE_VOICE_PARAM_DESCRIPTORS.playbackRate.defaultValue,
+      //   startOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.startOffset.defaultValue,
+      //   endOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.endOffset.defaultValue,
+      //   loopStart: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopStart.defaultValue,
+      //   loopEnd: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopEnd.defaultValue,
+      //   velocity: SAMPLE_VOICE_PARAM_DESCRIPTORS.velocity.defaultValue,
+      //   playbackPosition: 0, // Also defined in the processor
+      // },
       processorOptions: options.processorOptions || {},
     });
 
@@ -318,7 +319,7 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     // trigger release envelope
     cancelScheduledParamValues(envGain, timestamp);
     envGain.setValueAtTime(envGain.value, timestamp);
-    envGain.exponentialRampToValueAtTime(0.0000001, timestamp + release);
+    envGain.exponentialRampToValueAtTime(0.0001, timestamp + release);
 
     this.sendToProcessor({ type: 'voice:release' });
 
@@ -576,114 +577,3 @@ export class SampleVoice implements LibVoiceNode, Messenger {
     return null;
   }
 }
-
-// todo: messaging overhaul
-// // ? only send messages if someone has subscribed to them?
-// switch (type) {
-//   case 'voice:started':
-//     this.messages.sendMessage('voice:started', {});
-//     break;
-//   case 'voice:ended':
-//     this.messages.sendMessage('voice:ended', {});
-//     break;
-//   case 'voice:releasing':
-//     this.messages.sendMessage('voice:releasing', {});
-//     break;
-//   case 'voice:looped':
-//     this.messages.sendMessage('voice:looped', {
-//       loopCount: data.loopCount,
-//     });
-//     break;
-//   case 'voice:position':
-//     this.getParam('playbackPosition')?.setValueAtTime(
-//       data.position,
-//       this.context.currentTime
-//     );
-//     this.messages.sendMessage('voice:position', {
-//       position: data.position,
-//     });
-//     break;
-// }
-
-// // General function to set any constrained parameter
-// setConstrainedParam(paramName: string, value: number): this {
-//   // Skip if value is undefined
-//   if (value === undefined) return this;
-
-//   // Apply constraints if they exist
-//   let safeValue = value;
-//   if (this.#paramConstraints[paramName]) {
-//     const { min, max } = this.#paramConstraints[paramName]!;
-//     safeValue = Math.max(min, Math.min(max, value));
-//   }
-
-//   // Get the parameter and set its value
-//   const param = this.getParam(paramName);
-//   if (param) {
-//     cancelScheduledParamValues(param, this.now);
-//     param.setValueAtTime(safeValue, this.now);
-//   }
-
-//   return this;
-// }
-
-// const now = this.now + options.secondsFromNow;
-
-// Get all parameters
-// const params = paramsAndValues
-//   .map((pv) => ({ param: this.getParam(pv.name), value: pv.value }))
-//   .filter((pv) => pv.param !== null) as Array<{
-//   param: AudioParam;
-//   value: number;
-// }>;
-// if (params.length === 0) return this;
-// // Cancel all scheduled values if requested
-// if (cancelPrevious) {
-//   cancelScheduledParamValues(
-//     params.map((pv) => pv.param),
-//     now
-//   );
-// }
-
-// // Set all values at the specified time
-// params.forEach(({ param, value }) => {
-//   param.setValueAtTime(value, now);
-// });
-
-// setParamLimits(
-//   paramName: string,
-//   minValue?: number,
-//   maxValue?: number,
-//   fixToConstant?: number
-// ): this {
-//   const descriptor = SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName];
-//   if (!descriptor) {
-//     console.warn(`Parameter ${paramName} not found in descriptors`);
-//     return this;
-//   }
-
-//   // If fixing to a constant value
-//   if (fixToConstant !== undefined) {
-//     descriptor.minValue = fixToConstant;
-//     descriptor.maxValue = fixToConstant;
-//   } else {
-//     // Otherwise update min/max if provided
-//     if (minValue !== undefined) descriptor.minValue = minValue;
-//     if (maxValue !== undefined) descriptor.maxValue = maxValue;
-//   }
-//   return this;
-// }
-
-// protected executeAtTime(
-//   secondsFromNow: number,
-//   operations: (ctxCurrentTime: number) => void
-// ): void {
-//   assert(
-//     typeof operations === 'function',
-//     'executeSimultaneously: arg !== function'
-//   );
-//   // Capture current time once (important for triggering multiple operations)
-//   const executionTime = this.now + secondsFromNow;
-//   // Execute all scheduling operations with the same timestamp
-//   operations(executionTime);
-// }

@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "pnpm clean && pnpm install && vite build",
-    "watch": "pnpm clean && pnpm install && vite build --watch",
+    "watch": "vite build --watch",
     "clean": "rimraf dist && mkdir -p dist",
     "clean:deps": "rimraf node_modules && pnpm install",
     "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune"

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "watch": "pnpm clean && vite",
+    "watch": "vite",
     "build": "pnpm clean && vite build",
     "clean": "rimraf dist && mkdir -p dist",
     "clean:deps": "rimraf node_modules && pnpm install",

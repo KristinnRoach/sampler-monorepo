@@ -10,6 +10,7 @@ import {
   isValidAudioBuffer,
   isMidiValue,
   findZeroCrossings,
+  cancelScheduledParamValues,
 } from '@/utils';
 
 import {
@@ -137,11 +138,29 @@ export class SamplePlayer extends LibInstrument {
       // Connect only the loop points
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
-      if (loopStartParam && loopEndParam) {
-        this.#macroLoopStart.addTarget(loopStartParam, 'loopStart');
+
+      console.log('Voice loopEnd param exists:', !!loopEndParam);
+      if (loopEndParam) {
+        console.log('Default value:', loopEndParam.defaultValue);
         this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
       }
+      if (loopStartParam) {
+        this.#macroLoopStart.addTarget(loopStartParam, 'loopStart');
+      }
     });
+
+    //  Force initial sync after connections are made // Todo: figure out why this is needed
+    this.#syncInitialValues();
+
+    return this;
+  }
+
+  #syncInitialValues(): this {
+    const currentLoopEnd = this.#macroLoopEnd.getValue();
+    const currentLoopStart = this.#macroLoopStart.getValue();
+
+    this.#macroLoopEnd.setValue(currentLoopEnd);
+    this.#macroLoopStart.setValue(currentLoopStart);
 
     return this;
   }
@@ -432,32 +451,58 @@ export class SamplePlayer extends LibInstrument {
   SET_TARGET_TIMECONSTANT = 0.05; // 50ms
   #lastHpfUpdateTime = 0;
   #lastLpfUpdateTime = 0;
-  #minFilterUpdateInterval = 0.05; // 50ms minimum between updates
+  #minFilterUpdateInterval = 0.08; // 80ms minimum between updates
 
   setHpfCutoff(hz: number): this {
     // if (!this.#pool.filtersEnabled) return this;
+    if (isNaN(hz) || !isFinite(hz)) {
+      console.warn(`Invalid HPF frequency: ${hz}`);
+      return this;
+    }
+
+    // Clamp values to safe range
+    const safeValue = Math.max(20, Math.min(hz, 20000));
+    this.storeParamValue('hpfCutoff', safeValue);
+
     const currentTime = this.now;
     if (currentTime - this.#lastHpfUpdateTime < this.#minFilterUpdateInterval) {
       return this;
     }
 
-    this.storeParamValue('hpfCutoff', hz);
     this.#pool.applyToAllVoices((voice) => {
-      voice.hpf?.frequency.cancelAndHoldAtTime(currentTime);
-      voice.hpf?.frequency.setTargetAtTime(hz, currentTime, 1);
+      if (!voice.hpf) return;
+      try {
+        // Replace cancelAndHoldAtTime with safer options
+        // voice.hpf.frequency.cancelScheduledValues(currentTime);
+        // voice.hpf.frequency.setValueAtTime(
+        //   voice.hpf.frequency.value,
+        //   currentTime
+        // );
+
+        cancelScheduledParamValues(voice.hpf.frequency, currentTime);
+        voice.hpf.frequency.setTargetAtTime(
+          safeValue,
+          currentTime,
+          this.SET_TARGET_TIMECONSTANT
+        );
+      } catch (error) {
+        console.warn('Error automating filter: ', error);
+      }
     });
 
     this.#lastHpfUpdateTime = currentTime;
-
-    console.info(`SamplePlayer: setHpfCutoff to ${hz} Hz`);
     return this;
   }
 
-  maxFilterFreq = getMaxFilterFreq(this.context.sampleRate);
   setLpfCutoff(hz: number): this {
     // if (!this.#pool.filtersEnabled) return this;
+    if (isNaN(hz) || !isFinite(hz)) {
+      console.warn(`Invalid LPF frequency: ${hz}`);
+      return this;
+    }
+    const maxFilterFreq = this.context.sampleRate / 2 - 100;
 
-    const safeValue = Math.max(20, Math.min(hz, this.maxFilterFreq));
+    const safeValue = Math.max(20, Math.min(hz, maxFilterFreq));
     this.storeParamValue('lpfCutoff', safeValue);
 
     const currentTime = this.now;
@@ -465,15 +510,23 @@ export class SamplePlayer extends LibInstrument {
       return this;
     }
 
-    this.storeParamValue('hpfCutoff', hz);
     this.#pool.applyToAllVoices((voice) => {
-      voice.lpf?.frequency.cancelAndHoldAtTime(currentTime);
-      voice.lpf?.frequency.setTargetAtTime(hz, currentTime, 1);
+      if (!voice.lpf) return;
+      // voice.lpf.frequency.cancelScheduledValues(currentTime);
+      // voice.lpf.frequency.setValueAtTime(
+      //   voice.lpf.frequency.value,
+      //   currentTime
+      // );
+
+      cancelScheduledParamValues(voice.lpf.frequency, currentTime);
+      voice.lpf.frequency.setTargetAtTime(
+        safeValue,
+        currentTime,
+        this.SET_TARGET_TIMECONSTANT
+      );
     });
 
     this.#lastLpfUpdateTime = currentTime;
-
-    console.info(`SamplePlayer: setLpfCutoff to ${hz} Hz`);
     return this;
   }
 
@@ -799,207 +852,15 @@ export class SamplePlayer extends LibInstrument {
       case 'loopRampDuration':
         this.setLoopRampDuration(value);
         break;
-      // case 'hpfCutoff':
-      //   this.setHpfCutoff(value);
-      //   break;
-      // case 'lpfCutoff':
-      //   this.setLpfCutoff(value);
-      //   break;
+      case 'hpfCutoff':
+        this.setHpfCutoff(value);
+        break;
+      case 'lpfCutoff':
+        this.setLpfCutoff(value);
+        break;
       default:
         console.warn(`Unknown parameter: ${name}`);
     }
     return this;
   }
-
-  // // Todo: change this to "panic" // abstract method from LibInstrument
-  // stopAll(fadeOut_sec: number = this.getReleaseTime()): this {
-  //   return this.releaseAll(fadeOut_sec);
-  // }
 }
-
-// IGNORE ALL COMMENTS BELOW - will clean up later
-
-// #onNoteOn(
-//   midiNote: number,
-//   velocity: number = 100,
-//   modifiers: PressedModifiers
-// ) {
-//   this.#pool.noteOn(midiNote, velocity);
-// }
-
-// #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
-//   this.#pool.noteOff(midiNote);
-// }
-
-// get isPlaying(): boolean {
-//   return this.#pool.playingCount > 0;
-// }
-
-// get activeVoicesCount(): number {
-//   return Array.from(this.#activeMidiNoteToVoice.values()).reduce(
-//     (sum, voices) => sum + voices.size,
-//     0
-//   );
-// }
-
-// get voiceCount(): number {
-//   return this.#pool.allVoices.length;
-// }
-
-// #mostRecentSource: SampleVoice | null = null;
-
-// enablePositionTracking(
-//   enabled: boolean,
-//   strategy: 'mostRecent' | 'all' = 'mostRecent'
-// ) {
-//   // todo: delegate to pool
-//   // this.#trackPlaybackPosition = enabled;
-//   // if (enabled && strategy === 'mostRecent') {
-//   //   // Only enable tracking for most recent source
-//   //   if (this.#mostRecentSource) {
-//   //     this.#mostRecentSource.enablePositionTracking = true;
-//   //   }
-//   // } else if (enabled && strategy === 'all') {
-//   //   // todo
-//   // } else {
-//   //   // Disable tracking for all sources
-//   //   this.#pool.allVoices.forEach((voice) => {
-//   //     (voice as any).enablePositionTracking = false;
-//   //   });
-//   // }
-// }
-
-// getParamValue(name: string): number | null {
-//   // todo
-//   return null;
-// }
-
-// setParamValue(name: string, value: number): this {
-//   // todo
-//   return this;
-// }
-
-// #initVoices(context: AudioContext, polyphony: number): void {
-//   for (let i = 0; i < polyphony; i++) {
-//     const voice = new SampleVoice(context);
-
-//     voice.connect(this.outBus.input);
-//     this.#connectToMacros(voice);
-
-//     this.#pool.add(voice);
-
-//     voice.onMessage('voice:releasing', (data) => {
-//       this.#pool.releaseVoice(voice);
-//     });
-
-//     voice.onMessage('voice:ended', (data) => {
-//       // todo: clarify responsibilities for sampler vs pool !
-//       this.#activeMidiNoteToVoice.forEach((voices, midiNote) => {
-//         if (voices.has(voice)) {
-//           voices.delete(voice);
-//           // Return voice to pool
-//           this.#pool.stopVoice(voice);
-//           if (voices.size === 0) {
-//             this.#activeMidiNoteToVoice.delete(midiNote);
-//           }
-//         }
-//       });
-//       // Forward position tracking events
-//       if (this.#mostRecentSource === voice) {
-//         this.#mostRecentSource = null;
-//       }
-//     });
-//   }
-// }
-
-// getParameterValues(): Record<string, number> {
-//   return {
-//     attack: this.getParamValue('attack') || this.#attack,
-//     release: this.getParamValue('release') || this.#release,
-//     startOffset: this.getParamValue('start-offset') || this.#startOffset,
-//     endOffset: this.getParamValue('end-offset') || this.#endOffset,
-//     playbackRate: this.getParamValue('playback-rate') || this.#playbackRate,
-//     loopStart: this.#macroLoopStart.getValue(),
-//     loopEnd: this.#macroLoopEnd.getValue(),
-//     loopRampDuration: this.#loopRampDuration,
-//     hpfCutoff: this.getParamValue('hpf-freq'),
-//     lpfCutoff: this.getParamValue('lpf-freq'),
-//   };
-// }
-
-// #addChild = (node: LibNode | AudioNode) => this.#children.push(node);
-
-// #addChildren = (nodes: Array<LibNode | AudioNode>) => {
-//   nodes.forEach((n) => this.#children.push(n));
-//   return this;
-// };
-
-// #registerParameters(): void {
-//   // Register the loop macros (already LibParams)
-//   this.params.register(this.#macroLoopStart);
-//   this.params.register(this.#macroLoopEnd);
-
-//   this.params.register(
-//     // Need to wrap these simple values as LibParams:
-//     new LibParam('attack', DEFAULT_PARAM_DESCRIPTORS.ATTACK, this.#attack)
-//   );
-//   this.params.register(
-//     new LibParam('release', DEFAULT_PARAM_DESCRIPTORS.RELEASE, this.#release)
-//   );
-//   this.params.register(
-//     new LibParam(
-//       'start-offset',
-//       DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
-//       this.#startOffset
-//     )
-//   );
-//   this.params.register(
-//     new LibParam(
-//       'end-offset',
-//       DEFAULT_PARAM_DESCRIPTORS.END_OFFSET,
-//       this.#endOffset
-//     )
-//   );
-//   this.params.register(
-//     new LibParam(
-//       'playback-rate',
-//       DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
-//       this.#playbackRate
-//     )
-//   );
-//   this.params.register(
-//     new LibParam(
-//       'loop-ramp-duration',
-//       DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
-//       this.#loopRampDuration
-//     )
-//   );
-
-//   if (!this.#hpf || !this.#lpf) return;
-
-//   // Register native AudioParams with descriptors
-//   this.params.register(
-//     this.#hpf.frequency,
-//     DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF
-//   );
-
-//   this.params.register(
-//     this.#lpf.frequency,
-//     DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF
-//   );
-// }
-
-// const allVoices = this.#pool.allVoices;
-// assert(allVoices.length > 0, 'No voices to load sample!');
-
-// const promises = allVoices.map((v) => {
-//   v.loadBuffer(buffer, this.#zeroCrossings);
-//   v.setStartOffset(this.#startOffset);
-//   v.setEndOffset(
-//     this.#zeroCrossings[this.#zeroCrossings.length - 1] || buffer.duration
-//   );
-// });
-
-// const result = await tryCatch(
-//   () => Promise.all(promises),
-//   'Failed to load sample'

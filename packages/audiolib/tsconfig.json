@@ -9,7 +9,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"], // WebWorker might be needed for worklet vite plugin config
+    "lib": ["ES2022", "DOM", "DOM.Iterable"], // ? , "WebWorker"], ?
 
     "declarationMap": true, // ?
     "useDefineForClassFields": true,

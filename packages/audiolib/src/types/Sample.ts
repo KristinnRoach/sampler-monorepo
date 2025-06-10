@@ -1,6 +1,6 @@
 // TODO: make sure this global typing is cool (how does it affect consuming apps?)
 
-interface ISampleMetadata {
+export interface ISampleMetadata {
   duration: number; // in seconds
   sampleRate: number;
   channels: number;
@@ -8,7 +8,7 @@ interface ISampleMetadata {
 }
 
 // Todo: compare and make adaptors between IdbSample and AppSample (internal app state)
-interface AppSample {
+export interface AppSample {
   id: string;
   isLoaded?: boolean; // todo: follow up
 
@@ -30,7 +30,7 @@ interface AppSample {
 
 // type LoadedSample = AppSample & Required<Pick<AppSample, 'audioBuffer'>>;
 
-interface IdbSample {
+export interface IdbSample {
   id: string; // Todo
   url: string; // Original URL or file path
   audioData: ArrayBuffer; // Serializable audio data // todo: check if optimal storage type / format

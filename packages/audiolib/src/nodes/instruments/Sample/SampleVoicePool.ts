@@ -160,7 +160,8 @@ export class SampleVoicePool {
   }
 }
 
-/* Todo: consider this for voice allocation - LATER (once everything else is working) */
+/* Igonre below
+ *  todo: consider this for voice allocation - LATER (once everything else is working) */
 // #available = new Set();
 // #playing = new Set(); // maybe Map
 // #releasing = new Set();

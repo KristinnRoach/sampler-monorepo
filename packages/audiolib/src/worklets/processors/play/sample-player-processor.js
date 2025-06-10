@@ -308,6 +308,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.playbackPosition >= constrainedLoopEnd &&
         this.loopCount < this.maxLoopCount
       ) {
+        console.log(
+          'Loop triggered:',
+          this.playbackPosition,
+          constrainedLoopEnd
+        );
         this.playbackPosition = loopStart;
         this.loopCount++;
       }
@@ -328,10 +333,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         const current = bufferChannel[position];
         const next = bufferChannel[nextPosition];
 
-        output[c][i] =
-          (current + fraction * (next - current)) * velocityGain * envelopeGain;
-      }
+        // output[c][i] =
+        //   (current + fraction * (next - current)) * velocityGain * envelopeGain;
 
+        const sample =
+          (current + fraction * (next - current)) * velocityGain * envelopeGain;
+        output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
+      }
       // Advance playback position
       this.playbackPosition += pbRate;
     }
@@ -348,6 +356,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
+
+// IGNORE BELOW - OLD CODE
 
 // TODO: test with and without internal zero snapping. Remove this if works well without it.
 // // Calculate max acceptable distance based on loop length with scaling

@@ -354,7 +354,6 @@ export class KarplusStrongSynth extends LibInstrument {
 
     this.#lastHpfUpdateTime = currentTime;
 
-    console.info(`Karplus: setHpfCutoff to ${hz} Hz`);
     return this;
   }
 
@@ -378,11 +377,14 @@ export class KarplusStrongSynth extends LibInstrument {
 
     this.#pool.applyToAllVoices((voice) => {
       if (!voice.lpf) return;
-      voice.lpf.frequency.cancelScheduledValues(currentTime);
-      voice.lpf.frequency.setValueAtTime(
-        voice.lpf.frequency.value,
-        currentTime
-      );
+
+      cancelScheduledParamValues(voice.lpf.frequency, currentTime);
+      // voice.lpf.frequency.cancelScheduledValues(currentTime);
+      // const currentValue = voice.lpf.frequency.defaultValue;
+      // voice.lpf.frequency.setValueAtTime(
+      //   voice.lpf.frequency.value,
+      //   currentTime
+      // );
       voice.lpf.frequency.setTargetAtTime(
         safeValue,
         currentTime,

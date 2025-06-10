@@ -1,6 +1,14 @@
 import { LibNode, Messenger } from '@/nodes/LibNode';
 import { MessageHandler, Message } from '@/events';
 
+// interface AudioParamDescriptor {
+//   name: string;
+//   defaultValue?: number;
+//   minValue?: number;
+//   maxValue?: number;
+//   automationRate: 'a-rate' | 'k-rate';
+// }
+
 export interface ParamDescriptor {
   nodeId: NodeID;
   name: string;

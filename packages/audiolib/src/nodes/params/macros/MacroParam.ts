@@ -51,7 +51,18 @@ export class MacroParam implements LibParam {
       'Macros only support a single ParamType'
     );
 
+    console.log(
+      'MacroParam addTarget called:',
+      paramType,
+      'scaleFactor:',
+      scaleFactor,
+      'param:',
+      targetParam
+    );
+
     this.#controller.addTarget(targetParam, scaleFactor);
+    console.log('Connected directly to targetParam');
+
     return this;
   }
 
