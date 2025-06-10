@@ -36,8 +36,10 @@ const init = () => {
   );
 
   playerEl.addEventListener('sampleplayer-initialized', () => {
-    // Manual connection (can also be passed target elementId as attribute)
+    // // Load saved state
+    // loadState();
 
+    // make connections
     recorderEl.addEventListener('recorder-initialized', (e) =>
       recorderEl.connect(playerEl)
     );
@@ -69,9 +71,6 @@ const init = () => {
     // eXtraGain.connect(ksSynth.auxIn);
 
     // MEGA TEST __________________________
-
-    // Load saved state
-    loadState();
 
     // Set up event listeners to save state on changes
     document.querySelectorAll('.draggable').forEach((el) => {

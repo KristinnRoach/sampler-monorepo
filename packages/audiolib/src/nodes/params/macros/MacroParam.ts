@@ -1,4 +1,4 @@
-import { AudioParamDescriptor, LibParamDescriptor } from '@/nodes/params';
+import { LibParamDescriptor } from '@/nodes/params';
 import {
   Message,
   MessageBus,

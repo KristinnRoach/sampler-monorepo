@@ -169,8 +169,20 @@ export class EnvelopeElement extends BaseAudioElement {
       this.onAttackChange(value);
     }
 
-    // Apply envelope to target
-    this.applyEnvelopeToTarget();
+    // Apply attack value directly to target
+    if (this.targetElement) {
+      const target = this.targetElement as any;
+      if (target.getSamplePlayer) {
+        // Target has a getSamplePlayer method (like SamplerElement)
+        const player = target.getSamplePlayer();
+        if (player && player.setAttackTime) {
+          player.setAttackTime(this.attackValue);
+        }
+      } else if (target.setAttackTime) {
+        // Target has direct method
+        target.setAttackTime(this.attackValue);
+      }
+    }
 
     // Dispatch event for connected elements
     this.dispatchEvent(
@@ -197,8 +209,20 @@ export class EnvelopeElement extends BaseAudioElement {
       this.onReleaseChange(value);
     }
 
-    // Apply envelope to target
-    this.applyEnvelopeToTarget();
+    // Apply release value directly to target
+    if (this.targetElement) {
+      const target = this.targetElement as any;
+      if (target.getSamplePlayer) {
+        // Target has a getSamplePlayer method (like SamplerElement)
+        const player = target.getSamplePlayer();
+        if (player && player.setReleaseTime) {
+          player.setReleaseTime(this.releaseValue);
+        }
+      } else if (target.setReleaseTime) {
+        // Target has direct method
+        target.setReleaseTime(this.releaseValue);
+      }
+    }
 
     // Dispatch event for connected elements
     this.dispatchEvent(
@@ -238,7 +262,8 @@ export class EnvelopeElement extends BaseAudioElement {
     this.updateStatus(`Connected to ${this.targetId}`);
 
     // Apply current values to target
-    this.applyEnvelopeToTarget();
+    this.setAttack(this.attackValue);
+    this.setRelease(this.releaseValue);
 
     // Dispatch connection event
     this.dispatchEvent(
@@ -284,28 +309,6 @@ export class EnvelopeElement extends BaseAudioElement {
 
     this.connect(target);
     return true;
-  }
-
-  /**
-   * Apply current envelope values to connected target
-   */
-  private applyEnvelopeToTarget(): void {
-    if (!this.targetElement) return;
-
-    // Try different ways to set values on target
-    const target = this.targetElement as any;
-    if (target.getSamplePlayer) {
-      // Target has a getSamplePlayer method (like SamplerElement)
-      const player = target.getSamplePlayer();
-      if (player && player.setAttackTime && player.setReleaseTime) {
-        player.setAttackTime(this.attackValue);
-        player.setReleaseTime(this.releaseValue);
-      }
-    } else if (target.setAttackTime && target.setReleaseTime) {
-      // Target has direct methods
-      target.setAttackTime(this.attackValue);
-      target.setReleaseTime(this.releaseValue);
-    }
   }
 
   /**

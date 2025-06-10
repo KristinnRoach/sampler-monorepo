@@ -1,8 +1,8 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { cancelScheduledParamValues } from '@/utils';
 
-// TODO: try using the constant signal offset directly ?
-// Define the role of constant signal vs gain control node
+// NOTE: The controlNode (GainNode) is possibly redundant and could be replaced with
+// direct connection to the constantSignal (using offset param instead of gain value)
 
 export class AudioParamController {
   readonly nodeId: NodeID;
