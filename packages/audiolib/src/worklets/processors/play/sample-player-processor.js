@@ -308,11 +308,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.playbackPosition >= constrainedLoopEnd &&
         this.loopCount < this.maxLoopCount
       ) {
-        console.log(
-          'Loop triggered:',
-          this.playbackPosition,
-          constrainedLoopEnd
-        );
         this.playbackPosition = loopStart;
         this.loopCount++;
       }

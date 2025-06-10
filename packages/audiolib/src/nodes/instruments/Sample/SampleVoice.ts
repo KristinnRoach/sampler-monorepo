@@ -100,7 +100,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<
   },
 };
 
-export class SampleVoice implements LibVoiceNode, Messenger {
+export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
 

@@ -32,8 +32,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   protected keyboardHandler: InputHandler | null = null;
   protected midiController: MidiController | null = null;
 
-  // protected params = new ParamManager();
-  protected voices: SampleVoicePool | KarplusVoicePool | null = null;
+  protected voicePool: SampleVoicePool | KarplusVoicePool | null = null;
 
   protected context: AudioContext;
   protected outBus: InstrumentMasterBus;

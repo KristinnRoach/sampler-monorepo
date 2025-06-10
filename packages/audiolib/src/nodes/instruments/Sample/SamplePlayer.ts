@@ -1,4 +1,3 @@
-import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
 import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
@@ -19,18 +18,12 @@ import {
   DEFAULT_PARAM_DESCRIPTORS,
 } from '@/nodes/params';
 
-import { getMaxFilterFreq } from '@/nodes/instruments/Sample/param-defaults';
-
+import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
-
 import { SampleVoicePool } from './SampleVoicePool';
 
 export class SamplePlayer extends LibInstrument {
   // SamplePlayer-specific fields private with #
-  // #children: Array<LibNode | AudioNode> = [];
-  // #lpf: BiquadFilterNode | null = null;
-  // #hpf: BiquadFilterNode | null = null;
-  #pool: SampleVoicePool;
   #midiNoteToId: Map<MidiValue, ActiveNoteId> = new Map();
   #bufferDuration: number = 0;
   #loopEnabled = false;
@@ -45,8 +38,9 @@ export class SamplePlayer extends LibInstrument {
   #zeroCrossings: number[] = [];
   #useZeroCrossings = true;
   #trackPlaybackPosition = false;
-
   randomizeVelocity = false;
+
+  voicePool: SampleVoicePool;
 
   connectAltOut: InstrumentMasterBus['connectAltOut'];
   setAltOutVolume: InstrumentMasterBus['setAltOutVolume'];
@@ -60,42 +54,15 @@ export class SamplePlayer extends LibInstrument {
   ) {
     super('sample-player', context, polyphony, audioBuffer, midiController);
 
-    // Initialize the output bus methods
-    this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
-    this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
-    this.mute = (...args) => this.outBus.mute(...args);
-
-    // Init filters
-    // const safeMaxFrequency = this.context.sampleRate / 2.1; // Slightly below Nyquist
-    // const defaultLpfCutoff = Math.min(20000, safeMaxFrequency);
-
-    // this.#hpf = new BiquadFilterNode(context, {
-    //   type: 'highpass',
-    //   frequency: 100,
-    //   Q: 1,
-    // });
-
-    // this.#lpf = new BiquadFilterNode(context, {
-    //   type: 'lowpass',
-    //   frequency: defaultLpfCutoff,
-    //   Q: 1,
-    // });
-
     // ? Load stored values ?
 
     // Initialize voice pool
-    this.#pool = new SampleVoicePool(
+    this.voicePool = new SampleVoicePool(
       context,
       polyphony,
-      this.outBus.input, // todo: explicit connect
+      this.outBus.input, // todo: explicit connect (first create generic pool interface)
       true // enable voice filters (lpf and hpf)
     );
-    // this.#pool = new SampleVoicePool(context, polyphony, this.#hpf);
-    this.voices = this.#pool;
-
-    // Connect audiochain
-    // this.#hpf.connect(this.#lpf);
-    // this.#lpf.connect(this.outBus.input);
 
     // Setup macro params
     this.#macroLoopStart = new MacroParam(
@@ -107,11 +74,14 @@ export class SamplePlayer extends LibInstrument {
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
-    // this.#registerParameters();
     this.#connectVoicesToMacros();
 
-    // // Populate SamplePlayers sub-graph
-    // this.#addChildren([this.outBus, this.#hpf, this.#lpf, this.#pool]);
+    // Connect audiochain -- todo after generalizing voice pool
+
+    // Initialize the output bus methods
+    this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
+    this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
+    this.mute = (...args) => this.outBus.mute(...args);
 
     this.#isReady = true;
 
@@ -132,10 +102,9 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #connectVoicesToMacros(): this {
-    const voices = this.#pool.allVoices;
+    const voices = this.voicePool.allVoices;
 
     voices.forEach((voice) => {
-      // Connect only the loop points
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
 
@@ -146,19 +115,6 @@ export class SamplePlayer extends LibInstrument {
         this.#macroLoopStart.addTarget(loopStartParam, 'loopStart');
       }
     });
-
-    //  Force initial sync after connections are made // Todo: figure out why this is needed
-    this.#syncInitialValues();
-
-    return this;
-  }
-
-  #syncInitialValues(): this {
-    const currentLoopEnd = this.#macroLoopEnd.getValue();
-    const currentLoopStart = this.#macroLoopStart.getValue();
-
-    this.#macroLoopEnd.setValue(currentLoopEnd);
-    this.#macroLoopStart.setValue(currentLoopStart);
 
     return this;
   }
@@ -201,7 +157,7 @@ export class SamplePlayer extends LibInstrument {
     assert(isValidAudioBuffer(buffer));
 
     this.releaseAll();
-    this.#pool.transposeSemitones = 0; // or possibly stored value
+    this.voicePool.transposeSemitones = 0; // or possibly stored value
     this.#isLoaded = false;
 
     if (
@@ -236,7 +192,7 @@ export class SamplePlayer extends LibInstrument {
       this.#zeroCrossings = zeroes;
     }
 
-    this.#pool.setBuffer(buffer, this.#zeroCrossings);
+    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
 
     this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
@@ -261,11 +217,11 @@ export class SamplePlayer extends LibInstrument {
     // If this MIDI note is already playing, release it first
     if (this.#midiNoteToId.has(midiNote)) {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
-      this.#pool.noteOff(oldNoteId, 0); // Quick release
+      this.voicePool.noteOff(oldNoteId, 0); // Quick release
     }
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
-    const noteId = this.#pool.noteOn(
+    const noteId = this.voicePool.noteOn(
       midiNote,
       velocity,
       0 // zero delay
@@ -313,14 +269,14 @@ export class SamplePlayer extends LibInstrument {
       }
     }
 
-    this.#pool.noteOff(noteId, this.getReleaseTime(), 0); // Pass the release time directly
+    this.voicePool.noteOff(noteId, this.getReleaseTime(), 0); // Pass the release time directly
 
     this.sendUpstreamMessage('note:off', { noteId, midiNote });
     return this;
   }
 
   releaseAll(fadeOut_sec: number = this.getReleaseTime()): this {
-    this.#pool.allNotesOff(fadeOut_sec);
+    this.voicePool.allNotesOff(fadeOut_sec);
     this.#midiNoteToId.clear();
     return this;
   }
@@ -411,25 +367,25 @@ export class SamplePlayer extends LibInstrument {
 
   setAttackTime(seconds: number): this {
     this.storeParamValue('attack', seconds);
-    this.#pool.applyToAllVoices((voice) => voice.setAttack(seconds));
+    this.voicePool.applyToAllVoices((voice) => voice.setAttack(seconds));
     return this;
   }
 
   setReleaseTime(seconds: number): this {
     this.storeParamValue('release', seconds);
-    this.#pool.applyToAllVoices((voice) => voice.setAttack(seconds));
+    this.voicePool.applyToAllVoices((voice) => voice.setAttack(seconds));
     return this;
   }
 
   setSampleStartOffset(seconds: number): this {
     this.storeParamValue('startOffset', seconds);
-    this.#pool.applyToAllVoices((voice) => voice.setStartOffset(seconds));
+    this.voicePool.applyToAllVoices((voice) => voice.setStartOffset(seconds));
     return this;
   }
 
   setSampleEndOffset(seconds: number): this {
     this.storeParamValue('endOffset', seconds);
-    this.#pool.applyToAllVoices((voice) => voice.setEndOffset(seconds));
+    this.voicePool.applyToAllVoices((voice) => voice.setEndOffset(seconds));
     return this;
   }
 
@@ -440,7 +396,7 @@ export class SamplePlayer extends LibInstrument {
 
   setPlaybackRate(value: number): this {
     this.storeParamValue('playbackRate', value);
-    this.#pool.applyToAllVoices((voice) => voice.setPlaybackRate(value));
+    this.voicePool.applyToAllVoices((voice) => voice.setPlaybackRate(value));
     console.warn(`SamplePlayer: setPlaybackRate is not implemented yet.`);
     return this;
   }
@@ -467,7 +423,7 @@ export class SamplePlayer extends LibInstrument {
       return this;
     }
 
-    this.#pool.applyToAllVoices((voice) => {
+    this.voicePool.applyToAllVoices((voice) => {
       if (!voice.hpf) return;
       try {
         // Replace cancelAndHoldAtTime with safer options
@@ -508,7 +464,7 @@ export class SamplePlayer extends LibInstrument {
       return this;
     }
 
-    this.#pool.applyToAllVoices((voice) => {
+    this.voicePool.applyToAllVoices((voice) => {
       if (!voice.lpf) return;
       // voice.lpf.frequency.cancelScheduledValues(currentTime);
       // voice.lpf.frequency.setValueAtTime(
@@ -533,7 +489,7 @@ export class SamplePlayer extends LibInstrument {
     // if loop is locked (ON), turning it off is disabled but turning it on should work
     if (this.#loopLocked && !enabled) return this;
 
-    const voices = this.#pool.allVoices;
+    const voices = this.voicePool.allVoices;
     voices.forEach((v) => v.setLoopEnabled(enabled));
 
     this.#loopEnabled = enabled;
@@ -678,9 +634,9 @@ export class SamplePlayer extends LibInstrument {
     try {
       this.releaseAll();
 
-      if (this.#pool) {
-        this.#pool.dispose();
-        this.#pool = null as unknown as SampleVoicePool;
+      if (this.voicePool) {
+        this.voicePool.dispose();
+        this.voicePool = null as unknown as SampleVoicePool;
       }
 
       this.#midiNoteToId.clear();

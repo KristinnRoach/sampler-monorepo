@@ -1,5 +1,4 @@
 import { NodeID } from '@/nodes/node-store';
-// import { ParamType } from './params';
 import { InstrumentType } from './instruments';
 import { Message, MessageHandler } from '@/events';
 
@@ -62,21 +61,8 @@ export interface Messenger {
   onMessage(type: string, handler: MessageHandler<Message>): () => TODO;
 }
 
-export interface TimeKeeper {
-  readonly now: number;
-}
-
 export interface SampleLoader {
   loadSample(...args: TODO[]): Promise<TODO>;
-}
-
-// Container node
-export interface LibContainerNode extends LibNode, Connectable {
-  readonly nodeType: ContainerType;
-
-  add(child: LibNode): this;
-  remove(child: LibNode): this;
-  nodes: LibNode[];
 }
 
 // Voice node - handles actual sound generation
@@ -92,14 +78,6 @@ export interface LibVoiceNode extends LibNode, Connectable {
   sendToProcessor(data: TODO): void;
 }
 
-// Effect node
-export interface LibFxNode extends LibNode {
-  readonly nodeType: FxType;
-
-  bypass(shouldBypass: boolean): this;
-  setMix(value: number): this;
-}
-
-// destination: Destination | null; //LibNode | AudioDestinationNode | AudioNode | null;
-// in?: Connectable[] | AudioNode | null;
-// out?: Connectable[] | AudioNode | null; // TODO: Standardize so don't have to distinguish between LibAudioNodes and AudioNodes, make required and remove "| AudioNode"
+// export interface TimeKeeper {
+//   readonly now: number;
+// }

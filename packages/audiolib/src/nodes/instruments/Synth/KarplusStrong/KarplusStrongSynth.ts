@@ -13,10 +13,11 @@ import { normalizeRange, cancelScheduledParamValues } from '@/utils';
 export class KarplusStrongSynth extends LibInstrument {
   // KarplusStrongSynth-specific private # fields
   #auxInput: GainNode;
-  #pool: KarplusVoicePool;
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
   #debouncer: Debouncer = new Debouncer();
   #isReady: boolean = false;
+
+  voicePool: KarplusVoicePool;
 
   get isReady() {
     return this.#isReady;
@@ -30,16 +31,15 @@ export class KarplusStrongSynth extends LibInstrument {
     super('synth', ctx || getAudioContext(), polyphony);
 
     // Initialize voice pool
-    this.#pool = new KarplusVoicePool(
+    this.voicePool = new KarplusVoicePool(
       this.context,
       polyphony,
       this.outBus.input
     );
-    this.voices = this.#pool;
 
     // Create auxiliary input
     this.#auxInput = new GainNode(this.context);
-    this.#pool.auxIn = this.#auxInput;
+    this.voicePool.auxIn = this.#auxInput;
 
     // Load stored parameter values
     this.setParameterValue('volume', this.getStoredParamValue('volume', 1));
@@ -67,11 +67,11 @@ export class KarplusStrongSynth extends LibInstrument {
     // Release any existing note with same midiNote
     if (this.#midiNoteToId.has(midiNote)) {
       const oldNoteId = this.#midiNoteToId.get(midiNote)!;
-      this.#pool.noteOff(oldNoteId, 0); // Quick release
+      this.voicePool.noteOff(oldNoteId, 0); // Quick release
     }
 
     // Assign a voice and play the note
-    const noteId = this.#pool.noteOn(midiNote, velocity);
+    const noteId = this.voicePool.noteOn(midiNote, velocity);
 
     // Store the noteId for this midiNote
     this.#midiNoteToId.set(midiNote, noteId);
@@ -88,7 +88,7 @@ export class KarplusStrongSynth extends LibInstrument {
       return this;
     }
 
-    this.#pool.noteOff(noteId, this.decaySeconds);
+    this.voicePool.noteOff(noteId, this.decaySeconds);
     this.#midiNoteToId.delete(midiNote);
 
     this.sendUpstreamMessage('note:off', { midiNote });
@@ -108,7 +108,7 @@ export class KarplusStrongSynth extends LibInstrument {
   }
 
   stopAll(): this {
-    this.#pool.allNotesOff();
+    this.voicePool.allNotesOff();
     this.#midiNoteToId.clear();
     return this;
   }
@@ -123,7 +123,7 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'attack':
-          this.#pool.allVoices.forEach((voice) => {
+          this.voicePool.allVoices.forEach((voice) => {
             voice.attack = value;
           });
           const useableAttack = normalizeRange(value, 0, 1, 0.1, 1);
@@ -131,7 +131,7 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'decay':
-          this.#pool.allVoices.forEach((voice) => {
+          this.voicePool.allVoices.forEach((voice) => {
             const param = voice.getParam('decay');
             if (param) {
               const useableDecay = normalizeRange(value, 0, 1, 0.35, 0.995);
@@ -142,7 +142,7 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'noiseTime':
-          this.#pool.allVoices.forEach((voice) => {
+          this.voicePool.allVoices.forEach((voice) => {
             const param = voice.getParam('noiseTime');
             if (param) {
               const useableNoiseTime = normalizeRange(value, 0.0, 1, 0.1, 0.99);
@@ -185,12 +185,12 @@ export class KarplusStrongSynth extends LibInstrument {
         return undefined;
     }
   }
+
   // could also be simplified to something like:
   // getParamValue(paramId: string): any {
   //   return this.getStoredParamValue(paramId, NaN);
   // }
 
-  // TODO: review and standardize these param descriptors, this was added as quick placeholders to align the interfaces
   getParameterDescriptors(): Record<string, LibParamDescriptor> {
     return {
       volume: {
@@ -301,7 +301,7 @@ export class KarplusStrongSynth extends LibInstrument {
       this.keyboardHandler = null;
     }
 
-    this.#pool.dispose();
+    this.voicePool.dispose();
     this.#midiNoteToId.clear();
     this.outBus.dispose();
     this.outBus = null as unknown as InstrumentMasterBus;
@@ -354,7 +354,7 @@ export class KarplusStrongSynth extends LibInstrument {
     }
 
     this.storeParamValue('karplus:hpfCutoff', hz);
-    this.#pool.applyToAllVoices((voice) => voice.setParam('hpf', hz));
+    this.voicePool.applyToAllVoices((voice) => voice.setParam('hpf', hz));
 
     this.#lastHpfUpdateTime = currentTime;
 
@@ -379,7 +379,7 @@ export class KarplusStrongSynth extends LibInstrument {
       return this;
     }
 
-    this.#pool.applyToAllVoices((voice) => {
+    this.voicePool.applyToAllVoices((voice) => {
       if (!voice.lpf) return;
 
       cancelScheduledParamValues(voice.lpf.frequency, currentTime);
@@ -419,7 +419,7 @@ export class KarplusStrongSynth extends LibInstrument {
   }
 
   get maxVoices(): number {
-    return this.#pool.allVoices.length;
+    return this.voicePool.allVoices.length;
   }
 }
 
