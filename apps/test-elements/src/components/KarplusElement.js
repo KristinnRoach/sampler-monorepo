@@ -4,7 +4,7 @@ import { createKarplusStrongSynth } from '@repo/audio-components';
 
 const { div, span, input, label } = van.tags;
 
-const KarplusSynthComponent = (attributes) => {
+const KarplusElement = (attributes) => {
   let ksSynth; // Synth instance
 
   // Van.js reactive states
@@ -84,6 +84,7 @@ const KarplusSynthComponent = (attributes) => {
         value: () => volume.val,
         oninput: (e) => (volume.val = parseFloat(e.target.value)),
         style: 'margin-left: 10px;',
+        class: 'interactive-element', // Add this class
       }),
       span(
         { style: 'margin-left: 10px;' },
@@ -103,6 +104,7 @@ const KarplusSynthComponent = (attributes) => {
         value: () => decay.val,
         oninput: (e) => (decay.val = parseFloat(e.target.value)),
         style: 'margin-left: 10px;',
+        class: 'interactive-element', // Add this class
       }),
       span(
         { style: 'margin-left: 10px;' },
@@ -213,7 +215,7 @@ const KarplusSynthComponent = (attributes) => {
 
 // Export a function that defines the custom element
 export const defineKarplusSynth = (elementName = 'karplus-synth') => {
-  define(elementName, KarplusSynthComponent);
+  define(elementName, KarplusElement, false); // false == no shadow root
 };
 
 // Usage:

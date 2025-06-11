@@ -9,7 +9,7 @@ export type BaseNodeType =
   | 'param'
   | 'container'
   | 'recorder'
-  | 'audiolib';
+  | 'audiograph';
 
 export type ContainerType = 'pool' | 'chain' | 'audiolib';
 
@@ -33,16 +33,16 @@ export type NodeType =
 // | ParamType
 // | FxType;
 
-export type AudioGraph = {
-  root: LibNode;
-};
-
 // Base interface for all nodes
 export interface LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
   readonly isReady: boolean;
   dispose(): void;
+}
+
+export interface AudioGraph extends LibNode {
+  audioContext: AudioContext | null;
 }
 
 export type Destination = Connectable | AudioNode | AudioParam;

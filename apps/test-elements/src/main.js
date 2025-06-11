@@ -6,7 +6,6 @@ import { saveState, loadState, debouncedSaveState } from './state.js';
 import { defineKarplusSynth } from './components/KarplusElement.js';
 
 const init = () => {
-  // Get references to elements
   const playerEl = document.getElementById(`sampler-1`);
 
   // const karplusCompBox = document.getElementById('karplus-1');
@@ -36,13 +35,13 @@ const init = () => {
   );
 
   playerEl.addEventListener('sampleplayer-initialized', () => {
-    // // Load saved state
-    // loadState();
+    // Load saved state
+    loadState();
 
     // make connections
-    recorderEl.addEventListener('recorder-initialized', (e) =>
-      recorderEl.connect(playerEl)
-    );
+    recorderEl.addEventListener('recorder-initialized', (e) => {
+      recorderEl.connect(playerEl);
+    });
 
     loaderEl.connect(playerEl);
     envelopeEl.connect(playerEl);
@@ -58,17 +57,17 @@ const init = () => {
     van.add(envelopeEl, lpfFreqSlider);
 
     // MEGA TEST __________________________
-    // const player = playerEl.player;
-    // console.table(player);
+    const player = playerEl.player;
+    console.table(player);
 
-    // const ctx = ksSynth.context;
-    // const eXtraGain = new GainNode(ctx);
-    // eXtraGain.gain.setValueAtTime(1.5, ctx.currentTime);
+    const ctx = ksSynth.context;
+    const eXtraGain = new GainNode(ctx);
+    eXtraGain.gain.setValueAtTime(1.5, ctx.currentTime);
 
-    // player.connectAltOut(eXtraGain);
+    player.connectAltOut(eXtraGain);
 
-    // console.info(ksSynth.auxIn);
-    // eXtraGain.connect(ksSynth.auxIn);
+    console.info(ksSynth.auxIn);
+    eXtraGain.connect(ksSynth.auxIn);
 
     // MEGA TEST __________________________
 

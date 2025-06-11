@@ -82,8 +82,28 @@ body {
   cursor: grabbing;
 }
 
+.sampler {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  width: 100%;
+  padding: 15px;
+  box-sizing: border-box;
+  justify-items: center;
+  align-items: center;
+}
+
 .sampler two-thumb-slider {
   width: 90%;
+}
+
+.karplus-synth {
+  position: relative;
+}
+
+.karplus-synth input {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .sampler .dynamic envelope-element .parameters {

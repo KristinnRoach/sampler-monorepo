@@ -18,7 +18,7 @@ import {
 import { idb, initIdb } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
-import { LibNode, ContainerType, SampleLoader } from '@/nodes/LibNode';
+import { AudioGraph, LibNode, NodeType, SampleLoader } from '@/nodes/LibNode';
 
 import { LibInstrument } from '@/nodes/instruments';
 
@@ -35,11 +35,12 @@ import { initProcessors } from './worklets';
 
 import { MidiController } from '@/io';
 
-export class Audiolib implements LibNode {
+export class Audiolib implements AudioGraph {
   readonly nodeId: NodeID;
-  readonly nodeType: ContainerType = 'audiolib';
+  readonly nodeType: NodeType = 'audiograph';
 
-  #asyncInit = createAsyncInit<Audiolib>();
+  // #asyncInit = createAsyncInit<Audiolib>();
+  #isInitialized = false;
   #midiController = new MidiController();
 
   #audioContext: AudioContext | null = null;
@@ -71,7 +72,7 @@ export class Audiolib implements LibNode {
     this.#masterGain.gain.value = 1.0;
     this.#masterGain.connect(this.#audioContext.destination);
 
-    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
+    // this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
   }
 
   /** TODO: Review initialization approaches and standardize,
@@ -79,9 +80,10 @@ export class Audiolib implements LibNode {
    *        or just redundantly complex ? */
 
   // Public init method (will be replaced by wrapper)
-  init!: () => Promise<Audiolib>;
+  // init!: () => Promise<Audiolib>;
 
-  async #initImpl(): Promise<Audiolib> {
+  async init(): Promise<Audiolib> {
+    // #initImpl()
     if (this.isReady) return this;
 
     // Ensure audio context is available
@@ -113,49 +115,50 @@ export class Audiolib implements LibNode {
     this.#globalAudioRecorder = recorderResult.data;
 
     const midiSuccess = await this.initMidiController();
-    if (midiSuccess) console.log(`Midi initialized`);
+    if (!midiSuccess) console.warn(`Midi initialization failed`);
 
     // All is well
-    console.log('Audiolib initialized successfully');
+    console.log('Audiolib initialized');
+    this.#isInitialized = true;
     return this;
   }
 
-  async reset(): Promise<Audiolib> {
-    // Dispose of resources
-    if (this.#globalAudioRecorder) {
-      this.#globalAudioRecorder.dispose();
-      this.#globalAudioRecorder = null;
-    }
+  // async reset(): Promise<Audiolib> {
+  //   // Dispose of resources
+  //   if (this.#globalAudioRecorder) {
+  //     this.#globalAudioRecorder.dispose();
+  //     this.#globalAudioRecorder = null;
+  //   }
 
-    // Reset initialization state
-    this.#asyncInit = createAsyncInit<Audiolib>();
-    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
+  //   // Reset initialization state
+  //   this.#asyncInit = createAsyncInit<Audiolib>();
+  //   this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
 
-    // Re-initialize
-    return this.init();
-  }
+  //   // Re-initialize
+  //   return this.init();
+  // }
 
   // Public API for initialization state
 
   get isReady(): boolean {
-    return this.#asyncInit.isReady();
+    return this.#isInitialized; // this.#asyncInit.isReady();
   }
 
-  getInitState(): InitState {
-    return this.#asyncInit.getState();
-  }
+  // getInitState(): InitState {
+  //   return this.#asyncInit.getState();
+  // }
 
-  onReady(callback: (instance: Audiolib) => void): () => void {
-    const checkAndCall = () => {
-      if (this.isReady) callback(this);
-    };
+  // onReady(callback: (instance: Audiolib) => void): () => void {
+  //   const checkAndCall = () => {
+  //     if (this.isReady) callback(this);
+  //   };
 
-    // Call immediately if already ready
-    checkAndCall();
+  //   // Call immediately if already ready
+  //   checkAndCall();
 
-    // Subscribe to future state changes
-    return this.#asyncInit.onStateChange(checkAndCall);
-  }
+  //   // Subscribe to future state changes
+  //   return this.#asyncInit.onStateChange(checkAndCall);
+  // }
 
   async #validateContext(ctx: AudioContext): Promise<void> {
     assert(

@@ -35,8 +35,8 @@ export const saveState = () => {
     const elementState = {};
 
     if (id === 'envelope-1') {
-      elementState.attack = el.getAttribute('attack');
-      elementState.release = el.getAttribute('release');
+      elementState.attack = el.getAttack();
+      elementState.release = el.getRelease();
     } else if (id === 'loop-controller-1') {
       elementState.loopStart = el.loopStart;
       elementState.loopEnd = el.loopEnd;
@@ -78,9 +78,9 @@ export const loadState = () => {
         // Restore element-specific properties
         if (id === 'envelope-1') {
           if (elementState.attack)
-            el.setAttribute('attack', elementState.attack);
+            el.setAttack(parseFloat(elementState.attack));
           if (elementState.release)
-            el.setAttribute('release', elementState.release);
+            el.setRelease(parseFloat(elementState.release));
         } else if (
           id === 'loop-controller-1' &&
           elementState.loopStart !== undefined &&

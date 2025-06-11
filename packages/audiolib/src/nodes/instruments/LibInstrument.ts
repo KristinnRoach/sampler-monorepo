@@ -55,38 +55,6 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     this.midiController = midiController || null;
   }
 
-  // // Standard parameter management methods
-  // /**
-  //  * Sets a parameter value with optional debouncing
-  //  */
-  // setParamValue(paramId: string, value: any, debounceMs: number = 0): this {
-  //   this.params.setValue(paramId, value, debounceMs);
-  //   this.sendUpstreamMessage('param:change', { paramId, value });
-  //   return this;
-  // }
-
-  // /**
-  //  * Gets a parameter value by ID
-  //  */
-  // getParamValue(paramId: string): any {
-  //   const param = this.params.get(paramId);
-  //   return param ? param.getValue() : undefined;
-  // }
-
-  // /**
-  //  * Gets all parameters
-  //  */
-  // getAllParams(): LibParam[] {
-  //   return this.params.getAll();
-  // }
-
-  // /**
-  //  * Gets parameters by group
-  //  */
-  // getParamsByGroup(group: string): LibParam[] {
-  //   return this.params.getByGroup(group);
-  // }
-
   /**
    * Helper method to store parameter values in local storage
    */
@@ -132,7 +100,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
 
   abstract release(
     note: MidiValue | ActiveNoteId,
-    modifiers?: Partial<PressedModifiers> // , fadeOut_sec?: number
+    modifiers?: Partial<PressedModifiers>
   ): this;
 
   abstract releaseAll(fadeOut_sec?: number): this;
@@ -250,3 +218,35 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     }
   }
 }
+
+// // Standard parameter management methods
+// /**
+//  * Sets a parameter value with optional debouncing
+//  */
+// setParamValue(paramId: string, value: any, debounceMs: number = 0): this {
+//   this.params.setValue(paramId, value, debounceMs);
+//   this.sendUpstreamMessage('param:change', { paramId, value });
+//   return this;
+// }
+
+// /**
+//  * Gets a parameter value by ID
+//  */
+// getParamValue(paramId: string): any {
+//   const param = this.params.get(paramId);
+//   return param ? param.getValue() : undefined;
+// }
+
+// /**
+//  * Gets all parameters
+//  */
+// getAllParams(): LibParam[] {
+//   return this.params.getAll();
+// }
+
+// /**
+//  * Gets parameters by group
+//  */
+// getParamsByGroup(group: string): LibParam[] {
+//   return this.params.getByGroup(group);
+// }

@@ -16,6 +16,10 @@ export class RecorderElement extends BaseAudioElement {
     return ['destination'];
   }
 
+  get recorderInstance() {
+    return this.recorder;
+  }
+
   constructor() {
     super('recorder');
 
