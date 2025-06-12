@@ -56,6 +56,10 @@ export class AudioParamController {
 
     cancelScheduledParamValues(this.param, now);
 
+    // TESTING: Preventing unexpected jumps by explicitly setting the current value at the current time
+    const currentValue = this.param.value;
+    this.param.setValueAtTime(currentValue, now);
+
     if (method === 'exponential') {
       this.param.exponentialRampToValueAtTime(safeValue, now + duration);
     } else {

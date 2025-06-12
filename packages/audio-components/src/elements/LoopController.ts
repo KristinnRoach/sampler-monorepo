@@ -24,7 +24,14 @@ export class LoopController extends BaseAudioElement {
     | null = null;
 
   static get observedAttributes(): string[] {
-    return ['loop-start', 'loop-end', 'fine-tune', 'destination'];
+    return [
+      'loop-start',
+      'loop-end',
+      'fine-tune',
+      'destination',
+      'start-offset',
+      'end-offset',
+    ];
   }
 
   constructor() {
@@ -50,7 +57,7 @@ export class LoopController extends BaseAudioElement {
             </two-thumb-slider>
             <div class="fine-tune-control">
               <label for="fine-tune">Fine Tune (ms):</label>
-              <input type="range" id="fine-tune" value="0" min="-0.5" max="0.5" step="0.01">
+              <input type="range" id="fine-tune" value="0" min="-0.01" max="0.01" step="0.0001">
               <span class="fine-tune-value">0</span>
             </div>
         </div>
@@ -117,6 +124,31 @@ export class LoopController extends BaseAudioElement {
 
       this.initialized = true;
     }
+
+    // Fine-tune control setup
+    const fineTuneSlider = this.querySelector('#fine-tune') as HTMLInputElement;
+    const fineTuneValueDisplay = this.querySelector(
+      '.fine-tune-value'
+    ) as HTMLElement;
+
+    if (fineTuneSlider) {
+      fineTuneSlider.addEventListener('input', (e) => {
+        const value = parseFloat((e.target as HTMLInputElement).value);
+        this.setFineTune(value);
+        if (fineTuneValueDisplay) {
+          fineTuneValueDisplay.textContent = value.toFixed(4);
+        }
+      });
+
+      // Initialize from attribute
+      if (this.hasAttribute('fine-tune')) {
+        const fineTuneValue = parseFloat(this.getAttribute('fine-tune') || '0');
+        fineTuneSlider.value = fineTuneValue.toString();
+        if (fineTuneValueDisplay) {
+          fineTuneValueDisplay.textContent = fineTuneValue.toFixed(2);
+        }
+      }
+    }
   }
 
   /**
@@ -131,14 +163,16 @@ export class LoopController extends BaseAudioElement {
 
     switch (name) {
       case 'loop-start':
+      case 'start-offset': // TESTING: Handle start-offset the same as loop-start
         this.setLoopStart(parseFloat(newValue || '0'));
         break;
       case 'loop-end':
+      case 'end-offset': // TESTING: Handle end-offset the same as loop-end
         this.setLoopEnd(parseFloat(newValue || '0.99'));
         break;
-      // case 'fine-tune':
-      //   this.setFineTune(parseFloat(newValue || '0'));
-      //   break;
+      case 'fine-tune':
+        this.setFineTune(parseFloat(newValue || '0'));
+        break;
       case 'destination':
         if (newValue && newValue !== this.targetId) {
           this.connectToDestinationById(newValue);
@@ -156,13 +190,16 @@ export class LoopController extends BaseAudioElement {
     this.loopStartValue = value;
     this.setAttribute('loop-start', value.toString());
 
+    // TESTING: Combining loop-start and start-offset
+    this.setAttribute('start-offset', value.toString());
+
     const valueDisplay = this.querySelector('#loop-start-value');
     if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
 
     // Notify callback if registered
     if (this.onLoopStartChange) this.onLoopStartChange(value);
 
-    this.applyLoopToTarget();
+    this.applyToTarget();
 
     this.dispatchEvent(
       new CustomEvent('loop-start-changed', {
@@ -179,12 +216,14 @@ export class LoopController extends BaseAudioElement {
     this.loopEndValue = value;
     this.setAttribute('loop-end', value.toString());
 
+    this.setAttribute('end-offset', value.toString());
+
     const valueDisplay = this.querySelector('#loop-end-value');
     if (valueDisplay) valueDisplay.textContent = value.toFixed(2);
 
     if (this.onLoopEndChange) this.onLoopEndChange(value);
 
-    this.applyLoopToTarget();
+    this.applyToTarget();
 
     this.dispatchEvent(
       new CustomEvent('loop-end-changed', {
@@ -223,7 +262,7 @@ export class LoopController extends BaseAudioElement {
     this.updateStatus(`Connected to ${this.targetId}`);
 
     // Apply current values to target
-    this.applyLoopToTarget();
+    this.applyToTarget();
 
     // Dispatch connection event
     this.dispatchEvent(
@@ -274,7 +313,7 @@ export class LoopController extends BaseAudioElement {
   /**
    * Apply current loop values to connected target
    */
-  private applyLoopToTarget(): void {
+  private applyToTarget(): void {
     if (!this.targetElement) return;
 
     // this.loopDuration = this.loopEndValue - this.loopStartValue;
@@ -290,10 +329,22 @@ export class LoopController extends BaseAudioElement {
         player.setLoopStart(this.loopStartValue);
         player.setLoopEnd(effectiveEndValue);
       }
+
+      // TESTING: combining with start / end offset
+      if (player.setParameterValue) {
+        player.setParameterValue('startOffset', this.loopStartValue);
+        player.setParameterValue('endOffset', effectiveEndValue);
+      }
     } else if (target.setLoopStart && target.setLoopEnd) {
       // Target has direct methods
       target.setLoopStart(this.loopStartValue);
       target.setLoopEnd(effectiveEndValue);
+
+      // TESTING: combining with start / end offset
+      if (target.setStartOffset && target.setEndOffset) {
+        target.setStartOffset(this.loopStartValue);
+        target.setEndOffset(effectiveEndValue);
+      }
     }
   }
 
@@ -404,6 +455,24 @@ export class LoopController extends BaseAudioElement {
       return step ? parseFloat(step) : 0.001;
     }
     return 0.001;
+  }
+
+  /**
+   * Set the fine-tune value for precise adjustment of the loop end point
+   */
+  setFineTune(value: number): void {
+    this.fineTuneValue = value;
+    this.setAttribute('fine-tune', value.toString());
+
+    // Apply to target immediately
+    this.applyToTarget();
+
+    this.dispatchEvent(
+      new CustomEvent('fine-tune-changed', {
+        bubbles: true,
+        detail: { value },
+      })
+    );
   }
 
   /**

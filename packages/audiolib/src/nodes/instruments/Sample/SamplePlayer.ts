@@ -373,7 +373,7 @@ export class SamplePlayer extends LibInstrument {
 
   setReleaseTime(seconds: number): this {
     this.storeParamValue('release', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setAttack(seconds));
+    this.voicePool.applyToAllVoices((voice) => voice.setRelease(seconds));
     return this;
   }
 

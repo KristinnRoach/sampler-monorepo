@@ -17,22 +17,22 @@ const init = () => {
   const envelopeEl = document.getElementById('envelope-1');
   const loopControllerEl = document.getElementById('loop-controller-1');
 
-  const offsetControllerEl = document.getElementById(
-    'sample-offset-controller-1'
-  );
+  // const offsetControllerEl = document.getElementById(
+  //   'sample-offset-controller-1'
+  // );
 
-  console.table(
-    getAttributesArr([
-      playerEl,
-      loaderEl,
-      recorderEl,
-      envelopeEl,
-      loopControllerEl,
-      offsetControllerEl,
-      karplusEl,
-      // karplusCompBox,
-    ])
-  );
+  // console.table(
+  //   getAttributesArr([
+  //     playerEl,
+  //     loaderEl,
+  //     recorderEl,
+  //     envelopeEl,
+  //     loopControllerEl,
+  //     karplusEl,
+  //     // offsetControllerEl,
+  //     // karplusCompBox,
+  //   ])
+  // );
 
   playerEl.addEventListener('sampleplayer-initialized', () => {
     // Load saved state
@@ -46,30 +46,12 @@ const init = () => {
     loaderEl.connect(playerEl);
     envelopeEl.connect(playerEl);
     loopControllerEl.connect(playerEl);
-    offsetControllerEl.connect(playerEl);
-
-    // // Testing out Karplus synth
-    // van.add(karplusCompBox, KarplusSynthComponent());
+    // offsetControllerEl.connect(playerEl);
 
     defineKarplusSynth();
 
     const lpfFreqSlider = createTestFilterSlider(playerEl);
     van.add(envelopeEl, lpfFreqSlider);
-
-    // MEGA TEST __________________________
-    const player = playerEl.player;
-    console.table(player);
-
-    const ctx = ksSynth.context;
-    const eXtraGain = new GainNode(ctx);
-    eXtraGain.gain.setValueAtTime(1.5, ctx.currentTime);
-
-    player.connectAltOut(eXtraGain);
-
-    console.info(ksSynth.auxIn);
-    eXtraGain.connect(ksSynth.auxIn);
-
-    // MEGA TEST __________________________
 
     // Set up event listeners to save state on changes
     document.querySelectorAll('.draggable').forEach((el) => {
@@ -83,7 +65,7 @@ const init = () => {
       recorderEl,
       envelopeEl,
       loopControllerEl,
-      offsetControllerEl,
+      // offsetControllerEl,
       karplusEl,
     ].forEach((el) => {
       if (el) {
@@ -96,7 +78,7 @@ const init = () => {
   });
 
   loopControllerEl.setMinimumGap(0.003);
-  offsetControllerEl.setMinimumGap(0.1);
+  // offsetControllerEl.setMinimumGap(0.1);
 
   // create draggables
   const draggables = document.querySelectorAll('.draggable');
