@@ -1,37 +1,20 @@
 import van from '@repo/vanjs-core';
 // import { Toggle } from './components/VanToggle.js';
+// import { getAttributesArr } from './utils/log.js';
 import { createDraggable } from 'animejs';
-import { getAttributesArr } from './utils/log.js';
 import { saveState, loadState, debouncedSaveState } from './state.js';
-import { defineKarplusSynth } from './components/KarplusElement.js';
+import { defineKarplusSynth } from '@repo/audio-components'; // ./components/KarplusElement.js';
 
 const init = () => {
-  const playerEl = document.getElementById(`sampler-1`);
-
-  // const karplusCompBox = document.getElementById('karplus-1');
-  const karplusEl = document.getElementById('karplus-2');
-
-  const loaderEl = document.getElementById(`loader-1`);
-  const recorderEl = document.getElementById('recorder-1');
-
-  const envelopeEl = document.getElementById('envelope-1');
-  const loopControllerEl = document.getElementById('loop-controller-1');
-
-  // const offsetControllerEl = document.getElementById(
+  const wrapperEl = document.getElementById('node-container');
+  const playerEl = wrapperEl.querySelector(`.sampler`);
+  const karplusEl = wrapperEl.querySelector('.karplus');
+  const loaderEl = playerEl.querySelector(`.loader`);
+  const recorderEl = playerEl.querySelector('.recorder');
+  const envelopeEl = playerEl.querySelector('.ampenv');
+  const loopControllerEl = playerEl.querySelector('.looper');
+  // const offsetControllerEl = playerEl.getElementById(
   //   'sample-offset-controller-1'
-  // );
-
-  // console.table(
-  //   getAttributesArr([
-  //     playerEl,
-  //     loaderEl,
-  //     recorderEl,
-  //     envelopeEl,
-  //     loopControllerEl,
-  //     karplusEl,
-  //     // offsetControllerEl,
-  //     // karplusCompBox,
-  //   ])
   // );
 
   playerEl.addEventListener('sampleplayer-initialized', () => {

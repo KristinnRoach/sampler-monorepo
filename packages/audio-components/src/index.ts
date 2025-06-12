@@ -4,6 +4,8 @@ export {
   type KarplusStrongSynth,
 } from '@repo/audiolib';
 
+export { defineKarplusSynth } from './elements/KarplusSynthElement';
+
 // Import and export audio elements
 import { BaseAudioElement } from './elements/base/BaseAudioElement';
 import { SamplerElement } from './elements/SamplerElement';

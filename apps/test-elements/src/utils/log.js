@@ -1,3 +1,17 @@
+/** USAGE
+ *    console.table(
+     getAttributesArr([
+       playerEl,
+       loaderEl,
+       recorderEl,
+       envelopeEl,
+       loopControllerEl,
+       karplusEl,
+       offsetControllerEl,
+     ])
+   );
+ */
+
 export const getAttributesArr = (elementsArray) => {
   const attributesArray = [];
   elementsArray.forEach((element) => {

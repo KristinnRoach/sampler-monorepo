@@ -316,35 +316,20 @@ export class LoopController extends BaseAudioElement {
   private applyToTarget(): void {
     if (!this.targetElement) return;
 
-    // this.loopDuration = this.loopEndValue - this.loopStartValue;
-
     const target = this.targetElement as any;
+    if (!target) return;
+
+    const player = target.getSamplePlayer();
+    if (!player) return;
+
     const effectiveEndValue = this.loopEndValue + (this.fineTuneValue ?? 0);
 
-    // Try different ways to set values on target
-    if (target.getSamplePlayer) {
-      // Target has a getSamplePlayer method (like SamplerElement)
-      const player = target.getSamplePlayer();
-      if (player && player.setLoopStart && player.setLoopEnd) {
-        player.setLoopStart(this.loopStartValue);
-        player.setLoopEnd(effectiveEndValue);
-      }
-
+    if (player.setParameterValue) {
+      player.setParameterValue('loopStart', this.loopStartValue);
+      player.setParameterValue('loopEnd', effectiveEndValue);
       // TESTING: combining with start / end offset
-      if (player.setParameterValue) {
-        player.setParameterValue('startOffset', this.loopStartValue);
-        player.setParameterValue('endOffset', effectiveEndValue);
-      }
-    } else if (target.setLoopStart && target.setLoopEnd) {
-      // Target has direct methods
-      target.setLoopStart(this.loopStartValue);
-      target.setLoopEnd(effectiveEndValue);
-
-      // TESTING: combining with start / end offset
-      if (target.setStartOffset && target.setEndOffset) {
-        target.setStartOffset(this.loopStartValue);
-        target.setEndOffset(effectiveEndValue);
-      }
+      player.setParameterValue('startOffset', this.loopStartValue);
+      player.setParameterValue('endOffset', effectiveEndValue);
     }
   }
 

@@ -34,7 +34,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
 
   protected voicePool: SampleVoicePool | KarplusVoicePool | null = null;
 
-  protected context: AudioContext;
+  protected audioContext: AudioContext;
   protected outBus: InstrumentMasterBus;
   protected destination: Destination | null = null;
 
@@ -47,7 +47,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   ) {
     this.nodeType = nodeType;
     this.nodeId = createNodeId(this.nodeType);
-    this.context = context;
+    this.audioContext = context;
     this.messages = createMessageBus<Message>(this.nodeId);
     this.outBus = new InstrumentMasterBus();
 
@@ -188,7 +188,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
 
   // Common getters
   get now(): number {
-    return this.context.currentTime;
+    return this.audioContext.currentTime;
   }
 
   get volume(): number {
@@ -208,7 +208,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     this.disableKeyboard();
     this.disableMIDI();
 
-    this.context = null as unknown as AudioContext;
+    this.audioContext = null as unknown as AudioContext;
     this.messages = null as unknown as MessageBus<Message>;
 
     // Detach keyboard handler

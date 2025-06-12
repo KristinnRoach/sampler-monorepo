@@ -42,29 +42,31 @@ export class SamplerElement extends BaseAudioElement {
 
     document.addEventListener('sample-loaded', this.onSampleLoaded.bind(this));
 
-    this.innerHTML = `
-      <div class="sampler-element">
-        <div class="parameters">
-          <label>
-            <input type="checkbox" id="keyboard-enabled" checked> Keyboard
-            </br>            
-          </label>
-          <label>
-            <input type="checkbox" id="midi-enabled"> Midi
-          </label>
-            </br>    
-          <label>
-            <input type="checkbox" id="hold-locked"> &#128274 Hold
-            </br>
-          </label>
-          <label>
-            <input type="checkbox" id="loop-locked"> &#128274 Loop
-            </br>
-          </label>        
-        </div>
-        <slot></slot>
-      </div> 
-    `;
+    // const shadowRoot = this.attachShadow({ mode: 'open' });
+
+    // this.innerHTML = `
+    //   <div class="sampler-element">
+    //     <div class="parameters">
+    //       <label>
+    //         <input type="checkbox" id="keyboard-enabled" checked> Keyboard
+    //         </br>
+    //       </label>
+    //       <label>
+    //         <input type="checkbox" id="midi-enabled"> Midi
+    //       </label>
+    //         </br>
+    //       <label>
+    //         <input type="checkbox" id="hold-locked"> &#128274 Hold
+    //         </br>
+    //       </label>
+    //       <label>
+    //         <input type="checkbox" id="loop-locked"> &#128274 Loop
+    //         </br>
+    //       </label>
+    //     </div>
+    //     <!-- <slot></slot> -->
+    //   </div>
+    // `;
   }
 
   private onSampleLoaded(event: Event) {
@@ -92,6 +94,38 @@ export class SamplerElement extends BaseAudioElement {
    * Called when the element is added to the DOM
    */
   connectedCallback(): void {
+    // Create controls container and insert at the beginning
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'parameters';
+    controlsDiv.innerHTML = `
+      <label>
+        <input type="checkbox" id="keyboard-enabled" checked> Keyboard
+        </br>            
+      </label>
+      <label>
+        <input type="checkbox" id="midi-enabled"> Midi
+      </label>
+        </br>    
+      <label>
+        <input type="checkbox" id="hold-locked"> &#128274 Hold
+        </br>
+      </label>
+      <label>
+        <input type="checkbox" id="loop-locked"> &#128274 Loop
+        </br>
+      </label>        
+    `;
+
+    // Insert controls at the beginning, preserving existing children
+    this.insertBefore(controlsDiv, this.firstChild);
+
+    this.dispatchEvent(
+      new CustomEvent('connected', {
+        bubbles: true,
+        composed: true,
+      })
+    );
+
     // Set up the rest of the event listeners (loop, offset sliders, checkboxes)
     const holdLockCheckbox = this.querySelector(
       '#hold-locked'
@@ -183,6 +217,7 @@ export class SamplerElement extends BaseAudioElement {
         this.dispatchEvent(
           new CustomEvent('sampleplayer-initialized', {
             bubbles: true,
+            composed: true,
             detail: { sampler: this.samplePlayer },
           })
         );
@@ -426,6 +461,7 @@ export class SamplerElement extends BaseAudioElement {
             this.dispatchEvent(
               new CustomEvent('sample-loaded', {
                 bubbles: true,
+                composed: true,
                 detail: {
                   sampler: this.samplePlayer,
                   fileName: file.name,

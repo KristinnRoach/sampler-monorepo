@@ -32,13 +32,13 @@ export class KarplusStrongSynth extends LibInstrument {
 
     // Initialize voice pool
     this.voicePool = new KarplusVoicePool(
-      this.context,
+      this.audioContext,
       polyphony,
       this.outBus.input
     );
 
     // Create auxiliary input
-    this.#auxInput = new GainNode(this.context);
+    this.#auxInput = new GainNode(this.audioContext);
     this.voicePool.auxIn = this.#auxInput;
 
     // Load stored parameter values
@@ -135,7 +135,7 @@ export class KarplusStrongSynth extends LibInstrument {
             const param = voice.getParam('decay');
             if (param) {
               const useableDecay = normalizeRange(value, 0, 1, 0.35, 0.995);
-              param.setValueAtTime(useableDecay, this.context.currentTime);
+              param.setValueAtTime(useableDecay, this.audioContext.currentTime);
             }
           });
           this.storeParamValue('decay', value);
@@ -146,7 +146,10 @@ export class KarplusStrongSynth extends LibInstrument {
             const param = voice.getParam('noiseTime');
             if (param) {
               const useableNoiseTime = normalizeRange(value, 0.0, 1, 0.1, 0.99);
-              param.setValueAtTime(useableNoiseTime, this.context.currentTime);
+              param.setValueAtTime(
+                useableNoiseTime,
+                this.audioContext.currentTime
+              );
             }
           });
           this.storeParamValue('noiseTime', value);
@@ -305,7 +308,7 @@ export class KarplusStrongSynth extends LibInstrument {
     this.#midiNoteToId.clear();
     this.outBus.dispose();
     this.outBus = null as unknown as InstrumentMasterBus;
-    this.context = null as unknown as AudioContext;
+    this.audioContext = null as unknown as AudioContext;
   }
 
   /** SETTERS */
@@ -363,7 +366,7 @@ export class KarplusStrongSynth extends LibInstrument {
 
   setLpfCutoff(hz: number): this {
     // if (!this.#pool.filtersEnabled) return this;
-    const maxFilterFreq = this.context.sampleRate / 1 - 100;
+    const maxFilterFreq = this.audioContext.sampleRate / 1 - 100;
 
     // Ensure the frequency is a valid number and within safe range
     if (isNaN(hz) || !isFinite(hz)) {
@@ -402,8 +405,12 @@ export class KarplusStrongSynth extends LibInstrument {
   }
 
   /** GETTERS */
+  get context() {
+    return this.audioContext;
+  }
+
   get now() {
-    return this.context.currentTime;
+    return this.audioContext.currentTime;
   }
 
   get volume(): number {

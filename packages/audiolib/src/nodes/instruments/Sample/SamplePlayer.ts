@@ -161,13 +161,13 @@ export class SamplePlayer extends LibInstrument {
     this.#isLoaded = false;
 
     if (
-      buffer.sampleRate !== this.context.sampleRate ||
-      (modSampleRate && this.context.sampleRate !== modSampleRate)
+      buffer.sampleRate !== this.audioContext.sampleRate ||
+      (modSampleRate && this.audioContext.sampleRate !== modSampleRate)
     ) {
       console.warn(
         `sample rate mismatch, 
         buffer rate: ${buffer.sampleRate}, 
-        context rate: ${this.context.sampleRate}
+        context rate: ${this.audioContext.sampleRate}
         requested rate: ${modSampleRate}
         `
       );
@@ -454,7 +454,7 @@ export class SamplePlayer extends LibInstrument {
       console.warn(`Invalid LPF frequency: ${hz}`);
       return this;
     }
-    const maxFilterFreq = this.context.sampleRate / 2 - 100;
+    const maxFilterFreq = this.audioContext.sampleRate / 2 - 100;
 
     const safeValue = Math.max(20, Math.min(hz, maxFilterFreq));
     this.storeParamValue('lpfCutoff', safeValue);
@@ -659,7 +659,7 @@ export class SamplePlayer extends LibInstrument {
       this.#useZeroCrossings = false;
       this.#loopEnabled = false;
 
-      this.context = null as unknown as AudioContext;
+      this.audioContext = null as unknown as AudioContext;
       this.messages = null as unknown as MessageBus<Message>;
 
       // Detach keyboard handler
@@ -693,11 +693,11 @@ export class SamplePlayer extends LibInstrument {
   // }
 
   get now() {
-    return this.context.currentTime;
+    return this.audioContext.currentTime;
   }
 
   get audioContext() {
-    return this.context;
+    return this.audioContext;
   }
 
   get sampleDuration(): number {
