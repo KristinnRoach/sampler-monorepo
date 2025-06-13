@@ -3,38 +3,42 @@ import van from '@repo/vanjs-core';
 // import { getAttributesArr } from './utils/log.js';
 import { createDraggable } from 'animejs';
 import { saveState, loadState, debouncedSaveState } from './state.js';
-import { defineKarplusSynth } from '@repo/audio-components'; // ./components/KarplusElement.js';
+import { defineKarplusSynth, defineSampler } from '@repo/audio-components'; // ./components/KarplusElement.js';
 
 const init = () => {
+  defineSampler();
+  defineKarplusSynth();
+
   const wrapperEl = document.getElementById('node-container');
-  const playerEl = wrapperEl.querySelector(`.sampler`);
+  const samplerEl = wrapperEl.querySelector(`.sampler`);
   const karplusEl = wrapperEl.querySelector('.karplus');
-  const loaderEl = playerEl.querySelector(`.loader`);
-  const recorderEl = playerEl.querySelector('.recorder');
-  const envelopeEl = playerEl.querySelector('.ampenv');
-  const loopControllerEl = playerEl.querySelector('.looper');
+
+  // const loaderEl = playerEl.querySelector(`.loader`);
+  // const recorderEl = playerEl.querySelector('.recorder');
+  // const envelopeEl = playerEl.querySelector('.ampenv');
+  // const loopControllerEl = playerEl.querySelector('.looper');
   // const offsetControllerEl = playerEl.getElementById(
   //   'sample-offset-controller-1'
   // );
 
-  playerEl.addEventListener('sampleplayer-initialized', () => {
+  samplerEl.addEventListener('sampleplayer-initialized', () => {
     // Load saved state
     loadState();
 
     // make connections
-    recorderEl.addEventListener('recorder-initialized', (e) => {
-      recorderEl.connect(playerEl);
-    });
+    // recorderEl.addEventListener('recorder-initialized', (e) => {
+    //   recorderEl.connect(playerEl);
+    // });
 
-    loaderEl.connect(playerEl);
-    envelopeEl.connect(playerEl);
-    loopControllerEl.connect(playerEl);
+    // loaderEl.connect(playerEl);
+    // envelopeEl.connect(playerEl);
+    // loopControllerEl.connect(playerEl);
     // offsetControllerEl.connect(playerEl);
 
-    defineKarplusSynth();
+    // defineKarplusSynth();
 
-    const lpfFreqSlider = createTestFilterSlider(playerEl);
-    van.add(envelopeEl, lpfFreqSlider);
+    // const lpfFreqSlider = createTestFilterSlider(playerEl);
+    // van.add(envelopeEl, lpfFreqSlider);
 
     // Set up event listeners to save state on changes
     document.querySelectorAll('.draggable').forEach((el) => {
@@ -43,13 +47,13 @@ const init = () => {
 
     // Add event listeners to elements to detect changes
     [
-      playerEl,
-      loaderEl,
-      recorderEl,
-      envelopeEl,
-      loopControllerEl,
-      // offsetControllerEl,
+      samplerEl,
       karplusEl,
+      // loaderEl,
+      // recorderEl,
+      // envelopeEl,
+      // loopControllerEl,
+      // offsetControllerEl,
     ].forEach((el) => {
       if (el) {
         el.addEventListener('change', debouncedSaveState);
@@ -60,7 +64,7 @@ const init = () => {
     window.addEventListener('beforeunload', saveState);
   });
 
-  loopControllerEl.setMinimumGap(0.003);
+  // loopControllerEl.setMinimumGap(0.003);
   // offsetControllerEl.setMinimumGap(0.1);
 
   // create draggables

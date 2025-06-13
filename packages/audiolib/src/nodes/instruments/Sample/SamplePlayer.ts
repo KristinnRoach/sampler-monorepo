@@ -293,7 +293,9 @@ export class SamplePlayer extends LibInstrument {
     if (modifiers.shift !== undefined) {
       this.setHoldEnabled(modifiers.shift);
     }
-    // if (modifiers.space !== undefined)
+    if (modifiers.space) {
+      console.log(`Spacebar handling in SamplePlayer not implemented yet!`);
+    }
     return this;
   }
 
@@ -491,9 +493,10 @@ export class SamplePlayer extends LibInstrument {
 
     const voices = this.voicePool.allVoices;
     voices.forEach((v) => v.setLoopEnabled(enabled));
-
     this.#loopEnabled = enabled;
+
     this.sendUpstreamMessage('loop:enabled', { enabled });
+
     return this;
   }
 
@@ -694,10 +697,6 @@ export class SamplePlayer extends LibInstrument {
 
   get now() {
     return this.audioContext.currentTime;
-  }
-
-  get audioContext() {
-    return this.audioContext;
   }
 
   get sampleDuration(): number {

@@ -53,22 +53,14 @@ body {
 .lib-node {
   display: flex;
   flex-direction: column;
-  /* flex: 1; */
 
-  /* Dimensions */
-  height: fit-content;
-  width: fit-content;
-  /* max-width: 30%; */
-
-  /* position: absolute; */
-  z-index: 100;
   cursor: grab;
   user-select: none;
   touch-action: none;
 
   /* Spacing */
-  margin: 20px 0;
-  padding: 15px;
+  /* margin: 20px 0;
+  padding: 15px; */
 
   background-color: #333;
   border: 1px solid #555;
@@ -77,36 +69,9 @@ body {
   will-change: transform; /* Performance optimization for animations */
 }
 
-.lib-node .loop-controller .fine-tune-control #fine-tune-knob {
-  border: solid 1px #555;
-}
-
 /* dragging */
 .lib-node:active {
   cursor: grabbing;
-}
-
-sampler-element {
-  display: flex;
-}
-
-.sampler {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  width: 100%;
-  padding: 15px;
-  box-sizing: border-box;
-  justify-items: center;
-  align-items: center;
-}
-
-.sampler two-thumb-slider {
-  width: 90%;
-}
-
-.karplus-synth {
-  position: relative;
 }
 
 .karplus-synth input {
@@ -114,13 +79,8 @@ sampler-element {
   cursor: pointer;
 }
 
-/* .sampler .dynamic envelope-element .parameters {
-  display: flex;
-  flex-direction: column;
-} */
-
 /* Styling the custom elements - updated for Light DOM */
-button {
+/* button {
   background: #7bc7e3;
   color: rgb(0, 0, 0);
   border: none;
@@ -133,78 +93,12 @@ button {
 
 button:hover {
   background: #3e8e41;
+} */
+
+/* input[type='range'] {
+  width: 25vw;
 }
 
-recorder-element #record-toggle[active] button {
-  background-color: rgb(182, 6, 42);
-  color: whitesmoke;
-  animation: pulse 1.5s infinite;
-}
-
-#record-toggle:not([active]) button:hover {
-  background: #3e8e41;
-}
-
-#record-toggle[active] button:hover {
-  background: #7a0d24;
-}
-
-.lib-node .parameters {
-  margin: 15px 0;
-  margin-bottom: 5px;
-  width: 100%;
-
-  /* background-color: #4caf50; */
-
-  input[type='range'] {
-    width: 25vw;
-  }
-
-  input:hover {
-    cursor: pointer;
-  }
-}
-
-/* Filter element styles */
-filter-element .filter-control {
-  width: 100%;
-  padding: 8px;
-}
-
-filter-element .filter-header {
-  margin-bottom: 12px;
-}
-
-filter-element .filter-title {
-  font-weight: bold;
-  font-size: 1.1em;
-}
-
-filter-element .filter-body {
-  display: flex;
-  flex-direction: column;
-}
-
-filter-element .filter-values {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-filter-element .hpf-value,
-filter-element .lpf-value {
-  padding: 4px 8px;
-  background: #333;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.9em;
-}
-
-filter-element .freq-value {
-  font-weight: bold;
-}
-
-filter-element two-thumb-slider {
-  width: 100%;
-  margin: 8px 0;
-}
+input:hover {
+  cursor: pointer;
+} */

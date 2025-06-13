@@ -198,7 +198,7 @@ export class Audiolib implements AudioGraph {
     ctx = this.#audioContext,
     polyphony = 16,
     audioBuffer?: AudioBuffer
-  ): SamplePlayer | null {
+  ): SamplePlayer {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
     let buffer = audioBuffer || this.#currentAudioBuffer;
