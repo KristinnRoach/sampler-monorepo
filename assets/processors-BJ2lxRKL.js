@@ -6,7 +6,7 @@ var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read fr
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
 var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, onended_fn, shouldEnd_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, getCurrentParamValue_fn, normalizeMidi_fn, getParamValueInSamples_fn;
-const MIN_ABS_AMPLITUDE = 0.05;
+const MIN_ABS_AMPLITUDE = 0.01;
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -37,8 +37,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: "playbackPosition",
         defaultValue: 0,
-        minValue: -1e3,
+        minValue: 0,
+        // ???
         maxValue: 1e3,
+        // ???
         automationRate: "k-rate"
       },
       {
@@ -47,7 +49,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         minValue: 0,
         maxValue: 1,
         automationRate: "k-rate"
-        // a-rate ?
       },
       {
         name: "velocity",
@@ -60,8 +61,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: "playbackRate",
         defaultValue: 1,
         minValue: -8,
-        maxValue: 10,
-        automationRate: "a-rate"
+        // 0.1, // ? test negative -8,
+        maxValue: 8,
+        // ? test 10,
+        automationRate: "k-rate"
+        // ! a or k ?
       },
       {
         name: "startOffset",
@@ -79,14 +83,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: "loopStart",
         defaultValue: 0,
         minValue: 0,
-        automationRate: "a-rate"
+        automationRate: "k-rate"
         // a or k ?
       },
       {
         name: "loopEnd",
         defaultValue: 0,
         minValue: 0,
-        automationRate: "a-rate"
+        automationRate: "k-rate"
         // a or k ?
       }
     ];
@@ -136,7 +140,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
         const current = bufferChannel[position];
         const next = bufferChannel[nextPosition];
-        output[c][i] = (current + fraction * (next - current)) * velocityGain * envelopeGain;
+        const sample = (current + fraction * (next - current)) * velocityGain * envelopeGain;
+        output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
       }
       this.playbackPosition += pbRate;
     }
@@ -231,17 +236,6 @@ shouldEnd_fn = function(parameters) {
 };
 _clamp = new WeakMap();
 _clampZeroCrossing = new WeakMap();
-// #findNearestZeroCrossing(position) {
-//   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
-//     return position;
-//   }
-//   // Find the closest zero crossing to the requested position
-//   return this.zeroCrossings.reduce(
-//     (prev, curr) =>
-//       Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
-//     position
-//   );
-// }
 findNearestZeroCrossing_fn = function(position, maxDistance = null) {
   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
     return position;
@@ -291,8 +285,21 @@ registerProcessor(
   class extends AudioWorkletProcessor {
     static get parameterDescriptors() {
       return [
-        { name: "gain", defaultValue: 0.9, minValue: -1, maxValue: 1 },
-        { name: "delayTime", defaultValue: 10, minValue: 0, maxValue: 1e3 }
+        {
+          name: "gain",
+          defaultValue: 0.5,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: "k-rate"
+        },
+        // ? minValue used to be -1, why ?
+        {
+          name: "delayTime",
+          defaultValue: 10,
+          minValue: 0,
+          maxValue: 1e3,
+          automationRate: "k-rate"
+        }
       ];
     }
     constructor() {
