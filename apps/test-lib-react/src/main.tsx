@@ -1,15 +1,27 @@
 import { createRoot } from 'react-dom/client';
-import { useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import './style.css';
 
-import { audiolib } from '@repo/audiolib';
+import { createAudiolib, Audiolib } from '@repo/audiolib';
+
 import SamplerComponent from './components/SamplerComponent';
 import KarplusStrongSynthComponent from './components/KsSynthComponent';
 
 const App = () => {
-  const audiolibRef = useRef(audiolib);
+  const [audiolib, setAudiolib] = useState<Audiolib | null>(null);
   const [isInitialized, setInitialized] = useState(false);
   const [chosenInstrument, setChosenInstrument] = useState<string>('');
+
+  const initializeAudio = useCallback(async () => {
+    try {
+      const lib = await createAudiolib();
+      console.table(lib);
+      setAudiolib(lib);
+      setInitialized(true);
+    } catch (error) {
+      console.error('Failed to initialize audiolib:', error);
+    }
+  }, []);
 
   return (
     <div>
@@ -19,25 +31,21 @@ const App = () => {
             <button onClick={() => setChosenInstrument('sampler')}>
               Sampler
             </button>
-
             <button onClick={() => setChosenInstrument('karplus')}>
               Karplus
             </button>
           </div>
 
-          {chosenInstrument === 'sampler' && <SamplerComponent />}
-          {chosenInstrument === 'karplus' && <KarplusStrongSynthComponent />}
+          {chosenInstrument === 'sampler' && (
+            <SamplerComponent context={audiolib} />
+          )}
+          {chosenInstrument === 'karplus' && (
+            <KarplusStrongSynthComponent audiolib={audiolib} />
+          )}
         </>
       ) : (
         <div>
-          <button
-            id='initAudiolib'
-            onClick={async () => {
-              await audiolibRef.current.init();
-              //while (!audiolibRef.current.isInitialized) { // wait.. }
-              setInitialized(true);
-            }}
-          >
+          <button id='initAudiolib' onClick={initializeAudio}>
             Initialize Audiolib!
           </button>
         </div>

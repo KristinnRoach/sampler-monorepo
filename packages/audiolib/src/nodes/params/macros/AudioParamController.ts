@@ -1,6 +1,8 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
-
 import { cancelScheduledParamValues } from '@/utils';
+
+// NOTE: The controlNode (GainNode) is possibly redundant and could be replaced with
+// direct connection to the constantSignal (using offset param instead of gain value)
 
 export class AudioParamController {
   readonly nodeId: NodeID;
@@ -8,6 +10,7 @@ export class AudioParamController {
   #controlNode: GainNode;
   #constantSignal: ConstantSourceNode;
   #targets: Array<{ param: AudioParam; scaler?: GainNode }> = [];
+  #isReady: boolean = false;
 
   static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
@@ -23,6 +26,8 @@ export class AudioParamController {
 
     this.#controlNode = new GainNode(context, { gain: initialValue });
     this.#constantSignal.connect(this.#controlNode);
+
+    this.#isReady = true;
   }
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
@@ -51,6 +56,10 @@ export class AudioParamController {
 
     cancelScheduledParamValues(this.param, now);
 
+    // TESTING: Preventing unexpected jumps by explicitly setting the current value at the current time
+    const currentValue = this.param.value;
+    this.param.setValueAtTime(currentValue, now);
+
     if (method === 'exponential') {
       this.param.exponentialRampToValueAtTime(safeValue, now + duration);
     } else {
@@ -71,6 +80,10 @@ export class AudioParamController {
 
   get value(): number {
     return this.param.value;
+  }
+
+  get isReady() {
+    return this.#isReady;
   }
 
   dispose(): void {

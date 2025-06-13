@@ -15,10 +15,10 @@
     "dist"
   ],
   "scripts": {
-    "build:worklets": "node build-processors.js",
-    "build": "rimraf dist && node build-processors.js && tsc --emitDeclarationOnly && vite build",
-    "dev": "rimraf dist && node build-processors.js && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
-    "clean": "rimraf dist",
+    "build:worklets": "node build-processors.js && mkdir -p dist",
+    "build": "pnpm clean && node build-processors.js && vite build && tsc --emitDeclarationOnly",
+    "watch": "mkdir -p dist && node build-processors.js && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
+    "clean": "rimraf dist && mkdir -p dist",
     "clean:turbo": "rimraf .turbo",
     "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune",
     "lint": "eslint . ",

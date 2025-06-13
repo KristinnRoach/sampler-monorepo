@@ -3,6 +3,7 @@
 # trash to be cleaned up
 **/trash
 **/*trash.txt
+mcp-proxy.js
 
 # Dependencies
 node_modules

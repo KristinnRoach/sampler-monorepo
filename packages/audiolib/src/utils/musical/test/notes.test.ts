@@ -21,7 +21,12 @@ describe('notes constants', () => {
 
   it('should maintain ascending frequency order', () => {
     const entries = Object.entries(noteNameToFreq);
-    const breaks = [];
+
+    // Define the type explicitly for the breaks array
+    const breaks: {
+      prev: { note: string; freq: number };
+      curr: { note: string; freq: number };
+    }[] = [];
 
     for (let i = 1; i < entries.length; i++) {
       const [prevNote, prevFreq] = entries[i - 1];

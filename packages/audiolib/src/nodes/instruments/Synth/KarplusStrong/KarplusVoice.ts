@@ -1,15 +1,15 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
-import { LibVoiceNode, VoiceType } from '@/LibNode';
 import {
-  Message,
-  MessageHandler,
-  createMessageBus,
-  MessageBus,
-} from '@/events';
-import { assert, cancelScheduledParamValues } from '@/utils';
+  Destination,
+  LibVoiceNode,
+  VoiceType,
+  Connectable,
+} from '@/nodes/LibNode';
+import { Message, createMessageBus, MessageBus } from '@/events';
+import { cancelScheduledParamValues } from '@/utils';
 
-export class KarplusVoice implements LibVoiceNode {
+export class KarplusVoice implements LibVoiceNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'karplus-strong';
   readonly processorNames: string[] = [
@@ -34,13 +34,28 @@ export class KarplusVoice implements LibVoiceNode {
   outputGain: GainNode;
 
   #volume: number = 0.3; // todo: standardize
+  #attackTime: number = 0;
   #startTime: number = 0;
   #noteId: number | null = null;
   #midiNote: number = 0;
 
   #isPlaying: boolean = false; // todo: remove
 
-  constructor(context: AudioContext = getAudioContext()) {
+  #isReady: boolean = false;
+
+  #hpf: BiquadFilterNode | null = null;
+  #lpf: BiquadFilterNode | null = null;
+  #filtersEnabled: boolean;
+
+  #hpfHz: number = 100; // High-pass filter frequency
+  #lpfHz: number; // Low-pass filter frequency needs to be set using audio context sample rate
+  #lpfQ: number = 1; // Low-pass filter Q factor
+  #hpfQ: number = 1; // High-pass filter Q factor
+
+  constructor(
+    context: AudioContext = getAudioContext(),
+    options: { enableFilters?: boolean } = {}
+  ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
     this.audioContext = context;
@@ -56,7 +71,7 @@ export class KarplusVoice implements LibVoiceNode {
       {
         parameterData: {
           delayTime: 5, // Initial delay time
-          gain: 0.8 * this.#volume, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
+          gain: 0.8, // ? research init value for this * this.#volume, // Initial feedback gain (controls decay) // ? should be tied to (peak) volume?
         },
       }
     );
@@ -69,7 +84,7 @@ export class KarplusVoice implements LibVoiceNode {
 
     // Create a combined parameter map for all parameters
     this.paramMap = new Map([
-      ['decay', this.fbParamMap.get('gain')!], // todo: clarify decayFactor vs decayTime vs noiseTime
+      ['decay', this.fbParamMap.get('gain')!], // todo: clarify
       [
         'noiseTime',
         {
@@ -84,17 +99,73 @@ export class KarplusVoice implements LibVoiceNode {
 
     this.delayParam = this.fbParamMap.get('delayTime')!;
 
-    // Connect
-    this.noiseGenerator.connect(this.noiseGain);
-    this.noiseGain.connect(this.outputGain);
-    this.noiseGain.connect(this.feedbackDelay);
-    this.feedbackDelay.connect(this.outputGain);
+    // Set low-pass filter frequency based on context sample rate
+    this.#lpfHz = this.audioContext.sampleRate / 2 - 100;
+    this.#filtersEnabled = options.enableFilters ?? true;
+
+    // Create filters if enabled
+    if (this.#filtersEnabled) {
+      this.#hpf = new BiquadFilterNode(context, {
+        type: 'highpass',
+        frequency: this.#hpfHz,
+        Q: this.#hpfQ,
+      });
+      this.#lpf = new BiquadFilterNode(context, {
+        type: 'lowpass',
+        frequency: this.#lpfHz,
+        Q: this.#lpfQ,
+      });
+
+      // Connect with filters
+      this.noiseGenerator.connect(this.noiseGain);
+      this.noiseGain.connect(this.feedbackDelay);
+      this.noiseGain.connect(this.#hpf);
+      this.feedbackDelay.connect(this.#hpf);
+      this.#hpf.connect(this.#lpf);
+      this.#lpf.connect(this.outputGain);
+    } else {
+      // Connect without filters
+      this.noiseGenerator.connect(this.noiseGain);
+      this.noiseGain.connect(this.outputGain);
+      this.noiseGain.connect(this.feedbackDelay);
+      this.feedbackDelay.connect(this.outputGain);
+    }
+
+    this.#isReady = true;
+  }
+
+  get in() {
+    return this.noiseGain;
+  }
+
+  get isReady() {
+    return this.#isReady;
   }
 
   getParam(name: string): AudioParam | null {
-    return this.paramMap.get(name) || null;
+    const param = this.paramMap.get(name);
+    if (param) return param;
+
+    // Special case for filter parameters if they exist
+    if (this.#filtersEnabled) {
+      switch (name) {
+        case 'highpass':
+        case 'hpf':
+          return this.#hpf?.frequency || null;
+        case 'lowpass':
+        case 'lpf':
+          return this.#lpf?.frequency || null;
+        case 'hpfQ':
+          return this.#hpf?.Q || null;
+        case 'lpfQ':
+          return this.#lpf?.Q || null;
+      }
+    }
+
+    return null;
   }
 
+  // TODO: Standardize
   setParam(name: string, value: number): this {
     const param = this.paramMap.get(name);
     if (param) {
@@ -103,8 +174,32 @@ export class KarplusVoice implements LibVoiceNode {
       } else {
         param.setValueAtTime(value, this.now + 0.0001);
       }
+    } else if (this.#filtersEnabled) {
+      // Handle filter parameters
+      switch (name) {
+        case 'highpass':
+        case 'hpf':
+          if (this.#hpf)
+            this.#hpf.frequency.setValueAtTime(value, this.now + 0.0001);
+          break;
+        case 'lowpass':
+        case 'lpf':
+          if (this.#lpf)
+            this.#lpf.frequency.setValueAtTime(value, this.now + 0.0001);
+          break;
+        case 'hpfQ':
+          if (this.#hpf) this.#hpf.Q.setValueAtTime(value, this.now + 0.0001);
+          break;
+        case 'lpfQ':
+          if (this.#lpf) this.#lpf.Q.setValueAtTime(value, this.now + 0.0001);
+          break;
+      }
     }
     return this;
+  }
+
+  set attack(value: number) {
+    this.#attackTime = value;
   }
 
   onMessage(type: string, handler: (data: any) => void) {
@@ -148,12 +243,12 @@ export class KarplusVoice implements LibVoiceNode {
     // Schedule noise burst to excite the string using current holdMs value
     this.noiseGain.gain.linearRampToValueAtTime(
       this.#volume * velocity,
-      this.now //+ this.#attackTime
+      this.now + this.#attackTime
     );
 
     this.noiseGain.gain.linearRampToValueAtTime(
       0,
-      this.now + this.holdMs / 1000 // + this.#attackTime
+      this.now + this.holdMs / 1000 + this.#attackTime
     );
 
     this.sendMessage('voice:started', { ...options });
@@ -171,7 +266,10 @@ export class KarplusVoice implements LibVoiceNode {
 
     const now = this.now + secondsFromNow;
     cancelScheduledParamValues(this.outputGain.gain, now);
-    this.outputGain.gain.linearRampToValueAtTime(0.00001, now + release_sec);
+    this.noiseGain.gain.linearRampToValueAtTime(0, now + release_sec);
+
+    cancelScheduledParamValues(this.noiseGain.gain, this.now);
+    this.outputGain.gain.linearRampToValueAtTime(0, now + release_sec);
 
     setTimeout(
       () => {
@@ -199,16 +297,23 @@ export class KarplusVoice implements LibVoiceNode {
   }
 
   connect(
-    destination: AudioNode,
-    outputIndex?: number,
-    inputIndex?: number
-  ): this {
-    this.outputGain.connect(destination); // , outputIndex, inputIndex);
-    return this;
+    destination: Destination,
+    output?: number,
+    input?: number
+  ): Destination {
+    if (destination instanceof AudioParam) {
+      this.outputGain.connect(destination, output);
+    } else if (destination instanceof AudioNode) {
+      this.outputGain.connect(destination, output, input);
+    } else {
+      console.warn(`SampleVoice: Unsupported destination: ${destination}`);
+    }
+    return destination;
   }
 
-  disconnect() {
+  disconnect(): this {
     this.outputGain.disconnect();
+    return this;
   }
 
   dispose(): void {
@@ -228,6 +333,14 @@ export class KarplusVoice implements LibVoiceNode {
 
   get ctx() {
     return this.audioContext;
+  }
+
+  get hpf() {
+    return this.#hpf;
+  }
+
+  get lpf() {
+    return this.#lpf;
   }
 
   get startTime(): number {

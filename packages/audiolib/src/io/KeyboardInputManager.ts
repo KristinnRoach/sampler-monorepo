@@ -3,6 +3,8 @@ import { InputHandler, KeyMap, PressedModifiers, ModifierKey } from './types';
 import { isKeyboardAPISupported, isModifierStateSupported } from '@/utils';
 import { defaultKeymap } from './mapping/keymap';
 
+// TODO: Clear & robust modifier handling (caps got issues)
+
 export class KeyboardInputManager {
   static #instance: KeyboardInputManager;
 
@@ -128,6 +130,12 @@ export class KeyboardInputManager {
     const defaultVelocity = 100; // for now (no velocity for computer keyboard)
 
     const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
+
+    //     this.#handlers.forEach((handler) => {
+    //   if (handler.onModifierChange) {
+    //     handler.onModifierChange(modifiers);
+    //   }
+    // });
 
     this.#handlers.forEach((handler) =>
       handler.onNoteOn(midiNote, defaultVelocity, modifiers)

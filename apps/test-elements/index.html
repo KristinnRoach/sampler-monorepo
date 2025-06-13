@@ -17,58 +17,44 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div class="node-container">
-      <div class="dynamic">
-        <sample-loader-element
-          id="loader-1"
-          class="lib-node draggable"
-        ></sample-loader-element>
-      </div>
-
-      <div class="dynamic">
-        <recorder-element
-          id="recorder-1"
-          class="lib-node draggable"
-        ></recorder-element>
-      </div>
-    </div>
-
-    <div class="sampler">
-      <div class="node-container">
-        <div class="dynamic">
+    <div id="node-container" class="node-container">
+      <div class="instrument draggable lib-node dynamic">
           <sampler-element
             id="sampler-1"
-            class="lib-node draggable"
-            polyphony="32"
-          ></sampler-element>
+            class="sampler"
+          >
+<!-- 
+            <sample-loader-element
+              id="loader-1"
+              class="loader lib-node draggable"
+            ></sample-loader-element>
+
+            <recorder-element
+              id="recorder-1"
+              class="recorder lib-node draggable"
+            ></recorder-element>
+
+            <loop-controller
+              id="loop-controller-1"
+              class="looper lib-node draggable"
+              destination="sampler-1"
+            ></loop-controller>
+
+
+            <envelope-element
+              id="envelope-1"
+              class="ampenv lib-node draggable"
+              destination="sampler-1"
+            ></envelope-element> -->
+          </sampler-element>
         </div>
 
-        <div class="dynamic">
-          <loop-controller
-            id="loop-controller-1"
-            class="lib-node draggable"
-            destination="sampler-1"
-          ></loop-controller>
+        <div class="instrument dynamic">
+          <karplus-synth class="karplus lib-node draggable" id="karplus-2"></karplus-synth>
         </div>
 
-        <div class="dynamic">
-          <sample-offset-controller
-            id="sample-offset-controller-1"
-            class="lib-node draggable"
-            destination="sampler-1"
-          ></sample-offset-controller>
-        </div>
-
-        <div class="dynamic">
-          <envelope-element
-            id="envelope-1"
-            class="lib-node draggable"
-            attack="0.005"
-            release="0.05"
-            destination="sampler-1"
-          ></envelope-element>
-        </div>
       </div>
+      
     </div>
     <script type="module" src="./src/register-components.js"></script>
     <script type="module" src="./src/main.js" defer></script>

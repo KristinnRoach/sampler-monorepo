@@ -1,0 +1,19 @@
+{
+  "name": "audio-graph",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@repo/graph-elements": "workspace:*",
+    "@repo/vanjs-core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
+  }
+}

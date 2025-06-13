@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Web Audio Elements Demo</title>
+
+    <meta
+      name="description"
+      content="Playground for demoing a musical web audio library (WIP)"
+    />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#000000" />
+    <meta name="theme-color" content="#000000" />
+
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div class="node-container">
+      <div class="dynamic">
+        <sample-loader-element
+          id="loader-1"
+          class="lib-node draggable"
+        ></sample-loader-element>
+      </div>
+
+      <div class="dynamic">
+        <recorder-element
+          id="recorder-1"
+          class="lib-node draggable"
+        ></recorder-element>
+      </div>
+    </div>
+
+    <div class="sampler">
+      <div class="node-container">
+        <div class="dynamic">
+          <sampler-element
+            id="sampler-1"
+            class="lib-node draggable"
+            polyphony="32"
+          ></sampler-element>
+        </div>
+
+        <div class="dynamic">
+          <loop-controller
+            id="loop-controller-1"
+            class="lib-node draggable"
+            destination="sampler-1"
+          ></loop-controller>
+        </div>
+
+        <div class="dynamic">
+          <sample-offset-controller
+            id="sample-offset-controller-1"
+            class="lib-node draggable"
+            destination="sampler-1"
+          ></sample-offset-controller>
+        </div>
+
+        <div class="dynamic">
+          <envelope-element
+            id="envelope-1"
+            class="lib-node draggable"
+            attack="0.005"
+            release="0.05"
+            destination="sampler-1"
+          ></envelope-element>
+        </div>
+
+        <!-- <div id="karplus-container" class="karplus dynamic">
+          <div id="karplus-1" class="lib-node draggable">
+          </div>
+        </div> -->
+
+        <div id="karplus-container" class="karplus dynamic">
+          <!-- <div class="draggable"> -->
+          <karplus-synth class="lib-node" id="karplus-2"></karplus-synth>
+          <!-- </div> -->
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./src/register-components.js"></script>
+    <script type="module" src="./src/main.js" defer></script>
+  </body>
+</html>

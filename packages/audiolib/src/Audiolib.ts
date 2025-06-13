@@ -15,10 +15,13 @@ import {
   MessageBus,
 } from '@/events';
 
-import { idb, initIdb, sampleLib } from './storage/idb';
+import { idb, initIdb } from './storage/idb';
 import { fetchInitSampleAsAudioBuffer } from './storage/assets/asset-utils';
 
-import { LibInstrument, LibNode, ContainerType, SampleLoader } from '@/LibNode';
+import { AudioGraph, LibNode, NodeType, SampleLoader } from '@/nodes/LibNode';
+
+import { LibInstrument } from '@/nodes/instruments';
+
 import {
   SamplePlayer,
   createSamplePlayer as createSamplePlayerFactory,
@@ -32,14 +35,12 @@ import { initProcessors } from './worklets';
 
 import { MidiController } from '@/io';
 
-// Todo: export init and instrument factory functions separately (tree shake-able)
-
-export class Audiolib implements LibNode {
+export class Audiolib implements AudioGraph {
   readonly nodeId: NodeID;
-  readonly nodeType: ContainerType = 'audiolib';
-  static #instance: Audiolib | null = null;
+  readonly nodeType: NodeType = 'audiograph';
 
-  #asyncInit = createAsyncInit<Audiolib>();
+  // #asyncInit = createAsyncInit<Audiolib>();
+  #isInitialized = false;
   #midiController = new MidiController();
 
   #audioContext: AudioContext | null = null;
@@ -49,30 +50,29 @@ export class Audiolib implements LibNode {
   #globalAudioRecorder: Recorder | null = null;
   #currentAudioBuffer: AudioBuffer | null = null;
 
-  static getInstance(): Audiolib {
-    if (!Audiolib.#instance) {
-      Audiolib.#instance = new Audiolib();
-    }
-    return Audiolib.#instance;
-  }
-
   #messages: MessageBus<Message>;
 
-  private constructor() {
+  constructor(
+    options: {
+      audioContext?: AudioContext;
+      midiController?: MidiController;
+    } = {}
+  ) {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
-    this.#audioContext = getAudioContext();
+    this.#audioContext = options.audioContext || getAudioContext();
     assert(this.#audioContext, 'Failed to get audio context', {
       nodeId: this.nodeId,
     });
+
+    this.#midiController = options.midiController || new MidiController();
 
     this.#masterGain = this.#audioContext.createGain();
     this.#masterGain.gain.value = 1.0;
     this.#masterGain.connect(this.#audioContext.destination);
 
-    // Replace init method with wrapped version
-    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
+    // this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
   }
 
   /** TODO: Review initialization approaches and standardize,
@@ -80,11 +80,10 @@ export class Audiolib implements LibNode {
    *        or just redundantly complex ? */
 
   // Public init method (will be replaced by wrapper)
-  init!: () => Promise<Audiolib>;
+  // init!: () => Promise<Audiolib>;
 
-  // Original implementation moved here
-  async #initImpl(): Promise<Audiolib> {
-    // If already initialized, just return this instance
+  async init(): Promise<Audiolib> {
+    // #initImpl()
     if (this.isReady) return this;
 
     // Ensure audio context is available
@@ -116,49 +115,50 @@ export class Audiolib implements LibNode {
     this.#globalAudioRecorder = recorderResult.data;
 
     const midiSuccess = await this.initMidiController();
-    if (midiSuccess) console.log(`Midi initialized`);
+    if (!midiSuccess) console.warn(`Midi initialization failed`);
 
     // All is well
-    console.log('Audiolib initialized successfully');
+    console.log('Audiolib initialized');
+    this.#isInitialized = true;
     return this;
   }
 
-  async reset(): Promise<Audiolib> {
-    // Dispose of resources
-    if (this.#globalAudioRecorder) {
-      this.#globalAudioRecorder.dispose();
-      this.#globalAudioRecorder = null;
-    }
+  // async reset(): Promise<Audiolib> {
+  //   // Dispose of resources
+  //   if (this.#globalAudioRecorder) {
+  //     this.#globalAudioRecorder.dispose();
+  //     this.#globalAudioRecorder = null;
+  //   }
 
-    // Reset initialization state
-    this.#asyncInit = createAsyncInit<Audiolib>();
-    this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
+  //   // Reset initialization state
+  //   this.#asyncInit = createAsyncInit<Audiolib>();
+  //   this.init = this.#asyncInit.wrapInit(this.#initImpl.bind(this));
 
-    // Re-initialize
-    return this.init();
-  }
+  //   // Re-initialize
+  //   return this.init();
+  // }
 
   // Public API for initialization state
 
   get isReady(): boolean {
-    return this.#asyncInit.isReady();
+    return this.#isInitialized; // this.#asyncInit.isReady();
   }
 
-  getInitState(): InitState {
-    return this.#asyncInit.getState();
-  }
+  // getInitState(): InitState {
+  //   return this.#asyncInit.getState();
+  // }
 
-  onReady(callback: (instance: Audiolib) => void): () => void {
-    const checkAndCall = () => {
-      if (this.isReady) callback(this);
-    };
+  // onReady(callback: (instance: Audiolib) => void): () => void {
+  //   const checkAndCall = () => {
+  //     if (this.isReady) callback(this);
+  //   };
 
-    // Call immediately if already ready
-    checkAndCall();
+  //   // Call immediately if already ready
+  //   checkAndCall();
 
-    // Subscribe to future state changes
-    return this.#asyncInit.onStateChange(checkAndCall);
-  }
+  //   // Subscribe to future state changes
+  //   return this.#asyncInit.onStateChange(checkAndCall);
+  // }
 
   async #validateContext(ctx: AudioContext): Promise<void> {
     assert(
@@ -198,7 +198,7 @@ export class Audiolib implements LibNode {
     ctx = this.#audioContext,
     polyphony = 16,
     audioBuffer?: AudioBuffer
-  ): SamplePlayer | null {
+  ): SamplePlayer {
     assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
     let buffer = audioBuffer || this.#currentAudioBuffer;
@@ -317,21 +317,33 @@ export class Audiolib implements LibNode {
   // Todo: change interface or adapt
 
   add(child: LibNode): this {
-    this.nodes.push(child);
+    this.firstChildren.push(child);
     return this;
   }
 
   remove(child: LibNode): this {
-    const index = this.nodes.indexOf(child);
+    const index = this.firstChildren.indexOf(child);
     if (index > -1) {
-      this.nodes.splice(index, 1);
+      this.firstChildren.splice(index, 1);
     }
     return this;
   }
 
   /** GETTERS & SETTERS **/
 
-  get nodes(): LibNode[] {
+  get in() {
+    return this.#masterGain;
+  }
+
+  get out() {
+    return this.#masterGain;
+  }
+
+  get destination() {
+    return this.#audioContext?.destination;
+  }
+
+  get firstChildren(): LibNode[] {
     return Array.from(this.#instruments.values());
   }
 
@@ -382,13 +394,10 @@ export class Audiolib implements LibNode {
       this.#globalAudioRecorder?.dispose();
       this.#globalAudioRecorder = null;
       this.#currentAudioBuffer = null;
-
-      Audiolib.#instance = null;
     } catch (error) {
       console.error(
         `Error during Audiolib disposal: ${error instanceof Error ? error.message : String(error)}`
       );
-      Audiolib.#instance = null;
     }
   }
 }

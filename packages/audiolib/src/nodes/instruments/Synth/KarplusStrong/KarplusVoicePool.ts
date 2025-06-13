@@ -3,6 +3,7 @@
 import { KarplusVoice } from './KarplusVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { ActiveNoteId, MidiValue } from '@/nodes/instruments/types';
+import { Connectable, Destination } from '@/nodes/LibNode';
 
 export class KarplusVoicePool {
   readonly nodeId: NodeID;
@@ -13,6 +14,12 @@ export class KarplusVoicePool {
   #activeVoices: Map<ActiveNoteId, KarplusVoice>;
   #nextNoteId: number;
 
+  #isReady: boolean = false;
+
+  get isReady() {
+    return this.#isReady;
+  }
+
   constructor(
     context: AudioContext,
     numVoices: number,
@@ -21,14 +28,22 @@ export class KarplusVoicePool {
     this.nodeId = createNodeId(this.nodeType);
     this.#context = context;
 
-    // Create KarplusVoice instances rather than SampleVoice instances
-    this.#allVoices = Array.from({ length: numVoices }, () =>
-      new KarplusVoice(context).connect(destination)
-    );
+    this.#allVoices = Array.from({ length: numVoices }, () => {
+      const voice = new KarplusVoice(context);
+      voice.connect(destination);
+      return voice;
+    });
 
     this.#activeVoices = new Map(); // noteId -> voice
     this.#nextNoteId = 0;
+
+    this.#isReady = true;
   }
+
+  connect = (destination: AudioNode) => {
+    // Destination
+    this.#allVoices.forEach((v) => v.connect(destination));
+  };
 
   // Voice Allocation
   findVoice() {
@@ -46,7 +61,7 @@ export class KarplusVoicePool {
 
   noteOn(
     midiNote: number,
-    velocity: number = 100,
+    velocity = 100,
     when: number = this.#context.currentTime
   ): ActiveNoteId {
     const noteId = this.#nextNoteId++; // increments for next note
@@ -87,6 +102,23 @@ export class KarplusVoicePool {
     return this;
   }
 
+  applyToAllVoices(fn: (voice: KarplusVoice) => void) {
+    this.#allVoices.forEach((voice) => fn(voice));
+  }
+
+  applyToActiveVoices(fn: (voice: KarplusVoice) => void) {
+    this.#activeVoices.forEach((voice) => fn(voice));
+  }
+
+  applyToVoice(noteId: ActiveNoteId, fn: (voice: KarplusVoice) => void) {
+    const voice = this.#activeVoices.get(noteId);
+    if (voice) {
+      fn(voice);
+    } else {
+      console.warn(`No active voice found for noteId: ${noteId}`);
+    }
+  }
+
   dispose() {
     this.#allVoices.forEach((voice) => voice.dispose());
     this.#allVoices = [];
@@ -100,5 +132,27 @@ export class KarplusVoicePool {
 
   get activeVoicesCount() {
     return this.#activeVoices.size;
+  }
+
+  // get auxIn() {
+  //   this.in.forEach((input) => stream.connect(input));
+  // }
+
+  set auxIn(stream: Connectable | AudioNode) {
+    this.ins.forEach((input) => {
+      if ('connect' in stream) {
+        if (stream instanceof AudioNode) {
+          stream.connect(input as unknown as AudioNode);
+        } else if ('connect' in stream) {
+          (stream as Connectable).connect(input);
+        }
+      }
+    });
+  }
+
+  get ins(): AudioNode[] {
+    const inputs: AudioNode[] = [];
+    this.#allVoices.forEach((v) => inputs.push(v.in));
+    return inputs;
   }
 }

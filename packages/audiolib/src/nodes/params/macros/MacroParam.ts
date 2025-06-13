@@ -1,4 +1,4 @@
-import { LibParam, ParamDescriptor, ParamType } from '@/nodes/params';
+import { LibParamDescriptor } from '@/nodes/params';
 import {
   Message,
   MessageBus,
@@ -9,9 +9,11 @@ import { SCALE_PATTERNS } from '@/utils/musical/constants';
 import { Debouncer } from '@/utils/Debouncer';
 import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
+import { NodeType } from '@/nodes/LibNode';
 
-export class MacroParam implements LibParam {
-  readonly nodeType: ParamType = 'macro';
+export class MacroParam {
+  // implements LibParam {
+  readonly nodeType: string = 'macro'; // Temporarily removed dependency on LibParam and ParamType
   readonly nodeId: NodeID;
 
   #controller: AudioParamController;
@@ -19,10 +21,11 @@ export class MacroParam implements LibParam {
   #debouncer: Debouncer;
   #messages: MessageBus<Message>;
   #paramType: string = '';
+  #isReady: boolean = false;
 
-  descriptor: ParamDescriptor;
+  descriptor: LibParamDescriptor;
 
-  constructor(context: BaseAudioContext, descriptor: ParamDescriptor) {
+  constructor(context: BaseAudioContext, descriptor: LibParamDescriptor) {
     this.descriptor = descriptor;
     this.#controller = new AudioParamController(
       context,
@@ -33,6 +36,8 @@ export class MacroParam implements LibParam {
 
     this.#messages = createMessageBus(this.#controller.nodeId);
     this.nodeId = this.#controller.nodeId;
+
+    this.#isReady = true;
   }
 
   addTarget(
@@ -42,6 +47,7 @@ export class MacroParam implements LibParam {
   ): this {
     if (!this.#paramType) this.#paramType = paramType;
     assert(
+      // todo: allow multiple types
       paramType === this.#paramType,
       'Macros only support a single ParamType'
     );
@@ -56,18 +62,24 @@ export class MacroParam implements LibParam {
     constant: number,
     options: {
       method?: 'exponential' | 'linear';
-      onComplete?: () => void;
       debounceMs?: number;
+      onComplete?: () => void;
+      onCompleteDelayMs?: number;
     } = {}
   ): this {
-    const { method = 'exponential', onComplete, debounceMs = 30 } = options;
+    const {
+      method = 'exponential',
+      debounceMs = 30,
+      onComplete,
+      onCompleteDelayMs = 30,
+    } = options;
 
     const executeRamp = () => {
       let processedValue = this.#processValue(targetValue, constant);
       this.#controller.ramp(processedValue, duration, method);
 
       if (onComplete) {
-        setTimeout(onComplete, duration * 1000 + 10);
+        setTimeout(onComplete, duration * 1000 + onCompleteDelayMs);
       }
     };
 
@@ -138,6 +150,10 @@ export class MacroParam implements LibParam {
     return this.#controller.value;
   }
 
+  get isReady() {
+    return this.#isReady;
+  }
+
   get now(): number {
     throw new Error('Not implemented');
   }
@@ -181,10 +197,12 @@ export class MacroParam implements LibParam {
   }
 
   // Stub methods for interface compliance
-  connect(): this {
-    throw new Error('Not implemented');
+  connect(target: AudioParam, nodeType: NodeType, scaleFactor?: number): this {
+    this.addTarget(target, nodeType, scaleFactor);
+    return this;
   }
-  disconnect(): void {
+
+  disconnect(target?: AudioParam | TODO): void {
     throw new Error('Not implemented');
   }
 }

@@ -1,0 +1,11 @@
+.git
+.turbo
+.vscode
+
+apps/test-elements
+
+packages/audio-components
+
+**/trash/**
+
+**/*.txt

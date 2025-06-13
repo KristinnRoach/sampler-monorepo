@@ -70,7 +70,45 @@ export function createNoteNameToFreqMap(): Record<string, number> {
     result[noteName] = NOTE_FREQUENCIES[index];
   });
 
-  return result;
+  // Add enharmonic equivalents
+  addEnharmonicEquivalents(result);
+
+  // Sort the object by frequency values
+  return sortObjectByValue(result);
+}
+
+// Helper function to add enharmonic equivalent notes
+function addEnharmonicEquivalents(noteMap: Record<string, number>): void {
+  // This function is already correct
+  const enharmonicPairs = [
+    ['C#', 'Db'],
+    ['D#', 'Eb'],
+    ['F#', 'Gb'],
+    ['G#', 'Ab'],
+    ['A#', 'Bb'],
+  ];
+
+  // For each octave where we have data
+  for (let octave = 0; octave <= 8; octave++) {
+    for (const [sharp, flat] of enharmonicPairs) {
+      const sharpNote = `${sharp}${octave}`;
+      const flatNote = `${flat}${octave}`;
+
+      // If we have one but not the other, create the equivalent
+      if (sharpNote in noteMap && !(flatNote in noteMap)) {
+        noteMap[flatNote] = noteMap[sharpNote];
+      } else if (flatNote in noteMap && !(sharpNote in noteMap)) {
+        noteMap[sharpNote] = noteMap[flatNote];
+      }
+    }
+  }
+}
+
+// Convert to array of entries, sort by value, and convert back to object
+function sortObjectByValue(
+  obj: Record<string, number>
+): Record<string, number> {
+  return Object.fromEntries(Object.entries(obj).sort((a, b) => a[1] - b[1]));
 }
 
 // Pre-computed maps for quick lookups

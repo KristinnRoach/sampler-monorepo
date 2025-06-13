@@ -19,11 +19,6 @@ export function getAudioContext(config?: AudioContextConfig): AudioContext {
       latencyHint: config?.latencyHint || 'interactive',
     });
 
-    // SystemEventBus.notify('audiocontext:created', {
-    //   publisherId: 'GlobalAudioContext',
-    //   message: `outputlatency: ${globalAudioContext.outputLatency},\nbaselatency: ${globalAudioContext.baseLatency},\nsampleRate: ${globalAudioContext.sampleRate}\nctx: ${globalAudioContext}`,
-    // });
-
     // Set up auto-resume on first creation, but don't await it
     if (globalAudioContext.state === 'suspended') {
       resumePromise = resumePromise || setupAutoResume();
@@ -33,36 +28,6 @@ export function getAudioContext(config?: AudioContextConfig): AudioContext {
   // Always return the context immediately, even if suspended
   return globalAudioContext;
 }
-
-function setupAutoResume(): Promise<void> {
-  /* istanbul ignore next – browser-only safeguard */
-  if (typeof document === 'undefined') {
-    return Promise.resolve();
-  }
-  const resumeEvents = ['click', 'touchstart', 'keydown'];
-
-  return new Promise((resolve) => {
-    const handler = async () => {
-      if (globalAudioContext) {
-        await globalAudioContext.resume();
-        // SystemEventBus.notify('audiocontext:resumed', {
-        //   publisherId: 'GlobalAudioContext',
-        //   message: `ctx: ${globalAudioContext}`,
-        // });
-        resumeEvents.forEach((event) =>
-          document.removeEventListener(event, handler)
-        );
-        resolve();
-      }
-    };
-
-    resumeEvents.forEach((event) =>
-      document.addEventListener(event, handler, { once: true })
-    );
-  });
-}
-
-// Call this when async is allowed
 export async function ensureAudioCtx(
   config?: AudioContextConfig
 ): Promise<AudioContext> {
@@ -88,6 +53,31 @@ export async function ensureAudioCtx(
   return context;
 }
 
+function setupAutoResume(): Promise<void> {
+  /* istanbul ignore next – browser-only safeguard */
+  if (typeof document === 'undefined') {
+    return Promise.resolve();
+  }
+  const resumeEvents = ['click', 'touchstart', 'keydown'];
+
+  return new Promise((resolve) => {
+    const handler = async () => {
+      if (globalAudioContext) {
+        await globalAudioContext.resume();
+
+        resumeEvents.forEach((event) =>
+          document.removeEventListener(event, handler)
+        );
+        resolve();
+      }
+    };
+
+    resumeEvents.forEach((event) =>
+      document.addEventListener(event, handler, { once: true })
+    );
+  });
+}
+
 export async function decodeAudioData(
   arrayBuffer: ArrayBuffer,
   config?: AudioContextConfig
@@ -104,17 +94,8 @@ export function releaseGlobalAudioContext(): void {
         console.warn('[GlobalAudioContext] close() failed', err);
       })
       .then(() => {
-        // SystemEventBus.notify('audiocontext:closed', {
-        //   publisherId: 'GlobalAudioContext',
-        //   message: `ctx: ${globalAudioContext}`,
-        // });
         globalAudioContext = null;
         resumePromise = null;
       });
   }
 }
-
-/* todo: listen for ctx events
-sinkchange Experimental, onstatechange
-Fired when the output audio device (and therefore, the AudioContext.sinkId) has changed.
-*/

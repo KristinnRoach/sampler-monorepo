@@ -13,3 +13,4 @@ It is meant to provide a simple, intuitive API that is tailored to my own needs.
 The first feature I am focusing on is creating a musical 'Sampler' instrument.
 
 Todo: Define core architecture, control flow, events etc..
+TODO: "sideEffects": false,

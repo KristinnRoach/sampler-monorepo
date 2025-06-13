@@ -1,4 +1,4 @@
-import { LibNode, SampleLoader } from '@/LibNode';
+import { LibNode, SampleLoader } from '@/nodes/LibNode';
 import { NodeID, createNodeId, deleteNodeId } from '@/nodes/node-store';
 import {
   Message,
@@ -7,7 +7,6 @@ import {
   createMessageBus,
 } from '@/events';
 import { getMicrophone } from '@/io/devices/devices';
-// import { assert, tryCatch } from '@/utils';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -59,6 +58,7 @@ export class Recorder implements LibNode {
       this.#recorder = new MediaRecorder(this.#stream, {
         mimeType: 'audio/webm',
       });
+
       return this;
     } catch (error) {
       throw new Error(`Failed to get microphone: ${error}`);
@@ -293,4 +293,18 @@ export class Recorder implements LibNode {
   get now(): number {
     return this.#context.currentTime;
   }
+
+  get destination() {
+    return this.#destination;
+  }
+  // get in() {
+  //   return this.#audioSource;
+  // }
+
+  // get out() {
+  //   return this.#audioSource;
+  // }
+
+  // get firstChildren(): LibAudioNode[] {
+  // }
 }

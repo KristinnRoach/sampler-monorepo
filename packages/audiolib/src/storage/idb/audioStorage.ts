@@ -7,6 +7,8 @@ import {
   OfflineContextConfig,
 } from '@/context';
 
+import { AppSample, IdbSample, ISampleMetadata } from '@/types/Sample';
+
 /**
  * Stores an AudioBuffer in IndexedDB
  *

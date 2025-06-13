@@ -6,14 +6,21 @@
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "vite build",
-    "dev": "pnpm clean && vite build --watch",
-    "dev:server": "node scripts/dev.js",
-    "clean": "rm -rf dist node_modules && pnpm prune"
+    "build": "pnpm clean && pnpm install && vite build",
+    "watch": "vite build --watch",
+    "clean": "rimraf dist && mkdir -p dist",
+    "clean:deps": "rimraf node_modules && pnpm install",
+    "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune"
   },
   "dependencies": {
     "@repo/audiolib": "workspace:*",
