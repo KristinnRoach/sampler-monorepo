@@ -103,7 +103,7 @@ export class Audiolib implements AudioGraph {
 
     // Register worklet processors
     const worklResult = await tryCatch(() => initProcessors(ctx));
-    assert(!worklResult.error, `Failed to register with plugin`, worklResult);
+    assert(!worklResult.error, `Failed to register processors`, worklResult);
 
     // Initialize Recorder node
     const recorderResult = await tryCatch(() => createAudioRecorder(ctx));
@@ -239,9 +239,7 @@ export class Audiolib implements AudioGraph {
 
     newSynth.connect(this.#masterGain);
     this.#instruments.set(newSynth.nodeId, newSynth);
-
-    // Enable MIDI with our controller
-    newSynth.enableMIDI(this.#midiController);
+    // newSynth.enableMIDI(this.#midiController);
 
     return newSynth;
   }

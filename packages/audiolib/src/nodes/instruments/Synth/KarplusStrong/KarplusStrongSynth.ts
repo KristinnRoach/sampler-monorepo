@@ -9,6 +9,7 @@ import { MidiController, PressedModifiers } from '@/io';
 import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
 import { normalizeRange, cancelScheduledParamValues } from '@/utils';
+import { Destination } from '@/nodes/LibNode';
 
 export class KarplusStrongSynth extends LibInstrument {
   // KarplusStrongSynth-specific private # fields
@@ -404,6 +405,18 @@ export class KarplusStrongSynth extends LibInstrument {
     return this;
   }
 
+  // connect(destination: Destination): Destination {
+  //   this.outBus.connect(destination);
+  //   this.destination = destination;
+  //   return destination;
+  // }
+
+  // disconnect() {
+  //   this.outBus.disconnect();
+  //   this.destination = null;
+  //   return this;
+  // }
+
   /** GETTERS */
   get context() {
     return this.audioContext;
@@ -429,15 +442,6 @@ export class KarplusStrongSynth extends LibInstrument {
     return this.voicePool.allVoices.length;
   }
 }
-
-// connect(destination: AudioNode): this {
-//   this.outBus.connect(destination);
-//   return this;
-// }
-
-// disconnect(): void {
-//   this.outBus.disconnect();
-// }
 
 // Register parameters
 // this.#registerParameters();

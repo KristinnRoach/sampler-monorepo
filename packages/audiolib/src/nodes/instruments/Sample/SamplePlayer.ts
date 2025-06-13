@@ -695,6 +695,10 @@ export class SamplePlayer extends LibInstrument {
   //   return this.destination;
   // }
 
+  get context() {
+    return this.audioContext;
+  }
+
   get now() {
     return this.audioContext.currentTime;
   }

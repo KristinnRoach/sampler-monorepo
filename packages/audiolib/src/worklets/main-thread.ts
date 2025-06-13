@@ -1,6 +1,8 @@
 // main-thread.ts
 import { registry } from './worklet-registry';
 
+let processorsInitialized = false;
+
 // Static paths to try first
 const staticPaths = [
   // Path that works in development (first attempt)
@@ -32,13 +34,12 @@ async function getBlobUrl(): Promise<string> {
     // Try each fetch URL until one works
     for (const fetchUrl of possibleFetchUrls) {
       try {
-        // console.debug(`Attempting to fetch processor code from: ${fetchUrl}`);
         const response = await fetch(fetchUrl);
         if (!response.ok) {
           throw new Error(`HTTP error ${response.status}`);
         }
         processorCode = await response.text();
-        console.log(`Successfully fetched processor code from: ${fetchUrl}`);
+        console.info(`Fetched processor code from: ${fetchUrl}`);
         break;
       } catch (fetchError) {
         console.debug(`Failed to fetch from ${fetchUrl}:`, fetchError);
@@ -58,7 +59,6 @@ async function getBlobUrl(): Promise<string> {
     const blob = new Blob([processorCode], { type: 'application/javascript' });
     const blobUrl = URL.createObjectURL(blob);
 
-    console.log('Created Blob URL for processor code:', blobUrl);
     return blobUrl;
   } catch (error) {
     console.error('Failed to create Blob URL:', error);
@@ -68,23 +68,32 @@ async function getBlobUrl(): Promise<string> {
 
 // Function to try multiple paths to load the audio worklet
 export async function initProcessors(context: AudioContext) {
+  if (processorsInitialized) {
+    console.info('AudioWorklet processors already initialized, skipping');
+    return {
+      success: true,
+      loadedPath: 'already-initialized',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   // First try all static paths
   let lastError = null;
 
   for (const path of staticPaths) {
     if (!registry.has(path)) {
       try {
-        // console.debug(`Attempting to load AudioWorklet from: ${path}`);
         await context.audioWorklet.addModule(path);
         registry.add(path);
-        console.log('AudioWorklet module loaded successfully from:', path);
+        processorsInitialized = true;
+
+        console.info('AudioWorklet module loaded successfully from:', path);
         return {
           success: true,
           loadedPath: path,
           timestamp: new Date().toISOString(),
         };
       } catch (error) {
-        // console.debug(`Failed to load AudioWorklet from ${path}:`, error);
         lastError = error;
       }
     }
@@ -93,12 +102,16 @@ export async function initProcessors(context: AudioContext) {
   // If all static paths failed, try the Blob URL approach as a last resort
   try {
     const blobUrl = await getBlobUrl();
-    // console.debug(`Attempting to load AudioWorklet from Blob URL`);
-    await context.audioWorklet.addModule(blobUrl);
-    registry.add('blob-url');
-    console.log('AudioWorklet module loaded successfully from Blob URL');
 
-    // Clean up the blob URL since it's now loaded into the AudioWorklet
+    if (!registry.has(blobUrl)) {
+      await context.audioWorklet.addModule(blobUrl);
+      registry.add(blobUrl);
+
+      processorsInitialized = true;
+      console.info('AudioWorklet module loaded from Blob URL');
+    }
+
+    // Clean up the the loaded blob URL
     URL.revokeObjectURL(blobUrl);
 
     return {

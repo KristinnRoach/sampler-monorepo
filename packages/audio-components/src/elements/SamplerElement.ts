@@ -1,4 +1,4 @@
-import van from '@repo/vanjs-core';
+import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 import { createSamplePlayer, SamplePlayer, getInstance } from '@repo/audiolib';
 import { createCheckbox, createSlider } from './utils/createInputEl';
@@ -8,6 +8,11 @@ import midiSvgRaw from '../assets/icons/svg/svgrepo/midi-logo.svg?raw';
 import keysSvgRaw from '../assets/icons/svg/svgrepo/computer-keyboard-2.svg?raw';
 import loopOnSvgRaw from '../assets/icons/svg/svgrepo/loop-on.svg?raw';
 import loopOffSvgRaw from '../assets/icons/svg/svgrepo/loop-off.svg?raw';
+import listeningSvgRaw from '../assets/icons/svg/svgrepo/listening.svg?raw';
+import recordSvgRaw from '../assets/icons/svg/phosphore/record.svg?raw';
+import stopSvgRaw from '../assets/icons/svg/phosphore/stop.svg?raw';
+
+// Todo: event dispatch
 
 const { div, button } = van.tags;
 
@@ -38,7 +43,8 @@ const SamplerElement = (attributes: ElementProps) => {
   const holdLocked = van.state(false);
 
   // Recording state
-  const isRecording = van.state(false);
+  const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
+    van.state('Record');
 
   // Status
   const status = van.state('Not initialized');
@@ -56,16 +62,19 @@ const SamplerElement = (attributes: ElementProps) => {
         // Get polyphony from attribute or use default
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
 
+        // Todo: remove dep on audiolib class, add destination master handling
         samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
+        // samplePlayer = createSamplePlayer(undefined, polyphony);
+        // console.info(samplePlayer)
+
+        // Connect to audio destination
+        // currently automatic connect
 
         if (!samplePlayer) {
           console.warn('Failed to create sample player');
           status.val = 'Failed to initialize';
           return;
         }
-
-        // Connect to audio destination
-        // currently automatic connect
 
         // Reactive parameter binding
         derive(() => samplePlayer.setAttackTime(attack.val));
@@ -97,8 +106,8 @@ const SamplerElement = (attributes: ElementProps) => {
         });
 
         // Listen for SamplePlayer events
-        samplePlayer.onMessage('loop:enabled', (msg) => {
-          console.log(`onMessage, loop:enabled: ${msg.enabled}`);
+        samplePlayer.onMessage('loop:enabled', (msg: any) => {
+          // console.log(`onMessage, loop:enabled: ${msg.enabled}`);
           loopEnabled.val = msg.enabled;
           status.val = `Loop ${msg.enabled ? 'enabled' : 'disabled'}`;
         });
@@ -117,22 +126,9 @@ const SamplerElement = (attributes: ElementProps) => {
             if (capsState !== loopEnabled.val) loopEnabled.val = capsState;
           }
         });
+        // todo: add listeners for other messages and type them
 
-        // samplePlayer.onMessage('loop:locked', (msg) => {
-        //   loopLocked.val = msg.locked;
-        //   status.val = `Loop ${msg.locked ? 'locked' : 'unlocked'}`;
-        // });
-
-        // samplePlayer.onMessage('hold:state', (msg) => {
-        //   holdEnabled.val = msg.enabled;
-        //   status.val = `Hold ${msg.enabled ? 'enabled' : 'disabled'}`;
-        // });
-
-        // samplePlayer.onMessage('hold:locked', (msg) => {
-        //   holdLocked.val = msg.locked;
-        //   status.val = `Hold ${msg.locked ? 'locked' : 'unlocked'}`;
-        // });
-
+        // todo: Dispatch custom event to notify listeners that the sampler is initialized
         status.val = 'Ready';
       } catch (error) {
         console.error('Failed to initialize sampler:', error);
@@ -166,23 +162,22 @@ const SamplerElement = (attributes: ElementProps) => {
           status.val = `Loading: ${file.name}...`;
 
           try {
-            const ctx = samplePlayer.audioContext;
             const arrayBuffer = await file.arrayBuffer();
-            audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-            if (!audioBuffer) {
-              console.warn(`Failed to create audiobuffer`);
+            if (!arrayBuffer) {
+              console.warn(`Failed to retrieve uploaded arrayBuffer`);
               return;
             }
 
-            await samplePlayer.loadSample(audioBuffer);
+            await samplePlayer.loadSample(arrayBuffer);
 
             // Update sample duration and reset ranges
-            sampleDuration.val = audioBuffer.duration;
+            const newDuration = samplePlayer.sampleDuration; // (maybe update via message instead for consistency)
+            sampleDuration.val = newDuration;
             loopStart.val = 0;
-            loopEnd.val = audioBuffer.duration;
+            loopEnd.val = newDuration;
             startOffset.val = 0;
-            endOffset.val = audioBuffer.duration;
+            endOffset.val = newDuration;
 
             status.val = `Loaded: ${file.name}`;
           } catch (error) {
@@ -201,7 +196,7 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Recording handlers
   const startRecording = async () => {
-    if (!samplePlayer || isRecording.val) return;
+    if (!samplePlayer || recordBtnState.val === 'Recording') return;
 
     try {
       const recorder = await getInstance().createRecorder();
@@ -220,27 +215,43 @@ const SamplerElement = (attributes: ElementProps) => {
         silenceTimeoutMs: 1000,
       });
 
-      isRecording.val = true;
-      status.val = 'Recording...';
+      //! onMessage('record:armed' is not working, temp fix:
+      recordBtnState.val = 'Armed';
+      status.val = 'Listening...';
 
-      // Listen for auto-stop
+      // Listen for Recorder events
+      recorder.onMessage('record:armed', () => {
+        recordBtnState.val = 'Armed';
+        status.val = 'Listening...';
+      });
+
+      recorder.onMessage('record:start', () => {
+        recordBtnState.val = 'Recording';
+        status.val = 'Recording...';
+      });
+
+      recorder.onMessage('record:cancelled', () => {
+        recordBtnState.val = 'Record';
+        status.val = 'Recording cancelled';
+      });
+
       recorder.onMessage('record:stop', () => {
-        isRecording.val = false;
+        recordBtnState.val = 'Record';
         status.val = 'Recording completed';
       });
     } catch (error) {
       console.error('Failed to start recording:', error);
       status.val = `Recording error: ${error instanceof Error ? error.message : String(error)}`;
-      isRecording.val = false;
+      recordBtnState.val = 'Record';
     }
   };
 
   const stopRecording = async () => {
-    if (!isRecording.val) return;
+    if (!recordBtnState.val) return;
 
     try {
       // Stop recording logic would go here
-      isRecording.val = false;
+      recordBtnState.val = 'Record';
       status.val = 'Recording stopped';
     } catch (error) {
       console.error('Failed to stop recording:', error);
@@ -282,6 +293,27 @@ const SamplerElement = (attributes: ElementProps) => {
     'Loop Off'
   );
 
+  const startRecordingSvg = createSvgIcon(
+    recordSvgRaw,
+    { width: '2rem', height: '2rem' },
+    'currentColor',
+    'Rec'
+  );
+
+  const recordArmedSvg = createSvgIcon(
+    listeningSvgRaw,
+    { width: '2rem', height: '2rem' },
+    'white',
+    'ARMED'
+  );
+
+  const stopRecordingSvg = createSvgIcon(
+    stopSvgRaw,
+    { width: '2rem', height: '2rem' },
+    'currentColor',
+    'Stop'
+  );
+
   return div(
     { class: 'sampler-element', style: () => defaultStyle },
 
@@ -304,18 +336,26 @@ const SamplerElement = (attributes: ElementProps) => {
         button(
           {
             style: buttonStyle,
-            onclick: loadSample,
+            onclick: (e) => {
+              e.stopPropagation();
+              loadSample();
+            },
           },
           'Upload'
         ),
         button(
           {
-            style: () =>
-              `${buttonStyle} ${isRecording.val ? 'background-color: #ff4444; color: white' : ''}`,
-            onclick: () =>
-              isRecording.val ? stopRecording() : startRecording(),
+            // style: () =>
+            //   `${buttonStyle} ${recorderState.val ? 'background-color: #ff4444; color: white' : ''}`,
+            onclick: (e) => {
+              e.stopPropagation();
+              recordBtnState.val === 'Recording' ||
+              recordBtnState.val === 'Armed'
+                ? stopRecording()
+                : startRecording();
+            },
           },
-          () => (isRecording.val ? 'Stop' : 'Record')
+          () => recordBtnState.val || 'Record'
         )
       )
     ),
