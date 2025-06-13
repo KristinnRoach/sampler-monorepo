@@ -158,8 +158,8 @@ const SamplerComponent = ({ context: audiolib }: SamplerComponentProps) => {
       return;
     }
 
-    const ctx = samplePlayerRef.current.audioContext;
-    if (!ctx) return;
+    const ctx = samplePlayerRef.current.context;
+    if (!ctx) return; // can also just pass arraybuffer into loadSample
 
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await ctx.decodeAudioData(arrayBuffer);

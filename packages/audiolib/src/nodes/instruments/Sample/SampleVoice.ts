@@ -141,11 +141,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.nodeId = createNodeId(this.nodeType);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
-    // Update AudioWorkletNode initialization with parameter data
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
-      // Initialize with parameter data
+      // ? Initialize with parameter data
       // parameterData: {
       //   envGain: SAMPLE_VOICE_PARAM_DESCRIPTORS.envGain.defaultValue,
       //   playbackRate: SAMPLE_VOICE_PARAM_DESCRIPTORS.playbackRate.defaultValue,

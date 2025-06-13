@@ -49,6 +49,10 @@ body {
   border-radius: 1rem;
 } */
 
+karplus-synth {
+  padding: 1rem;
+}
+
 /* Base styles for the custom elements */
 .lib-node {
   display: flex;
@@ -57,10 +61,6 @@ body {
   cursor: grab;
   user-select: none;
   touch-action: none;
-
-  /* Spacing */
-  /* margin: 20px 0;
-  padding: 15px; */
 
   background-color: #333;
   border: 1px solid #555;
@@ -74,10 +74,10 @@ body {
   cursor: grabbing;
 }
 
-.karplus-synth input {
+/* .karplus-synth input {
   pointer-events: auto;
   cursor: pointer;
-}
+} */
 
 /* Styling the custom elements - updated for Light DOM */
 /* button {

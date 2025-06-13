@@ -71,8 +71,6 @@ export class Recorder implements LibNode {
 
     this.#currentConfig = { ...DEFAULT_RECORDER_OPTIONS, ...options };
 
-    console.info('Recording with options:', this.#currentConfig);
-
     try {
       if (!this.#currentConfig.useThreshold) {
         this.#startRecordingImmediate();
@@ -95,6 +93,9 @@ export class Recorder implements LibNode {
     }
 
     this.#state = AudioRecorderState.ARMED;
+    console.info('Recorder state: ARMED');
+
+    // ! record:armed doesnt seem to send a reliable message
     this.sendMessage('record:armed', {
       threshold: this.#currentConfig!.startThreshold,
       destination: this.#destination,
@@ -106,6 +107,8 @@ export class Recorder implements LibNode {
   #startRecordingImmediate(): void {
     this.#recorder!.start();
     this.#state = AudioRecorderState.RECORDING;
+    console.info(`Recorder state: ${this.#state}`);
+
     this.sendMessage('record:start', { destination: this.#destination });
 
     if (this.#currentConfig!.autoStop) {
@@ -199,7 +202,10 @@ export class Recorder implements LibNode {
     // Handle armed state cancellation
     if (this.#state === AudioRecorderState.ARMED) {
       this.#cleanupMonitoring();
+
       this.#state = AudioRecorderState.STOPPED;
+      console.info(`Recorder state: ${this.#state}`);
+
       this.sendMessage('record:cancelled', {});
       throw new Error('Recording was armed but never triggered');
     }
@@ -214,6 +220,8 @@ export class Recorder implements LibNode {
     const buffer = await this.#blobToAudioBuffer(blob);
 
     this.#state = AudioRecorderState.STOPPED;
+    console.info(`Recorder state: ${this.#state}`);
+
     this.sendMessage('record:stop', { duration: buffer.duration });
 
     if (this.#destination) {

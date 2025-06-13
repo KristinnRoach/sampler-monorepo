@@ -28,7 +28,7 @@ export async function createAudiolib(
   });
 
   // Initialize if requested
-  if (options.autoInit !== false) {
+  if (options.autoInit) {
     await audiolib.init();
   }
 

@@ -169,14 +169,14 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // Connection methods
-  connect(destination: Destination): Destination {
+  public connect(destination: Destination): Destination {
     assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
     this.outBus.connect(destination);
     this.destination = destination;
     return destination;
   }
 
-  disconnect(output?: 'main' | 'alt' | 'all'): this {
+  public disconnect(output?: 'main' | 'alt' | 'all'): this {
     this.outBus.disconnect(output);
     if (output === 'main' || output === 'all') {
       this.destination = null;

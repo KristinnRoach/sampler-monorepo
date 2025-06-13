@@ -1,6 +1,12 @@
 import van from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
-import { createKarplusStrongSynth, KarplusStrongSynth } from '@repo/audiolib';
+import {
+  getInstance,
+  Audiolib,
+  AudiolibOptions,
+  createKarplusStrongSynth,
+  KarplusStrongSynth,
+} from '@repo/audiolib';
 import { createCheckbox, createSlider } from './utils/createInputEl';
 
 const { div } = van.tags;
@@ -23,13 +29,22 @@ const KarplusSynthElement = (attributes: ElementProps) => {
   const derive = (fn: () => void) => van.derive(() => ksSynth && fn());
 
   attributes.mount(() => {
-    ksSynth = createKarplusStrongSynth(32);
+    ksSynth = createKarplusStrongSynth(16);
     if (!ksSynth) {
       console.warn('Failed to create Karplus-Strong synthesizer');
       return;
     }
 
+    // Todo: destination master handling
+    // @ts-ignore
     ksSynth.connect(ksSynth.context.destination);
+    // console.info(ksSynth);
+
+    // Add getter for the synth instance
+    Object.defineProperty(attributes.$this, 'synth', {
+      get: () => ksSynth,
+      configurable: true,
+    });
 
     derive(() =>
       keyboardEnabled.val ? ksSynth.enableKeyboard() : ksSynth.disableKeyboard()
@@ -48,11 +63,15 @@ const KarplusSynthElement = (attributes: ElementProps) => {
       ksSynth.setHpfCutoff(hpfFreq.val);
     });
 
-    return () => ksSynth?.dispose();
+    return () => {
+      delete (attributes.$this as any).synth;
+      ksSynth?.dispose();
+    };
   });
 
-  const defaultStyle = `display: flex; flex-direction: column; gap: 0.2rem; padding: 0.2rem`;
-  const expandedHeaderStyle = `margin-bottom: 1rem`;
+  const defaultStyle = `display: flex; flex-direction: column; padding: 1rem`;
+  const minimizedHeaderStyle = `display: flex; flex-direction: row; column-gap: 1rem;`;
+  const expandedHeaderStyle = minimizedHeaderStyle; // The same for now, easy to up
 
   return div(
     { class: 'karplus-synth', style: () => defaultStyle },
