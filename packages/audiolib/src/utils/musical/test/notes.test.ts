@@ -10,7 +10,7 @@ describe('notes constants', () => {
     // Test a few key notes
     expect(noteNamesToPeriod.A4).toBeCloseTo(1 / 440.0); // A4 (concert pitch)
     expect(noteNamesToPeriod.C4).toBeCloseTo(1 / 261.63); // Middle C
-    expect(noteNamesToPeriod.C8).toBeCloseTo(1 / 4186.01); // Highest C
+    expect(noteNamesToPeriod.C7).toBeCloseTo(1 / 4186.01); // Highest C
   });
 
   it('should have equivalent values for enharmonic notes', () => {

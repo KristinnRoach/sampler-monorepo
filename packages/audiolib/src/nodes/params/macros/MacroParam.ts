@@ -13,7 +13,7 @@ import { NodeType } from '@/nodes/LibNode';
 
 export class MacroParam {
   // implements LibParam {
-  readonly nodeType: string = 'macro'; // Temporarily removed dependency on LibParam and ParamType
+  readonly nodeType: string = 'macro';
   readonly nodeId: NodeID;
 
   #controller: AudioParamController;
@@ -69,7 +69,7 @@ export class MacroParam {
   ): this {
     const {
       method = 'exponential',
-      debounceMs = 30,
+      debounceMs = 20,
       onComplete,
       onCompleteDelayMs = 30,
     } = options;

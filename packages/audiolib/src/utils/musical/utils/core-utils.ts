@@ -20,9 +20,9 @@ export function frequencyToMidi(frequency: number, a4Frequency = 440): number {
  */
 export function generateNoteFrequencies(
   startOctave = 0,
-  endOctave = 8,
+  endOctave = 9,
   a4Frequency = 440,
-  precision = 2
+  precision = 4
 ): number[] {
   const frequencies: number[] = [];
   const semitoneRatio = Math.pow(2, 1 / 12);

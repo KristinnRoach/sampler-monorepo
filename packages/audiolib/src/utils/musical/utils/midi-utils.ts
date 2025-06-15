@@ -1,5 +1,3 @@
-import { midiToFrequency } from './core-utils';
-
 /**
  * Validates if a number is a valid MIDI value (0-127)
  */

@@ -1,0 +1,40 @@
+// SampleControls.ts
+import van, { State } from '@repo/vanjs-core';
+import { createSlider } from '../primitives/createInputEl';
+import { createTwoThumbSlider } from '../primitives/createTwoThumbSlider';
+
+const { div } = van.tags;
+
+export const SampleControls = (
+  loopStart: State<number>,
+  loopEnd: State<number>,
+  loopEndFineTune: State<number>,
+  startOffset: State<number>,
+  endOffset: State<number>,
+  sampleDuration: State<number>
+) => {
+  const controls = div(
+    { style: 'display: flex; flex-direction: column;' },
+    createTwoThumbSlider(
+      'Loop Range',
+      loopStart,
+      loopEnd,
+      0,
+      sampleDuration.val,
+      0.001,
+      0.001
+    ),
+
+    createSlider('Crank Loop', loopEndFineTune, 0, 100, 1, false, 'ms', 1),
+
+    // createSlider('Loop Start', loopStart, 0, sampleDuration.val, 0.001),
+    // createSlider('Loop End', loopEnd, 0, sampleDuration.val, 0.001),
+    createSlider('Start Offset', startOffset, 0, sampleDuration.val, 0.001),
+    createSlider('End Offset', endOffset, 0, sampleDuration.val, 0.001)
+  );
+
+  // Attach the fine-tune state to the DOM element for access
+  (controls as any).loopEndFineTune = loopEndFineTune;
+
+  return controls;
+};

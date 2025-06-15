@@ -5,12 +5,12 @@ import * as Midi from './midi';
 import { generateNoteFrequencies } from '../utils/core-utils';
 
 // Generate frequency and period data
-const FREQUENCIES = generateNoteFrequencies();
+const FREQUENCIES = generateNoteFrequencies(0, 9);
 const PERIODS = FREQUENCIES.map((freq) => 1 / freq);
 
 // Create note names with octaves
 const NAMES_W_OCT = Array.from({ length: FREQUENCIES.length }, (_, i) => {
-  const octave = Math.floor(i / 12);
+  const octave = Math.floor(i / 12) - 1;
   const noteIndex = i % 12;
   const noteName = Notes.NAMES[noteIndex][0]; // Use first name (prefer sharps)
   return `${noteName}${octave}`;

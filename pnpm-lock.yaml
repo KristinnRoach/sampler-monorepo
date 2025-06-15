@@ -24,22 +24,6 @@ importers:
         specifier: ^5.7.3
         version: 5.7.3
 
-  apps/audio-graph:
-    dependencies:
-      '@repo/graph-elements':
-        specifier: workspace:*
-        version: link:../../packages/graph-elements
-      '@repo/vanjs-core':
-        specifier: workspace:*
-        version: link:../../packages/vanjs
-    devDependencies:
-      typescript:
-        specifier: ~5.8.3
-        version: 5.8.3
-      vite:
-        specifier: ^6.3.5
-        version: 6.3.5(@types/node@20.17.17)(jiti@1.21.7)(terser@5.39.2)(yaml@2.7.0)
-
   apps/test-elements:
     dependencies:
       '@repo/audio-components':
@@ -52,6 +36,9 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2
     devDependencies:
+      typescript:
+        specifier: ^5.8.0
+        version: 5.8.3
       vite:
         specifier: ^6.0.0
         version: 6.1.0(@types/node@20.17.17)(jiti@1.21.7)(terser@5.39.2)(yaml@2.7.0)
@@ -136,28 +123,6 @@ importers:
       jsdom:
         specifier: ^26.0.0
         version: 26.0.0
-      typescript:
-        specifier: ^5.8.0
-        version: 5.8.2
-      vite:
-        specifier: ^6.0.0
-        version: 6.1.0(@types/node@20.17.17)(jiti@1.21.7)(terser@5.39.2)(yaml@2.7.0)
-      vite-plugin-dts:
-        specifier: ^4.5.3
-        version: 4.5.3(@types/node@20.17.17)(rollup@4.43.0)(typescript@5.8.2)(vite@6.1.0(@types/node@20.17.17)(jiti@1.21.7)(terser@5.39.2)(yaml@2.7.0))
-      vitest:
-        specifier: ^3.0.0
-        version: 3.0.9(@types/node@20.17.17)(jiti@1.21.7)(jsdom@26.0.0)(terser@5.39.2)(yaml@2.7.0)
-
-  packages/graph-elements:
-    dependencies:
-      '@repo/audiolib':
-        specifier: workspace:*
-        version: link:../audiolib
-      '@repo/vanjs-core':
-        specifier: workspace:*
-        version: link:../vanjs
-    devDependencies:
       typescript:
         specifier: ^5.8.0
         version: 5.8.2

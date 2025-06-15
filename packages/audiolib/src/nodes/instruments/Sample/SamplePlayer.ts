@@ -2,6 +2,8 @@ import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
 import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
+import { detectPitch } from '@/nodes/offlineDSP/simplePitchDetect';
+import { findClosestNote } from '@/utils';
 
 import {
   assert,
@@ -147,7 +149,9 @@ export class SamplePlayer extends LibInstrument {
 
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
-    modSampleRate?: number
+    modSampleRate?: number,
+    shoulDetectPitch = true,
+    autoTranspose = true
   ): Promise<boolean> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -171,6 +175,24 @@ export class SamplePlayer extends LibInstrument {
         requested rate: ${modSampleRate}
         `
       );
+    }
+
+    if (shoulDetectPitch) {
+      const pitch = await detectPitch(buffer);
+
+      const closestNoteInfo = findClosestNote(pitch);
+
+      console.table(closestNoteInfo);
+
+      this.sendUpstreamMessage('sample:pitch-detected', {
+        pitch,
+        closestNoteInfo,
+      });
+
+      if (autoTranspose) {
+        const transposeSemitones = 60 - closestNoteInfo.midiNote;
+        this.voicePool.transposeSemitones = transposeSemitones;
+      }
     }
 
     if (this.#useZeroCrossings) {
@@ -293,9 +315,6 @@ export class SamplePlayer extends LibInstrument {
     if (modifiers.shift !== undefined) {
       this.setHoldEnabled(modifiers.shift);
     }
-    if (modifiers.space) {
-      console.log(`Spacebar handling in SamplePlayer not implemented yet!`);
-    }
     return this;
   }
 
@@ -322,12 +341,10 @@ export class SamplePlayer extends LibInstrument {
 
   async initMidiController(): Promise<boolean> {
     if (this.midiController?.isInitialized) {
-      console.log(`SamplePlayer: MIDI controller initialized`);
       return true;
     }
 
     if (!this.midiController) {
-      console.debug(`SamplePlayer: Creating MIDI controller.`);
       this.midiController = new MidiController();
     }
 
@@ -508,7 +525,7 @@ export class SamplePlayer extends LibInstrument {
     this.#holdEnabled = enabled;
 
     if (!enabled) this.releaseAll(this.getReleaseTime());
-    this.sendUpstreamMessage('hold:state', { enabled });
+    this.sendUpstreamMessage('hold:enabled', { enabled });
     return this;
   }
 
@@ -528,6 +545,7 @@ export class SamplePlayer extends LibInstrument {
     this.#holdLocked = locked;
     this.setHoldEnabled(locked);
 
+    console.debug(`sending hold:locked message, locked: ${locked}`);
     this.sendUpstreamMessage('hold:locked', { locked });
     return this;
   }
@@ -544,13 +562,15 @@ export class SamplePlayer extends LibInstrument {
     targetValue: number,
     rampTime: number = this.getLoopRampDuration()
   ) {
-    const fineTuned = targetValue + this.#loopEndFineTune;
-    this.setLoopPoint('end', this.loopStart, fineTuned, rampTime);
+    this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
     return this;
   }
 
-  setFineTuneLoopEnd(valueToAdd: number) {
-    this.#loopEndFineTune = valueToAdd;
+  setFineTuneLoopEnd(loopEndOffset: number) {
+    this.#loopEndFineTune = loopEndOffset;
+    console.log(`fine tune: ${this.#loopEndFineTune}`);
+    console.log(`curr loop end: ${this.loopEnd}`);
+    this.setLoopEnd(this.loopEnd);
     return this;
   }
 
@@ -565,7 +585,6 @@ export class SamplePlayer extends LibInstrument {
     const RAMP_SENSITIVITY = 2;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-    // ? refactor
     if (loopPoint === 'start') {
       const storeLoopStart = () => this.storeParamValue('loopStart', start);
       this.#macroLoopStart.ramp(start, scaledRampTime, end, {
@@ -573,8 +592,8 @@ export class SamplePlayer extends LibInstrument {
       });
     } else {
       const storeLoopEnd = () => this.storeParamValue('loopEnd', end);
-
-      this.#macroLoopEnd.ramp(end, scaledRampTime, start, {
+      const fineTunedEnd = end + this.#loopEndFineTune;
+      this.#macroLoopEnd.ramp(fineTunedEnd, scaledRampTime, start, {
         onComplete: storeLoopEnd,
       });
     }

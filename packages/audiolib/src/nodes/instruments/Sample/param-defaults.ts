@@ -44,7 +44,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
     minValue: 0.001,
     maxValue: 2.0,
     step: 0.001,
-    defaultValue: 0.2,
+    defaultValue: 0.5,
     group: 'loop-points',
     automationRate: 'k-rate',
   },

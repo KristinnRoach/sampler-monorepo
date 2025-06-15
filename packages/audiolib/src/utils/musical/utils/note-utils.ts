@@ -5,8 +5,20 @@ import {
   NOTE_PERIODS,
   NOTE_NAMES_WITH_OCTAVE,
 } from '../constants';
-import { midiToFrequency } from './core-utils';
+import { midiToFrequency, frequencyToMidi } from './core-utils';
 import type { Note } from '../types';
+
+export const findClosestNote = (freq: number) => {
+  const closestNoteFreq = NOTE_FREQUENCIES.reduce((closest, current) =>
+    Math.abs(current - freq) < Math.abs(closest - freq) ? current : closest
+  );
+
+  const closestMidiNote = frequencyToMidi(closestNoteFreq);
+
+  const closestNoteInfo = createNoteFromMidi(closestMidiNote);
+
+  return closestNoteInfo;
+};
 
 /**
  * Creates a complete Note object from a MIDI note number
@@ -30,10 +42,12 @@ export function createNoteFromMidi(midiNote: number): Note {
  * Gets the note name with octave for a given MIDI note number
  */
 export function getNoteName(midiNote: number): string {
-  if (midiNote < 0 || midiNote >= NOTE_NAMES_WITH_OCTAVE.length) {
+  const arrayIndex = midiNote;
+
+  if (arrayIndex < 0 || arrayIndex >= NOTE_NAMES_WITH_OCTAVE.length) {
     throw new RangeError(`Invalid MIDI note: ${midiNote}`);
   }
-  return NOTE_NAMES_WITH_OCTAVE[midiNote];
+  return NOTE_NAMES_WITH_OCTAVE[arrayIndex];
 }
 
 /**
@@ -49,7 +63,7 @@ export function getMidiNote(noteName: string): number {
   const octave = parseInt(octaveStr, 10);
   const noteIndex = NOTE_ROOTS[note as keyof typeof NOTE_ROOTS];
 
-  return octave * 12 + noteIndex;
+  return (octave + 1) * 12 + noteIndex;
 }
 
 /**
