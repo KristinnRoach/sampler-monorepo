@@ -1,9 +1,18 @@
 import van from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
+
+import {
+  createCustomEnvelope,
+  createKarplusStrongSynth,
+  type KarplusStrongSynth,
+  type CustomEnvelope,
+} from '@repo/audiolib';
+
+import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 import { createIcons } from '../../utils/svg-utils';
-import { createKarplusStrongSynth, KarplusStrongSynth } from '@repo/audiolib';
 import { createCheckbox, createSlider } from '../primitives/createInputEl';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
+
 import {
   VolumeControl,
   EnvelopeControls,
@@ -11,9 +20,6 @@ import {
   LoopHoldControls,
   FilterControls,
 } from '../controls/AudioControls';
-
-import { createAudioEnvelopeController } from '../controls/CustomEnvElement';
-import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 
 const { div } = van.tags;
 
@@ -31,7 +37,7 @@ const KarplusSynthElement = (attributes: ElementProps) => {
   const lpfFreq = van.state(18000);
   const hpfFreq = van.state(20);
 
-  const envelopeController = createAudioEnvelopeController();
+  const envelopeController = createCustomEnvelope();
 
   // Control states
   const keyboardEnabled = van.state(true);

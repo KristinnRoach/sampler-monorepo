@@ -45,7 +45,7 @@ const makeDraggable = (
 
 const init = async () => {
   const audiolib = await initAudiolib();
-  console.info(audiolib); // ?
+  // console.info(audiolib); // ?
 
   const nodesContainer = qs('.nodes-playground')!;
 
@@ -62,7 +62,6 @@ const init = async () => {
       element: instrumentEls.wrapperEl,
       handleElement: instrumentEls.handleEl,
     });
-    console.table(draggable);
   });
 
   console.log('Web Audio Elements app initialized');

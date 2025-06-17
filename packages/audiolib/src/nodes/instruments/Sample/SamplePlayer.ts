@@ -18,11 +18,13 @@ import {
   MacroParam,
   LibParamDescriptor,
   DEFAULT_PARAM_DESCRIPTORS,
+  createCustomEnvelope,
 } from '@/nodes/params';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
+import { CustomEnvelope } from '@/nodes/params';
 
 export class SamplePlayer extends LibInstrument {
   // SamplePlayer-specific fields private with #
@@ -33,7 +35,9 @@ export class SamplePlayer extends LibInstrument {
   #holdEnabled = false;
   #holdLocked = false;
 
-  #envelopeControllers: Record<string, any> = {}; // Map of param name to controller // add Type for AudioEnvelopeController
+  // #envelopeControllers: Record<string, any> = {}; // Map of param name to controller // add Type for AudioEnvelopeController
+  #ampEnvelope: CustomEnvelope;
+  #pitchEnvelope: CustomEnvelope;
   #macroEnvGain: MacroParam;
   #macroPlaybackRate: MacroParam;
 
@@ -71,7 +75,10 @@ export class SamplePlayer extends LibInstrument {
       true // enable voice filters (lpf and hpf)
     );
 
-    // Setup macro params
+    // Setup params
+    this.#ampEnvelope = createCustomEnvelope();
+    this.#pitchEnvelope = createCustomEnvelope();
+
     this.#macroLoopStart = new MacroParam(
       context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
@@ -118,16 +125,15 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setEnvelopeController(
-    controller: any,
-    paramName: 'envGain' | 'playbackRate' | 'loopStart' | 'loopEnd' = 'envGain'
-  ): this {
-    this.#envelopeControllers[paramName] = controller;
-    return this;
-  }
+  // setEnvelopeController(
+  //   controller: any,
+  //   paramName: 'envGain' | 'playbackRate' | 'loopStart' | 'loopEnd' = 'envGain'
+  // ): this {
+  //   this.#envelopeControllers[paramName] = controller;
+  //   return this;
+  // }
 
-  // todo: rename
-  getAudioParam(
+  getMacrosAudioParam(
     paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate'
   ) {
     switch (paramName) {
@@ -145,9 +151,7 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
-  getMacroParam(
-    paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate'
-  ) {
+  getMacro(paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate') {
     switch (paramName) {
       case 'loopStart':
         return this.#macroLoopStart;
@@ -207,6 +211,7 @@ export class SamplePlayer extends LibInstrument {
       this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
       this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
     }
+
     // todo: pre-compute gaddem allowed periods with optimized zero snapping!! (þegar é nenni)
     this.#macroLoopStart.setScale('C', [0], {
       lowestOctave: 0,
@@ -290,6 +295,7 @@ export class SamplePlayer extends LibInstrument {
     this.voicePool.setBuffer(buffer, this.#zeroCrossings);
 
     this.#resetMacros(buffer.duration);
+    // TODO: #resetEnvelopes({buffer.duration})
     this.#bufferDuration = buffer.duration;
 
     this.setLoopEnd(buffer.duration); // for now, use saved loopEnd if exists, when implemented
@@ -322,28 +328,40 @@ export class SamplePlayer extends LibInstrument {
       0 // zero delay
     );
 
-    // Apply envelope controllers where they exist
-    if (this.context) {
-      const currentTime = this.context.currentTime;
-      const duration = this.#bufferDuration || 2;
+    // this.getMacrosAudioParam('envGain').linearRampToValueAtTime(
+    //   1,
+    //   this.now + 0.001
+    // );
 
-      // Apply each controller to its respective parameter
-      Object.entries(this.#envelopeControllers).forEach(
-        ([paramName, controller]) => {
-          if (controller) {
-            const param = this.getAudioParam(paramName as any);
-            if (param) {
-              // TODO: remove circular dependency
-              // ! - audiolib should just receive values from SamplerElement UI and handle applying it
-              // - env length AND env loop duration should be determined by sample duration
-              // minus start / end offsets.. or loopStart / loopEnd offsets
+    this.#ampEnvelope.applyToAudioParam(
+      this.getMacrosAudioParam('envGain'),
+      this.now + 0.001,
+      this.sampleDuration
+    );
 
-              controller.applyToAudioParam(param, currentTime, duration);
-            }
-          }
-        }
-      );
-    }
+    this.#pitchEnvelope.applyToAudioParam(
+      this.getMacrosAudioParam('playbackRate'),
+      this.now + 0.001,
+      this.sampleDuration
+    );
+
+    // ! - audiolib should just receive values from SamplerElement UI and handle applying it
+    // - env length AND env loop duration should be determined by sample duration
+    // minus start / end offsets.. or loopStart / loopEnd offsets
+    // if (this.context) {
+    //   const currentTime = this.context.currentTime;
+    //   const duration = this.#bufferDuration || 2;
+    //   Object.entries(this.#envelopeControllers).forEach(
+    //     ([paramName, controller]) => {
+    //       if (controller) {
+    //         const param = this.getMacrosAudioParam(paramName as any);
+    //         if (param) {
+    //           controller.applyToAudioParam(param, currentTime, duration);
+    //         }
+    //       }
+    //     }
+    //   );
+    // }
 
     this.#midiNoteToId.set(midiNote, noteId);
 
@@ -733,6 +751,15 @@ export class SamplePlayer extends LibInstrument {
   getHpfCutoff = () => this.getStoredParamValue('hpfCutoff', NaN);
   getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
+  // Expose envelopes for UI access
+  getAmpEnvelope(): CustomEnvelope {
+    return this.#ampEnvelope;
+  }
+
+  getPitchEnvelope(): CustomEnvelope {
+    return this.#pitchEnvelope;
+  }
+
   startLevelMonitoring(intervalMs?: number) {
     this.outBus.startLevelMonitoring(intervalMs);
   }
@@ -846,13 +873,13 @@ export class SamplePlayer extends LibInstrument {
     return this.#isLoaded;
   }
 
-  // todo: use for UI integration
+  // for UI integration
   getParameterDescriptors(): Record<string, LibParamDescriptor> {
     return {
       attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
       release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
       startOffset: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
-      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // TODO: Ensure the endOffset is updated on loadSample !!!
+      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // Ensure the endOffset is updated on loadSample !!!
       playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
       loopStart: this.#macroLoopStart.descriptor,
       loopEnd: this.#macroLoopEnd.descriptor,

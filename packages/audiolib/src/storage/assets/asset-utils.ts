@@ -1,6 +1,5 @@
-import initSampleUrl from './init_sample.wav?url';
+import initSampleUrl from './init_sample.webm?url';
 import { DEFAULT } from '@/constants';
-// import { getOfflineAudioContext, releaseOfflineContext } from '@/context';
 
 export async function fetchInitSample() {
   const response = await fetch(initSampleUrl);

@@ -87,3 +87,65 @@ export function createSvgIcon(
     return '';
   }
 }
+
+// === VanJs specific SVG utils === \\
+
+// TODO: Delete or use (e.g. in EnvelopeSVG)
+
+import van from '@repo/vanjs-core';
+
+const { g } = van.tags('http://www.w3.org/2000/svg');
+
+/**
+ * Creates a reactive SVG group that can dynamically update its children
+ * @param generator Function that returns an array of SVG elements
+ * @param dependencies Array of VanJS states to watch for changes
+ * @param props Optional props for the group element
+ */
+export const reactiveSVGGroup = (
+  generator: () => any[],
+  dependencies: any[] = [],
+  props: Record<string, any> = {}
+) => {
+  const container = g(props);
+
+  const updateChildren = () => {
+    container.innerHTML = '';
+    const elements = generator();
+    elements.forEach((element) => {
+      van.add(container, element);
+    });
+  };
+
+  // Set up reactivity
+  van.derive(() => {
+    // Touch all dependencies to trigger updates
+    dependencies.forEach((dep) => dep.val);
+    updateChildren();
+  });
+
+  return container;
+};
+
+/**
+ * Simpler version for common use case - just pass a reactive function
+ */
+export const dynamicSVGChildren = (
+  reactiveGenerator: () => any[],
+  groupProps: Record<string, any> = {}
+) => {
+  const container = g(groupProps);
+
+  const updateChildren = () => {
+    container.innerHTML = '';
+    const elements = reactiveGenerator();
+    elements.forEach((element) => {
+      van.add(container, element);
+    });
+  };
+
+  // The generator function itself should handle dependencies
+  van.derive(updateChildren);
+
+  return container;
+};

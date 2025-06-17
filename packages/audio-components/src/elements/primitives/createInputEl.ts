@@ -1,10 +1,8 @@
 import van from '@repo/vanjs-core';
 import type { State } from '@repo/vanjs-core';
+import { when } from '@/utils/vanjs-utils';
 
 const { div, span, input, label } = van.tags;
-
-// todo: maybe add this to vanjs util
-const when = (condition: any, element: any) => (condition ? element : null);
 
 type StaticLabelContent =
   | string
@@ -78,8 +76,7 @@ export const createSlider = (
       class: 'interactive-element',
     }),
 
-    when(
-      showValue,
+    when(showValue, () =>
       span({ style: 'margin-left: 10px;' }, () =>
         unit === '%'
           ? Math.round(state.val * multiplier) + unit

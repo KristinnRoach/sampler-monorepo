@@ -80,6 +80,8 @@ export class SampleVoicePool {
     const voice = this.findVoice();
     if (!voice) return noteId; // Still return a valid noteId
 
+    // TODO: get envelope info and schedule trigger envelope at same time
+
     voice.trigger({
       // voice.trigger also returns noteId (redundant?)
       midiNote: midiNote + transposition,

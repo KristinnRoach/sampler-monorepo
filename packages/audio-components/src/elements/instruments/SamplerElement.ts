@@ -1,6 +1,12 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
-import { SamplePlayer, getInstance } from '@repo/audiolib';
+import { when } from '@/utils/vanjs-utils';
+
+import {
+  type SamplePlayer,
+  type CustomEnvelope,
+  getInstance,
+} from '@repo/audiolib';
 import { createIcons } from '../../utils/svg-utils';
 import { SampleControls } from '../controls/SampleControls';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
@@ -11,7 +17,6 @@ import {
   LoopHoldControls,
 } from '../controls/AudioControls';
 
-import { createAudioEnvelopeController } from '../controls/CustomEnvElement';
 import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 
 const { div } = van.tags;
@@ -24,9 +29,9 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Audio params
   const volume = van.state(0.5);
-  const ampEnvController = createAudioEnvelopeController();
-  const pitchEnvController = createAudioEnvelopeController();
-  // const loopEndEnvController = createAudioEnvelopeController();
+  let ampEnvController = van.state<CustomEnvelope | null>(null);
+  let pitchEnvController = van.state<CustomEnvelope | null>(null);
+  // let loopEndEnvController = van.state<CustomEnvelope | null>(null);
 
   const attack = van.state(0.001);
   const release = van.state(0.3);
@@ -53,6 +58,9 @@ const SamplerElement = (attributes: ElementProps) => {
   const holdEnabled = van.state(false);
   const loopLocked = van.state(false);
   const holdLocked = van.state(false);
+
+  // Ready state
+  const envelopeReady = van.state(false);
 
   const icons = createIcons();
 
@@ -85,9 +93,12 @@ const SamplerElement = (attributes: ElementProps) => {
           return;
         }
 
-        samplePlayer.setEnvelopeController(ampEnvController, 'envGain');
-        samplePlayer.setEnvelopeController(pitchEnvController, 'playbackRate');
-        // samplePlayer.setEnvelopeController(loopEndEnvController, 'loopEnd');
+        // Setup envelopes
+        ampEnvController.val = samplePlayer.getAmpEnvelope();
+        pitchEnvController.val = samplePlayer.getPitchEnvelope();
+        envelopeReady.val = true; // re-render UI
+
+        console.table(ampEnvController);
 
         derive(() => samplePlayer.setAttackTime(attack.val));
         derive(() => samplePlayer.setReleaseTime(release.val));
@@ -101,8 +112,6 @@ const SamplerElement = (attributes: ElementProps) => {
         derive(() => samplePlayer.setSampleStartOffset(startOffset.val));
         derive(() => samplePlayer.setSampleEndOffset(endOffset.val));
         derive(() => (samplePlayer.volume = volume.val));
-
-        // derive(() => (samplePlayer.setTrans = transposition.val));
 
         // Control states
         derive(() =>
@@ -305,23 +314,29 @@ const SamplerElement = (attributes: ElementProps) => {
 
       VolumeControl(volume),
 
-      div(
-        { style: 'margin: 10px 0;' },
-        div({ style: 'font-size: 0.9rem; margin-bottom: 5px;' }, 'AmpEnv'),
-        EnvelopeSVG(ampEnvController, '100%', '100px')
-      ),
+      () =>
+        ampEnvController.val
+          ? div(
+              { style: 'margin: 10px 0;' },
+              div(
+                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
+                'Amp Env'
+              ),
+              EnvelopeSVG(ampEnvController.val, '100%', '100px')
+            )
+          : div(),
 
-      div(
-        { style: 'margin: 10px 0;' },
-        div({ style: 'font-size: 0.9rem; margin-bottom: 5px;' }, 'PitchEnv'),
-        EnvelopeSVG(pitchEnvController, '100%', '100px')
-      ),
-
-      // div(
-      //   { style: 'margin: 10px 0;' },
-      //   div({ style: 'font-size: 0.9rem; margin-bottom: 5px;' }, 'LoopEnv'),
-      //   EnvelopeSVG(loopEndEnvController, '100%', '100px')
-      // ),
+      () =>
+        pitchEnvController.val
+          ? div(
+              { style: 'margin: 10px 0;' },
+              div(
+                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
+                'Pitch Env'
+              ),
+              EnvelopeSVG(pitchEnvController.val, '100%', '100px')
+            )
+          : div(),
 
       SampleControls(
         loopStart,

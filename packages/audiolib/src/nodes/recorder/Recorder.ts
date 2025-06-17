@@ -1,5 +1,7 @@
 import { LibNode, SampleLoader } from '@/nodes/LibNode';
 import { NodeID, createNodeId, deleteNodeId } from '@/nodes/node-store';
+import { tryCatch, assert } from '@/utils';
+
 import {
   Message,
   MessageBus,
@@ -18,7 +20,12 @@ export const AudioRecorderState = {
 export type AudioRecorderState =
   (typeof AudioRecorderState)[keyof typeof AudioRecorderState];
 
+export const DEFAULT_MEDIA_REC_OPTIONS: MediaRecorderOptions = {
+  mimeType: 'audio/webm',
+};
+
 export const DEFAULT_RECORDER_OPTIONS = {
+  mediaRecorderOptions: DEFAULT_MEDIA_REC_OPTIONS,
   useThreshold: true,
   startThreshold: -30,
   autoStop: false,
@@ -44,7 +51,7 @@ export class Recorder implements LibNode {
   #analyser: AnalyserNode | null = null;
   #animationFrame: number | null = null;
   #silenceStartTime: number | null = null;
-  #currentConfig: RecorderOptions | null = null;
+  #config: RecorderOptions | null = null;
 
   constructor(context: AudioContext) {
     this.nodeId = createNodeId(this.nodeType);
@@ -54,10 +61,9 @@ export class Recorder implements LibNode {
 
   async init(): Promise<Recorder> {
     try {
-      this.#stream = await getMicrophone();
-      this.#recorder = new MediaRecorder(this.#stream, {
-        mimeType: 'audio/webm',
-      });
+      console.warn(
+        'Recorder: init() method is unnecessary and has been removed.'
+      );
 
       return this;
     } catch (error) {
@@ -66,13 +72,23 @@ export class Recorder implements LibNode {
   }
 
   async start(options?: Partial<RecorderOptions>): Promise<this> {
+    const result = await tryCatch(() => getMicrophone());
+    assert(!result.error, `Failed to get microphone: ${result.error}`, result);
+
+    this.#stream = result.data;
+
+    this.#config = { ...DEFAULT_RECORDER_OPTIONS, ...options };
+
+    this.#recorder = new MediaRecorder(
+      this.#stream,
+      this.#config.mediaRecorderOptions
+    );
+
     if (!this.#recorder) throw new Error('Recorder not initialized');
     if (this.#state === AudioRecorderState.RECORDING) return this;
 
-    this.#currentConfig = { ...DEFAULT_RECORDER_OPTIONS, ...options };
-
     try {
-      if (!this.#currentConfig.useThreshold) {
+      if (!this.#config.useThreshold) {
         this.#startRecordingImmediate();
       } else {
         this.#startArmedRecording();
@@ -85,9 +101,9 @@ export class Recorder implements LibNode {
   }
 
   #startArmedRecording(): void {
-    if (!this.#isValidThreshold(this.#currentConfig!.startThreshold)) {
+    if (!this.#isValidThreshold(this.#config!.startThreshold)) {
       console.warn(
-        `Threshold ${this.#currentConfig!.startThreshold}dB out of range (-60 to 0)`
+        `Threshold ${this.#config!.startThreshold}dB out of range (-60 to 0)`
       );
       return;
     }
@@ -97,7 +113,7 @@ export class Recorder implements LibNode {
 
     // ! record:armed doesnt seem to send a reliable message
     this.sendMessage('record:armed', {
-      threshold: this.#currentConfig!.startThreshold,
+      threshold: this.#config!.startThreshold,
       destination: this.#destination,
     });
 
@@ -111,7 +127,7 @@ export class Recorder implements LibNode {
 
     this.sendMessage('record:start', { destination: this.#destination });
 
-    if (this.#currentConfig!.autoStop) {
+    if (this.#config!.autoStop) {
       this.#setupAudioMonitoring();
     }
   }
@@ -148,24 +164,24 @@ export class Recorder implements LibNode {
   }
 
   #handleArmedState(peakDB: number): void {
-    if (peakDB >= this.#currentConfig!.startThreshold) {
+    if (peakDB >= this.#config!.startThreshold) {
       // Threshold reached - start recording
       this.#startRecordingImmediate();
     }
   }
 
   #handleRecordingState(peakDB: number): void {
-    if (!this.#currentConfig!.autoStop) return;
+    if (!this.#config!.autoStop) return;
 
     const now = performance.now();
 
-    if (peakDB < this.#currentConfig!.stopThreshold) {
+    if (peakDB < this.#config!.stopThreshold) {
       // Below threshold - track silence
       if (this.#silenceStartTime === null) {
         this.#silenceStartTime = now;
       } else if (
         now - this.#silenceStartTime >=
-        this.#currentConfig!.silenceTimeoutMs
+        this.#config!.silenceTimeoutMs
       ) {
         // Silence timeout reached
         this.sendMessage('record:stopping', {});
@@ -219,27 +235,33 @@ export class Recorder implements LibNode {
     const blob = await this.#stopRecording();
     const buffer = await this.#blobToAudioBuffer(blob);
 
+    if (this.#destination) {
+      // Auto load sample
+      await this.#destination.loadSample(buffer);
+    }
+
     this.#state = AudioRecorderState.STOPPED;
     console.info(`Recorder state: ${this.#state}`);
 
     this.sendMessage('record:stop', { duration: buffer.duration });
 
-    if (this.#destination) {
-      await this.#destination.loadSample(buffer);
-    }
+    // Clean up - a new stream and recorder is created for each recording
+    this.#stream?.getTracks().forEach((track) => track.stop());
+    this.#stream = null;
+    this.#recorder = null;
 
     return buffer;
   }
 
   #stopRecording(): Promise<Blob> {
     return new Promise((resolve) => {
-      if (this.#recorder!.state !== 'inactive') {
-        this.#recorder!.addEventListener(
+      if (this.#recorder?.state !== 'inactive') {
+        this.#recorder?.addEventListener(
           'dataavailable',
           (e) => resolve(e.data),
           { once: true }
         );
-        this.#recorder!.stop();
+        this.#recorder?.stop();
       }
     });
   }
@@ -253,7 +275,6 @@ export class Recorder implements LibNode {
     return threshold > -60 && threshold < 0;
   }
 
-  // LibNode interface
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
@@ -277,7 +298,7 @@ export class Recorder implements LibNode {
     this.#stream = null;
     this.#recorder = null;
     this.#state = AudioRecorderState.IDLE;
-    this.#currentConfig = null;
+    this.#config = null;
     deleteNodeId(this.nodeId);
   }
 
@@ -305,14 +326,4 @@ export class Recorder implements LibNode {
   get destination() {
     return this.#destination;
   }
-  // get in() {
-  //   return this.#audioSource;
-  // }
-
-  // get out() {
-  //   return this.#audioSource;
-  // }
-
-  // get firstChildren(): LibAudioNode[] {
-  // }
 }
