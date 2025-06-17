@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minimal Audio Envelope with GSAP</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: system-ui, sans-serif;
+        background: #1a1a1a;
+        color: white;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .editor {
+        background: #2a2a2a;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .svg-container {
+        background: #111;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 15px;
+      }
+
+      .envelope-svg {
+        width: 100%;
+        height: 200px;
+        border: 1px solid #444;
+        background: #0a0a0a;
+      }
+
+      .grid-line {
+        stroke: #333;
+        stroke-width: 1;
+      }
+
+      .envelope-path {
+        fill: none;
+        stroke: #4ade80;
+        stroke-width: 2;
+      }
+
+      .control-point {
+        fill: #4ade80;
+        stroke: #fff;
+        stroke-width: 2;
+        cursor: grab;
+        r: 5;
+      }
+
+      .control-point:hover {
+        fill: #22c55e;
+        r: 6;
+      }
+
+      .control-point.dragging {
+        cursor: grabbing;
+        fill: #16a34a;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      button {
+        padding: 8px 16px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        background: #333;
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #444;
+      }
+
+      .info {
+        font-size: 12px;
+        color: #888;
+        background: #111;
+        padding: 10px;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Minimal Audio Envelope Editor</h1>
+
+      <div class="editor">
+        <div class="controls">
+          <button id="add-point">Add Point</button>
+          <button id="play-test">Play Test Tone</button>
+          <button id="clear-points">Clear All</button>
+          <span id="point-count">Points: 2</span>
+        </div>
+
+        <div class="svg-container">
+          <svg
+            class="envelope-svg"
+            viewBox="0 0 400 150"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <!-- Grid -->
+            <defs>
+              <pattern
+                id="grid"
+                width="40"
+                height="15"
+                patternUnits="userSpaceOnUse"
+              >
+                <path
+                  d="M 40 0 L 0 0 0 15"
+                  fill="none"
+                  stroke="#333"
+                  stroke-width="1"
+                />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
+
+            <!-- Envelope path -->
+            <path class="envelope-path" d=""></path>
+
+            <!-- Control points container -->
+            <g class="control-points"></g>
+          </svg>
+        </div>
+
+        <div class="info" id="envelope-info">
+          Click "Add Point" to create control points. Drag points to shape your
+          envelope.
+          <br />Delete key removes selected points. Points define time (x) and
+          amplitude (y).
+        </div>
+      </div>
+    </div>
+
+    <!-- GSAP CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/CustomEase.min.js"></script>
+
+    <script>
+      class MinimalEnvelopeEditor {
+        constructor() {
+          this.points = [
+            { x: 0, y: 150 }, // Start at bottom (0 amplitude)
+            { x: 400, y: 150 }, // End at bottom (0 amplitude)
+          ];
+          this.selectedPoint = null;
+          this.isDragging = false;
+          this.audioContext = null;
+
+          this.svgWidth = 400;
+          this.svgHeight = 150;
+
+          this.init();
+        }
+
+        init() {
+          this.setupEventListeners();
+          this.updateVisualization();
+          this.updateInfo();
+        }
+
+        setupEventListeners() {
+          // Add point button
+          document.getElementById('add-point').addEventListener('click', () => {
+            this.addPoint();
+          });
+
+          // Play test button
+          document.getElementById('play-test').addEventListener('click', () => {
+            this.playTestTone();
+          });
+
+          // Clear points button
+          document
+            .getElementById('clear-points')
+            .addEventListener('click', () => {
+              this.clearPoints();
+            });
+
+          // SVG mouse events
+          const svg = document.querySelector('.envelope-svg');
+          svg.addEventListener('mousedown', (e) => this.onMouseDown(e));
+          svg.addEventListener('mousemove', (e) => this.onMouseMove(e));
+          svg.addEventListener('mouseup', () => this.onMouseUp());
+          svg.addEventListener('mouseleave', () => this.onMouseUp());
+
+          // Keyboard events
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' && this.selectedPoint !== null) {
+              this.deletePoint(this.selectedPoint);
+            }
+          });
+        }
+
+        addPoint() {
+          // Add point at center
+          const newPoint = {
+            x: this.svgWidth / 2,
+            y: this.svgHeight / 2,
+          };
+
+          // Insert in the middle of the array
+          this.points.splice(-1, 0, newPoint);
+          this.updateVisualization();
+          this.updateInfo();
+        }
+
+        clearPoints() {
+          this.points = [
+            { x: 0, y: this.svgHeight },
+            { x: this.svgWidth, y: this.svgHeight },
+          ];
+          this.selectedPoint = null;
+          this.updateVisualization();
+          this.updateInfo();
+        }
+
+        deletePoint(index) {
+          // Don't delete start or end points
+          if (index > 0 && index < this.points.length - 1) {
+            this.points.splice(index, 1);
+            this.selectedPoint = null;
+            this.updateVisualization();
+            this.updateInfo();
+          }
+        }
+
+        getSVGPoint(e) {
+          const svg = document.querySelector('.envelope-svg');
+          const rect = svg.getBoundingClientRect();
+          const viewBox = svg.viewBox.baseVal;
+
+          const x = ((e.clientX - rect.left) / rect.width) * viewBox.width;
+          const y = ((e.clientY - rect.top) / rect.height) * viewBox.height;
+
+          return {
+            x: Math.max(0, Math.min(this.svgWidth, x)),
+            y: Math.max(0, Math.min(this.svgHeight, y)),
+          };
+        }
+
+        onMouseDown(e) {
+          const point = this.getSVGPoint(e);
+
+          // Check if clicking on existing point
+          this.selectedPoint = null;
+          for (let i = 0; i < this.points.length; i++) {
+            const p = this.points[i];
+            const distance = Math.sqrt(
+              (point.x - p.x) ** 2 + (point.y - p.y) ** 2
+            );
+            if (distance < 10) {
+              this.selectedPoint = i;
+              this.isDragging = true;
+              break;
+            }
+          }
+
+          this.updateVisualization();
+        }
+
+        onMouseMove(e) {
+          if (this.isDragging && this.selectedPoint !== null) {
+            const point = this.getSVGPoint(e);
+
+            // Constrain first and last points to only move vertically
+            if (this.selectedPoint === 0) {
+              this.points[0].y = point.y;
+            } else if (this.selectedPoint === this.points.length - 1) {
+              this.points[this.selectedPoint].y = point.y;
+            } else {
+              this.points[this.selectedPoint] = point;
+            }
+
+            this.updateVisualization();
+            this.updateInfo();
+          }
+        }
+
+        onMouseUp() {
+          this.isDragging = false;
+        }
+
+        updateVisualization() {
+          this.updatePath();
+          this.updateControlPoints();
+        }
+
+        updatePath() {
+          // Sort points by x coordinate (except keep first and last fixed)
+          const sortedPoints = [...this.points];
+          const firstPoint = sortedPoints.shift();
+          const lastPoint = sortedPoints.pop();
+          sortedPoints.sort((a, b) => a.x - b.x);
+          this.points = [firstPoint, ...sortedPoints, lastPoint];
+
+          // Generate smooth path using simple curves
+          let pathData = `M ${this.points[0].x} ${this.points[0].y}`;
+
+          if (this.points.length === 2) {
+            pathData += ` L ${this.points[1].x} ${this.points[1].y}`;
+          } else {
+            for (let i = 1; i < this.points.length; i++) {
+              const current = this.points[i];
+              pathData += ` L ${current.x} ${current.y}`;
+            }
+          }
+
+          document.querySelector('.envelope-path').setAttribute('d', pathData);
+        }
+
+        updateControlPoints() {
+          const container = document.querySelector('.control-points');
+          container.innerHTML = '';
+
+          this.points.forEach((point, index) => {
+            const circle = document.createElementNS(
+              'http://www.w3.org/2000/svg',
+              'circle'
+            );
+            circle.setAttribute('cx', point.x);
+            circle.setAttribute('cy', point.y);
+            circle.setAttribute('class', 'control-point');
+
+            if (index === this.selectedPoint) {
+              circle.classList.add('selected');
+              circle.style.fill = '#ff6b6b';
+            }
+
+            container.appendChild(circle);
+          });
+        }
+
+        updateInfo() {
+          const count = this.points.length;
+          document.getElementById('point-count').textContent =
+            `Points: ${count}`;
+
+          // Show envelope data in normalized form (0-1 for both time and amplitude)
+          const normalizedPoints = this.points.map((p) => ({
+            time: (p.x / this.svgWidth).toFixed(3),
+            amplitude: ((this.svgHeight - p.y) / this.svgHeight).toFixed(3),
+          }));
+
+          document.getElementById('envelope-info').innerHTML =
+            `Envelope Points: ${JSON.stringify(normalizedPoints, null, 2)}`;
+        }
+
+        // Convert our points to GSAP-compatible format and create CustomEase
+        createGSAPEase() {
+          // Normalize points to 0-1 range
+          const normalizedPoints = this.points.map((p) => ({
+            x: p.x / this.svgWidth,
+            y: 1 - p.y / this.svgHeight, // Flip Y axis
+          }));
+
+          // Convert to SVG path format for CustomEase
+          let pathData = `M${normalizedPoints[0].x},${normalizedPoints[0].y}`;
+
+          for (let i = 1; i < normalizedPoints.length; i++) {
+            const point = normalizedPoints[i];
+            pathData += ` L${point.x},${point.y}`;
+          }
+
+          // Create CustomEase with our path
+          try {
+            CustomEase.create('audioEnvelope', pathData);
+            return 'audioEnvelope';
+          } catch (error) {
+            console.warn('CustomEase creation failed, using linear:', error);
+            return 'none';
+          }
+        }
+
+        async playTestTone() {
+          // Initialize Web Audio API
+          if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)();
+          }
+
+          // Resume context if suspended
+          if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+          }
+
+          // Create audio nodes
+          const oscillator = this.audioContext.createOscillator();
+          const gainNode = this.audioContext.createGain();
+
+          oscillator.connect(gainNode);
+          gainNode.connect(this.audioContext.destination);
+
+          // Set up oscillator
+          oscillator.frequency.setValueAtTime(
+            440,
+            this.audioContext.currentTime
+          );
+          oscillator.type = 'sine';
+
+          // Create GSAP ease and apply to gain
+          const easeName = this.createGSAPEase();
+          const duration = 2; // 2 second envelope
+
+          // Set initial gain to 0
+          gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+
+          // Use GSAP to animate a dummy object and sync audio gain
+          const audioTarget = { value: 0 };
+
+          gsap.to(audioTarget, {
+            duration: duration,
+            value: 1,
+            ease: easeName,
+            onUpdate: () => {
+              // Map the eased value to the audio gain
+              const currentTime = this.audioContext.currentTime;
+              gainNode.gain.setValueAtTime(
+                audioTarget.value * 0.3,
+                currentTime
+              ); // 0.3 max volume
+            },
+          });
+
+          // Start and stop the oscillator
+          oscillator.start(this.audioContext.currentTime);
+          oscillator.stop(this.audioContext.currentTime + duration + 0.1);
+
+          console.log(`Playing tone with ${easeName} ease for ${duration}s`);
+        }
+      }
+
+      // Initialize the editor
+      new MinimalEnvelopeEditor();
+    </script>
+  </body>
+</html>

@@ -35,6 +35,9 @@ importers:
       animejs:
         specifier: ^4.0.2
         version: 4.0.2
+      gsap:
+        specifier: ^3.13.0
+        version: 3.13.0
     devDependencies:
       typescript:
         specifier: ^5.8.0
@@ -88,6 +91,9 @@ importers:
       '@repo/vanjs-core':
         specifier: workspace:*
         version: link:../vanjs
+      gsap:
+        specifier: ^3.13.0
+        version: 3.13.0
     devDependencies:
       typescript:
         specifier: ^5.8.0
@@ -2044,6 +2050,9 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  gsap@3.13.0:
+    resolution: {integrity: sha512-QL7MJ2WMjm1PHWsoFrAQH/J8wUeqZvMtHO58qdekHpCfhvhSL4gSiz6vJf5EeMP0LOn3ZCprL2ki/gjED8ghVw==}
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -5430,6 +5439,8 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  gsap@3.13.0: {}
 
   has-bigints@1.1.0: {}
 

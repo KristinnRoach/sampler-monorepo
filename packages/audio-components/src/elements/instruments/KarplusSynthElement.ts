@@ -12,6 +12,9 @@ import {
   FilterControls,
 } from '../controls/AudioControls';
 
+import { createAudioEnvelopeController } from '../controls/CustomEnvElement';
+import { EnvelopeSVG } from '../controls/EnvelopeSVG';
+
 const { div } = van.tags;
 
 const KarplusSynthElement = (attributes: ElementProps) => {
@@ -28,8 +31,10 @@ const KarplusSynthElement = (attributes: ElementProps) => {
   const lpfFreq = van.state(18000);
   const hpfFreq = van.state(20);
 
+  const envelopeController = createAudioEnvelopeController();
+
   // Control states
-  const keyboardEnabled = van.state(false);
+  const keyboardEnabled = van.state(true);
   const midiEnabled = van.state(false);
 
   // Status

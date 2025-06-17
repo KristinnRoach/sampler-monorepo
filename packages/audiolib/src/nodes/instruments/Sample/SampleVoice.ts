@@ -295,7 +295,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       [
         { name: 'playbackRate', value: midiToPlaybackRate(midiNote) },
         { name: 'velocity', value: velocity },
-        { name: 'envGain', value: 0 },
+        // { name: 'envGain', value: 0 },
 
         // todo: set all other params (e.g. startOffset & endOffset) via param handlers (not in trigger method)
       ],
@@ -303,9 +303,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     );
 
     // Trigger attack envelope
-    const envGain = this.getParam('envGain');
-    if (!envGain) throw new Error('Cannot trigger - envGain parameter is null');
-    envGain?.linearRampToValueAtTime(1, timestamp + this.#attackSec);
+    // const envGain = this.getParam('envGain')!;
+    // envGain.linearRampToValueAtTime(1, timestamp + this.#attackSec);
 
     this.sendToProcessor({
       type: 'voice:start',
@@ -551,17 +550,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   getParam(name: string): AudioParam | null {
-    // Just while debugging:
-    const param = this.#worklet.parameters.get(name);
-    if (!param && name === 'envGain') {
-      console.log(
-        'Available parameters:',
-        Array.from(this.#worklet.parameters.keys()),
-        'Looking for:',
-        name
-      );
-    }
-
     if (this.#worklet && this.#worklet.parameters.has(name)) {
       return this.#worklet.parameters.get(name) ?? null;
     }

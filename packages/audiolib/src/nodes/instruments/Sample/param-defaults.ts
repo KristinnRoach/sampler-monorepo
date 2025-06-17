@@ -13,6 +13,66 @@ const FILTER_STEP = 10; // Step size for filter frequency adjustments
 
 // Default ParamDescriptors
 export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
+  ENV_GAIN: {
+    nodeId: 'env-gain',
+    name: 'env-gain',
+    valueType: 'number',
+    minValue: 0,
+    maxValue: 1,
+    step: 0.0001,
+    defaultValue: 0,
+    group: 'amp-env',
+    automationRate: 'k-rate',
+  },
+
+  PLAYBACK_RATE: {
+    nodeId: 'playback-rate',
+    name: 'playback-rate',
+    valueType: 'number',
+    minValue: -4,
+    maxValue: 4,
+    step: 0.0001,
+    defaultValue: 1,
+    group: 'pitch',
+    automationRate: 'k-rate',
+  },
+
+  //   PLAYBACK_RATE: {
+  //   nodeId: 'playback-rate',
+  //   name: 'playback-rate',
+  //   valueType: 'number',
+  //   minValue: 0.25,
+  //   maxValue: 4,
+  //   step: 0.01,
+  //   defaultValue: 1,
+  //   group: 'playback',
+  //   automationRate: 'k-rate',
+  // },
+
+  ATTACK: {
+    nodeId: 'attack-time',
+    name: 'attack-time',
+    valueType: 'number',
+    minValue: 0,
+    maxValue: 5,
+    step: 0.001,
+    defaultValue: 0.01,
+    group: 'amp-env',
+    automationRate: 'k-rate',
+  },
+
+  RELEASE: {
+    nodeId: 'release-time',
+    name: 'release-time',
+    valueType: 'number',
+    minValue: 0,
+    maxValue: 5,
+    step: 0.001,
+    defaultValue: 0.05,
+    group: 'amp-env',
+    automationRate: 'k-rate',
+  },
+
   LOOP_START: {
     nodeId: 'loop-start', // todo: remove default id's, ensure they are created when param is registered
     name: 'loop-start',
@@ -49,30 +109,6 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
     automationRate: 'k-rate',
   },
 
-  ATTACK: {
-    nodeId: 'attack-time',
-    name: 'attack-time',
-    valueType: 'number',
-    minValue: 0,
-    maxValue: 5,
-    step: 0.001,
-    defaultValue: 0.01,
-    group: 'envelope',
-    automationRate: 'k-rate',
-  },
-
-  RELEASE: {
-    nodeId: 'release-time',
-    name: 'release-time',
-    valueType: 'number',
-    minValue: 0,
-    maxValue: 5,
-    step: 0.001,
-    defaultValue: 0.05,
-    group: 'envelope',
-    automationRate: 'k-rate',
-  },
-
   START_OFFSET: {
     nodeId: 'start-offset',
     name: 'start-offset',
@@ -94,18 +130,6 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
     step: 0.001,
     defaultValue: 1, // Updated when sample loads
     group: 'sample-offsets',
-    automationRate: 'k-rate',
-  },
-
-  PLAYBACK_RATE: {
-    nodeId: 'playback-rate',
-    name: 'playback-rate',
-    valueType: 'number',
-    minValue: 0.25,
-    maxValue: 4,
-    step: 0.01,
-    defaultValue: 1,
-    group: 'playback',
     automationRate: 'k-rate',
   },
 

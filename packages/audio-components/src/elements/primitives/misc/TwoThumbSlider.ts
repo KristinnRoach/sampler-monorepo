@@ -26,7 +26,7 @@ export class TwoThumbSlider extends HTMLElement {
     this.minimumGap = 0.001;
     this.valueMin = 0;
     this.valueMax = 1;
-    this.zoomFactor = 0.1; // Default: moderate zoom
+    this.zoomFactor = 0; // Default: moderate zoom
     this.activeThumb = null;
   }
 

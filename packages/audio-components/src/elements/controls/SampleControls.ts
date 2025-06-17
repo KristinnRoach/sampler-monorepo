@@ -25,8 +25,7 @@ export const SampleControls = (
       0.001
     ),
 
-    createSlider('Crank Loop', loopEndFineTune, 0, 100, 1, false, 'ms', 1),
-
+    createSlider('Periods', loopEndFineTune, 0, 100, 1, false, 'ms', 1),
     // createSlider('Loop Start', loopStart, 0, sampleDuration.val, 0.001),
     // createSlider('Loop End', loopEnd, 0, sampleDuration.val, 0.001),
     createSlider('Start Offset', startOffset, 0, sampleDuration.val, 0.001),

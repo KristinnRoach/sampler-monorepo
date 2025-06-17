@@ -9,9 +9,10 @@ export const ExpandableHeader = (
   expanded: State<string>,
   children?: any
 ) => {
-  const headerStyle = 'display: flex; flex-direction: row; column-gap: 1rem;';
+  const headerStyle =
+    'display: flex; flex-direction: row; column-gap: 1rem; padding-right: 3rem;';
 
-  const clickableStyle = 'cursor: pointer; display: flex;';
+  const clickableStyle = 'cursor: pointer;';
 
   return div(
     { class: 'expandable-header' },

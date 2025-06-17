@@ -12,7 +12,6 @@ import { assert } from '@/utils';
 import { NodeType } from '@/nodes/LibNode';
 
 export class MacroParam {
-  // implements LibParam {
   readonly nodeType: string = 'macro';
   readonly nodeId: NodeID;
 
@@ -158,7 +157,7 @@ export class MacroParam {
     throw new Error('Not implemented');
   }
 
-  get macro(): AudioParam {
+  get audioParam(): AudioParam {
     return this.#controller.param;
   }
 

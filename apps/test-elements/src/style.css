@@ -14,43 +14,71 @@ body {
   line-height: 1.6;
   color: white;
 
-  max-width: 100vw;
-  max-height: 100vh;
-  height: 100vh;
-  max-height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 
-  margin: 0 auto;
   background-color: #323334;
 }
 
-.main-wrapper {
+.page-wrapper {
   height: 100vh;
   max-height: 100vh;
+  /* height: clamp(100dvh, 100dvh, 100dvh); */
+
   max-width: 100vw;
+  /* width: clamp(100dvw, 100dvw, 100dvw); */
 }
 
-.instrument-draggable {
+.nodes-playground {
+  padding: 2rem;
+  width: 100vw;
+  height: 100vh;
+}
+
+.add-el-div {
+  border-radius: 8px;
+}
+
+.add-el-btn button {
+  border-radius: 8px;
+}
+
+/* #node-select {
+  transition: opacity 0.2s;
+  opacity: 0;
+}
+
+.add-el-div:hover #node-select {
+  transition: opacity 0.2s;
+  opacity: 1;
+} */
+
+.node-draggable {
   position: absolute;
-  /* top: 50px;
-  left: 50px; */
-  /* width: fit-content;
-  height: fit-content; */
+
+  min-height: fit-content; /* todo: move base style logic to component styles */
 
   background-color: #333;
   border: 1px solid #555;
   border-radius: 10px;
+
+  /* overflow: hidden;
+  resize: both; */
 }
 
-/* .resize-handle {
-  width: 16px;
-  height: 16px;
-  background: #222;
+.drag-handle {
+  width: 4rem;
+  height: 1rem;
+  /* background: rgb(0, 119, 128); */
   position: absolute;
   right: 0;
-  bottom: 0;
-  cursor: se-resize;
-  border-radius: 0 0 8px 0;
-} */
+  top: 0;
+  margin: 0.5rem;
+  /* border: solid 2px greenyellow; */
+  border-radius: 50%;
+}
+
 /* 
 input[type='range'] {
   width: 23vw;

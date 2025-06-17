@@ -1,6 +1,6 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
-import { createSamplePlayer, SamplePlayer, getInstance } from '@repo/audiolib';
+import { SamplePlayer, getInstance } from '@repo/audiolib';
 import { createIcons } from '../../utils/svg-utils';
 import { SampleControls } from '../controls/SampleControls';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
@@ -11,9 +11,8 @@ import {
   LoopHoldControls,
 } from '../controls/AudioControls';
 
-import { DraggableEnvelopeControl } from '../controls/EnvelopeElement';
-
-// Todo: event dispatch
+import { createAudioEnvelopeController } from '../controls/CustomEnvElement';
+import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 
 const { div } = van.tags;
 
@@ -25,6 +24,10 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Audio params
   const volume = van.state(0.5);
+  const ampEnvController = createAudioEnvelopeController();
+  const pitchEnvController = createAudioEnvelopeController();
+  // const loopEndEnvController = createAudioEnvelopeController();
+
   const attack = van.state(0.001);
   const release = van.state(0.3);
 
@@ -73,10 +76,8 @@ const SamplerElement = (attributes: ElementProps) => {
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
         // Todo: remove dep on audiolib class, add destination master handling
         samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
-        // samplePlayer = createSamplePlayer(undefined, polyphony); // console.info(samplePlayer)
 
-        // Connect to audio destination
-        // currently automatic connect
+        // connects automatically to audio destination
 
         if (!samplePlayer) {
           console.warn('Failed to create sample player');
@@ -84,7 +85,10 @@ const SamplerElement = (attributes: ElementProps) => {
           return;
         }
 
-        // Reactive parameter binding
+        samplePlayer.setEnvelopeController(ampEnvController, 'envGain');
+        samplePlayer.setEnvelopeController(pitchEnvController, 'playbackRate');
+        // samplePlayer.setEnvelopeController(loopEndEnvController, 'loopEnd');
+
         derive(() => samplePlayer.setAttackTime(attack.val));
         derive(() => samplePlayer.setReleaseTime(release.val));
         derive(() => samplePlayer.setLoopStart(loopStart.val));
@@ -124,7 +128,7 @@ const SamplerElement = (attributes: ElementProps) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
         });
 
-        // TODO: Make KeyboardInputManager in audiolib handle caps robustly and sampleplayer.sendUpStreamMessage
+        // todo (later): Make KeyboardInputManager in audiolib handle caps robustly and sampleplayer.sendUpStreamMessage
         // then remove these handlers if works
         document.addEventListener('keydown', (e) => {
           if (e.code === 'CapsLock') {
@@ -144,9 +148,7 @@ const SamplerElement = (attributes: ElementProps) => {
             }
           }
         });
-        // todo: add listeners for other messages and type them
-
-        // todo: Dispatch custom event to notify listeners that the sampler is initialized
+        // todo (later): add listeners for other messages and type them & dispatch events
         status.val = 'Ready';
       } catch (error) {
         console.error('Failed to initialize sampler:', error);
@@ -302,8 +304,24 @@ const SamplerElement = (attributes: ElementProps) => {
       },
 
       VolumeControl(volume),
-      DraggableEnvelopeControl(attack, release),
-      // DraggableEnvelopeControl(loopStart, loopEnd),
+
+      div(
+        { style: 'margin: 10px 0;' },
+        div({ style: 'font-size: 0.9rem; margin-bottom: 5px;' }, 'AmpEnv'),
+        EnvelopeSVG(ampEnvController, '100%', '100px')
+      ),
+
+      div(
+        { style: 'margin: 10px 0;' },
+        div({ style: 'font-size: 0.9rem; margin-bottom: 5px;' }, 'PitchEnv'),
+        EnvelopeSVG(pitchEnvController, '100%', '100px')
+      ),
+
+      // div(
+      //   { style: 'margin: 10px 0;' },
+      //   div({ style: 'font-size: 0.9rem; margin-bottom: 5px;' }, 'LoopEnv'),
+      //   EnvelopeSVG(loopEndEnvController, '100%', '100px')
+      // ),
 
       SampleControls(
         loopStart,
@@ -329,23 +347,3 @@ const SamplerElement = (attributes: ElementProps) => {
 export const defineSampler = (elementName: string = 'sampler-element') => {
   define(elementName, SamplerElement, false);
 };
-
-// Loop & Hold "enabled" is triggered by audiolib internally
-// SamplerElement updates UI state onMessage received
-// samplePlayer.onMessage('loop:enabled', (msg: any) => {
-//   status.val = `Loop ${msg.enabled ? 'enabled' : 'disabled'}`;
-// });
-
-// samplePlayer.onMessage('hold:enabled', (msg: any) => {
-//   status.val = `Hold ${msg.enabled ? 'enabled' : 'disabled'}`;
-// });
-
-// Loop & Hold "locked" is triggered here, SamplerElement's
-// derived loop & hold locked states call SamplePlayer setters
-// samplePlayer.onMessage('loop:locked', (msg: any) => {
-//   status.val = `Loop ${msg.locked ? 'locked' : 'unlocked'}`;
-// });
-
-// samplePlayer.onMessage('hold:locked', (msg: any) => {
-//   status.val = `Hold ${msg.locked ? 'locked' : 'unlocked'}`;
-// });

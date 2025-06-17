@@ -14,7 +14,6 @@ export const createTwoThumbSlider = (
   minGap = step
 ) => {
   return div(
-    { style: 'padding: 0 0.5rem 0.25rem 0.5rem;' },
     label(labelText + ': '),
     van.tags['two-thumb-slider']({
       min: min,

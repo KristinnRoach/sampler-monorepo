@@ -24,7 +24,8 @@
   },
   "dependencies": {
     "@repo/audiolib": "workspace:*",
-    "@repo/vanjs-core": "workspace:*"
+    "@repo/vanjs-core": "workspace:*",
+    "gsap": "^3.13.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

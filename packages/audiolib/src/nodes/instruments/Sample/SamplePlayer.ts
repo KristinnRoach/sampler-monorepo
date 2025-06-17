@@ -32,6 +32,11 @@ export class SamplePlayer extends LibInstrument {
   #loopLocked = false;
   #holdEnabled = false;
   #holdLocked = false;
+
+  #envelopeControllers: Record<string, any> = {}; // Map of param name to controller // add Type for AudioEnvelopeController
+  #macroEnvGain: MacroParam;
+  #macroPlaybackRate: MacroParam;
+
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
   #loopEndFineTune: number = 0;
@@ -76,6 +81,16 @@ export class SamplePlayer extends LibInstrument {
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
+    this.#macroEnvGain = new MacroParam(
+      context,
+      DEFAULT_PARAM_DESCRIPTORS.ENV_GAIN
+    );
+
+    this.#macroPlaybackRate = new MacroParam(
+      context,
+      DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE
+    );
+
     this.#connectVoicesToMacros();
 
     // Connect audiochain -- todo after generalizing voice pool
@@ -103,12 +118,68 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  setEnvelopeController(
+    controller: any,
+    paramName: 'envGain' | 'playbackRate' | 'loopStart' | 'loopEnd' = 'envGain'
+  ): this {
+    this.#envelopeControllers[paramName] = controller;
+    return this;
+  }
+
+  // todo: rename
+  getAudioParam(
+    paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate'
+  ) {
+    switch (paramName) {
+      case 'loopStart':
+        return this.#macroLoopStart.audioParam;
+      case 'loopEnd':
+        return this.#macroLoopEnd.audioParam;
+      case 'envGain':
+        return this.#macroEnvGain.audioParam;
+      case 'playbackRate':
+        return this.#macroPlaybackRate.audioParam; // ! check integration
+      default:
+        const unreachable: never = paramName;
+        throw new Error(`Unknown macro parameter: ${unreachable}`);
+    }
+  }
+
+  getMacroParam(
+    paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate'
+  ) {
+    switch (paramName) {
+      case 'loopStart':
+        return this.#macroLoopStart;
+      case 'loopEnd':
+        return this.#macroLoopEnd;
+      case 'envGain':
+        return this.#macroEnvGain;
+      case 'playbackRate':
+        return this.#macroPlaybackRate;
+      default:
+        const unreachable: never = paramName;
+        throw new Error(`Unknown macro parameter: ${unreachable}`);
+    }
+  }
+
   #connectVoicesToMacros(): this {
     const voices = this.voicePool.allVoices;
 
     voices.forEach((voice) => {
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
+
+      const envGainParam = voice.getParam('envGain');
+      const playbackRateParam = voice.getParam('playbackRate');
+
+      if (envGainParam) {
+        this.#macroEnvGain.addTarget(envGainParam, 'envGain');
+      }
+
+      if (playbackRateParam) {
+        this.#macroPlaybackRate.addTarget(playbackRateParam, 'playbackRate');
+      }
 
       if (loopEndParam) {
         this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
@@ -125,8 +196,10 @@ export class SamplePlayer extends LibInstrument {
     const lastZero =
       this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
     const firstZero = this.#zeroCrossings[0] ?? 0;
-    this.#macroLoopEnd.macro.setValueAtTime(lastZero, this.now);
-    this.#macroLoopStart.macro.setValueAtTime(firstZero, this.now);
+
+    this.#macroEnvGain.audioParam.setValueAtTime(0, this.now);
+    this.#macroLoopEnd.audioParam.setValueAtTime(lastZero, this.now);
+    this.#macroLoopStart.audioParam.setValueAtTime(firstZero, this.now);
 
     // consider whether startOffset and endOffset should be macros
 
@@ -248,6 +321,29 @@ export class SamplePlayer extends LibInstrument {
       velocity,
       0 // zero delay
     );
+
+    // Apply envelope controllers where they exist
+    if (this.context) {
+      const currentTime = this.context.currentTime;
+      const duration = this.#bufferDuration || 2;
+
+      // Apply each controller to its respective parameter
+      Object.entries(this.#envelopeControllers).forEach(
+        ([paramName, controller]) => {
+          if (controller) {
+            const param = this.getAudioParam(paramName as any);
+            if (param) {
+              // TODO: remove circular dependency
+              // ! - audiolib should just receive values from SamplerElement UI and handle applying it
+              // - env length AND env loop duration should be determined by sample duration
+              // minus start / end offsets.. or loopStart / loopEnd offsets
+
+              controller.applyToAudioParam(param, currentTime, duration);
+            }
+          }
+        }
+      );
+    }
 
     this.#midiNoteToId.set(midiNote, noteId);
 
@@ -410,6 +506,7 @@ export class SamplePlayer extends LibInstrument {
 
   setLoopRampDuration(seconds: number): this {
     this.storeParamValue('loopRampDuration', seconds);
+    // ? todo: is this enough ?
     return this;
   }
 
@@ -427,7 +524,7 @@ export class SamplePlayer extends LibInstrument {
   #minFilterUpdateInterval = 0.08; // 80ms minimum between updates
 
   setHpfCutoff(hz: number): this {
-    // if (!this.#pool.filtersEnabled) return this;
+    // if (!this.#voicePool.filtersEnabled) return this;
     if (isNaN(hz) || !isFinite(hz)) {
       console.warn(`Invalid HPF frequency: ${hz}`);
       return this;
@@ -445,13 +542,6 @@ export class SamplePlayer extends LibInstrument {
     this.voicePool.applyToAllVoices((voice) => {
       if (!voice.hpf) return;
       try {
-        // Replace cancelAndHoldAtTime with safer options
-        // voice.hpf.frequency.cancelScheduledValues(currentTime);
-        // voice.hpf.frequency.setValueAtTime(
-        //   voice.hpf.frequency.value,
-        //   currentTime
-        // );
-
         cancelScheduledParamValues(voice.hpf.frequency, currentTime);
         voice.hpf.frequency.setTargetAtTime(
           safeValue,
@@ -485,11 +575,6 @@ export class SamplePlayer extends LibInstrument {
 
     this.voicePool.applyToAllVoices((voice) => {
       if (!voice.lpf) return;
-      // voice.lpf.frequency.cancelScheduledValues(currentTime);
-      // voice.lpf.frequency.setValueAtTime(
-      //   voice.lpf.frequency.value,
-      //   currentTime
-      // );
 
       cancelScheduledParamValues(voice.lpf.frequency, currentTime);
       voice.lpf.frequency.setTargetAtTime(
@@ -668,8 +753,11 @@ export class SamplePlayer extends LibInstrument {
         this.outBus = null as unknown as InstrumentMasterBus;
       }
 
+      this.#macroEnvGain?.dispose();
       this.#macroLoopStart?.dispose();
       this.#macroLoopEnd?.dispose();
+
+      this.#macroEnvGain = null as unknown as MacroParam;
       this.#macroLoopStart = null as unknown as MacroParam;
       this.#macroLoopEnd = null as unknown as MacroParam;
 
@@ -804,6 +892,9 @@ export class SamplePlayer extends LibInstrument {
 
   setParameterValue(name: string, value: number): this {
     switch (name) {
+      // case 'envGain':  // + playbackRate eða henda
+      //   this.setEnvGain(value);
+      //   break;
       case 'attack':
         this.setAttackTime(value);
         break;

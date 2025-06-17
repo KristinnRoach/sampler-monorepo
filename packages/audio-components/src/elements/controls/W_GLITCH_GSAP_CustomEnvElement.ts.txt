@@ -1,0 +1,380 @@
+// EnvelopeElement.ts - Fixed VanJS + GSAP integration
+import van, { State } from '@repo/vanjs-core';
+import { define, ElementProps } from '@repo/vanjs-core/element';
+import gsap from 'gsap';
+import { CustomEase } from 'gsap/all';
+
+gsap.registerPlugin(CustomEase);
+
+const { div, button } = van.tags;
+const { svg, path, circle, line, g } = van.tags('http://www.w3.org/2000/svg');
+
+// Envelope point structure
+interface EnvelopePoint {
+  time: number; // 0-1 normalized time
+  value: number; // 0-1 normalized value
+}
+
+// GSAP-powered envelope controller
+class EnvelopeController {
+  private points: EnvelopePoint[] = [
+    { time: 0, value: 0 },
+    { time: 1, value: 0 },
+  ];
+
+  private gsapTimeline: gsap.core.Timeline | null = null;
+
+  // VanJS state for current envelope value
+  public currentValue: State<number> = van.state(0);
+
+  // State to trigger visualization updates - this will cause reactivity
+  public pointsState: State<EnvelopePoint[]> = van.state([...this.points]);
+
+  constructor() {
+    this.updateGSAPEase();
+  }
+
+  addPoint(time: number, value: number) {
+    // Insert point in correct time order
+    const insertIndex = this.points.findIndex((p) => p.time > time);
+    const newPoint = { time, value };
+
+    if (insertIndex === -1) {
+      this.points.push(newPoint);
+    } else {
+      this.points.splice(insertIndex, 0, newPoint);
+    }
+
+    this.updateGSAPEase();
+    // Update the reactive state with a new array reference
+    this.pointsState.val = [...this.points];
+  }
+
+  updatePoint(index: number, time: number, value: number) {
+    if (index > 0 && index < this.points.length - 1) {
+      this.points[index] = { time, value };
+      this.updateGSAPEase();
+      // Update the reactive state
+      this.pointsState.val = [...this.points];
+    }
+  }
+
+  deletePoint(index: number) {
+    if (index > 0 && index < this.points.length - 1) {
+      this.points.splice(index, 1);
+      this.updateGSAPEase();
+      // Update the reactive state
+      this.pointsState.val = [...this.points];
+    }
+  }
+
+  private updateGSAPEase() {
+    // Convert points to GSAP CustomEase path - ensure it's a valid cubic bezier
+    const pathData = this.pointsToSVGPath();
+
+    try {
+      CustomEase.create('envelope', pathData);
+    } catch (error) {
+      console.warn('CustomEase creation failed:', error);
+      // Create a simple linear fallback
+      const linearPath = `M0,${this.points[0].value} L1,${this.points[this.points.length - 1].value}`;
+      CustomEase.create('envelope', linearPath);
+    }
+  }
+
+  private pointsToSVGPath(): string {
+    if (this.points.length < 2) return 'M0,0 L1,0';
+
+    // Create a proper cubic bezier path
+    let path = `M${this.points[0].time},${this.points[0].value}`;
+
+    for (let i = 1; i < this.points.length; i++) {
+      const curr = this.points[i];
+      const prev = this.points[i - 1];
+
+      // Simple linear interpolation for now - could be enhanced with smooth curves
+      path += ` L${curr.time},${curr.value}`;
+    }
+
+    return path;
+  }
+
+  // Get SVG path data for visualization (separate from GSAP ease)
+  getVisualizationPath(width: number = 400, height: number = 200): string {
+    if (this.points.length < 2) return `M0,${height} L${width},${height}`;
+
+    let path = `M${this.points[0].time * width},${(1 - this.points[0].value) * height}`;
+
+    for (let i = 1; i < this.points.length; i++) {
+      const point = this.points[i];
+      path += ` L${point.time * width},${(1 - point.value) * height}`;
+    }
+
+    return path;
+  }
+
+  // Apply envelope to any AudioParam over given duration
+  applyToAudioParam(
+    audioParam: AudioParam,
+    startTime: number,
+    duration: number
+  ) {
+    if (!this.gsapTimeline) {
+      this.gsapTimeline = gsap.timeline({ paused: true });
+    }
+
+    // Clear previous timeline
+    this.gsapTimeline.clear();
+
+    // Animate our VanJS state using GSAP's custom ease
+    this.gsapTimeline.to(this.currentValue, {
+      duration: 1, // Always 1 for normalized timeline
+      val: 1, // Animate from current value to 1
+      ease: 'envelope',
+      onUpdate: () => {
+        // Apply the eased value to the AudioParam
+        const scaledValue = this.currentValue.val;
+        audioParam.setValueAtTime(
+          scaledValue,
+          startTime + duration * this.gsapTimeline!.progress()
+        );
+      },
+    });
+
+    // Scale timeline to actual duration and play
+    this.gsapTimeline.duration(duration);
+    this.gsapTimeline.restart();
+  }
+
+  getPoints(): EnvelopePoint[] {
+    return [...this.points];
+  }
+}
+
+// VanJS Element for envelope editing
+const EnvelopeElement = (attributes: ElementProps) => {
+  const envelope = new EnvelopeController();
+
+  // VanJS states for UI
+  const selectedPoint = van.state<number | null>(null);
+  const isDragging = van.state(false);
+
+  // Mouse event handling for dragging
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging.val && selectedPoint.val !== null) {
+      const svg = e.currentTarget as SVGSVGElement;
+      const rect = svg.getBoundingClientRect();
+      const viewBox = svg.viewBox.baseVal;
+
+      const x = ((e.clientX - rect.left) / rect.width) * viewBox.width;
+      const y = ((e.clientY - rect.top) / rect.height) * viewBox.height;
+
+      // Convert SVG coordinates to normalized envelope coordinates
+      const time = Math.max(0, Math.min(1, x / 400));
+      const value = Math.max(0, Math.min(1, 1 - y / 200));
+
+      envelope.updatePoint(selectedPoint.val, time, value);
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDragging.val = false;
+    selectedPoint.val = null;
+  };
+
+  // Expose envelope controller for parent component access
+  const element = div(
+    {
+      class: 'envelope-element',
+      style: 'background: #2a2a2a; border-radius: 8px; padding: 16px;',
+    },
+
+    // Control buttons
+    div(
+      { style: 'margin-bottom: 16px; display: flex; gap: 8px;' },
+      button(
+        {
+          onclick: () => envelope.addPoint(0.5, 0.5),
+          style:
+            'padding: 8px 16px; background: #4ade80; border: none; border-radius: 4px; color: black;',
+        },
+        'Add Point'
+      ),
+      button(
+        {
+          onclick: () => testEnvelope(),
+          style:
+            'padding: 8px 16px; background: #60a5fa; border: none; border-radius: 4px; color: black;',
+        },
+        'Test Envelope'
+      )
+    ),
+
+    // SVG envelope editor using proper VanJS SVG tags
+    svg(
+      {
+        viewBox: '0 0 400 200',
+        style:
+          'width: 100%; height: 200px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; margin-bottom: 15px;',
+        onmousemove: handleMouseMove,
+        onmouseup: handleMouseUp,
+        onmouseleave: handleMouseUp,
+      },
+
+      // Grid lines
+      g(
+        { class: 'grid' },
+        // Vertical lines
+        ...Array.from({ length: 11 }, (_, i) => {
+          const x = (i / 10) * 400;
+          return line({
+            x1: x,
+            y1: 0,
+            x2: x,
+            y2: 200,
+            stroke: '#333',
+            'stroke-width': 1,
+          });
+        }),
+        // Horizontal lines
+        ...Array.from({ length: 11 }, (_, i) => {
+          const y = (i / 10) * 200;
+          return line({
+            x1: 0,
+            y1: y,
+            x2: 400,
+            y2: y,
+            stroke: '#333',
+            'stroke-width': 1,
+          });
+        })
+      ),
+
+      // Envelope path - reactive to envelope changes with double-click to add points
+      path({
+        d: () => {
+          // Access the reactive state to establish dependency
+          envelope.pointsState.val;
+          return envelope.getVisualizationPath(400, 200);
+        },
+        fill: 'none',
+        stroke: '#4ade80',
+        'stroke-width': 2,
+        style: 'cursor: crosshair;', // Visual hint for interaction
+        ondblclick: (e: MouseEvent) => {
+          if (!(e.currentTarget as Element).closest('svg')) return;
+
+          const svg = (e.currentTarget as Element).closest(
+            'svg'
+          ) as SVGSVGElement;
+
+          const rect = svg.getBoundingClientRect();
+          const viewBox = svg.viewBox.baseVal;
+
+          const x = ((e.clientX - rect.left) / rect.width) * viewBox.width;
+          const y = ((e.clientY - rect.top) / rect.height) * viewBox.height;
+
+          // Convert SVG coordinates to normalized envelope coordinates
+          const time = Math.max(0, Math.min(1, x / 400));
+          const value = Math.max(0, Math.min(1, 1 - y / 200));
+
+          envelope.addPoint(time, value);
+          e.preventDefault();
+          e.stopPropagation();
+        },
+      }),
+
+      // Control points - now properly reactive using van.add for dynamic content
+      () =>
+        g(
+          { class: 'control-points' },
+          ...envelope.pointsState.val.map((point, index) =>
+            circle({
+              cx: point.time * 400,
+              cy: (1 - point.value) * 200,
+              r: 6,
+              fill: () => (selectedPoint.val === index ? '#ff6b6b' : '#4ade80'),
+              stroke: '#fff',
+              'stroke-width': 2,
+              style: 'cursor: pointer;',
+              onmousedown: (e: MouseEvent) => {
+                selectedPoint.val = index;
+                isDragging.val = true;
+                e.preventDefault();
+              },
+            })
+          )
+        )
+    ),
+
+    // Current envelope value display (reactive to GSAP animation)
+    div(
+      { style: 'margin-top: 8px; font-family: monospace; color: #888;' },
+      'Current Value: ',
+      () => envelope.currentValue.val.toFixed(3)
+    ),
+
+    // Debug info
+    div(
+      {
+        style:
+          'margin-top: 8px; font-family: monospace; color: #666; font-size: 12px;',
+      },
+      () =>
+        `Points: ${envelope.pointsState.val.length}, Selected: ${selectedPoint.val ?? 'none'}`
+    )
+  );
+
+  // Test function to demonstrate envelope application
+  async function testEnvelope() {
+    const audioContext = new (window.AudioContext ||
+      (window as any).webkitAudioContext)();
+
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+    oscillator.type = 'sine';
+
+    // Apply our envelope to the gain node
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    envelope.applyToAudioParam(gainNode.gain, audioContext.currentTime, 2);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 2);
+  }
+
+  // Store envelope controller reference on DOM element for external access
+  (element as any).envelopeController = envelope;
+
+  return element;
+};
+
+// Integration with your existing SamplerElement
+export const IntegrateWithSampler = (
+  samplePlayer: any,
+  envelopeElement: any
+) => {
+  const envelope = envelopeElement.envelopeController as EnvelopeController;
+
+  // Replace existing attack/release with envelope
+  van.derive(() => {
+    // When envelope currentValue changes, update SamplePlayer
+    if (samplePlayer && samplePlayer.envGain) {
+      // Apply envelope to the exposed envGain AudioParam
+      const currentTime = samplePlayer.audioContext?.currentTime || 0;
+      envelope.applyToAudioParam(samplePlayer.envGain, currentTime, 1);
+    }
+  });
+};
+
+export const defineEnvelope = (elementName: string = 'envelope-element') => {
+  define(elementName, EnvelopeElement, false);
+};

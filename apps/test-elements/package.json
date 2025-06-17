@@ -15,7 +15,8 @@
   "dependencies": {
     "@repo/audio-components": "workspace:*",
     "@repo/vanjs-core": "workspace:*",
-    "animejs": "^4.0.2"
+    "animejs": "^4.0.2",
+    "gsap": "^3.13.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
