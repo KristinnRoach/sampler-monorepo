@@ -1,5 +1,3 @@
-import { MIN_ABS_AMPLITUDE } from '../shared/constants';
-
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -13,7 +11,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Timing state (replacing PlaybackTiming)
     this.isPlaying = false;
     this.startTime = 0; // When playback started
-    this.startOffset = 0; // Starting position in seconds
+    this.startPoint = 0; // Starting position in seconds
     this.scheduledEndTime = null; // When playback should end (if duration specified)
 
     // Zero crossing constraints
@@ -35,18 +33,25 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   #handleMessage(event) {
-    const { type, value, buffer, startOffset, duration, when, zeroCrossings } =
+    const { type, value, buffer, startPoint, duration, when, zeroCrossings } =
       event.data;
 
     switch (type) {
       case 'voice:init':
         this.#resetState();
+
+        this.port.postMessage({ type: 'initialized' });
         break;
 
       case 'voice:set_buffer':
         this.#resetState();
         this.buffer = null;
         this.buffer = buffer;
+
+        this.port.postMessage({
+          type: 'voice:loaded',
+          time: currentTime,
+        });
         break;
 
       case 'voice:set_zero_crossings':
@@ -69,16 +74,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.loopCount = 0;
         this.startTime = when || currentTime;
 
-        this.playbackPosition = this.startOffset * sampleRate;
+        this.playbackPosition = this.startPoint * sampleRate;
 
         if (duration) {
           // todo: remove or use
           this.scheduledEndTime = this.startTime + duration;
 
-          const paramEndOffset = this.#getCurrentParamValue('endOffset');
-          if (paramEndOffset > 0) {
-            // If endOffset is set, use it to calculate scheduled end time
-            const effectiveDuration = paramEndOffset - this.startOffset;
+          const paramendPoint = parameters['endPoint'][0];
+          if (paramendPoint > 0) {
+            // If endPoint is set, use it to calculate scheduled end time
+            const effectiveDuration = paramendPoint - this.startPoint;
             if (effectiveDuration > 0) {
               this.scheduledEndTime = this.startTime + effectiveDuration;
             } else {
@@ -92,20 +97,29 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.port.postMessage({
           type: 'voice:started',
           time: currentTime,
-          actualStartOffset: this.startOffset,
+          actualstartPoint: this.startPoint,
         });
         break;
 
       case 'voice:release':
         this.isReleasing = true;
+
+        this.port.postMessage({
+          type: 'voice:releasing',
+          time: currentTime,
+        });
         break;
 
       case 'voice:stop':
-        this.isPlaying = false;
+        this.#stop();
         break;
 
       case 'setLoopEnabled':
         this.loopEnabled = value;
+
+        this.port.postMessage({
+          type: 'loop:enabled',
+        });
         break;
 
       case 'voice:usePlaybackPosition':
@@ -140,19 +154,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackRate',
         defaultValue: 1,
-        minValue: -8, // 0.1, // ? test negative -8,
-        maxValue: 8, // ? test 10,
+        minValue: -8, // ? test negative
+        maxValue: 8, // ? test
         automationRate: 'k-rate', // ! a or k ?
       },
       {
-        name: 'startOffset',
+        name: 'startPoint',
         defaultValue: 0,
         minValue: 0,
         automationRate: 'k-rate',
       },
       {
-        name: 'endOffset',
-        defaultValue: 0,
+        name: 'endPoint',
+        defaultValue: 1, // normalized full sample duration
         minValue: 0,
         automationRate: 'k-rate',
       },
@@ -164,7 +178,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       },
       {
         name: 'loopEnd',
-        defaultValue: 0,
+        defaultValue: 0, // ? required ?
         minValue: 0,
         automationRate: 'k-rate', // a or k ?
       },
@@ -175,29 +189,41 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.isPlaying = false;
     this.isReleasing = false;
     this.startTime = 0;
-    this.startOffset = 0;
+    this.startPoint = 0;
     this.scheduledEndTime = null;
     this.playbackPosition = 0;
     this.loopCount = 0;
     this.maxLoopCount = Number.MAX_SAFE_INTEGER;
   }
 
-  #onended(output) {
+  #stop() {
     this.isPlaying = false;
     this.isReleasing = false;
     this.playbackPosition = 0;
-    this.port.postMessage({ type: 'voice:ended' });
+    this.port.postMessage({ type: 'voice:stopped' });
   }
 
   #shouldEnd(parameters) {
-    return (
+    const shouldEnd =
       !this.buffer ||
       !this.buffer.length ||
       !this.isPlaying ||
-      (this.scheduledEndTime !== null &&
-        currentTime >= this.scheduledEndTime) ||
-      (this.isReleasing && parameters.envGain[0] <= MIN_ABS_AMPLITUDE)
-    );
+      (this.scheduledEndTime !== null && currentTime >= this.scheduledEndTime);
+
+    // if (shouldEnd) {
+    //   console.log('PROCESSOR: Ending because:', {
+    //     noBuffer: !this.buffer,
+    //     noBufferLength: !this.buffer?.length,
+    //     notPlaying: !this.isPlaying,
+    //     timeExpired:
+    //       this.scheduledEndTime !== null &&
+    //       currentTime >= this.scheduledEndTime,
+    //     currentTime,
+    //     scheduledEndTime: this.scheduledEndTime,
+    //   });
+    // }
+
+    return shouldEnd;
   }
 
   #clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -225,15 +251,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return closest;
   }
 
-  #getCurrentParamValue(paramName) {
-    if (!this.parameters) return 0;
-
-    const param = this.parameters.get(paramName);
-    if (!param) return 0;
-
-    return param.value || 0;
-  }
-
   #normalizeMidi(midiValue) {
     const norm = midiValue / 127;
     return Math.max(0, Math.min(1, norm));
@@ -255,33 +272,31 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
-    if (!output || this.#shouldEnd(parameters)) {
-      this.#onended(output);
+    if (!output || !this.isPlaying) {
       return true;
     }
 
     // If this is the first process call after starting playback,
-    // initialize playback position using startOffset
-    if (this.isPlaying && this.playbackPosition === 0) {
-      const startOffsetSec = parameters.startOffset[0];
-      this.playbackPosition = startOffsetSec * sampleRate;
+    // initialize playback position using startPoint
+    if (this.playbackPosition === 0) {
+      const startPointSec = parameters.startPoint[0];
+      this.playbackPosition = startPointSec * sampleRate;
     }
 
     const pbRate = parameters.playbackRate[0];
 
     // Get start and end offsets from parameters and convert to samples
-    const startOffsetSec = parameters.startOffset[0];
-    const endOffsetSec = parameters.endOffset[0];
+    const startPointSec = parameters.startPoint[0];
+    const endPointSec = parameters.endPoint[0];
 
     // Convert to samples
-    const startOffsetSamples = startOffsetSec * sampleRate;
+    const startPointSamples = startPointSec * sampleRate;
 
-    // Handle end offset - if endOffset is set (greater than 0), use it to limit playback
+    // Handle end offset - if endPoint is set (greater than 0), use it to limit playback
     const bufferLength = this.buffer[0].length;
     let effectiveBufferEnd = bufferLength;
-    if (endOffsetSec > 0) {
-      // Treat endOffset as an absolute position from the beginning
-      effectiveBufferEnd = Math.min(bufferLength, endOffsetSec * sampleRate);
+    if (endPointSec > 0) {
+      effectiveBufferEnd = Math.min(bufferLength, endPointSec * sampleRate);
     }
 
     // Quantize once per block, not per sample
@@ -314,7 +329,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       // Check for end of buffer or effective end position
       if (this.playbackPosition >= effectiveBufferEnd) {
-        this.#onended(output);
+        this.#stop(output);
         return true;
       }
 
@@ -333,6 +348,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
         const sample =
           (current + fraction * (next - current)) * velocityGain * envelopeGain;
+
         output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
       }
       // Advance playback position

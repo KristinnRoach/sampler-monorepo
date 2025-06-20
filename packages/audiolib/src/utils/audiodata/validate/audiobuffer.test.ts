@@ -5,7 +5,7 @@ import {
   getOfflineAudioContext,
   releaseOfflineContext,
   clearAllOfflineContexts,
-} from '@/context';
+} from '../../../context';
 
 describe('isValidAudioBuffer', () => {
   const config = { length: 44100, sampleRate: 44100 };

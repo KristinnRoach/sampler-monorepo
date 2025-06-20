@@ -138,7 +138,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return this.noiseGain;
   }
 
-  get isReady() {
+  get initialized() {
     return this.#isReady;
   }
 

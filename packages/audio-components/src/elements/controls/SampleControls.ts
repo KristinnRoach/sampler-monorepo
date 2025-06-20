@@ -20,16 +20,14 @@ export const SampleControls = (
       loopStart,
       loopEnd,
       0,
-      sampleDuration.val,
+      1, // normalized range: 0 to 1
       0.001,
       0.001
     ),
 
     createSlider('Periods', loopEndFineTune, 0, 100, 1, false, 'ms', 1),
-    // createSlider('Loop Start', loopStart, 0, sampleDuration.val, 0.001),
-    // createSlider('Loop End', loopEnd, 0, sampleDuration.val, 0.001),
-    createSlider('Start Offset', startOffset, 0, sampleDuration.val, 0.001),
-    createSlider('End Offset', endOffset, 0, sampleDuration.val, 0.001)
+    createSlider('Start Offset', startOffset, 0, 1, 0.001),
+    createSlider('End Offset', endOffset, 0, 1, 0.001)
   );
 
   // Attach the fine-tune state to the DOM element for access

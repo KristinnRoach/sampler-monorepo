@@ -1,15 +1,19 @@
 import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { ActiveNoteId } from '../types';
+import { MidiValue } from '../types';
+import { VoiceState } from '../VoiceState';
+import { Message } from '@/events';
 
 export class SampleVoicePool {
   readonly nodeId: NodeID;
   readonly nodeType = 'pool';
 
   #allVoices: SampleVoice[];
-  #context: AudioContext;
-  #activeVoices: Map<ActiveNoteId, SampleVoice>;
-  #nextNoteId: number;
+  #playingMidiVoiceMap = new Map<MidiValue, SampleVoice>();
+
+  #available = new Set<SampleVoice>();
+  #playing = new Set<SampleVoice>();
+  #releasing = new Set<SampleVoice>();
 
   #transposeSemitones = 0;
 
@@ -25,7 +29,6 @@ export class SampleVoicePool {
     enableFilters: boolean = true
   ) {
     this.nodeId = createNodeId(this.nodeType);
-    this.#context = context;
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
       const voice = new SampleVoice(context, { enableFilters });
@@ -33,8 +36,42 @@ export class SampleVoicePool {
       return voice;
     });
 
-    this.#activeVoices = new Map(); // noteId -> voice
-    this.#nextNoteId = 0;
+    // All voices start as available
+    this.#allVoices.forEach((voice) => {
+      this.#available.add(voice);
+
+      voice.onMessage('voice:started', (msg: Message) => {
+        // Ensure mutual exlusion (idempotent delete)
+        this.#available.delete(msg.voice);
+        this.#releasing.delete(msg.voice);
+
+        this.#playing.add(msg.voice);
+        this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
+      });
+
+      voice.onMessage('voice:releasing', (msg: Message) => {
+        // Ensure mutual exlusion
+        this.#available.delete(msg.voice);
+        this.#playing.delete(msg.voice);
+
+        this.#releasing.add(msg.voice);
+
+        // Remove from midiToVoice map, is this voice owns this midinote
+        if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
+          this.#playingMidiVoiceMap.delete(msg.midiNote);
+        }
+      });
+
+      voice.onMessage('voice:stopped', (msg: Message) => {
+        // Ensure mutual exlusion
+        this.#playing.delete(msg.voice);
+        this.#releasing.delete(msg.voice);
+
+        this.#available.add(msg.voice);
+
+        this.debug();
+      });
+    });
 
     this.#isReady = true;
   }
@@ -44,77 +81,62 @@ export class SampleVoicePool {
     return this;
   }
 
-  // Voice Allocation
-  findVoice() {
-    // First priority: find an inactive voice
-    const freeVoice = this.#allVoices.find(
-      (v) => v.state !== 'PLAYING' && v.state !== 'RELEASING'
-    );
+  pop = (set: Set<any>) => {
+    const v = set.values().next().value;
+    set.delete(v);
+    return v;
+  };
 
-    if (freeVoice) return freeVoice;
+  allocate(
+    available = this.#available,
+    releasing = this.#releasing,
+    playing = this.#playing
+  ): SampleVoice {
+    let voice;
 
-    // Second priority: find a releasing voice
-    const releasingVoice = this.#allVoices.find((v) => v.state === 'RELEASING');
-    if (releasingVoice) {
-      releasingVoice.stop();
-      return releasingVoice;
-    }
+    if (available.size) voice = this.pop(available);
+    else if (releasing.size) voice = this.pop(releasing);
+    else if (playing.size) voice = this.pop(playing);
+    else throw new Error(`Could not allocate voice`);
 
-    // Third priority: find the oldest playing voice
-    return this.#allVoices.reduce(
-      (oldest, voice) =>
-        !oldest || voice.startTime < oldest.startTime ? voice : oldest,
-      null as SampleVoice | null
-    );
+    return voice;
   }
 
   noteOn(
-    midiNote: number,
-    velocity = 100,
+    midiNote: MidiValue,
+    velocity: MidiValue = 100,
     secondsFromNow = 0,
-    // attack_sec = 0.01,
     transposition = this.#transposeSemitones
-  ): ActiveNoteId {
-    const noteId = this.#nextNoteId++; // increments for next note
+  ): MidiValue {
+    const voice = this.allocate();
 
-    const voice = this.findVoice();
-    if (!voice) return noteId; // Still return a valid noteId
-
-    // TODO: get envelope info and schedule trigger envelope at same time
-
-    voice.trigger({
-      // voice.trigger also returns noteId (redundant?)
+    const triggerResult = voice.trigger({
       midiNote: midiNote + transposition,
       velocity,
-      noteId,
       secondsFromNow,
-      // attack_sec, // todo - make param in Voice
     });
-    this.#activeVoices.set(noteId, voice);
 
-    return noteId;
+    if (!triggerResult) console.warn(`no trigger result, ${triggerResult}`);
+
+    return midiNote;
   }
 
-  noteOff(noteId: ActiveNoteId, release_sec = 0.2, secondsFromNow: number = 0) {
-    const voice = this.#activeVoices.get(noteId);
+  noteOff(midiNote: MidiValue, release_sec = 0.2, secondsFromNow: number = 0) {
+    const voice = this.#playingMidiVoiceMap.get(midiNote);
 
-    if (voice) {
+    if (voice?.state === VoiceState.PLAYING) {
       voice.release({ release: release_sec, secondsFromNow });
-      this.#activeVoices.delete(noteId);
     }
+
     return this;
   }
 
   allNotesOff(release_sec = 0) {
-    if (release_sec <= 0) {
-      this.#allVoices.forEach((voice) => voice.stop());
-    } else {
-      this.#allVoices.forEach((voice) => {
-        if (voice.state === 'PLAYING') voice.release({ release: release_sec });
-      });
-    }
-    this.#activeVoices.clear();
+    this.#playingMidiVoiceMap.forEach((voice) => {
+      voice.release({ release: release_sec });
+    });
 
+    this.#playingMidiVoiceMap.clear();
     return this;
   }
 
@@ -123,35 +145,72 @@ export class SampleVoicePool {
   }
 
   applyToActiveVoices(fn: (voice: SampleVoice) => void) {
-    this.#activeVoices.forEach((voice) => fn(voice));
+    this.#playingMidiVoiceMap.forEach((voice) => fn(voice));
   }
 
-  applyToVoice(noteId: ActiveNoteId, fn: (voice: SampleVoice) => void) {
-    const voice = this.#activeVoices.get(noteId);
+  applyToInactiveVoices(fn: (voice: SampleVoice) => void) {
+    this.#available.forEach((voice) => fn(voice));
+  }
+
+  applyToActiveNote(midiNote: MidiValue, fn: (voice: SampleVoice) => void) {
+    const voice = this.#playingMidiVoiceMap.get(midiNote);
     if (voice) {
       fn(voice);
     } else {
-      console.warn(`No active voice found for noteId: ${noteId}`);
+      console.warn(`No active voice found for midiNote: ${midiNote}`);
     }
+  }
+
+  debug() {
+    console.warn(
+      `
+      releasing: ${this.#releasing.size}
+      playing: ${this.#playing.size}
+      available: ${this.#available.size}
+      Sum: ${this.#releasing.size + this.#playing.size + this.#available.size}
+      Sum should be: ${this.allVoicesCount}
+      `,
+      { midiToVoiceMap: this.#playingMidiVoiceMap }
+    );
   }
 
   dispose() {
     this.applyToAllVoices((voice) => voice.dispose());
     this.#allVoices = [];
-    this.#activeVoices.clear();
-    this.#context = null as any;
+    this.#playingMidiVoiceMap.clear();
+    this.#available.clear();
+    this.#releasing.clear();
+    this.#playing.clear();
     this.#isReady = false;
     deleteNodeId(this.nodeId);
   }
 
-  // todo: get filtersEnabled() & setFiltersEnabled
+  get availableVoices() {
+    return this.#available;
+  }
+
+  get playingVoicesCount() {
+    return this.#playing.size;
+  }
+
+  get releasingVoicesCount() {
+    return this.#releasing.size;
+  }
+
+  get availableVoicesCount() {
+    return this.#available.size;
+  }
 
   get allVoices() {
     return this.#allVoices;
   }
 
-  get activeVoicesCount() {
-    return this.#activeVoices.size;
+  get allVoicesCount() {
+    return this.#allVoices.length;
+  }
+
+  get assignedVoicesMidiMap() {
+    return this.#playingMidiVoiceMap;
   }
 
   get transposeSemitones() {
@@ -162,14 +221,71 @@ export class SampleVoicePool {
   }
 }
 
-/* Igonre below
- *  todo: consider this for voice allocation - LATER (once everything else is working) */
-// #available = new Set();
-// #playing = new Set(); // maybe Map
-// #releasing = new Set();
+// Old version below:
+// const freeVoice = this.#allVoices.find(
+//   (v) => v.state === VoiceState.STOPPED || v.state === VoiceState.IDLE
+// );
+// if (freeVoice) return { voice: freeVoice, forceStopped: false };
 
-// #pop = (set: Set<any>) => {
-//   const v = set.values().next().value;
-//   set.delete(v);
-//   return v;
-// };
+// console.info(`
+//   Active: ${this.activeVoicesCount}
+//   Available: ${this.availableVoicesCount}
+//   `);
+
+// const noteId = this.#nextNoteId++; // increments for next note
+
+// const voiceResult = this.findVoice();
+// if (!voiceResult?.voice) return midiNote;
+
+// const { voice, forceStopped } = voiceResult;
+
+// if (forceStopped) {
+//   console.info(`pool.noteOn(): Force Stopped a voice: ${voice}`);
+//   // 8ms when voice was stopped to avoid scheduling conflict
+//   secondsFromNow = Math.max(secondsFromNow, 0.008);
+// }
+// // ! Fade out existing.. temp solution
+// if (this.#activeVoices.has(midiNote)) {
+//   // this.noteOff(midiNote);
+// }
+// this.#activeVoices.set(midiNote, voice);
+
+// findVoice() {
+//   // First priority: find an inactive voice
+//   if (this.#available.size > 0) {
+//     const availableVoice = pop(this.#available);
+//     return { voice: availableVoice, forceStopped: false };
+//   }
+
+//   // Second priority: find a releasing voice
+//   const releasingVoice = this.#allVoices.find(
+//     (v) => v.state === VoiceState.RELEASING
+//   );
+
+//   if (releasingVoice) {
+//     releasingVoice.stop();
+//     this.#available.delete(releasingVoice);
+//     console.info('Had to resort to stopping a releasing voice: ', {
+//       releasingVoice,
+//     });
+//     return { voice: releasingVoice, forceStopped: true };
+//   }
+
+//   // Third priority: find the oldest playing voice
+//   const oldestVoice = this.#allVoices.reduce(
+//     (oldest, voice) =>
+//       !oldest || voice.startTime < oldest.startTime ? voice : oldest,
+//     null as SampleVoice | null
+//   );
+
+//   if (oldestVoice) {
+//     oldestVoice.stop();
+//     this.#available.delete(oldestVoice);
+//     console.info('Had to resort to stopping the oldest playing voice: ', {
+//       oldestVoice,
+//     });
+//     return { voice: oldestVoice, forceStopped: true };
+//   }
+
+//   return null;
+// }

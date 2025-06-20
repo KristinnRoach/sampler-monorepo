@@ -315,7 +315,7 @@ export class Recorder implements LibNode {
     return this.#state;
   }
 
-  get isReady(): boolean {
+  get initialized(): boolean {
     return this.#recorder !== null && this.#stream !== null;
   }
 

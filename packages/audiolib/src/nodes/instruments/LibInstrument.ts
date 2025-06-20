@@ -184,7 +184,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return this;
   }
 
-  abstract isReady: boolean;
+  abstract initialized: boolean;
 
   // Common getters
   get now(): number {

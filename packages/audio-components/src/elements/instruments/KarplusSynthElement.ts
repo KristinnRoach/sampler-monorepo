@@ -37,7 +37,7 @@ const KarplusSynthElement = (attributes: ElementProps) => {
   const lpfFreq = van.state(18000);
   const hpfFreq = van.state(20);
 
-  const envelopeController = createCustomEnvelope();
+  // const envelopeController = createCustomEnvelope();
 
   // Control states
   const keyboardEnabled = van.state(true);

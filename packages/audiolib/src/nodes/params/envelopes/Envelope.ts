@@ -1,33 +1,32 @@
-interface EnvelopePoint {
+// import { cancelScheduledParamValues } from '@/utils';
+import { DEFAULT_AMP_ENV } from '..';
+
+export interface EnvelopePoint {
   time: number; // 0-1 normalized
   value: number; // 0-1
   curve?: 'linear' | 'exponential'; // Curve type to next point
 }
 
-interface EnvelopeData {
+export interface EnvelopeData {
   points: EnvelopePoint[];
   loop?: boolean;
 }
 
-interface CustomEnvelopeProps {
+export interface CustomEnvelopeProps {
+  audioContext: AudioContext;
   params?: AudioParam | AudioParam[];
   descriptors?: any;
   duration?: number;
   loop?: boolean;
+  defaultPoints?: EnvelopePoint[];
 }
 
-export const DEFAULT_ENV = [
-  { time: 0, value: 0, curve: 'linear' },
-  { time: 0.01, value: 1, curve: 'exponential' },
-  { time: 1, value: 0, curve: 'linear' },
-];
-
 export class CustomEnvelope {
-  private points: EnvelopePoint[] = [
-    { time: 0, value: 0, curve: 'linear' },
-    { time: 1, value: 0, curve: 'linear' },
-  ];
+  private context: AudioContext;
+  private points: EnvelopePoint[] = DEFAULT_AMP_ENV;
   private loop = false;
+  private envelopeDuration: number = 1.0;
+  private loopType: 'restart' | 'ping-pong' = 'restart';
 
   private listeners: Set<() => void> = new Set();
 
@@ -35,8 +34,35 @@ export class CustomEnvelope {
     this.listeners.forEach((listener) => listener());
   }
 
-  constructor(options: CustomEnvelopeProps = {}) {
-    // const { params, descriptors, duration = 1, loop = false } = options;
+  get sustainIdx() {
+    return this.points.length - 2;
+  }
+
+  get releaseStartIdx() {
+    return this.points.length - 2;
+  }
+
+  get duration() {
+    return this.envelopeDuration;
+  }
+
+  set duration(value: number) {
+    this.envelopeDuration = value; // Math.max(0.001, value);
+    this.notifyChange();
+  }
+
+  get loopMode() {
+    return this.loopType;
+  }
+
+  setLoopMode(mode: 'restart' | 'ping-pong') {
+    this.loopType = mode;
+    this.notifyChange();
+  }
+
+  constructor(options: CustomEnvelopeProps) {
+    this.context = options.audioContext;
+    // todo: add setDuration ? const { params, descriptors, duration = 1, loop = false } = options;
   }
 
   // Public method for UI to subscribe
@@ -102,8 +128,6 @@ export class CustomEnvelope {
     minValue: number = 0.001,
     loop = true
   ) {
-    audioParam.cancelScheduledValues(startTime);
-
     // Generate curve array
     const sampleRate = 1000; // 1000 samples per second
     const numSamples = Math.max(2, Math.floor(duration * sampleRate));
@@ -111,15 +135,18 @@ export class CustomEnvelope {
 
     // Fill the curve array by sampling the envelope
     for (let i = 0; i < numSamples; i++) {
-      // const normalizedTime = i / (numSamples - 1); // 0 to 1
       const normalizedTime = loop
         ? (i / (numSamples - 1)) % 1 // Wraps 0→1→0→1→0...
         : i / (numSamples - 1); // Normal 0→1
 
       const value = this.interpolateValueAtTime(normalizedTime);
       curve[i] = Math.max(value, minValue);
-    }
+    } // const now = this.context.currentTime;
+    audioParam.cancelScheduledValues(startTime);
 
+    // todo: delete cancelScheduledParamValues or fix and test
+    // audioParam.setValueAtTime(audioParam.value, startTime);
+    // cancelScheduledParamValues(audioParam, startTime);
     audioParam.setValueCurveAtTime(curve, startTime, duration);
   }
 
@@ -182,6 +209,54 @@ export class CustomEnvelope {
       default:
         // Linear interpolation
         return leftPoint.value + (rightPoint.value - leftPoint.value) * t;
+    }
+  }
+
+  /**
+   * Applies the release portion of the envelope to an AudioParam.
+   * This assumes the envelope should decay from its current value to 0 over the releaseDuration.
+   * It finds the effective starting point for the release within the envelope's definition.
+   * @param audioParam The AudioParam to schedule.
+   * @param startTime The Web Audio API timestamp to start the release.
+   * @param duration The duration of the release phase.
+   * @param currentValue The actual current value of the audioParam at releaseStartTime.
+   * @param targetValue The value the envelope should reach at the end of the release. (Usually 0 or minValue)
+   * @param minValue A minimum value to ensure no complete silence (avoids denormals).
+   */
+  applyReleaseToAudioParam(
+    audioParam: AudioParam,
+    startTime: number,
+    duration: number,
+    currentValue: number,
+    targetValue: number = 0.0001,
+    minValue: number = 0.0001
+  ) {
+    // cancelScheduledParamValues(audioParam, startTime);
+    audioParam.cancelScheduledValues(startTime);
+    audioParam.setValueAtTime(audioParam.value, startTime);
+
+    // Determine the curve type for the *last segment* of the envelope
+    const effectiveCurveType =
+      this.points.length > 1
+        ? this.points[this.points.length - 2]?.curve || 'linear'
+        : 'linear';
+
+    switch (effectiveCurveType) {
+      case 'exponential':
+        // Exponential ramp requires start and end to be > 0.
+        if (currentValue > minValue && targetValue > 0) {
+          audioParam.exponentialRampToValueAtTime(
+            targetValue,
+            startTime + duration
+          );
+        } else {
+          audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+        }
+        break;
+      case 'linear':
+      default:
+        audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+        break;
     }
   }
 
@@ -248,7 +323,7 @@ export class CustomEnvelope {
   }
 }
 
-export const createCustomEnvelope = (options: CustomEnvelopeProps = {}) => {
+export const createCustomEnvelope = (options: CustomEnvelopeProps) => {
   return new CustomEnvelope(options);
 };
 

@@ -72,16 +72,3 @@ document.addEventListener('DOMContentLoaded', () => init());
 document.addEventListener('keydown', (e) => {
   if (e.key === ' ') e.preventDefault();
 });
-
-// // ___________TEST_____________________
-// const { h1 } = van.tags;
-// const testEnv = div(
-//   {
-//     style:
-//       'padding: 20px; background: #1a1a1a; color: white; min-height: 100vh;',
-//   },
-//   h1('Envelope Test'),
-//   van.tags['env-element']({})
-// );
-// van.add(nodesContainer, testEnv);
-// // ___________TEST_____________________

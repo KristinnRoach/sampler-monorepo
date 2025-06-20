@@ -20,10 +20,6 @@ export class KarplusStrongSynth extends LibInstrument {
 
   voicePool: KarplusVoicePool;
 
-  get isReady() {
-    return this.#isReady;
-  }
-
   constructor(
     polyphony: number = 8,
     ctx?: AudioContext,
@@ -420,6 +416,10 @@ export class KarplusStrongSynth extends LibInstrument {
   /** GETTERS */
   get context() {
     return this.audioContext;
+  }
+
+  get initialized() {
+    return this.#isReady;
   }
 
   get now() {

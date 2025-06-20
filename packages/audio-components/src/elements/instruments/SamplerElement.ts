@@ -1,10 +1,10 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
-import { when } from '@/utils/vanjs-utils';
 
 import {
   type SamplePlayer,
   type CustomEnvelope,
+  type Recorder,
   getInstance,
 } from '@repo/audiolib';
 import { createIcons } from '../../utils/svg-utils';
@@ -22,19 +22,20 @@ import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 const { div } = van.tags;
 
 const SamplerElement = (attributes: ElementProps) => {
-  let samplePlayer: SamplePlayer;
-
+  let samplePlayer: SamplePlayer | null = null;
+  let currentRecorder: Recorder | null = null;
   // Attributes
   const expanded = attributes.attr('expanded', 'true');
 
   // Audio params
   const volume = van.state(0.5);
-  let ampEnvController = van.state<CustomEnvelope | null>(null);
-  let pitchEnvController = van.state<CustomEnvelope | null>(null);
+  let ampEnvelope = van.state<CustomEnvelope | null>(null);
+  let pitchEnvelope = van.state<CustomEnvelope | null>(null);
   // let loopEndEnvController = van.state<CustomEnvelope | null>(null);
 
-  const attack = van.state(0.001);
-  const release = van.state(0.3);
+  // Replaced with Envelope
+  // const attack = van.state(0.001);
+  // const release = van.state(0.3);
 
   // Pitch params
   const transposition = van.state(0);
@@ -45,8 +46,8 @@ const SamplerElement = (attributes: ElementProps) => {
   const loopEndFineTune = van.state(0);
 
   // Trim sample params
-  const startOffset = van.state(0);
-  const endOffset = van.state(1);
+  const startPoint = van.state(0);
+  const endPoint = van.state(1);
 
   // Sample Duration
   const sampleDuration = van.state(1);
@@ -94,41 +95,44 @@ const SamplerElement = (attributes: ElementProps) => {
         }
 
         // Setup envelopes
-        ampEnvController.val = samplePlayer.getAmpEnvelope();
-        pitchEnvController.val = samplePlayer.getPitchEnvelope();
+        ampEnvelope.val = samplePlayer.getAmpEnvelope();
+        pitchEnvelope.val = samplePlayer.getPitchEnvelope();
         envelopeReady.val = true; // re-render UI
 
-        console.table(ampEnvController);
-
-        derive(() => samplePlayer.setAttackTime(attack.val));
-        derive(() => samplePlayer.setReleaseTime(release.val));
-        derive(() => samplePlayer.setLoopStart(loopStart.val));
-        derive(() => samplePlayer.setLoopEnd(loopEnd.val));
+        // derive(() => samplePlayer.setAttackTime(attack.val));
+        // derive(() => samplePlayer.setReleaseTime(release.val));
+        derive(() => samplePlayer?.setLoopStart(loopStart.val));
+        derive(() => samplePlayer?.setLoopEnd(loopEnd.val));
 
         derive(() =>
-          samplePlayer.setFineTuneLoopEnd(-loopEndFineTune.val / 10000)
+          samplePlayer?.setFineTuneLoopEnd(-loopEndFineTune.val / 10000)
         ); // Convert 0-100 to 0 to -0.1 seconds
 
-        derive(() => samplePlayer.setSampleStartOffset(startOffset.val));
-        derive(() => samplePlayer.setSampleEndOffset(endOffset.val));
-        derive(() => (samplePlayer.volume = volume.val));
+        derive(() => samplePlayer?.setSampleStartPoint(startPoint.val));
+        derive(() => samplePlayer?.setSampleEndPoint(endPoint.val));
+
+        derive(() => {
+          if (samplePlayer?.volume !== undefined) {
+            samplePlayer.volume = volume.val;
+          }
+        });
 
         // Control states
         derive(() =>
           keyboardEnabled.val
-            ? samplePlayer.enableKeyboard()
-            : samplePlayer.disableKeyboard()
+            ? samplePlayer?.enableKeyboard()
+            : samplePlayer?.disableKeyboard()
         );
         derive(() =>
           midiEnabled.val
-            ? samplePlayer.enableMIDI()
-            : samplePlayer.disableMIDI()
+            ? samplePlayer?.enableMIDI()
+            : samplePlayer?.disableMIDI()
         );
         derive(() => {
-          samplePlayer.setHoldLocked(holdLocked.val);
+          samplePlayer?.setHoldLocked(holdLocked.val);
         });
         derive(() => {
-          samplePlayer.setLoopLocked(loopLocked.val);
+          samplePlayer?.setLoopLocked(loopLocked.val);
         });
 
         // Listen for SamplePlayer events:
@@ -191,6 +195,8 @@ const SamplerElement = (attributes: ElementProps) => {
           status.val = `Loading: ${file.name}...`;
 
           try {
+            if (!samplePlayer) return;
+
             const arrayBuffer = await file.arrayBuffer();
 
             if (!arrayBuffer) {
@@ -204,9 +210,9 @@ const SamplerElement = (attributes: ElementProps) => {
             const newDuration = samplePlayer.sampleDuration; // (maybe update via message instead for consistency)
             sampleDuration.val = newDuration;
             loopStart.val = 0;
-            loopEnd.val = newDuration;
-            startOffset.val = 0;
-            endOffset.val = newDuration;
+            loopEnd.val = 1; // Normalized
+            startPoint.val = 0;
+            endPoint.val = 1; // Normalized
 
             status.val = `Loaded: ${file.name}`;
           } catch (error) {
@@ -228,15 +234,18 @@ const SamplerElement = (attributes: ElementProps) => {
     if (!samplePlayer || recordBtnState.val === 'Recording') return;
 
     try {
-      const recorder = await getInstance().createRecorder();
-      if (!recorder) {
+      const recorderResult = await getInstance().createRecorder();
+      if (!recorderResult) {
         status.val = 'Failed to create recorder';
         return;
       }
 
-      recorder.connect(samplePlayer);
+      currentRecorder = recorderResult;
+      if (!currentRecorder) return;
 
-      await recorder.start({
+      currentRecorder.connect(samplePlayer);
+
+      await currentRecorder.start({
         useThreshold: true,
         startThreshold: -30,
         autoStop: true,
@@ -249,22 +258,22 @@ const SamplerElement = (attributes: ElementProps) => {
       status.val = 'Listening...';
 
       // Listen for Recorder events
-      recorder.onMessage('record:armed', () => {
+      currentRecorder.onMessage('record:armed', () => {
         recordBtnState.val = 'Armed';
         status.val = 'Listening...';
       });
 
-      recorder.onMessage('record:start', () => {
+      currentRecorder.onMessage('record:start', () => {
         recordBtnState.val = 'Recording';
         status.val = 'Recording...';
       });
 
-      recorder.onMessage('record:cancelled', () => {
+      currentRecorder.onMessage('record:cancelled', () => {
         recordBtnState.val = 'Record';
         status.val = 'Recording cancelled';
       });
 
-      recorder.onMessage('record:stop', () => {
+      currentRecorder.onMessage('record:stop', () => {
         recordBtnState.val = 'Record';
         status.val = 'Recording completed';
       });
@@ -276,9 +285,12 @@ const SamplerElement = (attributes: ElementProps) => {
   };
 
   const stopRecording = async () => {
-    if (!recordBtnState.val) return;
+    if (!currentRecorder) return;
 
     try {
+      recordBtnState.val = 'Record';
+      await currentRecorder?.stop();
+
       recordBtnState.val = 'Record';
       status.val = 'Recording stopped';
     } catch (error) {
@@ -315,26 +327,26 @@ const SamplerElement = (attributes: ElementProps) => {
       VolumeControl(volume),
 
       () =>
-        ampEnvController.val
+        ampEnvelope.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(
                 { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
                 'Amp Env'
               ),
-              EnvelopeSVG(ampEnvController.val, '100%', '100px')
+              EnvelopeSVG(ampEnvelope.val, '100%', '100px')
             )
           : div(),
 
       () =>
-        pitchEnvController.val
+        pitchEnvelope.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(
                 { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
                 'Pitch Env'
               ),
-              EnvelopeSVG(pitchEnvController.val, '100%', '100px')
+              EnvelopeSVG(pitchEnvelope.val, '100%', '100px')
             )
           : div(),
 
@@ -342,8 +354,8 @@ const SamplerElement = (attributes: ElementProps) => {
         loopStart,
         loopEnd,
         loopEndFineTune,
-        startOffset,
-        endOffset,
+        startPoint,
+        endPoint,
         sampleDuration
       ),
       div(

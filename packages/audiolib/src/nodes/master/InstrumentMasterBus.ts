@@ -20,7 +20,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   #levelMonitor: LevelMonitor | null = null;
   #isReady: boolean = false;
 
-  get isReady() {
+  get initialized() {
     return this.#isReady;
   }
 

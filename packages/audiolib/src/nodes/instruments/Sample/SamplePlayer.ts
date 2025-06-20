@@ -35,12 +35,6 @@ export class SamplePlayer extends LibInstrument {
   #holdEnabled = false;
   #holdLocked = false;
 
-  // #envelopeControllers: Record<string, any> = {}; // Map of param name to controller // add Type for AudioEnvelopeController
-  #ampEnvelope: CustomEnvelope;
-  #pitchEnvelope: CustomEnvelope;
-  #macroEnvGain: MacroParam;
-  #macroPlaybackRate: MacroParam;
-
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
   #loopEndFineTune: number = 0;
@@ -76,9 +70,6 @@ export class SamplePlayer extends LibInstrument {
     );
 
     // Setup params
-    this.#ampEnvelope = createCustomEnvelope();
-    this.#pitchEnvelope = createCustomEnvelope();
-
     this.#macroLoopStart = new MacroParam(
       context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
@@ -88,17 +79,8 @@ export class SamplePlayer extends LibInstrument {
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
-    this.#macroEnvGain = new MacroParam(
-      context,
-      DEFAULT_PARAM_DESCRIPTORS.ENV_GAIN
-    );
-
-    this.#macroPlaybackRate = new MacroParam(
-      context,
-      DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE
-    );
-
     this.#connectVoicesToMacros();
+    // this.syncEnvelopesToAllVoices();
 
     // Connect audiochain -- todo after generalizing voice pool
 
@@ -125,42 +107,26 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  // setEnvelopeController(
-  //   controller: any,
-  //   paramName: 'envGain' | 'playbackRate' | 'loopStart' | 'loopEnd' = 'envGain'
-  // ): this {
-  //   this.#envelopeControllers[paramName] = controller;
-  //   return this;
-  // }
-
-  getMacrosAudioParam(
-    paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate'
-  ) {
+  getMacrosAudioParam(paramName: 'loopStart' | 'loopEnd') {
     switch (paramName) {
       case 'loopStart':
         return this.#macroLoopStart.audioParam;
       case 'loopEnd':
         return this.#macroLoopEnd.audioParam;
-      case 'envGain':
-        return this.#macroEnvGain.audioParam;
-      case 'playbackRate':
-        return this.#macroPlaybackRate.audioParam; // ! check integration
+
       default:
         const unreachable: never = paramName;
         throw new Error(`Unknown macro parameter: ${unreachable}`);
     }
   }
 
-  getMacro(paramName: 'loopStart' | 'loopEnd' | 'envGain' | 'playbackRate') {
+  getMacro(paramName: 'loopStart' | 'loopEnd') {
     switch (paramName) {
       case 'loopStart':
         return this.#macroLoopStart;
       case 'loopEnd':
         return this.#macroLoopEnd;
-      case 'envGain':
-        return this.#macroEnvGain;
-      case 'playbackRate':
-        return this.#macroPlaybackRate;
+
       default:
         const unreachable: never = paramName;
         throw new Error(`Unknown macro parameter: ${unreachable}`);
@@ -173,17 +139,6 @@ export class SamplePlayer extends LibInstrument {
     voices.forEach((voice) => {
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
-
-      const envGainParam = voice.getParam('envGain');
-      const playbackRateParam = voice.getParam('playbackRate');
-
-      if (envGainParam) {
-        this.#macroEnvGain.addTarget(envGainParam, 'envGain');
-      }
-
-      if (playbackRateParam) {
-        this.#macroPlaybackRate.addTarget(playbackRateParam, 'playbackRate');
-      }
 
       if (loopEndParam) {
         this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
@@ -201,11 +156,9 @@ export class SamplePlayer extends LibInstrument {
       this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
     const firstZero = this.#zeroCrossings[0] ?? 0;
 
-    this.#macroEnvGain.audioParam.setValueAtTime(0, this.now);
     this.#macroLoopEnd.audioParam.setValueAtTime(lastZero, this.now);
     this.#macroLoopStart.audioParam.setValueAtTime(firstZero, this.now);
-
-    // consider whether startOffset and endOffset should be macros
+    // ( consider whether startPoint and endPoint should be macros )
 
     if (this.#useZeroCrossings && this.#zeroCrossings.length > 0) {
       this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
@@ -229,7 +182,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = true
+    autoTranspose = false // todo: separate param for base tuning
   ): Promise<boolean> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -239,7 +192,7 @@ export class SamplePlayer extends LibInstrument {
     assert(isValidAudioBuffer(buffer));
 
     this.releaseAll();
-    this.voicePool.transposeSemitones = 0; // or possibly stored value
+    this.voicePool.transposeSemitones = 0; // for now
     this.#isLoaded = false;
 
     if (
@@ -259,8 +212,7 @@ export class SamplePlayer extends LibInstrument {
       const pitch = await detectPitch(buffer);
 
       const closestNoteInfo = findClosestNote(pitch);
-
-      console.table(closestNoteInfo);
+      // console.table(closestNoteInfo);
 
       this.sendUpstreamMessage('sample:pitch-detected', {
         pitch,
@@ -277,14 +229,14 @@ export class SamplePlayer extends LibInstrument {
       const zeroes = findZeroCrossings(buffer);
 
       // reset start and end offset
-      const storedStart = this.getStoredParamValue('startOffset', 0);
-      this.setParameterValue('startOffset', storedStart ?? zeroes[0]);
+      const storedStart = this.getStoredParamValue('startPoint', 0);
+      this.setParameterValue('startPoint', storedStart ?? zeroes[0]);
 
-      const storedOffFromEnd = this.getStoredParamValue('endOffset', 0);
+      const storedOffFromEnd = this.getStoredParamValue('endPoint', 0);
       const lastZeroOffFromEnd =
         buffer.duration - zeroes[zeroes.length - 1] || 0;
       this.setParameterValue(
-        'endOffset',
+        'endPoint',
         storedOffFromEnd || lastZeroOffFromEnd
       );
 
@@ -293,12 +245,9 @@ export class SamplePlayer extends LibInstrument {
     }
 
     this.voicePool.setBuffer(buffer, this.#zeroCrossings);
-
-    this.#resetMacros(buffer.duration);
-    // TODO: #resetEnvelopes({buffer.duration})
     this.#bufferDuration = buffer.duration;
 
-    this.setLoopEnd(buffer.duration); // for now, use saved loopEnd if exists, when implemented
+    this.#resetMacros(buffer.duration);
 
     this.#isLoaded = true;
     return true;
@@ -315,53 +264,12 @@ export class SamplePlayer extends LibInstrument {
       midiNote += 12;
     }
 
-    // If this MIDI note is already playing, release it first
-    if (this.#midiNoteToId.has(midiNote)) {
-      const oldNoteId = this.#midiNoteToId.get(midiNote)!;
-      this.voicePool.noteOff(oldNoteId, 0); // Quick release
-    }
-
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
     const noteId = this.voicePool.noteOn(
       midiNote,
       velocity,
       0 // zero delay
     );
-
-    // this.getMacrosAudioParam('envGain').linearRampToValueAtTime(
-    //   1,
-    //   this.now + 0.001
-    // );
-
-    this.#ampEnvelope.applyToAudioParam(
-      this.getMacrosAudioParam('envGain'),
-      this.now + 0.001,
-      this.sampleDuration
-    );
-
-    this.#pitchEnvelope.applyToAudioParam(
-      this.getMacrosAudioParam('playbackRate'),
-      this.now + 0.001,
-      this.sampleDuration
-    );
-
-    // ! - audiolib should just receive values from SamplerElement UI and handle applying it
-    // - env length AND env loop duration should be determined by sample duration
-    // minus start / end offsets.. or loopStart / loopEnd offsets
-    // if (this.context) {
-    //   const currentTime = this.context.currentTime;
-    //   const duration = this.#bufferDuration || 2;
-    //   Object.entries(this.#envelopeControllers).forEach(
-    //     ([paramName, controller]) => {
-    //       if (controller) {
-    //         const param = this.getMacrosAudioParam(paramName as any);
-    //         if (param) {
-    //           controller.applyToAudioParam(param, currentTime, duration);
-    //         }
-    //       }
-    //     }
-    //   );
-    // }
 
     this.#midiNoteToId.set(midiNote, noteId);
 
@@ -374,40 +282,13 @@ export class SamplePlayer extends LibInstrument {
     return noteId;
   }
 
-  release(note: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
+  release(midiNote: MidiValue, modifiers?: PressedModifiers): this {
     if (modifiers) this.#handleModifierKeys(modifiers);
+    if (this.#holdEnabled || this.#holdLocked) return this; // one-shot mode
 
-    if (this.#holdEnabled || this.#holdLocked) return this; // simple play through (one-shot mode)
+    this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
 
-    let noteId: ActiveNoteId;
-    let midiNote: MidiValue | undefined;
-
-    if (note >= 0 && note <= 127) {
-      midiNote = note as MidiValue;
-      noteId = this.#midiNoteToId.get(midiNote) ?? -1;
-      if (noteId !== -1) {
-        this.#midiNoteToId.delete(midiNote);
-      } else {
-        // No matching noteId found
-        return this;
-      }
-    } else {
-      // It's already a noteId
-      noteId = note as ActiveNoteId;
-
-      // Find and remove from midiNoteToId if present
-      for (const [midi, id] of this.#midiNoteToId.entries()) {
-        if (id === noteId) {
-          midiNote = midi;
-          this.#midiNoteToId.delete(midi);
-          break;
-        }
-      }
-    }
-
-    this.voicePool.noteOff(noteId, this.getReleaseTime(), 0); // Pass the release time directly
-
-    this.sendUpstreamMessage('note:off', { noteId, midiNote });
+    this.sendUpstreamMessage('note:off', { midiNote });
     return this;
   }
 
@@ -510,15 +391,15 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setSampleStartOffset(seconds: number): this {
-    this.storeParamValue('startOffset', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setStartOffset(seconds));
+  setSampleStartPoint(seconds: number): this {
+    this.storeParamValue('startPoint', seconds);
+    this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
     return this;
   }
 
-  setSampleEndOffset(seconds: number): this {
-    this.storeParamValue('endOffset', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setEndOffset(seconds));
+  setSampleEndPoint(seconds: number): this {
+    this.storeParamValue('endPoint', seconds);
+    this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
     return this;
   }
 
@@ -669,10 +550,8 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setFineTuneLoopEnd(loopEndOffset: number) {
-    this.#loopEndFineTune = loopEndOffset;
-    console.log(`fine tune: ${this.#loopEndFineTune}`);
-    console.log(`curr loop end: ${this.loopEnd}`);
+  setFineTuneLoopEnd(loopendPoint: number) {
+    this.#loopEndFineTune = loopendPoint;
     this.setLoopEnd(this.loopEnd);
     return this;
   }
@@ -720,16 +599,16 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  getSampleStartOffset(): number {
+  getSamplestartPoint(): number {
     return this.getStoredParamValue(
-      'startOffset',
+      'startPoint',
       DEFAULT_PARAM_DESCRIPTORS.START_OFFSET.defaultValue
     );
   }
 
-  getSampleEndOffset(): number {
+  getSampleendPoint(): number {
     return this.getStoredParamValue(
-      'endOffset',
+      'endPoint',
       DEFAULT_PARAM_DESCRIPTORS.END_OFFSET.defaultValue
     );
   }
@@ -752,13 +631,37 @@ export class SamplePlayer extends LibInstrument {
   getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
   // Expose envelopes for UI access
+
   getAmpEnvelope(): CustomEnvelope {
-    return this.#ampEnvelope;
+    // Return the first voice's envelope as the "master" envelope
+    const firstVoice = this.voicePool.allVoices[0];
+    return firstVoice?.getAmpEnvelope();
   }
 
   getPitchEnvelope(): CustomEnvelope {
-    return this.#pitchEnvelope;
+    // Return the first voice's envelope as the "master" envelope
+    const firstVoice = this.voicePool.allVoices[0];
+    return firstVoice?.getPitchEnvelope();
   }
+
+  // private syncEnvelopesToAllVoices() {
+  //   const masterAmpEnv = this.getAmpEnvelope();
+  //   const masterPitchEnv = this.getPitchEnvelope();
+
+  //   masterAmpEnv.onChange(() => {
+  //     const points = masterAmpEnv.getPoints();
+  //     this.voicePool.allVoices.slice(1).forEach((voice) => {
+  //       voice.getAmpEnvelope().setPoints(points);
+  //     });
+  //   });
+
+  //   masterPitchEnv.onChange(() => {
+  //     const points = masterPitchEnv.getPoints();
+  //     this.voicePool.allVoices.slice(1).forEach((voice) => {
+  //       voice.getPitchEnvelope().setPoints(points);
+  //     });
+  //   });
+  // }
 
   startLevelMonitoring(intervalMs?: number) {
     this.outBus.startLevelMonitoring(intervalMs);
@@ -780,11 +683,9 @@ export class SamplePlayer extends LibInstrument {
         this.outBus = null as unknown as InstrumentMasterBus;
       }
 
-      this.#macroEnvGain?.dispose();
       this.#macroLoopStart?.dispose();
       this.#macroLoopEnd?.dispose();
 
-      this.#macroEnvGain = null as unknown as MacroParam;
       this.#macroLoopStart = null as unknown as MacroParam;
       this.#macroLoopEnd = null as unknown as MacroParam;
 
@@ -811,12 +712,6 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
-  // get firstChildren() {
-  //   return this.#children;
-  // }
-
-  // get in() { this.#hpf }
-
   get out() {
     return this.outBus.output;
   }
@@ -824,10 +719,6 @@ export class SamplePlayer extends LibInstrument {
   get outputBus() {
     return this.outBus;
   }
-
-  // get destination() {
-  //   return this.destination;
-  // }
 
   get context() {
     return this.audioContext;
@@ -865,7 +756,7 @@ export class SamplePlayer extends LibInstrument {
     return this.#macroLoopEnd.getValue();
   }
 
-  get isReady() {
+  get initialized() {
     return this.#isReady;
   }
 
@@ -878,8 +769,8 @@ export class SamplePlayer extends LibInstrument {
     return {
       attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
       release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
-      startOffset: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
-      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // Ensure the endOffset is updated on loadSample !!!
+      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
+      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // Ensure the endPoint is updated on loadSample !!!
       playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
       loopStart: this.#macroLoopStart.descriptor,
       loopEnd: this.#macroLoopEnd.descriptor,
@@ -901,10 +792,10 @@ export class SamplePlayer extends LibInstrument {
         return this.getAttackTime();
       case 'release':
         return this.getReleaseTime();
-      case 'startOffset':
-        return this.getSampleStartOffset();
-      case 'endOffset':
-        return this.getSampleEndOffset();
+      case 'startPoint':
+        return this.getSamplestartPoint();
+      case 'endPoint':
+        return this.getSampleendPoint();
       case 'playbackRate':
         return this.getPlaybackRate();
       // case 'hpfCutoff':
@@ -919,20 +810,17 @@ export class SamplePlayer extends LibInstrument {
 
   setParameterValue(name: string, value: number): this {
     switch (name) {
-      // case 'envGain':  // + playbackRate eða henda
-      //   this.setEnvGain(value);
-      //   break;
       case 'attack':
         this.setAttackTime(value);
         break;
       case 'release':
         this.setReleaseTime(value);
         break;
-      case 'startOffset':
-        this.setSampleStartOffset(value);
+      case 'startPoint':
+        this.setSampleStartPoint(value);
         break;
-      case 'endOffset':
-        this.setSampleEndOffset(value);
+      case 'endPoint':
+        this.setSampleEndPoint(value);
         break;
       case 'playbackRate':
         this.setPlaybackRate(value);
@@ -958,3 +846,29 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 }
+
+// let noteId: ActiveNoteId;
+// let midiNote: MidiValue | undefined;
+
+// if (note >= 0 && note <= 127) {
+//   midiNote = note as MidiValue;
+//   noteId = this.#midiNoteToId.get(midiNote) ?? -1;
+//   if (noteId !== -1) {
+//     this.#midiNoteToId.delete(midiNote);
+//   } else {
+//     // No matching noteId found
+//     return this;
+//   }
+// } else {
+//   // It's already a noteId
+//   noteId = note as ActiveNoteId;
+
+//   // Find and remove from midiNoteToId if present
+//   for (const [midi, id] of this.#midiNoteToId.entries()) {
+//     if (id === noteId) {
+//       midiNote = midi;
+//       this.#midiNoteToId.delete(midi);
+//       break;
+//     }
+//   }
+// }

@@ -1,8 +1,4 @@
-import {
-  defineEnvelope,
-  defineKarplusSynth,
-  defineSampler,
-} from '@repo/audio-components';
+import { defineKarplusSynth, defineSampler } from '@repo/audio-components';
 import { createAudiolib } from '@repo/audio-components';
 
 export const initAudiolib = async () => {
@@ -10,7 +6,6 @@ export const initAudiolib = async () => {
     .then(() => {
       defineSampler('sampler-element');
       defineKarplusSynth('karplus-synth-element');
-      defineEnvelope('env-element');
     })
     .catch((e) => console.error(`main.js, Create audiolib error: ${e}`));
 };

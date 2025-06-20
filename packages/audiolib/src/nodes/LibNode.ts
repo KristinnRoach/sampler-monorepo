@@ -37,7 +37,7 @@ export type NodeType =
 export interface LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
-  readonly isReady: boolean;
+  readonly initialized: boolean;
   dispose(): void;
 }
 

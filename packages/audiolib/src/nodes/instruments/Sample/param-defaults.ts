@@ -37,18 +37,6 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
     automationRate: 'k-rate',
   },
 
-  //   PLAYBACK_RATE: {
-  //   nodeId: 'playback-rate',
-  //   name: 'playback-rate',
-  //   valueType: 'number',
-  //   minValue: 0.25,
-  //   maxValue: 4,
-  //   step: 0.01,
-  //   defaultValue: 1,
-  //   group: 'playback',
-  //   automationRate: 'k-rate',
-  // },
-
   ATTACK: {
     nodeId: 'attack-time',
     name: 'attack-time',
@@ -109,27 +97,27 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
     automationRate: 'k-rate',
   },
 
-  START_OFFSET: {
-    nodeId: 'start-offset',
-    name: 'start-offset',
+  START_POINT: {
+    nodeId: 'start-point',
+    name: 'start-point',
     valueType: 'number',
     minValue: 0,
-    maxValue: 1, // Updated when sample loads
+    maxValue: 60, // 60 seconds max sample duration
     step: 0.001,
     defaultValue: 0,
-    group: 'sample-offsets',
+    group: 'trim-sample',
     automationRate: 'k-rate',
   },
 
-  END_OFFSET: {
-    nodeId: 'end-offset',
-    name: 'end-offset',
+  END_POINT: {
+    nodeId: 'end-point',
+    name: 'end-point',
     valueType: 'number',
     minValue: 0,
-    maxValue: 100, // Updated when sample loads
+    maxValue: 60, // 60 seconds max sample duration
     step: 0.001,
-    defaultValue: 1, // Updated when sample loads
-    group: 'sample-offsets',
+    defaultValue: 5, // Remember to update when sample loads !
+    group: 'trim-sample',
     automationRate: 'k-rate',
   },
 
