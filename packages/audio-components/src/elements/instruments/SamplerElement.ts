@@ -42,7 +42,7 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Loop params
   const loopStart = van.state(0);
-  const loopEnd = van.state(0.99);
+  const loopEnd = van.state(1);
   const loopEndFineTune = van.state(0);
 
   // Trim sample params
@@ -96,7 +96,7 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // Setup envelopes
         ampEnvelope.val = samplePlayer.getAmpEnvelope();
-        pitchEnvelope.val = samplePlayer.getPitchEnvelope();
+        // pitchEnvelope.val = samplePlayer.getPitchEnvelope();
         envelopeReady.val = true; // re-render UI
 
         // derive(() => samplePlayer.setAttackTime(attack.val));
@@ -108,17 +108,8 @@ const SamplerElement = (attributes: ElementProps) => {
           samplePlayer?.setFineTuneLoopEnd(-loopEndFineTune.val / 10000)
         ); // Convert 0-100 to 0 to -0.1 seconds
 
-        // derive(() => samplePlayer?.setSampleStartPoint(startPoint.val));
+        // derive(() => samplePlayer?.setSampleStartPoint(startPoint.val)); // ensure normalized ?
         // derive(() => samplePlayer?.setSampleEndPoint(endPoint.val));
-
-        // derive(() => {
-        //   if (samplePlayer) {
-        //     const durationSeconds =
-        //       (endPoint.val - startPoint.val) * sampleDuration.val;
-        //     samplePlayer.setSampleEndPoint(endPoint.val);
-        //     // samplePlayer.setEnvelopeDuration(durationSeconds); // New method
-        //   }
-        // });
 
         derive(() => {
           if (samplePlayer?.volume !== undefined) {
@@ -360,17 +351,17 @@ const SamplerElement = (attributes: ElementProps) => {
             )
           : div(),
 
-      () =>
-        pitchEnvelope.val
-          ? div(
-              { style: 'margin: 10px 0;' },
-              div(
-                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
-                'Pitch Env'
-              ),
-              EnvelopeSVG(pitchEnvelope.val, '100%', '100px')
-            )
-          : div(),
+      // () =>
+      //   pitchEnvelope.val
+      //     ? div(
+      //         { style: 'margin: 10px 0;' },
+      //         div(
+      //           { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
+      //           'Pitch Env'
+      //         ),
+      //         EnvelopeSVG(pitchEnvelope.val, '100%', '100px')
+      //       )
+      //     : div(),
 
       SampleControls(
         loopStart,

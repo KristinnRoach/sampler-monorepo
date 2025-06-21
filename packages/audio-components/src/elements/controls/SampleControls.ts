@@ -25,9 +25,9 @@ export const SampleControls = (
       0.001
     ),
 
-    createSlider('Periods', loopEndFineTune, 0, 100, 1, false, 'ms', 1)
-    // createSlider('Start Offset', startOffset, 0, 1, 0.001),
-    // createSlider('End Offset', endOffset, 0, 1, 0.001)
+    createSlider('Periods', loopEndFineTune, 0, 100, 1, false, 'ms', 1),
+    createSlider('Start Offset', startOffset, 0, 1, 0.001),
+    createSlider('End Offset', endOffset, 0, 1, 0.001)
   );
 
   // Attach the fine-tune state to the DOM element for access

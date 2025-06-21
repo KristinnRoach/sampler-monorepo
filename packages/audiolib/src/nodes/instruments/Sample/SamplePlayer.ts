@@ -378,17 +378,17 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  // setSampleStartPoint(seconds: number): this {
-  //   this.storeParamValue('startPoint', seconds);
-  //   this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
-  //   return this;
-  // }
+  setSampleStartPoint(seconds: number): this {
+    this.storeParamValue('startPoint', seconds);
+    this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
+    return this;
+  }
 
-  // setSampleEndPoint(seconds: number): this {
-  //   this.storeParamValue('endPoint', seconds);
-  //   this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
-  //   return this;
-  // }
+  setSampleEndPoint(seconds: number): this {
+    this.storeParamValue('endPoint', seconds);
+    this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
+    return this;
+  }
 
   setLoopRampDuration(seconds: number): this {
     this.storeParamValue('loopRampDuration', seconds);
@@ -554,14 +554,22 @@ export class SamplePlayer extends LibInstrument {
     const RAMP_SENSITIVITY = 2;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
+    console.warn({ loopPoint }, { start }, { end });
+
     if (loopPoint === 'start') {
-      const storeLoopStart = () => this.storeParamValue('loopStart', start);
-      this.#macroLoopStart.ramp(start, scaledRampTime, end, {
+      const normalizedLoopStart = start / this.#bufferDuration;
+
+      const storeLoopStart = () =>
+        this.storeParamValue('loopStart', normalizedLoopStart);
+      this.#macroLoopStart.ramp(normalizedLoopStart, scaledRampTime, end, {
         onComplete: storeLoopStart,
       });
     } else {
-      const storeLoopEnd = () => this.storeParamValue('loopEnd', end);
-      const fineTunedEnd = end + this.#loopEndFineTune;
+      const normalizedLoopEnd = end * this.#bufferDuration;
+
+      const storeLoopEnd = () =>
+        this.storeParamValue('loopEnd', normalizedLoopEnd);
+      const fineTunedEnd = normalizedLoopEnd + this.#loopEndFineTune;
       this.#macroLoopEnd.ramp(fineTunedEnd, scaledRampTime, start, {
         onComplete: storeLoopEnd,
       });
@@ -630,25 +638,6 @@ export class SamplePlayer extends LibInstrument {
     const firstVoice = this.voicePool.allVoices[0];
     return firstVoice?.getPitchEnvelope();
   }
-
-  // private syncEnvelopesToAllVoices() {
-  //   const masterAmpEnv = this.getAmpEnvelope();
-  //   const masterPitchEnv = this.getPitchEnvelope();
-
-  //   masterAmpEnv.onChange(() => {
-  //     const points = masterAmpEnv.getPoints();
-  //     this.voicePool.allVoices.slice(1).forEach((voice) => {
-  //       voice.getAmpEnvelope().setPoints(points);
-  //     });
-  //   });
-
-  //   masterPitchEnv.onChange(() => {
-  //     const points = masterPitchEnv.getPoints();
-  //     this.voicePool.allVoices.slice(1).forEach((voice) => {
-  //       voice.getPitchEnvelope().setPoints(points);
-  //     });
-  //   });
-  // }
 
   startLevelMonitoring(intervalMs?: number) {
     this.outBus.startLevelMonitoring(intervalMs);
@@ -803,12 +792,12 @@ export class SamplePlayer extends LibInstrument {
       case 'release':
         this.setReleaseTime(value);
         break;
-      // case 'startPoint':
-      //   this.setSampleStartPoint(value);
-      //   break;
-      // case 'endPoint':
-      //   this.setSampleEndPoint(value);
-      //   break;
+      case 'startPoint':
+        this.setSampleStartPoint(value);
+        break;
+      case 'endPoint':
+        this.setSampleEndPoint(value);
+        break;
       case 'playbackRate':
         this.setPlaybackRate(value);
         break;
@@ -833,44 +822,3 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 }
-
-// let noteId: ActiveNoteId;
-// let midiNote: MidiValue | undefined;
-
-// if (note >= 0 && note <= 127) {
-//   midiNote = note as MidiValue;
-//   noteId = this.#midiNoteToId.get(midiNote) ?? -1;
-//   if (noteId !== -1) {
-//     this.#midiNoteToId.delete(midiNote);
-//   } else {
-//     // No matching noteId found
-//     return this;
-//   }
-// } else {
-//   // It's already a noteId
-//   noteId = note as ActiveNoteId;
-
-//   // Find and remove from midiNoteToId if present
-//   for (const [midi, id] of this.#midiNoteToId.entries()) {
-//     if (id === noteId) {
-//       midiNote = midi;
-//       this.#midiNoteToId.delete(midi);
-//       break;
-//     }
-//   }
-// }
-
-// reset start and end offset is handled by SampleVoice
-// todo: use firstZero, lastZero in samplevoice
-
-// const storedStart = this.getStoredParamValue('startPoint', 0);
-// console.warn({ storedStart });
-// this.setParameterValue('startPoint', storedStart ?? zeroes[0]);
-// const storedEndPoint = this.getStoredParamValue('endPoint', 0);
-// console.warn({ storedEndPoint });
-// const lastZero = zeroes[zeroes.length - 1] || buffer.duration;
-// this.setParameterValue('endPoint', storedEndPoint || lastZero);
-
-// this.setParameterValue('startPoint', zeroes[0]);
-// const lastZero = zeroes[zeroes.length - 1] || buffer.duration;
-// this.setParameterValue('endPoint', lastZero);

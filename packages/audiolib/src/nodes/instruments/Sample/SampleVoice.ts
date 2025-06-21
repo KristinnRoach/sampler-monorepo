@@ -273,6 +273,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   #updateEnvelopeDuration(): void {
+    // Todo: handle loop durations
     if (this.sampleDuration <= 0) return;
 
     const startPoint = this.getParam('startPoint')?.value ?? 0;
@@ -369,7 +370,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
-    this.debugDuration();
+    // this.debugDuration();
+    this.#ampEnvelope.duration /= playbackRate;
 
     const envGain = this.getParam('envGain');
     if (envGain) {
@@ -487,16 +489,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
-  #sanitizeParamValue(paramName: string, value: number): number {
-    // Guard against NaN, Infinity, and extreme values
-    if (!isFinite(value) || isNaN(value)) {
-      console.warn(`Invalid ${paramName} value: ${value}, using default`);
-      console.trace(value);
-      return SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName]?.defaultValue ?? 0;
-    }
-    return value;
-  }
-
   setParam(
     name: string,
     targetValue: number,
@@ -578,7 +570,14 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       this.setParam('loopEnd', end, timestamp);
     }
 
-    this.#updateEnvelopeDuration(); // !? TEST
+    // this.#updateEnvelopeDuration(); // !? TEST
+
+    // Scale envelope duration to match loop range
+    const loopStart = this.getParam('loopStart')?.value ?? 0;
+    const loopEnd = this.getParam('loopEnd')?.value ?? 1;
+    const loopDuration = (loopEnd - loopStart) * this.sampleDuration;
+
+    this.#ampEnvelope.duration = Math.max(0.001, loopDuration);
 
     return this;
   }
@@ -725,97 +724,3 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return null;
   }
 }
-
-// // normalizeParam is currently not used
-// private normalizeParam(paramName: string, actualValue: number): number {
-//   switch (paramName) {
-//     case 'startPoint':
-//     case 'endPoint':
-//     case 'loopStart':
-//     case 'loopEnd':
-//       return actualValue / this.#sampleDuration; // seconds → 0-1
-
-//     case 'velocity':
-//       return actualValue / 127; // MIDI → 0-1
-
-//     default:
-//       return actualValue; // Already normalized
-//   }
-// }
-
-// setEndPoint = (point: number, timestamp = this.now) => {
-//   console.trace(point);
-
-//   console.log(`setEndPoint called with: ${point}`);
-//   console.log(`Sample duration: ${this.#sampleDuration}`);
-//   console.log(`Will denormalize to: ${point * this.#sampleDuration}`);
-
-//   this.setParam('endPoint', point, timestamp);
-
-//   // Skip all the param reading - just calculate duration directly
-//   // const startSeconds = this.denormalizeParam('startPoint', 0); // Assume start is 0 for now
-//   // const endSeconds = this.denormalizeParam('endPoint', point);
-//   // const duration = endSeconds - startSeconds;
-
-//   // this.#ampEnvelope.duration = duration;
-// };
-
-// setStartPoint = (point: number, timestamp = this.now) => {
-//   this.setParam('startPoint', point, timestamp);
-
-//   // Same direct calculation
-//   // const startSeconds = this.denormalizeParam('startPoint', point);
-//   // const endSeconds = this.denormalizeParam('endPoint', 1); // Assume end is 1 for now
-//   // const duration = endSeconds - startSeconds;
-
-//   // this.#ampEnvelope.duration = duration;
-// };
-
-// refreshPlaybackDuration() {
-//   const startParam = this.getParam('startPoint');
-//   const endParam = this.getParam('endPoint');
-
-//   if (!startParam || !endParam) {
-//     throw new Error(`startPoint or endPoint not defined!`);
-//   }
-
-//   const durationInSeconds = endParam.value - startParam.value;
-//   this.#playbackDuration = durationInSeconds;
-
-//   // Set envelope to match playback duration
-//   this.#ampEnvelope.duration = durationInSeconds;
-//   // this.setAmpEnvDuration(durationInSeconds);
-
-//   return durationInSeconds;
-// }
-
-// setAmpEnvDuration = (duration = this.#playbackDuration, divideBy = 1) => {
-//   this.#ampEnvelope.duration = duration / divideBy;
-// };
-
-// static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
-// // Converts descriptors to AudioWorkletNode format
-// static getAudioParamDescriptors(): AudioParamDescriptor[] {
-//   return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
-//     toAudioParamDescriptor
-//   );
-// }
-
-// /**  Convert from normalized values (0 to 1) to actual values,
-//  * based on the current sample duration
-//  */
-// private denormalizeParam(paramName: string, normalizedValue: number): number {
-//   switch (paramName) {
-//     case 'startPoint':
-//     case 'endPoint':
-//     case 'loopStart':
-//     case 'loopEnd':
-//       return normalizedValue * this.#sampleDuration; // 0-1 → 0-sampleDuration seconds
-
-//     // Filters use Hz, velocity uses midi values (normalized by processor)
-//     // playbackRate & envGain are already normalized
-
-//     default:
-//       return normalizedValue;
-//   }
-// }
