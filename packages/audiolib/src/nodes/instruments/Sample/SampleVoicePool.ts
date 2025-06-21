@@ -68,8 +68,6 @@ export class SampleVoicePool {
         this.#releasing.delete(msg.voice);
 
         this.#available.add(msg.voice);
-
-        this.debug();
       });
     });
 
@@ -162,7 +160,7 @@ export class SampleVoicePool {
   }
 
   debug() {
-    console.warn(
+    console.debug(
       `
       releasing: ${this.#releasing.size}
       playing: ${this.#playing.size}

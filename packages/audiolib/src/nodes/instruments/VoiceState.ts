@@ -1,8 +1,7 @@
 export const VoiceState = {
   NOT_READY: 'NOT_READY',
-  IDLE: 'IDLE',
+  LOADED: 'LOADED',
   PLAYING: 'PLAYING',
-  LOOPING: 'LOOPING', // ADD TO VOICE
   RELEASING: 'RELEASING',
   STOPPING: 'STOPPING', // REMOVE if redundant
   STOPPED: 'STOPPED',

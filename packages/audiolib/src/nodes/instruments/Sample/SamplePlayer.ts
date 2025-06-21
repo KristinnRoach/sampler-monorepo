@@ -183,7 +183,7 @@ export class SamplePlayer extends LibInstrument {
     modSampleRate?: number,
     shoulDetectPitch = true,
     autoTranspose = false // todo: separate param for base tuning
-  ): Promise<boolean> {
+  ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
       buffer = await ctx.decodeAudioData(buffer);
@@ -191,7 +191,7 @@ export class SamplePlayer extends LibInstrument {
 
     assert(isValidAudioBuffer(buffer));
 
-    this.releaseAll();
+    this.releaseAll(0);
     this.voicePool.transposeSemitones = 0; // for now
     this.#isLoaded = false;
 
@@ -227,20 +227,6 @@ export class SamplePlayer extends LibInstrument {
 
     if (this.#useZeroCrossings) {
       const zeroes = findZeroCrossings(buffer);
-
-      // reset start and end offset
-      const storedStart = this.getStoredParamValue('startPoint', 0);
-      this.setParameterValue('startPoint', storedStart ?? zeroes[0]);
-
-      const storedOffFromEnd = this.getStoredParamValue('endPoint', 0);
-      const lastZeroOffFromEnd =
-        buffer.duration - zeroes[zeroes.length - 1] || 0;
-      this.setParameterValue(
-        'endPoint',
-        storedOffFromEnd || lastZeroOffFromEnd
-      );
-
-      // cache zero crossings
       this.#zeroCrossings = zeroes;
     }
 
@@ -250,7 +236,8 @@ export class SamplePlayer extends LibInstrument {
     this.#resetMacros(buffer.duration);
 
     this.#isLoaded = true;
-    return true;
+
+    return buffer.duration;
   }
 
   play(
@@ -391,17 +378,17 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setSampleStartPoint(seconds: number): this {
-    this.storeParamValue('startPoint', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
-    return this;
-  }
+  // setSampleStartPoint(seconds: number): this {
+  //   this.storeParamValue('startPoint', seconds);
+  //   this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
+  //   return this;
+  // }
 
-  setSampleEndPoint(seconds: number): this {
-    this.storeParamValue('endPoint', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
-    return this;
-  }
+  // setSampleEndPoint(seconds: number): this {
+  //   this.storeParamValue('endPoint', seconds);
+  //   this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
+  //   return this;
+  // }
 
   setLoopRampDuration(seconds: number): this {
     this.storeParamValue('loopRampDuration', seconds);
@@ -816,12 +803,12 @@ export class SamplePlayer extends LibInstrument {
       case 'release':
         this.setReleaseTime(value);
         break;
-      case 'startPoint':
-        this.setSampleStartPoint(value);
-        break;
-      case 'endPoint':
-        this.setSampleEndPoint(value);
-        break;
+      // case 'startPoint':
+      //   this.setSampleStartPoint(value);
+      //   break;
+      // case 'endPoint':
+      //   this.setSampleEndPoint(value);
+      //   break;
       case 'playbackRate':
         this.setPlaybackRate(value);
         break;
@@ -872,3 +859,18 @@ export class SamplePlayer extends LibInstrument {
 //     }
 //   }
 // }
+
+// reset start and end offset is handled by SampleVoice
+// todo: use firstZero, lastZero in samplevoice
+
+// const storedStart = this.getStoredParamValue('startPoint', 0);
+// console.warn({ storedStart });
+// this.setParameterValue('startPoint', storedStart ?? zeroes[0]);
+// const storedEndPoint = this.getStoredParamValue('endPoint', 0);
+// console.warn({ storedEndPoint });
+// const lastZero = zeroes[zeroes.length - 1] || buffer.duration;
+// this.setParameterValue('endPoint', storedEndPoint || lastZero);
+
+// this.setParameterValue('startPoint', zeroes[0]);
+// const lastZero = zeroes[zeroes.length - 1] || buffer.duration;
+// this.setParameterValue('endPoint', lastZero);

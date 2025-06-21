@@ -2,46 +2,10 @@ import van from '@repo/vanjs-core';
 import { qs } from './utils';
 
 import { initAudiolib } from './utils/initAudiolib';
-import { gsap } from 'gsap';
-import { Draggable } from 'gsap/Draggable';
+import { makeDraggable } from './utils/makeDraggable';
+import { addNode, createAddNodeButton } from './utils/addNode';
 
-import { addNode, createAddNodeButton } from './utils/addInstrument';
-
-gsap.registerPlugin(Draggable);
-
-const makeDraggable = (
-  elementOptions: {
-    element?: Element | null;
-    handleElement?: Element | null;
-    className?: string;
-    handleClassName?: string;
-  } = {},
-  gsapOptions: any = {}
-) => {
-  const {
-    element,
-    handleElement,
-    className = '',
-    handleClassName = '',
-  } = elementOptions;
-  const { axis } = gsapOptions ?? null;
-
-  let el: Element | null = null;
-  if (element) el = element;
-  else if (className) el = qs(className);
-
-  if (!(el instanceof Element)) {
-    console.warn(`makeDraggable: Invalid Element.`);
-    return;
-  }
-
-  return Draggable.create(el, {
-    type: axis || 'x,y',
-    trigger: handleElement
-      ? handleElement
-      : el.querySelector(handleClassName ?? '.drag-handle' ?? undefined),
-  });
-};
+let samplerEl: any;
 
 const init = async () => {
   const audiolib = await initAudiolib();
@@ -57,6 +21,9 @@ const init = async () => {
   addElBtn?.addEventListener('click', () => {
     const nodeName = selectEl.value as 'sampler' | 'karplus-synth';
     const instrumentEls = addNode(nodeName, nodesContainer);
+
+    samplerEl = qs('sampler-element');
+    console.info('samplerEl', samplerEl);
 
     const draggable = makeDraggable({
       element: instrumentEls.wrapperEl,

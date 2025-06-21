@@ -7,7 +7,7 @@ import {
 } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
-import { ActiveNoteId, MidiValue } from '../types';
+import { MidiValue } from '../types';
 import { VoiceState } from '../VoiceState';
 import { DEFAULT_TRIGGER_OPTIONS } from '../constants';
 
@@ -18,11 +18,7 @@ import {
   MessageBus,
 } from '@/events';
 
-import {
-  assert,
-  // cancelScheduledParamValues,
-  midiToPlaybackRate,
-} from '@/utils';
+import { midiToPlaybackRate } from '@/utils';
 import { LibParamDescriptor } from '@/nodes/params/types';
 
 import {
@@ -45,7 +41,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<
     maxValue: 10,
     defaultValue: 0,
     group: 'playback',
-    automationRate: 'k-rate', // Ensure consistency with actual AudioParamDescriptor in processor
+    automationRate: 'k-rate',
   },
   envGain: {
     nodeId: 'envGain',
@@ -62,6 +58,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<
     name: 'startPoint',
     valueType: 'number',
     minValue: 0,
+    maxValue: 1,
     defaultValue: 0,
     group: 'playback',
     automationRate: 'k-rate',
@@ -71,6 +68,7 @@ export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<
     name: 'endPoint',
     valueType: 'number',
     minValue: 0,
+    maxValue: 1,
     defaultValue: 1,
     group: 'playback',
     automationRate: 'k-rate',
@@ -119,8 +117,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #activeMidiNote: number | null = null;
   #startedTimestamp: number = -1;
 
-  #sampleDuration = 0;
-  #playbackDuration = 0;
+  #sampleDurationSeconds = 0;
+  #playbackDurationNormalized = 0;
 
   #ampEnvelope: CustomEnvelope;
   #pitchEnvelope: CustomEnvelope;
@@ -132,20 +130,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #loopEnabled = false;
 
   #attackSec: number = 0.1; // To be replaced with envelope
-  #releaseSec: number = 0.1; // To be replaced with envelope
+  #releaseSec: number = 0.1;
 
-  #hpfHz: number = 100; // High-pass filter frequency
-  #lpfHz: number; // Low-pass filter frequency needs to be set using audio context sample rate
-  #lpfQ: number = 1; // Low-pass filter Q factor
-  #hpfQ: number = 1; // High-pass filter Q factor
-
-  // static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
-  // // Converts descriptors to AudioWorkletNode format
-  // static getAudioParamDescriptors(): AudioParamDescriptor[] {
-  //   return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
-  //     toAudioParamDescriptor
-  //   );
-  // }
+  #hpfHz: number = 100;
+  #lpfHz: number;
+  #lpfQ: number = 1;
+  #hpfQ: number = 1;
 
   constructor(
     private context: AudioContext = getAudioContext(),
@@ -224,19 +214,36 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       switch (type) {
         case 'initialized':
           this.#isInitialized = true;
-        case 'voice:loaded':
-          this.#state = VoiceState.IDLE;
-          this.#activeMidiNote = null;
+          this.#state = VoiceState.NOT_READY; // not loaded
           break;
+
+        case 'voice:loaded':
+          this.#activeMidiNote = null;
+          this.#state = VoiceState.LOADED;
+
+          if (data.duration) {
+            this.#sampleDurationSeconds = data.duration;
+            this.#playbackDurationNormalized = 1;
+            this.setStartPoint(0);
+            this.setEndPoint(1); // normalized !
+
+            this.#updateEnvelopeDuration();
+
+            this.#activeMidiNote = null;
+          }
+          break;
+
         case 'voice:started':
           this.#state = VoiceState.PLAYING;
           data = { voice: this, midiNote: this.#activeMidiNote };
           break;
+
         case 'voice:stopped':
           this.#state = VoiceState.STOPPED;
           data = { voice: this, midiNote: this.#activeMidiNote };
           this.#activeMidiNote = null;
           break;
+
         case 'voice:releasing':
           this.#state = VoiceState.RELEASING;
           data = { voice: this, midiNote: this.#activeMidiNote };
@@ -248,12 +255,14 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         case 'voice:looped':
           // this.#state = VoiceState.LOOPED;
           break;
+
         case 'voice:position':
           this.getParam('playbackPosition')?.setValueAtTime(
             data.position,
             this.context.currentTime
           );
           break;
+
         default:
           console.warn(`Unhandled message type: ${type}`);
           break;
@@ -261,6 +270,20 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
       this.sendUpstreamMessage(type, data);
     };
+  }
+
+  #updateEnvelopeDuration(): void {
+    if (this.sampleDuration <= 0) return;
+
+    const startPoint = this.getParam('startPoint')?.value ?? 0;
+    const endPoint = this.getParam('endPoint')?.value ?? 1;
+    const playbackRate = this.getParam('playbackRate')?.value ?? 1;
+
+    // Calculate effective duration based on start/end points and playback rate
+    const effectiveDuration =
+      ((endPoint - startPoint) * this.sampleDuration) / playbackRate;
+
+    this.#ampEnvelope.duration = Math.max(0.001, effectiveDuration);
   }
 
   async loadBuffer(
@@ -286,16 +309,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       duration: buffer.duration,
     });
 
-    const timestamp = this.now;
-    this.getParam('endPoint')
-      ?.cancelScheduledValues(timestamp)
-      .setValueAtTime(buffer.duration, timestamp);
+    if (zeroCrossings?.length) this.#setZeroCrossings(zeroCrossings); // use first / last zeroes for start / end point OR handle exclusively in processor
 
-    this.refreshPlaybackDuration();
-
-    this.#sampleDuration = buffer.duration;
-
-    if (zeroCrossings?.length) this.#setZeroCrossings(zeroCrossings);
+    // this.#updateEnvelopeDuration();
 
     return true;
   }
@@ -307,26 +323,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     });
     return this;
   }
-
-  refreshPlaybackDuration() {
-    const startParam = this.getParam('startPoint');
-    const endParam = this.getParam('endPoint');
-
-    if (!startParam || !endParam) {
-      throw new Error(`startPoint or endPoint not defined!`);
-    }
-
-    const updatedDuration = endParam.value - startParam.value;
-    this.#playbackDuration = updatedDuration;
-
-    this.setAmpEnvDuration(updatedDuration);
-
-    return updatedDuration;
-  }
-
-  setAmpEnvDuration = (duration = this.#playbackDuration, divideBy = 1) => {
-    this.#ampEnvelope.duration = duration / divideBy;
-  };
 
   trigger(options: {
     midiNote: MidiValue;
@@ -362,7 +358,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#state = VoiceState.PLAYING;
 
     const playbackRate = midiToPlaybackRate(midiNote);
-    this.setAmpEnvDuration(undefined, playbackRate);
 
     // setParams ensures all params executed using exact same timestamp
     this.setParams(
@@ -374,45 +369,15 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
-    // Trigger envelopes
-    if (this.#loopEnabled) {
-      // use VoiceState.LOOPING
-      console.log('LOOP: Starting envelope loop');
-      const rescheduleEnvelope = () => {
-        const envGain = this.getParam('envGain');
-        if (!envGain) return;
+    this.debugDuration();
 
-        if (this.#state === VoiceState.PLAYING) {
-          console.log('LOOP: Applying envelope cycle');
-          // cancelScheduledParamValues(envGain, this.now, envGain.value);
-          this.#ampEnvelope.applyToAudioParam(
-            envGain,
-            timestamp,
-            this.sampleDuration,
-            undefined,
-            true
-          );
-
-          setTimeout(
-            rescheduleEnvelope,
-            this.#ampEnvelope.duration * 1000 // - 50
-          );
-        } else {
-          console.log('LOOP: Stopping - not PLAYING or RELEASING');
-        }
-      };
-      setTimeout(rescheduleEnvelope, this.#ampEnvelope.duration * 1000); //- 50);
-    } else {
-      const envGain = this.getParam('envGain');
-      if (envGain) {
-        this.#ampEnvelope.applyToAudioParam(
-          envGain,
-          timestamp,
-          this.sampleDuration,
-          undefined,
-          false
-        );
-      }
+    const envGain = this.getParam('envGain');
+    if (envGain) {
+      this.#ampEnvelope.applyToAudioParam(
+        envGain,
+        timestamp,
+        this.#loopEnabled
+      );
     }
 
     // Start playback
@@ -424,7 +389,18 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this.#activeMidiNote;
   }
 
+  debugDuration() {
+    console.info(`
+      sample duration: ${this.sampleDuration}, 
+      startPoint: ${this.getParam('startPoint')!.value}, 
+      endPoint: ${this.getParam('endPoint')!.value}, 
+      env duration: ${this.#ampEnvelope.duration}, 
+      `);
+  }
+
   release({ release = this.#releaseSec, secondsFromNow = 0 }): this {
+    this.#ampEnvelope.stopLooping();
+
     if (this.#state === VoiceState.RELEASING) return this;
 
     const envGain = this.getParam('envGain');
@@ -437,8 +413,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     if (release <= 0) return this.stop(timestamp);
 
     const currentGainValue = envGain.value;
-    // cancelScheduledParamValues(envGain, timestamp, currentGainValue);
-    // this.#ampEnvelope.stopLooping();
+    this.#ampEnvelope.stopLooping();
 
     this.#ampEnvelope.applyReleaseToAudioParam(
       envGain,
@@ -461,7 +436,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   stop(timestamp = this.now): this {
-    // Use timestamp if available, for cancelScheduledParamValues
+    this.#ampEnvelope.stopLooping(); // idempotent
+
     if (
       this.#state === VoiceState.STOPPED ||
       this.#state === VoiceState.STOPPING
@@ -515,7 +491,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     // Guard against NaN, Infinity, and extreme values
     if (!isFinite(value) || isNaN(value)) {
       console.warn(`Invalid ${paramName} value: ${value}, using default`);
-      return SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName]?.defaultValue || 1;
+      console.trace(value);
+      return SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName]?.defaultValue ?? 0;
     }
     return value;
   }
@@ -532,22 +509,24 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     const param = this.getParam(name);
     if (!param || param.value === targetValue) return this;
 
-    const { glideTime = 0, cancelPrevious = true } = options;
+    if (name === 'endPoint')
+      console.log(`setParam, received endPoint value: ${targetValue} `);
 
-    // Convert normalized (0-1) to actual units
-    const actualValue = this.denormalizeParam(name, targetValue);
-    const safeTarget = this.#sanitizeParamValue(name, actualValue);
-    const currVal = this.#sanitizeParamValue(name, param.value);
+    const { glideTime = 0, cancelPrevious = true } = options;
 
     if (cancelPrevious) param.cancelScheduledValues(timestamp); // cancelScheduledParamValues(param, timestamp, currVal);
 
-    if (glideTime <= 0) param.setValueAtTime(safeTarget, timestamp);
+    if (glideTime <= 0) param.setValueAtTime(targetValue, timestamp);
     else
       param.linearRampToValueAtTime(
-        safeTarget,
+        targetValue,
         timestamp + Math.max(glideTime, 0.001)
       );
 
+    if (name === 'endPoint')
+      console.log(
+        `setParam, after setting endPoint the value is: ${this.getParam('endPoint')!.value} `
+      );
     return this;
   }
 
@@ -571,25 +550,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
-  /**  Convert from normalized values (0 to 1) to actual values,
-   * based on the current sample duration
-   */
-  private denormalizeParam(paramName: string, normalizedValue: number): number {
-    switch (paramName) {
-      case 'startPoint':
-      case 'endPoint':
-      case 'loopStart':
-      case 'loopEnd':
-        return normalizedValue * this.#sampleDuration; // 0-1 → 0-sampleDuration seconds
-
-      // Filters use Hz, velocity uses midi values (normalized by processor)
-      // playbackRate & envGain are already normalized
-
-      default:
-        return normalizedValue;
-    }
-  }
-
   setAttack = (attack_sec: number) => {
     this.#attackSec = attack_sec;
     console.info(`setAttack called, to be replaced with envelope`);
@@ -602,13 +562,14 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   setStartPoint = (point: number, timestamp = this.now) => {
     this.setParam('startPoint', point, timestamp);
-    this.refreshPlaybackDuration();
+    this.#updateEnvelopeDuration();
   };
 
   setEndPoint = (point: number, timestamp = this.now) => {
     this.setParam('endPoint', point, timestamp);
-    this.refreshPlaybackDuration();
+    this.#updateEnvelopeDuration();
   };
+
   setLoopPoints(start?: number, end?: number, timestamp = this.now): this {
     if (start !== undefined) {
       this.setParam('loopStart', start, timestamp);
@@ -616,6 +577,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     if (end !== undefined) {
       this.setParam('loopEnd', end, timestamp);
     }
+
+    this.#updateEnvelopeDuration(); // !? TEST
+
     return this;
   }
 
@@ -632,7 +596,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   // Getters
 
   getPlaybackDuration() {
-    return this.#playbackDuration;
+    return this.#playbackDurationNormalized;
   }
 
   getAmpEnvelope(): CustomEnvelope {
@@ -688,7 +652,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   get sampleDuration() {
-    return this.#sampleDuration;
+    return this.#sampleDurationSeconds;
   }
 
   // Setters
@@ -720,7 +684,11 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       cancelPrevious?: boolean;
     }
   ): this {
-    return this.setParam('playbackRate', rate, atTime, options);
+    this.setParam('playbackRate', rate, atTime, options);
+
+    this.#updateEnvelopeDuration(); // ? TEST
+
+    return this;
   }
 
   dispose(): void {
@@ -772,5 +740,82 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
 //     default:
 //       return actualValue; // Already normalized
+//   }
+// }
+
+// setEndPoint = (point: number, timestamp = this.now) => {
+//   console.trace(point);
+
+//   console.log(`setEndPoint called with: ${point}`);
+//   console.log(`Sample duration: ${this.#sampleDuration}`);
+//   console.log(`Will denormalize to: ${point * this.#sampleDuration}`);
+
+//   this.setParam('endPoint', point, timestamp);
+
+//   // Skip all the param reading - just calculate duration directly
+//   // const startSeconds = this.denormalizeParam('startPoint', 0); // Assume start is 0 for now
+//   // const endSeconds = this.denormalizeParam('endPoint', point);
+//   // const duration = endSeconds - startSeconds;
+
+//   // this.#ampEnvelope.duration = duration;
+// };
+
+// setStartPoint = (point: number, timestamp = this.now) => {
+//   this.setParam('startPoint', point, timestamp);
+
+//   // Same direct calculation
+//   // const startSeconds = this.denormalizeParam('startPoint', point);
+//   // const endSeconds = this.denormalizeParam('endPoint', 1); // Assume end is 1 for now
+//   // const duration = endSeconds - startSeconds;
+
+//   // this.#ampEnvelope.duration = duration;
+// };
+
+// refreshPlaybackDuration() {
+//   const startParam = this.getParam('startPoint');
+//   const endParam = this.getParam('endPoint');
+
+//   if (!startParam || !endParam) {
+//     throw new Error(`startPoint or endPoint not defined!`);
+//   }
+
+//   const durationInSeconds = endParam.value - startParam.value;
+//   this.#playbackDuration = durationInSeconds;
+
+//   // Set envelope to match playback duration
+//   this.#ampEnvelope.duration = durationInSeconds;
+//   // this.setAmpEnvDuration(durationInSeconds);
+
+//   return durationInSeconds;
+// }
+
+// setAmpEnvDuration = (duration = this.#playbackDuration, divideBy = 1) => {
+//   this.#ampEnvelope.duration = duration / divideBy;
+// };
+
+// static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
+// // Converts descriptors to AudioWorkletNode format
+// static getAudioParamDescriptors(): AudioParamDescriptor[] {
+//   return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
+//     toAudioParamDescriptor
+//   );
+// }
+
+// /**  Convert from normalized values (0 to 1) to actual values,
+//  * based on the current sample duration
+//  */
+// private denormalizeParam(paramName: string, normalizedValue: number): number {
+//   switch (paramName) {
+//     case 'startPoint':
+//     case 'endPoint':
+//     case 'loopStart':
+//     case 'loopEnd':
+//       return normalizedValue * this.#sampleDuration; // 0-1 → 0-sampleDuration seconds
+
+//     // Filters use Hz, velocity uses midi values (normalized by processor)
+//     // playbackRate & envGain are already normalized
+
+//     default:
+//       return normalizedValue;
 //   }
 // }

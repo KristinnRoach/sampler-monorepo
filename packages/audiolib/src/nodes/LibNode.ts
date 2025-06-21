@@ -70,7 +70,7 @@ export interface LibVoiceNode extends LibNode, Connectable {
   readonly nodeType: VoiceType;
 
   getParam(name: string): AudioParam | null; // todo: ParamType
-  setParam(name: string, value: number, options: TODO): this;
+  setParam(name: string, value: number, timestamp: number, options: TODO): this;
 
   trigger(options: TODO): TODO;
   release(options?: TODO): TODO;

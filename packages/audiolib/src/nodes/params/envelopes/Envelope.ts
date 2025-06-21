@@ -1,4 +1,3 @@
-// import { cancelScheduledParamValues } from '@/utils';
 import { DEFAULT_AMP_ENV } from '..';
 
 export interface EnvelopePoint {
@@ -25,7 +24,9 @@ export class CustomEnvelope {
   private context: AudioContext;
   private points: EnvelopePoint[] = DEFAULT_AMP_ENV;
   private loop = false;
-  private envelopeDuration: number = 1.0;
+
+  private durationSeconds: number = 2;
+
   private loopType: 'restart' | 'ping-pong' = 'restart';
 
   private listeners: Set<() => void> = new Set();
@@ -43,11 +44,11 @@ export class CustomEnvelope {
   }
 
   get duration() {
-    return this.envelopeDuration;
+    return this.durationSeconds;
   }
 
   set duration(value: number) {
-    this.envelopeDuration = value; // Math.max(0.001, value);
+    this.durationSeconds = value; // Math.max(0.001, value);
     this.notifyChange();
   }
 
@@ -121,34 +122,143 @@ export class CustomEnvelope {
   }
 
   // Web Audio scheduling
+  stopLooping(): void {
+    if (this.#loopStopFunction) {
+      this.#loopStopFunction();
+      this.#loopStopFunction = null;
+    }
+  }
+  #loopStopFunction: (() => void) | null = null;
+
   applyToAudioParam(
     audioParam: AudioParam,
     startTime: number,
-    duration: number,
-    minValue: number = 0.001,
-    loop = true
+    loop: boolean,
+    // duration = this.durationSeconds,
+    minValue: number = 0.001
   ) {
-    // Generate curve array
-    const sampleRate = 1000; // 1000 samples per second
-    const numSamples = Math.max(2, Math.floor(duration * sampleRate));
-    const curve = new Float32Array(numSamples);
+    // Stop any existing loop first
+    this.stopLooping();
 
-    // Fill the curve array by sampling the envelope
-    for (let i = 0; i < numSamples; i++) {
-      const normalizedTime = loop
-        ? (i / (numSamples - 1)) % 1 // Wraps 0→1→0→1→0...
-        : i / (numSamples - 1); // Normal 0→1
-
-      const value = this.interpolateValueAtTime(normalizedTime);
-      curve[i] = Math.max(value, minValue);
-    } // const now = this.context.currentTime;
     audioParam.cancelScheduledValues(startTime);
+    const duration = this.durationSeconds;
+    if (loop) {
+      this.#startContinuousLoop(audioParam, startTime, minValue);
+    } else {
+      // Single envelope application
+      const sampleRate = 1000;
+      const numSamples = Math.max(2, Math.floor(duration * sampleRate));
+      const curve = new Float32Array(numSamples);
 
-    // todo: delete cancelScheduledParamValues or fix and test
-    // audioParam.setValueAtTime(audioParam.value, startTime);
-    // cancelScheduledParamValues(audioParam, startTime);
-    audioParam.setValueCurveAtTime(curve, startTime, duration);
+      for (let i = 0; i < numSamples; i++) {
+        const normalizedTime = i / (numSamples - 1);
+        const value = this.interpolateValueAtTime(normalizedTime);
+        curve[i] = Math.max(value, minValue);
+      }
+
+      audioParam.setValueCurveAtTime(curve, startTime, duration);
+    }
   }
+
+  #startContinuousLoop(
+    audioParam: AudioParam,
+    startTime: number,
+    minValue: number
+  ) {
+    let isLooping = true;
+    let currentCycleStart = startTime;
+
+    const scheduleNextCycle = () => {
+      if (!isLooping) return;
+
+      audioParam.cancelScheduledValues(currentCycleStart);
+
+      const sampleRate = 1000;
+      const numSamples = Math.max(
+        2,
+        Math.floor(this.durationSeconds * sampleRate)
+      ); // Use this.envelopeDuration
+      const curve = new Float32Array(numSamples);
+
+      for (let i = 0; i < numSamples; i++) {
+        const normalizedTime = i / (numSamples - 1);
+        const value = this.interpolateValueAtTime(normalizedTime);
+        curve[i] = Math.max(value, minValue);
+      }
+
+      audioParam.setValueCurveAtTime(
+        curve,
+        currentCycleStart,
+        this.durationSeconds
+      );
+
+      currentCycleStart += this.durationSeconds;
+      const timeUntilNext =
+        (currentCycleStart - this.context.currentTime) * 1000;
+
+      if (timeUntilNext > 0) {
+        setTimeout(scheduleNextCycle, Math.max(timeUntilNext - 50, 0));
+      } else {
+        scheduleNextCycle();
+      }
+    };
+
+    scheduleNextCycle();
+    this.#loopStopFunction = () => {
+      isLooping = false;
+    };
+  }
+
+  // #startContinuousLoop(
+  //   audioParam: AudioParam,
+  //   startTime: number,
+  //   minValue: number
+  // ) {
+  //   let isLooping = true;
+  //   let currentCycleStart = startTime;
+
+  //   const scheduleNextCycle = () => {
+  //     if (!isLooping) return;
+
+  //     audioParam.cancelScheduledValues(currentCycleStart);
+
+  //     // Generate and apply one cycle
+  //     const sampleRate = 1000;
+  //     const numSamples = Math.max(
+  //       2,
+  //       Math.floor(this.durationSeconds * sampleRate)
+  //     );
+  //     const curve = new Float32Array(numSamples);
+
+  //     for (let i = 0; i < numSamples; i++) {
+  //       const normalizedTime = i / (numSamples - 1);
+  //       const value = this.interpolateValueAtTime(normalizedTime);
+  //       curve[i] = Math.max(value, minValue);
+  //     }
+
+  //     audioParam.setValueCurveAtTime(
+  //       curve,
+  //       currentCycleStart,
+  //       this.durationSeconds
+  //     );
+
+  //     // Schedule next cycle
+  //     currentCycleStart += this.durationSeconds;
+  //     const timeUntilNext =
+  //       (currentCycleStart - this.context.currentTime) * 1000;
+
+  //     if (timeUntilNext > 0) {
+  //       setTimeout(scheduleNextCycle, Math.max(timeUntilNext - 50, 0));
+  //     } else {
+  //       scheduleNextCycle(); // Immediate if we're behind
+  //     }
+  //   };
+
+  //   scheduleNextCycle();
+  //   this.#loopStopFunction = () => {
+  //     isLooping = false;
+  //   };
+  // }
 
   private interpolateValueAtTime(normalizedTime: number): number {
     const sortedPoints = [...this.points].sort((a, b) => a.time - b.time);
@@ -355,4 +465,33 @@ export const createCustomEnvelope = (options: CustomEnvelopeProps) => {
 //   }
 
 //   return curve;
+// }
+
+// applyToAudioParam(
+//   audioParam: AudioParam,
+//   startTime: number,
+//   loop: boolean,
+//   duration = this.envelopeDuration,
+//   minValue: number = 0.001
+// ) {
+//   // Generate curve array
+//   const sampleRate = 1000; // 1000 samples per second
+//   const numSamples = Math.max(2, Math.floor(duration * sampleRate));
+//   const curve = new Float32Array(numSamples);
+
+//   // Fill the curve array by sampling the envelope
+//   for (let i = 0; i < numSamples; i++) {
+//     const normalizedTime = loop
+//       ? (i / (numSamples - 1)) % 1 // Wraps 0→1→0→1→0...
+//       : i / (numSamples - 1); // Normal 0→1
+
+//     const value = this.interpolateValueAtTime(normalizedTime);
+//     curve[i] = Math.max(value, minValue);
+//   } // const now = this.context.currentTime;
+//   audioParam.cancelScheduledValues(startTime);
+
+//   // todo: delete cancelScheduledParamValues or fix and test
+//   // audioParam.setValueAtTime(audioParam.value, startTime);
+//   // cancelScheduledParamValues(audioParam, startTime);
+//   audioParam.setValueCurveAtTime(curve, startTime, duration);
 // }

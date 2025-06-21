@@ -80,7 +80,7 @@ const SamplerElement = (attributes: ElementProps) => {
       try {
         // Initialize audiolib
         const audiolib = getInstance();
-        if (!audiolib.isReady) await audiolib.init();
+        if (!audiolib.initialized) await audiolib.init();
 
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
         // Todo: remove dep on audiolib class, add destination master handling
@@ -108,8 +108,17 @@ const SamplerElement = (attributes: ElementProps) => {
           samplePlayer?.setFineTuneLoopEnd(-loopEndFineTune.val / 10000)
         ); // Convert 0-100 to 0 to -0.1 seconds
 
-        derive(() => samplePlayer?.setSampleStartPoint(startPoint.val));
-        derive(() => samplePlayer?.setSampleEndPoint(endPoint.val));
+        // derive(() => samplePlayer?.setSampleStartPoint(startPoint.val));
+        // derive(() => samplePlayer?.setSampleEndPoint(endPoint.val));
+
+        // derive(() => {
+        //   if (samplePlayer) {
+        //     const durationSeconds =
+        //       (endPoint.val - startPoint.val) * sampleDuration.val;
+        //     samplePlayer.setSampleEndPoint(endPoint.val);
+        //     // samplePlayer.setEnvelopeDuration(durationSeconds); // New method
+        //   }
+        // });
 
         derive(() => {
           if (samplePlayer?.volume !== undefined) {
@@ -140,6 +149,11 @@ const SamplerElement = (attributes: ElementProps) => {
         samplePlayer.onMessage('sample:pitch-detected', (msg: any) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
         });
+
+        samplePlayer.onMessage(
+          'sample:loaded',
+          (msg: any) => (sampleDuration.val = msg.duration ?? 0)
+        );
 
         // todo (later): Make KeyboardInputManager in audiolib handle caps robustly and sampleplayer.sendUpStreamMessage
         // then remove these handlers if works
@@ -204,17 +218,25 @@ const SamplerElement = (attributes: ElementProps) => {
               return;
             }
 
-            await samplePlayer.loadSample(arrayBuffer);
+            const durationSeconds = await samplePlayer.loadSample(arrayBuffer);
+            console.log(durationSeconds);
 
-            // Update sample duration and reset ranges
-            const newDuration = samplePlayer.sampleDuration; // (maybe update via message instead for consistency)
-            sampleDuration.val = newDuration;
-            loopStart.val = 0;
-            loopEnd.val = 1; // Normalized
-            startPoint.val = 0;
-            endPoint.val = 1; // Normalized
+            await new Promise((resolve) => setTimeout(resolve, 0));
 
-            status.val = `Loaded: ${file.name}`;
+            console.log(durationSeconds);
+
+            if (durationSeconds > 0) {
+              // Update sample duration and reset ranges
+              sampleDuration.val = durationSeconds;
+
+              loopStart.val = 0;
+              loopEnd.val = 1; // Normalized
+              startPoint.val = 0;
+              endPoint.val = 1; // Normalized
+
+              status.val = `Loaded: ${file.name}`;
+              status.val = `Received duration from loadSample: ${durationSeconds}`;
+            }
           } catch (error) {
             console.error('Failed to load sample:', error);
             status.val = `Error loading: ${error instanceof Error ? error.message : String(error)}`;

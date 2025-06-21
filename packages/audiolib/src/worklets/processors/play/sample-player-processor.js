@@ -32,6 +32,146 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.port.onmessage = this.#handleMessage.bind(this);
   }
 
+  // ===== CONVERSION UTILITIES =====
+
+  /**
+   * Convert normalized position (0-1) to sample index
+   * @param {number} normalizedPosition - Position as 0-1 value
+   * @returns {number} - Sample index
+   */
+  #normalizedToSamples(normalizedPosition) {
+    if (!this.buffer || !this.buffer[0]) return 0;
+    return normalizedPosition * this.buffer[0].length;
+  }
+
+  /**
+   * Convert sample index to normalized position (0-1)
+   * @param {number} sampleIndex - Sample index
+   * @returns {number} - Normalized position 0-1
+   */
+  #samplesToNormalized(sampleIndex) {
+    if (!this.buffer || !this.buffer[0]) return 0;
+    return sampleIndex / this.buffer[0].length;
+  }
+
+  /**
+   * Convert normalized time (0-1) to absolute seconds based on buffer duration
+   * @param {number} normalizedTime - Time as 0-1 value
+   * @returns {number} - Time in seconds
+   */
+  #normalizedToSeconds(normalizedTime) {
+    if (!this.buffer || !this.buffer[0]) return 0;
+    const bufferDurationSec = this.buffer[0].length / sampleRate;
+    return normalizedTime * bufferDurationSec;
+  }
+
+  /**
+   * Convert MIDI velocity (0-127) to gain multiplier (0-1)
+   * @param {number} midiVelocity - MIDI velocity 0-127
+   * @returns {number} - Gain multiplier 0-1
+   */
+  #midiVelocityToGain(midiVelocity) {
+    return Math.max(0, Math.min(1, midiVelocity / 127));
+  }
+
+  /**
+   * Get buffer length in samples
+   * @returns {number} - Buffer length in samples
+   */
+  #getBufferLengthSamples() {
+    return this.buffer?.[0]?.length || 0;
+  }
+
+  /**
+   * Get buffer duration in seconds
+   * @returns {number} - Buffer duration in seconds
+   */
+  #getBufferDurationSeconds() {
+    return this.#getBufferLengthSamples() / sampleRate;
+  }
+
+  /**
+   * Extract and convert all position parameters from normalized to samples
+   * @param {Object} parameters - AudioWorkletProcessor parameters
+   * @returns {Object} - Converted parameters in samples
+   */
+  #extractPositionParams(parameters) {
+    return {
+      startPointSamples: this.#normalizedToSamples(parameters.startPoint[0]),
+      endPointSamples: this.#normalizedToSamples(parameters.endPoint[0]),
+      loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
+      loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
+    };
+  }
+
+  /**
+   * Calculate effective playback range in samples
+   * @param {Object} params - Position parameters from #extractPositionParams
+   * @returns {Object} - Effective start and end positions
+   */
+  #calculatePlaybackRange(params) {
+    const bufferLength = this.#getBufferLengthSamples();
+
+    const effectiveStart = Math.max(0, params.startPointSamples);
+
+    // If endPoint is 0, use full buffer; otherwise use the specified end point
+    const effectiveEnd =
+      params.endPointSamples > 0
+        ? Math.min(bufferLength, params.endPointSamples)
+        : bufferLength;
+
+    return {
+      startSamples: effectiveStart,
+      endSamples: effectiveEnd,
+      durationSamples: effectiveEnd - effectiveStart,
+    };
+  }
+
+  /**
+   * Calculate effective loop range in samples
+   * @param {Object} params - Position parameters from #extractPositionParams
+   * @param {Object} playbackRange - Range from #calculatePlaybackRange
+   * @returns {Object} - Effective loop start and end positions
+   */
+  #calculateLoopRange(params, playbackRange) {
+    // Default to playback range if loop points are not set
+    const loopStart =
+      params.loopStartSamples > 0
+        ? Math.max(playbackRange.startSamples, params.loopStartSamples)
+        : playbackRange.startSamples;
+
+    const loopEnd =
+      params.loopEndSamples > 0
+        ? Math.min(playbackRange.endSamples, params.loopEndSamples)
+        : playbackRange.endSamples;
+
+    return {
+      startSamples: loopStart,
+      endSamples: loopEnd,
+      durationSamples: loopEnd - loopStart,
+    };
+  }
+
+  // #normalizeMidi(midiValue) {
+  //   const norm = midiValue / 127;
+  //   return Math.max(0, Math.min(1, norm));
+  // }
+
+  // #getParamValueInSamples(paramName, parameters) {
+  //   if (!parameters || !parameters[paramName]) return 0;
+
+  //   let valueInSamples = parameters[paramName][0] * sampleRate;
+
+  //   // Apply zero crossing constraint for "buffer-position" parameters
+  //   if (paramName === 'loopStart' || paramName === 'loopEnd') {
+  //     return this.#findNearestZeroCrossing(valueInSamples);
+  //   }
+
+  //   return valueInSamples;
+  // }
+
+  // ===== MESSAGE HANDLING =====
+
   #handleMessage(event) {
     const { type, value, buffer, startPoint, duration, when, zeroCrossings } =
       event.data;
@@ -50,6 +190,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
         this.port.postMessage({
           type: 'voice:loaded',
+          duration: duration, // send back the received duration
           time: currentTime,
         });
         break;
@@ -74,32 +215,47 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.loopCount = 0;
         this.startTime = when || currentTime;
 
-        this.playbackPosition = this.startPoint * sampleRate;
-
-        if (duration) {
-          // todo: remove or use
-          this.scheduledEndTime = this.startTime + duration;
-
-          const paramendPoint = parameters['endPoint'][0];
-          if (paramendPoint > 0) {
-            // If endPoint is set, use it to calculate scheduled end time
-            const effectiveDuration = paramendPoint - this.startPoint;
-            if (effectiveDuration > 0) {
-              this.scheduledEndTime = this.startTime + effectiveDuration;
-            } else {
-              this.scheduledEndTime = null;
-            }
-          } else {
-            this.scheduledEndTime = null;
-          }
-        }
+        // will be set in process() using parameters
+        this.playbackPosition = 0;
 
         this.port.postMessage({
           type: 'voice:started',
           time: currentTime,
-          actualstartPoint: this.startPoint,
         });
         break;
+
+      // case 'voice:start':
+      //   this.isReleasing = false;
+      //   this.isPlaying = true;
+      //   this.loopCount = 0;
+      //   this.startTime = when || currentTime;
+
+      //   this.playbackPosition = this.startPoint * sampleRate;
+
+      //   if (duration) {
+      //     // todo: remove or use
+      //     this.scheduledEndTime = this.startTime + duration;
+
+      //     const paramendPoint = parameters['endPoint'][0];
+      //     if (paramendPoint > 0) {
+      //       // If endPoint is set, use it to calculate scheduled end time
+      //       const effectiveDuration = paramendPoint - this.startPoint;
+      //       if (effectiveDuration > 0) {
+      //         this.scheduledEndTime = this.startTime + effectiveDuration;
+      //       } else {
+      //         this.scheduledEndTime = null;
+      //       }
+      //     } else {
+      //       this.scheduledEndTime = null;
+      //     }
+      //   }
+
+      //   this.port.postMessage({
+      //     type: 'voice:started',
+      //     time: currentTime,
+      //     actualstartPoint: this.startPoint,
+      //   });
+      //   break;
 
       case 'voice:release':
         this.isReleasing = true;
@@ -128,6 +284,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     }
   }
 
+  // ===== PARAMETER DESCRIPTORS =====
+
   static get parameterDescriptors() {
     return [
       {
@@ -146,7 +304,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       },
       {
         name: 'velocity',
-        defaultValue: 100,
+        defaultValue: 100, // ? normalize ?
         minValue: 0,
         maxValue: 127,
         automationRate: 'k-rate',
@@ -159,31 +317,37 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         automationRate: 'k-rate', // ! a or k ?
       },
       {
-        name: 'startPoint',
+        name: 'startPoint', // start & end points are normalized
         defaultValue: 0,
         minValue: 0,
+        maxValue: 1,
         automationRate: 'k-rate',
       },
       {
         name: 'endPoint',
-        defaultValue: 1, // normalized full sample duration
+        defaultValue: 1,
         minValue: 0,
+        maxValue: 1,
         automationRate: 'k-rate',
       },
       {
         name: 'loopStart',
-        defaultValue: 0,
+        defaultValue: 0, // ? normalize ?
         minValue: 0,
+        // maxValue: 1,
         automationRate: 'k-rate', // a or k ?
       },
       {
         name: 'loopEnd',
-        defaultValue: 0, // ? required ?
+        defaultValue: 1, // ? normalize ?
         minValue: 0,
+        // maxValue: 1,
         automationRate: 'k-rate', // a or k ?
       },
     ];
   }
+
+  // ===== METHODS =====
 
   #resetState() {
     this.isPlaying = false;
@@ -203,28 +367,28 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.port.postMessage({ type: 'voice:stopped' });
   }
 
-  #shouldEnd(parameters) {
-    const shouldEnd =
-      !this.buffer ||
-      !this.buffer.length ||
-      !this.isPlaying ||
-      (this.scheduledEndTime !== null && currentTime >= this.scheduledEndTime);
+  // #shouldEnd(parameters) {
+  //   const shouldEnd =
+  //     !this.buffer ||
+  //     !this.buffer.length ||
+  //     !this.isPlaying ||
+  //     (this.scheduledEndTime !== null && currentTime >= this.scheduledEndTime);
 
-    // if (shouldEnd) {
-    //   console.log('PROCESSOR: Ending because:', {
-    //     noBuffer: !this.buffer,
-    //     noBufferLength: !this.buffer?.length,
-    //     notPlaying: !this.isPlaying,
-    //     timeExpired:
-    //       this.scheduledEndTime !== null &&
-    //       currentTime >= this.scheduledEndTime,
-    //     currentTime,
-    //     scheduledEndTime: this.scheduledEndTime,
-    //   });
-    // }
+  //   // if (shouldEnd) {
+  //   //   console.log('PROCESSOR: Ending because:', {
+  //   //     noBuffer: !this.buffer,
+  //   //     noBufferLength: !this.buffer?.length,
+  //   //     notPlaying: !this.isPlaying,
+  //   //     timeExpired:
+  //   //       this.scheduledEndTime !== null &&
+  //   //       currentTime >= this.scheduledEndTime,
+  //   //     currentTime,
+  //   //     scheduledEndTime: this.scheduledEndTime,
+  //   //   });
+  //   // }
 
-    return shouldEnd;
-  }
+  //   return shouldEnd;
+  // }
 
   #clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -251,119 +415,186 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return closest;
   }
 
-  #normalizeMidi(midiValue) {
-    const norm = midiValue / 127;
-    return Math.max(0, Math.min(1, norm));
-  }
-
-  #getParamValueInSamples(paramName, parameters) {
-    if (!parameters || !parameters[paramName]) return 0;
-
-    let valueInSamples = parameters[paramName][0] * sampleRate;
-
-    // Apply zero crossing constraint for "buffer-position" parameters
-    if (paramName === 'loopStart' || paramName === 'loopEnd') {
-      return this.#findNearestZeroCrossing(valueInSamples);
-    }
-
-    return valueInSamples;
-  }
+  // ===== MAIN PROCESS METHOD =====
 
   process(inputs, outputs, parameters) {
     const output = outputs[0];
 
-    if (!output || !this.isPlaying) {
+    if (!output || !this.isPlaying || !this.buffer) {
       return true;
     }
 
-    // If this is the first process call after starting playback,
-    // initialize playback position using startPoint
+    // ===== USE EXPLICIT CONVERSION UTILITIES =====
+    const positionParams = this.#extractPositionParams(parameters);
+    const playbackRange = this.#calculatePlaybackRange(positionParams);
+    const loopRange = this.#calculateLoopRange(positionParams, playbackRange);
+
+    // Initialize playback position on first process call
     if (this.playbackPosition === 0) {
-      const startPointSec = parameters.startPoint[0];
-      this.playbackPosition = startPointSec * sampleRate;
+      this.playbackPosition = playbackRange.startSamples;
     }
 
-    const pbRate = parameters.playbackRate[0];
-
-    // Get start and end offsets from parameters and convert to samples
-    const startPointSec = parameters.startPoint[0];
-    const endPointSec = parameters.endPoint[0];
-
-    // Convert to samples
-    const startPointSamples = startPointSec * sampleRate;
-
-    // Handle end offset - if endPoint is set (greater than 0), use it to limit playback
-    const bufferLength = this.buffer[0].length;
-    let effectiveBufferEnd = bufferLength;
-    if (endPointSec > 0) {
-      effectiveBufferEnd = Math.min(bufferLength, endPointSec * sampleRate);
-    }
-
-    // Quantize once per block, not per sample
-    const rawLoopStart = parameters.loopStart[0] * sampleRate;
-    const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
-
-    const loopStart = rawLoopStart;
-    const loopEnd = rawLoopEnd;
-
-    const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
-
+    // ===== AUDIO PROCESSING =====
+    const playbackRate = parameters.playbackRate[0];
     const envelopeGain = parameters.envGain[0];
+    const velocityGain = this.#midiVelocityToGain(parameters.velocity[0]);
+
     const velocitySensitivity = 0.9;
-    const normalizedVelocity = this.#normalizeMidi(parameters.velocity[0]);
-    const velocityGain = normalizedVelocity * velocitySensitivity;
+    const finalVelocityGain = velocityGain * velocitySensitivity;
 
     const numChannels = Math.min(output.length, this.buffer.length);
 
-    // Process samples
+    // Process each sample
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
       if (
         this.loopEnabled &&
-        this.playbackPosition >= constrainedLoopEnd &&
+        this.playbackPosition >= loopRange.endSamples &&
         this.loopCount < this.maxLoopCount
       ) {
-        this.playbackPosition = loopStart;
+        this.playbackPosition = loopRange.startSamples;
         this.loopCount++;
       }
 
-      // Check for end of buffer or effective end position
-      if (this.playbackPosition >= effectiveBufferEnd) {
-        this.#stop(output);
+      // Check for end of playback range
+      if (this.playbackPosition >= playbackRange.endSamples) {
+        this.#stop();
         return true;
       }
 
-      // Read and interpolate samples
+      // Sample interpolation
       const position = Math.floor(this.playbackPosition);
       const fraction = this.playbackPosition - position;
-      const nextPosition = Math.min(position + 1, effectiveBufferEnd - 1);
+      const nextPosition = Math.min(position + 1, playbackRange.endSamples - 1);
 
+      // Generate output for each channel
       for (let c = 0; c < numChannels; c++) {
         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
-        const current = bufferChannel[position];
-        const next = bufferChannel[nextPosition];
+        const current = bufferChannel[position] || 0;
+        const next = bufferChannel[nextPosition] || 0;
 
-        // output[c][i] =
-        //   (current + fraction * (next - current)) * velocityGain * envelopeGain;
+        const interpolatedSample = current + fraction * (next - current);
+        const finalSample =
+          interpolatedSample * finalVelocityGain * envelopeGain;
 
-        const sample =
-          (current + fraction * (next - current)) * velocityGain * envelopeGain;
-
-        output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
+        output[c][i] = Math.max(
+          -1,
+          Math.min(1, isFinite(finalSample) ? finalSample : 0)
+        );
       }
-      // Advance playback position
-      this.playbackPosition += pbRate;
+
+      this.playbackPosition += playbackRate;
     }
 
+    // Send position updates if requested
     if (this.usePlaybackPosition) {
+      const normalizedPosition = this.#samplesToNormalized(
+        this.playbackPosition
+      );
       this.port.postMessage({
         type: 'voice:position',
-        position: this.playbackPosition / sampleRate,
+        position: normalizedPosition,
       });
     }
 
     return true;
   }
+
+  // process(inputs, outputs, parameters) {
+  //   const output = outputs[0];
+
+  //   if (!output || !this.isPlaying) {
+  //     return true;
+  //   }
+
+  //   // If this is the first process call after starting playback,
+  //   // initialize playback position using startPoint
+  //   if (this.playbackPosition === 0) {
+  //     const startPointSec = parameters.startPoint[0];
+  //     this.playbackPosition = startPointSec * sampleRate;
+  //   }
+
+  //   const pbRate = parameters.playbackRate[0];
+
+  //   // Get start and end offsets from parameters and convert to samples
+  //   const startPointSec = parameters.startPoint[0];
+  //   const endPointSec = parameters.endPoint[0];
+
+  //   // Convert to samples
+  //   const startPointSamples = startPointSec * sampleRate;
+
+  //   // Handle end offset - if endPoint is set (greater than 0), use it to limit playback
+  //   const bufferLength = this.buffer[0].length;
+  //   let effectiveBufferEnd = bufferLength;
+  //   if (endPointSec > 0) {
+  //     effectiveBufferEnd = Math.min(bufferLength, endPointSec * sampleRate);
+  //   }
+
+  //   // Quantize once per block, not per sample
+  //   const rawLoopStart = parameters.loopStart[0] * sampleRate;
+  //   const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
+
+  //   const loopStart = rawLoopStart;
+  //   const loopEnd = rawLoopEnd;
+
+  //   const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
+
+  //   const envelopeGain = parameters.envGain[0];
+  //   const velocitySensitivity = 0.9;
+  //   const normalizedVelocity = this.#normalizeMidi(parameters.velocity[0]);
+  //   const velocityGain = normalizedVelocity * velocitySensitivity;
+
+  //   const numChannels = Math.min(output.length, this.buffer.length);
+
+  //   // Process samples
+  //   for (let i = 0; i < output[0].length; i++) {
+  //     // Handle looping
+  //     if (
+  //       this.loopEnabled &&
+  //       this.playbackPosition >= constrainedLoopEnd &&
+  //       this.loopCount < this.maxLoopCount
+  //     ) {
+  //       this.playbackPosition = loopStart;
+  //       this.loopCount++;
+  //     }
+
+  //     // Check for end of buffer or effective end position
+  //     if (this.playbackPosition >= effectiveBufferEnd) {
+  //       this.#stop(output);
+  //       return true;
+  //     }
+
+  //     // Read and interpolate samples
+  //     const position = Math.floor(this.playbackPosition);
+  //     const fraction = this.playbackPosition - position;
+  //     const nextPosition = Math.min(position + 1, effectiveBufferEnd - 1);
+
+  //     for (let c = 0; c < numChannels; c++) {
+  //       const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
+  //       const current = bufferChannel[position];
+  //       const next = bufferChannel[nextPosition];
+
+  //       // output[c][i] =
+  //       //   (current + fraction * (next - current)) * velocityGain * envelopeGain;
+
+  //       const sample =
+  //         (current + fraction * (next - current)) * velocityGain * envelopeGain;
+
+  //       output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
+  //     }
+  //     // Advance playback position
+  //     this.playbackPosition += pbRate;
+  //   }
+
+  //   if (this.usePlaybackPosition) {
+  //     this.port.postMessage({
+  //       type: 'voice:position',
+  //       position: this.playbackPosition / sampleRate,
+  //     });
+  //   }
+
+  //   return true;
+  // }
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
