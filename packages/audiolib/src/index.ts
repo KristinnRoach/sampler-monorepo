@@ -27,7 +27,7 @@ export type {
 } from './nodes/params/envelopes';
 
 // =*=*=  Constants =*=*= \\
-export { DEFAULT_PARAM_DESCRIPTORS, ENV_DEFAULTS } from './nodes/params';
+export { DEFAULT_PARAM_DESCRIPTORS } from './nodes/params';
 
 // =*=*= Utilities =*=*= \\
 export { getAudioContext, ensureAudioCtx } from './context';

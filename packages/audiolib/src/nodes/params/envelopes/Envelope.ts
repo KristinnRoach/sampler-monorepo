@@ -1,6 +1,6 @@
-import { LibNode, NodeType } from '@/nodes/LibNode';
-import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
-import { ENV_DEFAULTS } from './env-defaults';
+// import { LibNode, NodeType } from '@/nodes/LibNode';
+// import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+// import { ENV_DEFAULTS } from './env-defaults';
 import { EnvelopePoint, EnvelopeType } from './env-types';
 
 // ===== ENVELOPE DATA - Pure data operations =====
@@ -87,40 +87,6 @@ export class EnvelopeData {
     return min + normalizedValue * (max - min);
   }
 
-  //   interpolateValueAtTime(normalizedTime: number): number {
-  //     if (this.points.length === 0) return 0;
-  //     if (this.points.length === 1) return this.points[0].value;
-
-  //     const sorted = [...this.points].sort((a, b) => a.time - b.time);
-
-  //     // Clamp to bounds
-  //     if (normalizedTime <= sorted[0].time) return sorted[0].value;
-  //     if (normalizedTime >= sorted[sorted.length - 1].time)
-  //       return sorted[sorted.length - 1].value;
-
-  //     // Find segment
-  //     for (let i = 0; i < sorted.length - 1; i++) {
-  //       const left = sorted[i];
-  //       const right = sorted[i + 1];
-
-  //       if (normalizedTime >= left.time && normalizedTime <= right.time) {
-  //         const segmentDuration = right.time - left.time;
-  //         const t =
-  //           segmentDuration === 0
-  //             ? 0
-  //             : (normalizedTime - left.time) / segmentDuration;
-
-  //         if (left.curve === 'exponential' && left.value > 0 && right.value > 0) {
-  //           return left.value * Math.pow(right.value / left.value, t);
-  //         } else {
-  //           return left.value + (right.value - left.value) * t;
-  //         }
-  //       }
-  //     }
-
-  //     return 0;
-  //   }
-
   getSVGPath(width: number = 400, height: number = 200): string {
     if (this.points.length < 2) return `M0,${height} L${width},${height}`;
 
@@ -169,6 +135,7 @@ export class EnvelopeScheduler {
     envelopeData: EnvelopeData,
     startTime: number,
     duration: number,
+    baseValue = 1,
     minValue = 0.001
   ) {
     audioParam.cancelScheduledValues(startTime);
@@ -181,7 +148,7 @@ export class EnvelopeScheduler {
     for (let i = 0; i < numSamples; i++) {
       const normalizedTime = i / (numSamples - 1);
       const value = envelopeData.interpolateValueAtTime(normalizedTime);
-      curve[i] = Math.max(value, minValue);
+      curve[i] = Math.max(baseValue * value, minValue);
     }
 
     try {
@@ -228,6 +195,7 @@ export class EnvelopeScheduler {
     envelopeData: EnvelopeData,
     startTime: number,
     loopDuration: number,
+    baseValue = 1,
     minValue = 0.001
   ): () => void {
     let isLooping = true;
@@ -242,6 +210,7 @@ export class EnvelopeScheduler {
         envelopeData,
         currentCycleStart,
         loopDuration,
+        baseValue,
         minValue
       );
 
@@ -318,16 +287,23 @@ export class CustomEnvelope {
   applyToAudioParam(
     audioParam: AudioParam,
     startTime: number,
-    duration: number
+    duration: number,
+    baseValue = 1
   ) {
     this.stopLooping();
 
     if (this._loopEnabled) {
       // Calculate loop duration based on envelope duration
       const loopDuration = duration * this.data.duration;
-      this.startLooping(audioParam, startTime, loopDuration);
+      this.startLooping(audioParam, startTime, loopDuration, baseValue);
     } else {
-      this.scheduler.applyEnvelope(audioParam, this.data, startTime, duration);
+      this.scheduler.applyEnvelope(
+        audioParam,
+        this.data,
+        startTime,
+        duration,
+        baseValue
+      );
     }
   }
 
@@ -351,14 +327,16 @@ export class CustomEnvelope {
   startLooping(
     audioParam: AudioParam,
     startTime: number,
-    loopDuration: number
+    loopDuration: number,
+    baseValue = 1
   ) {
     this.stopLooping();
     this.stopLoopFn = this.scheduler.startLoop(
       audioParam,
       this.data,
       startTime,
-      loopDuration
+      loopDuration,
+      baseValue
     );
   }
 
@@ -416,8 +394,8 @@ export class SampleVoiceEnvelopes {
         'pitch-env',
         [
           { time: 0, value: 0.5, curve: 'exponential' },
-          { time: 0.1, value: 0.5, curve: 'linear' },
-          { time: 1, value: 0.5, curve: 'linear' },
+          { time: 0.1, value: 0.5, curve: 'exponential' },
+          { time: 1, value: 0.5, curve: 'exponential' },
         ],
         PITCH_ENV_RANGE
       )
@@ -444,7 +422,12 @@ export class SampleVoiceEnvelopes {
     const playbackRateParam = this.worklet.parameters.get('playbackRate');
     if (pitchEnv && playbackRateParam && this.hasVariation(pitchEnv)) {
       // Pitch envelope modulates around the base playback rate
-      pitchEnv.applyToAudioParam(playbackRateParam, startTime, actualDuration);
+      pitchEnv.applyToAudioParam(
+        playbackRateParam,
+        startTime,
+        actualDuration,
+        playbackRate
+      );
     }
   }
 

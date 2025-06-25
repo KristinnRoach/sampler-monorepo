@@ -212,7 +212,14 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       duration: buffer.duration,
     });
 
-    if (zeroCrossings?.length) this.#setZeroCrossings(zeroCrossings);
+    if (zeroCrossings?.length) {
+      this.#setZeroCrossings(zeroCrossings);
+
+      this.sendToProcessor({
+        type: 'voice:set_zero_crossings',
+        zeroCrossings,
+      });
+    }
 
     return true;
   }
@@ -553,6 +560,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#loopEnabled = enabled;
 
     this.envelopes.setEnvelopeLoopEnabled('amp-env', enabled);
+    this.envelopes.setEnvelopeLoopEnabled('pitch-env', enabled);
     // this.envelopes.setEnvelopeLoopEnabled('loop-env', enabled);
 
     return this;

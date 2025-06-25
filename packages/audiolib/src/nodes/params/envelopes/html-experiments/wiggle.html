@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Web Audio API vs GSAP experiment</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Add CustomEase and CustomWiggle -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/CustomEase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/CustomWiggle.min.js"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -179,6 +182,15 @@
         height: 100%;
         display: block;
       }
+
+      .wiggle-test {
+        background: #e8f5e8;
+        border: 1px solid #28a745;
+        color: #155724;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
     </style>
   </head>
   <body>
@@ -191,8 +203,15 @@
         </p>
         <p>
           Compare Web Audio API's "setValueCurveAtTime" with GSAP's native
-          interpolation capabilities
+          interpolation capabilities + CustomWiggle test
         </p>
+      </div>
+
+      <!-- Add minimal CustomWiggle test -->
+      <div class="wiggle-test">
+        <p><strong>🔧 CustomWiggle Test:</strong></p>
+        <button id="testWiggleBtn">Test CustomWiggle</button>
+        <div id="wiggleStatus">Ready to test</div>
       </div>
 
       <div class="controls">
@@ -202,6 +221,7 @@
             <option value="linear">Linear Sweep</option>
             <option value="exponential">Exponential</option>
             <option value="sine">Sine Wave</option>
+            <option value="wiggle">Wiggle (Test)</option>
           </select>
         </div>
 
@@ -250,8 +270,6 @@
         </div>
       </div>
 
-
-
     <script>
       class TimingComparison {
         constructor() {
@@ -270,7 +288,35 @@
           setTimeout(() => {
             this.setupEventListeners();
             this.setupVisualizer();
+            this.initCustomWiggle();
           }, 0);
+        }
+
+        initCustomWiggle() {
+          // Test if CustomWiggle is available
+          try {
+            // Try registering just CustomWiggle first
+            if (typeof CustomWiggle !== 'undefined') {
+              gsap.registerPlugin(CustomWiggle);
+              
+              CustomWiggle.create("testWiggle", {wiggles: 5, type: "easeOut"});
+              
+              document.getElementById('wiggleStatus').textContent = '✅ CustomWiggle working (no CustomEase needed)!';
+              console.log('CustomWiggle initialized successfully');
+            } else {
+              throw new Error('CustomWiggle not available');
+            }
+          } catch (error) {
+            // Try using built-in GSAP wiggle syntax as fallback
+            try {
+              gsap.to({}, {duration: 0.1, ease: "wiggle(5)"});
+              document.getElementById('wiggleStatus').textContent = '✅ Built-in wiggle syntax available!';
+              console.log('Using built-in GSAP wiggle syntax');
+            } catch (wiggleError) {
+              document.getElementById('wiggleStatus').textContent = '❌ No wiggle functionality available';
+              console.error('No wiggle functionality found:', error, wiggleError);
+            }
+          }
         }
 
         setupVisualizer() {
@@ -310,10 +356,57 @@
             .getElementById('stopBtn')
             .addEventListener('click', () => this.stop());
 
+          // Add wiggle test button
+          document
+            .getElementById('testWiggleBtn')
+            .addEventListener('click', () => this.testCustomWiggle());
+
           document.getElementById('duration').addEventListener('input', (e) => {
             document.getElementById('durationValue').textContent =
               e.target.value + 's';
           });
+        }
+
+        testCustomWiggle() {
+          try {
+            // Test both CustomWiggle.create and built-in wiggle syntax
+            let wiggleWorked = false;
+            
+            // Try CustomWiggle.create first
+            if (typeof CustomWiggle !== 'undefined') {
+              gsap.to(this.freqBar, {
+                duration: 2,
+                scaleX: 1.5,
+                ease: "testWiggle",
+                onComplete: () => {
+                  gsap.set(this.freqBar, { scaleX: 0.5 });
+                }
+              });
+              wiggleWorked = true;
+            } else {
+              // Fallback to built-in wiggle syntax
+              gsap.to(this.freqBar, {
+                duration: 2,
+                scaleX: 1.5,
+                ease: "wiggle(5)",
+                onComplete: () => {
+                  gsap.set(this.freqBar, { scaleX: 0.5 });
+                }
+              });
+              wiggleWorked = true;
+            }
+            
+            if (wiggleWorked) {
+              document.getElementById('wiggleStatus').textContent = '🔄 Running wiggle test...';
+              setTimeout(() => {
+                document.getElementById('wiggleStatus').textContent = '✅ CustomWiggle visual test passed!';
+              }, 2100);
+            }
+            
+          } catch (error) {
+            document.getElementById('wiggleStatus').textContent = '❌ Wiggle test failed: ' + error.message;
+            console.error('Wiggle test failed:', error);
+          }
         }
 
         backgroundColor = '#ffffff';
@@ -465,6 +558,9 @@
               return (
                 baseFreq + baseFreq * 0.5 * Math.sin(progress * Math.PI * 4)
               );
+            case 'wiggle':
+              // Simple wiggle test - basic oscillation
+              return baseFreq + baseFreq * 0.3 * Math.sin(progress * Math.PI * 10) * (1 - progress);
             default:
               return baseFreq;
           }

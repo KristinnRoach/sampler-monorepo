@@ -304,16 +304,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   #calculatePlaybackRange(params) {
     const bufferLength = this.#getBufferLengthSamples();
 
-    const effectiveStart = Math.max(0, params.startPointSamples);
-    const effectiveEnd =
-      params.endPointSamples > 0
+    const start = Math.max(0, params.startPointSamples);
+    const end =
+      params.endPointSamples > start
         ? Math.min(bufferLength, params.endPointSamples)
         : bufferLength;
 
+    const snappedStart = this.#findNearestZeroCrossing(start);
+    const snappedEnd = this.#findNearestZeroCrossing(end);
+
     return {
-      startSamples: effectiveStart, // ← Must be actual sample indices
-      endSamples: effectiveEnd, // ← Must be actual sample indices
-      durationSamples: effectiveEnd - effectiveStart,
+      startSamples: snappedStart,
+      endSamples: snappedEnd,
+      durationSamples: snappedEnd - snappedStart,
     };
   }
 
@@ -329,20 +332,28 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Default to playback range if loop points are not set
 
-    let safeLoopStart =
+    let calcLoopStart =
       lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
 
     const bufferLengthSamples = this.#getBufferLengthSamples();
 
-    let safeLoopEnd =
+    let calcLoopEnd =
       lpEnd > lpStart && lpEnd <= bufferLengthSamples
         ? lpEnd
         : playbackRange.endSamples;
 
+    const loopDuration = calcLoopEnd - calcLoopStart;
+
+    const C3inSamples = 0.015288 * sampleRate; // todo: Use ValueSnapper here instead?
+    if (loopDuration > C3inSamples) {
+      calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
+      calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
+    }
+
     return {
-      startSamples: safeLoopStart,
-      endSamples: safeLoopEnd,
-      durationSamples: safeLoopEnd - safeLoopStart,
+      loopStartSamples: calcLoopStart,
+      loopEndSamples: calcLoopEnd,
+      loopDurationSamples: calcLoopEnd - calcLoopStart,
     };
   }
 
@@ -364,6 +375,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       parameters
     );
 
+    // this.debugCounter++;
+    // if (this.debugCounter % 1000 === 0) console.info(loopRange, playbackRange);
+
     // Initialize playback position on first process call
     if (this.playbackPosition === 0) {
       this.playbackPosition = playbackRange.startSamples;
@@ -384,10 +398,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       // Handle looping
       if (
         this.loopEnabled &&
-        this.playbackPosition >= loopRange.endSamples &&
+        this.playbackPosition >= loopRange.loopEndSamples &&
         this.loopCount < this.maxLoopCount
       ) {
-        this.playbackPosition = loopRange.startSamples;
+        this.playbackPosition = loopRange.loopStartSamples;
         this.loopCount++;
 
         this.port.postMessage({
