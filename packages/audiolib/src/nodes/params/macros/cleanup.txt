@@ -1,0 +1,4 @@
+AudioParamController:
+
+// NOTE: The controlNode (GainNode) is possibly redundant and could be replaced with
+// direct connection to the constantSignal (using offset param instead of gain value)

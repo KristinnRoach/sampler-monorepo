@@ -5,8 +5,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackPosition',
         defaultValue: 0,
-        minValue: 0,
-        maxValue: 99999,
+        minValue: 0, // ???
+        maxValue: 1000, // ???
         automationRate: 'k-rate',
       },
       {
@@ -293,6 +293,21 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
       loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
     };
+
+    // console.info(
+    //   'Raw loopEnd parameter:',
+    //   parameters.loopEnd[0],
+    //   'normalizedToSamples:',
+    //   samples.loopEndSamples
+    // );
+
+    // console.log('DEBUG parameter arrays:', {
+    //   loopEndArray: parameters.loopEnd,
+    //   loopEndLength: parameters.loopEnd?.length,
+    //   loopStartArray: parameters.loopStart,
+    //   loopStartLength: parameters.loopStart?.length,
+    // });
+
     return samples;
   }
 
@@ -339,6 +354,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         ? lpEnd
         : playbackRange.endSamples;
 
+    // if (this.loopEnabled && this.debugCounter % 1000 === 0) {
+    //   console.error(
+    //     lpEnd > lpStart && lpEnd <= bufferLengthSamples,
+    //     playbackRange.endSamples,
+    //     lpEnd
+    //   );
+    //   console.log('Raw loopEnd param:', originalParams.loopEnd[0]);
+    // }
+
     return {
       startSamples: safeLoopStart,
       endSamples: safeLoopEnd,
@@ -355,123 +379,204 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    // ===== USE EXPLICIT CONVERSION UTILITIES =====
-    const positionParams = this.#extractPositionParams(parameters);
-    const playbackRange = this.#calculatePlaybackRange(positionParams);
-    const loopRange = this.#calculateLoopRange(
-      positionParams,
-      playbackRange,
-      parameters
-    );
-
-    // Initialize playback position on first process call
+    // If this is the first process call after starting playback,
+    // initialize playback position using startPoint
     if (this.playbackPosition === 0) {
-      this.playbackPosition = playbackRange.startSamples;
+      const startPointSec = parameters.startPoint[0];
+      this.playbackPosition = startPointSec * sampleRate;
     }
 
-    // ===== AUDIO PROCESSING =====
-    const playbackRate = parameters.playbackRate[0];
-    const envelopeGain = parameters.envGain[0];
-    const velocityGain = this.#midiVelocityToGain(parameters.velocity[0]);
+    const pbRate = parameters.playbackRate[0];
 
+    // Get start and end points from parameters and convert to samples
+    const startPointSec = parameters.startPoint[0];
+    const endPointSec = parameters.endPoint[0];
+
+    // Convert to samples
+    const startPointSamples = startPointSec * sampleRate;
+
+    // Handle end point - if endPoint is set (greater than 0), use it to limit playback
+    const bufferLength = this.buffer[0].length;
+    let effectiveBufferEnd = bufferLength;
+    if (endPointSec > 0) {
+      effectiveBufferEnd = Math.min(bufferLength, endPointSec * sampleRate);
+    }
+
+    // Quantize once per block, not per sample
+    const rawLoopStart = parameters.loopStart[0] * sampleRate;
+    const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
+
+    const loopStart = rawLoopStart;
+    const loopEnd = rawLoopEnd;
+
+    const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
+
+    const envelopeGain = parameters.envGain[0];
     const velocitySensitivity = 0.9;
-    const finalVelocityGain = velocityGain * velocitySensitivity;
+    const normalizedVelocity = parameters.velocity[0] / 127; // this.#normalizeMidi(parameters.velocity[0]);
+    const velocityGain = normalizedVelocity * velocitySensitivity;
 
     const numChannels = Math.min(output.length, this.buffer.length);
 
-    // Process each sample
+    // Process samples
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
       if (
         this.loopEnabled &&
-        this.playbackPosition >= loopRange.endSamples &&
+        this.playbackPosition >= constrainedLoopEnd &&
         this.loopCount < this.maxLoopCount
       ) {
-        this.playbackPosition = loopRange.startSamples;
+        this.playbackPosition = loopStart;
         this.loopCount++;
-
-        this.port.postMessage({
-          type: 'voice:looped',
-          count: this.loopCount,
-          timestamp: currentTime,
-        });
       }
 
-      // Check for end of playback range
-      if (this.playbackPosition >= playbackRange.endSamples) {
-        this.#stop();
+      // Check for end of buffer or effective end position
+      if (this.playbackPosition >= effectiveBufferEnd) {
+        this.#stop(output);
         return true;
       }
 
-      // Sample interpolation
+      // Read and interpolate samples
       const position = Math.floor(this.playbackPosition);
       const fraction = this.playbackPosition - position;
-      const nextPosition = Math.min(position + 1, playbackRange.endSamples - 1);
+      const nextPosition = Math.min(position + 1, effectiveBufferEnd - 1);
 
-      // Generate output for each channel
       for (let c = 0; c < numChannels; c++) {
         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
-        const current = bufferChannel[position] || 0;
-        const next = bufferChannel[nextPosition] || 0;
+        const current = bufferChannel[position];
+        const next = bufferChannel[nextPosition];
 
-        const interpolatedSample = current + fraction * (next - current);
-        const finalSample =
-          interpolatedSample * finalVelocityGain * envelopeGain;
+        // output[c][i] =
+        //   (current + fraction * (next - current)) * velocityGain * envelopeGain;
 
-        output[c][i] = Math.max(
-          -1,
-          Math.min(1, isFinite(finalSample) ? finalSample : 0)
-        );
+        const sample =
+          (current + fraction * (next - current)) * velocityGain * envelopeGain;
+
+        output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
       }
-
-      this.playbackPosition += playbackRate;
+      // Advance playback position
+      this.playbackPosition += pbRate;
     }
 
-    // Send position updates if requested
     if (this.usePlaybackPosition) {
-      const normalizedPosition = this.#samplesToNormalized(
-        this.playbackPosition
-      );
       this.port.postMessage({
         type: 'voice:position',
-        position: normalizedPosition,
+        position: this.playbackPosition / sampleRate,
       });
     }
 
     return true;
   }
+
+  // // ===== USE EXPLICIT CONVERSION UTILITIES =====
+  // const positionParams = this.#extractPositionParams(parameters);
+  // const playbackRange = this.#calculatePlaybackRange(positionParams);
+  // const loopRange = this.#calculateLoopRange(
+  //   positionParams,
+  //   playbackRange,
+  //   parameters
+  // );
+
+  // // Initialize playback position on first process call
+  // if (this.playbackPosition === 0) {
+  //   this.playbackPosition = playbackRange.startSamples;
+  // }
+
+  //     // ===== AUDIO PROCESSING =====
+  //     const playbackRate = parameters.playbackRate[0];
+  //     const envelopeGain = parameters.envGain[0];
+  //     const velocityGain = this.#midiVelocityToGain(parameters.velocity[0]);
+
+  //     const velocitySensitivity = 0.9;
+  //     const finalVelocityGain = velocityGain * velocitySensitivity;
+
+  //     const numChannels = Math.min(output.length, this.buffer.length);
+
+  //     // === DEBUGGING REMOVE ===
+
+  //     if (this.loopEnabled && this.debugCounter % 1000 === 0) {
+  //       // console.log('Raw parameter values received:', {
+  //       //   loopStart: parameters.loopStart[0],
+  //       //   loopEnd: parameters.loopEnd[0],
+  //       //   currentTime: currentTime,
+  //       // });
+  //       // console.log('Loop logic debug:', {
+  //       //   playbackPosition: this.playbackPosition,
+  //       //   loopRangeStart: loopRange.startSamples,
+  //       //   loopRangeEnd: loopRange.endSamples,
+  //       //   playbackRangeEnd: playbackRange.endSamples,
+  //       //   parametersLoopStart: parameters.loopStart[0],
+  //       //   parametersLoopEnd: parameters.loopEnd[0],
+  //       //   willLoop: this.playbackPosition >= loopRange.endSamples,
+  //       // });
+
+  //       this.port.postMessage({
+  //         type: 'debug:params',
+  //         loopStartRaw: parameters.loopStart[0],
+  //         loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
+  //         loopEndRaw: parameters.loopEnd[0],
+  //         loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
+  //       });
+  //     }
+
+  //     // Process each sample
+  //     for (let i = 0; i < output[0].length; i++) {
+  //       // Handle looping
+  //       if (
+  //         this.loopEnabled &&
+  //         this.playbackPosition >= loopRange.endSamples
+  //         // &&
+  //         // this.loopCount < this.maxLoopCount
+  //       ) {
+  //         this.playbackPosition = loopRange.startSamples;
+  //         this.loopCount++;
+
+  //         this.port.postMessage({ type: 'voice:looped', count: this.loopCount });
+  //       }
+
+  //       // Check for end of playback range
+  //       if (this.playbackPosition >= playbackRange.endSamples) {
+  //         this.#stop();
+  //         return true;
+  //       }
+
+  //       // Sample interpolation
+  //       const position = Math.floor(this.playbackPosition);
+  //       const fraction = this.playbackPosition - position;
+  //       const nextPosition = Math.min(position + 1, playbackRange.endSamples - 1);
+
+  //       // Generate output for each channel
+  //       for (let c = 0; c < numChannels; c++) {
+  //         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
+  //         const current = bufferChannel[position] || 0;
+  //         const next = bufferChannel[nextPosition] || 0;
+
+  //         const interpolatedSample = current + fraction * (next - current);
+  //         const finalSample =
+  //           interpolatedSample * finalVelocityGain * envelopeGain;
+
+  //         output[c][i] = Math.max(
+  //           -1,
+  //           Math.min(1, isFinite(finalSample) ? finalSample : 0)
+  //         );
+  //       }
+
+  //       this.playbackPosition += playbackRate;
+  //     }
+
+  //     // Send position updates if requested
+  //     if (this.usePlaybackPosition) {
+  //       const normalizedPosition = this.#samplesToNormalized(
+  //         this.playbackPosition
+  //       );
+  //       this.port.postMessage({
+  //         type: 'voice:position',
+  //         position: normalizedPosition,
+  //       });
+  //     }
+
+  //     return true;
+  //   }
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
-
-// === DEBUGGING REMOVE ===
-//if (this.loopEnabled && this.debugCounter % 1000 === 0) {
-// console.log('Raw parameter values received:', {
-//   loopStart: parameters.loopStart[0],
-//   loopEnd: parameters.loopEnd[0],
-//   currentTime: currentTime,
-// });
-// console.log('Loop logic debug:', {
-//   playbackPosition: this.playbackPosition,
-//   loopRangeStart: loopRange.startSamples,
-//   loopRangeEnd: loopRange.endSamples,
-//   playbackRangeEnd: playbackRange.endSamples,
-//   parametersLoopStart: parameters.loopStart[0],
-//   parametersLoopEnd: parameters.loopEnd[0],
-//   willLoop: this.playbackPosition >= loopRange.endSamples,
-// });
-// console.log('DEBUG parameter arrays:', {
-//   loopEndArray: parameters.loopEndPoint,
-//   loopEndLength: parameters.loopEndPoint?.length,
-//   loopStartArray: parameters.loopStart,
-//   loopStartLength: parameters.loopStart?.length,
-// });
-// this.port.postMessage({
-//   type: 'debug:params',
-//   loopStartRaw: parameters.loopStart[0],
-//   loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
-//   loopEndRaw: parameters.loopEnd[0],
-//   loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
-// });
-//}
-// === DEBUGGING REMOVE END ===

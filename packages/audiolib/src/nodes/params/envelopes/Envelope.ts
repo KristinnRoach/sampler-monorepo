@@ -1,334 +1,135 @@
-import { DEFAULT_AMP_ENV } from '..';
+import { LibNode, NodeType } from '@/nodes/LibNode';
+import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { ENV_DEFAULTS } from './env-defaults';
+import { EnvelopePoint, EnvelopeType } from './env-types';
 
-export interface EnvelopePoint {
-  time: number; // 0-1 normalized
-  value: number; // 0-1
-  curve?: 'linear' | 'exponential'; // Curve type to next point
-}
-
-export interface EnvelopeData {
-  points: EnvelopePoint[];
-  loop?: boolean;
-}
-
-export interface CustomEnvelopeProps {
-  audioContext: AudioContext;
-  params?: AudioParam | AudioParam[];
-  descriptors?: any;
-  duration?: number;
-  loop?: boolean;
-  defaultPoints?: EnvelopePoint[];
-}
-
-export class CustomEnvelope {
-  private context: AudioContext;
-  private points: EnvelopePoint[] = DEFAULT_AMP_ENV;
-  private loop = false;
-
-  private durationSeconds: number = 2;
-
-  private loopType: 'restart' | 'ping-pong' = 'restart';
-
-  private listeners: Set<() => void> = new Set();
-
-  private notifyChange() {
-    this.listeners.forEach((listener) => listener());
-  }
-
-  get sustainIdx() {
-    return this.points.length - 2;
-  }
-
-  get releaseStartIdx() {
-    return this.points.length - 2;
-  }
-
-  get duration() {
-    return this.durationSeconds;
-  }
-
-  set duration(value: number) {
-    this.durationSeconds = value; // Math.max(0.001, value);
-    this.notifyChange();
-  }
-
-  get loopMode() {
-    return this.loopType;
-  }
-
-  setLoopMode(mode: 'restart' | 'ping-pong') {
-    this.loopType = mode;
-    this.notifyChange();
-  }
-
-  constructor(options: CustomEnvelopeProps) {
-    this.context = options.audioContext;
-    // todo: add setDuration ? const { params, descriptors, duration = 1, loop = false } = options;
-  }
-
-  // Public method for UI to subscribe
-  onChange(callback: () => void): () => void {
-    this.listeners.add(callback);
-    return () => this.listeners.delete(callback); // Returns unsubscribe fn
-  }
-
-  getEnvelopeData(): EnvelopeData {
-    return {
-      points: this.points,
-      loop: this.loop,
-    };
-  }
+// ===== ENVELOPE DATA - Pure data operations =====
+export class EnvelopeData {
+  constructor(
+    public points: EnvelopePoint[] = [],
+    public range: [number, number] = [0, 1]
+  ) {}
 
   addPoint(
     time: number,
     value: number,
     curve: 'linear' | 'exponential' = 'linear'
   ) {
-    const insertIndex = this.points.findIndex((p) => p.time > time);
     const newPoint = { time, value, curve };
+    const insertIndex = this.points.findIndex((p) => p.time > time);
 
     if (insertIndex === -1) {
       this.points.push(newPoint);
     } else {
       this.points.splice(insertIndex, 0, newPoint);
     }
-
-    this.notifyChange();
   }
 
   updatePoint(index: number, time: number, value: number) {
     if (index >= 0 && index < this.points.length) {
-      if (index === 0) {
-        this.points[index] = { ...this.points[index], value };
-      } else if (index === this.points.length - 1) {
-        this.points[index] = { ...this.points[index], value };
-      } else {
-        this.points[index] = { ...this.points[index], time, value };
-      }
-
-      this.notifyChange();
+      this.points[index] = { ...this.points[index], time, value };
     }
   }
 
   deletePoint(index: number) {
     if (index > 0 && index < this.points.length - 1) {
       this.points.splice(index, 1);
-      this.notifyChange();
     }
   }
 
-  getPoints(): EnvelopePoint[] {
-    return [...this.points];
-  }
-
-  // Web Audio scheduling
-  stopLooping(): void {
-    if (this.#loopStopFunction) {
-      this.#loopStopFunction();
-      this.#loopStopFunction = null;
+  interpolateValueAtTime(normalizedTime: number): number {
+    if (this.points.length === 0) return this.range[0];
+    if (this.points.length === 1) {
+      const [min, max] = this.range; // Scale to range
+      return min + this.points[0].value * (max - min);
     }
-  }
-  #loopStopFunction: (() => void) | null = null;
 
-  applyToAudioParam(
-    audioParam: AudioParam,
-    startTime: number,
-    loop: boolean,
-    // duration = this.durationSeconds,
-    minValue: number = 0.001
-  ) {
-    // Stop any existing loop first
-    this.stopLooping();
+    const sorted = [...this.points].sort((a, b) => a.time - b.time);
 
-    audioParam.cancelScheduledValues(startTime);
-    const duration = this.durationSeconds;
-    if (loop) {
-      this.#startContinuousLoop(audioParam, startTime, minValue);
+    let normalizedValue: number;
+
+    // Clamp to bounds
+    if (normalizedTime <= sorted[0].time) {
+      normalizedValue = sorted[0].value;
+    } else if (normalizedTime >= sorted[sorted.length - 1].time) {
+      normalizedValue = sorted[sorted.length - 1].value;
     } else {
-      // Single envelope application
-      const sampleRate = 1000;
-      const numSamples = Math.max(2, Math.floor(duration * sampleRate));
-      const curve = new Float32Array(numSamples);
+      // Find segment
+      normalizedValue = 0; // fallback
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const left = sorted[i];
+        const right = sorted[i + 1];
 
-      for (let i = 0; i < numSamples; i++) {
-        const normalizedTime = i / (numSamples - 1);
-        const value = this.interpolateValueAtTime(normalizedTime);
-        curve[i] = Math.max(value, minValue);
-      }
+        if (normalizedTime >= left.time && normalizedTime <= right.time) {
+          const segmentDuration = right.time - left.time;
+          const t =
+            segmentDuration === 0
+              ? 0
+              : (normalizedTime - left.time) / segmentDuration;
 
-      audioParam.setValueCurveAtTime(curve, startTime, duration);
-    }
-  }
-
-  #startContinuousLoop(
-    audioParam: AudioParam,
-    startTime: number,
-    minValue: number
-  ) {
-    let isLooping = true;
-    let currentCycleStart = startTime;
-
-    const scheduleNextCycle = () => {
-      if (!isLooping) return;
-
-      audioParam.cancelScheduledValues(currentCycleStart);
-
-      const sampleRate = 1000;
-      const numSamples = Math.max(
-        2,
-        Math.floor(this.durationSeconds * sampleRate)
-      ); // Use this.envelopeDuration
-      const curve = new Float32Array(numSamples);
-
-      for (let i = 0; i < numSamples; i++) {
-        const normalizedTime = i / (numSamples - 1);
-        const value = this.interpolateValueAtTime(normalizedTime);
-        curve[i] = Math.max(value, minValue);
-      }
-
-      audioParam.setValueCurveAtTime(
-        curve,
-        currentCycleStart,
-        this.durationSeconds
-      );
-
-      currentCycleStart += this.durationSeconds;
-      const timeUntilNext =
-        (currentCycleStart - this.context.currentTime) * 1000;
-
-      if (timeUntilNext > 0) {
-        setTimeout(scheduleNextCycle, Math.max(timeUntilNext - 50, 0));
-      } else {
-        scheduleNextCycle();
-      }
-    };
-
-    scheduleNextCycle();
-    this.#loopStopFunction = () => {
-      isLooping = false;
-    };
-  }
-
-  private interpolateValueAtTime(normalizedTime: number): number {
-    const sortedPoints = [...this.points].sort((a, b) => a.time - b.time);
-
-    if (sortedPoints.length === 0) return 0;
-    if (sortedPoints.length === 1) return sortedPoints[0].value;
-
-    // Handle time outside bounds
-    if (normalizedTime <= sortedPoints[0].time) {
-      return sortedPoints[0].value;
-    }
-    if (normalizedTime >= sortedPoints[sortedPoints.length - 1].time) {
-      return sortedPoints[sortedPoints.length - 1].value;
-    }
-
-    // Find surrounding points
-    let leftIndex = 0;
-    let rightIndex = sortedPoints.length - 1;
-
-    for (let i = 0; i < sortedPoints.length - 1; i++) {
-      if (
-        normalizedTime >= sortedPoints[i].time &&
-        normalizedTime <= sortedPoints[i + 1].time
-      ) {
-        leftIndex = i;
-        rightIndex = i + 1;
-        break;
-      }
-    }
-
-    const leftPoint = sortedPoints[leftIndex];
-    const rightPoint = sortedPoints[rightIndex];
-
-    if (leftIndex === rightIndex) {
-      return leftPoint.value;
-    }
-
-    // Calculate interpolation factor
-    const segmentDuration = rightPoint.time - leftPoint.time;
-    const t =
-      segmentDuration === 0
-        ? 0
-        : (normalizedTime - leftPoint.time) / segmentDuration;
-
-    // Apply curve type
-    switch (leftPoint.curve) {
-      case 'exponential':
-        if (leftPoint.value > 0 && rightPoint.value > 0) {
-          // Exponential interpolation: start * (end/start)^t
-          return (
-            leftPoint.value * Math.pow(rightPoint.value / leftPoint.value, t)
-          );
+          if (
+            left.curve === 'exponential' &&
+            left.value > 0 &&
+            right.value > 0
+          ) {
+            normalizedValue =
+              left.value * Math.pow(right.value / left.value, t);
+          } else {
+            normalizedValue = left.value + (right.value - left.value) * t;
+          }
+          break;
         }
-        // Fallback to linear if values are problematic
-        return leftPoint.value + (rightPoint.value - leftPoint.value) * t;
-
-      case 'linear':
-      default:
-        // Linear interpolation
-        return leftPoint.value + (rightPoint.value - leftPoint.value) * t;
+      }
     }
+
+    // Scale from 0-1 to target range
+    const [min, max] = this.range;
+    return min + normalizedValue * (max - min);
   }
 
-  /**
-   * Applies the release portion of the envelope to an AudioParam.
-   * This assumes the envelope should decay from its current value to 0 over the releaseDuration.
-   * It finds the effective starting point for the release within the envelope's definition.
-   * @param audioParam The AudioParam to schedule.
-   * @param startTime The Web Audio API timestamp to start the release.
-   * @param duration The duration of the release phase.
-   * @param currentValue The actual current value of the audioParam at releaseStartTime.
-   * @param targetValue The value the envelope should reach at the end of the release. (Usually 0 or minValue)
-   * @param minValue A minimum value to ensure no complete silence (avoids denormals).
-   */
-  applyReleaseToAudioParam(
-    audioParam: AudioParam,
-    startTime: number,
-    duration: number,
-    currentValue: number,
-    targetValue: number = 0.0001,
-    minValue: number = 0.0001
-  ) {
-    // cancelScheduledParamValues(audioParam, startTime);
-    audioParam.cancelScheduledValues(startTime);
-    audioParam.setValueAtTime(audioParam.value, startTime);
+  //   interpolateValueAtTime(normalizedTime: number): number {
+  //     if (this.points.length === 0) return 0;
+  //     if (this.points.length === 1) return this.points[0].value;
 
-    // Determine the curve type for the *last segment* of the envelope
-    const effectiveCurveType =
-      this.points.length > 1
-        ? this.points[this.points.length - 2]?.curve || 'linear'
-        : 'linear';
+  //     const sorted = [...this.points].sort((a, b) => a.time - b.time);
 
-    switch (effectiveCurveType) {
-      case 'exponential':
-        // Exponential ramp requires start and end to be > 0.
-        if (currentValue > minValue && targetValue > 0) {
-          audioParam.exponentialRampToValueAtTime(
-            targetValue,
-            startTime + duration
-          );
-        } else {
-          audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
-        }
-        break;
-      case 'linear':
-      default:
-        audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
-        break;
-    }
-  }
+  //     // Clamp to bounds
+  //     if (normalizedTime <= sorted[0].time) return sorted[0].value;
+  //     if (normalizedTime >= sorted[sorted.length - 1].time)
+  //       return sorted[sorted.length - 1].value;
+
+  //     // Find segment
+  //     for (let i = 0; i < sorted.length - 1; i++) {
+  //       const left = sorted[i];
+  //       const right = sorted[i + 1];
+
+  //       if (normalizedTime >= left.time && normalizedTime <= right.time) {
+  //         const segmentDuration = right.time - left.time;
+  //         const t =
+  //           segmentDuration === 0
+  //             ? 0
+  //             : (normalizedTime - left.time) / segmentDuration;
+
+  //         if (left.curve === 'exponential' && left.value > 0 && right.value > 0) {
+  //           return left.value * Math.pow(right.value / left.value, t);
+  //         } else {
+  //           return left.value + (right.value - left.value) * t;
+  //         }
+  //       }
+  //     }
+
+  //     return 0;
+  //   }
 
   getSVGPath(width: number = 400, height: number = 200): string {
     if (this.points.length < 2) return `M0,${height} L${width},${height}`;
 
-    const sortedPoints = [...this.points].sort((a, b) => a.time - b.time);
-    let path = `M${sortedPoints[0].time * width},${(1 - sortedPoints[0].value) * height}`;
+    const sorted = [...this.points].sort((a, b) => a.time - b.time);
+    let path = `M${sorted[0].time * width},${(1 - sorted[0].value) * height}`;
 
-    for (let i = 1; i < sortedPoints.length; i++) {
-      const point = sortedPoints[i];
-      const prevPoint = sortedPoints[i - 1];
-
+    for (let i = 1; i < sorted.length; i++) {
+      const point = sorted[i];
+      const prevPoint = sorted[i - 1];
       const x = point.time * width;
       const y = (1 - point.value) * height;
 
@@ -339,7 +140,6 @@ export class CustomEnvelope {
         const cp1Y = prevY;
         const cp2X = prevX + (x - prevX) * 0.7;
         const cp2Y = y;
-
         path += ` C${cp1X},${cp1Y} ${cp2X},${cp2Y} ${x},${y}`;
       } else {
         path += ` L${x},${y}`;
@@ -349,39 +149,392 @@ export class CustomEnvelope {
     return path;
   }
 
-  loadPreset(preset: 'adsr' | 'pluck' | 'pad' | 'organ') {
-    const presets = {
-      adsr: [
-        { time: 0, value: 0, curve: 'linear' as const },
-        { time: 0.2, value: 1, curve: 'exponential' as const },
-        { time: 0.4, value: 0.7, curve: 'linear' as const },
-        { time: 0.8, value: 0.7, curve: 'exponential' as const },
-        { time: 1, value: 0, curve: 'linear' as const },
-      ],
-      pluck: [
-        { time: 0, value: 0, curve: 'linear' as const },
-        { time: 0.05, value: 1, curve: 'exponential' as const },
-        { time: 1, value: 0, curve: 'exponential' as const },
-      ],
-      pad: [
-        { time: 0, value: 0, curve: 'exponential' as const },
-        { time: 0.6, value: 1, curve: 'linear' as const },
-        { time: 0.8, value: 0.8, curve: 'exponential' as const },
-        { time: 1, value: 0, curve: 'exponential' as const },
-      ],
-      organ: [
-        { time: 0, value: 0, curve: 'linear' as const },
-        { time: 0.1, value: 1, curve: 'linear' as const },
-        { time: 0.9, value: 1, curve: 'linear' as const },
-        { time: 1, value: 0, curve: 'linear' as const },
-      ],
-    };
-
-    this.points = presets[preset];
-    this.notifyChange();
+  get startTime() {
+    return this.points[0]?.time ?? 0;
+  }
+  get endTime() {
+    return this.points[this.points.length - 1]?.time ?? 1;
+  }
+  get duration() {
+    return this.endTime - this.startTime;
   }
 }
 
-export const createCustomEnvelope = (options: CustomEnvelopeProps) => {
-  return new CustomEnvelope(options);
-};
+// ===== ENVELOPE SCHEDULER - Web Audio operations =====
+export class EnvelopeScheduler {
+  constructor(private context: AudioContext) {}
+
+  applyEnvelope(
+    audioParam: AudioParam,
+    envelopeData: EnvelopeData,
+    startTime: number,
+    duration: number,
+    minValue = 0.001
+  ) {
+    audioParam.cancelScheduledValues(startTime);
+
+    // Currently testing to find optimal sample-rate. Increase if not smooth enough.
+    const sampleRate = duration < 1 ? 200 : 100;
+    const numSamples = Math.max(2, Math.floor(duration * sampleRate));
+    const curve = new Float32Array(numSamples);
+
+    for (let i = 0; i < numSamples; i++) {
+      const normalizedTime = i / (numSamples - 1);
+      const value = envelopeData.interpolateValueAtTime(normalizedTime);
+      curve[i] = Math.max(value, minValue);
+    }
+
+    try {
+      audioParam.setValueCurveAtTime(curve, startTime, duration);
+    } catch (error) {
+      console.warn('Failed to apply envelope curve:', error);
+      // Fallback to linear ramp
+      audioParam.setValueAtTime(curve[0], startTime);
+      audioParam.linearRampToValueAtTime(
+        curve[curve.length - 1],
+        startTime + duration
+      );
+    }
+  }
+
+  applyRelease(
+    audioParam: AudioParam,
+    startTime: number,
+    duration: number,
+    currentValue: number,
+    targetValue = 0.001,
+    curve: 'linear' | 'exponential' = 'exponential'
+  ) {
+    audioParam.cancelScheduledValues(startTime);
+    audioParam.setValueAtTime(currentValue, startTime);
+
+    try {
+      if (curve === 'exponential' && currentValue > 0.001 && targetValue > 0) {
+        audioParam.exponentialRampToValueAtTime(
+          targetValue,
+          startTime + duration
+        );
+      } else {
+        audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+      }
+    } catch (error) {
+      console.warn('Failed to apply release:', error);
+      audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+    }
+  }
+
+  startLoop(
+    audioParam: AudioParam,
+    envelopeData: EnvelopeData,
+    startTime: number,
+    loopDuration: number,
+    minValue = 0.001
+  ): () => void {
+    let isLooping = true;
+    let currentCycleStart = startTime;
+    let timeoutId: number | null = null;
+
+    const scheduleNext = () => {
+      if (!isLooping) return;
+
+      this.applyEnvelope(
+        audioParam,
+        envelopeData,
+        currentCycleStart,
+        loopDuration,
+        minValue
+      );
+
+      currentCycleStart += loopDuration;
+      const timeUntilNext =
+        (currentCycleStart - this.context.currentTime) * 1000;
+
+      if (timeUntilNext > 0) {
+        timeoutId = setTimeout(scheduleNext, Math.max(timeUntilNext - 50, 0));
+      } else {
+        scheduleNext();
+      }
+    };
+
+    scheduleNext();
+
+    return () => {
+      isLooping = false;
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+  }
+}
+
+// ===== CUSTOM ENVELOPE - Coordinates data and scheduling =====
+export class CustomEnvelope {
+  private data: EnvelopeData;
+  private scheduler: EnvelopeScheduler;
+  private stopLoopFn: (() => void) | null = null;
+  private _loopEnabled = false;
+
+  constructor(
+    private context: AudioContext,
+    public envelopeType: EnvelopeType,
+    initialPoints: EnvelopePoint[] = [],
+    range: [number, number] = [0, 1]
+  ) {
+    this.data = new EnvelopeData([...initialPoints], range);
+    this.scheduler = new EnvelopeScheduler(context);
+  }
+
+  // ===== DATA OPERATIONS =====
+  addPoint(time: number, value: number, curve?: 'linear' | 'exponential') {
+    this.data.addPoint(time, value, curve);
+  }
+
+  updatePoint(index: number, time: number, value: number) {
+    this.data.updatePoint(index, time, value);
+  }
+
+  deletePoint(index: number) {
+    this.data.deletePoint(index);
+  }
+
+  getEnvelopeData() {
+    return {
+      points: [...this.data.points],
+      loop: this._loopEnabled,
+    };
+  }
+
+  // Return the actual EnvelopeData instance for UI components
+  getEnvelopeDataInstance(): EnvelopeData {
+    return this.data;
+  }
+
+  getSVGPath(width?: number, height?: number) {
+    return this.data.getSVGPath(width, height);
+  }
+
+  // ===== AUDIO OPERATIONS =====
+  applyToAudioParam(
+    audioParam: AudioParam,
+    startTime: number,
+    duration: number
+  ) {
+    this.stopLooping();
+
+    if (this._loopEnabled) {
+      // Calculate loop duration based on envelope duration
+      const loopDuration = duration * this.data.duration;
+      this.startLooping(audioParam, startTime, loopDuration);
+    } else {
+      this.scheduler.applyEnvelope(audioParam, this.data, startTime, duration);
+    }
+  }
+
+  applyReleaseToAudioParam(
+    audioParam: AudioParam,
+    startTime: number,
+    duration: number,
+    currentValue: number,
+    targetValue = 0.001
+  ) {
+    this.stopLooping();
+    this.scheduler.applyRelease(
+      audioParam,
+      startTime,
+      duration,
+      currentValue,
+      targetValue
+    );
+  }
+
+  startLooping(
+    audioParam: AudioParam,
+    startTime: number,
+    loopDuration: number
+  ) {
+    this.stopLooping();
+    this.stopLoopFn = this.scheduler.startLoop(
+      audioParam,
+      this.data,
+      startTime,
+      loopDuration
+    );
+  }
+
+  stopLooping() {
+    if (this.stopLoopFn) {
+      this.stopLoopFn();
+      this.stopLoopFn = null;
+    }
+  }
+
+  // ===== LOOP CONTROL =====
+  setLoopEnabled(enabled: boolean) {
+    this._loopEnabled = enabled;
+  }
+
+  get loopEnabled() {
+    return this._loopEnabled;
+  }
+
+  dispose() {
+    this.stopLooping();
+  }
+}
+
+// ===== VOICE ENVELOPE MANAGER - Voice-specific coordination =====
+
+const PITCH_ENV_RANGE = [0.5, 1.5] as [number, number];
+
+export class SampleVoiceEnvelopes {
+  private envelopes = new Map<EnvelopeType, CustomEnvelope>();
+
+  constructor(
+    private context: AudioContext,
+    private worklet: AudioWorkletNode
+  ) {
+    this.createDefaultEnvelopes();
+  }
+
+  private createDefaultEnvelopes() {
+    // Amp envelope - classic ADSR shape
+    this.envelopes.set(
+      'amp-env',
+      new CustomEnvelope(this.context, 'amp-env', [
+        { time: 0, value: 0, curve: 'exponential' },
+        { time: 0.01, value: 1, curve: 'exponential' },
+        { time: 1, value: 0.0, curve: 'exponential' },
+      ])
+    );
+
+    // Pitch envelope - subtle pitch bend
+    this.envelopes.set(
+      'pitch-env',
+      new CustomEnvelope(
+        this.context,
+        'pitch-env',
+        [
+          { time: 0, value: 0.5, curve: 'exponential' },
+          { time: 0.1, value: 0.5, curve: 'linear' },
+          { time: 1, value: 0.5, curve: 'linear' },
+        ],
+        PITCH_ENV_RANGE
+      )
+    );
+  }
+
+  // ===== MAIN ENVELOPE CONTROL =====
+  triggerEnvelopes(
+    startTime: number,
+    sampleDuration: number,
+    playbackRate: number
+  ) {
+    const actualDuration = sampleDuration / playbackRate;
+
+    // Apply amp envelope
+    const ampEnv = this.envelopes.get('amp-env');
+    const envGainParam = this.worklet.parameters.get('envGain');
+    if (ampEnv && envGainParam) {
+      ampEnv.applyToAudioParam(envGainParam, startTime, actualDuration);
+    }
+
+    // Apply pitch envelope (if enabled and not flat)
+    const pitchEnv = this.envelopes.get('pitch-env');
+    const playbackRateParam = this.worklet.parameters.get('playbackRate');
+    if (pitchEnv && playbackRateParam && this.hasVariation(pitchEnv)) {
+      // Pitch envelope modulates around the base playback rate
+      pitchEnv.applyToAudioParam(playbackRateParam, startTime, actualDuration);
+    }
+  }
+
+  releaseEnvelopes(startTime: number, releaseDuration: number) {
+    // Stop all loops first
+    this.stopAllLoops();
+
+    // Apply release to amp envelope
+    const ampEnv = this.envelopes.get('amp-env');
+    const envGainParam = this.worklet.parameters.get('envGain');
+    if (ampEnv && envGainParam) {
+      const currentValue = envGainParam.value;
+      ampEnv.applyReleaseToAudioParam(
+        envGainParam,
+        startTime,
+        releaseDuration,
+        currentValue
+      );
+    }
+  }
+
+  // ===== LOOP CONTROL =====
+  setEnvelopeLoopEnabled(envType: EnvelopeType, enabled: boolean) {
+    const envelope = this.envelopes.get(envType);
+    if (envelope) {
+      envelope.setLoopEnabled(enabled);
+    }
+  }
+
+  stopAllLoops() {
+    this.envelopes.forEach((env) => env.stopLooping());
+  }
+
+  // ===== ENVELOPE ACCESS =====
+  getEnvelope(type: EnvelopeType): CustomEnvelope | undefined {
+    return this.envelopes.get(type);
+  }
+
+  addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+    const envelope = this.envelopes.get(envType);
+    envelope?.addPoint(time, value);
+  }
+
+  updateEnvelopePoint(
+    envType: EnvelopeType,
+    index: number,
+    time: number,
+    value: number
+  ) {
+    const envelope = this.envelopes.get(envType);
+    envelope?.updatePoint(index, time, value);
+  }
+
+  deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+    const envelope = this.envelopes.get(envType);
+    envelope?.deletePoint(index);
+  }
+
+  // ===== UTILITIES =====
+  private hasVariation(envelope: CustomEnvelope): boolean {
+    const data = envelope.getEnvelopeData();
+    const firstValue = data.points[0]?.value ?? 0;
+    return data.points.some(
+      (point) => Math.abs(point.value - firstValue) > 0.001
+    );
+  }
+
+  dispose() {
+    this.envelopes.forEach((env) => env.dispose());
+    this.envelopes.clear();
+  }
+}
+
+// ===== EXAMPLE INTEGRATION IN SAMPLEVOICE =====
+/*
+In SampleVoice constructor:
+this.envelopes = new SampleVoiceEnvelopes(context, this.#worklet);
+
+In trigger():
+this.envelopes.triggerEnvelopes(timestamp, this.#sampleDurationSeconds, playbackRate);
+
+In release():
+this.envelopes.releaseEnvelopes(timestamp, releaseDuration);
+
+For independent loop control:
+this.envelopes.setEnvelopeLoopEnabled('amp-env', true);
+this.envelopes.setEnvelopeLoopEnabled('pitch-env', false);
+
+For UI access:
+getEnvelope(envType: EnvelopeType) {
+  return this.envelopes.getEnvelope(envType);
+}
+*/

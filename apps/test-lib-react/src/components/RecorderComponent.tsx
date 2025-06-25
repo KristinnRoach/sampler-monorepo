@@ -49,7 +49,7 @@ const RecorderComponent = ({
   }, [destination, audiolib]);
 
   const startRecording = async () => {
-    if (!recorderRef.current?.isReady) {
+    if (!recorderRef.current?.initialized) {
       console.error('Recorder not initialized');
       setIsInitialized(false);
       return;

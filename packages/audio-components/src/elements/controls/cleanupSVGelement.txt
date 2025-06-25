@@ -1,0 +1,408 @@
+
+// circle.addEventListener('mousedown', (e: MouseEvent) => {
+//   selectedPoint.val = index;
+//   isDragging.val = true;
+//   e.preventDefault();
+// });
+
+// For deletion, use click with detail check instead of dblclick
+// if (index > 0 && index < pts.length - 1) {
+//   circle.addEventListener('click', (e: MouseEvent) => {
+//     if (e.detail === 2) {
+//       // Double click
+//       e.stopPropagation();
+//       isDragging.val = false; // Stop any dragging
+
+//       const newPoints = points.val.filter((_, i) => i !== index);
+//       points.val = newPoints;
+//       onPointUpdate(index, -1, -1);
+//     }
+//   });
+// }
+
+// Double click - delete point (except first and last)
+// if (index > 0 && index < pts.length - 1) {
+//   circle.addEventListener('dblclick', (e: MouseEvent) => {
+//     e.stopPropagation(); // Prevent bubbling to the 'add point' svg handler
+
+//     // Update UI state
+//     const newPoints = points.val.filter((_, i) => i !== index);
+//     points.val = newPoints;
+
+//     // Update audio logic via callback
+//     onPointUpdate(index, -1, -1);
+//   });
+// }
+
+// svgElement.addEventListener('dblclick', (e: MouseEvent) => {
+//   if (isDragging.val) return;
+
+//   // Check if we clicked on a circle (control point)
+//   const clickedElement = e.target as SVGElement;
+
+//   if (clickedElement.tagName === 'circle') {
+//     // Get the point index from the circle's position
+//     const pts = points.val;
+//     const rect = svgElement.getBoundingClientRect();
+//     const clickX = ((e.clientX - rect.left) / rect.width) * 400;
+//     const clickY = ((e.clientY - rect.top) / rect.height) * 200;
+
+//     // Find which point was clicked
+//     const pointIndex = pts.findIndex((point) => {
+//       const pointX = point.time * 400;
+//       const pointY = (1 - point.value) * 200;
+//       const distance = Math.sqrt(
+//         (clickX - pointX) ** 2 + (clickY - pointY) ** 2
+//       );
+//       return distance < 10; // 10px tolerance
+//     });
+
+//     // Delete point (except first and last)
+//     if (pointIndex > 0 && pointIndex < pts.length - 1) {
+//       const newPoints = points.val.filter((_, i) => i !== pointIndex);
+//       points.val = newPoints;
+//       onPointUpdate(pointIndex, -1, -1);
+//     }
+//   } else {
+//     // Clicked on empty space - create new point
+//     const rect = svgElement.getBoundingClientRect();
+//     const time = Math.max(
+//       0,
+//       Math.min(1, (e.clientX - rect.left) / rect.width)
+//     );
+//     const value = Math.max(
+//       0,
+//       Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//     );
+
+//     const newPoint = { time, value, curve: 'linear' as const };
+//     const newPoints = [...points.val, newPoint].sort(
+//       (a, b) => a.time - b.time
+//     );
+//     points.val = newPoints;
+//     onPointUpdate(-1, time, value);
+//   }
+// });
+
+// ==== OLD BEFORE REMOVING DIRECT ENV OBJECT REF ======
+
+//   const updateControlPoints = () => {
+//     if (!pointsGroup) return;
+
+//     pointsGroup.innerHTML = '';
+//     // const points = envelope?.getPoints() || DEFAULT_ENV;
+
+//     const handleMouseMove = (e: MouseEvent) => {
+//       if (isDragging.val && selectedPoint.val !== null) {
+//         const rect = svgElement.getBoundingClientRect();
+//         const time = Math.max(
+//           0,
+//           Math.min(1, (e.clientX - rect.left) / rect.width)
+//         );
+//         const value = Math.max(
+//           0,
+//           Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//         );
+//         onPointUpdate(selectedPoint.val, time, value); // Direct callback
+//       }
+//     };
+
+//     const handleDoubleClick = (e: MouseEvent) => {
+//       if (isDragging.val) return;
+//       const rect = svgElement.getBoundingClientRect();
+//       const time = Math.max(
+//         0,
+//         Math.min(1, (e.clientX - rect.left) / rect.width)
+//       );
+//       const value = Math.max(
+//         0,
+//         Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//       );
+//       onPointUpdate(-1, time, value); // -1 means "add new point"
+//     };
+
+//     points.forEach((point, index) => {
+//       const circle = document.createElementNS(
+//         'http://www.w3.org/2000/svg',
+//         'circle'
+//       );
+
+//       circle.setAttribute('cx', (point.time * 400).toString());
+//       circle.setAttribute('cy', ((1 - point.value) * 200).toString());
+//       circle.setAttribute('r', '4');
+//       circle.setAttribute(
+//         'fill',
+//         selectedPoint.val === index ? '#ff6b6b' : '#4ade80'
+//       );
+//       circle.setAttribute('stroke', '#fff');
+//       circle.setAttribute('stroke-width', '1');
+//       circle.style.cursor = 'pointer';
+
+//       circle.addEventListener('mousedown', (e: MouseEvent) => {
+//         selectedPoint.val = index;
+//         isDragging.val = true;
+//         e.preventDefault();
+//       });
+
+//       if (index > 0 && index < points.length - 1) {
+//         circle.addEventListener('dblclick', () => {
+//           envelope?.deletePoint(index);
+//         });
+//       }
+
+//       pointsGroup.appendChild(circle);
+//     });
+//   };
+
+//   const handleMouseMove = (e: MouseEvent) => {
+//     if (isDragging.val && selectedPoint.val !== null) {
+//       const rect = svgElement.getBoundingClientRect();
+//       const time = Math.max(
+//         0,
+//         Math.min(1, (e.clientX - rect.left) / rect.width)
+//       );
+//       const value = Math.max(
+//         0,
+//         Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//       );
+//       envelope?.updatePoint(selectedPoint.val, time, value);
+//     }
+//   };
+
+//   const handleMouseUp = () => {
+//     isDragging.val = false;
+//     selectedPoint.val = null;
+//   };
+
+//   const handleDoubleClick = (e: MouseEvent) => {
+//     if (isDragging.val) return;
+//     const rect = svgElement.getBoundingClientRect();
+//     const time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+//     const value = Math.max(
+//       0,
+//       Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//     );
+//     envelope?.addPoint(time, value);
+//   };
+
+//   // Create SVG
+//   svgElement = svg({
+//     viewBox: '0 0 400 200',
+//     preserveAspectRatio: 'none', // stretches if necessary to maintain correct position relative to mouse
+//     style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
+//   }) as SVGSVGElement;
+
+//   svgElement.addEventListener('mousemove', handleMouseMove);
+//   svgElement.addEventListener('mouseup', handleMouseUp);
+//   svgElement.addEventListener('mouseleave', handleMouseUp);
+//   svgElement.addEventListener('dblclick', handleDoubleClick);
+
+//   // Grid
+//   const gridGroup = g(
+//     { class: 'grid' },
+//     ...Array.from({ length: 6 }, (_, i) => {
+//       const x = (i / 5) * 400;
+//       return line({
+//         x1: x,
+//         y1: 0,
+//         x2: x,
+//         y2: 200,
+//         stroke: '#333',
+//         'stroke-width': 1,
+//       });
+//     }),
+//     ...Array.from({ length: 6 }, (_, i) => {
+//       const y = (i / 5) * 200;
+//       return line({
+//         x1: 0,
+//         y1: y,
+//         x2: 400,
+//         y2: y,
+//         stroke: '#333',
+//         'stroke-width': 1,
+//       });
+//     })
+//   );
+
+//   // Envelope path
+//   const envelopePath = path({
+//     d: () => {
+//       updateTrigger.val;
+//       return envelope?.getSVGPath(400, 200);
+//     },
+//     fill: 'none',
+//     stroke: '#4ade80',
+//     'stroke-width': 2,
+//   });
+
+//   // Control points group
+//   pointsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+//   pointsGroup.setAttribute('class', 'control-points');
+
+//   // Assemble
+//   svgElement.appendChild(gridGroup);
+//   svgElement.appendChild(envelopePath);
+//   svgElement.appendChild(pointsGroup);
+
+//   // Reactivity
+//   van.derive(() => {
+//     updateTrigger.val;
+//     selectedPoint.val;
+//     updateControlPoints();
+//   });
+
+//   return svgElement;
+// };
+
+
+
+
+// IGNORE BELOW
+// export const EnvelopeSVG = (
+//   envelope: CustomEnvelope | null,
+//   width: string = '100%',
+//   height: string = '120px'
+// ) => {
+//   if (!envelope) {
+//     return div(
+//       {
+//         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
+//       },
+//       'Loading envelope...'
+//     );
+//   }
+
+//   const selectedPoint = van.state<number | null>(null);
+//   const isDragging = van.state(false);
+//   const updateTrigger = van.state(0);
+
+//   const unsubscribe = envelope.onChange(() => {
+//     updateTrigger.val++;
+//   });
+
+//   const { circle } = van.tags('http://www.w3.org/2000/svg');
+
+//   // Create a container that we can dynamically update
+//   const controlPointsContainer = g({ class: 'control-points' });
+
+//   // Function to update control points manually
+//   const updateControlPoints = () => {
+//     // Clear existing points
+//     controlPointsContainer.innerHTML = '';
+
+//     const points = envelope.getPoints() || DEFAULT_ENV;
+//     points.forEach((point, index) => {
+//       const circleElement = circle({
+//         cx: point.time * 400,
+//         cy: (1 - point.value) * 200,
+//         r: 4,
+//         fill: selectedPoint.val === index ? '#ff6b6b' : '#4ade80',
+//         stroke: '#fff',
+//         'stroke-width': 1,
+//         style: 'cursor: pointer;',
+//         onmousedown: (e: MouseEvent) => {
+//           selectedPoint.val = index;
+//           isDragging.val = true;
+//           e.preventDefault();
+//         },
+//         ...(index > 0 &&
+//           index < points.length - 1 && {
+//             ondblclick: () => envelope.deletePoint(index),
+//           }),
+//       });
+
+//       van.add(controlPointsContainer, circleElement);
+//     });
+//   };
+
+//   // Set up reactivity using van.derive
+//   van.derive(() => {
+//     updateTrigger.val; // Dependency
+//     selectedPoint.val; // Dependency
+//     updateControlPoints();
+//   });
+
+//   return svg(
+//     {
+//       viewBox: '0 0 400 200',
+//       preserveAspectRatio: 'none',
+//       style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
+//       onmousemove: (e: MouseEvent) => {
+//         if (isDragging.val && selectedPoint.val !== null) {
+//           const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+//           const time = Math.max(
+//             0,
+//             Math.min(1, (e.clientX - rect.left) / rect.width)
+//           );
+//           const value = Math.max(
+//             0,
+//             Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//           );
+//           envelope.updatePoint(selectedPoint.val, time, value);
+//         }
+//       },
+//       onmouseup: () => {
+//         isDragging.val = false;
+//         selectedPoint.val = null;
+//       },
+//       onmouseleave: () => {
+//         isDragging.val = false;
+//         selectedPoint.val = null;
+//       },
+//       ondblclick: (e: MouseEvent) => {
+//         if (isDragging.val) return;
+//         const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
+//         const time = Math.max(
+//           0,
+//           Math.min(1, (e.clientX - rect.left) / rect.width)
+//         );
+//         const value = Math.max(
+//           0,
+//           Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
+//         );
+//         envelope.addPoint(time, value);
+//       },
+//     },
+
+//     // Grid
+//     g(
+//       { class: 'grid' },
+//       ...Array.from({ length: 6 }, (_, i) => {
+//         const x = (i / 5) * 400;
+//         return line({
+//           x1: x,
+//           y1: 0,
+//           x2: x,
+//           y2: 200,
+//           stroke: '#333',
+//           'stroke-width': 1,
+//         });
+//       }),
+//       ...Array.from({ length: 6 }, (_, i) => {
+//         const y = (i / 5) * 200;
+//         return line({
+//           x1: 0,
+//           y1: y,
+//           x2: 400,
+//           y2: y,
+//           stroke: '#333',
+//           'stroke-width': 1,
+//         });
+//       })
+//     ),
+
+//     // Envelope path
+//     path({
+//       d: () => {
+//         updateTrigger.val;
+//         return envelope.getSVGPath(400, 200);
+//       },
+//       fill: 'none',
+//       stroke: '#4ade80',
+//       'stroke-width': 2,
+//     }),
+
+//     // Control points container
+//     controlPointsContainer
+//   );
+// };

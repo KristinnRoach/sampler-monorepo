@@ -17,7 +17,6 @@ import {
   createMessageBus,
 } from '@/events';
 
-import type { MidiValue, ActiveNoteId } from '@/nodes/instruments/types';
 import { SampleVoicePool } from '@/nodes/instruments/Sample/SampleVoicePool';
 import { KarplusVoicePool } from '@/nodes/instruments/Synth/KarplusStrong/KarplusVoicePool';
 import { localStore } from '@/storage/local';
@@ -96,10 +95,10 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     midiNote: MidiValue,
     velocity?: number,
     modifiers?: Partial<PressedModifiers>
-  ): ActiveNoteId;
+  ): MidiValue;
 
   abstract release(
-    note: MidiValue | ActiveNoteId,
+    note: MidiValue,
     modifiers?: Partial<PressedModifiers>
   ): this;
 
@@ -218,35 +217,3 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     }
   }
 }
-
-// // Standard parameter management methods
-// /**
-//  * Sets a parameter value with optional debouncing
-//  */
-// setParamValue(paramId: string, value: any, debounceMs: number = 0): this {
-//   this.params.setValue(paramId, value, debounceMs);
-//   this.sendUpstreamMessage('param:change', { paramId, value });
-//   return this;
-// }
-
-// /**
-//  * Gets a parameter value by ID
-//  */
-// getParamValue(paramId: string): any {
-//   const param = this.params.get(paramId);
-//   return param ? param.getValue() : undefined;
-// }
-
-// /**
-//  * Gets all parameters
-//  */
-// getAllParams(): LibParam[] {
-//   return this.params.getAll();
-// }
-
-// /**
-//  * Gets parameters by group
-//  */
-// getParamsByGroup(group: string): LibParam[] {
-//   return this.params.getByGroup(group);
-// }

@@ -1,6 +1,5 @@
 import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { MidiValue } from '../types';
 import { VoiceState } from '../VoiceState';
 import { Message } from '@/events';
 
@@ -31,7 +30,7 @@ export class SampleVoicePool {
     this.nodeId = createNodeId(this.nodeType);
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
-      const voice = new SampleVoice(context, { enableFilters });
+      const voice = new SampleVoice(context, { enableFilters: false });
       voice.connect(destination);
       return voice;
     });

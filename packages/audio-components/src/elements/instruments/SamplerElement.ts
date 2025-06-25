@@ -4,9 +4,11 @@ import { define, ElementProps } from '@repo/vanjs-core/element';
 import {
   type SamplePlayer,
   type CustomEnvelope,
+  type EnvelopeType,
   type Recorder,
   getInstance,
 } from '@repo/audiolib';
+
 import { createIcons } from '../../utils/svg-utils';
 import { SampleControls } from '../controls/SampleControls';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
@@ -29,16 +31,12 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Audio params
   const volume = van.state(0.5);
-  let ampEnvelope = van.state<CustomEnvelope | null>(null);
-  let pitchEnvelope = van.state<CustomEnvelope | null>(null);
-  // let loopEndEnvController = van.state<CustomEnvelope | null>(null);
-
-  // Replaced with Envelope
-  // const attack = van.state(0.001);
-  // const release = van.state(0.3);
+  const ampEnvelope = van.state<CustomEnvelope | null>(null);
+  const pitchEnvelope = van.state<CustomEnvelope | null>(null);
+  const loopEnvelope = van.state<CustomEnvelope | null>(null);
 
   // Pitch params
-  const transposition = van.state(0);
+  // const transposition = van.state(0);
 
   // Loop params
   const loopStart = van.state(0);
@@ -73,7 +71,7 @@ const SamplerElement = (attributes: ElementProps) => {
   const status = van.state('Not initialized');
 
   // Helper to avoid repetitive null checks
-  const derive = (fn: () => void) => van.derive(() => samplePlayer && fn());
+  const derive = (fn: () => void) => van.derive(() => samplePlayer && fn()); // .initialized ?
 
   attributes.mount(() => {
     const initializeAudio = async () => {
@@ -95,21 +93,29 @@ const SamplerElement = (attributes: ElementProps) => {
         }
 
         // Setup envelopes
-        ampEnvelope.val = samplePlayer.getAmpEnvelope();
-        // pitchEnvelope.val = samplePlayer.getPitchEnvelope();
+        ampEnvelope.val = samplePlayer.getEnvelope('amp-env');
+        pitchEnvelope.val = samplePlayer.getEnvelope('pitch-env');
+        // loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
+
         envelopeReady.val = true; // re-render UI
 
         // derive(() => samplePlayer.setAttackTime(attack.val));
         // derive(() => samplePlayer.setReleaseTime(release.val));
-        derive(() => samplePlayer?.setLoopStart(loopStart.val));
-        derive(() => samplePlayer?.setLoopEnd(loopEnd.val));
+        derive(() => {
+          console.info(`SamplerEl ADJ loopStart.val: `, loopStart.val);
+          console.info(`SamplerEl loopEnd.val: `, loopEnd.val);
+          samplePlayer?.setLoopPoint('start', loopStart.val, loopEnd.val);
+        });
 
-        derive(() =>
-          samplePlayer?.setFineTuneLoopEnd(-loopEndFineTune.val / 10000)
-        ); // Convert 0-100 to 0 to -0.1 seconds
+        derive(() => {
+          // if (samplePlayer?.isLoaded) {
+          samplePlayer?.setSampleStartPoint(startPoint.val);
+        });
 
-        // derive(() => samplePlayer?.setSampleStartPoint(startPoint.val)); // ensure normalized ?
-        // derive(() => samplePlayer?.setSampleEndPoint(endPoint.val));
+        derive(() => {
+          // if (samplePlayer?.isLoaded) {
+          samplePlayer?.setSampleEndPoint(endPoint.val);
+        });
 
         derive(() => {
           if (samplePlayer?.volume !== undefined) {
@@ -166,7 +172,7 @@ const SamplerElement = (attributes: ElementProps) => {
             }
           }
         });
-        // todo (later): add listeners for other messages and type them & dispatch events
+
         status.val = 'Ready';
       } catch (error) {
         console.error('Failed to initialize sampler:', error);
@@ -312,6 +318,26 @@ const SamplerElement = (attributes: ElementProps) => {
     }
   };
 
+  const handleEnvelopeChange = (
+    envType: EnvelopeType,
+    index: number,
+    time: number,
+    value: number
+  ) => {
+    if (!samplePlayer) return;
+
+    if (index === -1) {
+      // Add new point
+      samplePlayer.addEnvelopePoint(envType, time, value);
+    } else if (time === -1 && value === -1) {
+      // Delete point
+      samplePlayer.deleteEnvelopePoint(envType, index);
+    } else {
+      // Update existing point
+      samplePlayer.updateEnvelopePoint(envType, index, time, value);
+    }
+  };
+
   const defaultStyle = `display: flex; flex-direction: column; max-width: 50vw; padding: 0.5rem;`;
 
   return div(
@@ -347,7 +373,31 @@ const SamplerElement = (attributes: ElementProps) => {
                 { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
                 'Amp Env'
               ),
-              EnvelopeSVG(ampEnvelope.val, '100%', '100px')
+              EnvelopeSVG(
+                'amp-env',
+                ampEnvelope.val.getEnvelopeDataInstance(),
+                handleEnvelopeChange,
+                '100%',
+                '100px'
+              )
+            )
+          : div(),
+
+      () =>
+        pitchEnvelope.val
+          ? div(
+              { style: 'margin: 10px 0;' },
+              div(
+                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
+                'Pitch Env'
+              ),
+              EnvelopeSVG(
+                'pitch-env',
+                pitchEnvelope.val.getEnvelopeDataInstance(),
+                handleEnvelopeChange,
+                '100%',
+                '100px'
+              )
             )
           : div(),
 
@@ -359,7 +409,13 @@ const SamplerElement = (attributes: ElementProps) => {
       //           { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
       //           'Pitch Env'
       //         ),
-      //         EnvelopeSVG(pitchEnvelope.val, '100%', '100px')
+      //         EnvelopeSVG(
+      //           'pitch-env',
+      //           pitchEnvelope.val.getEnvelopeData(),
+      //           handleEnvelopeChange,
+      //           '100%',
+      //           '100px'
+      //         )
       //       )
       //     : div(),
 

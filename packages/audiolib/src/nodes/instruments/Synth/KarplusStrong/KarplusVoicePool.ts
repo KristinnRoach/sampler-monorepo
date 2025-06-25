@@ -2,8 +2,9 @@
 
 import { KarplusVoice } from './KarplusVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { ActiveNoteId, MidiValue } from '@/nodes/instruments/types';
 import { Connectable, Destination } from '@/nodes/LibNode';
+
+type ActiveNoteId = number; // todo: update to use same system as sampler
 
 export class KarplusVoicePool {
   readonly nodeId: NodeID;

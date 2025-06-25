@@ -16,9 +16,14 @@ import {
   MessageBus,
 } from '@/events';
 
-import { midiToPlaybackRate } from '@/utils';
+import { assert, midiToPlaybackRate } from '@/utils';
 
-import { SampleVoiceEnvelopes } from '@/nodes/params/envelopes';
+import {
+  // createCustomEnvelope,
+  // CustomEnvelope,
+  SampleVoiceEnvelopes,
+  ENV_DEFAULTS,
+} from '@/nodes/params/envelopes';
 import { EnvelopeType } from '@/nodes/params/envelopes';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
@@ -37,6 +42,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   #sampleDurationSeconds = 0;
   #playbackDurationNormalized = 0;
+
+  // #envelopes: Map<EnvelopeType, CustomEnvelope> = new Map();
 
   envelopes: SampleVoiceEnvelopes;
 
@@ -68,6 +75,25 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     });
 
     this.envelopes = new SampleVoiceEnvelopes(context, this.#worklet);
+    // this.#envelopes.set(
+    //   'amp-env',
+    //   createCustomEnvelope({
+    //     audioContext: context,
+    //     fullDuration: 1,
+    //     envelopeType: 'amp-env',
+    //     defaultPoints: ENV_DEFAULTS['amp-env'].points,
+    //   })
+    // );
+
+    // this.#envelopes.set(
+    //   'loop-env',
+    //   createCustomEnvelope({
+    //     audioContext: context,
+    //     fullDuration: 1,
+    //     envelopeType: 'loop-env',
+    //     defaultPoints: ENV_DEFAULTS['loop-env'].points,
+    //   })
+    // );
 
     // Set low-pass filter frequency based on context sample rate
     this.#lpfHz = this.context.sampleRate / 2 - 100;
@@ -135,6 +161,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
             this.setStartPoint(0);
             this.setEndPoint(1); // normalized !
 
+            // this.#envelopes.forEach((env) => {
+            //   env.maxDuration = data.duration;
+            // });
+
             this.#worklet.parameters.get('loopEnd')!.value = 0; // ! Why can this not be set to 1 ??
           }
           break;
@@ -161,6 +191,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
         case 'voice:looped':
           // console.debug(`voice:looped, time: ${data.timestamp}, loopCount: ${data.count}`);
+
+          // this.#applyEnvelopes(
+          //   ['amp-env'],
+          //   data.timestamp,
+          //   1 // this.getParam('playbackRate')!.value
+          // );
           break;
 
         case 'voice:position':
@@ -269,6 +305,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
+    // this.#applyEnvelopes(['amp-env'], timestamp, 1); // todo: add 'loop-env'
     this.envelopes.triggerEnvelopes(
       timestamp,
       this.#sampleDurationSeconds,
@@ -294,6 +331,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   release({ release = this.#releaseSec, secondsFromNow = 0 }): this {
+    // this.#envelopes.forEach((env) => env.stopLooping());
+
     if (this.#state === VoiceState.RELEASING) return this;
 
     const envGain = this.getParam('envGain');
@@ -304,6 +343,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // Immediate stop for zero release time
     if (release <= 0) return this.stop(timestamp);
+
+    // const currentGainValue = envGain.value;
+    // this.releaseEnvelopes('amp-env', timestamp, release, currentGainValue, 0);
 
     this.envelopes.releaseEnvelopes(timestamp, release);
 
@@ -321,6 +363,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   stop(timestamp = this.now): this {
+    // this.#envelopes.forEach((env) => env.stopLooping()); // idempotent
+
     if (
       this.#state === VoiceState.STOPPED ||
       this.#state === VoiceState.STOPPING
@@ -340,7 +384,149 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
+  // === Envelope Methods ===
+
+  // #applyEnvelopes(
+  //   envelopes: EnvelopeType[],
+  //   timestamp: number,
+  //   playbackRate = 1
+  // ) {
+  //   if (this.#loopEnabled)
+  //     playbackRate = this.getParam('playbackRate')?.value ?? 1;
+
+  //   envelopes.forEach((envType) => {
+  //     const envelope = this.#envelopes.get(envType);
+  //     const paramName = this.#getParamForEnvelope(envType);
+  //     const param = this.getParam(paramName);
+
+  //     if (envelope && param) {
+  //       this.#applyEnvelopeToParam(envelope, param, timestamp, playbackRate);
+  //     }
+  //   });
+  // }
+
+  #getParamForEnvelope(envType: EnvelopeType): string {
+    const mapping = {
+      'amp-env': 'envGain',
+      'pitch-env': 'playbackRate',
+      'loop-env': 'loopEnd', // or whatever
+      default: 'envGain',
+    };
+    return mapping[envType];
+  }
+
+  // #applyEnvelopeToParam(
+  //   envelope: CustomEnvelope,
+  //   audioParam: AudioParam,
+  //   startTime: number,
+  //   playbackRate: number
+  // ) {
+  //   audioParam.cancelScheduledValues(startTime);
+
+  //   // Convert normalized to real time
+  //   const realDuration =
+  //     (this.#sampleDurationSeconds * envelope.normalizedDuration) /
+  //     playbackRate;
+  //   const realStartTime =
+  //     startTime +
+  //     (this.#sampleDurationSeconds * envelope.startTime) / playbackRate;
+
+  //   this.#applySingleEnvelope(
+  //     envelope,
+  //     audioParam,
+  //     realStartTime,
+  //     realDuration
+  //   );
+  // }
+
+  // #applySingleEnvelope(
+  //   envelope: CustomEnvelope,
+  //   audioParam: AudioParam,
+  //   startTime: number,
+  //   duration: number
+  // ) {
+  //   const sampleRate = 1000;
+  //   const numSamples = Math.max(2, Math.floor(duration * sampleRate));
+  //   const curve = new Float32Array(numSamples);
+
+  //   for (let i = 0; i < numSamples; i++) {
+  //     const normalizedTime =
+  //       (i / (numSamples - 1)) * envelope.normalizedDuration +
+  //       envelope.startTime;
+  //     curve[i] = Math.max(
+  //       envelope.interpolateValueAtTime(normalizedTime),
+  //       0.001
+  //     );
+  //   }
+
+  //   audioParam.setValueCurveAtTime(curve, startTime, duration);
+  // }
+
+  // loopEnvelope = (envType: EnvelopeType, loop: boolean) => {
+  //   const env = this.#envelopes.get(envType);
+  //   env?.setLoopEnabled(loop);
+  // };
+
+  // /**
+  //  * Applies the release portion of the envelope to an AudioParam.
+  //  * This assumes the envelope should decay from its current value to 0 over the releaseDuration.
+  //  * It finds the effective starting point for the release within the envelope's definition.
+  //  * @param audioParam The AudioParam to schedule.
+  //  * @param startTime The Web Audio API timestamp to start the release.
+  //  * @param duration The duration of the release phase.
+  //  * @param currentValue The actual current value of the audioParam at releaseStartTime.
+  //  * @param targetValue The value the envelope should reach at the end of the release. (Usually 0 or minValue)
+  //  * @param minValue A minimum value to ensure no complete silence (avoids denormals).
+  //  */
+  // releaseEnvelopes(
+  //   envType: EnvelopeType,
+  //   startTime: number,
+  //   duration: number, // todo: remove
+  //   currentValue: number,
+  //   targetValue: number = 0.0001,
+  //   minValue: number = 0.0001
+  // ) {
+  //   const audioParam = this.getParam(this.#getParamForEnvelope(envType));
+  //   if (!audioParam) return;
+
+  //   // cancelScheduledParamValues(audioParam, startTime);
+  //   audioParam.cancelScheduledValues(startTime);
+  //   audioParam.setValueAtTime(audioParam.value, startTime);
+
+  //   const env = this.getEnvelope(envType);
+  //   const releaseStartPoint = env.releasePoint;
+  //   const endTime = env.endPoint.time;
+
+  //   duration = endTime - releaseStartPoint.time;
+
+  //   const effectiveCurveType = releaseStartPoint.curve || 'exponential';
+
+  //   switch (effectiveCurveType) {
+  //     case 'exponential':
+  //       // Exponential ramp requires start and end to be > 0.
+  //       if (currentValue > minValue && targetValue > 0) {
+  //         audioParam.exponentialRampToValueAtTime(
+  //           targetValue,
+  //           startTime + duration
+  //         );
+  //       } else {
+  //         audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+  //       }
+  //       break;
+  //     case 'linear':
+  //     default:
+  //       audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+  //       break;
+  //   }
+  // }
+
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+    // const envelope = this.#envelopes.get(envType);
+    // if (!envelope) return;
+
+    // envelope.addPoint(time, value);
+    // this.#applyEnvelopeIfPlaying(envType);
+
     this.envelopes.addEnvelopePoint(envType, time, value);
   }
 
@@ -350,10 +536,20 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     time: number,
     value: number
   ) {
+    // const envelope = this.#envelopes.get(envType);
+    // if (!envelope) return;
+    // envelope.updatePoint(index, time, value);
+    // this.#applyEnvelopeIfPlaying(envType);
+
     this.envelopes.updateEnvelopePoint(envType, index, time, value);
   }
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+    // const envelope = this.#envelopes.get(envType);
+    // if (!envelope) return;
+    // envelope.deletePoint(index);
+    // this.#applyEnvelopeIfPlaying(envType);
+
     this.envelopes.deleteEnvelopePoint(envType, index);
   }
 
@@ -460,6 +656,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     }
     if (end !== undefined) {
       this.setParam('loopEnd', end, timestamp, { glideTime: 0 });
+
+      // if (this.#envelopes.get('loop-env')?.durationInSeconds) {
+      //   this.#envelopes.get('loop-env')!.durationInSeconds = end - start;
+      // }
     }
 
     return this;
@@ -480,6 +680,16 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   getPlaybackDuration() {
     return this.#playbackDurationNormalized;
   }
+
+  // getEnvelope(envType: EnvelopeType): CustomEnvelope {
+  //   assert(
+  //     this.#envelopes.has(envType),
+  //     `SampleVoice does not have envelope of type: ${envType}`,
+  //     this.getEnvelope
+  //   );
+
+  //   return this.#envelopes.get(envType)!;
+  // }
 
   getEnvelope(envType: EnvelopeType) {
     return this.envelopes.getEnvelope(envType);
@@ -567,6 +777,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     }
   ): this {
     this.setParam('playbackRate', rate, atTime, options);
+
+    // this.#updateEnvelopeDuration(); // ? TEST
+
     return this;
   }
 
@@ -600,3 +813,66 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return null;
   }
 }
+
+// #applyLoopingEnvelope(
+//   envelope: CustomEnvelope,
+//   audioParam: AudioParam,
+//   startTime: number,
+//   cycleDuration: number
+// ) {
+//   let isLooping = true;
+//   let currentCycleStart = startTime;
+
+//   const scheduleNextCycle = () => {
+//     if (!isLooping) return;
+
+//     // Generate curve for this cycle
+//     const sampleRate = 1000;
+//     const numSamples = Math.max(2, Math.floor(cycleDuration * sampleRate));
+//     const curve = new Float32Array(numSamples);
+
+//     for (let i = 0; i < numSamples; i++) {
+//       const normalizedTime =
+//         (i / (numSamples - 1)) * envelope.normalizedDuration +
+//         envelope.startTime;
+//       curve[i] = Math.max(
+//         envelope.interpolateValueAtTime(normalizedTime),
+//         0.001
+//       );
+//     }
+
+//     // Schedule this cycle
+//     audioParam.setValueCurveAtTime(curve, currentCycleStart, cycleDuration);
+
+//     // Prepare next cycle
+//     currentCycleStart += cycleDuration;
+//     const timeUntilNext =
+//       (currentCycleStart - this.context.currentTime) * 1000;
+
+//     // Schedule next cycle with buffer time
+//     if (timeUntilNext > 0) {
+//       setTimeout(scheduleNextCycle, Math.max(timeUntilNext - 50, 0));
+//     } else {
+//       scheduleNextCycle(); // Schedule immediately if we're behind
+//     }
+//   };
+
+//   // Start the loop
+//   scheduleNextCycle();
+
+//   // Store stop function for cleanup
+//   this.#envelopeLoopStopFunction = () => {
+//     isLooping = false;
+//   };
+// }
+
+// // Add this property to SampleVoice class
+// #envelopeLoopStopFunction: (() => void) | null = null;
+
+// // Add cleanup method
+// #stopEnvelopeLooping(): void {
+//   if (this.#envelopeLoopStopFunction) {
+//     this.#envelopeLoopStopFunction();
+//     this.#envelopeLoopStopFunction = null;
+//   }
+// }

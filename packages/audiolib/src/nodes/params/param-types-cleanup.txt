@@ -1,24 +1,6 @@
+
 // import { LibNode, Messenger } from '@/nodes/LibNode';
 // import { MessageHandler, Message } from '@/events';
-
-export interface AudioParamDescriptor {
-  name: string;
-  defaultValue?: number;
-  minValue?: number;
-  maxValue?: number;
-  automationRate: 'a-rate' | 'k-rate';
-}
-
-export interface LibParamDescriptor extends AudioParamDescriptor {
-  nodeId: NodeID;
-  valueType: 'number' | 'boolean' | 'enum';
-  defaultValue: any; // Override to make required and allow any type
-
-  // Additional properties
-  step?: number;
-  enumValues?: string[];
-  group?: string;
-}
 
 // export interface ParamDescriptor {
 //   nodeId: NodeID;

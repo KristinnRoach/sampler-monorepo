@@ -1,4 +1,4 @@
-import { LibParamDescriptor } from '../../params/types';
+import { LibParamDescriptor } from '../../params/param-types';
 import { DEFAULT_SAMPLE_RATE } from '@/constants/defaults/common';
 
 // Allowed Hz range for native web audio filters is 10 to the Nyquist frequency (half the sample rate).
@@ -11,12 +11,28 @@ const DEFAULT_HPF_CUTOFF = 100;
 const DEFAULT_LPF_CUTOFF = MAX_HZ;
 const FILTER_STEP = 10; // Step size for filter frequency adjustments
 
+export type ParamDescriptorKey =
+  | 'ENV_GAIN'
+  | 'PLAYBACK_RATE'
+  | 'ATTACK'
+  | 'RELEASE'
+  | 'LOOP_START'
+  | 'LOOP_END'
+  | 'LOOP_RAMP_DURATION'
+  | 'START_POINT'
+  | 'END_POINT'
+  | 'LOWPASS_CUTOFF'
+  | 'HIGHPASS_CUTOFF';
+
 // Default ParamDescriptors
-export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
+export const DEFAULT_PARAM_DESCRIPTORS: Record<
+  ParamDescriptorKey,
+  LibParamDescriptor
+> = {
   ENV_GAIN: {
     nodeId: 'env-gain',
     name: 'env-gain',
-    valueType: 'number',
+    dataType: 'number',
     minValue: 0,
     maxValue: 1,
     step: 0.0001,
@@ -28,7 +44,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   PLAYBACK_RATE: {
     nodeId: 'playback-rate',
     name: 'playback-rate',
-    valueType: 'number',
+    dataType: 'number',
     minValue: -4,
     maxValue: 4,
     step: 0.0001,
@@ -40,7 +56,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   ATTACK: {
     nodeId: 'attack-time',
     name: 'attack-time',
-    valueType: 'number',
+    dataType: 'number',
     minValue: 0,
     maxValue: 5,
     step: 0.001,
@@ -52,7 +68,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   RELEASE: {
     nodeId: 'release-time',
     name: 'release-time',
-    valueType: 'number',
+    dataType: 'number',
     minValue: 0,
     maxValue: 5,
     step: 0.001,
@@ -62,11 +78,11 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   },
 
   LOOP_START: {
-    nodeId: 'loop-start', // todo: remove default id's, ensure they are created when param is registered
+    nodeId: 'loop-start',
     name: 'loop-start',
-    valueType: 'number',
+    dataType: 'number',
     minValue: 0,
-    maxValue: 1, // Updated when sample loads
+    maxValue: 1, // Uses normalized values (0-1)
     step: 0.001,
     defaultValue: 0,
     group: 'loop-points',
@@ -74,13 +90,13 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   },
 
   LOOP_END: {
-    nodeId: 'loop-start',
-    name: 'loop-start',
-    valueType: 'number',
+    nodeId: 'loop-end',
+    name: 'loop-end',
+    dataType: 'number',
     minValue: 0,
-    maxValue: 1, // Updated when sample loads
+    maxValue: 1, // Uses normalized values (0-1)
     step: 0.001,
-    defaultValue: 0, // Updated when sample loads
+    defaultValue: 0.123, // ! TESTing revert to -> 1,
     group: 'loop-points',
     automationRate: 'k-rate',
   },
@@ -88,9 +104,9 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   LOOP_RAMP_DURATION: {
     nodeId: 'loop-point-ramp',
     name: 'loop-point-ramp',
-    valueType: 'number' as const,
+    dataType: 'number' as const,
     minValue: 0.001,
-    maxValue: 2.0,
+    maxValue: 1.0, // Todo: -> Use normalized values (0-1)
     step: 0.001,
     defaultValue: 0.5,
     group: 'loop-points',
@@ -100,9 +116,9 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   START_POINT: {
     nodeId: 'start-point',
     name: 'start-point',
-    valueType: 'number',
+    dataType: 'number',
     minValue: 0,
-    maxValue: 60, // 60 seconds max sample duration
+    maxValue: 1,
     step: 0.001,
     defaultValue: 0,
     group: 'trim-sample',
@@ -112,11 +128,11 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   END_POINT: {
     nodeId: 'end-point',
     name: 'end-point',
-    valueType: 'number',
+    dataType: 'number',
     minValue: 0,
-    maxValue: 60, // 60 seconds max sample duration
+    maxValue: 1,
     step: 0.001,
-    defaultValue: 5, // Remember to update when sample loads !
+    defaultValue: 1,
     group: 'trim-sample',
     automationRate: 'k-rate',
   },
@@ -124,7 +140,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   LOWPASS_CUTOFF: {
     nodeId: 'lpf-freq',
     name: 'lpf-freq',
-    valueType: 'number',
+    dataType: 'number',
     minValue: MIN_HZ,
     maxValue: MAX_HZ,
     step: FILTER_STEP,
@@ -136,7 +152,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<string, LibParamDescriptor> = {
   HIGHPASS_CUTOFF: {
     nodeId: 'hpf-freq',
     name: 'hpf-freq',
-    valueType: 'number',
+    dataType: 'number',
     minValue: MIN_HZ,
     maxValue: MAX_HZ,
     step: FILTER_STEP,

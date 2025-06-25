@@ -8,8 +8,3 @@ export const VoiceState = {
 } as const;
 
 export type VoiceState = (typeof VoiceState)[keyof typeof VoiceState];
-
-/* Usage example:
-function setVoiceState(state: VoiceState) {
-  if (state === VoiceState.PLAYING) { ... 
-*/
