@@ -135,8 +135,11 @@ export class EnvelopeScheduler {
     envelopeData: EnvelopeData,
     startTime: number,
     duration: number,
-    baseValue = 1,
-    minValue = 0.001
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
   ) {
     audioParam.cancelScheduledValues(startTime);
 
@@ -145,10 +148,17 @@ export class EnvelopeScheduler {
     const numSamples = Math.max(2, Math.floor(duration * sampleRate));
     const curve = new Float32Array(numSamples);
 
+    const { baseValue: base, minValue: min, maxValue: max } = options;
+
     for (let i = 0; i < numSamples; i++) {
       const normalizedTime = i / (numSamples - 1);
       const value = envelopeData.interpolateValueAtTime(normalizedTime);
-      curve[i] = Math.max(baseValue * value, minValue);
+      let finalValue = base ?? 1 * value;
+
+      if (min !== undefined) finalValue = Math.max(finalValue, min);
+      if (max !== undefined) finalValue = Math.max(Math.min(max, finalValue));
+
+      curve[i] = finalValue;
     }
 
     try {
@@ -170,7 +180,12 @@ export class EnvelopeScheduler {
     duration: number,
     currentValue: number,
     targetValue = 0.001,
-    curve: 'linear' | 'exponential' = 'exponential'
+    curve: 'linear' | 'exponential' = 'exponential',
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
   ) {
     audioParam.cancelScheduledValues(startTime);
     audioParam.setValueAtTime(currentValue, startTime);
@@ -195,8 +210,11 @@ export class EnvelopeScheduler {
     envelopeData: EnvelopeData,
     startTime: number,
     loopDuration: number,
-    baseValue = 1,
-    minValue = 0.001
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
   ): () => void {
     let isLooping = true;
     let currentCycleStart = startTime;
@@ -210,8 +228,7 @@ export class EnvelopeScheduler {
         envelopeData,
         currentCycleStart,
         loopDuration,
-        baseValue,
-        minValue
+        options
       );
 
       currentCycleStart += loopDuration;
@@ -245,7 +262,7 @@ export class CustomEnvelope {
   private _loopEnabled = false;
 
   constructor(
-    private context: AudioContext,
+    context: AudioContext,
     public envelopeType: EnvelopeType,
     initialPoints: EnvelopePoint[] = [],
     range: [number, number] = [0, 1]
@@ -288,21 +305,25 @@ export class CustomEnvelope {
     audioParam: AudioParam,
     startTime: number,
     duration: number,
-    baseValue = 1
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
   ) {
     this.stopLooping();
 
     if (this._loopEnabled) {
       // Calculate loop duration based on envelope duration
       const loopDuration = duration * this.data.duration;
-      this.startLooping(audioParam, startTime, loopDuration, baseValue);
+      this.startLooping(audioParam, startTime, loopDuration, options);
     } else {
       this.scheduler.applyEnvelope(
         audioParam,
         this.data,
         startTime,
         duration,
-        baseValue
+        options
       );
     }
   }
@@ -328,7 +349,11 @@ export class CustomEnvelope {
     audioParam: AudioParam,
     startTime: number,
     loopDuration: number,
-    baseValue = 1
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
   ) {
     this.stopLooping();
     this.stopLoopFn = this.scheduler.startLoop(
@@ -336,7 +361,7 @@ export class CustomEnvelope {
       this.data,
       startTime,
       loopDuration,
-      baseValue
+      { baseValue: options?.baseValue }
     );
   }
 
@@ -348,9 +373,17 @@ export class CustomEnvelope {
   }
 
   // ===== LOOP CONTROL =====
-  setLoopEnabled(enabled: boolean) {
+  setLoopEnabled = (
+    enabled: boolean,
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+  ) => {
+    if (mode !== 'normal')
+      console.info(
+        `Only default env loop mode implemented. Other modes coming soon!`
+      );
+
     this._loopEnabled = enabled;
-  }
+  };
 
   get loopEnabled() {
     return this._loopEnabled;
@@ -362,6 +395,7 @@ export class CustomEnvelope {
 }
 
 // ===== VOICE ENVELOPE MANAGER - Voice-specific coordination =====
+// Todo: Remove class if redundant, replace with factory function ?
 
 const PITCH_ENV_RANGE = [0.5, 1.5] as [number, number];
 
@@ -422,12 +456,9 @@ export class SampleVoiceEnvelopes {
     const playbackRateParam = this.worklet.parameters.get('playbackRate');
     if (pitchEnv && playbackRateParam && this.hasVariation(pitchEnv)) {
       // Pitch envelope modulates around the base playback rate
-      pitchEnv.applyToAudioParam(
-        playbackRateParam,
-        startTime,
-        actualDuration,
-        playbackRate
-      );
+      pitchEnv.applyToAudioParam(playbackRateParam, startTime, actualDuration, {
+        baseValue: playbackRate,
+      });
     }
   }
 

@@ -561,10 +561,15 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     this.envelopes.setEnvelopeLoopEnabled('amp-env', enabled);
     this.envelopes.setEnvelopeLoopEnabled('pitch-env', enabled);
-    // this.envelopes.setEnvelopeLoopEnabled('loop-env', enabled);
 
     return this;
   }
+
+  setEnvelopeLoop = (
+    envType: EnvelopeType,
+    loop: boolean,
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+  ) => this.getEnvelope(envType)?.setLoopEnabled(loop, mode);
 
   setPlaybackRate(
     rate: number,

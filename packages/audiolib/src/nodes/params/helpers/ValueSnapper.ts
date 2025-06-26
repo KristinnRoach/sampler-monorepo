@@ -73,6 +73,9 @@ export class ValueSnapper {
       longestPeriod: this.longestPeriod,
     });
 
+    console.log('Before normalize:', periods.slice(0, 5));
+    console.log('After normalize:', (finalValues as number[]).slice(0, 5));
+
     return this;
   }
 
@@ -102,20 +105,19 @@ export class ValueSnapper {
   }
 
   // TODO: If I want zero-snapping for periods -> Just pre-compute the optimal values and store them as the allowedPeriods !!
-  snapToPeriod(targetValue: number, referenceValue: number): number {
-    if (this.#allowedPeriods.length === 0) return targetValue;
+  snapToMusicalDuration(loopStart: number, targetLoopEnd: number): number {
+    if (this.#allowedPeriods.length === 0) return targetLoopEnd;
 
-    const musicalPositions = this.#allowedPeriods
-      .flatMap((period) => [
-        referenceValue + period, // Forward positions
-        referenceValue - period, // Backward positions
-      ])
-      .filter((pos) => pos >= 0); // Keep only valid positions
+    const targetDuration = targetLoopEnd - loopStart;
 
-    // Find the closest musical position to target
-    return musicalPositions.reduce((prev, curr) =>
-      Math.abs(curr - targetValue) < Math.abs(prev - targetValue) ? curr : prev
+    // Find closest musical period to the target duration
+    const closestPeriod = this.#allowedPeriods.reduce((prev, curr) =>
+      Math.abs(curr - targetDuration) < Math.abs(prev - targetDuration)
+        ? curr
+        : prev
     );
+
+    return loopStart + closestPeriod;
   }
 
   get shortestPeriod() {

@@ -166,7 +166,7 @@ export const EnvelopeSVG = (
   };
 
   const handleDoubleClick = (e: MouseEvent) => {
-    e.stopPropagation(); // Prevent bubbling ?
+    e.stopPropagation(); // Prevent bubbling
 
     if (isDragging.val) return;
     const rect = svgElement.getBoundingClientRect();
@@ -176,7 +176,7 @@ export const EnvelopeSVG = (
       Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
     );
     // Update UI state
-    const newPoint = { time, value, curve: 'linear' as const };
+    const newPoint = { time, value, curve: 'exponential' as const };
     const newPoints = [...points.val, newPoint].sort((a, b) => a.time - b.time);
     points.val = newPoints;
     // Update audio logic via callback

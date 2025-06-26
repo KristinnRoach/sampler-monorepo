@@ -54,19 +54,7 @@
   </head>
   <body>
     <div class="nav">
-      <label for="easeSelect">Choose an Ease</label>
-      <select id="easeSelect">
-        <option value="linear">Linear</option>
-        <option value="easeOut">Ease Out</option>
-        <option value="easeInOut">Ease In-Out</option>
-        <option value="bounce">Bounce</option>
-        <option value="elastic">Elastic</option>
-        <option value="power1">power1</option>
-        <option value="power4">power4</option>
-        <option value="circ">circ</option>
-        <option value="back">back</option>
-      </select>
-    </div>
+
 
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500">
       <path id="motionPath" d="M 0 500 L 500 0" fill="none" stroke="green" />
@@ -107,7 +95,6 @@
 
         const btnEl = document.getElementById('startBtn');
         const motionPathEl = document.getElementById('motionPath');
-        const easeSelect = document.getElementById('easeSelect');
         const debugInfo = document.getElementById('debugInfo');
 
         let duration = 1;
@@ -119,13 +106,13 @@
         let audioContext;
         let isPlaying = false;
 
-        const simpleEases = {
-          linear: 'M0,0 L1,1',
-          easeOut: 'M0,0 C0,0 0.2,1 1,1',
-          easeInOut: 'M0,0 C0.4,0 0.6,1 1,1',
-          bounce: 'M0,0 C0.3,0 0.3,1.4 0.5,1 C0.7,0.6 0.7,1.2 1,1',
-          elastic: 'M0,0 C0.2,0 0.2,1.6 0.4,1 C0.6,0.4 0.8,1.4 1,1',
-        };
+        // const simpleEases = {
+        //   linear: 'M0,0 L1,1',
+        //   easeOut: 'M0,0 C0,0 0.2,1 1,1',
+        //   easeInOut: 'M0,0 C0.4,0 0.6,1 1,1',
+        //   bounce: 'M0,0 C0.3,0 0.3,1.4 0.5,1 C0.7,0.6 0.7,1.2 1,1',
+        //   elastic: 'M0,0 C0.2,0 0.2,1.6 0.4,1 C0.6,0.4 0.8,1.4 1,1',
+        // };
 
         function resetMotionPath() {
           motionTween = gsap.to('#dummy-g', {
@@ -170,86 +157,6 @@
           attributeFilter: ['d'],
         });
 
-        function normalizePathForEasing(pathData) {
-          const coordMatches = pathData.match(/[\d.]+/g);
-          if (!coordMatches || coordMatches.length < 4) {
-            throw new Error('Invalid path data');
-          }
-
-          const coords = coordMatches.map(Number);
-          let minX = Math.min(...coords.filter((_, i) => i % 2 === 0));
-          let maxX = Math.max(...coords.filter((_, i) => i % 2 === 0));
-          let minY = Math.min(...coords.filter((_, i) => i % 2 === 1));
-          let maxY = Math.max(...coords.filter((_, i) => i % 2 === 1));
-
-          if (maxX - minX === 0) maxX = minX + 1;
-          if (maxY - minY === 0) maxY = minY + 1;
-
-          let normalizedPath = pathData.replace(
-            /[\d.]+/g,
-            (match, offset, string) => {
-              const index =
-                string.substring(0, offset).match(/[\d.]+/g)?.length || 0;
-              const isX = index % 2 === 0;
-              const value = Number(match);
-
-              if (isX) {
-                return ((value - minX) / (maxX - minX)).toFixed(3);
-              } else {
-                return (1 - (value - minY) / (maxY - minY)).toFixed(3);
-              }
-            }
-          );
-
-          return normalizedPath;
-        }
-
-        easeSelect.addEventListener('change', () => {
-          currentEaseName = easeSelect.value;
-          isPathModified = false;
-          currentCustomEase = null;
-
-          if (simpleEases[currentEaseName]) {
-            const simplePath = simpleEases[currentEaseName]
-              .replace(/([ML]?)([0-9.]+),([0-9.]+)/g, (match, cmd, x, y) => {
-                const newX = parseFloat(x) * 500;
-                const newY = 500 - parseFloat(y) * 500;
-                return `${cmd || 'L'}${newX},${newY}`;
-              })
-              .replace(/C([0-9.,\s]+)/g, (match, coords) => {
-                const numbers = coords
-                  .split(/[,\s]+/)
-                  .map((n) => parseFloat(n));
-                const converted = [];
-                for (let i = 0; i < numbers.length; i += 2) {
-                  converted.push(numbers[i] * 500);
-                  converted.push(500 - numbers[i + 1] * 500);
-                }
-                return `C${converted.join(',')}`;
-              });
-
-            debugInfo.textContent = `Simple ease: ${currentEaseName}`;
-            motionPathEl.setAttribute('d', simplePath);
-            if (motionTween) motionTween.kill();
-            if (helper) helper.kill();
-            resetMotionPath();
-          } else {
-            const svgPath = CustomEase.getSVGData(currentEaseName, {
-              width: 500,
-              height: 500,
-            });
-            debugInfo.textContent = `Built-in ease: ${currentEaseName}`;
-
-            if (motionTween) motionTween.kill();
-            if (helper) helper.kill();
-
-            motionTween = gsap.to('#motionPath', {
-              morphSVG: svgPath,
-              duration: 0.1,
-              onComplete: () => resetMotionPath(),
-            });
-          }
-        });
 
         btnEl.addEventListener('click', () => {
           if (!audioContext) {
@@ -280,9 +187,7 @@
 
           let easingFunction;
           if (typeof easingSource === 'string') {
-            const dummyTween = gsap.to({}, { duration: 1, ease: easingSource });
-            easingFunction = dummyTween._ease;
-            dummyTween.kill();
+            easingFunction = gsap.parseEase(easingSource);
           } else if (easingSource && typeof easingSource === 'function') {
             easingFunction = easingSource;
           } else {

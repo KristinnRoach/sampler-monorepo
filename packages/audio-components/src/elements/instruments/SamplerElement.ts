@@ -76,17 +76,15 @@ const SamplerElement = (attributes: ElementProps) => {
   attributes.mount(() => {
     const initializeAudio = async () => {
       try {
-        // Initialize audiolib
         const audiolib = getInstance();
         if (!audiolib.initialized) await audiolib.init();
 
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
         // Todo: remove dep on audiolib class, add destination master handling
         samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
-
         // connects automatically to audio destination
 
-        if (!samplePlayer) {
+        if (!samplePlayer.initialized) {
           console.warn('Failed to create sample player');
           status.val = 'Failed to initialize';
           return;
@@ -95,16 +93,22 @@ const SamplerElement = (attributes: ElementProps) => {
         // Setup envelopes
         ampEnvelope.val = samplePlayer.getEnvelope('amp-env');
         pitchEnvelope.val = samplePlayer.getEnvelope('pitch-env');
-        // loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
-
+        loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
         envelopeReady.val = true; // re-render UI
 
-        // derive(() => samplePlayer.setAttackTime(attack.val));
-        // derive(() => samplePlayer.setReleaseTime(release.val));
-        derive(() => {
-          console.info(`SamplerEl ADJ loopStart.val: `, loopStart.val);
-          console.info(`SamplerEl loopEnd.val: `, loopEnd.val);
-          samplePlayer?.setLoopPoint('start', loopStart.val, loopEnd.val);
+        van.derive(() => {
+          if (!samplePlayer) return;
+
+          // Only call setLoopPoint if values actually differ from stored values
+          // ( todo: simplify and handle in audiolib )
+
+          if (loopStart.val !== samplePlayer.loopStart) {
+            samplePlayer.setLoopPoint('start', loopStart.val, loopEnd.val);
+          }
+
+          if (loopEnd.val !== samplePlayer.loopStart) {
+            samplePlayer.setLoopPoint('end', loopStart.val, loopEnd.val);
+          }
         });
 
         derive(() => {
@@ -401,23 +405,23 @@ const SamplerElement = (attributes: ElementProps) => {
             )
           : div(),
 
-      // () =>
-      //   pitchEnvelope.val
-      //     ? div(
-      //         { style: 'margin: 10px 0;' },
-      //         div(
-      //           { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
-      //           'Pitch Env'
-      //         ),
-      //         EnvelopeSVG(
-      //           'pitch-env',
-      //           pitchEnvelope.val.getEnvelopeData(),
-      //           handleEnvelopeChange,
-      //           '100%',
-      //           '100px'
-      //         )
-      //       )
-      //     : div(),
+      () =>
+        loopEnvelope.val
+          ? div(
+              { style: 'margin: 10px 0;' },
+              div(
+                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
+                'Loop Env'
+              ),
+              EnvelopeSVG(
+                'loop-env',
+                loopEnvelope.val.getEnvelopeDataInstance(),
+                handleEnvelopeChange,
+                '100%',
+                '100px'
+              )
+            )
+          : div(),
 
       SampleControls(
         loopStart,

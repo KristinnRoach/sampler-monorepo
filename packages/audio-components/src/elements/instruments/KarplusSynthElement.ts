@@ -2,15 +2,12 @@ import van from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 
 import {
-  createCustomEnvelope,
   createKarplusStrongSynth,
   type KarplusStrongSynth,
-  type CustomEnvelope,
 } from '@repo/audiolib';
 
-import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 import { createIcons } from '../../utils/svg-utils';
-import { createCheckbox, createSlider } from '../primitives/createInputEl';
+import { createSlider } from '../primitives/createInputEl';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
 
 import {

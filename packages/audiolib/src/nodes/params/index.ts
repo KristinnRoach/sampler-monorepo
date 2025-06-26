@@ -1,5 +1,4 @@
-export * from './envelopes/Envelope';
-export * from './envelopes/env-defaults';
+export * from './envelopes';
 export * from './macros/MacroParam';
 export * from './macros/AudioParamController';
 export * from './helpers/ValueSnapper';

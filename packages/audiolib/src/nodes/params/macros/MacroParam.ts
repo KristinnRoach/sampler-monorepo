@@ -111,13 +111,17 @@ export class MacroParam {
 
   #processValue(value: number, constant: number): number {
     const targetPeriod = Math.abs(value - constant);
-    // this.debugProcessVal(value, constant, targetPeriod)
+
     if (
       this.#snapper.hasPeriodSnapping &&
       targetPeriod < this.#snapper.longestPeriod
     ) {
-      const snapped = this.#snapper.snapToPeriod(value, constant);
-      // console.log('MacroParam.#processValue period snapped:', { value, snapped });
+      // For loop duration snapping, treat 'constant' as loopStart and 'value' as loopEnd
+      const snapped = this.#snapper.snapToMusicalDuration(constant, value);
+      console.log('MacroParam.#processValue period snapped:', {
+        value,
+        snapped,
+      });
       return snapped;
     } else if (this.#snapper.hasValueSnapping) {
       const snapped = this.#snapper.snapToValue(value);
@@ -126,6 +130,27 @@ export class MacroParam {
 
     return value;
   }
+
+  // #processValue(value: number, constant: number): number {
+  //   const targetPeriod = Math.abs(value - constant);
+  //   // this.debugProcessVal(value, constant, targetPeriod)
+  //   if (
+  //     this.#snapper.hasPeriodSnapping &&
+  //     targetPeriod < this.#snapper.longestPeriod
+  //   ) {
+  //     const snapped = this.#snapper.snapToPeriod(value, constant);
+  //     console.log('MacroParam.#processValue period snapped:', {
+  //       value,
+  //       snapped,
+  //     });
+  //     return snapped;
+  //   } else if (this.#snapper.hasValueSnapping) {
+  //     const snapped = this.#snapper.snapToValue(value);
+  //     return snapped;
+  //   }
+
+  //   return value;
+  // }
 
   // Delegate configuration methods
   setAllowedParamValues(
