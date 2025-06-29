@@ -26,10 +26,6 @@ const normalizeRange = (
 // Value processor for snapping/quantization
 export class ValueSnapper {
   #allowedValues: number[] = [];
-
-  // TODO: If I want zero-snapping for periods
-  // -> Just pre-compute the optimal values onLoad
-  // and store them as the allowedPeriods !!
   #allowedPeriods: number[] = [];
 
   setAllowedValues(
@@ -37,18 +33,7 @@ export class ValueSnapper {
     normalize: NormalizeOptions | false
   ): this {
     const finalValues = normalize ? normalizeRange(values, normalize) : values;
-
     this.#allowedValues = [...(finalValues as number[])].sort((a, b) => a - b);
-
-    console.log('ValueSnapper.setAllowedValues called:', {
-      originalValues: values.slice(0, 10), // Show first 10 to avoid spam
-      originalValuesCount: values.length,
-      normalize,
-      finalValues: this.#allowedValues.slice(0, 10),
-      finalValuesCount: this.#allowedValues.length,
-      min: Math.min(...this.#allowedValues),
-      max: Math.max(...this.#allowedValues),
-    });
     return this;
   }
 
@@ -61,20 +46,6 @@ export class ValueSnapper {
       : periods;
 
     this.#allowedPeriods = [...(finalValues as number[])].sort((a, b) => a - b);
-
-    console.log('ValueSnapper.setAllowedPeriods called:', {
-      originalPeriods: periods.slice(0, 10),
-      originalPeriodsCount: periods.length,
-      normalize,
-      finalPeriods: this.#allowedPeriods.slice(0, 10),
-      finalPeriodsCount: this.#allowedPeriods.length,
-      min: Math.min(...this.#allowedPeriods),
-      max: Math.max(...this.#allowedPeriods),
-      longestPeriod: this.longestPeriod,
-    });
-
-    console.log('Before normalize:', periods.slice(0, 5));
-    console.log('After normalize:', (finalValues as number[]).slice(0, 5));
 
     return this;
   }
@@ -104,8 +75,8 @@ export class ValueSnapper {
     );
   }
 
-  // TODO: If I want zero-snapping for periods -> Just pre-compute the optimal values and store them as the allowedPeriods !!
-  snapToMusicalDuration(loopStart: number, targetLoopEnd: number): number {
+  // todo: If I want zero-snapping for periods -> Just pre-compute the optimal values and store them as the allowedPeriods !!
+  snapToMusicalPeriod(loopStart: number, targetLoopEnd: number): number {
     if (this.#allowedPeriods.length === 0) return targetLoopEnd;
 
     const targetDuration = targetLoopEnd - loopStart;

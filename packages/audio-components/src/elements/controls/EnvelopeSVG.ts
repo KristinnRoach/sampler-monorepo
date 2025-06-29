@@ -1,8 +1,35 @@
 // EnvelopeSVG.ts
 import van from '@repo/vanjs-core';
 import type { EnvelopePoint, EnvelopeData, EnvelopeType } from '@repo/audiolib';
+// import { gsap } from 'gsap/gsap-core';
+import { gsap, MotionPathPlugin, DrawSVGPlugin } from 'gsap/all';
 
-const { svg, path, line, g, div } = van.tags('http://www.w3.org/2000/svg');
+gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin);
+
+const { svg, path, line, g, div, circle } = van.tags(
+  'http://www.w3.org/2000/svg'
+);
+
+// Playback position indicator
+const createPlayhead = (voiceId: string) =>
+  circle({
+    id: `playhead-${voiceId}`,
+    cx: 2.5,
+    cy: 197.5,
+    r: 5,
+    fill: 'tranparent',
+    'stroke-width': 2,
+    class: 'playhead',
+  });
+
+let svgElement: SVGSVGElement;
+let pointsGroup: SVGGElement;
+let envelopePath: SVGPathElement;
+
+let playDuration = 0;
+const updatePlayDuration = (startPoint: number, endPoint: number) => {
+  playDuration = endPoint * 100 - startPoint * 100;
+};
 
 export const EnvelopeSVG = (
   envelopeType: EnvelopeType,
@@ -14,7 +41,9 @@ export const EnvelopeSVG = (
     value: number
   ) => void,
   width: string = '100%',
-  height: string = '120px'
+  height: string = '120px',
+  snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
+  snapThreshold = 0.025
 ) => {
   if (!initialEnvValues || !initialEnvValues.points.length) {
     return div(
@@ -30,9 +59,6 @@ export const EnvelopeSVG = (
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
   const points = van.state(initialEnvValues.points);
-
-  let svgElement: SVGSVGElement;
-  let pointsGroup: SVGGElement;
 
   // Helper to generate SVG path from points
   const generateSVGPath = (pts: EnvelopePoint[]): string => {
@@ -92,6 +118,8 @@ export const EnvelopeSVG = (
       if (index === 0 || index === pts.length - 1) {
         circle.setAttribute('fill', '#ff9500'); // Orange for duration handles
         circle.setAttribute('r', '6'); // Slightly bigger
+
+        updatePlayDuration(pts[0].time, pts[1].time);
       }
 
       // Mouse down - start drag
@@ -137,22 +165,33 @@ export const EnvelopeSVG = (
   const handleMouseMove = (e: MouseEvent) => {
     if (isDragging.val && selectedPoint.val !== null) {
       const rect = svgElement.getBoundingClientRect();
-      const time = Math.max(
-        0,
-        Math.min(1, (e.clientX - rect.left) / rect.width)
-      );
-      const value = Math.max(
+
+      let time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      let value = Math.max(
         0,
         Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
       );
 
+      const closestSnapY = snapToValues.y?.find(
+        (v) => Math.abs(v - value) < snapThreshold
+      );
+
+      const closestSnapX = snapToValues.x?.find(
+        (v) => Math.abs(v - time) < snapThreshold
+      );
+
+      if (closestSnapY) value = closestSnapY;
+      if (closestSnapX) time = closestSnapX;
+
       // Update UI state
       const newPoints = [...points.val];
+
       newPoints[selectedPoint.val] = {
         ...newPoints[selectedPoint.val],
         time,
         value,
       };
+
       points.val = newPoints;
 
       // Update audio logic via callback
@@ -172,7 +211,7 @@ export const EnvelopeSVG = (
     const rect = svgElement.getBoundingClientRect();
     const time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const value = Math.max(
-      0,
+      0, // todo: if click is near the current envelope line it should likely be exactly on the line when created
       Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
     );
     // Update UI state
@@ -181,6 +220,8 @@ export const EnvelopeSVG = (
     points.val = newPoints;
     // Update audio logic via callback
     onPointUpdate(envType.val, -1, time, value);
+
+    updatePlayDuration(newPoints[0].time, newPoints[1].time);
   };
 
   // Create SVG element
@@ -224,12 +265,13 @@ export const EnvelopeSVG = (
   );
 
   // Envelope path
-  const envelopePath = path({
+  envelopePath = path({
+    id: '#path',
     d: () => generateSVGPath(points.val),
     fill: 'none',
     stroke: '#4ade80',
     'stroke-width': 2,
-  });
+  }) as SVGPathElement;
 
   // Control points group
   pointsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -250,7 +292,66 @@ export const EnvelopeSVG = (
   // Update points when prop changes
   van.derive(() => {
     points.val = initialEnvValues.points;
+    updatePlayDuration(
+      initialEnvValues.points[0].time,
+      initialEnvValues.points[1].time
+    );
+
+    // playhead.setAttribute('x', initialEnvValues.points[0].time.toString());
+    // playhead.setAttribute('y', initialEnvValues.points[0].value.toString());
   });
 
   return svgElement;
 };
+
+let activeTweens: Map<number, gsap.core.Tween> = new Map();
+let playheads: Map<number, Element> = new Map();
+
+export function triggerPlayAnimation(msg: any, sampleDuration: number) {
+  if (activeTweens.has(msg.voiceId)) {
+    const existing = activeTweens.get(msg.voiceId);
+    existing && existing.isActive() && existing.kill();
+    activeTweens.delete(msg.voiceId);
+  }
+
+  const playhead = createPlayhead(msg.voiceId);
+  svgElement.appendChild(playhead);
+
+  // todo: send msg from env with actual env duration
+  // todo: handle looping!
+  const duration = sampleDuration;
+
+  console.warn(sampleDuration);
+
+  const newTween = gsap.to(playhead, {
+    id: msg.voiceId,
+    motionPath: {
+      path: envelopePath,
+      align: envelopePath,
+      alignOrigin: [0.5, 0.5],
+      autoRotate: true,
+    },
+    transformOrigin: '50% 50%',
+    duration: duration, // playDuration,
+    ease: 'none',
+    onStart: () => playhead.setAttribute('fill', 'red'),
+    onComplete: () => playhead.setAttribute('fill', 'transparent'),
+  });
+
+  playheads.set(msg.voiceId, playhead);
+  activeTweens.set(msg.voiceId, newTween);
+}
+
+export function releaseAnimation(msg: any) {
+  if (activeTweens.has(msg.voiceId)) {
+    const existing = activeTweens.get(msg.voiceId);
+    existing && existing.isActive() && existing.kill();
+    activeTweens.delete(msg.voiceId);
+  }
+
+  if (playheads.has(msg.voiceId)) {
+    const head = playheads.get(msg.voiceId);
+    head && svgElement.removeChild(head);
+    playheads.delete(msg.voiceId);
+  }
+}

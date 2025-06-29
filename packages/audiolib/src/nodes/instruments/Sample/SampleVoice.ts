@@ -141,7 +141,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
         case 'voice:started':
           this.#state = VoiceState.PLAYING;
-          data = { voice: this, midiNote: this.#activeMidiNote };
+          data = {
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
           break;
 
         case 'voice:stopped':

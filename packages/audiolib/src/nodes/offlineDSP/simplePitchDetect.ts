@@ -39,5 +39,16 @@ export async function detectPitch(audioBuffer: AudioBuffer) {
   const denominator = 2 * (2 * y2 - y1 - y3);
   const offset = Math.abs(denominator) < 1e-10 ? 0 : (y3 - y1) / denominator;
 
-  return audioBuffer.sampleRate / (x + offset);
+  // Add confidence calculation
+  const maxCorrelation = correlations[bestLag];
+  const zeroLagCorrelation = correlations[0] || 1; // Avoid division by zero
+  const confidence = Math.max(
+    0,
+    Math.min(1, maxCorrelation / zeroLagCorrelation)
+  );
+
+  return {
+    frequency: audioBuffer.sampleRate / (x + offset),
+    confidence: confidence,
+  };
 }

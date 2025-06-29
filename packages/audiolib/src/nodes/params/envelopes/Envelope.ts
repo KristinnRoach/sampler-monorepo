@@ -128,7 +128,11 @@ export class EnvelopeData {
 
 // ===== ENVELOPE SCHEDULER - Web Audio operations =====
 export class EnvelopeScheduler {
-  constructor(private context: AudioContext) {}
+  #context: AudioContext;
+
+  constructor(context: AudioContext) {
+    this.#context = context;
+  }
 
   applyEnvelope(
     audioParam: AudioParam,
@@ -153,7 +157,7 @@ export class EnvelopeScheduler {
     for (let i = 0; i < numSamples; i++) {
       const normalizedTime = i / (numSamples - 1);
       const value = envelopeData.interpolateValueAtTime(normalizedTime);
-      let finalValue = base ?? 1 * value;
+      let finalValue = (base ?? 1) * value;
 
       if (min !== undefined) finalValue = Math.max(finalValue, min);
       if (max !== undefined) finalValue = Math.max(Math.min(max, finalValue));
@@ -233,7 +237,7 @@ export class EnvelopeScheduler {
 
       currentCycleStart += loopDuration;
       const timeUntilNext =
-        (currentCycleStart - this.context.currentTime) * 1000;
+        (currentCycleStart - this.#context.currentTime) * 1000;
 
       if (timeUntilNext > 0) {
         timeoutId = setTimeout(scheduleNext, Math.max(timeUntilNext - 50, 0));
@@ -256,48 +260,51 @@ export class EnvelopeScheduler {
 
 // ===== CUSTOM ENVELOPE - Coordinates data and scheduling =====
 export class CustomEnvelope {
-  private data: EnvelopeData;
-  private scheduler: EnvelopeScheduler;
-  private stopLoopFn: (() => void) | null = null;
-  private _loopEnabled = false;
+  envelopeType: EnvelopeType;
+
+  #data: EnvelopeData;
+  #scheduler: EnvelopeScheduler;
+  #stopLoopFn: (() => void) | null = null;
+  #loopEnabled = false;
 
   constructor(
     context: AudioContext,
-    public envelopeType: EnvelopeType,
+    envelopeType: EnvelopeType,
     initialPoints: EnvelopePoint[] = [],
     range: [number, number] = [0, 1]
   ) {
-    this.data = new EnvelopeData([...initialPoints], range);
-    this.scheduler = new EnvelopeScheduler(context);
+    this.envelopeType = envelopeType;
+    this.#data = new EnvelopeData([...initialPoints], range);
+    this.#scheduler = new EnvelopeScheduler(context);
   }
 
   // ===== DATA OPERATIONS =====
   addPoint(time: number, value: number, curve?: 'linear' | 'exponential') {
-    this.data.addPoint(time, value, curve);
+    this.#data.addPoint(time, value, curve);
   }
 
   updatePoint(index: number, time: number, value: number) {
-    this.data.updatePoint(index, time, value);
+    this.#data.updatePoint(index, time, value);
   }
 
   deletePoint(index: number) {
-    this.data.deletePoint(index);
+    this.#data.deletePoint(index);
   }
 
   getEnvelopeData() {
     return {
-      points: [...this.data.points],
-      loop: this._loopEnabled,
+      points: [...this.#data.points],
+      loop: this.#loopEnabled,
     };
   }
 
   // Return the actual EnvelopeData instance for UI components
   getEnvelopeDataInstance(): EnvelopeData {
-    return this.data;
+    return this.#data;
   }
 
   getSVGPath(width?: number, height?: number) {
-    return this.data.getSVGPath(width, height);
+    return this.#data.getSVGPath(width, height);
   }
 
   // ===== AUDIO OPERATIONS =====
@@ -313,14 +320,14 @@ export class CustomEnvelope {
   ) {
     this.stopLooping();
 
-    if (this._loopEnabled) {
+    if (this.#loopEnabled) {
       // Calculate loop duration based on envelope duration
-      const loopDuration = duration * this.data.duration;
+      const loopDuration = duration * this.#data.duration;
       this.startLooping(audioParam, startTime, loopDuration, options);
     } else {
-      this.scheduler.applyEnvelope(
+      this.#scheduler.applyEnvelope(
         audioParam,
-        this.data,
+        this.#data,
         startTime,
         duration,
         options
@@ -336,7 +343,7 @@ export class CustomEnvelope {
     targetValue = 0.001
   ) {
     this.stopLooping();
-    this.scheduler.applyRelease(
+    this.#scheduler.applyRelease(
       audioParam,
       startTime,
       duration,
@@ -356,9 +363,9 @@ export class CustomEnvelope {
     } = { baseValue: 1 }
   ) {
     this.stopLooping();
-    this.stopLoopFn = this.scheduler.startLoop(
+    this.#stopLoopFn = this.#scheduler.startLoop(
       audioParam,
-      this.data,
+      this.#data,
       startTime,
       loopDuration,
       { baseValue: options?.baseValue }
@@ -366,9 +373,9 @@ export class CustomEnvelope {
   }
 
   stopLooping() {
-    if (this.stopLoopFn) {
-      this.stopLoopFn();
-      this.stopLoopFn = null;
+    if (this.#stopLoopFn) {
+      this.#stopLoopFn();
+      this.#stopLoopFn = null;
     }
   }
 
@@ -382,11 +389,11 @@ export class CustomEnvelope {
         `Only default env loop mode implemented. Other modes coming soon!`
       );
 
-    this._loopEnabled = enabled;
+    this.#loopEnabled = enabled;
   };
 
   get loopEnabled() {
-    return this._loopEnabled;
+    return this.#loopEnabled;
   }
 
   dispose() {
@@ -400,31 +407,30 @@ export class CustomEnvelope {
 const PITCH_ENV_RANGE = [0.5, 1.5] as [number, number];
 
 export class SampleVoiceEnvelopes {
-  private envelopes = new Map<EnvelopeType, CustomEnvelope>();
+  #envelopes = new Map<EnvelopeType, CustomEnvelope>();
+  #context: AudioContext;
+  #worklet: AudioWorkletNode;
 
-  constructor(
-    private context: AudioContext,
-    private worklet: AudioWorkletNode
-  ) {
+  constructor(context: AudioContext, worklet: AudioWorkletNode) {
+    this.#context = context;
+    this.#worklet = worklet;
     this.createDefaultEnvelopes();
   }
 
   private createDefaultEnvelopes() {
-    // Amp envelope - classic ADSR shape
-    this.envelopes.set(
+    this.#envelopes.set(
       'amp-env',
-      new CustomEnvelope(this.context, 'amp-env', [
+      new CustomEnvelope(this.#context, 'amp-env', [
         { time: 0, value: 0, curve: 'exponential' },
         { time: 0.01, value: 1, curve: 'exponential' },
         { time: 1, value: 0.0, curve: 'exponential' },
       ])
     );
 
-    // Pitch envelope - subtle pitch bend
-    this.envelopes.set(
+    this.#envelopes.set(
       'pitch-env',
       new CustomEnvelope(
-        this.context,
+        this.#context,
         'pitch-env',
         [
           { time: 0, value: 0.5, curve: 'exponential' },
@@ -445,15 +451,15 @@ export class SampleVoiceEnvelopes {
     const actualDuration = sampleDuration / playbackRate;
 
     // Apply amp envelope
-    const ampEnv = this.envelopes.get('amp-env');
-    const envGainParam = this.worklet.parameters.get('envGain');
+    const ampEnv = this.#envelopes.get('amp-env');
+    const envGainParam = this.#worklet.parameters.get('envGain');
     if (ampEnv && envGainParam) {
-      ampEnv.applyToAudioParam(envGainParam, startTime, actualDuration);
+      ampEnv.applyToAudioParam(envGainParam, startTime, sampleDuration); // ? not using playrate for amp-env
     }
 
     // Apply pitch envelope (if enabled and not flat)
-    const pitchEnv = this.envelopes.get('pitch-env');
-    const playbackRateParam = this.worklet.parameters.get('playbackRate');
+    const pitchEnv = this.#envelopes.get('pitch-env');
+    const playbackRateParam = this.#worklet.parameters.get('playbackRate');
     if (pitchEnv && playbackRateParam && this.hasVariation(pitchEnv)) {
       // Pitch envelope modulates around the base playback rate
       pitchEnv.applyToAudioParam(playbackRateParam, startTime, actualDuration, {
@@ -467,8 +473,8 @@ export class SampleVoiceEnvelopes {
     this.stopAllLoops();
 
     // Apply release to amp envelope
-    const ampEnv = this.envelopes.get('amp-env');
-    const envGainParam = this.worklet.parameters.get('envGain');
+    const ampEnv = this.#envelopes.get('amp-env');
+    const envGainParam = this.#worklet.parameters.get('envGain');
     if (ampEnv && envGainParam) {
       const currentValue = envGainParam.value;
       ampEnv.applyReleaseToAudioParam(
@@ -482,23 +488,23 @@ export class SampleVoiceEnvelopes {
 
   // ===== LOOP CONTROL =====
   setEnvelopeLoopEnabled(envType: EnvelopeType, enabled: boolean) {
-    const envelope = this.envelopes.get(envType);
+    const envelope = this.#envelopes.get(envType);
     if (envelope) {
       envelope.setLoopEnabled(enabled);
     }
   }
 
   stopAllLoops() {
-    this.envelopes.forEach((env) => env.stopLooping());
+    this.#envelopes.forEach((env) => env.stopLooping());
   }
 
   // ===== ENVELOPE ACCESS =====
   getEnvelope(type: EnvelopeType): CustomEnvelope | undefined {
-    return this.envelopes.get(type);
+    return this.#envelopes.get(type);
   }
 
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
-    const envelope = this.envelopes.get(envType);
+    const envelope = this.#envelopes.get(envType);
     envelope?.addPoint(time, value);
   }
 
@@ -508,12 +514,12 @@ export class SampleVoiceEnvelopes {
     time: number,
     value: number
   ) {
-    const envelope = this.envelopes.get(envType);
+    const envelope = this.#envelopes.get(envType);
     envelope?.updatePoint(index, time, value);
   }
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number) {
-    const envelope = this.envelopes.get(envType);
+    const envelope = this.#envelopes.get(envType);
     envelope?.deletePoint(index);
   }
 
@@ -527,8 +533,8 @@ export class SampleVoiceEnvelopes {
   }
 
   dispose() {
-    this.envelopes.forEach((env) => env.dispose());
-    this.envelopes.clear();
+    this.#envelopes.forEach((env) => env.dispose());
+    this.#envelopes.clear();
   }
 }
 

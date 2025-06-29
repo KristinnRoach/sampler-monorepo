@@ -251,7 +251,6 @@ declare global {
 const style = document.createElement('style');
 style.textContent = `
 two-thumb-slider {
-  display: block;
   height: 20px;
   width: 100%;
   position: relative;

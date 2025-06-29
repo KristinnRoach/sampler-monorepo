@@ -19,9 +19,13 @@ import {
   LoopHoldControls,
 } from '../controls/AudioControls';
 
-import { EnvelopeSVG } from '../controls/EnvelopeSVG';
+import {
+  EnvelopeSVG,
+  triggerPlayAnimation,
+  releaseAnimation,
+} from '../controls/EnvelopeSVG';
 
-const { div } = van.tags;
+const { div, button } = van.tags;
 
 const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
@@ -58,9 +62,6 @@ const SamplerElement = (attributes: ElementProps) => {
   const loopLocked = van.state(false);
   const holdLocked = van.state(false);
 
-  // Ready state
-  const envelopeReady = van.state(false);
-
   const icons = createIcons();
 
   // Recording state
@@ -93,8 +94,7 @@ const SamplerElement = (attributes: ElementProps) => {
         // Setup envelopes
         ampEnvelope.val = samplePlayer.getEnvelope('amp-env');
         pitchEnvelope.val = samplePlayer.getEnvelope('pitch-env');
-        loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
-        envelopeReady.val = true; // re-render UI
+        // loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
 
         van.derive(() => {
           if (!samplePlayer) return;
@@ -146,6 +146,19 @@ const SamplerElement = (attributes: ElementProps) => {
         });
 
         // Listen for SamplePlayer events:
+
+        samplePlayer.onMessage(
+          'voice:started',
+          (msg: any) => triggerPlayAnimation(msg, sampleDuration.val) // todo: send msg from env with actual env duration
+        );
+
+        samplePlayer.onMessage('voice:releasing', (msg: any) =>
+          releaseAnimation(msg)
+        );
+
+        samplePlayer.onMessage('voice:stopped', (msg: any) =>
+          releaseAnimation(msg)
+        );
 
         samplePlayer.onMessage('sample:pitch-detected', (msg: any) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
@@ -329,20 +342,20 @@ const SamplerElement = (attributes: ElementProps) => {
     value: number
   ) => {
     if (!samplePlayer) return;
+    // console.table({ envType, index, time, value });
 
     if (index === -1) {
-      // Add new point
       samplePlayer.addEnvelopePoint(envType, time, value);
     } else if (time === -1 && value === -1) {
-      // Delete point
       samplePlayer.deleteEnvelopePoint(envType, index);
     } else {
-      // Update existing point
       samplePlayer.updateEnvelopePoint(envType, index, time, value);
     }
   };
 
   const defaultStyle = `display: flex; flex-direction: column; max-width: 50vw; padding: 0.5rem;`;
+
+  const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
 
   return div(
     { class: 'sampler-element', style: () => defaultStyle },
@@ -351,8 +364,9 @@ const SamplerElement = (attributes: ElementProps) => {
       'Sampler',
       expanded,
 
+      // () =>
       FileOperations(
-        samplePlayer!, // todo: ensure samplePlayer is ready
+        samplePlayer,
         status,
         recordBtnState,
         loadSample,
@@ -370,67 +384,59 @@ const SamplerElement = (attributes: ElementProps) => {
       VolumeControl(volume),
 
       () =>
-        ampEnvelope.val
+        ampEnvelope.val && pitchEnvelope.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(
-                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
-                'Amp Env'
+                { style: 'display: flex; column-gap: 1rem;' },
+
+                button(
+                  {
+                    style: () =>
+                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px;',
+                    onclick: () => (chosenEnvelope.val = 'amp-env'),
+                  },
+                  'Amp Env'
+                ),
+                button(
+                  {
+                    style: () =>
+                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px;',
+                    onclick: () => (chosenEnvelope.val = 'pitch-env'),
+                  },
+                  'Pitch Env'
+                )
               ),
-              EnvelopeSVG(
-                'amp-env',
-                ampEnvelope.val.getEnvelopeDataInstance(),
-                handleEnvelopeChange,
-                '100%',
-                '100px'
-              )
+
+              () =>
+                chosenEnvelope.val === 'amp-env'
+                  ? EnvelopeSVG(
+                      'amp-env',
+                      ampEnvelope.val!.getEnvelopeDataInstance(),
+                      handleEnvelopeChange,
+                      '100%',
+                      '100px',
+                      { x: [0, 1], y: [0, 1] }
+                    )
+                  : div(),
+
+              () =>
+                chosenEnvelope.val === 'pitch-env'
+                  ? EnvelopeSVG(
+                      'pitch-env',
+                      pitchEnvelope.val!.getEnvelopeDataInstance(),
+                      handleEnvelopeChange,
+                      '100%',
+                      '100px',
+                      { x: [0, 1], y: [0.5] }, // snap to center
+                      0.05 // higher snap threshold
+                    )
+                  : div()
             )
           : div(),
 
-      () =>
-        pitchEnvelope.val
-          ? div(
-              { style: 'margin: 10px 0;' },
-              div(
-                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
-                'Pitch Env'
-              ),
-              EnvelopeSVG(
-                'pitch-env',
-                pitchEnvelope.val.getEnvelopeDataInstance(),
-                handleEnvelopeChange,
-                '100%',
-                '100px'
-              )
-            )
-          : div(),
+      SampleControls(loopStart, loopEnd, startPoint, endPoint),
 
-      () =>
-        loopEnvelope.val
-          ? div(
-              { style: 'margin: 10px 0;' },
-              div(
-                { style: 'font-size: 0.9rem; margin-bottom: 5px;' },
-                'Loop Env'
-              ),
-              EnvelopeSVG(
-                'loop-env',
-                loopEnvelope.val.getEnvelopeDataInstance(),
-                handleEnvelopeChange,
-                '100%',
-                '100px'
-              )
-            )
-          : div(),
-
-      SampleControls(
-        loopStart,
-        loopEnd,
-        loopEndFineTune,
-        startPoint,
-        endPoint,
-        sampleDuration
-      ),
       div(
         { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },
         InputControls(keyboardEnabled, midiEnabled, icons.keys, icons.midi),

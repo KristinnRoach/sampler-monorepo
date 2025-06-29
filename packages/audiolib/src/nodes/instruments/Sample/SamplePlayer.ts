@@ -64,6 +64,18 @@ export class SamplePlayer extends LibInstrument {
       true // enable voice filters (lpf and hpf)
     );
 
+    this.voicePool.onMessage('voice:started', (msg: Message) =>
+      this.sendUpstreamMessage('voice:started', msg)
+    );
+
+    this.voicePool.onMessage('voice:stopped', (msg: Message) =>
+      this.sendUpstreamMessage('voice:stopped', msg)
+    );
+
+    this.voicePool.onMessage('voice:releasing', (msg: Message) =>
+      this.sendUpstreamMessage('voice:releasing', msg)
+    );
+
     // Setup params
     this.#macroLoopStart = new MacroParam(
       context,
@@ -171,16 +183,14 @@ export class SamplePlayer extends LibInstrument {
     // Normalize to 0-1 range before setting
     const normalizedLoopEnd = lastZero / bufferDuration;
     const normalizedLoopStart = firstZero / bufferDuration;
-
-    console.info({ normalizedLoopStart }, { normalizedLoopEnd });
+    // console.info({ resetMacros: { normalizedLoopStart, normalizedLoopEnd } });
 
     this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
     this.#macroLoopStart.audioParam.setValueAtTime(
       normalizedLoopStart,
       this.now
     );
-
-    // ( consider whether startPoint and endPoint should be macros )
+    // ( consider combining startPoint, endPoint, loopStart, loopEnd into a unified system )
 
     const normalizeOptions: NormalizeOptions = {
       from: [0, bufferDuration],
@@ -217,7 +227,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = false // todo: separate param for base tuning
+    autoTranspose = true // todo: separate param for base tuning
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -244,19 +254,37 @@ export class SamplePlayer extends LibInstrument {
     }
 
     if (shoulDetectPitch) {
-      const pitch = await detectPitch(buffer);
+      const pitchResults = await detectPitch(buffer);
 
-      const closestNoteInfo = findClosestNote(pitch);
-      console.table(closestNoteInfo);
+      const closestNoteInfo = findClosestNote(pitchResults.frequency);
+      console.table({ closestNoteInfo });
 
       this.sendUpstreamMessage('sample:pitch-detected', {
-        pitch,
+        pitchResults,
         closestNoteInfo,
       });
 
       if (autoTranspose) {
-        const transposeSemitones = 60 - closestNoteInfo.midiNote;
-        this.voicePool.transposeSemitones = transposeSemitones;
+        if (pitchResults.confidence > 0.5) {
+          const transposeSemitones = 60 - closestNoteInfo.midiNote;
+          this.voicePool.transposeSemitones = transposeSemitones;
+
+          console.info(`transposing by ${transposeSemitones} semitones`);
+
+          this.sendUpstreamMessage('sample:auto-transpose', {
+            didTranspose: true,
+            pitchResults,
+          });
+        } else {
+          console.info(`Skipped auto transpose due to unreliable results: `, {
+            pitchResults,
+          });
+
+          this.sendUpstreamMessage('sample:auto-transpose', {
+            didTranspose: false,
+            pitchResults,
+          });
+        }
       }
     }
 
@@ -311,12 +339,6 @@ export class SamplePlayer extends LibInstrument {
     //     }
     //   );
     // }
-
-    this.sendUpstreamMessage('note:on', {
-      midiNote,
-      velocity: safeVelocity,
-      noteId,
-    });
 
     return noteId;
   }
@@ -522,7 +544,7 @@ export class SamplePlayer extends LibInstrument {
     return value >= range[0] && value <= range[1];
   }
 
-  readonly MIN_LOOP_DURATION_SECONDS = 1 / 523.25; // C5 frequency = 523.25 Hz
+  readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
 
   #getMinLoopDurationNormalized = () =>
     this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;

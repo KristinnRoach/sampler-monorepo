@@ -1,11 +1,17 @@
 import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { VoiceState } from '../VoiceState';
-import { Message } from '@/events';
+import {
+  Message,
+  MessageHandler,
+  MessageBus,
+  createMessageBus,
+} from '@/events';
 
 export class SampleVoicePool {
   readonly nodeId: NodeID;
   readonly nodeType = 'pool';
+  #messages: MessageBus<Message>;
 
   #allVoices: SampleVoice[];
   #playingMidiVoiceMap = new Map<MidiValue, SampleVoice>();
@@ -29,6 +35,8 @@ export class SampleVoicePool {
   ) {
     this.nodeId = createNodeId(this.nodeType);
 
+    this.#messages = createMessageBus<Message>(this.nodeId);
+
     this.#allVoices = Array.from({ length: numVoices }, () => {
       const voice = new SampleVoice(context, { enableFilters: false });
       voice.connect(destination);
@@ -46,6 +54,11 @@ export class SampleVoicePool {
 
         this.#playing.add(msg.voice);
         this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
+
+        this.sendUpstreamMessage(msg.type, {
+          voiceId: msg.senderId,
+          midiNote: msg.midiNote,
+        });
       });
 
       voice.onMessage('voice:releasing', (msg: Message) => {
@@ -59,6 +72,11 @@ export class SampleVoicePool {
         if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
           this.#playingMidiVoiceMap.delete(msg.midiNote);
         }
+
+        this.sendUpstreamMessage(msg.type, {
+          voiceId: msg.senderId,
+          midiNote: msg.midiNote,
+        });
       });
 
       voice.onMessage('voice:stopped', (msg: Message) => {
@@ -67,10 +85,24 @@ export class SampleVoicePool {
         this.#releasing.delete(msg.voice);
 
         this.#available.add(msg.voice);
+
+        this.sendUpstreamMessage(msg.type, {
+          voiceId: msg.senderId,
+          midiNote: msg.midiNote,
+        });
       });
     });
 
     this.#isReady = true;
+  }
+
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  protected sendUpstreamMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+    return this;
   }
 
   setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
@@ -113,6 +145,8 @@ export class SampleVoicePool {
       secondsFromNow,
     });
 
+    this.#playingMidiVoiceMap.set(midiNote, voice);
+
     if (!triggerResult) console.warn(`no trigger result, ${triggerResult}`);
 
     return midiNote;
@@ -120,6 +154,8 @@ export class SampleVoicePool {
 
   noteOff(midiNote: MidiValue, release_sec = 0.2, secondsFromNow: number = 0) {
     const voice = this.#playingMidiVoiceMap.get(midiNote);
+    // console.info('voice', voice);
+    // console.info('voice?.state', voice?.state);
 
     if (voice?.state === VoiceState.PLAYING) {
       voice.release({ release: release_sec, secondsFromNow });

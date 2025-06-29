@@ -25,7 +25,7 @@
 
       svg {
         width: clamp(360px, 60vw, 600px);
-        overflow: visible;
+        overflow: hidden;
       }
 
       .nav {
@@ -228,6 +228,14 @@
               align: '#motionPath',
               alignOrigin: [0.5, 0.5],
             },
+            // motionPath: {
+            //   path: [
+            //     { x: 0, y: 0 },
+            //     { x: 20, y: -20 },
+            //     { x: 30, y: -30 },
+            //     { x: 50, y: -50 },
+            //   ],
+            // type: 'cubic'},
           });
           helper = MotionPathHelper.create('#dummy-g');
         }
@@ -248,7 +256,12 @@
                   'Path changed via MotionPathHelper:',
                   currentPathData
                 );
-                lastPathData = currentPathData;
+                const constrainedPath = constrainPathToBounds(currentPathData);
+                if (constrainedPath !== currentPathData) {
+                  motionPathEl.setAttribute('d', constrainedPath);
+                }
+                lastPathData = constrainedPath;
+                // lastPathData = currentPathData;
                 isPathModified = true;
 
                 // Create a CustomEase from the modified path
@@ -317,6 +330,13 @@
 
           console.log('Normalized path:', normalizedPath);
           return normalizedPath;
+        }
+
+        function constrainPathToBounds(pathData) {
+          return pathData.replace(/[\d.]+/g, (match) => {
+            const value = Number(match);
+            return Math.max(0, Math.min(500, value)).toString();
+          });
         }
 
         easeSelect.addEventListener('change', () => {
@@ -422,7 +442,7 @@
 
           for (let i = 0; i < sampleRate; i++) {
             const time = i * timeStep;
-            const normalizedTime = time / duration; // 0 to 1
+            const normalizedTime = time; // ! TEST: skipping normalization for now / duration; // 0 to 1
 
             // Call the actual easing function
             const easedProgress = easingFunction(normalizedTime);
@@ -462,6 +482,7 @@
           oscillator = audioContext.createOscillator();
           filter = audioContext.createBiquadFilter();
           gainNode = audioContext.createGain();
+          gainNode.gain.setValueAtTime(0, startTime);
 
           // Configure oscillator
           oscillator.type = 'sawtooth';
@@ -470,7 +491,7 @@
           // Configure filter
           filter.type = 'lowpass';
           filter.Q.setValueAtTime(1, startTime);
-          filter.frequency.setValueAtTime(2000, startTime);
+          filter.frequency.setValueAtTime(audioValues[0].value, startTime);
 
           // Apply the easing-based frequency automation
           audioValues.forEach((point, index) => {
@@ -478,13 +499,22 @@
               point.value,
               startTime + point.time
             );
+
+            gainNode.gain.setValueAtTime(
+              point.value / 100,
+              startTime + point.time
+            );
+            // filter.frequency.setValueAtTime(
+            //   point.value,
+            //   startTime + point.time
+            // );
           });
 
-          // Configure gain (volume envelope)
-          gainNode.gain.setValueAtTime(0, startTime);
-          gainNode.gain.linearRampToValueAtTime(0.1, startTime + 0.01);
-          gainNode.gain.setValueAtTime(0.1, startTime + duration - 0.1);
-          gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+          // // Configure gain (volume envelope)
+          // gainNode.gain.setValueAtTime(0, startTime);
+          // gainNode.gain.linearRampToValueAtTime(0.1, startTime + 0.01);
+          // gainNode.gain.setValueAtTime(0.1, startTime + duration - 0.1);
+          // gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
 
           // Connect the nodes
           oscillator.connect(filter);
