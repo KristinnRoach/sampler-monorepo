@@ -96,7 +96,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       this.#outputNode = this.#worklet;
     }
 
-    this.setupMessageHandling();
+    this.#setupMessageHandling();
     this.sendToProcessor({ type: 'voice:init' });
   }
 
@@ -106,91 +106,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       Array.from(this.#worklet.parameters.keys())
     );
   };
-
-  protected sendUpstreamMessage(type: string, data: any) {
-    this.#messages.sendMessage(type, data);
-    return this;
-  }
-
-  private setupMessageHandling() {
-    this.#worklet.port.onmessage = (event: MessageEvent) => {
-      let { type, ...data } = event.data;
-
-      switch (type) {
-        case 'initialized':
-          this.#isInitialized = true;
-          this.#state = VoiceState.NOT_READY; // not loaded
-          // this.logAvailableParams(); // as needed for debugging
-          break;
-
-        case 'voice:loaded':
-          this.#activeMidiNote = null;
-          this.#state = VoiceState.LOADED;
-
-          if (data.duration) {
-            this.#activeMidiNote = null;
-            this.#sampleDurationSeconds = data.duration;
-            this.#playbackDurationNormalized = 1;
-
-            this.setStartPoint(0);
-            this.setEndPoint(1); // normalized !
-
-            this.#worklet.parameters.get('loopEnd')!.value = 0; // ! Why can this not be set to 1 ??
-          }
-          break;
-
-        case 'voice:started':
-          this.#state = VoiceState.PLAYING;
-          data = {
-            voice: this,
-            midiNote: this.#activeMidiNote,
-          };
-          break;
-
-        case 'voice:stopped':
-          this.#state = VoiceState.STOPPED;
-          data = { voice: this, midiNote: this.#activeMidiNote };
-          this.#activeMidiNote = null;
-          break;
-
-        case 'voice:releasing':
-          this.#state = VoiceState.RELEASING;
-          data = { voice: this, midiNote: this.#activeMidiNote };
-          break;
-
-        case 'loop:enabled':
-          this.#loopEnabled = true;
-          break;
-
-        case 'voice:looped':
-          // console.debug(`voice:looped, time: ${data.timestamp}, loopCount: ${data.count}`);
-          break;
-
-        case 'voice:position':
-          this.getParam('playbackPosition')?.setValueAtTime(
-            data.position,
-            this.context.currentTime
-          );
-          break;
-
-        case 'debug:params':
-          console.debug(
-            'Debug params: ',
-            { loopStart: data.loopStart },
-            { loopStartSamples: data.loopStartSamples },
-            { loopEnd: data.loopEnd },
-            { loopEndSamples: data.loopEndSamples }
-          );
-          break;
-
-        default:
-          console.warn(`Unhandled message type: ${type}`);
-          break;
-      }
-
-      this.sendUpstreamMessage(type, data);
-    };
-  }
 
   async loadBuffer(
     buffer: AudioBuffer,
@@ -279,11 +194,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
-    this.envelopes.triggerEnvelopes(
-      timestamp,
-      this.#sampleDurationSeconds,
-      playbackRate
-    );
+    this.envelopes.triggerEnvelopes(timestamp, playbackRate);
 
     // Start playback
     this.sendToProcessor({
@@ -296,7 +207,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   debugDuration() {
     console.info(`
-      sample duration: ${this.sampleDuration}, 
+      sample duration: ${this.sampleDurationSeconds}, 
       startPoint: ${this.getParam('startPoint')!.value}, 
       endPoint: ${this.getParam('endPoint')!.value}, 
       playback duration: ${this.getPlaybackDuration()}
@@ -357,8 +268,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   updateEnvelopePoint(
     envType: EnvelopeType,
     index: number,
-    time: number,
-    value: number
+    time?: number,
+    value?: number
   ) {
     this.envelopes.updateEnvelopePoint(envType, index, time, value);
   }
@@ -454,12 +365,19 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     console.info(`setRelease called, to be replaced with envelope`);
   };
 
-  setStartPoint = (point: number, timestamp = this.now) => {
-    this.setParam('startPoint', point, timestamp);
+  setStartPoint = (time: number, timestamp = this.now) => {
+    this.setParam('startPoint', time, timestamp);
+    this.#playbackDurationNormalized = this.endPoint - time;
+
+    this.envelopes.updateEnvelopeStartPoint('amp-env', time);
+    this.envelopes.updateEnvelopeStartPoint('pitch-env', time);
   };
 
-  setEndPoint = (point: number, timestamp = this.now) => {
-    this.setParam('endPoint', point, timestamp);
+  setEndPoint = (time: number, timestamp = this.now) => {
+    this.setParam('endPoint', time, timestamp);
+    this.#playbackDurationNormalized = time - this.startPoint;
+    this.envelopes.updateEnvelopeEndPoint('amp-env', time);
+    this.envelopes.updateEnvelopeEndPoint('pitch-env', time);
   };
 
   debugCounter = 0;
@@ -476,19 +394,135 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   /** MESSAGES */
-  sendToProcessor(data: any): this {
-    this.#worklet.port.postMessage(data);
-    return this;
-  }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
 
+  sendToProcessor(data: any): this {
+    this.#worklet.port.postMessage(data);
+    return this;
+  }
+
+  sendUpstreamMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+    return this;
+  }
+
+  #setupMessageHandling() {
+    this.#messages.forwardFrom(
+      this.envelopes,
+      ['sample-voice-envelopes:trigger'],
+      (msg) => ({
+        ...msg,
+        voiceId: this.nodeId,
+        midiNote: this.#activeMidiNote,
+      })
+    );
+
+    this.#worklet.port.onmessage = (event: MessageEvent) => {
+      let { type, ...data } = event.data;
+
+      switch (type) {
+        case 'initialized':
+          this.#isInitialized = true;
+          this.#state = VoiceState.NOT_READY; // not loaded
+          // this.logAvailableParams(); // as needed for debugging
+          break;
+
+        case 'voice:loaded':
+          this.#activeMidiNote = null;
+          this.#state = VoiceState.LOADED;
+
+          if (data.duration) {
+            this.#activeMidiNote = null;
+            this.#sampleDurationSeconds = data.duration;
+            this.envelopes.setSampleDuration(data.duration);
+
+            this.setStartPoint(0);
+            this.setEndPoint(1); // normalized !
+
+            this.#worklet.parameters.get('loopEnd')!.value = 0; // ! Why can this not be set to 1 ??
+          }
+          break;
+
+        case 'voice:started':
+          this.#state = VoiceState.PLAYING;
+          data = {
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
+          break;
+
+        case 'voice:stopped':
+          this.#state = VoiceState.STOPPED;
+          data = {
+            voiceId: this.nodeId,
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
+          this.#activeMidiNote = null;
+          break;
+
+        case 'voice:releasing':
+          this.#state = VoiceState.RELEASING;
+          data = {
+            voiceId: this.nodeId,
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
+          break;
+
+        case 'loop:enabled':
+          this.#loopEnabled = true;
+          break;
+
+        case 'voice:looped':
+          // console.debug(`voice:looped, time: ${data.timestamp}, loopCount: ${data.count}`);
+          break;
+
+        case 'voice:position':
+          this.getParam('playbackPosition')?.setValueAtTime(
+            data.position,
+            this.context.currentTime
+          );
+          break;
+
+        case 'debug:params':
+          console.debug(
+            'Debug params: ',
+            { loopStart: data.loopStart },
+            { loopStartSamples: data.loopStartSamples },
+            { loopEnd: data.loopEnd },
+            { loopEndSamples: data.loopEndSamples }
+          );
+          break;
+
+        default:
+          console.warn(`Unhandled message type: ${type}`);
+          break;
+      }
+
+      this.sendUpstreamMessage(type, data);
+    };
+  }
+
+  #normalizedToAbsolute(normalizedTime: number): number {
+    return normalizedTime * this.#sampleDurationSeconds;
+  }
+
+  #absoluteToNormalized(absoluteTime: number): number {
+    return absoluteTime / this.#sampleDurationSeconds;
+  }
+  #clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
+
   // Getters
 
   getPlaybackDuration() {
-    return this.#playbackDurationNormalized;
+    const startPoint = this.getParam('startPoint')!.value;
+    const endPoint = this.getParam('endPoint')!.value;
+    return endPoint - startPoint;
   }
 
   getEnvelope(envType: EnvelopeType) {
@@ -535,12 +569,20 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this.#activeMidiNote;
   }
 
-  get startTime(): number {
+  get triggerTimestamp(): number {
     return this.#startedTimestamp;
   }
 
-  get sampleDuration() {
+  get sampleDurationSeconds() {
     return this.#sampleDurationSeconds;
+  }
+
+  get startPoint() {
+    return this.getParam('startPoint')!.value;
+  }
+
+  get endPoint() {
+    return this.getParam('endPoint')!.value;
   }
 
   // Setters

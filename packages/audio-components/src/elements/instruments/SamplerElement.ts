@@ -19,11 +19,7 @@ import {
   LoopHoldControls,
 } from '../controls/AudioControls';
 
-import {
-  EnvelopeSVG,
-  triggerPlayAnimation,
-  releaseAnimation,
-} from '../controls/EnvelopeSVG';
+import { EnvelopeSVG } from '../controls/EnvelopeSVG';
 
 const { div, button } = van.tags;
 
@@ -63,6 +59,48 @@ const SamplerElement = (attributes: ElementProps) => {
   const holdLocked = van.state(false);
 
   const icons = createIcons();
+
+  // === Envelopes ===
+
+  const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
+
+  let ampEnvInstance: {
+    element: SVGSVGElement;
+    triggerPlayAnimation: (msg: any) => void;
+    releaseAnimation: (msg: any) => void;
+  } | null = null;
+
+  let pitchEnvInstance: {
+    element: SVGSVGElement;
+    triggerPlayAnimation: (msg: any) => void;
+    releaseAnimation: (msg: any) => void;
+  } | null = null;
+
+  // Create the envelopes and store references
+  van.derive(() => {
+    if (chosenEnvelope.val === 'amp-env' && ampEnvelope.val) {
+      ampEnvInstance = EnvelopeSVG(
+        'amp-env',
+        ampEnvelope.val.getEnvelopeDataInstance(),
+        handleEnvelopeChange,
+        '100%',
+        '100px',
+        { x: [0, 1], y: [0, 1] }
+      );
+    }
+
+    if (chosenEnvelope.val === 'pitch-env' && pitchEnvelope.val) {
+      pitchEnvInstance = EnvelopeSVG(
+        'pitch-env',
+        pitchEnvelope.val.getEnvelopeDataInstance(),
+        handleEnvelopeChange,
+        '100%',
+        '100px',
+        { x: [0, 1], y: [0.5] }, // snap to center
+        0.05 // higher snap threshold
+      );
+    }
+  });
 
   // Recording state
   const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
@@ -145,20 +183,22 @@ const SamplerElement = (attributes: ElementProps) => {
           samplePlayer?.setLoopLocked(loopLocked.val);
         });
 
-        // Listen for SamplePlayer events:
+        // === SAMPLE-PLAYER MESSAGES ===
 
-        samplePlayer.onMessage(
-          'voice:started',
-          (msg: any) => triggerPlayAnimation(msg, sampleDuration.val) // todo: send msg from env with actual env duration
-        );
+        samplePlayer.onMessage('envelopes:trigger', (msg: any) => {
+          ampEnvInstance?.triggerPlayAnimation(msg);
+          pitchEnvInstance?.triggerPlayAnimation(msg);
+        });
 
-        samplePlayer.onMessage('voice:releasing', (msg: any) =>
-          releaseAnimation(msg)
-        );
+        samplePlayer.onMessage('voice:releasing', (msg: any) => {
+          ampEnvInstance?.releaseAnimation(msg);
+          pitchEnvInstance?.releaseAnimation(msg);
+        });
 
-        samplePlayer.onMessage('voice:stopped', (msg: any) =>
-          releaseAnimation(msg)
-        );
+        samplePlayer.onMessage('voice:stopped', (msg: any) => {
+          ampEnvInstance?.releaseAnimation(msg);
+          pitchEnvInstance?.releaseAnimation(msg);
+        });
 
         samplePlayer.onMessage('sample:pitch-detected', (msg: any) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
@@ -169,8 +209,9 @@ const SamplerElement = (attributes: ElementProps) => {
           (msg: any) => (sampleDuration.val = msg.duration ?? 0)
         );
 
-        // todo (later): Make KeyboardInputManager in audiolib handle caps robustly and sampleplayer.sendUpStreamMessage
-        // then remove these handlers if works
+        // todo (later): Make KeyboardInputManager in audiolib handle caps robustly
+        // and sampleplayer sendUpStreamMessage for loop & hold states
+        // then remove these handlers
         document.addEventListener('keydown', (e) => {
           if (e.code === 'CapsLock') {
             const capsState = e.getModifierState('CapsLock');
@@ -180,6 +221,7 @@ const SamplerElement = (attributes: ElementProps) => {
             }
           }
         });
+
         document.addEventListener('keyup', (e) => {
           if (e.code === 'CapsLock') {
             const capsState = e.getModifierState('CapsLock');
@@ -355,8 +397,6 @@ const SamplerElement = (attributes: ElementProps) => {
 
   const defaultStyle = `display: flex; flex-direction: column; max-width: 50vw; padding: 0.5rem;`;
 
-  const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
-
   return div(
     { class: 'sampler-element', style: () => defaultStyle },
 
@@ -409,28 +449,13 @@ const SamplerElement = (attributes: ElementProps) => {
               ),
 
               () =>
-                chosenEnvelope.val === 'amp-env'
-                  ? EnvelopeSVG(
-                      'amp-env',
-                      ampEnvelope.val!.getEnvelopeDataInstance(),
-                      handleEnvelopeChange,
-                      '100%',
-                      '100px',
-                      { x: [0, 1], y: [0, 1] }
-                    )
+                chosenEnvelope.val === 'amp-env' && ampEnvInstance
+                  ? ampEnvInstance.element
                   : div(),
 
               () =>
-                chosenEnvelope.val === 'pitch-env'
-                  ? EnvelopeSVG(
-                      'pitch-env',
-                      pitchEnvelope.val!.getEnvelopeDataInstance(),
-                      handleEnvelopeChange,
-                      '100%',
-                      '100px',
-                      { x: [0, 1], y: [0.5] }, // snap to center
-                      0.05 // higher snap threshold
-                    )
+                chosenEnvelope.val === 'pitch-env' && pitchEnvInstance
+                  ? pitchEnvInstance.element
                   : div()
             )
           : div(),

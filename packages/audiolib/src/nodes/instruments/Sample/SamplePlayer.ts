@@ -64,17 +64,7 @@ export class SamplePlayer extends LibInstrument {
       true // enable voice filters (lpf and hpf)
     );
 
-    this.voicePool.onMessage('voice:started', (msg: Message) =>
-      this.sendUpstreamMessage('voice:started', msg)
-    );
-
-    this.voicePool.onMessage('voice:stopped', (msg: Message) =>
-      this.sendUpstreamMessage('voice:stopped', msg)
-    );
-
-    this.voicePool.onMessage('voice:releasing', (msg: Message) =>
-      this.sendUpstreamMessage('voice:releasing', msg)
-    );
+    this.#setupMessageHandling();
 
     // Setup params
     this.#macroLoopStart = new MacroParam(
@@ -117,12 +107,32 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
+  /* === MESSAGES === */
+
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
   }
 
   protected sendUpstreamMessage(type: string, data: any) {
     this.messages.sendMessage(type, data);
+    return this;
+  }
+
+  #setupMessageHandling(): this {
+    this.voicePool.onMessage('sample-voice-envelopes:trigger', (msg) => {
+      this.sendUpstreamMessage('envelopes:trigger', {
+        ...msg,
+      });
+    });
+
+    // Forward voice pool messages upstream
+    this.messages.forwardFrom(this.voicePool, [
+      'voice:started',
+      'voice:stopped',
+      'voice:releasing',
+      'voice:loaded',
+    ]);
+
     return this;
   }
 
@@ -227,7 +237,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = true // todo: separate param for base tuning
+    autoTranspose = false // todo: separate param for base tuning
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();

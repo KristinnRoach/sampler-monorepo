@@ -1,35 +1,13 @@
 // EnvelopeSVG.ts
 import van from '@repo/vanjs-core';
 import type { EnvelopePoint, EnvelopeData, EnvelopeType } from '@repo/audiolib';
-// import { gsap } from 'gsap/gsap-core';
-import { gsap, MotionPathPlugin, DrawSVGPlugin } from 'gsap/all';
+import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin);
+gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
 const { svg, path, line, g, div, circle } = van.tags(
   'http://www.w3.org/2000/svg'
 );
-
-// Playback position indicator
-const createPlayhead = (voiceId: string) =>
-  circle({
-    id: `playhead-${voiceId}`,
-    cx: 2.5,
-    cy: 197.5,
-    r: 5,
-    fill: 'tranparent',
-    'stroke-width': 2,
-    class: 'playhead',
-  });
-
-let svgElement: SVGSVGElement;
-let pointsGroup: SVGGElement;
-let envelopePath: SVGPathElement;
-
-let playDuration = 0;
-const updatePlayDuration = (startPoint: number, endPoint: number) => {
-  playDuration = endPoint * 100 - startPoint * 100;
-};
 
 export const EnvelopeSVG = (
   envelopeType: EnvelopeType,
@@ -44,18 +22,30 @@ export const EnvelopeSVG = (
   height: string = '120px',
   snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
   snapThreshold = 0.025
+  // maxDuration = 1,
+  // currentDuration = 1
 ) => {
-  if (!initialEnvValues || !initialEnvValues.points.length) {
-    return div(
+  if (!initialEnvValues.points.length) {
+    const emptyDiv = div(
       {
         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
       },
       'No envelope data'
     );
+    return {
+      element: emptyDiv as SVGSVGElement, // Type assertion needed
+      triggerPlayAnimation: () => {}, // No-op
+      releaseAnimation: () => {}, // No-op
+    };
   }
 
+  let svgElement: SVGSVGElement;
+  let pointsGroup: SVGGElement;
+  let envelopePath: SVGPathElement;
+  let activeTweens: Map<number, gsap.core.Tween> = new Map();
+  let playheads: Map<number, Element> = new Map();
+
   // UI states
-  const envType = van.state<EnvelopeType>(envelopeType);
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
   const points = van.state(initialEnvValues.points);
@@ -89,6 +79,18 @@ export const EnvelopeSVG = (
     return path;
   };
 
+  // Playback position indicator
+  const createPlayhead = (voiceId: string) =>
+    circle({
+      id: `playhead-${voiceId}`,
+      cx: 2.5,
+      cy: 197.5,
+      r: 5,
+      fill: 'tranparent',
+      'stroke-width': 2,
+      class: 'playhead',
+    });
+
   const clickCounts = van.state<Record<number, number>>({});
 
   const updateControlPoints = () => {
@@ -118,8 +120,6 @@ export const EnvelopeSVG = (
       if (index === 0 || index === pts.length - 1) {
         circle.setAttribute('fill', '#ff9500'); // Orange for duration handles
         circle.setAttribute('r', '6'); // Slightly bigger
-
-        updatePlayDuration(pts[0].time, pts[1].time);
       }
 
       // Mouse down - start drag
@@ -151,7 +151,7 @@ export const EnvelopeSVG = (
           if (index > 0 && index < pts.length - 1) {
             const newPoints = points.val.filter((_, i) => i !== index);
             points.val = newPoints;
-            onPointUpdate(envType.val, index, -1, -1);
+            onPointUpdate(envelopeType, index, -1, -1);
           }
           clickCounts.val = { ...clickCounts.val, [index]: 0 };
         }
@@ -195,7 +195,7 @@ export const EnvelopeSVG = (
       points.val = newPoints;
 
       // Update audio logic via callback
-      onPointUpdate(envType.val, selectedPoint.val, time, value);
+      onPointUpdate(envelopeType, selectedPoint.val, time, value);
     }
   };
 
@@ -219,9 +219,7 @@ export const EnvelopeSVG = (
     const newPoints = [...points.val, newPoint].sort((a, b) => a.time - b.time);
     points.val = newPoints;
     // Update audio logic via callback
-    onPointUpdate(envType.val, -1, time, value);
-
-    updatePlayDuration(newPoints[0].time, newPoints[1].time);
+    onPointUpdate(envelopeType, -1, time, value);
   };
 
   // Create SVG element
@@ -287,71 +285,368 @@ export const EnvelopeSVG = (
     points.val;
     selectedPoint.val;
     updateControlPoints();
+    // Precompute ease when envelope changes
+    setTimeout(() => precomputeEase(), 0); // Slight delay to ensure path is updated
   });
 
   // Update points when prop changes
   van.derive(() => {
     points.val = initialEnvValues.points;
-    updatePlayDuration(
-      initialEnvValues.points[0].time,
-      initialEnvValues.points[1].time
-    );
-
-    // playhead.setAttribute('x', initialEnvValues.points[0].time.toString());
-    // playhead.setAttribute('y', initialEnvValues.points[0].value.toString());
   });
 
-  return svgElement;
+  // Add caching to avoid recomputing the same ease multiple times
+  const easeCache = new Map<string, string>(); // Store ease names, not objects
+
+  function createTimeBasedEase(pathElement: SVGPathElement): string | null {
+    // Return ease name
+    // Create cache key from path data
+    const pathData = pathElement.getAttribute('d') || '';
+    const cacheKey = `ease-${pathData}`;
+
+    // Return cached ease if it exists
+    if (easeCache.has(cacheKey)) {
+      return easeCache.get(cacheKey)!;
+    }
+
+    try {
+      const pathLength = pathElement.getTotalLength();
+
+      const numSamples = 20;
+      const samples = [];
+
+      for (let i = 0; i <= numSamples; i++) {
+        const progress = i / numSamples;
+        const distanceAlongPath = progress * pathLength;
+        const pointOnPath = pathElement.getPointAtLength(distanceAlongPath);
+        const timeValue = pointOnPath.x / 400;
+
+        samples.push({ progress, time: timeValue });
+      }
+
+      const easePoints = [];
+      const numEasePoints = 10;
+
+      for (let i = 0; i <= numEasePoints; i++) {
+        const targetTime = i / numEasePoints;
+
+        // binary search
+        let left = 0;
+        let right = samples.length - 1;
+        let closestSample = samples[0];
+
+        while (left <= right) {
+          const mid = Math.floor((left + right) / 2);
+          const midSample = samples[mid];
+
+          if (
+            Math.abs(midSample.time - targetTime) <
+            Math.abs(closestSample.time - targetTime)
+          ) {
+            closestSample = midSample;
+          }
+
+          if (midSample.time < targetTime) {
+            left = mid + 1;
+          } else {
+            right = mid - 1;
+          }
+        }
+
+        easePoints.push(closestSample.progress);
+      }
+
+      // Create path
+      let pathDataStr = `M0,${easePoints[0]}`;
+      for (let i = 1; i < easePoints.length; i++) {
+        const x = i / (easePoints.length - 1);
+        const y = easePoints[i];
+        pathDataStr += ` L${x},${y}`;
+      }
+
+      // Create and cache the ease
+      const easeName = `timeCorrection-${Date.now()}`;
+      CustomEase.create(easeName, pathDataStr);
+      easeCache.set(cacheKey, easeName);
+
+      return easeName;
+    } catch (error) {
+      console.warn('Failed to create time-based ease:', error);
+      return null;
+    }
+  }
+
+  let currentEase: string | null = null;
+
+  // Called whenever envelope points change
+  function precomputeEase() {
+    currentEase = createTimeBasedEase(envelopePath);
+  }
+
+  function triggerPlayAnimation(msg: any) {
+    if (activeTweens.has(msg.voiceId)) {
+      const existing = activeTweens.get(msg.voiceId);
+      existing && existing.isActive() && existing.kill();
+      activeTweens.delete(msg.voiceId);
+    }
+
+    const playhead = createPlayhead(msg.voiceId);
+    svgElement.appendChild(playhead);
+
+    const envDuration = msg.envDurations[envelopeType] ?? 0;
+    const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
+
+    // ! Remove if all env-types should use time correction (other wise only compute if being used (in van.derive at top))
+    const shouldUseTimeCorrection = true; // envelopeType === 'amp-env';
+    const easeToUse = shouldUseTimeCorrection ? currentEase || 'none' : 'none';
+
+    const newTween = gsap.to(playhead, {
+      id: msg.voiceId,
+      motionPath: {
+        path: envelopePath,
+        align: envelopePath,
+        alignOrigin: [0.5, 0.5],
+      },
+      duration: envDuration,
+      repeat: isLooping ? -1 : 0,
+      ease: easeToUse,
+      onStart: () => playhead.setAttribute('fill', 'red'),
+      onComplete: () => playhead.setAttribute('fill', 'transparent'),
+    });
+
+    playheads.set(msg.voiceId, playhead);
+    activeTweens.set(msg.voiceId, newTween);
+  }
+
+  function releaseAnimation(msg: any) {
+    // console.table({ releaseAnimation: msg });
+
+    if (activeTweens.has(msg.voiceId)) {
+      const existing = activeTweens.get(msg.voiceId);
+      existing && existing.isActive() && existing.kill();
+      activeTweens.delete(msg.voiceId);
+    }
+    if (playheads.has(msg.voiceId)) {
+      const head = playheads.get(msg.voiceId);
+      if (head && head.parentNode === svgElement) {
+        svgElement.removeChild(head);
+      }
+      playheads.delete(msg.voiceId);
+    }
+  }
+
+  return {
+    element: svgElement,
+    triggerPlayAnimation,
+    releaseAnimation,
+  };
 };
 
-let activeTweens: Map<number, gsap.core.Tween> = new Map();
-let playheads: Map<number, Element> = new Map();
+// Functioning timing-wise but JANKY animation:
+// function triggerPlayAnimation(msg: any) {
+//   if (activeTweens.has(msg.voiceId)) {
+//     const existing = activeTweens.get(msg.voiceId);
+//     existing && existing.isActive() && existing.kill();
+//     activeTweens.delete(msg.voiceId);
+//   }
 
-export function triggerPlayAnimation(msg: any, sampleDuration: number) {
-  if (activeTweens.has(msg.voiceId)) {
-    const existing = activeTweens.get(msg.voiceId);
-    existing && existing.isActive() && existing.kill();
-    activeTweens.delete(msg.voiceId);
-  }
+//   const playhead = createPlayhead(msg.voiceId);
+//   svgElement.appendChild(playhead);
 
-  const playhead = createPlayhead(msg.voiceId);
-  svgElement.appendChild(playhead);
+//   const envDuration = msg.envDurations[envelopeType] ?? 0;
+//   const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
 
-  // todo: send msg from env with actual env duration
-  // todo: handle looping!
-  const duration = sampleDuration;
+//   // Create custom object to animate
+//   const animationProgress = { progress: 0 };
 
-  console.warn(sampleDuration);
+//   const newTween = gsap.to(animationProgress, {
+//     progress: 1,
+//     duration: envDuration,
+//     repeat: isLooping ? -1 : 0,
+//     ease: 'none',
+//     onUpdate: () => {
+//       // Calculate position based on x-axis time (not path distance)
+//       const currentTime = animationProgress.progress;
+//       const position = getPositionAtTime(currentTime, points.val);
 
-  const newTween = gsap.to(playhead, {
-    id: msg.voiceId,
-    motionPath: {
-      path: envelopePath,
-      align: envelopePath,
-      alignOrigin: [0.5, 0.5],
-      autoRotate: true,
-    },
-    transformOrigin: '50% 50%',
-    duration: duration, // playDuration,
-    ease: 'none',
-    onStart: () => playhead.setAttribute('fill', 'red'),
-    onComplete: () => playhead.setAttribute('fill', 'transparent'),
-  });
+//       // Update playhead position
+//       playhead.setAttribute('cx', position.x.toString());
+//       playhead.setAttribute('cy', position.y.toString());
+//     },
+//     onStart: () => playhead.setAttribute('fill', 'red'),
+//     onComplete: () => playhead.setAttribute('fill', 'transparent'),
+//   });
 
-  playheads.set(msg.voiceId, playhead);
-  activeTweens.set(msg.voiceId, newTween);
-}
+//   playheads.set(msg.voiceId, playhead);
+//   activeTweens.set(msg.voiceId, newTween);
+// }
 
-export function releaseAnimation(msg: any) {
-  if (activeTweens.has(msg.voiceId)) {
-    const existing = activeTweens.get(msg.voiceId);
-    existing && existing.isActive() && existing.kill();
-    activeTweens.delete(msg.voiceId);
-  }
+// // Helper function to get position at specific time (0-1)
+// function getPositionAtTime(
+//   time: number,
+//   pts: EnvelopePoint[]
+// ): { x: number; y: number } {
+//   const sortedPoints = [...pts].sort((a, b) => a.time - b.time);
 
-  if (playheads.has(msg.voiceId)) {
-    const head = playheads.get(msg.voiceId);
-    head && svgElement.removeChild(head);
-    playheads.delete(msg.voiceId);
-  }
-}
+//   // Find the two points we're between
+//   let beforePoint = sortedPoints[0];
+//   let afterPoint = sortedPoints[sortedPoints.length - 1];
+
+//   for (let i = 0; i < sortedPoints.length - 1; i++) {
+//     if (time >= sortedPoints[i].time && time <= sortedPoints[i + 1].time) {
+//       beforePoint = sortedPoints[i];
+//       afterPoint = sortedPoints[i + 1];
+//       break;
+//     }
+//   }
+
+//   // Handle edge cases
+//   if (time <= beforePoint.time) {
+//     return {
+//       x: beforePoint.time * 400,
+//       y: (1 - beforePoint.value) * 200,
+//     };
+//   }
+//   if (time >= afterPoint.time) {
+//     return {
+//       x: afterPoint.time * 400,
+//       y: (1 - afterPoint.value) * 200,
+//     };
+//   }
+
+//   // Linear interpolation between the two points based on TIME, not distance
+//   const timeDiff = afterPoint.time - beforePoint.time;
+//   const localProgress = (time - beforePoint.time) / timeDiff;
+
+//   return {
+//     x:
+//       beforePoint.time * 400 +
+//       (afterPoint.time - beforePoint.time) * 400 * localProgress,
+//     y:
+//       (1 - beforePoint.value) * 200 +
+//       (1 - afterPoint.value - (1 - beforePoint.value)) * 200 * localProgress,
+//   };
+// }
+
+// // Add caching to avoid recomputing the same ease multiple times
+// const easeCache = new Map<string, string>(); // Store ease names, not objects
+
+// function createTimeBasedEase(pathElement: SVGPathElement): string | null {
+//   // Return ease name
+//   // Create cache key from path data
+//   const pathData = pathElement.getAttribute('d') || '';
+//   const cacheKey = `ease-${pathData}`;
+
+//   // Return cached ease if it exists
+//   if (easeCache.has(cacheKey)) {
+//     return easeCache.get(cacheKey)!;
+//   }
+
+//   try {
+//     const pathLength = pathElement.getTotalLength();
+
+//     // OPTIMIZATION 1: Reduce samples (20 is usually enough)
+//     const numSamples = 20; // Reduced from 50
+//     const samples = [];
+
+//     for (let i = 0; i <= numSamples; i++) {
+//       const progress = i / numSamples;
+//       const distanceAlongPath = progress * pathLength;
+//       const pointOnPath = pathElement.getPointAtLength(distanceAlongPath);
+//       const timeValue = pointOnPath.x / 400;
+
+//       samples.push({ progress, time: timeValue });
+//     }
+
+//     // OPTIMIZATION 2: Reduce ease points (10 is usually enough)
+//     const easePoints = [];
+//     const numEasePoints = 10; // Reduced from 20
+
+//     for (let i = 0; i <= numEasePoints; i++) {
+//       const targetTime = i / numEasePoints;
+
+//       // OPTIMIZATION 3: Simple binary search instead of linear search
+//       let left = 0;
+//       let right = samples.length - 1;
+//       let closestSample = samples[0];
+
+//       while (left <= right) {
+//         const mid = Math.floor((left + right) / 2);
+//         const midSample = samples[mid];
+
+//         if (
+//           Math.abs(midSample.time - targetTime) <
+//           Math.abs(closestSample.time - targetTime)
+//         ) {
+//           closestSample = midSample;
+//         }
+
+//         if (midSample.time < targetTime) {
+//           left = mid + 1;
+//         } else {
+//           right = mid - 1;
+//         }
+//       }
+
+//       easePoints.push(closestSample.progress);
+//     }
+
+//     // Create path with fewer points
+//     let pathDataStr = `M0,${easePoints[0]}`;
+//     for (let i = 1; i < easePoints.length; i++) {
+//       const x = i / (easePoints.length - 1);
+//       const y = easePoints[i];
+//       pathDataStr += ` L${x},${y}`;
+//     }
+
+//     // Create and cache the ease
+//     const easeName = `timeCorrection-${Date.now()}`;
+//     CustomEase.create(easeName, pathDataStr);
+//     easeCache.set(cacheKey, easeName);
+
+//     return easeName;
+//   } catch (error) {
+//     console.warn('Failed to create time-based ease:', error);
+//     return null;
+//   }
+// }
+
+// // OPTIMIZATION 4: Precompute ease when envelope changes, not during animation
+// let currentEase: string | null = null;
+
+// // Call this whenever envelope points change (in your updateControlPoints or similar)
+// function precomputeEase() {
+//   currentEase = createTimeBasedEase(envelopePath);
+// }
+
+// // Simplified triggerPlayAnimation - no computation during animation
+// function triggerPlayAnimation(msg: any) {
+//   if (activeTweens.has(msg.voiceId)) {
+//     const existing = activeTweens.get(msg.voiceId);
+//     existing && existing.isActive() && existing.kill();
+//     activeTweens.delete(msg.voiceId);
+//   }
+
+//   const playhead = createPlayhead(msg.voiceId);
+//   svgElement.appendChild(playhead);
+
+//   const envDuration = msg.envDurations[envelopeType] ?? 0;
+//   const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
+
+//   // OPTIMIZATION 5: Use precomputed ease (no computation during animation)
+//   const newTween = gsap.to(playhead, {
+//     id: msg.voiceId,
+//     motionPath: {
+//       path: envelopePath,
+//       align: envelopePath,
+//       alignOrigin: [0.5, 0.5],
+//     },
+//     duration: envDuration,
+//     repeat: isLooping ? -1 : 0,
+//     ease: currentEase || 'none',
+//     onStart: () => playhead.setAttribute('fill', 'red'),
+//     onComplete: () => playhead.setAttribute('fill', 'transparent'),
+//   });
+
+//   playheads.set(msg.voiceId, playhead);
+//   activeTweens.set(msg.voiceId, newTween);
+// }

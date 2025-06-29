@@ -46,63 +46,61 @@ export class SampleVoicePool {
     // All voices start as available
     this.#allVoices.forEach((voice) => {
       this.#available.add(voice);
-
-      voice.onMessage('voice:started', (msg: Message) => {
-        // Ensure mutual exlusion (idempotent delete)
-        this.#available.delete(msg.voice);
-        this.#releasing.delete(msg.voice);
-
-        this.#playing.add(msg.voice);
-        this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
-
-        this.sendUpstreamMessage(msg.type, {
-          voiceId: msg.senderId,
-          midiNote: msg.midiNote,
-        });
-      });
-
-      voice.onMessage('voice:releasing', (msg: Message) => {
-        // Ensure mutual exlusion
-        this.#available.delete(msg.voice);
-        this.#playing.delete(msg.voice);
-
-        this.#releasing.add(msg.voice);
-
-        // Remove from midiToVoice map, is this voice owns this midinote
-        if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
-          this.#playingMidiVoiceMap.delete(msg.midiNote);
-        }
-
-        this.sendUpstreamMessage(msg.type, {
-          voiceId: msg.senderId,
-          midiNote: msg.midiNote,
-        });
-      });
-
-      voice.onMessage('voice:stopped', (msg: Message) => {
-        // Ensure mutual exlusion
-        this.#playing.delete(msg.voice);
-        this.#releasing.delete(msg.voice);
-
-        this.#available.add(msg.voice);
-
-        this.sendUpstreamMessage(msg.type, {
-          voiceId: msg.senderId,
-          midiNote: msg.midiNote,
-        });
-      });
+      this.#setupMessageHandling(voice);
     });
 
     this.#isReady = true;
   }
 
+  /* === MESSAGES === */
+
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
 
-  protected sendUpstreamMessage(type: string, data: any) {
+  sendUpstreamMessage(type: string, data: any) {
     this.#messages.sendMessage(type, data);
     return this;
+  }
+
+  #setupMessageHandling(voice: SampleVoice) {
+    voice.onMessage('voice:started', (msg: Message) => {
+      // Ensure mutual exlusion (idempotent delete)
+      this.#available.delete(msg.voice);
+      this.#releasing.delete(msg.voice);
+
+      this.#playing.add(msg.voice);
+      this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
+    });
+
+    voice.onMessage('voice:releasing', (msg: Message) => {
+      // Ensure mutual exlusion
+      this.#available.delete(msg.voice);
+      this.#playing.delete(msg.voice);
+
+      this.#releasing.add(msg.voice);
+
+      // Remove from midiToVoice map, is this voice owns this midinote
+      if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
+        this.#playingMidiVoiceMap.delete(msg.midiNote);
+      }
+    });
+
+    voice.onMessage('voice:stopped', (msg: Message) => {
+      // Ensure mutual exlusion
+      this.#playing.delete(msg.voice);
+      this.#releasing.delete(msg.voice);
+
+      this.#available.add(msg.voice);
+    });
+
+    this.#messages.forwardFrom(voice, [
+      'voice:started',
+      'voice:stopped',
+      'voice:releasing',
+      'voice:loaded',
+      'sample-voice-envelopes:trigger',
+    ]);
   }
 
   setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
