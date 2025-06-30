@@ -10,6 +10,8 @@ import {
 
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
+  #hasSharpTransitions = false;
+
   constructor(
     public points: EnvelopePoint[] = [],
     public valueRange: [number, number] = [0, 1],
@@ -29,6 +31,7 @@ export class EnvelopeData {
     } else {
       this.points.splice(insertIndex, 0, newPoint);
     }
+    this.#updateSharpTransitionsFlag();
   }
 
   updatePoint(index: number, time?: number, value?: number) {
@@ -40,6 +43,7 @@ export class EnvelopeData {
         value: value ?? currentPoint.value,
       };
     }
+    this.#updateSharpTransitionsFlag();
   }
 
   updateStartPoint = (time?: number, value?: number) => {
@@ -54,6 +58,7 @@ export class EnvelopeData {
     if (index > 0 && index < this.points.length - 1) {
       this.points.splice(index, 1);
     }
+    this.#updateSharpTransitionsFlag();
   }
 
   interpolateValueAtTime(normalizedTime: number): number {
@@ -104,6 +109,18 @@ export class EnvelopeData {
     // Scale from 0-1 to target range
     const [min, max] = this.valueRange;
     return min + normalizedValue * (max - min);
+  }
+
+  #updateSharpTransitionsFlag() {
+    const threshold = 0.02;
+    this.#hasSharpTransitions = this.points.some(
+      (point, i) =>
+        i > 0 && Math.abs(point.time - this.points[i - 1].time) < threshold
+    );
+  }
+
+  get hasSharpTransitions() {
+    return this.#hasSharpTransitions;
   }
 
   getSVGPath(width: number = 400, height: number = 200): string {
@@ -171,8 +188,12 @@ export class EnvelopeScheduler {
   ) {
     audioParam.cancelScheduledValues(startTime);
 
-    // Currently testing to find optimal sample-rate. Increase if not smooth enough.
-    const sampleRate = duration < 1 ? 250 : 500;
+    const sampleRate = envelopeData.hasSharpTransitions
+      ? 1000
+      : duration < 1
+        ? 500
+        : 250;
+
     const numSamples = Math.max(2, Math.floor(duration * sampleRate));
     const curve = new Float32Array(numSamples);
 
