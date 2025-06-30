@@ -20,6 +20,8 @@ export class SampleVoicePool {
   #playing = new Set<SampleVoice>();
   #releasing = new Set<SampleVoice>();
 
+  #holding = new Set<SampleVoice>();
+
   #transposeSemitones = 0;
 
   #isReady: boolean = false;
@@ -134,26 +136,26 @@ export class SampleVoicePool {
     velocity: MidiValue = 100,
     secondsFromNow = 0,
     transposition = this.#transposeSemitones
-  ): MidiValue {
+  ): MidiValue | null {
     const voice = this.allocate();
 
-    const triggerResult = voice.trigger({
+    const success = voice.trigger({
       midiNote: midiNote + transposition,
       velocity,
       secondsFromNow,
     });
 
-    this.#playingMidiVoiceMap.set(midiNote, voice);
-
-    if (!triggerResult) console.warn(`no trigger result, ${triggerResult}`);
-
-    return midiNote;
+    if (success) {
+      this.#playingMidiVoiceMap.set(midiNote, voice);
+      return midiNote;
+    } else {
+      return null;
+    }
   }
 
   noteOff(midiNote: MidiValue, release_sec = 0.2, secondsFromNow: number = 0) {
     const voice = this.#playingMidiVoiceMap.get(midiNote);
-    // console.info('voice', voice);
-    // console.info('voice?.state', voice?.state);
+    if (!voice) return;
 
     if (voice?.state === VoiceState.PLAYING) {
       voice.release({ release: release_sec, secondsFromNow });

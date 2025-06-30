@@ -95,7 +95,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     midiNote: MidiValue,
     velocity?: number,
     modifiers?: Partial<PressedModifiers>
-  ): MidiValue;
+  ): MidiValue | null;
 
   abstract release(
     note: MidiValue,

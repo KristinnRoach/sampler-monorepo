@@ -19,7 +19,7 @@ export class EnvelopeData {
   addPoint(
     time: number,
     value: number,
-    curve: 'linear' | 'exponential' = 'linear'
+    curve: 'linear' | 'exponential' = 'exponential'
   ) {
     const newPoint = { time, value, curve };
     const insertIndex = this.points.findIndex((p) => p.time > time);
@@ -172,7 +172,7 @@ export class EnvelopeScheduler {
     audioParam.cancelScheduledValues(startTime);
 
     // Currently testing to find optimal sample-rate. Increase if not smooth enough.
-    const sampleRate = duration < 1 ? 200 : 100;
+    const sampleRate = duration < 1 ? 250 : 500;
     const numSamples = Math.max(2, Math.floor(duration * sampleRate));
     const curve = new Float32Array(numSamples);
 
@@ -304,7 +304,11 @@ export class CustomEnvelope {
   }
 
   // ===== DATA OPERATIONS =====
-  addPoint(time: number, value: number, curve?: 'linear' | 'exponential') {
+  addPoint(
+    time: number,
+    value: number,
+    curve: 'linear' | 'exponential' = 'exponential'
+  ) {
     this.#data.addPoint(time, value, curve);
     return this;
   }

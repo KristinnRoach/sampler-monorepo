@@ -384,7 +384,6 @@ const SamplerElement = (attributes: ElementProps) => {
     value: number
   ) => {
     if (!samplePlayer) return;
-    // console.table({ envType, index, time, value });
 
     if (index === -1) {
       samplePlayer.addEnvelopePoint(envType, time, value);

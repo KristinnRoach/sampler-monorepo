@@ -47,6 +47,7 @@ export class ValueSnapper {
 
     this.#allowedPeriods = [...(finalValues as number[])].sort((a, b) => a - b);
 
+    console.log(`setAllowedPeriods: `, { usingPeriods: this.#allowedPeriods });
     return this;
   }
 
@@ -60,7 +61,6 @@ export class ValueSnapper {
     // Create a copy of the pattern to ensure it's mutable
     const pattern = [...scalePattern];
 
-    // Use the updated createScale function with octave range parameters
     const scale = createScale(rootNote, pattern, lowestOctave, highestOctave);
     const periodsInSeconds = scale.periodsInSec.sort((a, b) => a - b);
 
@@ -87,6 +87,8 @@ export class ValueSnapper {
         ? curr
         : prev
     );
+
+    console.log('snapping to period: ', closestPeriod);
 
     return loopStart + closestPeriod;
   }

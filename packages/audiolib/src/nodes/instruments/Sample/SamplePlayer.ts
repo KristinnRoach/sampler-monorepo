@@ -34,7 +34,7 @@ export class SamplePlayer extends LibInstrument {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
-  #loopEndEnvelope: CustomEnvelope;
+  // #loopEndEnvelope: CustomEnvelope;
 
   #isReady = false;
   #isLoaded = false;
@@ -77,17 +77,17 @@ export class SamplePlayer extends LibInstrument {
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
-    this.#loopEndEnvelope = new CustomEnvelope(
-      context,
-      'loop-env',
-      [
-        { time: 0, value: 0.1, curve: 'exponential' },
-        { time: 0.3, value: 0.7, curve: 'exponential' },
-        { time: 0.5, value: 0.5, curve: 'exponential' },
-        { time: 1, value: 0.5, curve: 'exponential' },
-      ],
-      [0.01, 1] // Envelope range
-    );
+    // this.#loopEndEnvelope = new CustomEnvelope(
+    //   context,
+    //   'loop-env',
+    //   [
+    //     { time: 0, value: 0.1, curve: 'exponential' },
+    //     { time: 0.3, value: 0.7, curve: 'exponential' },
+    //     { time: 0.5, value: 0.5, curve: 'exponential' },
+    //     { time: 1, value: 0.5, curve: 'exponential' },
+    //   ],
+    //   [0.01, 1] // Envelope range
+    // );
 
     this.#connectVoicesToMacros();
 
@@ -119,19 +119,21 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #setupMessageHandling(): this {
-    this.voicePool.onMessage('sample-voice-envelopes:trigger', (msg) => {
-      this.sendUpstreamMessage('envelopes:trigger', {
-        ...msg,
-      });
-    });
-
     // Forward voice pool messages upstream
+
     this.messages.forwardFrom(this.voicePool, [
       'voice:started',
       'voice:stopped',
       'voice:releasing',
       'voice:loaded',
     ]);
+
+    this.voicePool.onMessage('sample-voice-envelopes:trigger', (msg) => {
+      // just renaming the message for public api
+      this.sendUpstreamMessage('envelopes:trigger', {
+        ...msg,
+      });
+    });
 
     return this;
   }
@@ -186,37 +188,23 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    const lastZero =
+    const lastZero = // ? remove since zero crossings handled in processor
       this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
     const firstZero = this.#zeroCrossings[0] ?? 0;
 
-    // Normalize to 0-1 range before setting
     const normalizedLoopEnd = lastZero / bufferDuration;
     const normalizedLoopStart = firstZero / bufferDuration;
-    // console.info({ resetMacros: { normalizedLoopStart, normalizedLoopEnd } });
 
     this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
     this.#macroLoopStart.audioParam.setValueAtTime(
       normalizedLoopStart,
       this.now
     );
-    // ( consider combining startPoint, endPoint, loopStart, loopEnd into a unified system )
 
     const normalizeOptions: NormalizeOptions = {
       from: [0, bufferDuration],
       to: [0, 1],
     };
-
-    if (this.#useZeroCrossings && this.#zeroCrossings.length > 0) {
-      this.#macroLoopStart.setAllowedParamValues(
-        this.#zeroCrossings,
-        normalizeOptions
-      );
-      this.#macroLoopEnd.setAllowedParamValues(
-        this.#zeroCrossings,
-        normalizeOptions
-      );
-    }
 
     this.#macroLoopStart.setScale('C', [0], {
       lowestOctave: 0,
@@ -237,7 +225,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = false // todo: separate param for base tuning
+    autoTranspose = false // todo: base tuning via message & pitchbend / detune via separate audioparam
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -317,21 +305,21 @@ export class SamplePlayer extends LibInstrument {
     midiNote: MidiValue,
     velocity: MidiValue = 100,
     modifiers?: PressedModifiers
-  ): MidiValue {
-    if (modifiers) this.#handleModifierKeys(modifiers);
-
-    if (modifiers && modifiers.alt !== undefined && modifiers.alt === true) {
-      midiNote += 12;
+  ): MidiValue | null {
+    if (modifiers) {
+      this.#handleModifierKeys(modifiers);
+      if (modifiers.alt) midiNote += 12;
     }
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
-    const noteId = this.voicePool.noteOn(
+
+    return this.voicePool.noteOn(
       midiNote,
-      velocity,
-      0 // zero delay
+      safeVelocity,
+      0, // zero delay
+      undefined // transposition is added in pool (use or remove here)
     );
 
-    // ?
     // if (this.#loopEnabled) {
     //   const baseLoopEnd = this.getStoredParamValue('loopEnd', 1.0);
     //   // this.#macroLoopEnd.audioParam.cancelScheduledValues(this.now);
@@ -349,13 +337,12 @@ export class SamplePlayer extends LibInstrument {
     //     }
     //   );
     // }
-
-    return noteId;
   }
 
   release(midiNote: MidiValue, modifiers?: PressedModifiers): this {
     if (modifiers) this.#handleModifierKeys(modifiers);
-    if (this.#holdEnabled || this.#holdLocked) return this; // one-shot mode
+
+    if (this.holdEnabled || this.#holdLocked) return this; // one-shot mode
 
     this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
 
@@ -505,11 +492,10 @@ export class SamplePlayer extends LibInstrument {
     if (this.#holdEnabled === enabled) return this;
     // if hold is locked (ON), turning it off is disabled but turning it on should work
     if (this.#holdLocked && !enabled) return this;
-
     this.#holdEnabled = enabled;
-
     if (!enabled) this.releaseAll(this.getReleaseTime());
     this.sendUpstreamMessage('hold:enabled', { enabled });
+
     return this;
   }
 
@@ -527,7 +513,7 @@ export class SamplePlayer extends LibInstrument {
     if (this.#holdLocked === locked) return this;
 
     this.#holdLocked = locked;
-    this.setHoldEnabled(locked);
+    if (locked === false) this.releaseAll();
 
     console.debug(`sending hold:locked message, locked: ${locked}`);
     this.sendUpstreamMessage('hold:locked', { locked });
@@ -625,6 +611,12 @@ export class SamplePlayer extends LibInstrument {
           onComplete: storeLoopStart,
         }
       );
+
+      setTimeout(() => {
+        const loopPeriod =
+          this.#macroLoopEnd.value - this.#macroLoopStart.value;
+        console.info('loopPeriod', loopPeriod);
+      }, 2000);
     } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
       const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledEnd);
       this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, normalizedLoopStart, {
@@ -756,7 +748,7 @@ export class SamplePlayer extends LibInstrument {
   // Expose envelopes for UI access
 
   getEnvelope(envType: EnvelopeType): CustomEnvelope {
-    if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro
+    // if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro
 
     // Return the first voice's envelope as the "master" envelope
     const firstVoice = this.voicePool.allVoices[0];
@@ -769,7 +761,7 @@ export class SamplePlayer extends LibInstrument {
     mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
   ) => {
     if (envType === 'loop-env') {
-      this.#loopEndEnvelope.setLoopEnabled(loop, mode);
+      // this.#loopEndEnvelope.setLoopEnabled(loop, mode);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.setEnvelopeLoop(envType, loop, mode)
@@ -784,7 +776,7 @@ export class SamplePlayer extends LibInstrument {
     value: number
   ): void {
     if (envType === 'loop-env') {
-      this.#loopEndEnvelope.updatePoint(index, time, value);
+      // this.#loopEndEnvelope.updatePoint(index, time, value);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.updateEnvelopePoint(envType, index, time, value)
@@ -794,7 +786,7 @@ export class SamplePlayer extends LibInstrument {
 
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number): void {
     if (envType === 'loop-env') {
-      this.#loopEndEnvelope.addPoint(time, value);
+      // this.#loopEndEnvelope.addPoint(time, value);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.addEnvelopePoint(envType, time, value)
@@ -804,7 +796,7 @@ export class SamplePlayer extends LibInstrument {
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number): void {
     if (envType === 'loop-env') {
-      this.#loopEndEnvelope.deletePoint(index);
+      // this.#loopEndEnvelope.deletePoint(index);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.deleteEnvelopePoint(envType, index)

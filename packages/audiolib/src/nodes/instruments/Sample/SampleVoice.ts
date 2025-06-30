@@ -45,6 +45,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   #filtersEnabled = false;
   #loopEnabled = false;
+  #holdEnabled = false;
 
   #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
   #releaseSec: number = 0.1;
@@ -154,7 +155,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     midiNote: MidiValue;
     velocity: MidiValue;
     secondsFromNow?: number;
-  }): number | string | null | undefined {
+  }): MidiValue | null {
     const {
       midiNote = 60,
       velocity = 100,
@@ -174,8 +175,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       this.#state === VoiceState.RELEASING
     ) {
       console.log(`had to stop a playing voice, midinote: ${midiNote}`);
-      // Clears automations to avoid overlapping scheduling
-      // conflicts when re-triggered (setValueCurveAtTime)
       this.stop(timestamp);
       return null;
     }
