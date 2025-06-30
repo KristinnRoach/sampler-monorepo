@@ -63,41 +63,43 @@ const SamplerElement = (attributes: ElementProps) => {
   // === Envelopes ===
 
   const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
+  const envDimensions = van.state({ width: '100%', height: '120px' });
 
   let ampEnvInstance: {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
+    // updateDuration: (msg: any) => void;
   } | null = null;
 
   let pitchEnvInstance: {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
+    // updateDuration: (msg: any) => void;
   } | null = null;
 
   // Create the envelopes and store references
   van.derive(() => {
-    if (chosenEnvelope.val === 'amp-env' && ampEnvelope.val) {
+    if (ampEnvelope.val && !ampEnvInstance) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
         ampEnvelope.val.getEnvelopeDataInstance(),
         handleEnvelopeChange,
-        '100%',
-        '100px',
+        envDimensions.val.width,
+        envDimensions.val.height,
         { x: [0, 1], y: [0, 1] }
       );
     }
-
-    if (chosenEnvelope.val === 'pitch-env' && pitchEnvelope.val) {
+    if (pitchEnvelope.val && !pitchEnvInstance) {
       pitchEnvInstance = EnvelopeSVG(
         'pitch-env',
         pitchEnvelope.val.getEnvelopeDataInstance(),
         handleEnvelopeChange,
         '100%',
         '100px',
-        { x: [0, 1], y: [0.5] }, // snap to center
-        0.05 // higher snap threshold
+        { x: [0, 1], y: [0.5] },
+        0.05
       );
     }
   });
@@ -185,10 +187,15 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // === SAMPLE-PLAYER MESSAGES ===
 
-        samplePlayer.onMessage('envelopes:trigger', (msg: any) => {
+        samplePlayer.onMessage('sample-envelopes:trigger', (msg: any) => {
           ampEnvInstance?.triggerPlayAnimation(msg);
           pitchEnvInstance?.triggerPlayAnimation(msg);
         });
+
+        // samplePlayer.onMessage('sample-envelopes:duration', (msg: any) => {
+        //   ampEnvInstance?.updateDuration(msg);
+        //   pitchEnvInstance?.updateDuration(msg);
+        // });
 
         samplePlayer.onMessage('voice:releasing', (msg: any) => {
           ampEnvInstance?.releaseAnimation(msg);
@@ -447,15 +454,33 @@ const SamplerElement = (attributes: ElementProps) => {
                 )
               ),
 
-              () =>
-                chosenEnvelope.val === 'amp-env' && ampEnvInstance
-                  ? ampEnvInstance.element
-                  : div(),
+              div(
+                {
+                  style: () =>
+                    `position: relative;  height: ${envDimensions.val.height}`,
+                },
 
-              () =>
-                chosenEnvelope.val === 'pitch-env' && pitchEnvInstance
-                  ? pitchEnvInstance.element
-                  : div()
+                () =>
+                  ampEnvInstance
+                    ? div(
+                        {
+                          style: () =>
+                            `position: absolute; visibility: ${chosenEnvelope.val === 'amp-env' ? 'visible' : 'hidden'}`,
+                        },
+                        ampEnvInstance.element
+                      )
+                    : div(),
+                () =>
+                  pitchEnvInstance
+                    ? div(
+                        {
+                          style: () =>
+                            `position: absolute; visibility: ${chosenEnvelope.val === 'pitch-env' ? 'visible' : 'hidden'}`,
+                        },
+                        pitchEnvInstance.element
+                      )
+                    : div()
+              )
             )
           : div(),
 

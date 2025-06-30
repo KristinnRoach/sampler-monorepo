@@ -34,8 +34,9 @@ export const EnvelopeSVG = (
     );
     return {
       element: emptyDiv as SVGSVGElement, // Type assertion needed
-      triggerPlayAnimation: () => {}, // No-op
-      releaseAnimation: () => {}, // No-op
+      triggerPlayAnimation: () => {},
+      releaseAnimation: () => {}, // No-ops
+      // updateDuration: () => {},
     };
   }
 
@@ -82,6 +83,7 @@ export const EnvelopeSVG = (
   // Playback position indicator
   const createPlayhead = (voiceId: string) =>
     circle({
+      style: () => `pointer-events: none`,
       id: `playhead-${voiceId}`,
       cx: 2.5,
       cy: 197.5,
@@ -89,6 +91,7 @@ export const EnvelopeSVG = (
       fill: 'tranparent',
       'stroke-width': 2,
       class: 'playhead',
+      tabIndex: -1,
     });
 
   const clickCounts = van.state<Record<number, number>>({});
@@ -123,12 +126,9 @@ export const EnvelopeSVG = (
       }
 
       // Mouse down - start drag
-
       // Current approach is a somewhat convoluted way to allow using single click
       // for moving a point and double click for adding a point (only one that worked)
-
       let clickTimeout: number;
-
       circle.addEventListener('mousedown', (e: MouseEvent) => {
         const currentCount = (clickCounts.val[index] || 0) + 1;
         clickCounts.val = { ...clickCounts.val, [index]: currentCount };
@@ -218,6 +218,7 @@ export const EnvelopeSVG = (
     const newPoint = { time, value, curve: 'exponential' as const };
     const newPoints = [...points.val, newPoint].sort((a, b) => a.time - b.time);
     points.val = newPoints;
+
     // Update audio logic via callback
     onPointUpdate(envelopeType, -1, time, value);
   };
@@ -285,8 +286,9 @@ export const EnvelopeSVG = (
     points.val;
     selectedPoint.val;
     updateControlPoints();
+    refreshPlayingAnimations();
     // Precompute ease when envelope changes
-    setTimeout(() => precomputeEase(), 0); // Slight delay to ensure path is updated
+    setTimeout(() => precomputeEase(), 0); // ensure path is updated
   });
 
   // Update points when prop changes
@@ -434,219 +436,143 @@ export const EnvelopeSVG = (
     }
   }
 
+  function refreshPlayingAnimations() {
+    for (let [voiceId, tween] of activeTweens) {
+      if (tween.isActive()) {
+        const progress = tween.progress();
+        const isLooping = tween.vars.repeat === -1;
+        const currentDuration = initialEnvValues.durationSeconds;
+        const tweenDuration = (tween.vars.duration as number) ?? 0;
+
+        // Always update path, but only update duration for loops if it changed
+        const durationChanged =
+          Math.abs(currentDuration - tweenDuration) > 0.001;
+        const shouldUpdateDuration = isLooping && durationChanged;
+
+        tween.kill();
+
+        const playhead = playheads.get(voiceId);
+        if (playhead) {
+          const newTween = gsap.to(playhead, {
+            motionPath: {
+              path: envelopePath, // Always update path
+              align: envelopePath,
+              alignOrigin: [0.5, 0.5],
+            },
+            duration: shouldUpdateDuration ? currentDuration : tweenDuration,
+            repeat: isLooping ? -1 : 0,
+            ease: currentEase || 'none',
+            onStart: () => playhead.setAttribute('fill', 'red'),
+            onComplete: () => playhead.setAttribute('fill', 'transparent'),
+          });
+
+          newTween.progress(progress);
+          activeTweens.set(voiceId, newTween);
+        }
+      }
+    }
+  }
+
   return {
     element: svgElement,
     triggerPlayAnimation,
     releaseAnimation,
+    // updateDuration,
   };
 };
 
-// Functioning timing-wise but JANKY animation:
-// function triggerPlayAnimation(msg: any) {
-//   if (activeTweens.has(msg.voiceId)) {
-//     const existing = activeTweens.get(msg.voiceId);
-//     existing && existing.isActive() && existing.kill();
-//     activeTweens.delete(msg.voiceId);
-//   }
+// === Ignore code comments below ===
+// function refreshPlayingAnimations() {
+//   for (let [voiceId, tween] of activeTweens) {
+//     if (tween.isActive() && tween.vars.repeat === -1) {
+//       // Query actual envelope duration directly
+//       const currentDuration = initialEnvValues.durationSeconds;
+//       const tweenDuration = (tween.vars.duration as number) ?? 0; // Type assertion with fallback
 
-//   const playhead = createPlayhead(msg.voiceId);
-//   svgElement.appendChild(playhead);
+//       // Only update if duration actually changed
+//       if (Math.abs(currentDuration - tweenDuration) > 0.001) {
+//         const progress = tween.progress();
+//         tween.kill();
 
-//   const envDuration = msg.envDurations[envelopeType] ?? 0;
-//   const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
-
-//   // Create custom object to animate
-//   const animationProgress = { progress: 0 };
-
-//   const newTween = gsap.to(animationProgress, {
-//     progress: 1,
-//     duration: envDuration,
-//     repeat: isLooping ? -1 : 0,
-//     ease: 'none',
-//     onUpdate: () => {
-//       // Calculate position based on x-axis time (not path distance)
-//       const currentTime = animationProgress.progress;
-//       const position = getPositionAtTime(currentTime, points.val);
-
-//       // Update playhead position
-//       playhead.setAttribute('cx', position.x.toString());
-//       playhead.setAttribute('cy', position.y.toString());
-//     },
-//     onStart: () => playhead.setAttribute('fill', 'red'),
-//     onComplete: () => playhead.setAttribute('fill', 'transparent'),
-//   });
-
-//   playheads.set(msg.voiceId, playhead);
-//   activeTweens.set(msg.voiceId, newTween);
-// }
-
-// // Helper function to get position at specific time (0-1)
-// function getPositionAtTime(
-//   time: number,
-//   pts: EnvelopePoint[]
-// ): { x: number; y: number } {
-//   const sortedPoints = [...pts].sort((a, b) => a.time - b.time);
-
-//   // Find the two points we're between
-//   let beforePoint = sortedPoints[0];
-//   let afterPoint = sortedPoints[sortedPoints.length - 1];
-
-//   for (let i = 0; i < sortedPoints.length - 1; i++) {
-//     if (time >= sortedPoints[i].time && time <= sortedPoints[i + 1].time) {
-//       beforePoint = sortedPoints[i];
-//       afterPoint = sortedPoints[i + 1];
-//       break;
-//     }
-//   }
-
-//   // Handle edge cases
-//   if (time <= beforePoint.time) {
-//     return {
-//       x: beforePoint.time * 400,
-//       y: (1 - beforePoint.value) * 200,
-//     };
-//   }
-//   if (time >= afterPoint.time) {
-//     return {
-//       x: afterPoint.time * 400,
-//       y: (1 - afterPoint.value) * 200,
-//     };
-//   }
-
-//   // Linear interpolation between the two points based on TIME, not distance
-//   const timeDiff = afterPoint.time - beforePoint.time;
-//   const localProgress = (time - beforePoint.time) / timeDiff;
-
-//   return {
-//     x:
-//       beforePoint.time * 400 +
-//       (afterPoint.time - beforePoint.time) * 400 * localProgress,
-//     y:
-//       (1 - beforePoint.value) * 200 +
-//       (1 - afterPoint.value - (1 - beforePoint.value)) * 200 * localProgress,
-//   };
-// }
-
-// // Add caching to avoid recomputing the same ease multiple times
-// const easeCache = new Map<string, string>(); // Store ease names, not objects
-
-// function createTimeBasedEase(pathElement: SVGPathElement): string | null {
-//   // Return ease name
-//   // Create cache key from path data
-//   const pathData = pathElement.getAttribute('d') || '';
-//   const cacheKey = `ease-${pathData}`;
-
-//   // Return cached ease if it exists
-//   if (easeCache.has(cacheKey)) {
-//     return easeCache.get(cacheKey)!;
-//   }
-
-//   try {
-//     const pathLength = pathElement.getTotalLength();
-
-//     // OPTIMIZATION 1: Reduce samples (20 is usually enough)
-//     const numSamples = 20; // Reduced from 50
-//     const samples = [];
-
-//     for (let i = 0; i <= numSamples; i++) {
-//       const progress = i / numSamples;
-//       const distanceAlongPath = progress * pathLength;
-//       const pointOnPath = pathElement.getPointAtLength(distanceAlongPath);
-//       const timeValue = pointOnPath.x / 400;
-
-//       samples.push({ progress, time: timeValue });
-//     }
-
-//     // OPTIMIZATION 2: Reduce ease points (10 is usually enough)
-//     const easePoints = [];
-//     const numEasePoints = 10; // Reduced from 20
-
-//     for (let i = 0; i <= numEasePoints; i++) {
-//       const targetTime = i / numEasePoints;
-
-//       // OPTIMIZATION 3: Simple binary search instead of linear search
-//       let left = 0;
-//       let right = samples.length - 1;
-//       let closestSample = samples[0];
-
-//       while (left <= right) {
-//         const mid = Math.floor((left + right) / 2);
-//         const midSample = samples[mid];
-
-//         if (
-//           Math.abs(midSample.time - targetTime) <
-//           Math.abs(closestSample.time - targetTime)
-//         ) {
-//           closestSample = midSample;
-//         }
-
-//         if (midSample.time < targetTime) {
-//           left = mid + 1;
-//         } else {
-//           right = mid - 1;
+//         const playhead = playheads.get(voiceId);
+//         if (playhead) {
+//           const newTween = gsap.to(playhead, {
+//             duration: currentDuration, // Synced with audio
+//             repeat: -1, // ? use msg.islooping ?
+//             ease: currentEase || 'none',
+//             motionPath: {
+//               path: envelopePath,
+//               align: envelopePath,
+//               alignOrigin: [0.5, 0.5],
+//             },
+//           });
+//           newTween.progress(progress);
+//           activeTweens.set(voiceId, newTween);
 //         }
 //       }
-
-//       easePoints.push(closestSample.progress);
 //     }
-
-//     // Create path with fewer points
-//     let pathDataStr = `M0,${easePoints[0]}`;
-//     for (let i = 1; i < easePoints.length; i++) {
-//       const x = i / (easePoints.length - 1);
-//       const y = easePoints[i];
-//       pathDataStr += ` L${x},${y}`;
-//     }
-
-//     // Create and cache the ease
-//     const easeName = `timeCorrection-${Date.now()}`;
-//     CustomEase.create(easeName, pathDataStr);
-//     easeCache.set(cacheKey, easeName);
-
-//     return easeName;
-//   } catch (error) {
-//     console.warn('Failed to create time-based ease:', error);
-//     return null;
 //   }
 // }
 
-// // OPTIMIZATION 4: Precompute ease when envelope changes, not during animation
-// let currentEase: string | null = null;
+// function refreshPlayingAnimations() {
+//   for (let [voiceId, tween] of activeTweens) {
+//     if (tween.isActive()) {
+//       const progress = tween.progress();
+//       const envDuration = tween.vars.duration || 1; // or initialEnvValues.durationSeconds; <-- Dynamic? // was -> tween.vars.duration || 1;
+//       const isLooping = tween.vars.repeat === -1;
 
-// // Call this whenever envelope points change (in your updateControlPoints or similar)
-// function precomputeEase() {
-//   currentEase = createTimeBasedEase(envelopePath);
+//       tween.kill();
+
+//       const playhead = playheads.get(voiceId);
+//       if (playhead) {
+//         const newTween = gsap.to(playhead, {
+//           motionPath: {
+//             path: envelopePath,
+//             align: envelopePath,
+//             alignOrigin: [0.5, 0.5],
+//           },
+//           duration: envDuration,
+//           repeat: isLooping ? -1 : 0,
+//           ease: currentEase || 'none',
+//         });
+
+//         // Progress needs to be set after creating tween
+//         newTween.progress(progress);
+//         activeTweens.set(voiceId, newTween);
+//       }
+//     }
+//   }
 // }
 
-// // Simplified triggerPlayAnimation - no computation during animation
-// function triggerPlayAnimation(msg: any) {
-//   if (activeTweens.has(msg.voiceId)) {
-//     const existing = activeTweens.get(msg.voiceId);
-//     existing && existing.isActive() && existing.kill();
-//     activeTweens.delete(msg.voiceId);
+// function updateDuration(msg: any) {
+//   const { voiceID, envDurations, loopEnabled } = msg;
+
+//   const newDuration = envDurations[envelopeType];
+//   // const tween = activeTweens.get(voiceId);
+//   for (let [voiceId, tween] of activeTweens) {
+//     if (tween && tween.isActive() && tween.vars.repeat === -1) {
+//       // Only looping animations
+//       const progress = tween.progress();
+//       tween.kill();
+
+//       const playhead = playheads.get(voiceId);
+//       if (playhead) {
+//         const newTween = gsap.to(playhead, {
+//           motionPath: {
+//             path: envelopePath,
+//             align: envelopePath,
+//             alignOrigin: [0.5, 0.5],
+//           },
+//           duration: newDuration,
+//           repeat: -1,
+//           ease: currentEase || 'none',
+//           onStart: () => playhead.setAttribute('fill', 'red'),
+//           onComplete: () => playhead.setAttribute('fill', 'transparent'),
+//         });
+
+//         newTween.progress(progress);
+//         activeTweens.set(voiceId, newTween);
+//       }
+//     }
 //   }
-
-//   const playhead = createPlayhead(msg.voiceId);
-//   svgElement.appendChild(playhead);
-
-//   const envDuration = msg.envDurations[envelopeType] ?? 0;
-//   const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
-
-//   // OPTIMIZATION 5: Use precomputed ease (no computation during animation)
-//   const newTween = gsap.to(playhead, {
-//     id: msg.voiceId,
-//     motionPath: {
-//       path: envelopePath,
-//       align: envelopePath,
-//       alignOrigin: [0.5, 0.5],
-//     },
-//     duration: envDuration,
-//     repeat: isLooping ? -1 : 0,
-//     ease: currentEase || 'none',
-//     onStart: () => playhead.setAttribute('fill', 'red'),
-//     onComplete: () => playhead.setAttribute('fill', 'transparent'),
-//   });
-
-//   playheads.set(msg.voiceId, playhead);
-//   activeTweens.set(msg.voiceId, newTween);
 // }

@@ -101,7 +101,8 @@ export class SampleVoicePool {
       'voice:stopped',
       'voice:releasing',
       'voice:loaded',
-      'sample-voice-envelopes:trigger',
+      'sample-envelopes:trigger',
+      'sample-envelopes:duration',
     ]);
   }
 

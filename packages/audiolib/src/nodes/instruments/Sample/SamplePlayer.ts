@@ -126,14 +126,9 @@ export class SamplePlayer extends LibInstrument {
       'voice:stopped',
       'voice:releasing',
       'voice:loaded',
+      'sample-envelopes:trigger',
+      'sample-envelopes:duration',
     ]);
-
-    this.voicePool.onMessage('sample-voice-envelopes:trigger', (msg) => {
-      // just renaming the message for public api
-      this.sendUpstreamMessage('envelopes:trigger', {
-        ...msg,
-      });
-    });
 
     return this;
   }

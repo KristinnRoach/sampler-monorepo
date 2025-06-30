@@ -411,7 +411,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #setupMessageHandling() {
     this.#messages.forwardFrom(
       this.envelopes,
-      ['sample-voice-envelopes:trigger'],
+      ['sample-envelopes:trigger', 'sample-envelopes:duration'],
       (msg) => ({
         ...msg,
         voiceId: this.nodeId,
