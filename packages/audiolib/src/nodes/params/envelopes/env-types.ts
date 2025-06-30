@@ -5,6 +5,3 @@ export type EnvelopePoint = {
   value: number; // 0-1
   curve?: 'linear' | 'exponential'; // Curve type to next point
 };
-
-export type { EnvelopeData } from './Envelope';
-export type { CustomEnvelope } from './Envelope';

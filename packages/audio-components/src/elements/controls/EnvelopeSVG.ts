@@ -1,6 +1,7 @@
 // EnvelopeSVG.ts
 import van from '@repo/vanjs-core';
-import type { EnvelopePoint, EnvelopeData, EnvelopeType } from '@repo/audiolib';
+import type { EnvelopePoint, EnvelopeType } from '@repo/audiolib';
+import { generateMidiNoteColors } from '../../utils/generateColors';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
@@ -11,7 +12,8 @@ const { svg, path, line, g, div, circle } = van.tags(
 
 export const EnvelopeSVG = (
   envelopeType: EnvelopeType,
-  initialEnvValues: EnvelopeData,
+  initialPoints: EnvelopePoint[],
+  durationSeconds: number,
   onPointUpdate: (
     envType: EnvelopeType,
     index: number,
@@ -21,11 +23,10 @@ export const EnvelopeSVG = (
   width: string = '100%',
   height: string = '120px',
   snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
-  snapThreshold = 0.025
-  // maxDuration = 1,
-  // currentDuration = 1
+  snapThreshold = 0.025,
+  multiColorPlayheads = false
 ) => {
-  if (!initialEnvValues.points.length) {
+  if (!initialPoints.length) {
     const emptyDiv = div(
       {
         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
@@ -33,10 +34,9 @@ export const EnvelopeSVG = (
       'No envelope data'
     );
     return {
-      element: emptyDiv as SVGSVGElement, // Type assertion needed
+      element: emptyDiv as unknown as SVGSVGElement,
       triggerPlayAnimation: () => {},
       releaseAnimation: () => {}, // No-ops
-      // updateDuration: () => {},
     };
   }
 
@@ -46,13 +46,21 @@ export const EnvelopeSVG = (
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
-  let activeTweens: Map<number, gsap.core.Tween> = new Map();
-  let playheads: Map<number, Element> = new Map();
+
+  const activeTweens: Map<number, gsap.core.Tween> = new Map();
+
+  const playheads: Map<number, Element> = new Map();
+
+  let noteColor: string | Record<number, string>;
+  if (multiColorPlayheads)
+    noteColor = generateMidiNoteColors('none', [40, 90], true);
+  else noteColor = 'red';
 
   // UI states
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
-  const points = van.state(initialEnvValues.points); // Reactive - Overwrites current state if receives new props !
+  const points = van.state(initialPoints); // Reactive - Overwrites current state if receives new props !
+  const duration = van.state(durationSeconds);
   // const points = van.state([...initialEnvValues.points]); // Use this instead if values never change
 
   // Helper to generate SVG path from points
@@ -96,7 +104,7 @@ export const EnvelopeSVG = (
       'stroke-width': 2,
       class: 'playhead',
       tabIndex: -1,
-    });
+    }) as SVGCircleElement;
 
   const clickCounts = van.state<Record<number, number>>({});
 
@@ -292,6 +300,7 @@ export const EnvelopeSVG = (
   // Update when points change
   van.derive(() => {
     points.val;
+    duration.val;
     selectedPoint.val;
     updateControlPoints();
     refreshPlayingAnimations();
@@ -302,8 +311,9 @@ export const EnvelopeSVG = (
     }, 0); // ensures path is updated and initial values received
   });
 
-  // Update current points when prop changes!
-  van.derive(() => (points.val = initialEnvValues.points));
+  // Update current points and durationwhen prop changes
+  van.derive(() => (points.val = initialPoints));
+  van.derive(() => (duration.val = durationSeconds));
 
   const easeCache = new Map<string, string>(); // ease key -> ease name
 
@@ -401,6 +411,7 @@ export const EnvelopeSVG = (
     const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
 
     const easeToUse = currentEase ? currentEase : 'none';
+    const color = multiColorPlayheads ? noteColor[msg.midiNote] : 'red';
 
     const newTween = gsap.to(playhead, {
       id: msg.voiceId,
@@ -412,7 +423,7 @@ export const EnvelopeSVG = (
       duration: envDuration,
       repeat: isLooping ? -1 : 0,
       ease: easeToUse,
-      onStart: () => playhead.setAttribute('fill', 'red'),
+      onStart: () => playhead.setAttribute('fill', color),
       onComplete: () => playhead.setAttribute('fill', 'transparent'),
     });
 
@@ -442,7 +453,7 @@ export const EnvelopeSVG = (
       if (tween.isActive()) {
         const progress = tween.progress();
         const isLooping = tween.vars.repeat === -1;
-        const currentDuration = initialEnvValues.durationSeconds;
+        const currentDuration = duration.val;
         const tweenDuration = (tween.vars.duration as number) ?? 0;
 
         // Always update path, but only update duration for loops if it changed

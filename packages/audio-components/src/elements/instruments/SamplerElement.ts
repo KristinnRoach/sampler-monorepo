@@ -84,7 +84,8 @@ const SamplerElement = (attributes: ElementProps) => {
     if (ampEnvelope.val && !ampEnvInstance) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
-        ampEnvelope.val.getEnvelopeDataInstance(),
+        ampEnvelope.val.points, // () => for reactive?
+        ampEnvelope.val.durationSeconds,
         handleEnvelopeChange,
         envDimensions.val.width,
         envDimensions.val.height,
@@ -94,7 +95,8 @@ const SamplerElement = (attributes: ElementProps) => {
     if (pitchEnvelope.val && !pitchEnvInstance) {
       pitchEnvInstance = EnvelopeSVG(
         'pitch-env',
-        pitchEnvelope.val.getEnvelopeDataInstance(),
+        pitchEnvelope.val.points,
+        pitchEnvelope.val.durationSeconds,
         handleEnvelopeChange,
         '100%',
         '100px',

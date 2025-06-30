@@ -12,14 +12,18 @@ import {
 export class EnvelopeData {
   #hasSharpTransitions = false;
 
+  // #timeRange: [number, number];
   #valueRange: [number, number];
-  #durationSeconds: number = 1;
+
+  #durationSeconds: number = 1; // Default 1 second
 
   constructor(
     public points: EnvelopePoint[] = [],
     valueRange: [number, number] = [0, 1],
     durationSeconds: number
+    // timeRange: [number, number] = [0, 1]
   ) {
+    // this.#timeRange = timeRange;
     this.#durationSeconds = durationSeconds;
     this.#valueRange = valueRange;
   }
@@ -125,6 +129,13 @@ export class EnvelopeData {
     );
   }
 
+  // setTimeRange = (range: [number, number]) => (this.#timeRange = range);
+  setValueRange = (range: [number, number]) => (this.#valueRange = range);
+
+  get hasSharpTransitions() {
+    return this.#hasSharpTransitions;
+  }
+
   getSVGPath(width: number = 400, height: number = 200): string {
     if (this.points.length < 2) return `M0,${height} L${width},${height}`;
 
@@ -153,19 +164,12 @@ export class EnvelopeData {
     return path;
   }
 
-  get valueRange() {
-    return this.#valueRange;
-  }
-
-  setValueRange = (range: [number, number]) => (this.#valueRange = range);
-
   get startTime() {
     return this.points[0]?.time ?? 0;
   }
   get endTime() {
     return this.points[this.points.length - 1]?.time ?? 1;
   }
-
   get durationNormalized() {
     return this.endTime - this.startTime;
   }
@@ -178,124 +182,23 @@ export class EnvelopeData {
     return this.#durationSeconds * this.durationNormalized;
   }
 
-  get hasSharpTransitions() {
-    return this.#hasSharpTransitions;
-  }
+  // get durationSeconds() {
+  //   const [timeMin, timeMax] = this.#timeRange;
+  //   return (timeMax - timeMin) * this.durationNormalized;
+  // }
 }
 
-// ===== CUSTOM ENVELOPE  =====
-export class CustomEnvelope {
-  envelopeType: EnvelopeType;
-
-  #data: EnvelopeData;
+// ===== ENVELOPE SCHEDULER - Web Audio operations =====
+export class EnvelopeScheduler {
   #context: AudioContext;
-  #stopLoopFn: (() => void) | null = null;
-  #loopEnabled = false;
 
-  constructor(
-    context: AudioContext,
-    envelopeType: EnvelopeType,
-    initialPoints: EnvelopePoint[] = [],
-    valueRange: [number, number] = [0, 1],
-    durationSeconds: number = 1
-  ) {
-    this.envelopeType = envelopeType;
+  constructor(context: AudioContext) {
     this.#context = context;
-    this.#data = new EnvelopeData(
-      [...initialPoints],
-      valueRange,
-      durationSeconds
-    );
-
-    // Bind data methods to this instance
-    this.addPoint = this.#data.addPoint.bind(this.#data);
-    this.updatePoint = this.#data.updatePoint.bind(this.#data);
-    this.deletePoint = this.#data.deletePoint.bind(this.#data);
-    this.updateStartPoint = this.#data.updateStartPoint.bind(this.#data);
-    this.updateEndPoint = this.#data.updateEndPoint.bind(this.#data);
-    this.getSVGPath = this.#data.getSVGPath.bind(this.#data);
-    this.setValueRange = this.#data.setValueRange.bind(this.#data);
   }
 
-  // Declare the bound methods (for TypeScript)
-  addPoint!: EnvelopeData['addPoint'];
-  updatePoint!: EnvelopeData['updatePoint'];
-  deletePoint!: EnvelopeData['deletePoint'];
-  updateStartPoint!: EnvelopeData['updateStartPoint'];
-  updateEndPoint!: EnvelopeData['updateEndPoint'];
-  getSVGPath!: EnvelopeData['getSVGPath'];
-  setValueRange!: EnvelopeData['setValueRange'];
-
-  // Property getters
-  get data() {
-    return this.#data;
-  }
-
-  get points() {
-    return this.#data.points;
-  }
-  get durationNormalized() {
-    return this.#data.durationNormalized;
-  }
-  get durationSeconds() {
-    return this.#data.durationSeconds;
-  }
-  get valueRange() {
-    return this.#data.valueRange;
-  }
-
-  get loopEnabled() {
-    return this.#loopEnabled;
-  }
-
-  get numPoints(): number {
-    return this.#data.points.length;
-  }
-
-  setSampleDuration(seconds: number) {
-    this.#data.setDurationSeconds(seconds);
-    return this;
-  }
-
-  // ===== AUDIO OPERATIONS =====
-  applyToAudioParam(
+  applyEnvelope(
     audioParam: AudioParam,
-    startTime: number,
-    options: {
-      baseValue?: number;
-      minValue?: number;
-      maxValue?: number;
-    } = { baseValue: 1 }
-  ) {
-    this.stopLooping();
-
-    const durationSeconds = this.#data.durationSeconds;
-
-    if (this.#loopEnabled) {
-      this.#startLoop(audioParam, startTime, options);
-    } else {
-      this.#applyEnvelope(audioParam, startTime, durationSeconds, options);
-    }
-  }
-
-  applyReleaseToAudioParam(
-    audioParam: AudioParam,
-    startTime: number,
-    duration: number,
-    currentValue: number,
-    targetValue = 0.001
-  ) {
-    this.stopLooping();
-    this.#applyRelease(
-      audioParam,
-      startTime,
-      duration,
-      currentValue,
-      targetValue
-    );
-  }
-  #applyEnvelope(
-    audioParam: AudioParam,
+    envelopeData: EnvelopeData,
     startTime: number,
     duration: number,
     options: {
@@ -304,10 +207,12 @@ export class CustomEnvelope {
       maxValue?: number;
     } = { baseValue: 1 }
   ) {
+    // audioParam.cancelScheduledValues(startTime);
+    // Clear from slightly before start time to avoid overlaps
     const clearTime = Math.max(this.#context.currentTime, startTime - 0.001);
     audioParam.cancelScheduledValues(clearTime);
 
-    const sampleRate = this.#data.hasSharpTransitions
+    const sampleRate = envelopeData.hasSharpTransitions
       ? 1000
       : duration < 1
         ? 500
@@ -320,7 +225,7 @@ export class CustomEnvelope {
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedTime = i / (numSamples - 1);
-      const value = this.#data.interpolateValueAtTime(normalizedTime);
+      const value = envelopeData.interpolateValueAtTime(normalizedTime);
       let finalValue = (base ?? 1) * value;
 
       if (min !== undefined) finalValue = Math.max(finalValue, min);
@@ -332,8 +237,9 @@ export class CustomEnvelope {
     try {
       audioParam.setValueCurveAtTime(curve, startTime, duration);
     } catch (error) {
-      console.debug('Failed to apply envelope curve due to rapid fire.');
+      console.debug('Failed to apply envelope curve due to rapid fire.'); // Safe to ignore
       try {
+        // LinearRamp fallback
         const currentValue = audioParam.value;
         audioParam.setValueAtTime(currentValue, startTime);
         audioParam.linearRampToValueAtTime(
@@ -341,6 +247,7 @@ export class CustomEnvelope {
           startTime + duration
         );
       } catch (fallbackError) {
+        // Final fallback - just set end value
         try {
           audioParam.setValueAtTime(curve[curve.length - 1], startTime);
         } catch {
@@ -350,13 +257,18 @@ export class CustomEnvelope {
     }
   }
 
-  #applyRelease(
+  applyRelease(
     audioParam: AudioParam,
     startTime: number,
     duration: number,
     currentValue: number,
     targetValue = 0.001,
-    curve: 'linear' | 'exponential' = 'exponential'
+    curve: 'linear' | 'exponential' = 'exponential',
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
   ) {
     audioParam.cancelScheduledValues(startTime);
     audioParam.setValueAtTime(currentValue, startTime);
@@ -376,8 +288,9 @@ export class CustomEnvelope {
     }
   }
 
-  #startLoop(
+  startLoop(
     audioParam: AudioParam,
+    envelopeData: EnvelopeData,
     startTime: number,
     options: {
       baseValue?: number;
@@ -392,10 +305,12 @@ export class CustomEnvelope {
     const scheduleNext = () => {
       if (!isLooping) return;
 
-      const currentDuration = this.#data.durationSeconds;
+      // Get current duration each iteration
+      const currentDuration = envelopeData.durationSeconds;
 
-      this.#applyEnvelope(
+      this.applyEnvelope(
         audioParam,
+        envelopeData,
         currentCycleStart,
         currentDuration,
         options
@@ -414,15 +329,181 @@ export class CustomEnvelope {
 
     scheduleNext();
 
-    this.#stopLoopFn = () => {
+    return () => {
       isLooping = false;
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
     };
+  }
+}
 
-    return this.#stopLoopFn;
+// ===== CUSTOM ENVELOPE - Coordinates data and scheduling =====
+export class CustomEnvelope {
+  envelopeType: EnvelopeType;
+
+  #data: EnvelopeData;
+  #scheduler: EnvelopeScheduler;
+  #stopLoopFn: (() => void) | null = null;
+  #loopEnabled = false;
+
+  // #timeRange: [number, number];
+  #durationSeconds: number;
+  #valueRange: [number, number];
+
+  constructor(
+    context: AudioContext,
+    envelopeType: EnvelopeType,
+    initialPoints: EnvelopePoint[] = [],
+    valueRange: [number, number] = [0, 1],
+    durationSeconds: number = 1
+    // timeRange: [number, number] = [0, 1]
+  ) {
+    this.envelopeType = envelopeType;
+    // this.#timeRange = timeRange;
+    this.#durationSeconds = durationSeconds;
+    this.#valueRange = valueRange;
+    this.#data = new EnvelopeData(
+      [...initialPoints],
+      valueRange,
+      durationSeconds
+    );
+    this.#scheduler = new EnvelopeScheduler(context);
+  }
+
+  // ===== DATA OPERATIONS =====
+  addPoint(
+    time: number,
+    value: number,
+    curve: 'linear' | 'exponential' = 'exponential'
+  ) {
+    this.#data.addPoint(time, value, curve);
+    return this;
+  }
+
+  updatePoint(index: number, time?: number, value?: number) {
+    this.#data.updatePoint(index, time, value);
+    return this;
+  }
+
+  deletePoint(index: number) {
+    this.#data.deletePoint(index);
+    return this;
+  }
+
+  updateStartPoint(time?: number, value?: number): this {
+    this.#data.updateStartPoint(time, value);
+    return this;
+  }
+
+  updateEndPoint(time?: number, value?: number): this {
+    this.#data.updateEndPoint(time, value);
+    return this;
+  }
+
+  getEnvelopeData() {
+    return {
+      points: [...this.#data.points],
+      loop: this.#loopEnabled,
+    };
+  }
+
+  // Return the actual EnvelopeData instance for UI components
+  getEnvelopeDataInstance(): EnvelopeData {
+    return this.#data;
+  }
+
+  getSVGPath(width?: number, height?: number) {
+    return this.#data.getSVGPath(width, height);
+  }
+
+  get durationNormalized() {
+    return this.#data.durationNormalized;
+  }
+
+  get durationSeconds() {
+    return this.#data.durationSeconds;
+  }
+
+  setSampleDuration(seconds: number) {
+    this.#data.setDurationSeconds(seconds);
+    return this;
+  }
+
+  setValueRange = (range: [number, number]) => (this.#valueRange = range);
+
+  get valueRange() {
+    return this.#valueRange;
+  }
+  // setSampleDuration(seconds: number) {
+  //   this.#timeRange = [0, seconds];
+  //   this.#data.setTimeRange([0, seconds]);
+  //   return this;
+  // }
+
+  // setTimeRange = (range: [number, number]) => (this.#timeRange = range);
+
+  // get timeRange() {
+  //   return this.#timeRange;
+  // }
+
+  // ===== AUDIO OPERATIONS =====
+  applyToAudioParam(
+    audioParam: AudioParam,
+    startTime: number,
+    options: {
+      baseValue?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1 }
+  ) {
+    this.stopLooping();
+
+    // ONLY conversion: timeRange to actual seconds
+    const durationSeconds = this.#data.durationSeconds;
+
+    if (this.#loopEnabled) {
+      this.startLooping(audioParam, startTime, options);
+    } else {
+      this.#scheduler.applyEnvelope(
+        audioParam,
+        this.#data,
+        startTime,
+        durationSeconds,
+        options
+      );
+    }
+
+    if (this.#loopEnabled) {
+      // Calculate loop duration based on envelope duration
+      this.startLooping(audioParam, startTime, options);
+    } else {
+      this.#scheduler.applyEnvelope(
+        audioParam,
+        this.#data,
+        startTime,
+        durationSeconds,
+        options
+      );
+    }
+  }
+
+  applyReleaseToAudioParam(
+    audioParam: AudioParam,
+    startTime: number,
+    duration: number,
+    currentValue: number,
+    targetValue = 0.001
+  ) {
+    this.stopLooping();
+    this.#scheduler.applyRelease(
+      audioParam,
+      startTime,
+      duration,
+      currentValue,
+      targetValue
+    );
   }
 
   startLooping(
@@ -435,7 +516,12 @@ export class CustomEnvelope {
     } = { baseValue: 1 }
   ) {
     this.stopLooping();
-    this.#startLoop(audioParam, startTime, options);
+    this.#stopLoopFn = this.#scheduler.startLoop(
+      audioParam,
+      this.#data,
+      startTime,
+      { baseValue: options?.baseValue }
+    );
   }
 
   stopLooping() {
@@ -457,6 +543,18 @@ export class CustomEnvelope {
 
     this.#loopEnabled = enabled;
   };
+
+  get loopEnabled() {
+    return this.#loopEnabled;
+  }
+
+  get points() {
+    return this.#data.points;
+  }
+
+  get numPoints(): number {
+    return this.#data.points.length;
+  }
 
   dispose() {
     this.stopLooping();
@@ -639,9 +737,11 @@ export class SampleVoiceEnvelopes {
 
   // ===== UTILITIES =====
   private hasVariation(envelope: CustomEnvelope): boolean {
-    const points = envelope.points;
-    const firstValue = points[0]?.value ?? 0;
-    return points.some((point) => Math.abs(point.value - firstValue) > 0.001);
+    const data = envelope.getEnvelopeData();
+    const firstValue = data.points[0]?.value ?? 0;
+    return data.points.some(
+      (point) => Math.abs(point.value - firstValue) > 0.001
+    );
   }
 
   dispose() {
@@ -650,61 +750,24 @@ export class SampleVoiceEnvelopes {
   }
 }
 
-//   // ===== DATA OPERATIONS =====
-//   addPoint(
-//     time: number,
-//     value: number,
-//     curve: 'linear' | 'exponential' = 'exponential'
-//   ) {
-//     this.#data.addPoint(time, value, curve);
-//     return this;
-//   }
+// ignore
+// #sampleDuration: number = 1; // Default normalized duration
+// setTimeRange(envType: EnvelopeType, seconds: number) {
+//   this.#envelopes.forEach((envelope) => {
+//     envelope.setTimeRange([0, seconds]);
+//   });
+// }
 
-//   updatePoint(index: number, time?: number, value?: number) {
-//     this.#data.updatePoint(index, time, value);
-//     return this;
-//   }
-
-//   deletePoint(index: number) {
-//     this.#data.deletePoint(index);
-//     return this;
-//   }
-
-//   updateStartPoint(time?: number, value?: number): this {
-//     this.#data.updateStartPoint(time, value);
-//     return this;
-//   }
-
-//   updateEndPoint(time?: number, value?: number): this {
-//     this.#data.updateEndPoint(time, value);
-//     return this;
-//   }
-
-//   getEnvelopeData() {
-//     return {
-//       points: [...this.#data.points],
-//       loop: this.#loopEnabled,
-//     };
-//   }
-
-//   getEnvelopeDataInstance(): EnvelopeData {
-//     return this.#data;
-//   }
-
-//   getSVGPath(width?: number, height?: number) {
-//     return this.#data.getSVGPath(width, height);
-//   }
-
-//   get durationNormalized() {
-//     return this.#data.durationNormalized;
-//   }
-
-//   get durationSeconds() {
-//     return this.#data.durationSeconds;
-//   }
-
-//   setValueRange = (range: [number, number]) => this.#data.setValueRange(range);
-
-//   get valueRange() {
-//     return this.#data.valueRange;
-//   }
+// notifyDurationChange() {
+//   // playbackRate?: number
+//   this.sendUpstreamMessage('sample-envelopes:duration', {
+//     envDurations: {
+//       'amp-env': this.#envelopes.get('amp-env')?.durationSeconds ?? 1,
+//       'pitch-env': this.#envelopes.get('pitch-env')?.durationSeconds ?? 1,
+//     },
+//     loopEnabled: {
+//       'amp-env': this.#envelopes.get('amp-env')?.loopEnabled ?? false,
+//       'pitch-env': this.#envelopes.get('pitch-env')?.loopEnabled ?? false,
+//     },
+//   });
+// }
