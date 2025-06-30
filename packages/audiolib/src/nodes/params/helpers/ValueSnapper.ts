@@ -88,8 +88,6 @@ export class ValueSnapper {
         : prev
     );
 
-    console.log('snapping to period: ', closestPeriod);
-
     return loopStart + closestPeriod;
   }
 

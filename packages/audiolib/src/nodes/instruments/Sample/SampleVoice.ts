@@ -18,8 +18,13 @@ import {
 
 import { midiToPlaybackRate } from '@/utils';
 
-import { SampleVoiceEnvelopes } from '@/nodes/params/envelopes';
-import { EnvelopeType } from '@/nodes/params/envelopes';
+import {
+  // createDefaultEnvelopes,
+  createAmpEnvelope,
+  createPitchEnvelope,
+  type CustomEnvelope,
+  type EnvelopeType,
+} from '@/nodes/params/envelopes';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   readonly nodeId: NodeID;
@@ -38,7 +43,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #sampleDurationSeconds = 0;
   #playbackDurationNormalized = 0;
 
-  envelopes: SampleVoiceEnvelopes;
+  // envelopes: SampleVoiceEnvelopes;
+  // #envelopes: Map<EnvelopeType, CustomEnvelope>;
+  #ampEnv: CustomEnvelope;
+  #pitchEnv: CustomEnvelope;
 
   #hpf: BiquadFilterNode | null = null;
   #lpf: BiquadFilterNode | null = null;
@@ -57,6 +65,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   constructor(
     private context: AudioContext = getAudioContext(),
+    destination: AudioNode,
     options: { processorOptions?: any; enableFilters?: boolean } = {}
   ) {
     this.nodeId = createNodeId(this.nodeType);
@@ -68,7 +77,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       processorOptions: options.processorOptions || {},
     });
 
-    this.envelopes = new SampleVoiceEnvelopes(context, this.#worklet);
+    // this.envelopes = new SampleVoiceEnvelopes(context, this.#worklet);
+    // this.#envelopes = createDefaultEnvelopes(context, ['amp-env', 'pitch-env']);
+    this.#ampEnv = createAmpEnvelope(context);
+    this.#pitchEnv = createPitchEnvelope(context);
 
     // Set low-pass filter frequency based on context sample rate
     this.#lpfHz = this.context.sampleRate / 2 - 100;
@@ -87,14 +99,18 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         Q: this.#lpfQ,
       });
 
-      // Connect chain: worklet → hpf → lpf
+      // Connect chain: worklet → hpf → lpf -> destination
       this.#worklet.connect(this.#hpf);
       this.#hpf.connect(this.#lpf);
-      // todo: set destination here also ?
+      this.#lpf.connect(destination);
+
       this.#outputNode = this.#lpf;
+      this.#destination = destination;
     } else {
       // No filters, worklet is the output node
+      this.#worklet.connect(destination);
       this.#outputNode = this.#worklet;
+      this.#destination = destination;
     }
 
     this.#setupMessageHandling();
@@ -193,12 +209,44 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
-    this.envelopes.triggerEnvelopes(timestamp, playbackRate);
+    // this.envelopes.triggerEnvelopes(timestamp, playbackRate);
+    const adjustedDuration = this.#sampleDurationSeconds / playbackRate;
+    this.#ampEnv.setSampleDuration(adjustedDuration);
+    this.#pitchEnv.setSampleDuration(adjustedDuration);
+
+    // Apply amp envelope
+    const envGainParam = this.#worklet.parameters.get('envGain');
+    if (envGainParam) {
+      this.#ampEnv.applyToAudioParam(envGainParam, timestamp);
+    }
+
+    // Apply pitch envelope (if it has variation)
+    if (this.#pitchEnv.hasVariation()) {
+      const playbackRateParam = this.#worklet.parameters.get('playbackRate');
+      if (playbackRateParam) {
+        this.#pitchEnv.applyToAudioParam(playbackRateParam, timestamp, {
+          baseValue: playbackRate,
+        });
+      }
+    }
 
     // Start playback
     this.sendToProcessor({
       type: 'voice:start',
       when: timestamp,
+    });
+
+    this.sendUpstreamMessage('sample-envelopes:trigger', {
+      voiceId: this.nodeId,
+      midiNote: this.#activeMidiNote,
+      envDurations: {
+        'amp-env': this.#ampEnv.durationSeconds,
+        'pitch-env': this.#pitchEnv.durationSeconds,
+      },
+      loopEnabled: {
+        'amp-env': this.#ampEnv.loopEnabled,
+        'pitch-env': this.#pitchEnv.loopEnabled,
+      },
     });
 
     return this.#activeMidiNote;
@@ -225,7 +273,18 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     // Immediate stop for zero release time
     if (release <= 0) return this.stop(timestamp);
 
-    this.envelopes.releaseEnvelopes(timestamp, release);
+    // this.envelopes.releaseEnvelopes(timestamp, release);
+
+    const envGainParam = this.#worklet.parameters.get('envGain');
+    if (envGainParam) {
+      const currentValue = envGainParam.value;
+      this.#ampEnv.applyReleaseToAudioParam(
+        envGainParam,
+        timestamp,
+        release,
+        currentValue
+      );
+    }
 
     this.sendToProcessor({ type: 'voice:release' });
 
@@ -260,8 +319,51 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
+  // addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+  //   this.envelopes.addEnvelopePoint(envType, time, value);
+  // }
+
+  // updateEnvelopePoint(
+  //   envType: EnvelopeType,
+  //   index: number,
+  //   time?: number,
+  //   value?: number
+  // ) {
+  //   this.envelopes.updateEnvelopePoint(envType, index, time, value);
+  // }
+
+  // deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+  //   this.envelopes.deleteEnvelopePoint(envType, index);
+  // }
+
+  // getEnvelope(envType: EnvelopeType) {
+  //   return this.envelopes.getEnvelope(envType);
+  // }
+
+  // addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+  //   this.#envelopes.get(envType)?.addPoint(time, value);
+  // }
+
+  // updateEnvelopePoint(
+  //   envType: EnvelopeType,
+  //   index: number,
+  //   time?: number,
+  //   value?: number
+  // ) {
+  //   this.#envelopes.get(envType)?.updatePoint(index, time, value);
+  // }
+
+  // deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+  //   this.#envelopes.get(envType)?.deletePoint(index);
+  // }
+
+  // getEnvelope(envType: EnvelopeType) {
+  //   return this.#envelopes.get(envType);
+  // }
+
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
-    this.envelopes.addEnvelopePoint(envType, time, value);
+    if (envType === 'amp-env') this.#ampEnv.addPoint(time, value);
+    if (envType === 'pitch-env') this.#pitchEnv.addPoint(time, value);
   }
 
   updateEnvelopePoint(
@@ -270,11 +372,19 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     time?: number,
     value?: number
   ) {
-    this.envelopes.updateEnvelopePoint(envType, index, time, value);
+    if (envType === 'amp-env') this.#ampEnv.updatePoint(index, time, value);
+    if (envType === 'pitch-env') this.#pitchEnv.updatePoint(index, time, value);
   }
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number) {
-    this.envelopes.deleteEnvelopePoint(envType, index);
+    if (envType === 'amp-env') this.#ampEnv.deletePoint(index);
+    if (envType === 'pitch-env') this.#pitchEnv.deletePoint(index);
+  }
+
+  getEnvelope(envType: EnvelopeType) {
+    if (envType === 'amp-env') return this.#ampEnv;
+    if (envType === 'pitch-env') return this.#pitchEnv;
+    return undefined;
   }
 
   connect(
@@ -282,6 +392,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     output?: number,
     input?: number
   ): Destination {
+    if (destination === this.#destination) return this.#destination;
+
     if (destination instanceof AudioParam) {
       this.out.connect(destination, output);
     } else if (destination instanceof AudioNode) {
@@ -368,15 +480,21 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.setParam('startPoint', time, timestamp);
     this.#playbackDurationNormalized = this.endPoint - time;
 
-    this.envelopes.updateEnvelopeStartPoint('amp-env', time);
-    this.envelopes.updateEnvelopeStartPoint('pitch-env', time);
+    this.#ampEnv.updateStartPoint(time);
+    this.#pitchEnv.updateStartPoint(time);
+    // this.envelopes.updateEnvelopeStartPoint('amp-env', time);
+    // this.envelopes.updateEnvelopeStartPoint('pitch-env', time);
   };
 
   setEndPoint = (time: number, timestamp = this.now) => {
     this.setParam('endPoint', time, timestamp);
     this.#playbackDurationNormalized = time - this.startPoint;
-    this.envelopes.updateEnvelopeEndPoint('amp-env', time);
-    this.envelopes.updateEnvelopeEndPoint('pitch-env', time);
+
+    this.#ampEnv.updateEndPoint(time);
+    this.#pitchEnv.updateEndPoint(time);
+
+    // this.envelopes.updateEnvelopeEndPoint('amp-env', time);
+    // this.envelopes.updateEnvelopeEndPoint('pitch-env', time);
   };
 
   debugCounter = 0;
@@ -409,15 +527,15 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   #setupMessageHandling() {
-    this.#messages.forwardFrom(
-      this.envelopes,
-      ['sample-envelopes:trigger', 'sample-envelopes:duration'],
-      (msg) => ({
-        ...msg,
-        voiceId: this.nodeId,
-        midiNote: this.#activeMidiNote,
-      })
-    );
+    // this.#messages.forwardFrom(
+    //   this.envelopes,
+    //   ['sample-envelopes:trigger', 'sample-envelopes:duration'],
+    //   (msg) => ({
+    //     ...msg,
+    //     voiceId: this.nodeId,
+    //     midiNote: this.#activeMidiNote,
+    //   })
+    // );
 
     this.#worklet.port.onmessage = (event: MessageEvent) => {
       let { type, ...data } = event.data;
@@ -436,7 +554,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           if (data.duration) {
             this.#activeMidiNote = null;
             this.#sampleDurationSeconds = data.duration;
-            this.envelopes.setSampleDuration(data.duration);
+            // this.envelopes.setSampleDuration(data.duration);
+            this.#ampEnv.setSampleDuration(data.duration);
+            this.#pitchEnv.setSampleDuration(data.duration);
 
             this.setStartPoint(0);
             this.setEndPoint(1); // normalized !
@@ -524,10 +644,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return endPoint - startPoint;
   }
 
-  getEnvelope(envType: EnvelopeType) {
-    return this.envelopes.getEnvelope(envType);
-  }
-
   get currMidiNote(): number | null {
     return this.#activeMidiNote;
   }
@@ -603,17 +719,29 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     this.#loopEnabled = enabled;
 
-    this.envelopes.setEnvelopeLoopEnabled('amp-env', enabled);
-    this.envelopes.setEnvelopeLoopEnabled('pitch-env', enabled);
+    this.#ampEnv.setLoopEnabled(enabled);
+    this.#pitchEnv.setLoopEnabled(enabled);
+
+    // this.envelopes.setEnvelopeLoopEnabled('amp-env', enabled);
+    // this.envelopes.setEnvelopeLoopEnabled('pitch-env', enabled);
 
     return this;
   }
+
+  // setEnvelopeLoop = (
+  //   envType: EnvelopeType,
+  //   loop: boolean,
+  //   mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+  // ) => this.getEnvelope(envType)?.setLoopEnabled(loop, mode);
 
   setEnvelopeLoop = (
     envType: EnvelopeType,
     loop: boolean,
     mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
-  ) => this.getEnvelope(envType)?.setLoopEnabled(loop, mode);
+  ) => {
+    if (envType === 'amp-env') this.#ampEnv.setLoopEnabled(loop, mode);
+    if (envType === 'pitch-env') this.#pitchEnv.setLoopEnabled(loop, mode);
+  };
 
   setPlaybackRate(
     rate: number,
@@ -630,6 +758,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   dispose(): void {
     this.stop();
     this.disconnect();
+    this.#ampEnv.dispose();
+    this.#pitchEnv.dispose();
     this.#worklet.port.close();
     deleteNodeId(this.nodeId);
   }

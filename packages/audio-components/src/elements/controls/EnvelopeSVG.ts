@@ -24,7 +24,7 @@ export const EnvelopeSVG = (
   height: string = '120px',
   snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
   snapThreshold = 0.025,
-  multiColorPlayheads = false
+  multiColorPlayheads = true
 ) => {
   if (!initialPoints.length) {
     const emptyDiv = div(

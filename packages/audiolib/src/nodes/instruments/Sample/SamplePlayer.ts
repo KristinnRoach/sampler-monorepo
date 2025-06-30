@@ -606,12 +606,6 @@ export class SamplePlayer extends LibInstrument {
           onComplete: storeLoopStart,
         }
       );
-
-      setTimeout(() => {
-        const loopPeriod =
-          this.#macroLoopEnd.value - this.#macroLoopStart.value;
-        console.info('loopPeriod', loopPeriod);
-      }, 2000);
     } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
       const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledEnd);
       this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, normalizedLoopStart, {
@@ -621,77 +615,6 @@ export class SamplePlayer extends LibInstrument {
 
     return this;
   }
-
-  // setLoopPoint(
-  //   loopPoint: 'start' | 'end',
-  //   normalizedLoopStart: number,
-  //   normalizedLoopEnd: number,
-  //   rampDuration: number = this.getLoopRampDuration()
-  // ) {
-  //   // Validate input range
-  //   if (
-  //     !this.isNormalized(normalizedLoopStart) ||
-  //     !this.isNormalized(normalizedLoopEnd)
-  //   ) {
-  //     console.error(
-  //       `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
-  //     );
-  //     return this;
-  //   }
-
-  //   // Calculate scaling factor
-  //   const proposedLoopSize = Math.abs(normalizedLoopEnd - normalizedLoopStart);
-  //   const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.1));
-
-  //   // Scale the values
-  //   const scaledStart = Math.pow(normalizedLoopStart, scalingFactor);
-  //   const scaledEnd = Math.pow(normalizedLoopEnd, scalingFactor);
-
-  //   // Check ACTUAL scaled loop size against minimum
-  //   const actualLoopSize = Math.abs(scaledEnd - scaledStart);
-  //   const minLoopSize = this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
-
-  //   if (actualLoopSize < minLoopSize) {
-  //     console.warn(
-  //       `Actual scaled loop too small (${actualLoopSize.toFixed(4)} < ${minLoopSize.toFixed(4)}), ignoring`
-  //     );
-  //     return this;
-  //   }
-
-  //   const RAMP_SENSITIVITY = 2;
-  //   const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
-
-  //   if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
-  //     const storeLoopStart = () =>
-  //       this.storeParamValue('loopStart', scaledStart);
-  //     this.#macroLoopStart.ramp(
-  //       scaledStart,
-  //       scaledRampTime,
-  //       normalizedLoopEnd,
-  //       {
-  //         onComplete: storeLoopStart,
-  //       }
-  //     );
-  //   } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
-  //     const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledEnd);
-  //     this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, normalizedLoopStart, {
-  //       onComplete: storeLoopEnd,
-  //     });
-  //   }
-
-  //   return this;
-  // }
-
-  // console.log(
-  //   `SamplePlayer.setLoopPoint:`,
-  //   { loopPoint },
-  //   { normalizedLoopStart },
-  //   { normalizedLoopEnd }
-  // );
-
-  // return this.voicePool.applyToAllVoices((v) =>
-  //   v.setLoopPoints(normalizedLoopStart, normalizedLoopEnd, this.now)
-  // );
 
   /** PARAM GETTERS  */
 
@@ -982,3 +905,74 @@ export class SamplePlayer extends LibInstrument {
 //   hasLoopStart: !!loopStartParam,
 //   hasLoopEnd: !!loopEndParam,
 // });
+
+// setLoopPoint(
+//   loopPoint: 'start' | 'end',
+//   normalizedLoopStart: number,
+//   normalizedLoopEnd: number,
+//   rampDuration: number = this.getLoopRampDuration()
+// ) {
+//   // Validate input range
+//   if (
+//     !this.isNormalized(normalizedLoopStart) ||
+//     !this.isNormalized(normalizedLoopEnd)
+//   ) {
+//     console.error(
+//       `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
+//     );
+//     return this;
+//   }
+
+//   // Calculate scaling factor
+//   const proposedLoopSize = Math.abs(normalizedLoopEnd - normalizedLoopStart);
+//   const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.1));
+
+//   // Scale the values
+//   const scaledStart = Math.pow(normalizedLoopStart, scalingFactor);
+//   const scaledEnd = Math.pow(normalizedLoopEnd, scalingFactor);
+
+//   // Check ACTUAL scaled loop size against minimum
+//   const actualLoopSize = Math.abs(scaledEnd - scaledStart);
+//   const minLoopSize = this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
+
+//   if (actualLoopSize < minLoopSize) {
+//     console.warn(
+//       `Actual scaled loop too small (${actualLoopSize.toFixed(4)} < ${minLoopSize.toFixed(4)}), ignoring`
+//     );
+//     return this;
+//   }
+
+//   const RAMP_SENSITIVITY = 2;
+//   const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
+
+//   if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
+//     const storeLoopStart = () =>
+//       this.storeParamValue('loopStart', scaledStart);
+//     this.#macroLoopStart.ramp(
+//       scaledStart,
+//       scaledRampTime,
+//       normalizedLoopEnd,
+//       {
+//         onComplete: storeLoopStart,
+//       }
+//     );
+//   } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
+//     const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledEnd);
+//     this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, normalizedLoopStart, {
+//       onComplete: storeLoopEnd,
+//     });
+//   }
+
+//   return this;
+// }
+
+// console.log(
+//   `SamplePlayer.setLoopPoint:`,
+//   { loopPoint },
+//   { normalizedLoopStart },
+//   { normalizedLoopEnd }
+// );
+
+// return this.voicePool.applyToAllVoices((v) =>
+//   v.setLoopPoints(normalizedLoopStart, normalizedLoopEnd, this.now)
+// );

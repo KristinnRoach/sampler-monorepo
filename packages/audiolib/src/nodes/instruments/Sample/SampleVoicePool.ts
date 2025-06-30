@@ -40,7 +40,9 @@ export class SampleVoicePool {
     this.#messages = createMessageBus<Message>(this.nodeId);
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
-      const voice = new SampleVoice(context, { enableFilters: false });
+      const voice = new SampleVoice(context, destination, {
+        enableFilters: false,
+      });
       voice.connect(destination);
       return voice;
     });
