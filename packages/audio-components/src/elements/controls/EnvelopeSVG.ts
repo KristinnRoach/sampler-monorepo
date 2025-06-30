@@ -40,6 +40,9 @@ export const EnvelopeSVG = (
     };
   }
 
+  const SVG_WIDTH = 400;
+  const SVG_HEIGHT = 200;
+
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
@@ -49,25 +52,26 @@ export const EnvelopeSVG = (
   // UI states
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
-  const points = van.state(initialEnvValues.points);
+  const points = van.state(initialEnvValues.points); // Reactive - Overwrites current state if receives new props !
+  // const points = van.state([...initialEnvValues.points]); // Use this instead if values never change
 
   // Helper to generate SVG path from points
   const generateSVGPath = (pts: EnvelopePoint[]): string => {
     if (pts.length < 2) return `M0,200 L400,200`;
 
     const sortedPoints = [...pts].sort((a, b) => a.time - b.time);
-    let path = `M${sortedPoints[0].time * 400},${(1 - sortedPoints[0].value) * 200}`;
+    let path = `M${sortedPoints[0].time * SVG_WIDTH},${(1 - sortedPoints[0].value) * SVG_HEIGHT}`;
 
     for (let i = 1; i < sortedPoints.length; i++) {
       const point = sortedPoints[i];
       const prevPoint = sortedPoints[i - 1];
 
-      const x = point.time * 400;
-      const y = (1 - point.value) * 200;
+      const x = point.time * SVG_WIDTH;
+      const y = (1 - point.value) * SVG_HEIGHT;
 
       if (prevPoint.curve === 'exponential') {
-        const prevX = prevPoint.time * 400;
-        const prevY = (1 - prevPoint.value) * 200;
+        const prevX = prevPoint.time * SVG_WIDTH;
+        const prevY = (1 - prevPoint.value) * SVG_HEIGHT;
         const cp1X = prevX + (x - prevX) * 0.3;
         const cp1Y = prevY;
         const cp2X = prevX + (x - prevX) * 0.7;
@@ -88,7 +92,7 @@ export const EnvelopeSVG = (
       cx: 2.5,
       cy: 197.5,
       r: 5,
-      fill: 'tranparent',
+      fill: 'transparent',
       'stroke-width': 2,
       class: 'playhead',
       tabIndex: -1,
@@ -108,8 +112,8 @@ export const EnvelopeSVG = (
         'circle'
       );
 
-      circle.setAttribute('cx', (point.time * 400).toString());
-      circle.setAttribute('cy', ((1 - point.value) * 200).toString());
+      circle.setAttribute('cx', (point.time * SVG_WIDTH).toString());
+      circle.setAttribute('cy', ((1 - point.value) * SVG_HEIGHT).toString());
       circle.setAttribute('r', '4');
       circle.setAttribute(
         'fill',
@@ -128,7 +132,9 @@ export const EnvelopeSVG = (
       // Mouse down - start drag
       // Current approach is a somewhat convoluted way to allow using single click
       // for moving a point and double click for adding a point (only one that worked)
+      const activeTimeouts = new Set<number>();
       let clickTimeout: number;
+
       circle.addEventListener('mousedown', (e: MouseEvent) => {
         const currentCount = (clickCounts.val[index] || 0) + 1;
         clickCounts.val = { ...clickCounts.val, [index]: currentCount };
@@ -144,7 +150,9 @@ export const EnvelopeSVG = (
           // 250ms time given to double click
           clickTimeout = setTimeout(() => {
             clickCounts.val = { ...clickCounts.val, [index]: 0 };
+            activeTimeouts.delete(clickTimeout);
           }, 250);
+          activeTimeouts.add(clickTimeout);
         } else if (currentCount === 2) {
           // Second click - delete and stop dragging
           isDragging.val = false;
@@ -225,7 +233,7 @@ export const EnvelopeSVG = (
 
   // Create SVG element
   svgElement = svg({
-    viewBox: '0 0 400 200',
+    viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
     preserveAspectRatio: 'none',
     style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
   }) as SVGSVGElement;
@@ -240,22 +248,22 @@ export const EnvelopeSVG = (
   const gridGroup = g(
     { class: 'grid' },
     ...Array.from({ length: 6 }, (_, i) => {
-      const x = (i / 5) * 400;
+      const x = (i / 5) * SVG_WIDTH;
       return line({
         x1: x,
         y1: 0,
         x2: x,
-        y2: 200,
+        y2: SVG_HEIGHT,
         stroke: '#333',
         'stroke-width': 1,
       });
     }),
     ...Array.from({ length: 6 }, (_, i) => {
-      const y = (i / 5) * 200;
+      const y = (i / 5) * SVG_HEIGHT;
       return line({
         x1: 0,
         y1: y,
-        x2: 400,
+        x2: SVG_WIDTH,
         y2: y,
         stroke: '#333',
         'stroke-width': 1,
@@ -265,7 +273,7 @@ export const EnvelopeSVG = (
 
   // Envelope path
   envelopePath = path({
-    id: '#path',
+    id: 'path',
     d: () => generateSVGPath(points.val),
     fill: 'none',
     stroke: '#4ade80',
@@ -287,28 +295,23 @@ export const EnvelopeSVG = (
     selectedPoint.val;
     updateControlPoints();
     refreshPlayingAnimations();
-    // Precompute ease when envelope changes
-    setTimeout(() => precomputeEase(), 0); // ensure path is updated
+
+    setTimeout(() => {
+      // Precompute ease when envelope changes
+      if (envelopePath && points.val.length) precomputeEase();
+    }, 0); // ensures path is updated and initial values received
   });
 
-  // Update points when prop changes
-  van.derive(() => {
-    points.val = initialEnvValues.points;
-  });
+  // Update current points when prop changes!
+  van.derive(() => (points.val = initialEnvValues.points));
 
-  // Add caching to avoid recomputing the same ease multiple times
-  const easeCache = new Map<string, string>(); // Store ease names, not objects
+  const easeCache = new Map<string, string>(); // ease key -> ease name
 
   function createTimeBasedEase(pathElement: SVGPathElement): string | null {
-    // Return ease name
-    // Create cache key from path data
     const pathData = pathElement.getAttribute('d') || '';
     const cacheKey = `ease-${pathData}`;
 
-    // Return cached ease if it exists
-    if (easeCache.has(cacheKey)) {
-      return easeCache.get(cacheKey)!;
-    }
+    if (easeCache.has(cacheKey)) return easeCache.get(cacheKey)!;
 
     try {
       const pathLength = pathElement.getTotalLength();
@@ -320,7 +323,7 @@ export const EnvelopeSVG = (
         const progress = i / numSamples;
         const distanceAlongPath = progress * pathLength;
         const pointOnPath = pathElement.getPointAtLength(distanceAlongPath);
-        const timeValue = pointOnPath.x / 400;
+        const timeValue = pointOnPath.x / SVG_WIDTH;
 
         samples.push({ progress, time: timeValue });
       }
@@ -331,8 +334,7 @@ export const EnvelopeSVG = (
       for (let i = 0; i <= numEasePoints; i++) {
         const targetTime = i / numEasePoints;
 
-        // binary search
-        let left = 0;
+        let left = 0; // binary search
         let right = samples.length - 1;
         let closestSample = samples[0];
 
@@ -365,7 +367,7 @@ export const EnvelopeSVG = (
         pathDataStr += ` L${x},${y}`;
       }
 
-      // Create and cache the ease
+      // Create and cache
       const easeName = `timeCorrection-${Date.now()}`;
       CustomEase.create(easeName, pathDataStr);
       easeCache.set(cacheKey, easeName);
@@ -379,12 +381,13 @@ export const EnvelopeSVG = (
 
   let currentEase: string | null = null;
 
-  // Called whenever envelope points change
   function precomputeEase() {
     currentEase = createTimeBasedEase(envelopePath);
   }
 
   function triggerPlayAnimation(msg: any) {
+    if (!currentEase) currentEase = createTimeBasedEase(envelopePath);
+
     if (activeTweens.has(msg.voiceId)) {
       const existing = activeTweens.get(msg.voiceId);
       existing && existing.isActive() && existing.kill();
@@ -397,9 +400,7 @@ export const EnvelopeSVG = (
     const envDuration = msg.envDurations[envelopeType] ?? 0;
     const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
 
-    // ! Remove if all env-types should use time correction (other wise only compute if being used (in van.derive at top))
-    const shouldUseTimeCorrection = true; // envelopeType === 'amp-env';
-    const easeToUse = shouldUseTimeCorrection ? currentEase || 'none' : 'none';
+    const easeToUse = currentEase ? currentEase : 'none';
 
     const newTween = gsap.to(playhead, {
       id: msg.voiceId,
@@ -477,7 +478,7 @@ export const EnvelopeSVG = (
     element: svgElement,
     triggerPlayAnimation,
     releaseAnimation,
-    // updateDuration,
+    // cleanup: () => activeTimeouts.forEach(clearTimeout)
   };
 };
 
