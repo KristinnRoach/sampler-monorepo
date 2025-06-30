@@ -41,7 +41,7 @@ export class SampleVoicePool {
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
       const voice = new SampleVoice(context, destination, {
-        enableFilters: false,
+        enableFilters,
       });
       voice.connect(destination);
       return voice;

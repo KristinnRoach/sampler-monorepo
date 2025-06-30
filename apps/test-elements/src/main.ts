@@ -23,7 +23,6 @@ const init = async () => {
     const instrumentEls = addNode(nodeName, nodesContainer);
 
     samplerEl = qs('sampler-element');
-    console.info('samplerEl', samplerEl);
 
     const draggable = makeDraggable({
       element: instrumentEls.wrapperEl,

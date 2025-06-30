@@ -10,24 +10,29 @@ import {
 
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
-  #hasSharpTransitions = false;
-
   #valueRange: [number, number];
   #durationSeconds: number = 1;
+  #logarithmic: boolean = false;
+  #hasSharpTransitions = false;
 
   constructor(
     public points: EnvelopePoint[] = [],
     valueRange: [number, number] = [0, 1],
-    durationSeconds: number
+    durationSeconds: number,
+    logarithmic = false
   ) {
     this.#durationSeconds = durationSeconds;
     this.#valueRange = valueRange;
+    this.#logarithmic = logarithmic;
   }
 
+  // Todo; default to linear when logarithmic !?
   addPoint(
     time: number,
     value: number,
-    curve: 'linear' | 'exponential' = 'exponential'
+    curve: 'linear' | 'exponential' = this.#logarithmic
+      ? 'linear'
+      : 'exponential'
   ) {
     const newPoint = { time, value, curve };
     const insertIndex = this.points.findIndex((p) => p.time > time);
@@ -66,6 +71,8 @@ export class EnvelopeData {
     }
     this.#updateSharpTransitionsFlag();
   }
+
+  debugCounter = 0;
 
   interpolateValueAtTime(normalizedTime: number): number {
     if (this.points.length === 0) return this.#valueRange[0];
@@ -114,7 +121,9 @@ export class EnvelopeData {
 
     // Scale from 0-1 to target range
     const [min, max] = this.#valueRange;
-    return min + normalizedValue * (max - min);
+    const result = min + normalizedValue * (max - min);
+
+    return result;
   }
 
   #updateSharpTransitionsFlag() {
@@ -191,20 +200,30 @@ export class CustomEnvelope {
   #context: AudioContext;
   #stopLoopFn: (() => void) | null = null;
   #loopEnabled = false;
+  #logarithmic = false;
 
   constructor(
     context: AudioContext,
     envelopeType: EnvelopeType,
     initialPoints: EnvelopePoint[] = [],
     valueRange: [number, number] = [0, 1],
-    durationSeconds: number = 1
+    durationSeconds = 1,
+    logarithmic = false
   ) {
     this.envelopeType = envelopeType;
     this.#context = context;
+    this.#logarithmic = logarithmic;
+
+    const finalRange: [number, number] = logarithmic
+      ? [Math.log(valueRange[0]), Math.log(valueRange[1])]
+      : valueRange;
+    this.#context = context;
+
     this.#data = new EnvelopeData(
       [...initialPoints],
-      valueRange,
-      durationSeconds
+      finalRange,
+      durationSeconds,
+      logarithmic
     );
 
     // Bind data methods to this instance
@@ -307,11 +326,21 @@ export class CustomEnvelope {
     const clearTime = Math.max(this.#context.currentTime, startTime - 0.001);
     audioParam.cancelScheduledValues(clearTime);
 
-    const sampleRate = this.#data.hasSharpTransitions
-      ? 1000
-      : duration < 1
-        ? 500
-        : 250;
+    // const sampleRate = this.#data.hasSharpTransitions
+    //   ? 1000
+    //   : duration < 1
+    //     ? 500
+    //     : 250;
+
+    const sampleRate = this.#logarithmic
+      ? duration < 1
+        ? 1000
+        : 750 // Higher rates for log curves
+      : this.#data.hasSharpTransitions
+        ? 1000
+        : duration < 1
+          ? 500
+          : 250;
 
     const numSamples = Math.max(2, Math.floor(duration * sampleRate));
     const curve = new Float32Array(numSamples);
@@ -320,7 +349,12 @@ export class CustomEnvelope {
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedTime = i / (numSamples - 1);
-      const value = this.#data.interpolateValueAtTime(normalizedTime);
+      let value = this.#data.interpolateValueAtTime(normalizedTime);
+
+      if (this.#logarithmic) {
+        value = Math.exp(value);
+      }
+
       let finalValue = (base ?? 1) * value;
 
       if (min !== undefined) finalValue = Math.max(finalValue, min);
@@ -476,7 +510,77 @@ export class CustomEnvelope {
 
 // === FACTORIES ===
 
-// Replace the generic factory with specific ones:
+interface EnvelopeOptions {
+  durationSeconds?: number;
+  points?: EnvelopePoint[];
+  valueRange?: [number, number];
+}
+
+export function createEnvelope(
+  context: AudioContext,
+  type: EnvelopeType,
+  options: EnvelopeOptions = {}
+): CustomEnvelope {
+  const { durationSeconds = 1, points, valueRange } = options;
+
+  // If custom points provided, use them
+  if (points) {
+    return new CustomEnvelope(
+      context,
+      type,
+      points,
+      valueRange,
+      durationSeconds
+    );
+  }
+
+  // Otherwise use defaults based on type
+  switch (type) {
+    case 'amp-env':
+      return new CustomEnvelope(
+        context,
+        'amp-env',
+        [
+          { time: 0, value: 0, curve: 'exponential' },
+          { time: 0.01, value: 1, curve: 'exponential' },
+          { time: 1, value: 0.0, curve: 'exponential' },
+        ],
+        valueRange || [0, 1],
+        durationSeconds
+      );
+
+    case 'pitch-env':
+      return new CustomEnvelope(
+        context,
+        'pitch-env',
+        [
+          { time: 0, value: 0.5, curve: 'exponential' },
+          { time: 1, value: 0.5, curve: 'exponential' },
+        ],
+        valueRange || [0.5, 1.5],
+        durationSeconds
+      );
+
+    case 'filter-env':
+      return new CustomEnvelope(
+        context,
+        'filter-env',
+        [
+          { time: 0, value: 0, curve: 'linear' },
+          { time: 0.08, value: 1.0, curve: 'linear' },
+          { time: 1, value: 0.5, curve: 'linear' },
+        ],
+        valueRange || [30, 18000],
+        durationSeconds,
+        true // logarithmic = true
+      );
+
+    default:
+      throw new Error(`Unknown envelope type: ${type}`);
+  }
+}
+
+// specific ones:
 export function createAmpEnvelope(
   context: AudioContext,
   options: { type?: 'default' | 'percussive' | 'pad' } = {}
@@ -505,7 +609,7 @@ export function createAmpEnvelope(
 
 export function createPitchEnvelope(
   context: AudioContext,
-  options: { type?: 'default' | 'sweep' } = {}
+  options: { type?: 'default' } = {}
 ): CustomEnvelope {
   const { type = 'default' } = options;
 

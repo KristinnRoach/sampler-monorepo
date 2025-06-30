@@ -46,8 +46,7 @@ export class ValueSnapper {
       : periods;
 
     this.#allowedPeriods = [...(finalValues as number[])].sort((a, b) => a - b);
-
-    console.log(`setAllowedPeriods: `, { usingPeriods: this.#allowedPeriods });
+    // console.log(`setAllowedPeriods: `, { usingPeriods: this.#allowedPeriods });
     return this;
   }
 

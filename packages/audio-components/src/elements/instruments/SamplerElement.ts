@@ -33,6 +33,7 @@ const SamplerElement = (attributes: ElementProps) => {
   const volume = van.state(0.5);
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
+  const filterEnvelope = van.state<CustomEnvelope | null>(null);
   const loopEnvelope = van.state<CustomEnvelope | null>(null);
 
   // Pitch params
@@ -69,14 +70,18 @@ const SamplerElement = (attributes: ElementProps) => {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
-    // updateDuration: (msg: any) => void;
+  } | null = null;
+
+  let filterEnvInstance: {
+    element: SVGSVGElement;
+    triggerPlayAnimation: (msg: any) => void;
+    releaseAnimation: (msg: any) => void;
   } | null = null;
 
   let pitchEnvInstance: {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
-    // updateDuration: (msg: any) => void;
   } | null = null;
 
   // Create the envelopes and store references
@@ -90,6 +95,17 @@ const SamplerElement = (attributes: ElementProps) => {
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0, 1] }
+      );
+    }
+    if (filterEnvelope.val && !filterEnvInstance) {
+      filterEnvInstance = EnvelopeSVG(
+        'amp-env',
+        filterEnvelope.val.points, // () => for reactive?
+        filterEnvelope.val.durationSeconds,
+        handleEnvelopeChange,
+        envDimensions.val.width,
+        envDimensions.val.height,
+        { x: [0, 1], y: [0] }
       );
     }
     if (pitchEnvelope.val && !pitchEnvInstance) {
@@ -135,6 +151,7 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // Setup envelopes
         ampEnvelope.val = samplePlayer.getEnvelope('amp-env');
+        filterEnvelope.val = samplePlayer.getEnvelope('filter-env');
         pitchEnvelope.val = samplePlayer.getEnvelope('pitch-env');
         // loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
 
@@ -191,6 +208,7 @@ const SamplerElement = (attributes: ElementProps) => {
 
         samplePlayer.onMessage('sample-envelopes:trigger', (msg: any) => {
           ampEnvInstance?.triggerPlayAnimation(msg);
+          filterEnvInstance?.triggerPlayAnimation(msg);
           pitchEnvInstance?.triggerPlayAnimation(msg);
         });
 
@@ -201,11 +219,13 @@ const SamplerElement = (attributes: ElementProps) => {
 
         samplePlayer.onMessage('voice:releasing', (msg: any) => {
           ampEnvInstance?.releaseAnimation(msg);
+          filterEnvInstance?.releaseAnimation(msg);
           pitchEnvInstance?.releaseAnimation(msg);
         });
 
         samplePlayer.onMessage('voice:stopped', (msg: any) => {
           ampEnvInstance?.releaseAnimation(msg);
+          filterEnvInstance?.releaseAnimation(msg);
           pitchEnvInstance?.releaseAnimation(msg);
         });
 
@@ -432,7 +452,7 @@ const SamplerElement = (attributes: ElementProps) => {
       VolumeControl(volume),
 
       () =>
-        ampEnvelope.val && pitchEnvelope.val
+        ampEnvelope.val && pitchEnvelope.val && filterEnvelope.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(
@@ -445,6 +465,14 @@ const SamplerElement = (attributes: ElementProps) => {
                     onclick: () => (chosenEnvelope.val = 'amp-env'),
                   },
                   'Amp Env'
+                ),
+                button(
+                  {
+                    style: () =>
+                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px;',
+                    onclick: () => (chosenEnvelope.val = 'filter-env'),
+                  },
+                  'Filter Env'
                 ),
                 button(
                   {
@@ -470,6 +498,16 @@ const SamplerElement = (attributes: ElementProps) => {
                             `position: absolute; visibility: ${chosenEnvelope.val === 'amp-env' ? 'visible' : 'hidden'}`,
                         },
                         ampEnvInstance.element
+                      )
+                    : div(),
+                () =>
+                  filterEnvInstance
+                    ? div(
+                        {
+                          style: () =>
+                            `position: absolute; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
+                        },
+                        filterEnvInstance.element
                       )
                     : div(),
                 () =>

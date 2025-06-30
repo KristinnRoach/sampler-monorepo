@@ -670,7 +670,7 @@ export class SamplePlayer extends LibInstrument {
 
     // Return the first voice's envelope as the "master" envelope
     const firstVoice = this.voicePool.allVoices[0];
-    return firstVoice!.getEnvelope(envType)!;
+    return firstVoice!.getEnvelope(envType)!; // !
   }
 
   setEnvelopeLoop = (
