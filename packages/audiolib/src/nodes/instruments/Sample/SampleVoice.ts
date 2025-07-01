@@ -77,7 +77,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#ampEnv = createEnvelope(context, 'amp-env');
     this.#pitchEnv = createEnvelope(context, 'pitch-env');
 
-    this.#filtersEnabled = options.enableFilters ?? true;
+    this.#filtersEnabled = false; // options.enableFilters ?? true;
 
     // Create filters if enabled
     if (this.#filtersEnabled) {
@@ -225,10 +225,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       this.#ampEnv.applyToAudioParam(envGainParam, timestamp);
     }
 
-    const lpfFreqParam = this.#lpf?.frequency;
-    if (lpfFreqParam && this.#filterEnv && this.#filterEnv.hasVariation()) {
-      this.#filterEnv.applyToAudioParam(lpfFreqParam, timestamp);
-    }
+    // const lpfFreqParam = this.#lpf?.frequency;
+    // if (lpfFreqParam && this.#filterEnv && this.#filterEnv.hasVariation()) {
+    //   this.#filterEnv.applyToAudioParam(lpfFreqParam, timestamp);
+    // }
 
     // Apply pitch envelope (if it has variation)
     if (this.#pitchEnv.hasVariation()) {

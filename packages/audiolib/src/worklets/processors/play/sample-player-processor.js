@@ -457,8 +457,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         );
       }
 
-      // this.playbackPosition += playbackRate;
-      this.playbackPosition += playbackRate * this.transpositionPlaybackrate;
+      this.playbackPosition += playbackRate; // !!! * this.transpositionPlaybackrate;
     }
 
     // Send position updates if requested

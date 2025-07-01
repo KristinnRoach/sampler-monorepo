@@ -453,7 +453,7 @@ const SamplerElement = (attributes: ElementProps) => {
       VolumeControl(volume),
 
       () =>
-        ampEnvelope.val && pitchEnvelope.val && filterEnvelope.val
+        ampEnvelope.val && pitchEnvelope.val // && filterEnvelope.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(
@@ -504,16 +504,16 @@ const SamplerElement = (attributes: ElementProps) => {
                         ampEnvInstance.element
                       )
                     : div(),
-                () =>
-                  filterEnvInstance
-                    ? div(
-                        {
-                          style: () =>
-                            `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
-                        },
-                        filterEnvInstance.element
-                      )
-                    : div(),
+                // () =>
+                //   filterEnvInstance
+                //     ? div(
+                //         {
+                //           style: () =>
+                //             `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
+                //         },
+                //         filterEnvInstance.element
+                //       )
+                //     : div(),
                 () =>
                   pitchEnvInstance
                     ? div(

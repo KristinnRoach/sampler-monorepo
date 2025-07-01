@@ -1,4 +1,4 @@
-import { createScale } from '@/utils/musical/utils/scale-utils';
+import { createScale } from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
 
 const normalizeRange = (

@@ -1,17 +1,19 @@
+import { highPassFilter } from './pitchdetect-utils';
+
 interface PitchCandidate {
-  pitch: number;
+  frequency: number;
   confidence: number;
   time: number;
 }
 
-interface WindowAnalysisResult {
-  pitch: number;
-  confidence: number;
-}
-
-export async function detectPitch(audioBuffer: AudioBuffer): Promise<number> {
-  const data = audioBuffer.getChannelData(0);
+export async function detectPitchWindowed(
+  audioBuffer: AudioBuffer
+): Promise<{ frequency: number; confidence: number }> {
+  const rawData = audioBuffer.getChannelData(0);
   const sampleRate = audioBuffer.sampleRate;
+
+  // Apply high-pass filter to remove boomy low frequencies
+  const data = highPassFilter(rawData, audioBuffer.sampleRate, 100);
 
   // Window parameters
   const windowSize = 4096; // ~93ms at 44.1kHz
@@ -27,10 +29,10 @@ export async function detectPitch(audioBuffer: AudioBuffer): Promise<number> {
     const windowData = data.slice(start, end);
 
     const result = analyzeWindow(windowData, sampleRate);
-    if (result.pitch > 0 && result.confidence > 0.3) {
+    if (result.frequency > 0 && result.confidence > 0.3) {
       // Minimum confidence threshold
       pitchCandidates.push({
-        pitch: result.pitch,
+        frequency: result.frequency,
         confidence: result.confidence,
         time: start / sampleRate,
       });
@@ -38,20 +40,19 @@ export async function detectPitch(audioBuffer: AudioBuffer): Promise<number> {
   }
 
   if (pitchCandidates.length === 0) {
-    return 0; // No pitch detected
+    return { frequency: 0, confidence: 0 }; // No pitch detected
   }
 
-  // Find most stable fundamental frequency
-  return findMostStablePitch(pitchCandidates);
+  return findMostProminentFundamental(pitchCandidates);
 }
 
 function analyzeWindow(
   windowData: Float32Array,
   sampleRate: number
-): WindowAnalysisResult {
+): { frequency: number; confidence: number } {
   // Pad window if too short
   if (windowData.length < 1000) {
-    return { pitch: 0, confidence: 0 };
+    return { frequency: 0, confidence: 0 };
   }
 
   let correlations = new Float32Array(1000);
@@ -108,24 +109,17 @@ function analyzeWindow(
     const denominator = 2 * (2 * y2 - y1 - y3);
     const offset = Math.abs(denominator) < 1e-10 ? 0 : (y3 - y1) / denominator;
 
-    const pitch = sampleRate / (bestLag + offset);
-    return { pitch, confidence };
+    const frequency = sampleRate / (bestLag + offset);
+    return { frequency, confidence };
   }
 
-  return { pitch: 0, confidence: 0 };
+  return { frequency: 0, confidence: 0 };
 }
 
-function findMostStablePitch(pitchCandidates: PitchCandidate[]): number {
-  // Strategy 1: Find the most prominent fundamental (try this first)
-  const fundamentalFreq = findMostProminentFundamental(pitchCandidates);
-
-  // Strategy 2: Find longest sustained section (fallback)
-  // const fundamentalFreq = findLongestSustainedPitch(pitchCandidates);
-
-  return fundamentalFreq;
-}
-
-function findMostProminentFundamental(candidates: PitchCandidate[]): number {
+function findMostProminentFundamental(candidates: PitchCandidate[]): {
+  frequency: number;
+  confidence: number;
+} {
   // Group similar pitches (within 20 cents tolerance)
   const groups: PitchCandidate[][] = [];
   const tolerance = 0.02; // ~20 cents
@@ -135,8 +129,8 @@ function findMostProminentFundamental(candidates: PitchCandidate[]): number {
 
     for (const group of groups) {
       const avgPitch =
-        group.reduce((sum, c) => sum + c.pitch, 0) / group.length;
-      const ratio = candidate.pitch / avgPitch;
+        group.reduce((sum, c) => sum + c.frequency, 0) / group.length;
+      const ratio = candidate.frequency / avgPitch;
 
       // Check if within tolerance (accounting for octave errors)
       if (
@@ -145,11 +139,11 @@ function findMostProminentFundamental(candidates: PitchCandidate[]): number {
         Math.abs(ratio - 2) < tolerance
       ) {
         // Normalize to same octave as group average
-        let normalizedPitch = candidate.pitch;
+        let normalizedPitch = candidate.frequency;
         if (Math.abs(ratio - 0.5) < tolerance) normalizedPitch *= 2;
         if (Math.abs(ratio - 2) < tolerance) normalizedPitch /= 2;
 
-        group.push({ ...candidate, pitch: normalizedPitch });
+        group.push({ ...candidate, frequency: normalizedPitch });
         foundGroup = true;
         break;
       }
@@ -177,45 +171,15 @@ function findMostProminentFundamental(candidates: PitchCandidate[]): number {
       bestGroup = group;
     }
   }
+  // Calculate final confidence
+  const avgConfidence =
+    bestGroup.reduce((sum, c) => sum + c.confidence, 0) / bestGroup.length;
 
   // Return weighted average of best group
   const totalWeight = bestGroup.reduce((sum, c) => sum + c.confidence, 0);
   const weightedPitch =
-    bestGroup.reduce((sum, c) => sum + c.pitch * c.confidence, 0) / totalWeight;
+    bestGroup.reduce((sum, c) => sum + c.frequency * c.confidence, 0) /
+    totalWeight;
 
-  return weightedPitch;
-}
-
-function findLongestSustainedPitch(candidates: PitchCandidate[]): number {
-  // Alternative strategy: find longest continuous section with stable pitch
-  let longestRun: PitchCandidate[] = [];
-  let currentRun: PitchCandidate[] = [candidates[0]];
-
-  const tolerance = 0.05; // 5% pitch variation allowed
-
-  for (let i = 1; i < candidates.length; i++) {
-    const prev = currentRun[currentRun.length - 1];
-    const curr = candidates[i];
-
-    // Check if pitch is stable (within tolerance)
-    if (Math.abs(curr.pitch - prev.pitch) / prev.pitch < tolerance) {
-      currentRun.push(curr);
-    } else {
-      // Run ended, check if it's the longest
-      if (currentRun.length > longestRun.length) {
-        longestRun = [...currentRun];
-      }
-      currentRun = [curr];
-    }
-  }
-
-  // Check final run
-  if (currentRun.length > longestRun.length) {
-    longestRun = currentRun;
-  }
-
-  if (longestRun.length === 0) return 0;
-
-  // Return average pitch of longest sustained section
-  return longestRun.reduce((sum, c) => sum + c.pitch, 0) / longestRun.length;
+  return { frequency: weightedPitch, confidence: avgConfidence };
 }

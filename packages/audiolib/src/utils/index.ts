@@ -3,7 +3,7 @@ export * from './audiodata/convert/parseWavHeader';
 export * from './audiodata/validate/audiobuffer';
 
 // Musical utils & constants
-export * from './musical';
+export * from './music-theory';
 
 // Code utils
 export * from './code/assert';

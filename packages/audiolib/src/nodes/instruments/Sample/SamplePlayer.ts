@@ -1,7 +1,10 @@
 import { getAudioContext } from '@/context';
 import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
-import { detectPitch } from '@/nodes/offlineDSP/simplePitchDetect';
+import {
+  detectSinglePitchAC,
+  detectPitchWindowed,
+} from '@/utils/pitchDetection';
 import { findClosestNote } from '@/utils';
 
 import {
@@ -10,6 +13,7 @@ import {
   isValidAudioBuffer,
   isMidiValue,
   findZeroCrossings,
+  frequencyToPlaybackRate,
 } from '@/utils';
 
 import {
@@ -183,12 +187,12 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    const lastZero = // ? remove since zero crossings handled in processor
-      this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
-    const firstZero = this.#zeroCrossings[0] ?? 0;
+    // const lastZero = // ? remove since zero crossings handled in processor
+    //   this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
+    // const firstZero = this.#zeroCrossings[0] ?? 0;
 
-    const normalizedLoopEnd = lastZero / bufferDuration;
-    const normalizedLoopStart = firstZero / bufferDuration;
+    const normalizedLoopEnd = 1 / bufferDuration;
+    const normalizedLoopStart = 0;
 
     this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
     this.#macroLoopStart.audioParam.setValueAtTime(
@@ -220,7 +224,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = true // todo: base tuning via message & pitchbend / detune via separate audioparam
+    autoTranspose = true
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -247,35 +251,49 @@ export class SamplePlayer extends LibInstrument {
     }
 
     if (shoulDetectPitch) {
-      const pitchResults = await detectPitch(buffer);
+      const pitchSource = await detectSinglePitchAC(buffer);
+      // const pitchSource = await detectPitchWindowed(buffer);
+      const targetNoteInfo = findClosestNote(pitchSource.frequency);
 
-      const closestNoteInfo = findClosestNote(pitchResults.frequency);
-      console.table({ closestNoteInfo });
+      const midiFloat = 69 + 12 * Math.log2(pitchSource.frequency / 440);
+      const playbackRateMultiplier =
+        targetNoteInfo.frequency / pitchSource.frequency;
+
+      console.table({
+        pitchSource,
+        targetNoteInfo,
+        playbackRateMultiplier,
+        midiFloat,
+      });
 
       this.sendUpstreamMessage('sample:pitch-detected', {
-        pitchResults,
-        closestNoteInfo,
+        pitchResults: pitchSource,
+        closestNoteInfo: targetNoteInfo,
       });
 
       if (autoTranspose) {
-        if (pitchResults.confidence > 0.5) {
-          const transposeSemitones = 60 - closestNoteInfo.midiNote;
+        // Increase min confidence if getting many bad results
+        if (pitchSource.confidence > 0.35) {
+          let transposeSemitones = 60 - midiFloat;
+          // Wrap to nearest octave (-6 to +6 semitones)
+          while (transposeSemitones > 6) transposeSemitones -= 12;
+          while (transposeSemitones < -6) transposeSemitones += 12;
           this.voicePool.transposeSemitones = transposeSemitones;
 
           console.info(`transposing by ${transposeSemitones} semitones`);
 
           this.sendUpstreamMessage('sample:auto-transpose', {
             didTranspose: true,
-            pitchResults,
+            pitchResults: pitchSource,
           });
         } else {
           console.info(`Skipped auto transpose due to unreliable results: `, {
-            pitchResults,
+            pitchResults: pitchSource,
           });
 
           this.sendUpstreamMessage('sample:auto-transpose', {
             didTranspose: false,
-            pitchResults,
+            pitchResults: pitchSource,
           });
         }
       }
@@ -564,6 +582,57 @@ export class SamplePlayer extends LibInstrument {
     return { scaledStart, scaledEnd, actualLoopSize };
   }
 
+  // setLoopPoint(
+  //   loopPoint: 'start' | 'end',
+  //   normalizedLoopStart: number,
+  //   normalizedLoopEnd: number,
+  //   rampDuration: number = this.getLoopRampDuration()
+  // ) {
+  //   // Validate input range
+  //   if (
+  //     !this.isNormalized(normalizedLoopStart) ||
+  //     !this.isNormalized(normalizedLoopEnd)
+  //   ) {
+  //     console.error(
+  //       `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
+  //     );
+  //     return this;
+  //   }
+
+  //   // Scale and validate
+  //   const scalingResult = this.#scaleLoopPoints(
+  //     normalizedLoopStart,
+  //     normalizedLoopEnd
+  //   );
+  //   if (!scalingResult) {
+  //     return this; // Scaling failed validation
+  //   }
+
+  //   const { scaledStart, scaledEnd } = scalingResult;
+  //   const RAMP_SENSITIVITY = 2;
+  //   const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
+
+  //   if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
+  //     const storeLoopStart = () =>
+  //       this.storeParamValue('loopStart', scaledStart);
+  //     this.#macroLoopStart.ramp(
+  //       scaledStart,
+  //       scaledRampTime,
+  //       normalizedLoopEnd,
+  //       {
+  //         onComplete: storeLoopStart,
+  //       }
+  //     );
+  //   } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
+  //     const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledEnd);
+  //     this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, normalizedLoopStart, {
+  //       onComplete: storeLoopEnd,
+  //     });
+  //   }
+
+  //   return this;
+  // }
+
   setLoopPoint(
     loopPoint: 'start' | 'end',
     normalizedLoopStart: number,
@@ -581,12 +650,26 @@ export class SamplePlayer extends LibInstrument {
       return this;
     }
 
-    // Scale and validate
-    const scalingResult = this.#scaleLoopPoints(
+    // 1. Apply musical period snapping FIRST (with both values known)
+    const snapResult = this.#snapLoopPair(
       normalizedLoopStart,
       normalizedLoopEnd
     );
+
+    const snappedPair = {
+      start: snapResult?.start ?? normalizedLoopStart,
+      end: snapResult?.end ?? normalizedLoopEnd,
+    };
+
+    // 2. Then apply scaling validation
+    const scalingResult = this.#scaleLoopPoints(
+      snappedPair?.start ?? normalizedLoopStart,
+      snappedPair?.end ?? normalizedLoopEnd
+    );
     if (!scalingResult) {
+      console.warn(
+        `Failed to scale loop points! loopStart: ${normalizedLoopStart}, loopEnd: ${normalizedLoopEnd}`
+      );
       return this; // Scaling failed validation
     }
 
@@ -594,25 +677,55 @@ export class SamplePlayer extends LibInstrument {
     const RAMP_SENSITIVITY = 2;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-    if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
+    // 3. Send the pre-calculated values to macros
+    // Use debounceMs: 0 to disable the macro's own snapping
+    if (loopPoint === 'start' && snappedPair.start !== this.loopStart) {
       const storeLoopStart = () =>
         this.storeParamValue('loopStart', scaledStart);
-      this.#macroLoopStart.ramp(
-        scaledStart,
-        scaledRampTime,
-        normalizedLoopEnd,
-        {
-          onComplete: storeLoopStart,
-        }
-      );
-    } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
+
+      this.#macroLoopStart.ramp(scaledStart, scaledRampTime, scaledEnd, {
+        onComplete: storeLoopStart,
+        // debounceMs: 0, // Disable debouncing to prevent timing issues
+      });
+    } else if (loopPoint === 'end' && snappedPair.end !== this.loopEnd) {
       const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledEnd);
-      this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, normalizedLoopStart, {
+
+      this.#macroLoopEnd.ramp(scaledEnd, scaledRampTime, scaledStart, {
         onComplete: storeLoopEnd,
+        // debounceMs: 0, // Disable debouncing to prevent timing issues
       });
     }
 
     return this;
+  }
+
+  #snapLoopPair(
+    normalizedLoopStart: number,
+    normalizedLoopEnd: number
+  ): { start: number; end: number } | null {
+    // Get the target period (duration)
+    const targetPeriod = Math.abs(normalizedLoopEnd - normalizedLoopStart);
+    if (targetPeriod > this.#macroLoopEnd.longestPeriod) return null;
+    // Check if we should apply period snapping
+    const snapper = this.#macroLoopEnd.snapper; // Use the new getter
+
+    if (snapper.hasPeriodSnapping && targetPeriod < snapper.longestPeriod) {
+      // Apply musical period snapping
+      const snappedEnd = snapper.snapToMusicalPeriod(
+        normalizedLoopStart,
+        normalizedLoopEnd
+      );
+      return {
+        start: normalizedLoopStart,
+        end: snappedEnd,
+      };
+    }
+
+    // No snapping needed
+    return {
+      start: normalizedLoopStart,
+      end: normalizedLoopEnd,
+    };
   }
 
   /** PARAM GETTERS  */

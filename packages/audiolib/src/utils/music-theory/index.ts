@@ -14,6 +14,3 @@ export * from './utils/note-utils';
 
 /** Scale utilities */
 export * from './utils/scale-utils';
-
-/** MIDI utilities */
-export * from './utils/midi-utils';

@@ -5,7 +5,7 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-import { SCALE_PATTERNS } from '@/utils/musical/constants';
+import { SCALE_PATTERNS } from '@/utils/music-theory/constants';
 import { Debouncer } from '@/utils/Debouncer';
 import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
@@ -179,6 +179,14 @@ export class MacroParam {
 
   getValue(): number {
     return this.#controller.value;
+  }
+
+  get targets() {
+    return this.#controller.targets;
+  }
+
+  get snapper(): ValueSnapper {
+    return this.#snapper;
   }
 
   get isReady() {

@@ -1,17 +1,23 @@
-export async function detectPitch(audioBuffer: AudioBuffer) {
+import { highPassFilter } from './pitchdetect-utils';
+
+export async function detectSinglePitchAC(audioBuffer: AudioBuffer) {
   const data = audioBuffer.getChannelData(0);
+
+  // Apply high-pass filter to remove boomy low frequencies
+  const filteredData = highPassFilter(data, audioBuffer.sampleRate, 400);
+
   let correlations = new Float32Array(1000); // Max lag = ~200Hz at 44.1kHz
 
   const clipThreshold = 0.2;
 
   let maxAbs = 0;
-  for (let i = 0; i < data.length; i++) {
-    const abs = Math.abs(data[i]);
+  for (let i = 0; i < filteredData.length; i++) {
+    const abs = Math.abs(filteredData[i]);
     if (abs > maxAbs) maxAbs = abs;
   }
 
   const clipLevel = clipThreshold * maxAbs;
-  const clipped = data.map((x) => (Math.abs(x) > clipLevel ? x : 0));
+  const clipped = filteredData.map((x) => (Math.abs(x) > clipLevel ? x : 0));
 
   // Autocorrelation
   for (let lag = 20; lag < correlations.length; lag++) {
@@ -37,15 +43,16 @@ export async function detectPitch(audioBuffer: AudioBuffer) {
     y3 = correlations[x + 1];
 
   const denominator = 2 * (2 * y2 - y1 - y3);
-  const offset = Math.abs(denominator) < 1e-10 ? 0 : (y3 - y1) / denominator;
+  const offset = Math.abs(denominator) < 1e-6 ? 0 : (y3 - y1) / denominator;
 
   // Add confidence calculation
   const maxCorrelation = correlations[bestLag];
-  const zeroLagCorrelation = correlations[0] || 1; // Avoid division by zero
-  const confidence = Math.max(
-    0,
-    Math.min(1, maxCorrelation / zeroLagCorrelation)
+  const rms = Math.sqrt(
+    filteredData.reduce((sum, x) => sum + x * x, 0) / filteredData.length
   );
+  const normalizedMax = maxCorrelation / (rms * rms * filteredData.length);
+
+  const confidence = Math.max(0, Math.min(1, normalizedMax));
 
   return {
     frequency: audioBuffer.sampleRate / (x + offset),
