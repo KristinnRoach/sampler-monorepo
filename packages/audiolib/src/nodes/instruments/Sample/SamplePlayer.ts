@@ -220,7 +220,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = false // todo: base tuning via message & pitchbend / detune via separate audioparam
+    autoTranspose = true // todo: base tuning via message & pitchbend / detune via separate audioparam
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -311,8 +311,7 @@ export class SamplePlayer extends LibInstrument {
     return this.voicePool.noteOn(
       midiNote,
       safeVelocity,
-      0, // zero delay
-      undefined // transposition is added in pool (use or remove here)
+      0 // zero delay
     );
 
     // if (this.#loopEnabled) {

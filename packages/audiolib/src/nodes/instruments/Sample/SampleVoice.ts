@@ -35,6 +35,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   #state: VoiceState = VoiceState.NOT_READY;
   #isInitialized: boolean = false;
+
   #activeMidiNote: number | null = null;
   #startedTimestamp: number = -1;
 
@@ -165,6 +166,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       zeroCrossings,
     });
     return this;
+  }
+
+  set transposeSemitones(semitones: number) {
+    this.sendToProcessor({ type: 'transpose', semitones });
   }
 
   trigger(options: {
@@ -525,6 +530,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           }
           break;
 
+        case 'voice:transposed':
+          break;
+
         case 'voice:started':
           this.#state = VoiceState.PLAYING;
           data = {
@@ -557,7 +565,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           break;
 
         case 'voice:looped':
-          // console.debug(`voice:looped, time: ${data.timestamp}, loopCount: ${data.count}`);
           break;
 
         case 'voice:position':

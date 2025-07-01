@@ -18,7 +18,7 @@ body {
   padding: 0;
   box-sizing: border-box;
 
-  background-color: #323334;
+  background-color: #d6da5bbc;
 }
 
 .page-wrapper {
@@ -44,73 +44,27 @@ body {
   border-radius: 8px;
 }
 
-/* #node-select {
-  transition: opacity 0.2s;
-  opacity: 0;
-}
-
-.add-el-div:hover #node-select {
-  transition: opacity 0.2s;
-  opacity: 1;
-} */
-
 .node-draggable {
   position: absolute;
 
-  min-height: fit-content; /* todo: move base style logic to component styles */
+  min-height: fit-content;
 
+  /* height: 90dvh; use gsap */
+  width: 45dvw;
   background-color: #333;
-  border: 1px solid #555;
+  border: 4px solid rgba(19, 62, 190, 0.894);
   border-radius: 10px;
-
-  /* overflow: hidden;
-  resize: both; */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .drag-handle {
-  width: 4rem;
+  width: 6rem;
   height: 1rem;
-  /* background: rgb(0, 119, 128); */
+  background: rgba(0, 119, 128, 0.779);
   position: absolute;
   right: 0;
   top: 0;
   margin: 0.5rem;
-  /* border: solid 2px greenyellow; */
-  border-radius: 50%;
+  border: solid 2px rgb(0, 0, 0);
+  border-radius: 20px;
 }
-
-/* 
-input[type='range'] {
-  width: 23vw;
-}
-
-.controls {
-  padding: 0;
-  width: 35vw;
-} */
-
-/* .sampler .envelope-control {
-  width: 90%;
-  height: 20%;
-} */
-
-/* Base styles for the custom elements */
-/*.instrument-box {
- display: flex;
-
-  padding: 1rem;
-  width: fit-content;
-  height: fit-content;
-  max-height: 90vh;
-
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-
-  background-color: #333;
-  border: 1px solid #555;
-  border-radius: 10px; */
-
-/* transform: translate(0, 0); 
-  will-change: transform; 
-}  */

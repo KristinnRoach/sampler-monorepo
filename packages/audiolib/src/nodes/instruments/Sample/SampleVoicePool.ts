@@ -22,8 +22,6 @@ export class SampleVoicePool {
 
   #holding = new Set<SampleVoice>();
 
-  #transposeSemitones = 0;
-
   #isReady: boolean = false;
   get isReady() {
     return this.#isReady;
@@ -103,6 +101,7 @@ export class SampleVoicePool {
       'voice:stopped',
       'voice:releasing',
       'voice:loaded',
+      'voice:transposed',
       'sample-envelopes:trigger',
       'sample-envelopes:duration',
     ]);
@@ -137,13 +136,12 @@ export class SampleVoicePool {
   noteOn(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
-    secondsFromNow = 0,
-    transposition = this.#transposeSemitones
+    secondsFromNow = 0
   ): MidiValue | null {
     const voice = this.allocate();
 
     const success = voice.trigger({
-      midiNote: midiNote + transposition,
+      midiNote: midiNote,
       velocity,
       secondsFromNow,
     });
@@ -249,10 +247,7 @@ export class SampleVoicePool {
     return this.#playingMidiVoiceMap;
   }
 
-  get transposeSemitones() {
-    return this.#transposeSemitones;
-  }
-  set transposeSemitones(semitones) {
-    this.#transposeSemitones = semitones;
+  set transposeSemitones(semitones: number) {
+    this.#allVoices.forEach((voice) => (voice.transposeSemitones = semitones));
   }
 }

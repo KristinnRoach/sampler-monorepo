@@ -69,6 +69,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.buffer = null;
 
     this.playbackPosition = 0;
+    this.transpositionPlaybackrate = 1;
     this.loopCount = 0;
     this.maxLoopCount = Number.MAX_SAFE_INTEGER;
 
@@ -101,8 +102,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== MESSAGE HANDLING =====
 
   #handleMessage(event) {
-    const { type, value, buffer, startPoint, duration, when, zeroCrossings } =
-      event.data;
+    const {
+      type,
+      value,
+      buffer,
+      startPoint,
+      duration,
+      when,
+      zeroCrossings,
+      semitones,
+    } = event.data;
 
     switch (type) {
       case 'voice:init':
@@ -118,7 +127,17 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
         this.port.postMessage({
           type: 'voice:loaded',
-          duration: duration,
+          duration,
+          time: currentTime,
+        });
+        break;
+
+      case 'transpose':
+        this.transpositionPlaybackrate = Math.pow(2, semitones / 12);
+
+        this.port.postMessage({
+          type: 'voice:transposed',
+          semitones,
           time: currentTime,
         });
         break;
@@ -438,7 +457,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         );
       }
 
-      this.playbackPosition += playbackRate;
+      // this.playbackPosition += playbackRate;
+      this.playbackPosition += playbackRate * this.transpositionPlaybackrate;
     }
 
     // Send position updates if requested

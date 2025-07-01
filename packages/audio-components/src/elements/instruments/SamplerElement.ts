@@ -64,7 +64,7 @@ const SamplerElement = (attributes: ElementProps) => {
   // === Envelopes ===
 
   const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
-  const envDimensions = van.state({ width: '100%', height: '120px' });
+  const envDimensions = van.state({ width: '100%', height: '200px' });
 
   let ampEnvInstance: {
     element: SVGSVGElement;
@@ -114,8 +114,8 @@ const SamplerElement = (attributes: ElementProps) => {
         pitchEnvelope.val.points,
         pitchEnvelope.val.durationSeconds,
         handleEnvelopeChange,
-        '100%',
-        '100px',
+        envDimensions.val.width,
+        envDimensions.val.height,
         { x: [0, 1], y: [0.5] },
         0.05
       );
@@ -423,7 +423,7 @@ const SamplerElement = (attributes: ElementProps) => {
     }
   };
 
-  const defaultStyle = `display: flex; flex-direction: column; max-width: 50vw; padding: 0.5rem;`;
+  const defaultStyle = `display: flex; flex-direction: column; max-width: 50vw; padding: 1rem;`;
 
   return div(
     { class: 'sampler-element', style: () => defaultStyle },
@@ -446,7 +446,8 @@ const SamplerElement = (attributes: ElementProps) => {
     div(
       {
         class: 'controls',
-        style: () => (expanded.val === 'true' ? '' : 'display: none'),
+        style: () =>
+          expanded.val === 'true' ? '' : 'display: none; padding: 0.5rem;',
       },
 
       VolumeControl(volume),
@@ -456,12 +457,15 @@ const SamplerElement = (attributes: ElementProps) => {
           ? div(
               { style: 'margin: 10px 0;' },
               div(
-                { style: 'display: flex; column-gap: 1rem;' },
+                {
+                  style:
+                    'display: flex; column-gap: 0.5rem; margin-left: 0.5rem;',
+                },
 
                 button(
                   {
                     style: () =>
-                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px;',
+                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
                     onclick: () => (chosenEnvelope.val = 'amp-env'),
                   },
                   'Amp Env'
@@ -469,7 +473,7 @@ const SamplerElement = (attributes: ElementProps) => {
                 button(
                   {
                     style: () =>
-                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px;',
+                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
                     onclick: () => (chosenEnvelope.val = 'filter-env'),
                   },
                   'Filter Env'
@@ -477,7 +481,7 @@ const SamplerElement = (attributes: ElementProps) => {
                 button(
                   {
                     style: () =>
-                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px;',
+                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
                     onclick: () => (chosenEnvelope.val = 'pitch-env'),
                   },
                   'Pitch Env'
@@ -487,7 +491,7 @@ const SamplerElement = (attributes: ElementProps) => {
               div(
                 {
                   style: () =>
-                    `position: relative;  height: ${envDimensions.val.height}`,
+                    `position: relative;  height: ${envDimensions.val.height}; width: ${envDimensions.val.width};`,
                 },
 
                 () =>
@@ -495,7 +499,7 @@ const SamplerElement = (attributes: ElementProps) => {
                     ? div(
                         {
                           style: () =>
-                            `position: absolute; visibility: ${chosenEnvelope.val === 'amp-env' ? 'visible' : 'hidden'}`,
+                            `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'amp-env' ? 'visible' : 'hidden'}`,
                         },
                         ampEnvInstance.element
                       )
@@ -505,7 +509,7 @@ const SamplerElement = (attributes: ElementProps) => {
                     ? div(
                         {
                           style: () =>
-                            `position: absolute; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
+                            `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
                         },
                         filterEnvInstance.element
                       )
@@ -515,7 +519,7 @@ const SamplerElement = (attributes: ElementProps) => {
                     ? div(
                         {
                           style: () =>
-                            `position: absolute; visibility: ${chosenEnvelope.val === 'pitch-env' ? 'visible' : 'hidden'}`,
+                            `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'pitch-env' ? 'visible' : 'hidden'}`,
                         },
                         pitchEnvInstance.element
                       )
