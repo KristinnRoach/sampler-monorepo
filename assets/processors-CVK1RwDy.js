@@ -15,6 +15,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     __privateAdd(this, _clampZeroCrossing, (value) => __privateGet(this, _clamp).call(this, value, this.minZeroCrossing, this.maxZeroCrossing));
     this.buffer = null;
     this.playbackPosition = 0;
+    this.transpositionPlaybackrate = 1;
     this.loopCount = 0;
     this.maxLoopCount = Number.MAX_SAFE_INTEGER;
     this.isPlaying = false;
@@ -145,7 +146,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           Math.min(1, isFinite(finalSample) ? finalSample : 0)
         );
       }
-      this.playbackPosition += playbackRate;
+      this.playbackPosition += playbackRate * this.transpositionPlaybackrate;
     }
     if (this.usePlaybackPosition) {
       const normalizedPosition = __privateMethod(this, _SamplePlayerProcessor_instances, samplesToNormalized_fn).call(this, this.playbackPosition);
@@ -160,7 +161,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 _SamplePlayerProcessor_instances = new WeakSet();
 // ===== MESSAGE HANDLING =====
 handleMessage_fn = function(event) {
-  const { type, value, buffer, startPoint, duration, when, zeroCrossings } = event.data;
+  const {
+    type,
+    value,
+    buffer,
+    startPoint,
+    duration,
+    when,
+    zeroCrossings,
+    semitones
+  } = event.data;
   switch (type) {
     case "voice:init":
       __privateMethod(this, _SamplePlayerProcessor_instances, resetState_fn).call(this);
@@ -173,6 +183,14 @@ handleMessage_fn = function(event) {
       this.port.postMessage({
         type: "voice:loaded",
         duration,
+        time: currentTime
+      });
+      break;
+    case "transpose":
+      this.transpositionPlaybackrate = Math.pow(2, semitones / 12);
+      this.port.postMessage({
+        type: "voice:transposed",
+        semitones,
         time: currentTime
       });
       break;
