@@ -23,9 +23,9 @@ export const addNode = (
     { class: `${nodeType}-wrapper node-draggable` },
     handleEl,
     nodeElFn({
-      polyphony: '32',
-      id: `${nodeType}-${currId}`,
-      class: `${nodeType}-${currId}`,
+      // polyphony: '32', // skip to use default
+      // id: `${nodeType}-${currId}`,
+      // class: `${nodeType}-${currId}`,
       expanded: false,
     })
   );

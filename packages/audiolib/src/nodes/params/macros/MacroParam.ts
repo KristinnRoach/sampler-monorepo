@@ -75,7 +75,7 @@ export class MacroParam {
     } = options;
 
     const executeRamp = () => {
-      let processedValue = this.#processValue(targetValue, constant);
+      let processedValue = targetValue; // !!! Testing bypassing processing! this.#processValue(targetValue, constant);
 
       this.#controller.ramp(processedValue, duration, method, true);
 

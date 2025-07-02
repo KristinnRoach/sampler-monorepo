@@ -8,7 +8,7 @@ import { addNode, createAddNodeButton } from './utils/addNode';
 let samplerEl: any;
 
 const init = async () => {
-  const audiolib = await initAudiolib();
+  const audiolib = await initAudiolib(); // skip calls to initAudiolib in audio-components?
   // console.info(audiolib); // ?
 
   const nodesContainer = qs('.nodes-playground')!;

@@ -142,7 +142,7 @@ const SamplerElement = (attributes: ElementProps) => {
         // Todo: remove dep on audiolib class, add destination master handling
         samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
         // connects automatically to audio destination
-
+        console.log('polyphony', polyphony);
         if (!samplePlayer.initialized) {
           console.warn('Failed to create sample player');
           status.val = 'Failed to initialize';

@@ -48,8 +48,9 @@ export const EnvelopeSVG = (
   let envelopePath: SVGPathElement;
 
   const activeTweens: Map<number, gsap.core.Tween> = new Map();
-
   const playheads: Map<number, Element> = new Map();
+  let currentEase: string | null = null;
+  const easeCache = new Map<string, string>(); // ease key -> ease name
 
   let noteColor: string | Record<number, string>;
   if (multiColorPlayheads)
@@ -106,10 +107,15 @@ export const EnvelopeSVG = (
       tabIndex: -1,
     }) as SVGCircleElement;
 
-  const clickCounts = van.state<Record<number, number>>({});
+  let clickCounts: Record<number, number> = {};
+  const activeTimeouts = new Set<number>();
 
   const updateControlPoints = () => {
     if (!pointsGroup) return;
+
+    // Clear all existing timeouts before destroying circles
+    activeTimeouts.forEach(clearTimeout);
+    activeTimeouts.clear();
 
     pointsGroup.innerHTML = '';
     const pts = points.val;
@@ -140,12 +146,13 @@ export const EnvelopeSVG = (
       // Mouse down - start drag
       // Current approach is a somewhat convoluted way to allow using single click
       // for moving a point and double click for adding a point (only one that worked)
-      const activeTimeouts = new Set<number>();
+
+      // const activeTimeouts = new Set<number>();
       let clickTimeout: number;
 
       circle.addEventListener('mousedown', (e: MouseEvent) => {
-        const currentCount = (clickCounts.val[index] || 0) + 1;
-        clickCounts.val = { ...clickCounts.val, [index]: currentCount };
+        const currentCount = (clickCounts[index] || 0) + 1;
+        clickCounts = { ...clickCounts, [index]: currentCount };
 
         // First click - start drag immediately and start timer
         isDragging.val = true;
@@ -157,7 +164,7 @@ export const EnvelopeSVG = (
         if (currentCount === 1) {
           // 250ms time given to double click
           clickTimeout = setTimeout(() => {
-            clickCounts.val = { ...clickCounts.val, [index]: 0 };
+            clickCounts = { ...clickCounts, [index]: 0 };
             activeTimeouts.delete(clickTimeout);
           }, 250);
           activeTimeouts.add(clickTimeout);
@@ -169,7 +176,7 @@ export const EnvelopeSVG = (
             points.val = newPoints;
             onPointUpdate(envelopeType, index, -1, -1);
           }
-          clickCounts.val = { ...clickCounts.val, [index]: 0 };
+          clickCounts = { ...clickCounts, [index]: 0 };
         }
         e.preventDefault();
       });
@@ -302,20 +309,24 @@ export const EnvelopeSVG = (
     points.val;
     duration.val;
     selectedPoint.val;
+
     updateControlPoints();
     refreshPlayingAnimations();
 
     setTimeout(() => {
-      // Precompute ease when envelope changes
-      if (envelopePath && points.val.length) precomputeEase();
-    }, 0); // ensures path is updated and initial values received
+      // Compute ease when envelope changes
+      if (envelopePath && points.val.length)
+        currentEase = createTimeBasedEase(envelopePath);
+    }, 0); // ensures path is updated
   });
 
   // Update current points and durationwhen prop changes
-  van.derive(() => (points.val = initialPoints));
-  van.derive(() => (duration.val = durationSeconds));
+  van.derive(() => {
+    points.val = initialPoints;
+    if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
+  });
 
-  const easeCache = new Map<string, string>(); // ease key -> ease name
+  van.derive(() => (duration.val = durationSeconds));
 
   function createTimeBasedEase(pathElement: SVGPathElement): string | null {
     const pathData = pathElement.getAttribute('d') || '';
@@ -326,7 +337,7 @@ export const EnvelopeSVG = (
     try {
       const pathLength = pathElement.getTotalLength();
 
-      const numSamples = 20;
+      const numSamples = 50;
       const samples = [];
 
       for (let i = 0; i <= numSamples; i++) {
@@ -389,12 +400,6 @@ export const EnvelopeSVG = (
     }
   }
 
-  let currentEase: string | null = null;
-
-  function precomputeEase() {
-    currentEase = createTimeBasedEase(envelopePath);
-  }
-
   function triggerPlayAnimation(msg: any) {
     if (!currentEase) currentEase = createTimeBasedEase(envelopePath);
 
@@ -449,6 +454,8 @@ export const EnvelopeSVG = (
   }
 
   function refreshPlayingAnimations() {
+    if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
+
     for (let [voiceId, tween] of activeTweens) {
       if (tween.isActive()) {
         const progress = tween.progress();

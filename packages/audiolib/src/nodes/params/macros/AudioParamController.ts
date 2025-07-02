@@ -50,10 +50,11 @@ export class AudioParamController {
     cancelScheduled = true
   ): this {
     const now = this.#context.currentTime;
-    const currentValue = this.param.value;
 
     cancelScheduled && this.param.cancelScheduledValues(now); // cancelScheduledParamValues(this.param, now);
+
     // TESTING: Preventing unexpected jumps by explicitly setting the current value at the current time
+    const currentValue = this.param.value;
     this.param.setValueAtTime(currentValue, now);
 
     if (method === 'exponential') {
@@ -61,11 +62,8 @@ export class AudioParamController {
         targetValue,
         AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
       );
-
       this.param.exponentialRampToValueAtTime(safeValue, now + duration);
     } else {
-      console.info({ targetValue });
-
       this.param.linearRampToValueAtTime(targetValue, now + duration);
     }
 
