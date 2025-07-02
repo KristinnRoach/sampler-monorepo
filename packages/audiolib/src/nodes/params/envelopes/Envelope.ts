@@ -313,6 +313,7 @@ export class CustomEnvelope {
       targetValue
     );
   }
+
   #applyEnvelope(
     audioParam: AudioParam,
     startTime: number,
@@ -323,15 +324,6 @@ export class CustomEnvelope {
       maxValue?: number;
     } = { baseValue: 1 }
   ) {
-    const clearTime = Math.max(this.#context.currentTime, startTime - 0.001);
-    audioParam.cancelScheduledValues(clearTime);
-
-    // const sampleRate = this.#data.hasSharpTransitions
-    //   ? 1000
-    //   : duration < 1
-    //     ? 500
-    //     : 250;
-
     const sampleRate = this.#logarithmic
       ? duration < 1
         ? 1000
@@ -363,20 +355,23 @@ export class CustomEnvelope {
       curve[i] = finalValue;
     }
 
+    const safeStart = Math.max(this.#context.currentTime, startTime);
     try {
-      audioParam.setValueCurveAtTime(curve, startTime, duration);
+      audioParam.cancelScheduledValues(safeStart);
+      audioParam.setValueCurveAtTime(curve, safeStart, duration);
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
       try {
         const currentValue = audioParam.value;
-        audioParam.setValueAtTime(currentValue, startTime);
+        audioParam.cancelScheduledValues(safeStart);
+        audioParam.setValueAtTime(currentValue, safeStart);
         audioParam.linearRampToValueAtTime(
           curve[curve.length - 1],
-          startTime + duration
+          safeStart + duration
         );
       } catch (fallbackError) {
         try {
-          audioParam.setValueAtTime(curve[curve.length - 1], startTime);
+          audioParam.setValueAtTime(curve[curve.length - 1], safeStart);
         } catch {
           // Silent fail
         }
@@ -392,21 +387,22 @@ export class CustomEnvelope {
     targetValue = 0.001,
     curve: 'linear' | 'exponential' = 'exponential'
   ) {
-    audioParam.cancelScheduledValues(startTime);
-    audioParam.setValueAtTime(currentValue, startTime);
+    const safeStart = Math.max(this.#context.currentTime, startTime);
+    audioParam.cancelScheduledValues(safeStart);
+    audioParam.setValueAtTime(currentValue, safeStart);
 
     try {
       if (curve === 'exponential' && currentValue > 0.001 && targetValue > 0) {
         audioParam.exponentialRampToValueAtTime(
           targetValue,
-          startTime + duration
+          safeStart + duration
         );
       } else {
-        audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+        audioParam.linearRampToValueAtTime(targetValue, safeStart + duration);
       }
     } catch (error) {
       console.warn('Failed to apply release:', error);
-      audioParam.linearRampToValueAtTime(targetValue, startTime + duration);
+      audioParam.linearRampToValueAtTime(targetValue, safeStart + duration);
     }
   }
 

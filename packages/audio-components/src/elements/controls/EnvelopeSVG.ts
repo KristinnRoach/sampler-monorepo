@@ -185,6 +185,8 @@ export const EnvelopeSVG = (
     });
   };
 
+  let refreshTimeout: number;
+
   const handleMouseMove = (e: MouseEvent) => {
     if (isDragging.val && selectedPoint.val !== null) {
       const rect = svgElement.getBoundingClientRect();
@@ -310,20 +312,20 @@ export const EnvelopeSVG = (
     duration.val;
     selectedPoint.val;
 
-    updateControlPoints();
-    refreshPlayingAnimations();
+    // console.log('derive triggered:', {
+    //   pointsLength: points.val.length,
+    //   duration: duration.val,
+    //   selectedPoint: selectedPoint.val,
+    // });
 
-    setTimeout(() => {
-      // Compute ease when envelope changes
-      if (envelopePath && points.val.length)
-        currentEase = createTimeBasedEase(envelopePath);
-    }, 0); // ensures path is updated
+    updateControlPoints();
+
+    setTimeout(() => refreshPlayingAnimations(), 0); // ensures path is updated
   });
 
   // Update current points and durationwhen prop changes
   van.derive(() => {
     points.val = initialPoints;
-    if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
   });
 
   van.derive(() => (duration.val = durationSeconds));
@@ -437,8 +439,6 @@ export const EnvelopeSVG = (
   }
 
   function releaseAnimation(msg: any) {
-    // console.table({ releaseAnimation: msg });
-
     if (activeTweens.has(msg.voiceId)) {
       const existing = activeTweens.get(msg.voiceId);
       existing && existing.isActive() && existing.kill();
@@ -496,7 +496,7 @@ export const EnvelopeSVG = (
     element: svgElement,
     triggerPlayAnimation,
     releaseAnimation,
-    // cleanup: () => activeTimeouts.forEach(clearTimeout)
+    cleanup: () => activeTimeouts.forEach(clearTimeout),
   };
 };
 
