@@ -157,16 +157,15 @@ const SamplerElement = (attributes: ElementProps) => {
 
         van.derive(() => {
           if (!samplePlayer) return;
-
-          // Only call setLoopPoint if values actually differ from stored values
-          // ( todo: simplify and handle in audiolib )
-
           if (loopStart.val !== samplePlayer.loopStart) {
-            samplePlayer.setLoopPoint('start', loopStart.val, loopEnd.val);
+            samplePlayer.setLoopStart(loopStart.val);
           }
+        });
 
-          if (loopEnd.val !== samplePlayer.loopStart) {
-            samplePlayer.setLoopPoint('end', loopStart.val, loopEnd.val);
+        van.derive(() => {
+          if (!samplePlayer) return;
+          if (loopEnd.val !== samplePlayer.loopEnd) {
+            samplePlayer.setLoopEnd(loopEnd.val);
           }
         });
 

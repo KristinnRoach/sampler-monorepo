@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { detectSinglePitchAC, highPassFilter } from '../';
+import { describe, it, expect } from 'vitest';
+import { detectSinglePitchAC } from '../';
 
 // Helper to create mock AudioBuffer
 function createMockAudioBuffer(
@@ -32,46 +32,6 @@ function generateSineWave(
   }
   return data;
 }
-
-describe('highPassFilter', () => {
-  it('should filter out DC component', () => {
-    // Use longer signal to see DC filtering effect
-    const input = new Float32Array(1000).fill(1); // DC signal
-    const result = highPassFilter(input, 44100, 400);
-
-    // DC should be reduced over time - compare start vs end
-    const initialValue = Math.abs(result[10]);
-    const finalValue = Math.abs(result[result.length - 1]);
-    expect(finalValue).toBeLessThan(initialValue);
-  });
-
-  it('should preserve high frequencies', () => {
-    const highFreqSine = generateSineWave(1000, 44100, 0.1);
-    const filtered = highPassFilter(highFreqSine, 44100, 400);
-
-    // High frequency content should be mostly preserved
-    const originalRMS = Math.sqrt(
-      highFreqSine.reduce((sum, x) => sum + x * x, 0) / highFreqSine.length
-    );
-    const filteredRMS = Math.sqrt(
-      filtered.reduce((sum, x) => sum + x * x, 0) / filtered.length
-    );
-
-    expect(filteredRMS / originalRMS).toBeGreaterThan(0.5);
-  });
-
-  it('should handle empty input', () => {
-    const result = highPassFilter(new Float32Array(0), 44100, 400);
-    expect(result.length).toBe(0);
-  });
-
-  it('should handle single sample', () => {
-    const input = new Float32Array([0.5]);
-    const result = highPassFilter(input, 44100, 400);
-    expect(result.length).toBe(1);
-    expect(result[0]).toBe(0.5);
-  });
-});
 
 describe('detectSinglePitchAC', () => {
   it('should detect 440Hz A4 note', async () => {

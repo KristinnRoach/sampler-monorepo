@@ -1,11 +1,11 @@
 // pitch-detection.browser.test.ts
 import { describe, it, expect } from 'vitest';
-import { detectSinglePitchAC } from '../pitchDetect';
+import { detectSinglePitchAC } from '../autocorrelateSingle';
 import { fetchInitSampleAsAudioBuffer } from '../../../storage/assets/asset-utils';
-import { findClosestNote } from '../../musical';
+import { findClosestNote } from '../../music-theory';
 
 describe('Pitch Detection - Real Audio Files', () => {
-  it('detects pitch from init sample audio file', async () => {
+  it('detects pitch from default init sample audio file', async () => {
     const audioBuffer = await fetchInitSampleAsAudioBuffer();
     const result = await detectSinglePitchAC(audioBuffer);
 

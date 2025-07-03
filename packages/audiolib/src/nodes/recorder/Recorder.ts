@@ -60,15 +60,10 @@ export class Recorder implements LibNode {
   }
 
   async init(): Promise<Recorder> {
-    try {
-      console.warn(
-        'Recorder: init() method is unnecessary and has been removed.'
-      );
-
-      return this;
-    } catch (error) {
-      throw new Error(`Failed to get microphone: ${error}`);
-    }
+    console.warn(
+      'Recorder: init() method is deprecated and will be removed in a future version.'
+    );
+    return this;
   }
 
   async start(options?: Partial<RecorderOptions>): Promise<this> {

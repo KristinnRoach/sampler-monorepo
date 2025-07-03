@@ -116,6 +116,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     this.#setupMessageHandling();
     this.sendToProcessor({ type: 'voice:init' });
+
+    this.#worklet.port.start();
   }
 
   logAvailableParams = () => {
@@ -471,15 +473,42 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     // Todo: figure out this system
   };
 
-  debugCounter = 0;
+  // debugCounter = 0;
 
-  setLoopPoints(start: number, end: number, timestamp = this.now): this {
+  setLoopPoints(
+    start: number,
+    end: number,
+    timestamp = this.now,
+    rampTime = 0
+  ): this {
+    if (start >= end) return this;
+    // if (this.loopPointsTimeout) clearTimeout(this.loopPointsTimeout);
+    // this.loopPointsTimeout = setTimeout(() => { ... }, 16); // ~60fps debouncing
+
     if (start !== undefined) {
-      this.setParam('loopStart', start, timestamp, { glideTime: 0 });
+      this.setParam('loopStart', start, timestamp, {
+        glideTime: rampTime,
+        cancelPrevious: true,
+      });
     }
     if (end !== undefined) {
-      this.setParam('loopEnd', end, timestamp, { glideTime: 0 });
+      this.setParam('loopEnd', end, timestamp, {
+        glideTime: rampTime,
+        cancelPrevious: true,
+      });
     }
+
+    // if (this.debugCounter % 10 === 0) console.debug('sampleVoice.setLoopPoints, start:', start, 'end:', end);
+    // this.debugCounter++;
+
+    return this;
+  }
+
+  setAllowedPeriods(periods: number[]): this {
+    this.sendToProcessor({
+      type: 'setAllowedPeriods',
+      allowedPeriods: periods,
+    });
 
     return this;
   }
@@ -582,6 +611,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
             { loopEnd: data.loopEnd },
             { loopEndSamples: data.loopEndSamples }
           );
+          break;
+
+        case 'debug:loop':
+          console.log('Loop debug:', data);
           break;
 
         default:

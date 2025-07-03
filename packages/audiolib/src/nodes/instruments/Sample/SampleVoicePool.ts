@@ -1,5 +1,6 @@
 import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
+import { pop } from '@/utils';
 import { VoiceState } from '../VoiceState';
 import {
   Message,
@@ -112,12 +113,6 @@ export class SampleVoicePool {
     return this;
   }
 
-  pop = (set: Set<any>) => {
-    const v = set.values().next().value;
-    set.delete(v);
-    return v;
-  };
-
   allocate(
     available = this.#available,
     releasing = this.#releasing,
@@ -125,10 +120,10 @@ export class SampleVoicePool {
   ): SampleVoice {
     let voice;
 
-    if (available.size) voice = this.pop(available);
-    else if (releasing.size) voice = this.pop(releasing);
-    else if (playing.size) voice = this.pop(playing);
-    else throw new Error(`Could not allocate voice`);
+    if (available.size) voice = pop(available);
+    else if (releasing.size) voice = pop(releasing);
+    else if (playing.size) voice = pop(playing);
+    if (!voice) throw new Error(`Could not allocate voice`);
 
     return voice;
   }

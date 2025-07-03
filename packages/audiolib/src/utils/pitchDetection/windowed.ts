@@ -1,10 +1,13 @@
-import { highPassFilter } from './pitchdetect-utils';
+import { highPassFilter } from './filter-util';
 
 interface PitchCandidate {
   frequency: number;
   confidence: number;
   time: number;
 }
+
+const MAX_Hz = 4000;
+const MIN_Hz = 80;
 
 export async function detectPitchWindowed(
   audioBuffer: AudioBuffer
@@ -78,8 +81,8 @@ function analyzeWindow(
   }
 
   // Find peak correlation
-  const minLag = Math.floor(sampleRate / 1000); // ~1kHz upper bound
-  const maxLag = Math.floor(sampleRate / 80); // ~80Hz lower bound
+  const minLag = Math.floor(sampleRate / MAX_Hz); // upper bound freq
+  const maxLag = Math.floor(sampleRate / MIN_Hz); // lower bound
 
   let bestLag = minLag;
   let maxCorr = correlations[minLag];

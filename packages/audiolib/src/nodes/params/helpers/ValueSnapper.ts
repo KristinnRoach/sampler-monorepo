@@ -75,19 +75,21 @@ export class ValueSnapper {
   }
 
   // todo: If I want zero-snapping for periods -> Just pre-compute the optimal values and store them as the allowedPeriods !!
-  snapToMusicalPeriod(loopStart: number, targetLoopEnd: number): number {
-    if (this.#allowedPeriods.length === 0) return targetLoopEnd;
-
-    const targetDuration = targetLoopEnd - loopStart;
+  snapToMusicalPeriod(targetPeriod: number): number {
+    if (this.#allowedPeriods.length === 0) return targetPeriod;
 
     // Find closest musical period to the target duration
-    const closestPeriod = this.#allowedPeriods.reduce((prev, curr) =>
-      Math.abs(curr - targetDuration) < Math.abs(prev - targetDuration)
+    const quantized = this.#allowedPeriods.reduce((prev, curr) =>
+      Math.abs(curr - targetPeriod) < Math.abs(prev - targetPeriod)
         ? curr
         : prev
     );
 
-    return loopStart + closestPeriod;
+    return quantized;
+  }
+
+  get periods() {
+    return this.#allowedPeriods;
   }
 
   get shortestPeriod() {

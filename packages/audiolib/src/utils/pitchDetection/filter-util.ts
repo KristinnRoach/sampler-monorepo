@@ -9,7 +9,7 @@ export function highPassFilter(
   const alpha = rc / (rc + dt);
 
   const filtered = new Float32Array(data.length);
-  filtered[0] = data[0];
+  filtered[0] = 0;
 
   for (let i = 1; i < data.length; i++) {
     filtered[i] = alpha * (filtered[i - 1] + data[i] - data[i - 1]);

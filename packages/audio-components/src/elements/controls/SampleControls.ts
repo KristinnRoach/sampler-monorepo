@@ -14,7 +14,7 @@ export const SampleControls = (
     { style: 'display: flex; flex-direction: column;' },
 
     // Note: sliders use normalized range: 0 to 1
-    createTwoThumbSlider('Loop', loopStart, loopEnd, 0, 1, 0.001, 0.03),
+    createTwoThumbSlider('Loop', loopStart, loopEnd, 0, 1, 0.001, 0.001),
     createTwoThumbSlider('Trim', startPoint, endPoint, 0, 1, 0.001, 0.03)
   );
 

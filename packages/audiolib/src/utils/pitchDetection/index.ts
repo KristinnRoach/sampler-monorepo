@@ -1,3 +1,3 @@
-export * from './pitchDetect';
-export * from './windowPitchDetect';
-export * from './pitchdetect-utils';
+export * from './autocorrelateSingle';
+export * from './windowed';
+export * from './filter-util';

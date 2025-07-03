@@ -65,7 +65,8 @@ export class KnobElement extends HTMLElement {
 
   private calculateValueFromRotation(): number {
     const range = this.max - this.min;
-    const normalized = ((this.rotation + 150) % 360) / 240;
+    const adjustedRotation = (((this.rotation + 150) % 360) + 360) % 360;
+    const normalized = adjustedRotation / 240;
     return Math.round(this.min + Math.min(1, Math.max(0, normalized)) * range);
   }
 

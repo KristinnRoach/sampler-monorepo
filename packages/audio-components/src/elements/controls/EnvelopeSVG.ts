@@ -49,7 +49,7 @@ export const EnvelopeSVG = (
 
   const activeTweens: Map<number, gsap.core.Tween> = new Map();
   const playheads: Map<number, Element> = new Map();
-  let currentEase: string | null = null;
+  // let currentEase: string | null = null;
   const easeCache = new Map<string, string>(); // ease key -> ease name
 
   let noteColor: string | Record<number, string>;
@@ -62,6 +62,8 @@ export const EnvelopeSVG = (
   const isDragging = van.state(false);
   const points = van.state(initialPoints); // Reactive - Overwrites current state if receives new props !
   const duration = van.state(durationSeconds);
+
+  const currentEase = van.state<string | null>(null);
   // const points = van.state([...initialEnvValues.points]); // Use this instead if values never change
 
   // Helper to generate SVG path from points
@@ -320,7 +322,12 @@ export const EnvelopeSVG = (
 
     updateControlPoints();
 
-    setTimeout(() => refreshPlayingAnimations(), 0); // ensures path is updated
+    // setTimeout(() => refreshPlayingAnimations(), 0); // ensures path is updated
+
+    setTimeout(() => {
+      currentEase.val = createTimeBasedEase(envelopePath);
+      refreshPlayingAnimations();
+    }, 0);
   });
 
   // Update current points and durationwhen prop changes
@@ -403,7 +410,7 @@ export const EnvelopeSVG = (
   }
 
   function triggerPlayAnimation(msg: any) {
-    if (!currentEase) currentEase = createTimeBasedEase(envelopePath);
+    // if (!currentEase) currentEase = createTimeBasedEase(envelopePath);
 
     if (activeTweens.has(msg.voiceId)) {
       const existing = activeTweens.get(msg.voiceId);
@@ -417,7 +424,7 @@ export const EnvelopeSVG = (
     const envDuration = msg.envDurations[envelopeType] ?? 0;
     const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
 
-    const easeToUse = currentEase ? currentEase : 'none';
+    const easeToUse = currentEase.val ? currentEase.val : 'none';
     const color = multiColorPlayheads ? noteColor[msg.midiNote] : 'red';
 
     const newTween = gsap.to(playhead, {
@@ -454,7 +461,7 @@ export const EnvelopeSVG = (
   }
 
   function refreshPlayingAnimations() {
-    if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
+    // if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
 
     for (let [voiceId, tween] of activeTweens) {
       if (tween.isActive()) {
@@ -480,7 +487,7 @@ export const EnvelopeSVG = (
             },
             duration: shouldUpdateDuration ? currentDuration : tweenDuration,
             repeat: isLooping ? -1 : 0,
-            ease: currentEase || 'none',
+            ease: currentEase.val || 'none',
             onStart: () => playhead.setAttribute('fill', 'red'),
             onComplete: () => playhead.setAttribute('fill', 'transparent'),
           });

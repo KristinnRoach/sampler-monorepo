@@ -75,7 +75,7 @@ export class MacroParam {
     } = options;
 
     const executeRamp = () => {
-      let processedValue = targetValue; // !!! Testing bypassing processing! this.#processValue(targetValue, constant);
+      let processedValue = this.#processValue(targetValue, constant);
 
       this.#controller.ramp(processedValue, duration, method, true);
 
@@ -109,25 +109,49 @@ export class MacroParam {
     });
   }
 
-  #processValue(value: number, constant: number): number {
-    const targetPeriod = Math.abs(value - constant);
+  #processValue(targetValue: number, constant: number): number {
+    if (!Number.isFinite(targetValue) || !Number.isFinite(constant)) {
+      return targetValue;
+    }
+
+    const targetPeriod = Math.abs(targetValue - constant);
 
     if (
       this.#snapper.hasPeriodSnapping &&
       targetPeriod < this.#snapper.longestPeriod
     ) {
-      // For loop duration snapping, treat 'constant' as loopStart and 'value' as loopEnd
-      const snapped = this.#snapper.snapToMusicalPeriod(constant, value);
+      const quantizedPeriod = this.#snapper.snapToMusicalPeriod(targetPeriod);
 
-      // console.log('MacroParam.#processValue period snapped:', { value, snapped });
+      console.debug(
+        'adjusting param: ',
+        this.#paramType,
+        'targetValue',
+        targetValue,
+        'constant',
+        constant,
+        'targetPeriod',
+        targetPeriod,
+        'quantizedPeriod',
+        quantizedPeriod
+      );
 
-      return snapped;
+      let result;
+
+      if (this.#paramType === 'loopEnd') {
+        result = constant + quantizedPeriod;
+      }
+
+      if (this.#paramType === 'loopStart') {
+        result = constant - quantizedPeriod;
+      }
+
+      if (result) return result;
     } else if (this.#snapper.hasValueSnapping) {
-      const snapped = this.#snapper.snapToValue(value);
+      const snapped = this.#snapper.snapToValue(targetValue);
       return snapped;
     }
 
-    return value;
+    return targetValue;
   }
 
   // Delegate configuration methods

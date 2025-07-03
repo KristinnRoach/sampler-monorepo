@@ -1,3 +1,5 @@
+import { ValueSnapper } from '../shared/ValueSnapper';
+
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== PARAMETER DESCRIPTORS =====
   static get parameterDescriptors() {
@@ -18,7 +20,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       },
       {
         name: 'velocity',
-        defaultValue: 100, // ? normalize ?
+        defaultValue: 100,
         minValue: 0,
         maxValue: 127,
         automationRate: 'k-rate',
@@ -67,6 +69,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     super();
 
     this.buffer = null;
+    this.snapper = new ValueSnapper();
 
     this.playbackPosition = 0;
     this.transpositionPlaybackrate = 1;
@@ -111,6 +114,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       when,
       zeroCrossings,
       semitones,
+      allowedPeriods,
     } = event.data;
 
     switch (type) {
@@ -133,6 +137,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'transpose':
+        // Convert semitones to playback-rate scalar
         this.transpositionPlaybackrate = Math.pow(2, semitones / 12);
 
         this.port.postMessage({
@@ -153,6 +158,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.maxZeroCrossing =
             this.zeroCrossings[this.zeroCrossings.length - 1];
         }
+        break;
+
+      case 'setAllowedPeriods':
+        // Convert seconds to samples
+        const periodsInSamples = allowedPeriods.map(
+          (periodSec) => periodSec * sampleRate
+        );
+
+        this.snapper.setAllowedPeriods(periodsInSamples);
         break;
 
       case 'voice:start':
@@ -350,29 +364,28 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const lpEnd = params.loopEndSamples;
 
     // Default to playback range if loop points are not set
-
     let calcLoopStart =
       lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
 
-    const bufferLengthSamples = this.#getBufferLengthSamples();
-
     let calcLoopEnd =
-      lpEnd > lpStart && lpEnd <= bufferLengthSamples
+      lpEnd > lpStart && lpEnd < playbackRange.endSamples
         ? lpEnd
         : playbackRange.endSamples;
 
     const loopDuration = calcLoopEnd - calcLoopStart;
 
-    const C3inSamples = 0.015288 * sampleRate; // todo: Use ValueSnapper here instead?
-    if (loopDuration > C3inSamples) {
-      calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
-      calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
-    }
+    // const shouldSnap = loopDuration < this.snapper.longestPeriod;
+    // if (shouldSnap && this.snapper.hasPeriodSnapping) {
+    //   calcLoopEnd =
+    //     calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
+    // }
+    // calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
+    // calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
 
     return {
       loopStartSamples: calcLoopStart,
       loopEndSamples: calcLoopEnd,
-      loopDurationSamples: calcLoopEnd - calcLoopStart,
+      loopDurationSamples: loopDuration,
     };
   }
 
@@ -380,6 +393,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
   process(inputs, outputs, parameters) {
     const output = outputs[0];
+    this.debugCounter++;
 
     if (!output || !this.isPlaying || !this.buffer) {
       return true;
@@ -393,9 +407,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       playbackRange,
       parameters
     );
-
-    // this.debugCounter++;
-    // if (this.debugCounter % 1000 === 0) console.info(loopRange, playbackRange);
 
     // Initialize playback position on first process call
     if (this.playbackPosition === 0) {
@@ -412,6 +423,20 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const numChannels = Math.min(output.length, this.buffer.length);
 
+    // if (this.debugCounter % 1000 === 0) {
+    //   this.port.postMessage({
+    //     type: 'debug:loop',
+    //     loopEnabled: this.loopEnabled,
+    //     playbackPosition: this.playbackPosition,
+    //     loopStartSamples: loopRange.loopStartSamples,
+    //     loopEndSamples: loopRange.loopEndSamples,
+    //     playbackStartSamples: playbackRange.startSamples,
+    //     playbackEndSamples: playbackRange.endSamples,
+    //     rawLoopStart: parameters.loopStart[0],
+    //     rawLoopEnd: parameters.loopEnd[0],
+    //   });
+    // }
+
     // Process each sample
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
@@ -420,14 +445,18 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.playbackPosition >= loopRange.loopEndSamples &&
         this.loopCount < this.maxLoopCount
       ) {
-        this.playbackPosition = loopRange.loopStartSamples;
-        this.loopCount++;
-
+        // Log when loop occurs
         this.port.postMessage({
           type: 'voice:looped',
           count: this.loopCount,
           timestamp: currentTime,
+          playbackPosition: this.playbackPosition,
+          loopEndSamples: loopRange.loopEndSamples,
+          loopStartSamples: loopRange.loopStartSamples,
         });
+
+        this.playbackPosition = loopRange.loopStartSamples;
+        this.loopCount++;
       }
 
       // Check for end of playback range
@@ -457,7 +486,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         );
       }
 
-      this.playbackPosition += playbackRate; // !!! * this.transpositionPlaybackrate;
+      this.playbackPosition += playbackRate * this.transpositionPlaybackrate;
     }
 
     // Send position updates if requested
