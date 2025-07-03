@@ -77,7 +77,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#ampEnv = createEnvelope(context, 'amp-env');
     this.#pitchEnv = createEnvelope(context, 'pitch-env');
 
-    this.#filtersEnabled = false; // options.enableFilters ?? true;
+    this.#filtersEnabled = options.enableFilters ?? true;
 
     // Create filters if enabled
     if (this.#filtersEnabled) {
@@ -147,7 +147,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.sendToProcessor({
       type: 'voice:set_buffer',
       buffer: bufferData,
-      duration: buffer.duration,
+      durationSeconds: buffer.duration,
     });
 
     if (zeroCrossings?.length) {
@@ -221,31 +221,28 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#pitchEnv.setSampleDuration(adjustedDuration);
     this.#filterEnv?.setSampleDuration(adjustedDuration);
 
-    // Apply amp envelope
+    // Apply amp, filter and pitch envelopes
     const envGainParam = this.#worklet.parameters.get('envGain');
     if (envGainParam) {
       this.#ampEnv.applyToAudioParam(envGainParam, timestamp);
     }
 
-    // const lpfFreqParam = this.#lpf?.frequency;
-    // if (lpfFreqParam && this.#filterEnv && this.#filterEnv.hasVariation()) {
-    //   this.#filterEnv.applyToAudioParam(lpfFreqParam, timestamp);
-    // }
+    const lpfFreqParam = this.#lpf?.frequency;
+    if (this.#filterEnv && lpfFreqParam && this.#filterEnv.hasVariation()) {
+      this.#filterEnv.applyToAudioParam(lpfFreqParam, timestamp);
+    }
 
-    // Apply pitch envelope (if it has variation)
-    if (this.#pitchEnv.hasVariation()) {
-      const playbackRateParam = this.#worklet.parameters.get('playbackRate');
-      if (playbackRateParam) {
-        this.#pitchEnv.applyToAudioParam(playbackRateParam, timestamp, {
-          baseValue: playbackRate,
-        });
-      }
+    const playbackRateParam = this.#worklet.parameters.get('playbackRate');
+    if (this.#pitchEnv && playbackRateParam && this.#pitchEnv.hasVariation()) {
+      this.#pitchEnv.applyToAudioParam(playbackRateParam, timestamp, {
+        baseValue: playbackRate,
+      });
     }
 
     // Start playback
     this.sendToProcessor({
       type: 'voice:start',
-      when: timestamp,
+      timestamp,
     });
 
     this.sendUpstreamMessage('sample-envelopes:trigger', {
@@ -300,7 +297,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // todo: release filter-env and pitch-env ?
 
-    this.sendToProcessor({ type: 'voice:release' });
+    this.sendToProcessor({ type: 'voice:release', timestamp });
 
     // After the release duration, the voice should stop
     setTimeout(
@@ -328,7 +325,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       glideTime: 0,
     });
 
-    this.sendToProcessor({ type: 'voice:stop' });
+    this.sendToProcessor({ type: 'voice:stop', timestamp });
     this.#state = VoiceState.STOPPED;
     return this;
   }
@@ -347,10 +344,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   ) {
     if (envType === 'amp-env') this.#ampEnv.updatePoint(index, time, value);
     if (envType === 'pitch-env') this.#pitchEnv.updatePoint(index, time, value);
-    if (envType === 'filter-env') {
+    if (envType === 'filter-env' && this.#filterEnv)
       this.#filterEnv?.updatePoint(index, time, value);
-      console.log('update filterEnv: ', index, time, value);
-    }
   }
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number) {
@@ -544,13 +539,13 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           this.#activeMidiNote = null;
           this.#state = VoiceState.LOADED;
 
-          if (data.duration) {
+          if (data.durationSeconds) {
             this.#activeMidiNote = null;
-            this.#sampleDurationSeconds = data.duration;
+            this.#sampleDurationSeconds = data.durationSeconds;
 
-            this.#ampEnv.setSampleDuration(data.duration);
-            this.#pitchEnv.setSampleDuration(data.duration);
-            this.#filterEnv?.setSampleDuration(data.duration);
+            this.#ampEnv.setSampleDuration(data.durationSeconds);
+            this.#pitchEnv.setSampleDuration(data.durationSeconds);
+            this.#filterEnv?.setSampleDuration(data.durationSeconds);
 
             this.setStartPoint(0);
             this.setEndPoint(1); // normalized !

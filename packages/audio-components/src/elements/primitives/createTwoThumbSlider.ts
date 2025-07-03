@@ -11,11 +11,19 @@ export const createTwoThumbSlider = (
   min: number,
   max: number,
   baseStep: number = 0.001,
-  minGap = baseStep
+  minGap = baseStep,
+  logarithmicScaling = false
 ) => {
   return div(
     { style: 'margin-bottom: 20px;' },
-    label(labelText + ': '),
+    label(
+      () =>
+        labelText +
+        ': Start ' +
+        firstThumbState.val.toFixed(4) +
+        ': End ' +
+        secondThumbState.val.toFixed(4)
+    ),
     van.tags['two-thumb-slider']({
       min,
       max,
@@ -23,6 +31,7 @@ export const createTwoThumbSlider = (
       'minimum-gap': minGap,
       'value-min': firstThumbState.val,
       'value-max': secondThumbState.val,
+      'use-logarithmic-scaling': logarithmicScaling,
       'onrange-change': (e: CustomEvent) => {
         firstThumbState.val = e.detail.min;
         secondThumbState.val = e.detail.max;

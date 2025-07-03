@@ -15,6 +15,8 @@ export class SampleVoicePool {
   #messages: MessageBus<Message>;
 
   #allVoices: SampleVoice[];
+  #loaded = new Set<NodeID>();
+
   #playingMidiVoiceMap = new Map<MidiValue, SampleVoice>();
 
   #available = new Set<SampleVoice>();
@@ -97,18 +99,35 @@ export class SampleVoicePool {
       this.#available.add(msg.voice);
     });
 
-    this.#messages.forwardFrom(voice, [
-      'voice:started',
-      'voice:stopped',
-      'voice:releasing',
-      'voice:loaded',
-      'voice:transposed',
-      'sample-envelopes:trigger',
-      'sample-envelopes:duration',
-    ]);
+    this.#messages.forwardFrom(
+      voice,
+      [
+        'voice:started',
+        'voice:stopped',
+        'voice:releasing',
+        'voice:loaded',
+        'voice:transposed',
+        'sample-envelopes:trigger',
+        'sample-envelopes:duration',
+      ],
+      (msg) => {
+        if (msg.type === 'voice:loaded') {
+          this.#loaded.add(msg.senderId);
+
+          // Only send 'sample:loaded' when all voices are loaded
+          if (this.#loaded.size === this.#allVoices.length) {
+            return { ...msg, type: 'sample:loaded' };
+          }
+          return null; // Don't forward individual voice:loaded messages
+        }
+        return msg;
+      }
+    );
   }
 
   setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
+    // Reset loaded voices tracking for new buffer
+    this.#loaded.clear();
     this.#allVoices.forEach((voice) => voice.loadBuffer(buffer, zeroCrossings));
     return this;
   }
@@ -210,6 +229,7 @@ export class SampleVoicePool {
     this.#available.clear();
     this.#releasing.clear();
     this.#playing.clear();
+    this.#loaded.clear();
     this.#isReady = false;
     deleteNodeId(this.nodeId);
   }

@@ -11,7 +11,7 @@ import {
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
   #valueRange: [number, number];
-  #durationSeconds: number = 1;
+  #durationSeconds: number = 0;
   #logarithmic: boolean = false;
   #hasSharpTransitions = false;
 

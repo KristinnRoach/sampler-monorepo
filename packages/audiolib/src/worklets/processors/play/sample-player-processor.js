@@ -109,9 +109,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       type,
       value,
       buffer,
-      startPoint,
-      duration,
-      when,
+      timestamp,
+      durationSeconds,
       zeroCrossings,
       semitones,
       allowedPeriods,
@@ -131,7 +130,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
         this.port.postMessage({
           type: 'voice:loaded',
-          duration,
+          durationSeconds,
           time: currentTime,
         });
         break;
@@ -173,19 +172,20 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.isReleasing = false;
         this.isPlaying = true;
         this.loopCount = 0;
-        this.startTime = when || currentTime;
+        this.startTime = timestamp || currentTime; // Test timestamp handling
 
         // will be set in process() using parameters
         this.playbackPosition = 0;
 
         this.port.postMessage({
           type: 'voice:started',
-          time: currentTime,
+          time: timestamp || currentTime,
         });
         break;
 
       case 'voice:release':
         this.isReleasing = true;
+        // const startReleaseTime = timestamp || currentTime; // Test timestamp handling
 
         this.port.postMessage({
           type: 'voice:releasing',
@@ -194,6 +194,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'voice:stop':
+        // const stopTime = timestamp || currentTime; // Test timestamp handling
         this.#stop();
         break;
 
@@ -374,13 +375,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const loopDuration = calcLoopEnd - calcLoopStart;
 
-    // const shouldSnap = loopDuration < this.snapper.longestPeriod;
-    // if (shouldSnap && this.snapper.hasPeriodSnapping) {
-    //   calcLoopEnd =
-    //     calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
-    // }
-    // calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
-    // calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
+    const shouldSnap = loopDuration < this.snapper.longestPeriod;
+    if (shouldSnap && this.snapper.hasPeriodSnapping) {
+      calcLoopEnd =
+        calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
+    }
+    calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
+    calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
 
     return {
       loopStartSamples: calcLoopStart,

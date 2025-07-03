@@ -70,18 +70,27 @@ const SamplerElement = (attributes: ElementProps) => {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
+    updateMaxDuration: (seconds: number) => void;
+    updateEnvelopeDuration: (seconds: number) => void;
+    cleanup: () => void;
   } | null = null;
 
   let filterEnvInstance: {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
+    updateMaxDuration: (seconds: number) => void;
+    updateEnvelopeDuration: (seconds: number) => void;
+    cleanup: () => void;
   } | null = null;
 
   let pitchEnvInstance: {
     element: SVGSVGElement;
     triggerPlayAnimation: (msg: any) => void;
     releaseAnimation: (msg: any) => void;
+    updateMaxDuration: (seconds: number) => void;
+    updateEnvelopeDuration: (seconds: number) => void;
+    cleanup: () => void;
   } | null = null;
 
   // Create the envelopes and store references
@@ -90,7 +99,7 @@ const SamplerElement = (attributes: ElementProps) => {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
         ampEnvelope.val.points, // () => for reactive?
-        ampEnvelope.val.durationSeconds,
+        sampleDuration.val,
         handleEnvelopeChange,
         envDimensions.val.width,
         envDimensions.val.height,
@@ -99,9 +108,9 @@ const SamplerElement = (attributes: ElementProps) => {
     }
     if (filterEnvelope.val && !filterEnvInstance) {
       filterEnvInstance = EnvelopeSVG(
-        'amp-env',
+        'filter-env',
         filterEnvelope.val.points, // () => for reactive?
-        filterEnvelope.val.durationSeconds,
+        sampleDuration.val,
         handleEnvelopeChange,
         envDimensions.val.width,
         envDimensions.val.height,
@@ -112,7 +121,7 @@ const SamplerElement = (attributes: ElementProps) => {
       pitchEnvInstance = EnvelopeSVG(
         'pitch-env',
         pitchEnvelope.val.points,
-        pitchEnvelope.val.durationSeconds,
+        sampleDuration.val,
         handleEnvelopeChange,
         envDimensions.val.width,
         envDimensions.val.height,
@@ -205,6 +214,22 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // === SAMPLE-PLAYER MESSAGES ===
 
+        samplePlayer.onMessage('sample:loaded', (msg: any) => {
+          if (!msg.durationSeconds) {
+            console.warn(
+              'missing duration from sample:loaded msg',
+              msg.durationSeconds
+            );
+            return;
+          }
+
+          sampleDuration.val = msg.durationSeconds;
+
+          ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
+          filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
+          pitchEnvInstance?.updateMaxDuration(msg.durationSeconds);
+        });
+
         samplePlayer.onMessage('sample-envelopes:trigger', (msg: any) => {
           ampEnvInstance?.triggerPlayAnimation(msg);
           filterEnvInstance?.triggerPlayAnimation(msg);
@@ -213,6 +238,7 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // samplePlayer.onMessage('sample-envelopes:duration', (msg: any) => {
         //   ampEnvInstance?.updateDuration(msg);
+        //   filterEnvInstance?.updateDuration(msg);
         //   pitchEnvInstance?.updateDuration(msg);
         // });
 
@@ -231,11 +257,6 @@ const SamplerElement = (attributes: ElementProps) => {
         samplePlayer.onMessage('sample:pitch-detected', (msg: any) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
         });
-
-        samplePlayer.onMessage(
-          'sample:loaded',
-          (msg: any) => (sampleDuration.val = msg.duration ?? 0)
-        );
 
         // todo (later): Make KeyboardInputManager in audiolib handle caps robustly
         // and sampleplayer sendUpStreamMessage for loop & hold states
@@ -452,7 +473,7 @@ const SamplerElement = (attributes: ElementProps) => {
       VolumeControl(volume),
 
       () =>
-        ampEnvelope.val && pitchEnvelope.val // && filterEnvelope.val
+        ampEnvelope.val && pitchEnvelope.val && filterEnvelope.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(
@@ -503,16 +524,16 @@ const SamplerElement = (attributes: ElementProps) => {
                         ampEnvInstance.element
                       )
                     : div(),
-                // () =>
-                //   filterEnvInstance
-                //     ? div(
-                //         {
-                //           style: () =>
-                //             `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
-                //         },
-                //         filterEnvInstance.element
-                //       )
-                //     : div(),
+                () =>
+                  filterEnvInstance
+                    ? div(
+                        {
+                          style: () =>
+                            `position: absolute; padding: 0.5rem; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
+                        },
+                        filterEnvInstance.element
+                      )
+                    : div(),
                 () =>
                   pitchEnvInstance
                     ? div(

@@ -108,12 +108,11 @@ export class SamplePlayer extends LibInstrument {
 
   #setupMessageHandling(): this {
     // Forward voice pool messages upstream
-
     this.messages.forwardFrom(this.voicePool, [
       'voice:started',
       'voice:stopped',
       'voice:releasing',
-      'voice:loaded',
+      'sample:loaded',
       'sample-envelopes:trigger',
       'sample-envelopes:duration',
     ]);
@@ -283,7 +282,7 @@ export class SamplePlayer extends LibInstrument {
 
     this.#resetMacros(buffer.duration);
 
-    this.#isLoaded = true;
+    // this.#isLoaded = true; // Sent via message when all voices loaded
 
     return buffer.duration;
   }

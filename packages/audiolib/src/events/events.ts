@@ -57,7 +57,10 @@ export function createMessageBus<T extends Message>(
 
       const cleanupFns = messageTypes.map((type) =>
         source.onMessage(type, (msg: T) => {
-          this.sendMessage(type, transformFn(msg));
+          const transformedMsg = transformFn(msg);
+          if (transformedMsg !== null) {
+            this.sendMessage(transformedMsg.type, transformedMsg);
+          }
         })
       );
 
