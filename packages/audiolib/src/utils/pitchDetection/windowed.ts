@@ -112,6 +112,11 @@ function analyzeWindow(
     const denominator = 2 * (2 * y2 - y1 - y3);
     const offset = Math.abs(denominator) < 1e-10 ? 0 : (y3 - y1) / denominator;
 
+    // todo: if using windowed, check whether the quad formula version below should be used instead
+    // const denominator = 2 * (y1 - 2 * y2 + y3);
+    // const offset =
+    //   Math.abs(denominator) < 1e-10 ? 0 : (y1 - y3) / (2 * denominator);
+
     const frequency = sampleRate / (bestLag + offset);
     return { frequency, confidence };
   }

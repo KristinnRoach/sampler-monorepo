@@ -40,7 +40,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #startedTimestamp: number = -1;
 
   #sampleDurationSeconds = 0;
-  #playbackDurationNormalized = 0;
 
   #ampEnv: CustomEnvelope;
   #pitchEnv: CustomEnvelope;
@@ -191,7 +190,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     const timestamp = this.now + secondsFromNow;
 
     this.#startedTimestamp = timestamp;
-    this.#activeMidiNote = options.midiNote;
+    this.#activeMidiNote = midiNote;
 
     if (
       this.#state === VoiceState.PLAYING ||
@@ -272,6 +271,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       `);
   }
 
+  #releaseTimeout: number | null = null;
+
   release({ release = this.#releaseSec, secondsFromNow = 0 }): this {
     if (this.#state === VoiceState.RELEASING) return this;
 
@@ -300,9 +301,11 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.sendToProcessor({ type: 'voice:release', timestamp });
 
     // After the release duration, the voice should stop
-    setTimeout(
+    if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
+    this.#releaseTimeout = setTimeout(
       () => {
         if (this.#state === VoiceState.RELEASING) this.stop();
+        this.#releaseTimeout = null;
       },
       release * 1000 + 50
     ); // 50ms buffer
@@ -452,8 +455,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   setStartPoint = (time: number, timestamp = this.now) => {
     this.setParam('startPoint', time, timestamp);
-    this.#playbackDurationNormalized = this.endPoint - time;
 
+    // const playDuration = this.endPoint - time;
     // this.#ampEnv.updateStartPoint(time);
     // this.#pitchEnv.updateStartPoint(time); // filterenv
     // Todo: figure out this system
@@ -461,10 +464,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   setEndPoint = (time: number, timestamp = this.now) => {
     this.setParam('endPoint', time, timestamp);
-    this.#playbackDurationNormalized = time - this.startPoint;
 
-    // this.#ampEnv.updateEndPoint(time);
-    // this.#pitchEnv.updateEndPoint(time); // filterenv
+    this.#ampEnv.updateEndPoint(time);
+    this.#pitchEnv.updateEndPoint(time); // filterenv
     // Todo: figure out this system
   };
 
@@ -550,7 +552,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
             this.setStartPoint(0);
             this.setEndPoint(1); // normalized !
 
-            this.#worklet.parameters.get('loopEnd')!.value = 0; // ! Why can this not be set to 1 ??
+            this.setParam('loopEnd', 0, this.now); // ! Why can this not be set to 1 ??
           }
           break;
 
@@ -750,6 +752,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#pitchEnv.dispose();
     this.#filterEnv?.dispose();
     this.#worklet.port.close();
+    if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
     deleteNodeId(this.nodeId);
   }
 

@@ -588,9 +588,11 @@ export class SamplePlayer extends LibInstrument {
     start: number,
     end: number
   ): number {
-    // Calculate scaling factor based on proposed loop size
+    // Scaling factor increases as loop size decreases to provide finer control
+    // for small loops. The +0.001 prevents division by zero.
+
     const proposedLoopSize = Math.abs(end - start);
-    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.1));
+    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.001));
 
     if (valueToAdjust === 'start') return Math.pow(start, scalingFactor);
     else return Math.pow(end, scalingFactor);
@@ -714,7 +716,12 @@ export class SamplePlayer extends LibInstrument {
 
     // Return the first voice's envelope as the "master" envelope
     const firstVoice = this.voicePool.allVoices[0];
-    return firstVoice!.getEnvelope(envType)!; // !
+    if (!firstVoice) throw new Error('No voices available in voice pool');
+
+    const envelope = firstVoice.getEnvelope(envType);
+    if (!envelope) throw new Error(`Envelope type '${envType}' not found`);
+
+    return envelope;
   }
 
   setEnvelopeLoop = (

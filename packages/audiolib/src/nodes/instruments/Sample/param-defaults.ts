@@ -96,7 +96,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
     minValue: 0,
     maxValue: 1, // Uses normalized values (0-1)
     step: 0.001,
-    defaultValue: 0.123, // ! TESTing revert to -> 1,
+    defaultValue: 1,
     group: 'loop-points',
     automationRate: 'k-rate',
   },

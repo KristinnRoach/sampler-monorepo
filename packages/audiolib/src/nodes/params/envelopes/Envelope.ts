@@ -46,7 +46,7 @@ export class EnvelopeData {
   }
 
   updatePoint(index: number, time?: number, value?: number) {
-    if (index >= 0 && index < this.points.length && this.points.length) {
+    if (index >= 0 && index < this.points.length) {
       const currentPoint = this.points[index];
       this.points[index] = {
         ...currentPoint,
@@ -215,9 +215,11 @@ export class CustomEnvelope {
     this.#logarithmic = logarithmic;
 
     const finalRange: [number, number] = logarithmic
-      ? [Math.log(valueRange[0]), Math.log(valueRange[1])]
+      ? [
+          Math.log(Math.max(valueRange[0], 0.001)), // prevent using zero
+          Math.log(Math.max(valueRange[1], 0.001)),
+        ]
       : valueRange;
-    this.#context = context;
 
     this.#data = new EnvelopeData(
       [...initialPoints],
