@@ -32,8 +32,7 @@ export const makeDraggable = (
 
   return Draggable.create(el, {
     type: axis || 'x,y',
-    trigger: handleElement
-      ? handleElement
-      : el.querySelector(handleClassName ?? '.drag-handle' ?? undefined),
+    trigger:
+      handleElement || el.querySelector(handleClassName || '.drag-handle'),
   });
 };

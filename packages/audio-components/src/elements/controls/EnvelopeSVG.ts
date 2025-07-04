@@ -123,7 +123,10 @@ export const EnvelopeSVG = (
     activeTimeouts.forEach(clearTimeout);
     activeTimeouts.clear();
 
-    pointsGroup.innerHTML = '';
+    while (pointsGroup.firstChild) {
+      pointsGroup.removeChild(pointsGroup.firstChild);
+    }
+
     const pts = points.val;
 
     pts.forEach((point, index) => {
