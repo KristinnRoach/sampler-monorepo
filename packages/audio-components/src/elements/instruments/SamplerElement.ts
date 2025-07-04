@@ -1,5 +1,6 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
+import { gsap } from 'gsap/gsap-core';
 
 import {
   type SamplePlayer,
@@ -433,6 +434,10 @@ const SamplerElement = (attributes: ElementProps) => {
       samplePlayer.addEnvelopePoint(envType, time, value);
     } else if (time === -1 && value === -1) {
       samplePlayer.deleteEnvelopePoint(envType, index);
+      // } else {
+      //   const lastIndex = samplePlayer.getEnvelope(envType).points.length - 1;
+      //   if (index === 0) loopStart.val = time;
+      //   if (index === lastIndex) loopEnd.val = time;
     } else {
       samplePlayer.updateEnvelopePoint(envType, index, time, value);
     }
