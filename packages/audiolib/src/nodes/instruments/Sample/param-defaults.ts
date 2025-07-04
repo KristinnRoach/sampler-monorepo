@@ -106,7 +106,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
     name: 'loop-point-ramp',
     dataType: 'number' as const,
     minValue: 0.001,
-    maxValue: 1.0, // Todo: -> Use normalized values (0-1)
+    maxValue: 1.0,
     step: 0.001,
     defaultValue: 0.5,
     group: 'loop-points',

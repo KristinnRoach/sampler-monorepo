@@ -304,8 +304,11 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
     this.#releaseTimeout = setTimeout(
       () => {
-        if (this.#state === VoiceState.RELEASING) this.stop();
-        this.#releaseTimeout = null;
+        try {
+          if (this.#state === VoiceState.RELEASING) this.stop();
+        } finally {
+          this.#releaseTimeout = null;
+        }
       },
       release * 1000 + 50
     ); // 50ms buffer

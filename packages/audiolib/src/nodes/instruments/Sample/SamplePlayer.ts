@@ -592,7 +592,7 @@ export class SamplePlayer extends LibInstrument {
     // for small loops. The +0.001 prevents division by zero.
 
     const proposedLoopSize = Math.abs(end - start);
-    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.001));
+    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.01));
 
     if (valueToAdjust === 'start') return Math.pow(start, scalingFactor);
     else return Math.pow(end, scalingFactor);

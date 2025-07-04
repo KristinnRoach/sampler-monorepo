@@ -123,9 +123,7 @@ export const EnvelopeSVG = (
     activeTimeouts.forEach(clearTimeout);
     activeTimeouts.clear();
 
-    while (pointsGroup.firstChild) {
-      pointsGroup.removeChild(pointsGroup.firstChild);
-    }
+    pointsGroup.replaceChildren();
 
     const pts = points.val;
 
