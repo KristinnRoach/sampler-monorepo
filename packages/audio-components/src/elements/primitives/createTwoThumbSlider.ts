@@ -20,9 +20,9 @@ export const createTwoThumbSlider = (
       () =>
         labelText +
         ': Start ' +
-        firstThumbState.val.toFixed(4) +
+        firstThumbState.val.toFixed(2) +
         ': End ' +
-        secondThumbState.val.toFixed(4)
+        secondThumbState.val.toFixed(2)
     ),
     van.tags['two-thumb-slider']({
       min,

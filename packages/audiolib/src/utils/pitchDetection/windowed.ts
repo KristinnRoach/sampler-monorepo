@@ -1,5 +1,3 @@
-import { highPassFilter } from './filter-util';
-
 interface PitchCandidate {
   frequency: number;
   confidence: number;
@@ -12,11 +10,8 @@ const MIN_Hz = 80;
 export async function detectPitchWindowed(
   audioBuffer: AudioBuffer
 ): Promise<{ frequency: number; confidence: number }> {
-  const rawData = audioBuffer.getChannelData(0);
+  const data = audioBuffer.getChannelData(0);
   const sampleRate = audioBuffer.sampleRate;
-
-  // Apply high-pass filter to remove boomy low frequencies
-  const data = highPassFilter(rawData, audioBuffer.sampleRate, 100);
 
   // Window parameters
   const windowSize = 4096; // ~93ms at 44.1kHz

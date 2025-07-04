@@ -66,32 +66,9 @@ const SamplerElement = (attributes: ElementProps) => {
   const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
   const envDimensions = van.state({ width: '100%', height: '200px' });
 
-  let ampEnvInstance: {
-    element: SVGSVGElement;
-    triggerPlayAnimation: (msg: any) => void;
-    releaseAnimation: (msg: any) => void;
-    updateMaxDuration: (seconds: number) => void;
-    updateEnvelopeDuration: (seconds: number) => void;
-    cleanup: () => void;
-  } | null = null;
-
-  let filterEnvInstance: {
-    element: SVGSVGElement;
-    triggerPlayAnimation: (msg: any) => void;
-    releaseAnimation: (msg: any) => void;
-    updateMaxDuration: (seconds: number) => void;
-    updateEnvelopeDuration: (seconds: number) => void;
-    cleanup: () => void;
-  } | null = null;
-
-  let pitchEnvInstance: {
-    element: SVGSVGElement;
-    triggerPlayAnimation: (msg: any) => void;
-    releaseAnimation: (msg: any) => void;
-    updateMaxDuration: (seconds: number) => void;
-    updateEnvelopeDuration: (seconds: number) => void;
-    cleanup: () => void;
-  } | null = null;
+  let ampEnvInstance: EnvelopeSVG | null;
+  let filterEnvInstance: EnvelopeSVG | null;
+  let pitchEnvInstance: EnvelopeSVG | null;
 
   // Create the envelopes and store references
   van.derive(() => {
@@ -101,6 +78,8 @@ const SamplerElement = (attributes: ElementProps) => {
         ampEnvelope.val.points, // () => for reactive?
         sampleDuration.val,
         handleEnvelopeChange,
+        enableEnvelope,
+        disableEnvelope,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0, 1] }
@@ -112,9 +91,13 @@ const SamplerElement = (attributes: ElementProps) => {
         filterEnvelope.val.points, // () => for reactive?
         sampleDuration.val,
         handleEnvelopeChange,
+        enableEnvelope,
+        disableEnvelope,
         envDimensions.val.width,
         envDimensions.val.height,
-        { x: [0, 1], y: [0] }
+        { x: [0, 1], y: [0] },
+        0.025,
+        false
       );
     }
     if (pitchEnvelope.val && !pitchEnvInstance) {
@@ -123,6 +106,8 @@ const SamplerElement = (attributes: ElementProps) => {
         pitchEnvelope.val.points,
         sampleDuration.val,
         handleEnvelopeChange,
+        enableEnvelope,
+        disableEnvelope,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0.5] },
@@ -424,6 +409,16 @@ const SamplerElement = (attributes: ElementProps) => {
       console.error('Failed to stop recording:', error);
       status.val = `Stop error: ${error instanceof Error ? error.message : String(error)}`;
     }
+  };
+
+  const enableEnvelope = (envType: EnvelopeType) => {
+    if (!samplePlayer) return;
+    samplePlayer.enableEnvelope(envType);
+  };
+
+  const disableEnvelope = (envType: EnvelopeType) => {
+    if (!samplePlayer) return;
+    samplePlayer.disableEnvelope(envType);
   };
 
   const handleEnvelopeChange = (
