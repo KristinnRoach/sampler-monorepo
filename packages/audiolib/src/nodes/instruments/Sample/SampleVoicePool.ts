@@ -1,17 +1,29 @@
 import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { ActiveNoteId } from '../types';
+import { pop } from '@/utils';
+import { VoiceState } from '../VoiceState';
+import {
+  Message,
+  MessageHandler,
+  MessageBus,
+  createMessageBus,
+} from '@/events';
 
 export class SampleVoicePool {
   readonly nodeId: NodeID;
   readonly nodeType = 'pool';
+  #messages: MessageBus<Message>;
 
   #allVoices: SampleVoice[];
-  #context: AudioContext;
-  #activeVoices: Map<ActiveNoteId, SampleVoice>;
-  #nextNoteId: number;
+  #loaded = new Set<NodeID>();
 
-  #transposeSemitones = 0;
+  #playingMidiVoiceMap = new Map<MidiValue, SampleVoice>();
+
+  #available = new Set<SampleVoice>();
+  #playing = new Set<SampleVoice>();
+  #releasing = new Set<SampleVoice>();
+
+  #holding = new Set<SampleVoice>();
 
   #isReady: boolean = false;
   get isReady() {
@@ -25,94 +37,154 @@ export class SampleVoicePool {
     enableFilters: boolean = true
   ) {
     this.nodeId = createNodeId(this.nodeType);
-    this.#context = context;
+
+    this.#messages = createMessageBus<Message>(this.nodeId);
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
-      const voice = new SampleVoice(context, { enableFilters });
+      const voice = new SampleVoice(context, destination, {
+        enableFilters,
+      });
       voice.connect(destination);
       return voice;
     });
 
-    this.#activeVoices = new Map(); // noteId -> voice
-    this.#nextNoteId = 0;
+    // All voices start as available
+    this.#allVoices.forEach((voice) => {
+      this.#available.add(voice);
+      this.#setupMessageHandling(voice);
+    });
 
     this.#isReady = true;
   }
 
+  /* === MESSAGES === */
+
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  sendUpstreamMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+    return this;
+  }
+
+  #setupMessageHandling(voice: SampleVoice) {
+    voice.onMessage('voice:started', (msg: Message) => {
+      // Ensure mutual exlusion (idempotent delete)
+      this.#available.delete(msg.voice);
+      this.#releasing.delete(msg.voice);
+
+      this.#playing.add(msg.voice);
+      this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
+    });
+
+    voice.onMessage('voice:releasing', (msg: Message) => {
+      // Ensure mutual exlusion
+      this.#available.delete(msg.voice);
+      this.#playing.delete(msg.voice);
+
+      this.#releasing.add(msg.voice);
+
+      // Remove from midiToVoice map, is this voice owns this midinote
+      if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
+        this.#playingMidiVoiceMap.delete(msg.midiNote);
+      }
+    });
+
+    voice.onMessage('voice:stopped', (msg: Message) => {
+      // Ensure mutual exlusion
+      this.#playing.delete(msg.voice);
+      this.#releasing.delete(msg.voice);
+
+      this.#available.add(msg.voice);
+    });
+
+    this.#messages.forwardFrom(
+      voice,
+      [
+        'voice:started',
+        'voice:stopped',
+        'voice:releasing',
+        'voice:loaded',
+        'voice:transposed',
+        'sample-envelopes:trigger',
+        'sample-envelopes:duration',
+      ],
+      (msg) => {
+        if (msg.type === 'voice:loaded') {
+          this.#loaded.add(msg.senderId);
+
+          // Only send 'sample:loaded' when all voices are loaded
+          if (this.#loaded.size === this.#allVoices.length) {
+            return { ...msg, type: 'sample:loaded' };
+          }
+          return null; // Don't forward individual voice:loaded messages
+        }
+        return msg;
+      }
+    );
+  }
+
   setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
+    // Reset loaded voices tracking for new buffer
+    this.#loaded.clear();
     this.#allVoices.forEach((voice) => voice.loadBuffer(buffer, zeroCrossings));
     return this;
   }
 
-  // Voice Allocation
-  findVoice() {
-    // First priority: find an inactive voice
-    const freeVoice = this.#allVoices.find(
-      (v) => v.state !== 'PLAYING' && v.state !== 'RELEASING'
-    );
+  allocate(
+    available = this.#available,
+    releasing = this.#releasing,
+    playing = this.#playing
+  ): SampleVoice {
+    let voice;
 
-    if (freeVoice) return freeVoice;
+    if (available.size) voice = pop(available);
+    else if (releasing.size) voice = pop(releasing);
+    else if (playing.size) voice = pop(playing);
+    if (!voice) throw new Error(`Could not allocate voice`);
 
-    // Second priority: find a releasing voice
-    const releasingVoice = this.#allVoices.find((v) => v.state === 'RELEASING');
-    if (releasingVoice) {
-      releasingVoice.stop();
-      return releasingVoice;
-    }
-
-    // Third priority: find the oldest playing voice
-    return this.#allVoices.reduce(
-      (oldest, voice) =>
-        !oldest || voice.startTime < oldest.startTime ? voice : oldest,
-      null as SampleVoice | null
-    );
+    return voice;
   }
 
   noteOn(
-    midiNote: number,
-    velocity = 100,
-    secondsFromNow = 0,
-    // attack_sec = 0.01,
-    transposition = this.#transposeSemitones
-  ): ActiveNoteId {
-    const noteId = this.#nextNoteId++; // increments for next note
+    midiNote: MidiValue,
+    velocity: MidiValue = 100,
+    secondsFromNow = 0
+  ): MidiValue | null {
+    const voice = this.allocate();
 
-    const voice = this.findVoice();
-    if (!voice) return noteId; // Still return a valid noteId
-
-    voice.trigger({
-      // voice.trigger also returns noteId (redundant?)
-      midiNote: midiNote + transposition,
+    const success = voice.trigger({
+      midiNote: midiNote,
       velocity,
-      noteId,
       secondsFromNow,
-      // attack_sec, // todo - make param in Voice
     });
-    this.#activeVoices.set(noteId, voice);
 
-    return noteId;
+    if (success) {
+      this.#playingMidiVoiceMap.set(midiNote, voice);
+      return midiNote;
+    } else {
+      return null;
+    }
   }
 
-  noteOff(noteId: ActiveNoteId, release_sec = 0.2, secondsFromNow: number = 0) {
-    const voice = this.#activeVoices.get(noteId);
+  noteOff(midiNote: MidiValue, release_sec = 0.2, secondsFromNow: number = 0) {
+    const voice = this.#playingMidiVoiceMap.get(midiNote);
+    if (!voice) return;
 
-    if (voice) {
+    if (voice?.state === VoiceState.PLAYING) {
       voice.release({ release: release_sec, secondsFromNow });
-      this.#activeVoices.delete(noteId);
     }
+
     return this;
   }
 
   allNotesOff(release_sec = 0) {
-    if (release_sec <= 0) {
-      this.#allVoices.forEach((voice) => voice.stop());
-    } else {
-      this.#allVoices.forEach((voice) => {
-        if (voice.state === 'PLAYING') voice.release({ release: release_sec });
-      });
-    }
-    this.#activeVoices.clear();
+    this.#playingMidiVoiceMap.forEach((voice) => {
+      voice.release({ release: release_sec });
+    });
 
+    this.#playingMidiVoiceMap.clear();
     return this;
   }
 
@@ -121,53 +193,76 @@ export class SampleVoicePool {
   }
 
   applyToActiveVoices(fn: (voice: SampleVoice) => void) {
-    this.#activeVoices.forEach((voice) => fn(voice));
+    this.#playingMidiVoiceMap.forEach((voice) => fn(voice));
   }
 
-  applyToVoice(noteId: ActiveNoteId, fn: (voice: SampleVoice) => void) {
-    const voice = this.#activeVoices.get(noteId);
+  applyToInactiveVoices(fn: (voice: SampleVoice) => void) {
+    this.#available.forEach((voice) => fn(voice));
+  }
+
+  applyToActiveNote(midiNote: MidiValue, fn: (voice: SampleVoice) => void) {
+    const voice = this.#playingMidiVoiceMap.get(midiNote);
     if (voice) {
       fn(voice);
     } else {
-      console.warn(`No active voice found for noteId: ${noteId}`);
+      console.warn(`No active voice found for midiNote: ${midiNote}`);
     }
+  }
+
+  debug() {
+    console.debug(
+      `
+      releasing: ${this.#releasing.size}
+      playing: ${this.#playing.size}
+      available: ${this.#available.size}
+      Sum: ${this.#releasing.size + this.#playing.size + this.#available.size}
+      Sum should be: ${this.allVoicesCount}
+      `,
+      { midiToVoiceMap: this.#playingMidiVoiceMap }
+    );
   }
 
   dispose() {
     this.applyToAllVoices((voice) => voice.dispose());
     this.#allVoices = [];
-    this.#activeVoices.clear();
-    this.#context = null as any;
+    this.#playingMidiVoiceMap.clear();
+    this.#available.clear();
+    this.#releasing.clear();
+    this.#playing.clear();
+    this.#loaded.clear();
     this.#isReady = false;
     deleteNodeId(this.nodeId);
   }
 
-  // todo: get filtersEnabled() & setFiltersEnabled
+  get availableVoices() {
+    return this.#available;
+  }
+
+  get playingVoicesCount() {
+    return this.#playing.size;
+  }
+
+  get releasingVoicesCount() {
+    return this.#releasing.size;
+  }
+
+  get availableVoicesCount() {
+    return this.#available.size;
+  }
 
   get allVoices() {
     return this.#allVoices;
   }
 
-  get activeVoicesCount() {
-    return this.#activeVoices.size;
+  get allVoicesCount() {
+    return this.#allVoices.length;
   }
 
-  get transposeSemitones() {
-    return this.#transposeSemitones;
+  get assignedVoicesMidiMap() {
+    return this.#playingMidiVoiceMap;
   }
-  set transposeSemitones(semitones) {
-    this.#transposeSemitones = semitones;
+
+  set transposeSemitones(semitones: number) {
+    this.#allVoices.forEach((voice) => (voice.transposeSemitones = semitones));
   }
 }
-
-/* Igonre below
- *  todo: consider this for voice allocation - LATER (once everything else is working) */
-// #available = new Set();
-// #playing = new Set(); // maybe Map
-// #releasing = new Set();
-
-// #pop = (set: Set<any>) => {
-//   const v = set.values().next().value;
-//   set.delete(v);
-//   return v;
-// };

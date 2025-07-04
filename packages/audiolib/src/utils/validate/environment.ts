@@ -1,18 +1,26 @@
 // Empty import to import the Keyboard interface from input/types
 import {} from '../../io/types';
 
-interface AudioEnvironment {
+type AudioEnvironment = {
   readonly cancelAndHoldSupported: boolean;
   readonly workletSupported: boolean;
   readonly keyboardAPISupported: boolean;
   readonly modifierStateSupported: boolean;
-}
+} | null;
 
 class Environment {
-  #capabilities: AudioEnvironment;
+  #capabilities: AudioEnvironment = null;
 
   constructor() {
     try {
+      if (
+        typeof window === 'undefined' ||
+        typeof AudioContext === 'undefined'
+      ) {
+        console.error(`Environment util: Window or AudioContext is undefined`);
+        return;
+      }
+
       // Audio capabilities
       const AudioContextConstructor =
         window.AudioContext || (window as any).webkitAudioContext;
@@ -55,10 +63,10 @@ export const environment = new Environment();
 
 // Convenience getters
 export const isCancelAndHoldSupported = () =>
-  environment.capabilities.cancelAndHoldSupported;
+  !!environment?.capabilities?.cancelAndHoldSupported;
 export const isWorkletSupported = () =>
-  environment.capabilities.workletSupported;
+  !!environment?.capabilities?.workletSupported;
 export const isKeyboardAPISupported = () =>
-  environment.capabilities.keyboardAPISupported;
+  !!environment?.capabilities?.keyboardAPISupported;
 export const isModifierStateSupported = () =>
-  environment.capabilities.modifierStateSupported;
+  !!environment?.capabilities?.modifierStateSupported;

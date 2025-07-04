@@ -1,13 +1,9 @@
 import { createNodeId, deleteNodeId } from '@/nodes/node-store';
 import { cancelScheduledParamValues } from '@/utils';
 
-// NOTE: The controlNode (GainNode) is possibly redundant and could be replaced with
-// direct connection to the constantSignal (using offset param instead of gain value)
-
 export class AudioParamController {
   readonly nodeId: NodeID;
   #context: BaseAudioContext;
-  #controlNode: GainNode;
   #constantSignal: ConstantSourceNode;
   #targets: Array<{ param: AudioParam; scaler?: GainNode }> = [];
   #isReady: boolean = false;
@@ -24,19 +20,23 @@ export class AudioParamController {
     this.#constantSignal = context.createConstantSource();
     this.#constantSignal.start();
 
-    this.#controlNode = new GainNode(context, { gain: initialValue });
-    this.#constantSignal.connect(this.#controlNode);
+    // Use the ConstantSourceNode's offset directly instead of a GainNode
+    this.#constantSignal.offset.setValueAtTime(
+      initialValue,
+      context.currentTime
+    );
 
     this.#isReady = true;
   }
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
     if (scaleFactor === 1) {
-      this.#controlNode.connect(targetParam);
+      // Connect ConstantSource directly to the AudioParam
+      this.#constantSignal.connect(targetParam);
       this.#targets.push({ param: targetParam });
     } else {
       const scaler = new GainNode(this.#context, { gain: scaleFactor });
-      this.#controlNode.connect(scaler);
+      this.#constantSignal.connect(scaler);
       scaler.connect(targetParam);
       this.#targets.push({ param: targetParam, scaler });
     }
@@ -46,36 +46,48 @@ export class AudioParamController {
   ramp(
     targetValue: number,
     duration: number,
-    method: 'exponential' | 'linear' = 'exponential'
+    method: 'exponential' | 'linear' = 'exponential',
+    cancelScheduled = true
   ): this {
     const now = this.#context.currentTime;
-    const safeValue = Math.max(
-      targetValue,
-      AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
-    );
 
-    cancelScheduledParamValues(this.param, now);
+    cancelScheduled && this.param.cancelScheduledValues(now); // cancelScheduledParamValues(this.param, now);
 
     // TESTING: Preventing unexpected jumps by explicitly setting the current value at the current time
     const currentValue = this.param.value;
     this.param.setValueAtTime(currentValue, now);
 
     if (method === 'exponential') {
+      const safeValue = Math.max(
+        targetValue,
+        AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
+      );
       this.param.exponentialRampToValueAtTime(safeValue, now + duration);
     } else {
-      this.param.linearRampToValueAtTime(safeValue, now + duration);
+      this.param.linearRampToValueAtTime(targetValue, now + duration);
     }
 
     return this;
   }
 
-  setValue(value: number): this {
-    this.param.setValueAtTime(value, this.#context.currentTime + 0.0001);
+  setValue(value: number, cancelScheduled = true): this {
+    cancelScheduled &&
+      cancelScheduledParamValues(this.param, this.#context.currentTime);
+
+    this.param.setValueAtTime(value, this.#context.currentTime + 0.001);
     return this;
   }
 
+  get targets() {
+    return this.#targets;
+  }
+
+  get context() {
+    return this.#context;
+  }
+
   get param(): AudioParam {
-    return this.#controlNode.gain;
+    return this.#constantSignal.offset; // Use offset instead of gain
   }
 
   get value(): number {
@@ -89,7 +101,30 @@ export class AudioParamController {
   dispose(): void {
     this.#constantSignal.stop();
     this.#constantSignal.disconnect();
-    this.#controlNode.disconnect();
     deleteNodeId(this.nodeId);
   }
 }
+
+// OLD controlNode code:
+// #controlNode: GainNode;
+
+// this.#controlNode = new GainNode(context, { gain: initialValue });
+// this.#constantSignal.connect(this.#controlNode);
+
+// addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
+//   if (scaleFactor === 1) {
+//     this.#controlNode.connect(targetParam);
+//     this.#targets.push({ param: targetParam });
+//   } else {
+//     const scaler = new GainNode(this.#context, { gain: scaleFactor });
+//     this.#controlNode.connect(scaler);
+//     scaler.connect(targetParam);
+//     this.#targets.push({ param: targetParam, scaler });
+//   }
+//   return this;
+// }
+
+// get param(): AudioParam {
+//   return this.#controlNode.gain;
+// }
+// this.#controlNode.disconnect();

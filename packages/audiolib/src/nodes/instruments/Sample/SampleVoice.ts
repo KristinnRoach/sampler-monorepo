@@ -7,8 +7,7 @@ import {
 } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
-import { VoiceState, ActiveNoteId, MidiValue } from '../types';
-import { DEFAULT_TRIGGER_OPTIONS } from '../constants';
+import { VoiceState } from '../VoiceState';
 
 import {
   Message,
@@ -17,125 +16,53 @@ import {
   MessageBus,
 } from '@/events';
 
+import { midiToPlaybackRate } from '@/utils';
+
 import {
-  assert,
-  cancelScheduledParamValues,
-  midiToPlaybackRate,
-} from '@/utils';
-import { LibParamDescriptor } from '@/nodes/params/types';
-// import { toAudioParamDescriptor } from '@/nodes/params/param-utils';
-
-// TODO: UNITE PARAM DESCRIPTORS FOR VOICES AND INSTRUMENTS
-
-// Define descriptors for voice parameters
-export const SAMPLE_VOICE_PARAM_DESCRIPTORS: Record<
-  string,
-  LibParamDescriptor
-> = {
-  playbackRate: {
-    nodeId: 'playbackRate',
-    name: 'playbackRate',
-    valueType: 'number',
-    minValue: 0.1,
-    maxValue: 10,
-    defaultValue: 0,
-    group: 'playback',
-    automationRate: 'k-rate', // Ensure consistency with actual AudioParamDescriptor in processor
-  },
-  envGain: {
-    nodeId: 'envGain',
-    name: 'envGain',
-    valueType: 'number',
-    minValue: 0,
-    maxValue: 1,
-    defaultValue: 1,
-    group: 'envelope',
-    automationRate: 'k-rate',
-  },
-  startOffset: {
-    nodeId: 'startOffset',
-    name: 'startOffset',
-    valueType: 'number',
-    minValue: 0,
-    defaultValue: 0,
-    group: 'playback',
-    automationRate: 'k-rate',
-  },
-  endOffset: {
-    nodeId: 'endOffset',
-    name: 'endOffset',
-    valueType: 'number',
-    minValue: 0,
-    defaultValue: 1,
-    group: 'playback',
-    automationRate: 'k-rate',
-  },
-  loopStart: {
-    nodeId: 'loopStart',
-    name: 'loopStart',
-    valueType: 'number',
-    minValue: 0,
-    defaultValue: 0,
-    group: 'loop',
-    automationRate: 'k-rate',
-  },
-  loopEnd: {
-    nodeId: 'loopEnd',
-    name: 'loopEnd',
-    valueType: 'number',
-    minValue: 0,
-    defaultValue: 1,
-    group: 'loop',
-    automationRate: 'k-rate',
-  },
-  velocity: {
-    nodeId: 'velocity',
-    name: 'velocity',
-    valueType: 'number',
-    minValue: 0,
-    maxValue: 127,
-    defaultValue: 64,
-    group: 'voice',
-    automationRate: 'k-rate',
-  },
-};
+  createEnvelope,
+  type CustomEnvelope,
+  type EnvelopeType,
+} from '@/nodes/params/envelopes';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
 
+  #destination: Destination | null = null;
   #outputNode: AudioNode;
-
   #worklet: AudioWorkletNode;
   #messages: MessageBus<Message>;
-  #state: VoiceState = VoiceState.IDLE;
-  #isReady: boolean = false;
-  #currentNoteId: number | string | null = null;
-  #startedTimestamp: number = -1;
-  #destination: Destination | null = null;
 
+  #state: VoiceState = VoiceState.NOT_READY;
+  #isInitialized: boolean = false;
+
+  #activeMidiNote: number | null = null;
+  #startedTimestamp: number = -1;
+
+  #sampleDurationSeconds = 0;
+  #playbackDurationNormalized = 0;
+
+  #ampEnv: CustomEnvelope;
+  #pitchEnv: CustomEnvelope;
+  #filterEnv: CustomEnvelope | null = null;
   #hpf: BiquadFilterNode | null = null;
   #lpf: BiquadFilterNode | null = null;
+
   #filtersEnabled: boolean;
+  #loopEnabled = false;
+  #holdEnabled = false;
 
-  #attackSec: number = 0.001; // Default attack time
-  #releaseSec: number = 0.1; // Default release time
+  #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
+  #releaseSec: number = 0.1;
 
-  #hpfHz: number = 100; // High-pass filter frequency
-  #lpfHz: number; // Low-pass filter frequency needs to be set using audio context sample rate
-  #lpfQ: number = 1; // Low-pass filter Q factor
-  #hpfQ: number = 1; // High-pass filter Q factor
-
-  // static readonly paramDescriptors = SAMPLE_VOICE_PARAM_DESCRIPTORS;
-  // // Converts descriptors to AudioWorkletNode format
-  // static getAudioParamDescriptors(): AudioParamDescriptor[] {
-  //   return Object.values(SAMPLE_VOICE_PARAM_DESCRIPTORS).map(
-  //     toAudioParamDescriptor
-  //   );
-  // }
+  #hpfHz: number = 100;
+  #lpfHz: number = 18000; // updated in constructor
+  #lpfQ: number = 1;
+  #hpfQ: number = 1;
 
   constructor(
     private context: AudioContext = getAudioContext(),
+    destination: AudioNode,
     options: { processorOptions?: any; enableFilters?: boolean } = {}
   ) {
     this.nodeId = createNodeId(this.nodeType);
@@ -144,100 +71,68 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
-      // ? Initialize with parameter data
-      // parameterData: {
-      //   envGain: SAMPLE_VOICE_PARAM_DESCRIPTORS.envGain.defaultValue,
-      //   playbackRate: SAMPLE_VOICE_PARAM_DESCRIPTORS.playbackRate.defaultValue,
-      //   startOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.startOffset.defaultValue,
-      //   endOffset: SAMPLE_VOICE_PARAM_DESCRIPTORS.endOffset.defaultValue,
-      //   loopStart: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopStart.defaultValue,
-      //   loopEnd: SAMPLE_VOICE_PARAM_DESCRIPTORS.loopEnd.defaultValue,
-      //   velocity: SAMPLE_VOICE_PARAM_DESCRIPTORS.velocity.defaultValue,
-      //   playbackPosition: 0, // Also defined in the processor
-      // },
       processorOptions: options.processorOptions || {},
     });
 
-    // Set low-pass filter frequency based on context sample rate
-    this.#lpfHz = this.context.sampleRate / 2 - 100;
+    this.#ampEnv = createEnvelope(context, 'amp-env');
+    this.#pitchEnv = createEnvelope(context, 'pitch-env');
+
     this.#filtersEnabled = options.enableFilters ?? true;
 
     // Create filters if enabled
     if (this.#filtersEnabled) {
+      // Set low-pass filter frequency based on context sample rate
+      this.#lpfHz = this.context.sampleRate / 2 - 1000;
+
       this.#hpf = new BiquadFilterNode(context, {
         type: 'highpass',
         frequency: this.#hpfHz,
         Q: this.#hpfQ,
       });
+
       this.#lpf = new BiquadFilterNode(context, {
         type: 'lowpass',
         frequency: this.#lpfHz,
         Q: this.#lpfQ,
       });
 
-      // Connect chain: worklet → hpf → lpf
+      this.#filterEnv = createEnvelope(context, 'filter-env', {
+        valueRange: [10, this.#lpfHz],
+      });
+
+      // Connect chain: worklet → hpf → lpf -> destination
       this.#worklet.connect(this.#hpf);
       this.#hpf.connect(this.#lpf);
-      // todo: set destination here also ?
+      this.#lpf.connect(destination);
+
       this.#outputNode = this.#lpf;
+      this.#destination = destination;
     } else {
       // No filters, worklet is the output node
+      this.#worklet.connect(destination);
       this.#outputNode = this.#worklet;
+      this.#destination = destination;
     }
 
-    this.setupMessageHandling();
+    this.#setupMessageHandling();
     this.sendToProcessor({ type: 'voice:init' });
+
+    this.#worklet.port.start();
   }
 
   logAvailableParams = () => {
     console.table(
-      'Available parameters:',
+      'Available worklet params:',
       Array.from(this.#worklet.parameters.keys())
     );
   };
-
-  protected sendUpstreamMessage(type: string, data: any) {
-    this.#messages.sendMessage(type, data);
-    return this;
-  }
-
-  private setupMessageHandling() {
-    this.#worklet.port.onmessage = (event: MessageEvent) => {
-      const { type, ...data } = event.data;
-
-      this.sendUpstreamMessage(type, data);
-
-      switch (type) {
-        case 'voice:started':
-          this.#state = VoiceState.PLAYING;
-          break;
-        case 'voice:ended':
-          this.#state = VoiceState.IDLE;
-          this.#currentNoteId = null;
-          break;
-        case 'voice:releasing':
-          this.#state = VoiceState.RELEASING;
-          break;
-        case 'voice:looped':
-          // this.#state = VoiceState.LOOPED;
-          break;
-        case 'voice:position':
-          this.getParam('playbackPosition')?.setValueAtTime(
-            data.position,
-            this.context.currentTime
-          );
-          break;
-        default:
-          console.warn(`Unhandled message type: ${type}`);
-          break;
-      }
-    };
-  }
 
   async loadBuffer(
     buffer: AudioBuffer,
     zeroCrossings?: number[]
   ): Promise<boolean> {
+    this.#state = VoiceState.NOT_READY;
+
     if (buffer.sampleRate !== this.context.sampleRate) {
       console.warn(
         `Sample rate mismatch - buffer: ${buffer.sampleRate}, context: ${this.context.sampleRate}`
@@ -252,10 +147,17 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.sendToProcessor({
       type: 'voice:set_buffer',
       buffer: bufferData,
-      duration: buffer.duration,
+      durationSeconds: buffer.duration,
     });
 
-    if (zeroCrossings?.length) this.#setZeroCrossings(zeroCrossings);
+    if (zeroCrossings?.length) {
+      this.#setZeroCrossings(zeroCrossings);
+
+      this.sendToProcessor({
+        type: 'voice:set_zero_crossings',
+        zeroCrossings,
+      });
+    }
 
     return true;
   }
@@ -268,81 +170,195 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
+  set transposeSemitones(semitones: number) {
+    this.sendToProcessor({ type: 'transpose', semitones });
+  }
+
   trigger(options: {
     midiNote: MidiValue;
     velocity: MidiValue;
-    noteId: ActiveNoteId;
     secondsFromNow?: number;
-    // startOffset?: number;
-  }): number | string | null | undefined {
-    if (this.#state === VoiceState.PLAYING) return null;
-    this.#state = VoiceState.PLAYING;
-
+  }): MidiValue | null {
     const {
       midiNote = 60,
       velocity = 100,
       secondsFromNow = 0,
-      // startOffset = 0,
     } = {
-      ...DEFAULT_TRIGGER_OPTIONS,
       ...options,
-    }; // console.table({ ...DEFAULT_TRIGGER_OPTIONS, ...options });
+    };
 
+    // Using the same audio context current time for all ops
     const timestamp = this.now + secondsFromNow;
 
-    // Use setParams with to ensure all params executed using the exact same timestamp
+    this.#startedTimestamp = timestamp;
+    this.#activeMidiNote = options.midiNote;
+
+    if (
+      this.#state === VoiceState.PLAYING ||
+      this.#state === VoiceState.RELEASING
+    ) {
+      console.log(`had to stop a playing voice, midinote: ${midiNote}`);
+      this.stop(timestamp);
+      return null;
+    }
+
+    this.#state = VoiceState.PLAYING;
+
+    const playbackRate = midiToPlaybackRate(midiNote);
+
+    // setParams ensures all params executed using exact same timestamp
     this.setParams(
       [
-        { name: 'playbackRate', value: midiToPlaybackRate(midiNote) },
+        { name: 'playbackRate', value: playbackRate },
         { name: 'velocity', value: velocity },
-        { name: 'envGain', value: 0 },
-
-        // todo: set all other params (e.g. startOffset & endOffset) via param handlers (not in trigger method)
+        // todo: set all other params (e.g. startPoint & endPoint) via param handlers (not in trigger method)
       ],
       timestamp
     );
 
-    // Trigger attack envelope
-    const envGain = this.getParam('envGain');
-    if (!envGain) throw new Error('Cannot trigger - envGain parameter is null');
-    envGain?.linearRampToValueAtTime(1, timestamp + this.#attackSec);
+    const adjustedDuration = this.#sampleDurationSeconds / playbackRate;
+    this.#ampEnv.setSampleDuration(adjustedDuration);
+    this.#pitchEnv.setSampleDuration(adjustedDuration);
+    this.#filterEnv?.setSampleDuration(adjustedDuration);
 
+    // Apply amp, filter and pitch envelopes
+    const envGainParam = this.#worklet.parameters.get('envGain');
+    if (envGainParam) {
+      this.#ampEnv.applyToAudioParam(envGainParam, timestamp);
+    }
+
+    const lpfFreqParam = this.#lpf?.frequency;
+    if (this.#filterEnv && lpfFreqParam && this.#filterEnv.hasVariation()) {
+      this.#filterEnv.applyToAudioParam(lpfFreqParam, timestamp);
+    }
+
+    const playbackRateParam = this.#worklet.parameters.get('playbackRate');
+    if (this.#pitchEnv && playbackRateParam && this.#pitchEnv.hasVariation()) {
+      this.#pitchEnv.applyToAudioParam(playbackRateParam, timestamp, {
+        baseValue: playbackRate,
+      });
+    }
+
+    // Start playback
     this.sendToProcessor({
       type: 'voice:start',
-      when: timestamp,
+      timestamp,
     });
 
-    this.#startedTimestamp = timestamp;
-    this.#currentNoteId = options.noteId;
-    return this.#currentNoteId;
+    this.sendUpstreamMessage('sample-envelopes:trigger', {
+      voiceId: this.nodeId,
+      midiNote: this.#activeMidiNote,
+      envDurations: {
+        'amp-env': this.#ampEnv.durationSeconds,
+        'pitch-env': this.#pitchEnv.durationSeconds,
+        'filter-env': this.#filterEnv?.durationSeconds,
+      },
+      loopEnabled: {
+        'amp-env': this.#ampEnv.loopEnabled,
+        'pitch-env': this.#pitchEnv.loopEnabled,
+        'filter-env': this.#filterEnv?.loopEnabled,
+      },
+    });
+
+    return this.#activeMidiNote;
+  }
+
+  debugDuration() {
+    console.info(`
+      sample duration: ${this.sampleDurationSeconds}, 
+      startPoint: ${this.getParam('startPoint')!.value}, 
+      endPoint: ${this.getParam('endPoint')!.value}, 
+      playback duration: ${this.getPlaybackDuration()}
+      `);
   }
 
   release({ release = this.#releaseSec, secondsFromNow = 0 }): this {
     if (this.#state === VoiceState.RELEASING) return this;
+
     const envGain = this.getParam('envGain');
     if (!envGain) throw new Error('Cannot release - envGain parameter is null');
 
     this.#state = VoiceState.RELEASING;
     const timestamp = this.now + secondsFromNow;
 
-    // trigger release envelope
-    cancelScheduledParamValues(envGain, timestamp);
-    envGain.setValueAtTime(envGain.value, timestamp);
-    envGain.exponentialRampToValueAtTime(0.0001, timestamp + release);
+    // Immediate stop for zero release time
+    if (release <= 0) return this.stop(timestamp);
 
-    this.sendToProcessor({ type: 'voice:release' });
+    const envGainParam = this.#worklet.parameters.get('envGain');
+    if (envGainParam) {
+      const currentValue = envGainParam.value;
+      this.#ampEnv.applyReleaseToAudioParam(
+        envGainParam,
+        timestamp,
+        release,
+        currentValue
+      );
+    }
+
+    // todo: release filter-env and pitch-env ?
+
+    this.sendToProcessor({ type: 'voice:release', timestamp });
+
+    // After the release duration, the voice should stop
+    setTimeout(
+      () => {
+        if (this.#state === VoiceState.RELEASING) this.stop();
+      },
+      release * 1000 + 50
+    ); // 50ms buffer
 
     return this;
   }
 
-  stop(): this {
-    if (this.#state === VoiceState.STOPPED) return this;
-    this.#state = VoiceState.STOPPED;
-    this.#currentNoteId = null;
+  stop(timestamp = this.now): this {
+    if (
+      this.#state === VoiceState.STOPPED ||
+      this.#state === VoiceState.STOPPING
+    ) {
+      return this;
+    }
+    this.#state = VoiceState.STOPPING;
 
-    this.setParam('envGain', 0, this.now);
-    this.sendToProcessor({ type: 'voice:stop' });
+    // Clear all scheduled values to prevent overlapping setValueCurveAtTime errors
+    this.setParam('envGain', 0, timestamp, {
+      cancelPrevious: true,
+      glideTime: 0,
+    });
+
+    this.sendToProcessor({ type: 'voice:stop', timestamp });
+    this.#state = VoiceState.STOPPED;
     return this;
+  }
+
+  addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+    if (envType === 'amp-env') this.#ampEnv.addPoint(time, value);
+    if (envType === 'pitch-env') this.#pitchEnv.addPoint(time, value);
+    if (envType === 'filter-env') this.#filterEnv?.addPoint(time, value);
+  }
+
+  updateEnvelopePoint(
+    envType: EnvelopeType,
+    index: number,
+    time?: number,
+    value?: number
+  ) {
+    if (envType === 'amp-env') this.#ampEnv.updatePoint(index, time, value);
+    if (envType === 'pitch-env') this.#pitchEnv.updatePoint(index, time, value);
+    if (envType === 'filter-env' && this.#filterEnv)
+      this.#filterEnv?.updatePoint(index, time, value);
+  }
+
+  deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+    if (envType === 'amp-env') this.#ampEnv.deletePoint(index);
+    if (envType === 'pitch-env') this.#pitchEnv.deletePoint(index);
+    if (envType === 'filter-env') this.#filterEnv?.deletePoint(index);
+  }
+
+  getEnvelope(envType: EnvelopeType) {
+    if (envType === 'amp-env') return this.#ampEnv;
+    if (envType === 'pitch-env') return this.#pitchEnv;
+    if (envType === 'filter-env') return this.#filterEnv;
+    return undefined;
   }
 
   connect(
@@ -350,6 +366,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     output?: number,
     input?: number
   ): Destination {
+    if (destination === this.#destination) return this.#destination;
+
     if (destination instanceof AudioParam) {
       this.out.connect(destination, output);
     } else if (destination instanceof AudioNode) {
@@ -375,44 +393,30 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
-  #sanitizeParamValue(paramName: string, value: number): number {
-    // Guard against NaN, Infinity, and extreme values // todo: remove if not useful
-    if (!isFinite(value) || isNaN(value)) {
-      console.warn(`Invalid ${paramName} value: ${value}, using default`);
-      return SAMPLE_VOICE_PARAM_DESCRIPTORS[paramName]?.defaultValue || 1;
-    }
-    return value;
-  }
-
   setParam(
     name: string,
-    value: number,
-    atTime: number, // Direct timestamp (in audio contexts time)
+    targetValue: number,
+    timestamp: number,
     options: {
       glideTime?: number;
       cancelPrevious?: boolean;
     } = {}
   ): this {
     const param = this.getParam(name);
-    if (!param || param.value === value) return this;
+    if (!param || param.value === targetValue) return this;
 
-    const opts = {
-      glideTime: 0,
-      cancelPrevious: true,
-      ...options,
-    };
+    const { glideTime = 0, cancelPrevious = true } = options;
 
-    const safeValue = this.#sanitizeParamValue(name, value);
+    if (cancelPrevious) param.cancelScheduledValues(timestamp); // cancelScheduledParamValues(param, timestamp, currVal);
 
-    if (opts.cancelPrevious) {
-      cancelScheduledParamValues(param, atTime);
-    }
+    if (glideTime <= 0)
+      param.setValueAtTime(targetValue, Math.max(timestamp, this.now + 0.001));
+    else
+      param.linearRampToValueAtTime(
+        targetValue,
+        timestamp + Math.max(glideTime, 0.001)
+      );
 
-    if (opts.glideTime <= 0) {
-      param.setValueAtTime(safeValue, atTime);
-    } else {
-      param.setTargetAtTime(safeValue, atTime, Math.max(opts.glideTime, 0.001));
-    }
     return this;
   }
 
@@ -436,36 +440,208 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
-  setAttack = (attack_sec: number) => (this.#attackSec = attack_sec);
-  setRelease = (release_sec: number) => (this.#releaseSec = release_sec);
+  setAttack = (attack_sec: number) => {
+    this.#attackSec = attack_sec;
+    console.info(`setAttack called, to be replaced with envelope`);
+  };
 
-  setStartOffset = (offset: number, timestamp = this.now) =>
-    this.setParam('startOffset', offset, timestamp);
+  setRelease = (release_sec: number) => {
+    this.#releaseSec = release_sec;
+    console.info(`setRelease called, to be replaced with envelope`);
+  };
 
-  setEndOffset = (offset: number, timestamp = this.now) =>
-    this.setParam('endOffset', offset, timestamp);
+  setStartPoint = (time: number, timestamp = this.now) => {
+    this.setParam('startPoint', time, timestamp);
+    this.#playbackDurationNormalized = this.endPoint - time;
 
-  setLoopPoints(start?: number, end?: number, timestamp = this.now): this {
+    // this.#ampEnv.updateStartPoint(time);
+    // this.#pitchEnv.updateStartPoint(time); // filterenv
+    // Todo: figure out this system
+  };
+
+  setEndPoint = (time: number, timestamp = this.now) => {
+    this.setParam('endPoint', time, timestamp);
+    this.#playbackDurationNormalized = time - this.startPoint;
+
+    // this.#ampEnv.updateEndPoint(time);
+    // this.#pitchEnv.updateEndPoint(time); // filterenv
+    // Todo: figure out this system
+  };
+
+  // debugCounter = 0;
+
+  setLoopPoints(
+    start: number,
+    end: number,
+    timestamp = this.now,
+    rampTime = 0
+  ): this {
+    if (start >= end) return this;
+    // if (this.loopPointsTimeout) clearTimeout(this.loopPointsTimeout);
+    // this.loopPointsTimeout = setTimeout(() => { ... }, 16); // ~60fps debouncing
+
     if (start !== undefined) {
-      this.setParam('loopStart', start, timestamp);
+      this.setParam('loopStart', start, timestamp, {
+        glideTime: rampTime,
+        cancelPrevious: true,
+      });
     }
     if (end !== undefined) {
-      this.setParam('loopEnd', end, timestamp);
+      this.setParam('loopEnd', end, timestamp, {
+        glideTime: rampTime,
+        cancelPrevious: true,
+      });
     }
+
+    // if (this.debugCounter % 10 === 0) console.debug('sampleVoice.setLoopPoints, start:', start, 'end:', end);
+    // this.debugCounter++;
+
+    return this;
+  }
+
+  setAllowedPeriods(periods: number[]): this {
+    this.sendToProcessor({
+      type: 'setAllowedPeriods',
+      allowedPeriods: periods,
+    });
+
     return this;
   }
 
   /** MESSAGES */
-  sendToProcessor(data: any): this {
-    this.#worklet.port.postMessage(data);
-    return this;
-  }
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.#messages.onMessage(type, handler);
   }
 
+  sendToProcessor(data: any): this {
+    this.#worklet.port.postMessage(data);
+    return this;
+  }
+
+  sendUpstreamMessage(type: string, data: any) {
+    this.#messages.sendMessage(type, data);
+    return this;
+  }
+
+  #setupMessageHandling() {
+    this.#worklet.port.onmessage = (event: MessageEvent) => {
+      let { type, ...data } = event.data;
+
+      switch (type) {
+        case 'initialized':
+          this.#isInitialized = true;
+          this.#state = VoiceState.NOT_READY; // not loaded
+          // this.logAvailableParams(); // as needed for debugging
+          break;
+
+        case 'voice:loaded':
+          this.#activeMidiNote = null;
+          this.#state = VoiceState.LOADED;
+
+          if (data.durationSeconds) {
+            this.#activeMidiNote = null;
+            this.#sampleDurationSeconds = data.durationSeconds;
+
+            this.#ampEnv.setSampleDuration(data.durationSeconds);
+            this.#pitchEnv.setSampleDuration(data.durationSeconds);
+            this.#filterEnv?.setSampleDuration(data.durationSeconds);
+
+            this.setStartPoint(0);
+            this.setEndPoint(1); // normalized !
+
+            this.#worklet.parameters.get('loopEnd')!.value = 0; // ! Why can this not be set to 1 ??
+          }
+          break;
+
+        case 'voice:transposed':
+          break;
+
+        case 'voice:started':
+          this.#state = VoiceState.PLAYING;
+          data = {
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
+          break;
+
+        case 'voice:stopped':
+          this.#state = VoiceState.STOPPED;
+          data = {
+            voiceId: this.nodeId,
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
+          this.#activeMidiNote = null;
+          break;
+
+        case 'voice:releasing':
+          this.#state = VoiceState.RELEASING;
+          data = {
+            voiceId: this.nodeId,
+            voice: this,
+            midiNote: this.#activeMidiNote,
+          };
+          break;
+
+        case 'loop:enabled':
+          this.#loopEnabled = true;
+          break;
+
+        case 'voice:looped':
+          break;
+
+        case 'voice:position':
+          this.getParam('playbackPosition')?.setValueAtTime(
+            data.position,
+            this.context.currentTime
+          );
+          break;
+
+        case 'debug:params':
+          console.debug(
+            'Debug params: ',
+            { loopStart: data.loopStart },
+            { loopStartSamples: data.loopStartSamples },
+            { loopEnd: data.loopEnd },
+            { loopEndSamples: data.loopEndSamples }
+          );
+          break;
+
+        case 'debug:loop':
+          console.log('Loop debug:', data);
+          break;
+
+        default:
+          console.warn(`Unhandled message type: ${type}`);
+          break;
+      }
+
+      this.sendUpstreamMessage(type, data);
+    };
+  }
+
+  #normalizedToAbsolute(normalizedTime: number): number {
+    return normalizedTime * this.#sampleDurationSeconds;
+  }
+
+  #absoluteToNormalized(absoluteTime: number): number {
+    return absoluteTime / this.#sampleDurationSeconds;
+  }
+  #clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
+
   // Getters
+
+  getPlaybackDuration() {
+    const startPoint = this.getParam('startPoint')!.value;
+    const endPoint = this.getParam('endPoint')!.value;
+    return endPoint - startPoint;
+  }
+
+  get currMidiNote(): number | null {
+    return this.#activeMidiNote;
+  }
 
   get hpf() {
     return this.#hpf;
@@ -476,7 +652,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   get in() {
-    return null; // possibly add support for connecting to "in": this.#worklet;
+    return null;
   }
 
   get out() {
@@ -487,14 +663,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this.#destination;
   }
 
-  // get firstChildren() { return this.#worklet; }
-
   get state(): VoiceState {
     return this.#state;
   }
 
-  get isReady() {
-    return this.#isReady;
+  get initialized() {
+    return this.#isInitialized;
   }
 
   get now(): number {
@@ -502,11 +676,23 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   get activeNoteId(): number | string | null {
-    return this.#currentNoteId;
+    return this.#activeMidiNote;
   }
 
-  get startTime(): number {
+  get triggerTimestamp(): number {
     return this.#startedTimestamp;
+  }
+
+  get sampleDurationSeconds() {
+    return this.#sampleDurationSeconds;
+  }
+
+  get startPoint() {
+    return this.getParam('startPoint')!.value;
+  }
+
+  get endPoint() {
+    return this.getParam('endPoint')!.value;
   }
 
   // Setters
@@ -525,8 +711,25 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       type: 'setLoopEnabled',
       value: enabled,
     });
+
+    this.#loopEnabled = enabled;
+
+    this.#ampEnv.setLoopEnabled(enabled);
+    this.#pitchEnv.setLoopEnabled(enabled);
+    this.#filterEnv?.setLoopEnabled(enabled);
+
     return this;
   }
+
+  setEnvelopeLoop = (
+    envType: EnvelopeType,
+    loop: boolean,
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+  ) => {
+    if (envType === 'amp-env') this.#ampEnv.setLoopEnabled(loop, mode);
+    if (envType === 'pitch-env') this.#pitchEnv.setLoopEnabled(loop, mode);
+    if (envType === 'filter-env') this.#filterEnv?.setLoopEnabled(loop, mode);
+  };
 
   setPlaybackRate(
     rate: number,
@@ -536,32 +739,21 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       cancelPrevious?: boolean;
     }
   ): this {
-    return this.setParam('playbackRate', rate, atTime, options);
+    this.setParam('playbackRate', rate, atTime, options);
+    return this;
   }
 
   dispose(): void {
     this.stop();
     this.disconnect();
+    this.#ampEnv.dispose();
+    this.#pitchEnv.dispose();
+    this.#filterEnv?.dispose();
     this.#worklet.port.close();
     deleteNodeId(this.nodeId);
   }
 
-  getParamDescriptors(): Record<string, LibParamDescriptor> {
-    return SAMPLE_VOICE_PARAM_DESCRIPTORS;
-  }
-
   getParam(name: string): AudioParam | null {
-    // Just while debugging:
-    const param = this.#worklet.parameters.get(name);
-    if (!param && name === 'envGain') {
-      console.log(
-        'Available parameters:',
-        Array.from(this.#worklet.parameters.keys()),
-        'Looking for:',
-        name
-      );
-    }
-
     if (this.#worklet && this.#worklet.parameters.has(name)) {
       return this.#worklet.parameters.get(name) ?? null;
     }
@@ -581,8 +773,71 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           return this.#lpf?.Q || null;
       }
     }
-
-    // Parameter not found
     return null;
   }
 }
+
+// addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+//   this.envelopes.addEnvelopePoint(envType, time, value);
+// }
+
+// updateEnvelopePoint(
+//   envType: EnvelopeType,
+//   index: number,
+//   time?: number,
+//   value?: number
+// ) {
+//   this.envelopes.updateEnvelopePoint(envType, index, time, value);
+// }
+
+// deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+//   this.envelopes.deleteEnvelopePoint(envType, index);
+// }
+
+// getEnvelope(envType: EnvelopeType) {
+//   return this.envelopes.getEnvelope(envType);
+// }
+
+// addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
+//   this.#envelopes.get(envType)?.addPoint(time, value);
+// }
+
+// updateEnvelopePoint(
+//   envType: EnvelopeType,
+//   index: number,
+//   time?: number,
+//   value?: number
+// ) {
+//   this.#envelopes.get(envType)?.updatePoint(index, time, value);
+// }
+
+// deleteEnvelopePoint(envType: EnvelopeType, index: number) {
+//   this.#envelopes.get(envType)?.deletePoint(index);
+// }
+
+// getEnvelope(envType: EnvelopeType) {
+//   return this.#envelopes.get(envType);
+// }
+
+// setEnvelopeLoop = (
+//   envType: EnvelopeType,
+//   loop: boolean,
+//   mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+// ) => this.getEnvelope(envType)?.setLoopEnabled(loop, mode);
+
+// this.#messages.forwardFrom(
+//   this.envelopes,
+//   ['sample-envelopes:trigger', 'sample-envelopes:duration'],
+//   (msg) => ({
+//     ...msg,
+//     voiceId: this.nodeId,
+//     midiNote: this.#activeMidiNote,
+//   })
+// );
+
+// #envelopes: Map<EnvelopeType, CustomEnvelope>;
+
+// this.#envelopes = createDefaultEnvelopes(context, ['amp-env', 'pitch-env']);
+
+// this.envelopes.triggerEnvelopes(timestamp, playbackRate);
+// this.envelopes.releaseEnvelopes(timestamp, release);

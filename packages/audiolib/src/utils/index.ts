@@ -3,7 +3,7 @@ export * from './audiodata/convert/parseWavHeader';
 export * from './audiodata/validate/audiobuffer';
 
 // Musical utils & constants
-export * from './musical';
+export * from './music-theory';
 
 // Code utils
 export * from './code/assert';
@@ -21,6 +21,9 @@ export * from './monitoring/LevelMonitor';
 export * from './math/normalize';
 export * from './math/zero-crossing';
 export * from './math/second-diff';
+
+// JS data-type utils
+export * from './code/set-utils';
 
 // Loading utils
 // export * from './load/xhr-utils';

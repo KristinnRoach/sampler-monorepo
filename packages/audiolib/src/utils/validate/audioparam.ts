@@ -2,22 +2,20 @@ import { isCancelAndHoldSupported } from './environment';
 
 export function cancelScheduledParamValues(
   param: AudioParam | AudioParam[],
-  now: number
+  timestamp: number,
+  holdValue?: number
 ) {
-  const cancelMethod = isCancelAndHoldSupported()
-    ? 'cancelAndHoldAtTime' // not supported in firefox
-    : 'cancelScheduledValues';
+  const paramsToProcess = Array.isArray(param) ? param : [param];
 
-  if (Array.isArray(param)) {
-    param.forEach((p) => p[cancelMethod](now));
-  } else {
-    param[cancelMethod](now);
-  }
+  paramsToProcess.forEach((p) => {
+    if (isCancelAndHoldSupported()) {
+      p.cancelAndHoldAtTime(timestamp);
+    } else {
+      p.cancelScheduledValues(timestamp);
+      p.setValueAtTime(
+        holdValue !== undefined ? holdValue : p.value,
+        timestamp
+      );
+    }
+  });
 }
-
-// Original function below, delete once above is confirmed to work
-// export function cancelScheduledParamValues(param: AudioParam, now: number) {
-//   isCancelAndHoldSupported()
-//     ? param.cancelAndHoldAtTime(now) // not supported in firefox
-//     : param.cancelScheduledValues(now);
-// }

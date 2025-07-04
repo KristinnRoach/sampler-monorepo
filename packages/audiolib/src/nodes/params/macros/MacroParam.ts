@@ -5,15 +5,15 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-import { SCALE_PATTERNS } from '@/utils/musical/constants';
+import { SCALE_PATTERNS } from '@/utils/music-theory/constants';
 import { Debouncer } from '@/utils/Debouncer';
 import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
 import { NodeType } from '@/nodes/LibNode';
+import type { NormalizeOptions } from '@/nodes/params/param-types';
 
 export class MacroParam {
-  // implements LibParam {
-  readonly nodeType: string = 'macro'; // Temporarily removed dependency on LibParam and ParamType
+  readonly nodeType: string = 'macro';
   readonly nodeId: NodeID;
 
   #controller: AudioParamController;
@@ -69,14 +69,15 @@ export class MacroParam {
   ): this {
     const {
       method = 'exponential',
-      debounceMs = 30,
+      debounceMs = 20,
       onComplete,
       onCompleteDelayMs = 30,
     } = options;
 
     const executeRamp = () => {
       let processedValue = this.#processValue(targetValue, constant);
-      this.#controller.ramp(processedValue, duration, method);
+
+      this.#controller.ramp(processedValue, duration, method, true);
 
       if (onComplete) {
         setTimeout(onComplete, duration * 1000 + onCompleteDelayMs);
@@ -97,29 +98,76 @@ export class MacroParam {
     return this;
   }
 
-  #processValue(value: number, constant: number): number {
-    const targetPeriod = Math.abs(value - constant);
+  debugProcessVal(value: number, constant: number, targetPeriod: number) {
+    console.log('MacroParam.#processValue input:', {
+      value,
+      constant,
+      targetPeriod,
+      hasValueSnapping: this.#snapper.hasValueSnapping,
+      hasPeriodSnapping: this.#snapper.hasPeriodSnapping,
+      longestPeriod: this.#snapper.longestPeriod,
+    });
+  }
+
+  #processValue(targetValue: number, constant: number): number {
+    if (!Number.isFinite(targetValue) || !Number.isFinite(constant)) {
+      return targetValue;
+    }
+
+    const targetPeriod = Math.abs(targetValue - constant);
 
     if (
       this.#snapper.hasPeriodSnapping &&
       targetPeriod < this.#snapper.longestPeriod
     ) {
-      return this.#snapper.snapToPeriod(value, constant);
+      const quantizedPeriod = this.#snapper.snapToMusicalPeriod(targetPeriod);
+
+      console.debug(
+        'adjusting param: ',
+        this.#paramType,
+        'targetValue',
+        targetValue,
+        'constant',
+        constant,
+        'targetPeriod',
+        targetPeriod,
+        'quantizedPeriod',
+        quantizedPeriod
+      );
+
+      let result;
+
+      if (this.#paramType === 'loopEnd') {
+        result = constant + quantizedPeriod;
+      }
+
+      if (this.#paramType === 'loopStart') {
+        result = constant - quantizedPeriod;
+      }
+
+      if (result) return result;
     } else if (this.#snapper.hasValueSnapping) {
-      return this.#snapper.snapToValue(value);
+      const snapped = this.#snapper.snapToValue(targetValue);
+      return snapped;
     }
 
-    return value;
+    return targetValue;
   }
 
   // Delegate configuration methods
-  setAllowedParamValues(values: number[]): this {
-    this.#snapper.setAllowedValues(values);
+  setAllowedParamValues(
+    values: number[],
+    normalize: NormalizeOptions | false
+  ): this {
+    this.#snapper.setAllowedValues(values, normalize);
     return this;
   }
 
-  setAllowedPeriods(periods: number[]): this {
-    this.#snapper.setAllowedPeriods(periods);
+  setAllowedPeriods(
+    periods: number[],
+    normalize: NormalizeOptions | false
+  ): this {
+    this.#snapper.setAllowedPeriods(periods, normalize);
     return this;
   }
 
@@ -127,15 +175,22 @@ export class MacroParam {
     rootNote: string,
     scale: keyof typeof SCALE_PATTERNS | number[],
     options: {
+      normalize: NormalizeOptions | false;
       lowestOctave?: number;
       highestOctave?: number;
-    } = {}
+    }
   ): this {
     const { lowestOctave = 0, highestOctave = 8 } = options;
 
     const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
-    this.#snapper.setScale(rootNote, scalePattern, lowestOctave, highestOctave);
+    this.#snapper.setScale(
+      rootNote,
+      scalePattern,
+      lowestOctave,
+      highestOctave,
+      options.normalize
+    );
     return this;
   }
 
@@ -150,6 +205,14 @@ export class MacroParam {
     return this.#controller.value;
   }
 
+  get targets() {
+    return this.#controller.targets;
+  }
+
+  get snapper(): ValueSnapper {
+    return this.#snapper;
+  }
+
   get isReady() {
     return this.#isReady;
   }
@@ -158,7 +221,7 @@ export class MacroParam {
     throw new Error('Not implemented');
   }
 
-  get macro(): AudioParam {
+  get audioParam(): AudioParam {
     return this.#controller.param;
   }
 
@@ -206,3 +269,25 @@ export class MacroParam {
     throw new Error('Not implemented');
   }
 }
+
+// old code, delete:
+// #processValue(value: number, constant: number): number {
+//   const targetPeriod = Math.abs(value - constant);
+//   // this.debugProcessVal(value, constant, targetPeriod)
+//   if (
+//     this.#snapper.hasPeriodSnapping &&
+//     targetPeriod < this.#snapper.longestPeriod
+//   ) {
+//     const snapped = this.#snapper.snapToPeriod(value, constant);
+//     console.log('MacroParam.#processValue period snapped:', {
+//       value,
+//       snapped,
+//     });
+//     return snapped;
+//   } else if (this.#snapper.hasValueSnapping) {
+//     const snapped = this.#snapper.snapToValue(value);
+//     return snapped;
+//   }
+
+//   return value;
+// }

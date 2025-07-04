@@ -36,13 +36,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  // server configuration to serve html test files
-  // server: {
-  //   fs: {
-  //     // Allow serving files from one level up
-  //     allow: ['..', './dist'],
-  //   },
-  // },
-  // Configured to serve test HTML files
-  // publicDir: 'public',
 });
+
+// server configuration to serve html test files
+// server: {
+//   fs: {
+//     // Allow serving files from one level up
+//     allow: ['..', './dist'],
+//   },
+// },
+// Configured to serve test HTML files
+// publicDir: 'public',

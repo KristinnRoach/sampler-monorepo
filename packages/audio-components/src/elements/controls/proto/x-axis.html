@@ -1,0 +1,283 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/MotionPathPlugin.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/CustomEase.min.js"></script>
+  </head>
+  <body style="padding: 20px; font-family: Arial, sans-serif">
+    <h3>MotionPath + CustomEase Time Correction</h3>
+    <p>
+      Both dots should move in sync horizontally (same x-position = same time)
+    </p>
+
+    <svg
+      id="envelope"
+      viewBox="0 0 400 200"
+      style="
+        width: 400px;
+        height: 200px;
+        background: #1a1a1a;
+        border: 1px solid #444;
+        margin-bottom: 20px;
+      "
+    >
+      <!-- Grid -->
+      <g id="grid">
+        <line x1="0" y1="0" x2="0" y2="200" stroke="#333" stroke-width="1" />
+        <line
+          x1="100"
+          y1="0"
+          x2="100"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="200"
+          y1="0"
+          x2="200"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="300"
+          y1="0"
+          x2="300"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="400"
+          y1="0"
+          x2="400"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+
+        <line x1="0" y1="0" x2="400" y2="0" stroke="#333" stroke-width="1" />
+        <line x1="0" y1="50" x2="400" y2="50" stroke="#333" stroke-width="1" />
+        <line
+          x1="0"
+          y1="100"
+          x2="400"
+          y2="100"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="0"
+          y1="150"
+          x2="400"
+          y2="150"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="0"
+          y1="200"
+          x2="400"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+      </g>
+
+      <!-- Complex envelope path with curves -->
+      <path
+        id="envelopePath"
+        d="M0,150 C50,150 50,50 100,50 L200,80 C250,80 350,120 300,100 C350,100 350,150 400,150"
+        fill="none"
+        stroke="#4ade80"
+        stroke-width="2"
+      />
+
+      <!-- Reference linear movement -->
+      <circle
+        id="linearPlayhead"
+        cx="0"
+        cy="180"
+        r="4"
+        fill="blue"
+        opacity="0.8"
+      />
+
+      <!-- MotionPath with time-corrected ease -->
+      <circle
+        id="correctedPlayhead"
+        cx="0"
+        cy="150"
+        r="5"
+        fill="red"
+        opacity="0.8"
+      />
+    </svg>
+
+    <div style="margin: 20px 0">
+      <button onclick="startAnimation()">Start Animation (4s)</button>
+      <button onclick="stopAnimation()">Stop</button>
+      <button onclick="precomputeEase()">Recompute Ease</button>
+    </div>
+
+    <div style="margin: 10px 0">
+      <div style="color: blue">
+        🔵 Blue = Linear time reference (moves at constant speed)
+      </div>
+      <div style="color: red">
+        🔴 Red = MotionPath + CustomEase (should stay aligned with blue)
+      </div>
+    </div>
+
+    <div
+      id="debug"
+      style="
+        font-family: monospace;
+        font-size: 12px;
+        color: #666;
+        margin-top: 20px;
+      "
+    ></div>
+
+    <script>
+      gsap.registerPlugin(MotionPathPlugin, CustomEase);
+
+      // Envelope points matching the SVG path
+      const points = [
+        { time: 0, value: 0.25 }, // x=0, y=150
+        { time: 0.25, value: 0.75 }, // x=100, y=50
+        { time: 0.5, value: 0.6 }, // x=200, y=80
+        { time: 0.75, value: 0.5 }, // x=300, y=100
+        { time: 1, value: 0.25 }, // x=400, y=150
+      ];
+
+      let linearTween, correctedTween;
+      let timeBasedEase = null;
+
+      // Function to sample the path and determine time distribution
+      function precomputeTimeBasedEase() {
+        const envelopePath = document.getElementById('envelopePath');
+        const pathLength = envelopePath.getTotalLength();
+
+        console.log('Path length:', pathLength);
+
+        // Sample points along the path
+        const samples = [];
+        const numSamples = 50;
+
+        for (let i = 0; i <= numSamples; i++) {
+          const progress = i / numSamples;
+          const distanceAlongPath = progress * pathLength;
+          const pointOnPath = envelopePath.getPointAtLength(distanceAlongPath);
+
+          // Convert SVG x-coordinate back to time (0-1)
+          const timeValue = pointOnPath.x / 400;
+
+          samples.push({ progress, time: timeValue });
+        }
+
+        // Debug: show some samples
+        console.log('Sample points:', samples.slice(0, 10));
+
+        // Create ease string from samples
+        // We need to invert this: given a time, what should the path progress be?
+        const easePoints = [];
+
+        for (let i = 0; i <= 20; i++) {
+          const targetTime = i / 20; // Time we want (0 to 1)
+
+          // Find the corresponding progress along path
+          let closestSample = samples[0];
+          let minDiff = Math.abs(samples[0].time - targetTime);
+
+          for (const sample of samples) {
+            const diff = Math.abs(sample.time - targetTime);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestSample = sample;
+            }
+          }
+
+          easePoints.push(closestSample.progress);
+        }
+
+        console.log('Ease points:', easePoints);
+
+        // Convert to CustomEase path format
+        // CustomEase expects: x = time input (0-1), y = progress output (0-1)
+        let pathData = `M0,${easePoints[0]}`;
+
+        for (let i = 1; i < easePoints.length; i++) {
+          const x = i / (easePoints.length - 1);
+          const y = easePoints[i]; // Don't flip - we want progress as-is
+          pathData += ` L${x},${y}`;
+        }
+
+        console.log('CustomEase path:', pathData);
+
+        // Create the custom ease
+        timeBasedEase = CustomEase.create('timeCorrection', pathData);
+
+        document.getElementById('debug').innerHTML = `
+                <strong>Debug Info:</strong><br>
+                Path Length: ${pathLength.toFixed(2)}<br>
+                Samples: ${samples.length}<br>
+                Ease Points: ${easePoints.length}<br>
+                CustomEase Created: ${timeBasedEase ? 'Yes' : 'No'}
+            `;
+
+        return timeBasedEase;
+      }
+
+      function startAnimation() {
+        stopAnimation();
+
+        if (!timeBasedEase) {
+          precomputeTimeBasedEase();
+        }
+
+        const linearPlayhead = document.getElementById('linearPlayhead');
+        const correctedPlayhead = document.getElementById('correctedPlayhead');
+        const envelopePath = document.getElementById('envelopePath');
+
+        // Reset positions
+        linearPlayhead.setAttribute('cx', '0');
+        correctedPlayhead.setAttribute('cx', '0');
+
+        // Linear reference animation
+        linearTween = gsap.to(linearPlayhead, {
+          attr: { cx: 400 },
+          duration: 4,
+          ease: 'none',
+        });
+
+        // MotionPath with time-corrected ease
+        correctedTween = gsap.to(correctedPlayhead, {
+          motionPath: {
+            path: envelopePath,
+            align: envelopePath,
+            alignOrigin: [0.5, 0.5],
+          },
+          duration: 4,
+          ease: timeBasedEase || 'none',
+        });
+      }
+
+      function stopAnimation() {
+        if (linearTween) linearTween.kill();
+        if (correctedTween) correctedTween.kill();
+      }
+
+      function precomputeEase() {
+        precomputeTimeBasedEase();
+      }
+
+      // Auto-precompute on load
+      window.addEventListener('load', () => {
+        setTimeout(precomputeTimeBasedEase, 100);
+      });
+    </script>
+  </body>
+</html>

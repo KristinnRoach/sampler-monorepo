@@ -1,7 +1,8 @@
-import type { MidiValue, ActiveNoteId } from '../types';
 import { getAudioContext } from '@/context';
 import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
+import { detectSinglePitchAC } from '@/utils/pitchDetection';
+import { findClosestNote } from '@/utils';
 
 import {
   assert,
@@ -9,35 +10,36 @@ import {
   isValidAudioBuffer,
   isMidiValue,
   findZeroCrossings,
-  cancelScheduledParamValues,
 } from '@/utils';
 
 import {
   MacroParam,
   LibParamDescriptor,
   DEFAULT_PARAM_DESCRIPTORS,
+  NormalizeOptions,
 } from '@/nodes/params';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
+import { CustomEnvelope } from '@/nodes/params';
+import { EnvelopeType } from '@/nodes/params/envelopes';
 
 export class SamplePlayer extends LibInstrument {
-  // SamplePlayer-specific fields private with #
-  #midiNoteToId: Map<MidiValue, ActiveNoteId> = new Map();
   #bufferDuration: number = 0;
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
   #holdLocked = false;
+
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
-  #loopEndFineTune: number = 0;
+  // #loopEndEnvelope: CustomEnvelope;
+
   #isReady = false;
   #isLoaded = false;
   #zeroCrossings: number[] = [];
   #useZeroCrossings = true;
-  #trackPlaybackPosition = false;
   randomizeVelocity = false;
 
   voicePool: SampleVoicePool;
@@ -54,8 +56,6 @@ export class SamplePlayer extends LibInstrument {
   ) {
     super('sample-player', context, polyphony, audioBuffer, midiController);
 
-    // ? Load stored values ?
-
     // Initialize voice pool
     this.voicePool = new SampleVoicePool(
       context,
@@ -64,17 +64,20 @@ export class SamplePlayer extends LibInstrument {
       true // enable voice filters (lpf and hpf)
     );
 
-    // Setup macro params
+    this.#setupMessageHandling();
+
+    // Setup params
     this.#macroLoopStart = new MacroParam(
       context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_START
     );
+
     this.#macroLoopEnd = new MacroParam(
       context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
-    this.#connectVoicesToMacros();
+    this.#connectVoicesToMacros(); // !! Disconnect IF using voice period quantization
 
     // Connect audiochain -- todo after generalizing voice pool
 
@@ -92,6 +95,8 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
+  /* === MESSAGES === */
+
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
   }
@@ -101,18 +106,63 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  #setupMessageHandling(): this {
+    // Forward voice pool messages upstream
+    this.messages.forwardFrom(this.voicePool, [
+      'voice:started',
+      'voice:stopped',
+      'voice:releasing',
+      'sample:loaded',
+      'sample-envelopes:trigger',
+      'sample-envelopes:duration',
+    ]);
+
+    return this;
+  }
+
+  getMacrosAudioParam(paramName: 'loopStart' | 'loopEnd') {
+    switch (paramName) {
+      case 'loopStart':
+        return this.#macroLoopStart.audioParam;
+      case 'loopEnd':
+        return this.#macroLoopEnd.audioParam;
+
+      default:
+        const unreachable: never = paramName;
+        throw new Error(`Unknown macro parameter: ${unreachable}`);
+    }
+  }
+
+  getMacro(paramName: 'loopStart' | 'loopEnd') {
+    switch (paramName) {
+      case 'loopStart':
+        return this.#macroLoopStart;
+      case 'loopEnd':
+        return this.#macroLoopEnd;
+
+      default:
+        const unreachable: never = paramName;
+        throw new Error(`Unknown macro parameter: ${unreachable}`);
+    }
+  }
+
   #connectVoicesToMacros(): this {
     const voices = this.voicePool.allVoices;
 
-    voices.forEach((voice) => {
+    voices.forEach((voice, index) => {
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
 
-      if (loopEndParam) {
-        this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
-      }
       if (loopStartParam) {
         this.#macroLoopStart.addTarget(loopStartParam, 'loopStart');
+      } else {
+        console.error('loopStart param is null!');
+      }
+
+      if (loopEndParam) {
+        this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
+      } else {
+        console.error('loopEnd param is null!');
       }
     });
 
@@ -120,26 +170,24 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    const lastZero =
-      this.#zeroCrossings[this.#zeroCrossings.length - 1] ?? bufferDuration;
-    const firstZero = this.#zeroCrossings[0] ?? 0;
-    this.#macroLoopEnd.macro.setValueAtTime(lastZero, this.now);
-    this.#macroLoopStart.macro.setValueAtTime(firstZero, this.now);
+    const normalizedLoopEnd = 1;
+    const normalizedLoopStart = 0;
 
-    // consider whether startOffset and endOffset should be macros
+    this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
+    this.#macroLoopStart.audioParam.setValueAtTime(
+      normalizedLoopStart,
+      this.now
+    );
 
-    if (this.#useZeroCrossings && this.#zeroCrossings.length > 0) {
-      this.#macroLoopStart.setAllowedParamValues(this.#zeroCrossings);
-      this.#macroLoopEnd.setAllowedParamValues(this.#zeroCrossings);
-    }
-    // todo: pre-compute gaddem allowed periods with optimized zero snapping!! (þegar é nenni)
-    this.#macroLoopStart.setScale('C', [0], {
+    const normalizeOptions: NormalizeOptions = {
+      from: [0, bufferDuration],
+      to: [0, 1],
+    };
+
+    this.setScale('C', [0], {
       lowestOctave: 0,
       highestOctave: 5,
-    });
-    this.#macroLoopEnd.setScale('C', [0], {
-      lowestOctave: 0,
-      highestOctave: 5,
+      normalize: normalizeOptions,
     });
 
     return this;
@@ -147,8 +195,10 @@ export class SamplePlayer extends LibInstrument {
 
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
-    modSampleRate?: number
-  ): Promise<boolean> {
+    modSampleRate?: number,
+    shoulDetectPitch = true,
+    autoTranspose = true
+  ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
       buffer = await ctx.decodeAudioData(buffer);
@@ -156,8 +206,8 @@ export class SamplePlayer extends LibInstrument {
 
     assert(isValidAudioBuffer(buffer));
 
-    this.releaseAll();
-    this.voicePool.transposeSemitones = 0; // or possibly stored value
+    this.releaseAll(0);
+    this.voicePool.transposeSemitones = 0; // or stored val
     this.#isLoaded = false;
 
     if (
@@ -173,111 +223,120 @@ export class SamplePlayer extends LibInstrument {
       );
     }
 
+    if (shoulDetectPitch) {
+      const pitchSource = await detectSinglePitchAC(buffer);
+      // const pitchSource = await detectPitchWindowed(buffer);
+      const targetNoteInfo = findClosestNote(pitchSource.frequency);
+
+      const midiFloat = 69 + 12 * Math.log2(pitchSource.frequency / 440);
+      const playbackRateMultiplier =
+        targetNoteInfo.frequency / pitchSource.frequency;
+
+      console.table({
+        pitchSource,
+        targetNoteInfo,
+        playbackRateMultiplier,
+        midiFloat,
+      });
+
+      this.sendUpstreamMessage('sample:pitch-detected', {
+        pitchResults: pitchSource,
+        closestNoteInfo: targetNoteInfo,
+      });
+
+      if (autoTranspose) {
+        // ! Increase min confidence if getting many bad results
+        if (pitchSource.confidence > 0.35) {
+          let transposeSemitones = 60 - midiFloat;
+          // Wrap to nearest octave (-6 to +6 semitones)
+          while (transposeSemitones > 6) transposeSemitones -= 12;
+          while (transposeSemitones < -6) transposeSemitones += 12;
+          this.voicePool.transposeSemitones = transposeSemitones;
+
+          console.info(`transposing by ${transposeSemitones} semitones`);
+
+          this.sendUpstreamMessage('sample:auto-transpose', {
+            didTranspose: true,
+            pitchResults: pitchSource,
+          });
+        } else {
+          console.info(`Skipped auto transpose due to unreliable results: `, {
+            pitchResults: pitchSource,
+          });
+
+          this.sendUpstreamMessage('sample:auto-transpose', {
+            didTranspose: false,
+            pitchResults: pitchSource,
+          });
+        }
+      }
+    }
+
     if (this.#useZeroCrossings) {
       const zeroes = findZeroCrossings(buffer);
-
-      // reset start and end offset
-      const storedStart = this.getStoredParamValue('startOffset', 0);
-      this.setParameterValue('startOffset', storedStart ?? zeroes[0]);
-
-      const storedOffFromEnd = this.getStoredParamValue('endOffset', 0);
-      const lastZeroOffFromEnd =
-        buffer.duration - zeroes[zeroes.length - 1] || 0;
-      this.setParameterValue(
-        'endOffset',
-        storedOffFromEnd || lastZeroOffFromEnd
-      );
-
-      // cache zero crossings
       this.#zeroCrossings = zeroes;
     }
 
     this.voicePool.setBuffer(buffer, this.#zeroCrossings);
-
-    this.#resetMacros(buffer.duration);
     this.#bufferDuration = buffer.duration;
 
-    this.setLoopEnd(buffer.duration); // for now, use saved loopEnd if exists, when implemented
+    this.#resetMacros(buffer.duration);
 
-    this.#isLoaded = true;
-    return true;
+    // this.#isLoaded = true; // Sent via message when all voices loaded
+
+    return buffer.duration;
   }
 
   play(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
     modifiers?: PressedModifiers
-  ): ActiveNoteId {
-    if (modifiers) this.#handleModifierKeys(modifiers);
-
-    if (modifiers && modifiers.alt !== undefined && modifiers.alt === true) {
-      midiNote += 12;
-    }
-
-    // If this MIDI note is already playing, release it first
-    if (this.#midiNoteToId.has(midiNote)) {
-      const oldNoteId = this.#midiNoteToId.get(midiNote)!;
-      this.voicePool.noteOff(oldNoteId, 0); // Quick release
+  ): MidiValue | null {
+    if (modifiers) {
+      this.#handleModifierKeys(modifiers);
+      if (modifiers.alt) midiNote += 12;
     }
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
-    const noteId = this.voicePool.noteOn(
+
+    return this.voicePool.noteOn(
       midiNote,
-      velocity,
+      safeVelocity,
       0 // zero delay
     );
 
-    this.#midiNoteToId.set(midiNote, noteId);
+    // if (this.#loopEnabled) {
+    //   const baseLoopEnd = this.getStoredParamValue('loopEnd', 1.0);
+    //   // this.#macroLoopEnd.audioParam.cancelScheduledValues(this.now);
+    //   // this.#macroLoopEnd.audioParam.setValueAtTime(baseLoopEnd, this.now); // ! this causes "overlap" scheduling error
+    //   const minLoopEnd = this.loopStart + 0.01;
 
-    this.sendUpstreamMessage('note:on', {
-      midiNote,
-      velocity: safeVelocity,
-      noteId,
-    });
-
-    return noteId;
+    //   this.#loopEndEnvelope.applyToAudioParam(
+    //     this.#macroLoopEnd.audioParam,
+    //     this.now,
+    //     this.#bufferDuration,
+    //     {
+    //       baseValue: baseLoopEnd,
+    //       minValue: minLoopEnd,
+    //       maxValue: this.#bufferDuration,
+    //     }
+    //   );
+    // }
   }
 
-  release(note: MidiValue | ActiveNoteId, modifiers?: PressedModifiers): this {
+  release(midiNote: MidiValue, modifiers?: PressedModifiers): this {
     if (modifiers) this.#handleModifierKeys(modifiers);
 
-    if (this.#holdEnabled || this.#holdLocked) return this; // simple play through (one-shot mode)
+    if (this.holdEnabled || this.#holdLocked) return this; // one-shot mode
 
-    let noteId: ActiveNoteId;
-    let midiNote: MidiValue | undefined;
+    this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
 
-    if (note >= 0 && note <= 127) {
-      midiNote = note as MidiValue;
-      noteId = this.#midiNoteToId.get(midiNote) ?? -1;
-      if (noteId !== -1) {
-        this.#midiNoteToId.delete(midiNote);
-      } else {
-        // No matching noteId found
-        return this;
-      }
-    } else {
-      // It's already a noteId
-      noteId = note as ActiveNoteId;
-
-      // Find and remove from midiNoteToId if present
-      for (const [midi, id] of this.#midiNoteToId.entries()) {
-        if (id === noteId) {
-          midiNote = midi;
-          this.#midiNoteToId.delete(midi);
-          break;
-        }
-      }
-    }
-
-    this.voicePool.noteOff(noteId, this.getReleaseTime(), 0); // Pass the release time directly
-
-    this.sendUpstreamMessage('note:off', { noteId, midiNote });
+    this.sendUpstreamMessage('note:off', { midiNote });
     return this;
   }
 
   releaseAll(fadeOut_sec: number = this.getReleaseTime()): this {
     this.voicePool.allNotesOff(fadeOut_sec);
-    this.#midiNoteToId.clear();
     return this;
   }
 
@@ -292,9 +351,6 @@ export class SamplePlayer extends LibInstrument {
     }
     if (modifiers.shift !== undefined) {
       this.setHoldEnabled(modifiers.shift);
-    }
-    if (modifiers.space) {
-      console.log(`Spacebar handling in SamplePlayer not implemented yet!`);
     }
     return this;
   }
@@ -322,12 +378,10 @@ export class SamplePlayer extends LibInstrument {
 
   async initMidiController(): Promise<boolean> {
     if (this.midiController?.isInitialized) {
-      console.log(`SamplePlayer: MIDI controller initialized`);
       return true;
     }
 
     if (!this.midiController) {
-      console.debug(`SamplePlayer: Creating MIDI controller.`);
       this.midiController = new MidiController();
     }
 
@@ -379,20 +433,21 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setSampleStartOffset(seconds: number): this {
-    this.storeParamValue('startOffset', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setStartOffset(seconds));
+  setSampleStartPoint(seconds: number): this {
+    this.storeParamValue('startPoint', seconds);
+    this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
     return this;
   }
 
-  setSampleEndOffset(seconds: number): this {
-    this.storeParamValue('endOffset', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setEndOffset(seconds));
+  setSampleEndPoint(seconds: number): this {
+    this.storeParamValue('endPoint', seconds);
+    this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
     return this;
   }
 
   setLoopRampDuration(seconds: number): this {
     this.storeParamValue('loopRampDuration', seconds);
+    // ? todo: is this enough ?
     return this;
   }
 
@@ -403,91 +458,9 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  // todo: test optimal safe values and move to constants
-  SET_TARGET_TIMECONSTANT = 0.05; // 50ms
-  #lastHpfUpdateTime = 0;
-  #lastLpfUpdateTime = 0;
-  #minFilterUpdateInterval = 0.08; // 80ms minimum between updates
-
-  setHpfCutoff(hz: number): this {
-    // if (!this.#pool.filtersEnabled) return this;
-    if (isNaN(hz) || !isFinite(hz)) {
-      console.warn(`Invalid HPF frequency: ${hz}`);
-      return this;
-    }
-
-    // Clamp values to safe range
-    const safeValue = Math.max(20, Math.min(hz, 20000));
-    this.storeParamValue('hpfCutoff', safeValue);
-
-    const currentTime = this.now;
-    if (currentTime - this.#lastHpfUpdateTime < this.#minFilterUpdateInterval) {
-      return this;
-    }
-
-    this.voicePool.applyToAllVoices((voice) => {
-      if (!voice.hpf) return;
-      try {
-        // Replace cancelAndHoldAtTime with safer options
-        // voice.hpf.frequency.cancelScheduledValues(currentTime);
-        // voice.hpf.frequency.setValueAtTime(
-        //   voice.hpf.frequency.value,
-        //   currentTime
-        // );
-
-        cancelScheduledParamValues(voice.hpf.frequency, currentTime);
-        voice.hpf.frequency.setTargetAtTime(
-          safeValue,
-          currentTime,
-          this.SET_TARGET_TIMECONSTANT
-        );
-      } catch (error) {
-        console.warn('Error automating filter: ', error);
-      }
-    });
-
-    this.#lastHpfUpdateTime = currentTime;
-    return this;
-  }
-
-  setLpfCutoff(hz: number): this {
-    // if (!this.#pool.filtersEnabled) return this;
-    if (isNaN(hz) || !isFinite(hz)) {
-      console.warn(`Invalid LPF frequency: ${hz}`);
-      return this;
-    }
-    const maxFilterFreq = this.audioContext.sampleRate / 2 - 100;
-
-    const safeValue = Math.max(20, Math.min(hz, maxFilterFreq));
-    this.storeParamValue('lpfCutoff', safeValue);
-
-    const currentTime = this.now;
-    if (currentTime - this.#lastLpfUpdateTime < this.#minFilterUpdateInterval) {
-      return this;
-    }
-
-    this.voicePool.applyToAllVoices((voice) => {
-      if (!voice.lpf) return;
-      // voice.lpf.frequency.cancelScheduledValues(currentTime);
-      // voice.lpf.frequency.setValueAtTime(
-      //   voice.lpf.frequency.value,
-      //   currentTime
-      // );
-
-      cancelScheduledParamValues(voice.lpf.frequency, currentTime);
-      voice.lpf.frequency.setTargetAtTime(
-        safeValue,
-        currentTime,
-        this.SET_TARGET_TIMECONSTANT
-      );
-    });
-
-    this.#lastLpfUpdateTime = currentTime;
-    return this;
-  }
-
   setLoopEnabled(enabled: boolean): this {
     if (this.#loopEnabled === enabled) return this;
+
     // if loop is locked (ON), turning it off is disabled but turning it on should work
     if (this.#loopLocked && !enabled) return this;
 
@@ -504,11 +477,10 @@ export class SamplePlayer extends LibInstrument {
     if (this.#holdEnabled === enabled) return this;
     // if hold is locked (ON), turning it off is disabled but turning it on should work
     if (this.#holdLocked && !enabled) return this;
-
     this.#holdEnabled = enabled;
-
     if (!enabled) this.releaseAll(this.getReleaseTime());
-    this.sendUpstreamMessage('hold:state', { enabled });
+    this.sendUpstreamMessage('hold:enabled', { enabled });
+
     return this;
   }
 
@@ -526,17 +498,62 @@ export class SamplePlayer extends LibInstrument {
     if (this.#holdLocked === locked) return this;
 
     this.#holdLocked = locked;
-    this.setHoldEnabled(locked);
+    if (locked === false) this.releaseAll();
 
+    console.debug(`sending hold:locked message, locked: ${locked}`);
     this.sendUpstreamMessage('hold:locked', { locked });
     return this;
   }
+
+  // setLoopStart(
+  //   targetValue: number,
+  //   rampTime: number = this.getLoopRampDuration()
+  // ) {
+  //   console.debug(
+  //     'setLoopStart, targetValue: ',
+  //     targetValue,
+  //     ' loopEnd: ',
+  //     this.loopEnd
+  //   );
+  //   this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
+  //   return this;
+  // }
+
+  // setLoopEnd(
+  //   targetValue: number,
+  //   rampTime: number = this.getLoopRampDuration()
+  // ) {
+  //   console.debug(
+  //     'setLoopEnd, targetValue: ',
+  //     targetValue,
+  //     ' loopStart: ',
+  //     this.loopEnd
+  //   );
+  //   this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
+  //   return this;
+  // }
 
   setLoopStart(
     targetValue: number,
     rampTime: number = this.getLoopRampDuration()
   ) {
-    this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
+    const currentLoopEnd = this.loopEnd;
+
+    console.debug(
+      'setLoopStart, targetValue: ',
+      targetValue,
+      ' loopEnd: ',
+      currentLoopEnd
+    );
+
+    this.#macroLoopStart.ramp(
+      targetValue,
+      rampTime,
+      currentLoopEnd, // constant = the other loop point
+      {
+        onComplete: () => this.storeParamValue('loopStart', targetValue),
+      }
+    );
     return this;
   }
 
@@ -544,39 +561,100 @@ export class SamplePlayer extends LibInstrument {
     targetValue: number,
     rampTime: number = this.getLoopRampDuration()
   ) {
-    const fineTuned = targetValue + this.#loopEndFineTune;
-    this.setLoopPoint('end', this.loopStart, fineTuned, rampTime);
+    const currentLoopStart = this.loopStart;
+
+    this.#macroLoopEnd.ramp(
+      targetValue,
+      rampTime,
+      currentLoopStart, // constant = the other loop point
+      {
+        onComplete: () => this.storeParamValue('loopEnd', targetValue),
+      }
+    );
     return this;
   }
 
-  setFineTuneLoopEnd(valueToAdd: number) {
-    this.#loopEndFineTune = valueToAdd;
-    return this;
+  isNormalized(value: number, range = [0, 1]): boolean {
+    return value >= range[0] && value <= range[1];
+  }
+
+  readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
+
+  #getMinLoopDurationNormalized = () =>
+    this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
+
+  #scaleLoopPoint(
+    valueToAdjust: 'start' | 'end',
+    start: number,
+    end: number
+  ): number {
+    // Calculate scaling factor based on proposed loop size
+    const proposedLoopSize = Math.abs(end - start);
+    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.1));
+
+    if (valueToAdjust === 'start') return Math.pow(start, scalingFactor);
+    else return Math.pow(end, scalingFactor);
   }
 
   setLoopPoint(
     loopPoint: 'start' | 'end',
-    start: number,
-    end: number,
+    normalizedLoopStart: number,
+    normalizedLoopEnd: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    if (start < 0 || end > this.#bufferDuration || start >= end) return this;
+    // Validate input range
+    if (
+      !this.isNormalized(normalizedLoopStart) ||
+      !this.isNormalized(normalizedLoopEnd)
+    ) {
+      console.error(
+        `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
+      );
+      return this;
+    }
+
+    // Scale and validate
+    const scaledPoint = this.#scaleLoopPoint(
+      loopPoint,
+      normalizedLoopStart,
+      normalizedLoopEnd
+    );
 
     const RAMP_SENSITIVITY = 2;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-    // ? refactor
-    if (loopPoint === 'start') {
-      const storeLoopStart = () => this.storeParamValue('loopStart', start);
-      this.#macroLoopStart.ramp(start, scaledRampTime, end, {
-        onComplete: storeLoopStart,
-      });
-    } else {
-      const storeLoopEnd = () => this.storeParamValue('loopEnd', end);
+    // this.voicePool.applyToAllVoices((voice) => {
+    //   voice.setLoopPoints(scaledStart, scaledEnd, scaledRampTime);
+    // });
 
-      this.#macroLoopEnd.ramp(end, scaledRampTime, start, {
-        onComplete: storeLoopEnd,
-      });
+    if (loopPoint === 'start') {
+      // && normalizedLoopStart !== this.loopStart) {
+      // const storeLoopStart = () =>
+      //   this.storeParamValue('loopStart', scaledPoint);
+
+      // console.debug(
+      //   `Ramping to loopStart, targetValue:  ${scaledPoint}, loopEnd (constant): ${normalizedLoopEnd}`
+      // );
+
+      this.#macroLoopStart.ramp(
+        normalizedLoopStart,
+        scaledRampTime,
+        normalizedLoopEnd,
+        {
+          // onComplete: storeLoopStart,
+        }
+      );
+    } else if (loopPoint === 'end') {
+      // && normalizedLoopEnd !== this.loopEnd) {
+      // const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledPoint);
+      this.#macroLoopEnd.ramp(
+        normalizedLoopEnd,
+        scaledRampTime,
+        normalizedLoopStart,
+        {
+          // onComplete: storeLoopEnd,
+        }
+      );
     }
 
     return this;
@@ -598,17 +676,17 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  getSampleStartOffset(): number {
+  getStartPoint(): number {
     return this.getStoredParamValue(
-      'startOffset',
-      DEFAULT_PARAM_DESCRIPTORS.START_OFFSET.defaultValue
+      'startPoint',
+      DEFAULT_PARAM_DESCRIPTORS.START_POINT.defaultValue
     );
   }
 
-  getSampleEndOffset(): number {
+  getEndPoint(): number {
     return this.getStoredParamValue(
-      'endOffset',
-      DEFAULT_PARAM_DESCRIPTORS.END_OFFSET.defaultValue
+      'endPoint',
+      DEFAULT_PARAM_DESCRIPTORS.END_POINT.defaultValue
     );
   }
 
@@ -629,6 +707,65 @@ export class SamplePlayer extends LibInstrument {
   getHpfCutoff = () => this.getStoredParamValue('hpfCutoff', NaN);
   getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
+  // Expose envelopes for UI access
+
+  getEnvelope(envType: EnvelopeType): CustomEnvelope {
+    // if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro
+
+    // Return the first voice's envelope as the "master" envelope
+    const firstVoice = this.voicePool.allVoices[0];
+    return firstVoice!.getEnvelope(envType)!; // !
+  }
+
+  setEnvelopeLoop = (
+    envType: EnvelopeType,
+    loop: boolean,
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+  ) => {
+    if (envType === 'loop-env') {
+      // this.#loopEndEnvelope.setLoopEnabled(loop, mode);
+    } else {
+      this.voicePool.applyToAllVoices((v) =>
+        v.setEnvelopeLoop(envType, loop, mode)
+      );
+    }
+  };
+
+  updateEnvelopePoint(
+    envType: EnvelopeType,
+    index: number,
+    time: number,
+    value: number
+  ): void {
+    if (envType === 'loop-env') {
+      // this.#loopEndEnvelope.updatePoint(index, time, value);
+    } else {
+      this.voicePool.applyToAllVoices((v) =>
+        v.updateEnvelopePoint(envType, index, time, value)
+      );
+    }
+  }
+
+  addEnvelopePoint(envType: EnvelopeType, time: number, value: number): void {
+    if (envType === 'loop-env') {
+      // this.#loopEndEnvelope.addPoint(time, value);
+    } else {
+      this.voicePool.applyToAllVoices((v) =>
+        v.addEnvelopePoint(envType, time, value)
+      );
+    }
+  }
+
+  deleteEnvelopePoint(envType: EnvelopeType, index: number): void {
+    if (envType === 'loop-env') {
+      // this.#loopEndEnvelope.deletePoint(index);
+    } else {
+      this.voicePool.applyToAllVoices((v) =>
+        v.deleteEnvelopePoint(envType, index)
+      );
+    }
+  }
+
   startLevelMonitoring(intervalMs?: number) {
     this.outBus.startLevelMonitoring(intervalMs);
   }
@@ -642,8 +779,6 @@ export class SamplePlayer extends LibInstrument {
         this.voicePool = null as unknown as SampleVoicePool;
       }
 
-      this.#midiNoteToId.clear();
-
       if (this.outBus) {
         this.outBus.dispose();
         this.outBus = null as unknown as InstrumentMasterBus;
@@ -651,6 +786,7 @@ export class SamplePlayer extends LibInstrument {
 
       this.#macroLoopStart?.dispose();
       this.#macroLoopEnd?.dispose();
+
       this.#macroLoopStart = null as unknown as MacroParam;
       this.#macroLoopEnd = null as unknown as MacroParam;
 
@@ -677,12 +813,6 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
-  // get firstChildren() {
-  //   return this.#children;
-  // }
-
-  // get in() { this.#hpf }
-
   get out() {
     return this.outBus.output;
   }
@@ -690,10 +820,6 @@ export class SamplePlayer extends LibInstrument {
   get outputBus() {
     return this.outBus;
   }
-
-  // get destination() {
-  //   return this.destination;
-  // }
 
   get context() {
     return this.audioContext;
@@ -731,7 +857,7 @@ export class SamplePlayer extends LibInstrument {
     return this.#macroLoopEnd.getValue();
   }
 
-  get isReady() {
+  get initialized() {
     return this.#isReady;
   }
 
@@ -739,13 +865,13 @@ export class SamplePlayer extends LibInstrument {
     return this.#isLoaded;
   }
 
-  // todo: use for UI integration
+  // for UI integration
   getParameterDescriptors(): Record<string, LibParamDescriptor> {
     return {
       attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
       release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
-      startOffset: DEFAULT_PARAM_DESCRIPTORS.START_OFFSET,
-      endOffset: DEFAULT_PARAM_DESCRIPTORS.END_OFFSET, // TODO: Ensure the endOffset is updated on loadSample !!!
+      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
+      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
       playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
       loopStart: this.#macroLoopStart.descriptor,
       loopEnd: this.#macroLoopEnd.descriptor,
@@ -767,10 +893,10 @@ export class SamplePlayer extends LibInstrument {
         return this.getAttackTime();
       case 'release':
         return this.getReleaseTime();
-      case 'startOffset':
-        return this.getSampleStartOffset();
-      case 'endOffset':
-        return this.getSampleEndOffset();
+      case 'startPoint':
+        return this.getStartPoint();
+      case 'endPoint':
+        return this.getEndPoint();
       case 'playbackRate':
         return this.getPlaybackRate();
       // case 'hpfCutoff':
@@ -791,11 +917,11 @@ export class SamplePlayer extends LibInstrument {
       case 'release':
         this.setReleaseTime(value);
         break;
-      case 'startOffset':
-        this.setSampleStartOffset(value);
+      case 'startPoint':
+        this.setSampleStartPoint(value);
         break;
-      case 'endOffset':
-        this.setSampleEndOffset(value);
+      case 'endPoint':
+        this.setSampleEndPoint(value);
         break;
       case 'playbackRate':
         this.setPlaybackRate(value);
@@ -809,15 +935,25 @@ export class SamplePlayer extends LibInstrument {
       case 'loopRampDuration':
         this.setLoopRampDuration(value);
         break;
-      case 'hpfCutoff':
-        this.setHpfCutoff(value);
-        break;
-      case 'lpfCutoff':
-        this.setLpfCutoff(value);
-        break;
       default:
         console.warn(`Unknown parameter: ${name}`);
     }
+    return this;
+  }
+
+  setScale(rootNote: string, scalePattern: number[], options?: any): this {
+    // Existing code to set scale on macros
+    this.#macroLoopStart.setScale(rootNote, scalePattern, options);
+    this.#macroLoopEnd.setScale(rootNote, scalePattern, options);
+
+    // Get the periods from the snapper
+    const periods = this.#macroLoopEnd.snapper.periods;
+
+    // ! Pass to voices IF they individually handle period quantization (snapping)
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.setAllowedPeriods(periods)
+    );
+
     return this;
   }
 }

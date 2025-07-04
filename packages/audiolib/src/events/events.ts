@@ -14,6 +14,14 @@ export interface MessageBus<T extends Message> {
     type: K,
     handler: MessageHandler<T>
   ): () => void;
+
+  forwardFrom(
+    source: {
+      onMessage: (type: string, handler: MessageHandler<T>) => () => void;
+    },
+    messageTypes: string[],
+    transform?: (msg: T) => any
+  ): () => void;
 }
 
 export function createMessageBus<T extends Message>(
@@ -37,6 +45,26 @@ export function createMessageBus<T extends Message>(
       const typeHandlers = handlers.get(type)!;
       typeHandlers.add(handler);
       return () => typeHandlers.delete(handler);
+    },
+
+    forwardFrom(source, messageTypes, transform) {
+      const defaultTransform = (msg: T) => ({
+        // sourceId: msg.senderId,
+        ...msg,
+      });
+
+      const transformFn = transform || defaultTransform;
+
+      const cleanupFns = messageTypes.map((type) =>
+        source.onMessage(type, (msg: T) => {
+          const transformedMsg = transformFn(msg);
+          if (transformedMsg !== null) {
+            this.sendMessage(transformedMsg.type, transformedMsg);
+          }
+        })
+      );
+
+      return () => cleanupFns.forEach((fn) => fn());
     },
   };
 }

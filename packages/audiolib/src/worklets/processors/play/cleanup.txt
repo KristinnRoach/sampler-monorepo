@@ -1,0 +1,224 @@
+
+
+// === OLD PROCESS METHOD ===
+
+// process(inputs, outputs, parameters) {
+//   const output = outputs[0];
+
+//   if (!output || !this.isPlaying) {
+//     return true;
+//   }
+
+//   // If this is the first process call after starting playback,
+//   // initialize playback position using startPoint
+//   if (this.playbackPosition === 0) {
+//     const startPointSec = parameters.startPoint[0];
+//     this.playbackPosition = startPointSec * sampleRate;
+//   }
+
+//   const pbRate = parameters.playbackRate[0];
+
+//   // Get start and end offsets from parameters and convert to samples
+//   const startPointSec = parameters.startPoint[0];
+//   const endPointSec = parameters.endPoint[0];
+
+//   // Convert to samples
+//   const startPointSamples = startPointSec * sampleRate;
+
+//   // Handle end offset - if endPoint is set (greater than 0), use it to limit playback
+//   const bufferLength = this.buffer[0].length;
+//   let effectiveBufferEnd = bufferLength;
+//   if (endPointSec > 0) {
+//     effectiveBufferEnd = Math.min(bufferLength, endPointSec * sampleRate);
+//   }
+
+//   // Quantize once per block, not per sample
+//   const rawLoopStart = parameters.loopStart[0] * sampleRate;
+//   const rawLoopEnd = parameters.loopEnd[0] * sampleRate;
+
+//   const loopStart = rawLoopStart;
+//   const loopEnd = rawLoopEnd;
+
+//   const constrainedLoopEnd = Math.min(loopEnd, effectiveBufferEnd);
+
+//   const envelopeGain = parameters.envGain[0];
+//   const velocitySensitivity = 0.9;
+//   const normalizedVelocity = this.#normalizeMidi(parameters.velocity[0]);
+//   const velocityGain = normalizedVelocity * velocitySensitivity;
+
+//   const numChannels = Math.min(output.length, this.buffer.length);
+
+//   // Process samples
+//   for (let i = 0; i < output[0].length; i++) {
+//     // Handle looping
+//     if (
+//       this.loopEnabled &&
+//       this.playbackPosition >= constrainedLoopEnd &&
+//       this.loopCount < this.maxLoopCount
+//     ) {
+//       this.playbackPosition = loopStart;
+//       this.loopCount++;
+//     }
+
+//     // Check for end of buffer or effective end position
+//     if (this.playbackPosition >= effectiveBufferEnd) {
+//       this.#stop(output);
+//       return true;
+//     }
+
+//     // Read and interpolate samples
+//     const position = Math.floor(this.playbackPosition);
+//     const fraction = this.playbackPosition - position;
+//     const nextPosition = Math.min(position + 1, effectiveBufferEnd - 1);
+
+//     for (let c = 0; c < numChannels; c++) {
+//       const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
+//       const current = bufferChannel[position];
+//       const next = bufferChannel[nextPosition];
+
+//       // output[c][i] =
+//       //   (current + fraction * (next - current)) * velocityGain * envelopeGain;
+
+//       const sample =
+//         (current + fraction * (next - current)) * velocityGain * envelopeGain;
+
+//       output[c][i] = Math.max(-1, Math.min(1, isFinite(sample) ? sample : 0));
+//     }
+//     // Advance playback position
+//     this.playbackPosition += pbRate;
+//   }
+
+//   if (this.usePlaybackPosition) {
+//     this.port.postMessage({
+//       type: 'voice:position',
+//       position: this.playbackPosition / sampleRate,
+//     });
+//   }
+
+//   return true;
+// }
+
+// === OLD PROCESS METHOD END ===
+
+// TODO: test with and without internal zero snapping. Remove this if works well without it.
+// // Calculate max acceptable distance based on loop length with scaling
+// const loopLength = Math.abs(rawLoopEnd - rawLoopStart);
+
+// let maxDistance;
+// if (loopLength < 50) {
+//   // Very short loops (< ~1ms at 44.1kHz)
+//   maxDistance = Math.min(loopLength * 0.3, 20); // 30% tolerance, max 20 samples
+// } else if (loopLength < 200) {
+//   // Short loops (< ~4.5ms)
+//   maxDistance = Math.min(loopLength * 0.15, 50); // 15% tolerance
+// } else {
+//   maxDistance = Math.min(loopLength * 0.1, 100); // Original formula for longer loops
+// }
+
+// if (rawLoopStart !== this.lastProcessedLoopStart) {
+//   this.blockQuantizedLoopStart = this.#findNearestZeroCrossing(
+//     rawLoopStart,
+//     maxDistance
+//   );
+//   this.lastProcessedLoopStart = rawLoopStart;
+// }
+
+// if (rawLoopEnd !== this.lastProcessedLoopEnd) {
+//   this.blockQuantizedLoopEnd = this.#findNearestZeroCrossing(
+//     rawLoopEnd,
+//     maxDistance
+//   );
+//   this.lastProcessedLoopEnd = rawLoopEnd;
+// }
+
+// Use cached values in the sample loop
+// const loopStart = this.blockQuantizedLoopStart;
+// const loopEnd = this.blockQuantizedLoopEnd;
+// TODO: test with and without internal zero snapping. Remove this if works well without it.
+
+// #findNearestZeroCrossing(position) {
+//   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
+//     return position;
+//   }
+
+//   // Find the closest zero crossing to the requested position
+//   return this.zeroCrossings.reduce(
+//     (prev, curr) =>
+//       Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
+//     position
+//   );
+// }
+
+// #normalizeMidi(midiValue) {
+//   const norm = midiValue / 127;
+//   return Math.max(0, Math.min(1, norm));
+// }
+
+// #getParamValueInSamples(paramName, parameters) {
+//   if (!parameters || !parameters[paramName]) return 0;
+
+//   let valueInSamples = parameters[paramName][0] * sampleRate;
+
+//   // Apply zero crossing constraint for "buffer-position" parameters
+//   if (paramName === 'loopStart' || paramName === 'loopEnd') {
+//     return this.#findNearestZeroCrossing(valueInSamples);
+//   }
+
+//   return valueInSamples;
+// }
+
+// #shouldEnd(parameters) {
+//   const shouldEnd =
+//     !this.buffer ||
+//     !this.buffer.length ||
+//     !this.isPlaying ||
+//     (this.scheduledEndTime !== null && currentTime >= this.scheduledEndTime);
+
+//   // if (shouldEnd) {
+//   //   console.log('PROCESSOR: Ending because:', {
+//   //     noBuffer: !this.buffer,
+//   //     noBufferLength: !this.buffer?.length,
+//   //     notPlaying: !this.isPlaying,
+//   //     timeExpired:
+//   //       this.scheduledEndTime !== null &&
+//   //       currentTime >= this.scheduledEndTime,
+//   //     currentTime,
+//   //     scheduledEndTime: this.scheduledEndTime,
+//   //   });
+//   // }
+
+//   return shouldEnd;
+// }
+
+// case 'voice:start':
+//   this.isReleasing = false;
+//   this.isPlaying = true;
+//   this.loopCount = 0;
+//   this.startTime = when || currentTime;
+
+//   this.playbackPosition = this.startPoint * sampleRate;
+
+//   if (duration) {
+//     // todo: remove or use
+//     this.scheduledEndTime = this.startTime + duration;
+
+//     const paramendPoint = parameters['endPoint'][0];
+//     if (paramendPoint > 0) {
+//       // If endPoint is set, use it to calculate scheduled end time
+//       const effectiveDuration = paramendPoint - this.startPoint;
+//       if (effectiveDuration > 0) {
+//         this.scheduledEndTime = this.startTime + effectiveDuration;
+//       } else {
+//         this.scheduledEndTime = null;
+//       }
+//     } else {
+//       this.scheduledEndTime = null;
+//     }
+//   }
+
+//   this.port.postMessage({
+//     type: 'voice:started',
+//     time: currentTime,
+//     actualstartPoint: this.startPoint,
+//   });
+//   break;

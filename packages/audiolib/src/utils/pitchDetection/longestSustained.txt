@@ -1,0 +1,39 @@
+
+// function findLongestSustainedPitch(candidates: PitchCandidate[]): number {
+//   // Alternative strategy: find longest continuous section with stable pitch
+//   let longestRun: PitchCandidate[] = [];
+//   let currentRun: PitchCandidate[] = [candidates[0]];
+
+//   const tolerance = 0.05; // 5% pitch variation allowed
+
+//   for (let i = 1; i < candidates.length; i++) {
+//     const prev = currentRun[currentRun.length - 1];
+//     const curr = candidates[i];
+
+//     // Check if pitch is stable (within tolerance)
+//     if (
+//       Math.abs(curr.frequency - prev.frequency) / prev.frequency <
+//       tolerance
+//     ) {
+//       currentRun.push(curr);
+//     } else {
+//       // Run ended, check if it's the longest
+//       if (currentRun.length > longestRun.length) {
+//         longestRun = [...currentRun];
+//       }
+//       currentRun = [curr];
+//     }
+//   }
+
+//   // Check final run
+//   if (currentRun.length > longestRun.length) {
+//     longestRun = currentRun;
+//   }
+
+//   if (longestRun.length === 0) return 0;
+
+//   // Return average pitch of longest sustained section
+//   return (
+//     longestRun.reduce((sum, c) => sum + c.frequency, 0) / longestRun.length
+//   );
+// }

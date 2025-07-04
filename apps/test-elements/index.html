@@ -15,23 +15,12 @@
     <meta name="theme-color" content="#000000" />
 
     <link rel="stylesheet" href="./src/style.css" />
+
+    <script type="module" src="./src/main.ts" defer></script>
   </head>
   <body>
-    <div id="node-container" class="node-container">
-      <div class="instrument draggable lib-node dynamic">
-          <sampler-element
-            id="sampler-1"
-            class="sampler"
-          ></sampler-element>
-        </div>
-
-        <div class="instrument draggable lib-node dynamic">
-          <karplus-synth class="karplus" id="karplus-2"></karplus-synth>
-        </div>
-
-      </div>
-      
+    <div id="page-wrapper" class="page-wrapper">
+      <div class="nodes-playground"></div>
     </div>
-    <script type="module" src="./src/main.js" defer></script>
   </body>
 </html>

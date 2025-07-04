@@ -24,12 +24,13 @@
   },
   "dependencies": {
     "@repo/audiolib": "workspace:*",
-    "@repo/vanjs-core": "workspace:*"
+    "@repo/vanjs-core": "workspace:*",
+    "gsap": "^3.13.0"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
     "vite": "^6.0.0",
     "vite-plugin-dts": "^4.5.3",
-    "vitest": "^3.0.0"
+    "vitest": "^3.2.4"
   }
 }

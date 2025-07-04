@@ -84,7 +84,7 @@ export class Audiolib implements AudioGraph {
 
   async init(): Promise<Audiolib> {
     // #initImpl()
-    if (this.isReady) return this;
+    if (this.initialized) return this;
 
     // Ensure audio context is available
     const ctxResult = await tryCatch(() => ensureAudioCtx());
@@ -140,7 +140,7 @@ export class Audiolib implements AudioGraph {
 
   // Public API for initialization state
 
-  get isReady(): boolean {
+  get initialized(): boolean {
     return this.#isInitialized; // this.#asyncInit.isReady();
   }
 

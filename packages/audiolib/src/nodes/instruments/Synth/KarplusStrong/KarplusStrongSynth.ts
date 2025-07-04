@@ -1,6 +1,5 @@
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { LibParamDescriptor } from '@/nodes/params';
-import type { MidiValue, ActiveNoteId } from '@/nodes/instruments/types';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { KarplusVoicePool } from './KarplusVoicePool';
 import { getAudioContext } from '@/context';
@@ -9,7 +8,8 @@ import { MidiController, PressedModifiers } from '@/io';
 import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
 import { normalizeRange, cancelScheduledParamValues } from '@/utils';
-import { Destination } from '@/nodes/LibNode';
+
+type ActiveNoteId = number; // todo: update to use same system as sampler
 
 export class KarplusStrongSynth extends LibInstrument {
   // KarplusStrongSynth-specific private # fields
@@ -19,10 +19,6 @@ export class KarplusStrongSynth extends LibInstrument {
   #isReady: boolean = false;
 
   voicePool: KarplusVoicePool;
-
-  get isReady() {
-    return this.#isReady;
-  }
 
   constructor(
     polyphony: number = 8,
@@ -200,7 +196,7 @@ export class KarplusStrongSynth extends LibInstrument {
       volume: {
         nodeId: `${this.nodeId}-volume`,
         name: 'Volume',
-        valueType: 'number',
+        dataType: 'number',
         defaultValue: 0.5,
         minValue: 0,
         maxValue: 2,
@@ -210,7 +206,7 @@ export class KarplusStrongSynth extends LibInstrument {
       attack: {
         nodeId: `${this.nodeId}-attack`,
         name: 'Attack',
-        valueType: 'number',
+        dataType: 'number',
         defaultValue: 0.01,
         minValue: 0,
         maxValue: 2,
@@ -220,7 +216,7 @@ export class KarplusStrongSynth extends LibInstrument {
       decay: {
         nodeId: `${this.nodeId}-decay`,
         name: 'Decay',
-        valueType: 'number',
+        dataType: 'number',
         defaultValue: 0.9,
         minValue: 0,
         maxValue: 5,
@@ -230,7 +226,7 @@ export class KarplusStrongSynth extends LibInstrument {
       noiseTime: {
         nodeId: `${this.nodeId}-noiseTime`,
         name: 'Noise Time',
-        valueType: 'number',
+        dataType: 'number',
         defaultValue: 0.1,
         minValue: 0,
         maxValue: 1,
@@ -420,6 +416,10 @@ export class KarplusStrongSynth extends LibInstrument {
   /** GETTERS */
   get context() {
     return this.audioContext;
+  }
+
+  get initialized() {
+    return this.#isReady;
   }
 
   get now() {

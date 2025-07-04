@@ -68,6 +68,7 @@ export function isValidAudioBuffer(
     const peakDB = 20 * Math.log10(peakAmplitude);
     const rmsDB = 20 * Math.log10(rmsAmplitude);
     console.log(`AudioBuffer Analysis:
+      Duration: ${buffer.duration} seconds
       Peak amplitude: ${peakAmplitude.toFixed(4)} (${peakDB.toFixed(1)} dB)
       RMS amplitude: ${rmsAmplitude.toFixed(4)} (${rmsDB.toFixed(1)} dB)
     `);

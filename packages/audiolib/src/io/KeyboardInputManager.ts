@@ -20,7 +20,7 @@ export class KeyboardInputManager {
   #noteKeyMap: KeyMap;
 
   // just hardcoded e.code values since only using caps and space for now
-  #momentaryKeys = { loopToggle: 'CapsLock', loopMomentary: 'Space' } as const;
+  #modifierKeys = { loopToggle: 'CapsLock', loopMomentary: 'Space' } as const;
 
   #capslockOn: boolean = false;
   #spacebarDown: boolean = false;
@@ -45,7 +45,7 @@ export class KeyboardInputManager {
     return new Set(this.#pressedNoteKeys);
   }
 
-  getMomentaryModifiers(e: KeyboardEvent): PressedModifiers {
+  getAllModifiers(e: KeyboardEvent): PressedModifiers {
     return {
       shift: e.shiftKey,
       ctrl: e.ctrlKey,
@@ -70,34 +70,29 @@ export class KeyboardInputManager {
   }
 
   isPressed(keycode: string): boolean {
-    if (this.#momentaryKeys.hasOwnProperty(keycode)) {
+    if (this.#modifierKeys.hasOwnProperty(keycode)) {
       return this.#pressedModKeys.has(keycode);
     } else return this.#pressedNoteKeys.has(keycode);
   }
 
-  #handleMomentaryModifierDown(e: KeyboardEvent) {
+  #handleMomentaryKeyDown(e: KeyboardEvent) {
     e.preventDefault();
 
     if (this.#pressedModKeys.has(e.code)) return;
 
-    if (e.code === 'Space') {
-      this.#spacebarDown = true;
-    }
-    // else if (e.code === 'CapsLock') {
-    //   this.#capslockOn = this.getCapslock(e);
-    // }
+    if (e.code === 'Space') this.#spacebarDown = true;
 
     this.#pressedModKeys.add(e.code);
 
-    const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
-    this.#handlers.forEach((handler) => {
-      if (handler.onModifierChange) {
-        handler.onModifierChange(modifiers);
-      }
-    });
+    // const modifiers = this.getAllModifiers(e); // todo: rethink / remove redundancy !
+    // this.#handlers.forEach((handler) => {
+    //   if (handler.onModifierChange) {
+    //     handler.onModifierChange(modifiers);
+    //   }
+    // });
   }
 
-  #handleMomentaryModifierUp(e: KeyboardEvent) {
+  #handleMomentaryKeyUp(e: KeyboardEvent) {
     e.preventDefault();
 
     if (!this.#pressedModKeys.has(e.code)) return;
@@ -115,10 +110,10 @@ export class KeyboardInputManager {
     // no matter the language / region
     const keycode = e.code;
 
-    if (this.#momentaryKeys.hasOwnProperty(keycode)) {
-      this.#handleMomentaryModifierDown(e);
-      return;
-    }
+    // if (this.#modifierKeys.hasOwnProperty(keycode)) {
+    //   this.#handleMomentaryKeyDown(e);
+    //   return;
+    // }
 
     if (this.#pressedNoteKeys.has(keycode)) return;
     this.#pressedNoteKeys.add(keycode);
@@ -129,13 +124,13 @@ export class KeyboardInputManager {
 
     const defaultVelocity = 100; // for now (no velocity for computer keyboard)
 
-    const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
+    const modifiers = this.getAllModifiers(e); // todo: rethink / remove redundancy !
 
-    //     this.#handlers.forEach((handler) => {
-    //   if (handler.onModifierChange) {
-    //     handler.onModifierChange(modifiers);
-    //   }
-    // });
+    this.#handlers.forEach((handler) => {
+      if (handler.onModifierChange) {
+        handler.onModifierChange(modifiers);
+      }
+    });
 
     this.#handlers.forEach((handler) =>
       handler.onNoteOn(midiNote, defaultVelocity, modifiers)
@@ -143,15 +138,13 @@ export class KeyboardInputManager {
   };
 
   private handleKeyUp = (e: KeyboardEvent): void => {
-    const keycode = e.code;
-
     this.#capslockOn = this.getCapslock(e); // caps doesnt fire keyup so just always checking
-    if (this.#momentaryKeys.hasOwnProperty(keycode)) {
-      this.#handleMomentaryModifierUp(e);
-      return;
-    }
+    // if (this.#modifierKeys.hasOwnProperty(keycode)) {
+    //   this.#handleMomentaryKeyUp(e);
+    //   return;
+    // }
 
-    const modifiers = this.getMomentaryModifiers(e); // todo: rethink / remove redundancy !
+    const modifiers = this.getAllModifiers(e); // todo: rethink / remove redundancy !
     this.#handlers.forEach((handler) => {
       if (handler.onModifierChange) {
         handler.onModifierChange(modifiers);
