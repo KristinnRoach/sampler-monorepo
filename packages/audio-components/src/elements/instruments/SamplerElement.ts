@@ -66,9 +66,9 @@ const SamplerElement = (attributes: ElementProps) => {
   const chosenEnvelope: State<EnvelopeType> = van.state('amp-env');
   const envDimensions = van.state({ width: '100%', height: '200px' });
 
-  let ampEnvInstance: EnvelopeSVG | null;
-  let filterEnvInstance: EnvelopeSVG | null;
-  let pitchEnvInstance: EnvelopeSVG | null;
+  let ampEnvInstance: EnvelopeSVG | null = null;
+  let filterEnvInstance: EnvelopeSVG | null = null;
+  let pitchEnvInstance: EnvelopeSVG | null = null;
 
   // Create the envelopes and store references
   van.derive(() => {

@@ -374,7 +374,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number) {
     const env = this.#envelopes.get(envType);
-    if (env?.isEnabled) env.updatePoint(index);
+    if (env?.isEnabled) env.deletePoint(index);
   }
 
   getEnvelope = (envType: EnvelopeType) => {
