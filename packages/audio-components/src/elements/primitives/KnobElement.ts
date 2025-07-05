@@ -1,7 +1,6 @@
 import { gsap } from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 
-// Register GSAP plugin
 gsap.registerPlugin(Draggable);
 
 interface KnobConfig {
@@ -12,6 +11,7 @@ interface KnobConfig {
   snapIncrement: number;
   initialValue?: number;
   disabled?: boolean;
+  borderStyle?: 'currentState' | 'fullCircle';
 }
 
 interface KnobChangeEventDetail {
@@ -29,17 +29,19 @@ declare global {
 export class KnobElement extends HTMLElement {
   private knobElement!: HTMLElement;
   private indicatorElement!: HTMLElement;
+
   private gsapDraggable!: Draggable;
   private static stylesInjected = false;
 
   private config: KnobConfig = {
     minValue: 0,
     maxValue: 100,
-    minRotation: -135,
-    maxRotation: 135,
+    minRotation: -170,
+    maxRotation: 170,
     snapIncrement: 0.01,
     initialValue: 0,
     disabled: false,
+    borderStyle: 'currentState',
   };
 
   private currentValue: number = 0;
@@ -59,12 +61,13 @@ export class KnobElement extends HTMLElement {
       'disabled',
       'width',
       'height',
+      'border-style',
     ];
   }
 
   constructor() {
     super();
-    this.injectGlobalStyles();
+    // this.injectGlobalStyles();
   }
 
   connectedCallback(): void {
@@ -85,10 +88,9 @@ export class KnobElement extends HTMLElement {
     if (oldValue !== newValue) {
       this.updateConfigFromAttributes();
 
-      // For width/height changes, we don't need to reinitialize draggable
-      if (name === 'width' || name === 'height') {
-        return;
-      }
+      // For width/height and border-style changes, we don't need to reinitialize gsap's draggable
+      if (name === 'width' || name === 'height') return;
+      if (name === 'border-style') return;
 
       if (this.gsapDraggable) {
         this.reinitialize();
@@ -108,7 +110,10 @@ export class KnobElement extends HTMLElement {
         --knob-size: 120px;
         --knob-bg: inherit;  /* or currentColor ? linear-gradient(145deg, #2d2d2d, #1a1a1a); */
         --knob-border: rgb(234, 234, 234);
-        --knob-indicator-color: var(--knob-border); /* rgb(45, 210, 97); */
+        --knob-indicator-color: var(--knob-border); 
+
+       min-height: 30px;
+       min-width: 30px;
       }
       
       knob-element[disabled] {
@@ -121,12 +126,19 @@ export class KnobElement extends HTMLElement {
         width: var(--knob-size);
         height: var(--knob-size);
       }
+
+      knob-element .knob-border-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
       
       knob-element .knob {
+        position: relative;
         width: 100%;
         height: 100%;
         border-radius: 50%;
-        border: 2px solid var(--knob-border);
         position: relative;
         cursor: grab;
         transition: transform 0.1s ease;
@@ -140,7 +152,7 @@ export class KnobElement extends HTMLElement {
         cursor: grabbing;
         transform: scale(0.95);
       }
-      
+
       knob-element .knob-indicator {
         position: absolute;
         top: calc(var(--knob-size) * 0.067);
@@ -177,14 +189,19 @@ export class KnobElement extends HTMLElement {
     this.config = {
       minValue: getValue('min-value', 0),
       maxValue: getValue('max-value', 100),
-      minRotation: getValue('min-rotation', -135),
-      maxRotation: getValue('max-rotation', 135),
+      minRotation: getValue('min-rotation', -150),
+      maxRotation: getValue('max-rotation', 150),
       snapIncrement: getValue('snap-increment', 1),
       initialValue: getValue('value', 0),
       disabled: this.hasAttribute('disabled'),
+      borderStyle:
+        (this.getAttribute('border-style') as
+          | 'currentState'
+          | 'fullCircle'
+          | undefined) || 'currentState',
     };
 
-    // Handle width and height
+    this.updateBorder();
     this.updateDimensions();
   }
 
@@ -193,23 +210,104 @@ export class KnobElement extends HTMLElement {
     const height = this.getAttribute('height');
 
     if (width || height) {
-      const size = width || height || '120'; // Use width, or height, or default
+      const size = width || height || '120';
       this.style.setProperty('--knob-size', `${size}px`);
     }
   }
 
   private render(): void {
-    // Create the HTML structure in light DOM
+    // Using light DOM
     this.innerHTML = `
-      <div class="knob-container">
-        <div class="knob">
-          <div class="knob-indicator"></div>
-          <div class="center-dot"></div>
-        </div>
-      </div>
-    `;
+    <style> 
+    
+      knob-element {
+        display: inline-block;
+        --knob-size: 120px;
+        --knob-bg: inherit;  /* or currentColor ? linear-gradient(145deg, #2d2d2d, #1a1a1a); */
+        --knob-border: rgb(234, 234, 234);
+        --knob-indicator-color: var(--knob-border); 
 
-    // Query elements from light DOM
+       min-height: 30px;
+       min-width: 30px;
+      }
+      
+      knob-element[disabled] {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      
+      knob-element .knob-container {
+        position: relative;
+        width: var(--knob-size);
+        height: var(--knob-size);
+      }
+
+      knob-element .knob-border-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+      
+      knob-element .knob {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        position: relative;
+        cursor: grab;
+        transition: transform 0.1s ease;
+      }
+      
+      knob-element .knob:hover {
+        transform: scale(1.05);
+      }
+      
+      knob-element .knob:active {
+        cursor: grabbing;
+        transform: scale(0.95);
+      }
+
+      knob-element .knob-indicator {
+        position: absolute;
+        top: calc(var(--knob-size) * 0.067);
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(var(--knob-size) * 0.033); 
+        height: calc(var(--knob-size) * 0.25);
+        background: var(--knob-indicator-color);
+        border-radius: calc(var(--knob-size) * 0.017);
+      }
+      
+      knob-element .center-dot {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 4px;
+        height: 4px;
+        background: var(--knob-indicator-color);
+        border-radius: 50%;
+      }
+    </ style>
+    <div class="knob-container">
+      <!-- SVG border (doesn't rotate) -->
+      <svg class="knob-border-svg" width="100%" height="100%" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="48" 
+                fill="none" 
+                stroke="var(--knob-border)" 
+                stroke-width="4" 
+                class="knob-border"/>
+      </svg>
+      
+      <!-- Rotating knob content -->
+      <div class="knob">
+        <div class="knob-indicator"></div>
+        <div class="center-dot"></div>
+      </div>
+    </div>
+  `;
+
     this.knobElement = this.querySelector('.knob') as HTMLElement;
     this.indicatorElement = this.querySelector(
       '.knob-indicator'
@@ -249,115 +347,108 @@ export class KnobElement extends HTMLElement {
     );
   }
 
-  //   private createDraggable(): void {
-  //     if (this.config.disabled) return;
-
-  //     this.gsapDraggable = Draggable.create(this.knobElement, {
-  //       type: 'rotation',
-  //       bounds: {
-  //         minRotation: this.config.minRotation,
-  //         maxRotation: this.config.maxRotation,
-  //       },
-  //       onDrag: () => this.onDrag(),
-  //       onThrowUpdate: () => this.onDrag(),
-  //       inertia: true,
-  //     })[0];
-  //   }
-
   private createDraggable(): void {
     if (this.config.disabled) return;
 
-    let startY = 0;
     let startRotation = 0;
+    let totalDeltaY = 0;
+    let mouseMoveHandler: (e: MouseEvent) => void;
 
     this.gsapDraggable = Draggable.create(this.knobElement, {
       type: 'y',
+      inertia: false,
+      overshootTolerance: 0,
+      bounds: {
+        minRotation: this.config.minRotation,
+        maxRotation: this.config.maxRotation,
+      },
       onPress: () => {
-        startY = this.gsapDraggable.pointerY;
+        this.knobElement.requestPointerLock();
+
         startRotation = this.currentRotation;
+        totalDeltaY = 0;
+
+        mouseMoveHandler = (e: MouseEvent) => {
+          if (document.pointerLockElement === this.knobElement) {
+            totalDeltaY += e.movementY;
+
+            const sensitivity = 4.0; // Adjust as needed
+            const newRotation = startRotation - totalDeltaY * sensitivity;
+
+            this.currentRotation = gsap.utils.clamp(
+              this.config.minRotation,
+              this.config.maxRotation,
+              newRotation
+            );
+
+            gsap.set(this.knobElement, {
+              y: 0,
+              rotation: this.currentRotation,
+              duration: 0,
+            });
+
+            const rawValue = this.rotationToValue(this.currentRotation);
+
+            this.currentValue = rawValue;
+            this.dispatchChangeEvent();
+          }
+        };
+        document.addEventListener('mousemove', mouseMoveHandler);
       },
-      onDrag: () => {
-        const deltaY = startY - this.gsapDraggable.pointerY; // Relative movement
-        const sensitivity = 1.0; // Adjust as needed
-        const newRotation = startRotation + deltaY * sensitivity;
-
-        this.currentRotation = gsap.utils.clamp(
-          this.config.minRotation,
-          this.config.maxRotation,
-          newRotation
-        );
-
-        gsap.set(this.knobElement, {
-          y: 0,
-          rotation: this.currentRotation,
-        });
-
-        const rawValue = this.rotationToValue(this.currentRotation);
-        this.currentValue = rawValue; // No snapping for testing
-        this.dispatchChangeEvent();
+      onRelease: () => {
+        document.exitPointerLock();
+        if (mouseMoveHandler) {
+          document.removeEventListener('mousemove', mouseMoveHandler);
+        }
       },
-      inertia: true,
     })[0];
   }
 
-  // private createDraggable(): void {
-  //   if (this.config.disabled) return;
+  private updateBorder(): void {
+    const borderStyle = this.getAttribute('border-style') || 'currentState';
+    const circle = this.querySelector('.knob-border') as SVGCircleElement;
+    if (!circle) return;
 
-  //   this.gsapDraggable = Draggable.create(this.knobElement, {
-  //     type: 'y',
-  //     bounds: { minY: -100, maxY: 100 },
-  //     onDrag: () => this.onYDrag(),
-  //     onThrowUpdate: () => this.onYDrag(),
-  //     inertia: true,
-  //   })[0];
-  // }
+    if (borderStyle === 'currentState') {
+      // Use the same approach as the reference - manual path calculation
+      const percentage =
+        (this.currentValue - this.config.minValue) /
+        (this.config.maxValue - this.config.minValue);
 
-  // private onYDrag(): void {
-  //   // Map Y position to rotation
-  //   const yPos = this.gsapDraggable.y;
-  //   this.currentRotation = gsap.utils.mapRange(
-  //     -100,
-  //     100,
-  //     this.config.maxRotation,
-  //     this.config.minRotation
-  //   )(yPos);
+      const r = 48; // radius
+      const cx = 50,
+        cy = 50; // center
 
-  //   // Clamp rotation
-  //   this.currentRotation = gsap.utils.clamp(
-  //     this.config.minRotation,
-  //     this.config.maxRotation,
-  //     this.currentRotation
-  //   );
+      // Convert to theta (angle in radians), starting from bottom
+      const startAngle = (this.config.minRotation * Math.PI) / 180;
+      const endAngle =
+        startAngle +
+        (percentage *
+          (this.config.maxRotation - this.config.minRotation) *
+          Math.PI) /
+          180;
 
-  //   // Reset position and apply rotation
-  //   gsap.set(this.knobElement, {
-  //     y: 0, // Keep element in original position
-  //     rotation: this.currentRotation,
-  //   });
+      const startX = r * Math.cos(startAngle) + cx;
+      const startY = r * Math.sin(startAngle) + cy;
+      const endX = r * Math.cos(endAngle) + cx;
+      const endY = r * Math.sin(endAngle) + cy;
 
-  //   // Convert to value and snap
-  //   const rawValue = this.rotationToValue(this.currentRotation);
-  //   this.currentValue = gsap.utils.snap(this.config.snapIncrement, rawValue);
+      // Create arc path like in the reference
+      const largeArc = percentage > 0.5 ? 1 : 0;
+      const pathData = `M${cx},${cy} L${startX},${startY} A${r},${r},0,${largeArc},1,${endX},${endY} Z`;
 
-  //   this.dispatchChangeEvent();
-  // }
-
-  // private onDrag(): void {
-  //   // Get current rotation and clamp it
-  //   this.currentRotation = gsap.utils.clamp(
-  //     this.config.minRotation,
-  //     this.config.maxRotation,
-  //     this.gsapDraggable.rotation
-  //   );
-
-  //   // Convert rotation to value and snap
-  //   const rawValue = this.rotationToValue(this.currentRotation);
-  //   this.currentValue = gsap.utils.snap(this.config.snapIncrement, rawValue);
-
-  //   this.dispatchChangeEvent();
-  // }
+      // Convert circle to path element or use a separate path element
+      circle.style.display = 'none';
+      // Add path element with the calculated pathData
+    } else {
+      circle.style.display = 'block';
+      gsap.set(circle, { drawSVG: '100%' });
+    }
+  }
 
   private dispatchChangeEvent(): void {
+    this.updateBorder();
+
     const percentage = gsap.utils.mapRange(
       this.config.minValue,
       this.config.maxValue,
@@ -378,7 +469,11 @@ export class KnobElement extends HTMLElement {
   }
 
   // Public API
-  public setValue(value: number, animate: boolean = false): void {
+  public setValue(
+    value: number,
+    animate: boolean = false,
+    animationOptions?: { duration: number; ease: string }
+  ): void {
     // Guard against calls before initialization
     if (!this.valueToRotation) {
       console.warn('setValue called before initialization, deferring...');
@@ -397,8 +492,8 @@ export class KnobElement extends HTMLElement {
     if (animate) {
       gsap.to(this.knobElement, {
         rotation: this.currentRotation,
-        duration: 0.3,
-        ease: 'power2.out',
+        duration: animationOptions?.duration ?? 0.3,
+        ease: animationOptions?.ease || 'power2.out',
       });
     } else {
       gsap.set(this.knobElement, { rotation: this.currentRotation });

@@ -1,10 +1,10 @@
 // SampleControls.ts
 import van, { State } from '@repo/vanjs-core';
 import { createSliderGSAP } from '../primitives/createSliderGSAP';
-import '../primitives/KnobElement';
+import '../primitives/KnobElement.ts';
+import { SimpleKnob } from '../primitives/knob-experiments/SimpleKnob.ts';
 
 const { div, label } = van.tags;
-const knobElement = van.tags['knob-element'];
 
 export const SampleControls = (
   loopStart: State<number>,
@@ -16,6 +16,12 @@ export const SampleControls = (
   const loopEndPointSliderState = van.state(initialLoopEnd); // Store the slider's base value
   const loopEndOffset = van.state(0);
 
+  const knobTag = van.tags['knob-element'];
+  const simpleKnob = document.createElement('simple-knob'); // as SimpleKnob;
+  const knobElement = document.createElement('knob-element'); //  as KnobElement;
+
+  document.querySelector('sampler-element')?.appendChild(knobElement);
+  document.querySelector('sampler-element')?.appendChild(simpleKnob);
   // Update loopEnd when either loopPoint or offset slider changes
   van.derive(() => {
     const proposedLoopEnd = loopEndPointSliderState.val - loopEndOffset.val;
@@ -38,12 +44,12 @@ export const SampleControls = (
     );
 
   const loopDurationCranker = () =>
-    knobElement({
+    knobTag({
       'min-value': '0',
       'max-value': '0.5',
       'snap-increment': '0.001',
-      width: '35',
-      height: '35',
+      width: '45',
+      height: '45',
       value: () => loopEndOffset.val.toString(),
       style: 'margin-left: 10px;',
       class: 'cranker',
@@ -56,7 +62,6 @@ export const SampleControls = (
     { style: 'display: flex; flex-direction: column;' },
 
     // Note: LoopPoint and Trim sliders use normalized range: 0 to 1
-
     div(
       {
         style: 'display: flex; place-items: center; column-gap: 1rem;',

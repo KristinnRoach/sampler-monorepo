@@ -1,0 +1,248 @@
+import van from '@repo/vanjs-core';
+
+const {
+  div,
+  svg,
+  circle,
+  defs,
+  radialGradient,
+  linearGradient,
+  stop,
+  g,
+  ellipse,
+  input,
+} = van.tags;
+
+interface KnobProps {
+  min?: number;
+  max?: number;
+  value?: number;
+  onChange?: (value: number) => void;
+  onInput?: (value: number) => void;
+  name?: string;
+}
+
+// Simple VanJS Knob Component (no custom element)
+const Knob = (props: KnobProps = {}) => {
+  // Props with defaults
+  const min = props.min ?? 0;
+  const max = props.max ?? 100;
+  const initialValue = props.value ?? 50;
+  const onChange = props.onChange ?? (() => {});
+  const onInput = props.onInput ?? (() => {});
+
+  // State
+  const value = van.state(initialValue);
+  const isDragging = van.state(false);
+  const dragStartY = van.state(0);
+  const dragStartValue = van.state(0);
+
+  // Derived values
+  const normalizedValue = van.derive(() => {
+    return (value.val - min) / (max - min);
+  });
+
+  const rotation = van.derive(() => normalizedValue.val * 270);
+
+  // Helper functions
+  const clampValue = (val: number) => Math.max(min, Math.min(max, val));
+
+  const updateFromDrag = (deltaY: number) => {
+    const sensitivity = 200;
+    const range = max - min;
+    const delta = -(deltaY / sensitivity) * range;
+    const newValue = clampValue(dragStartValue.val + delta);
+    value.val = newValue;
+    onInput(newValue);
+  };
+
+  // Event handlers
+  const startDrag = (clientY: number) => {
+    isDragging.val = true;
+    dragStartY.val = clientY;
+    dragStartValue.val = value.val;
+    document.body.style.cursor = 'grabbing';
+  };
+
+  const handleDrag = (clientY: number) => {
+    if (!isDragging.val) return;
+    const deltaY = clientY - dragStartY.val;
+    updateFromDrag(deltaY);
+  };
+
+  const endDrag = () => {
+    isDragging.val = false;
+    document.body.style.cursor = '';
+    onChange(value.val);
+  };
+
+  const onMouseDown = (e: MouseEvent) => {
+    e.preventDefault();
+    startDrag(e.clientY);
+
+    const onMouseMove = (e: MouseEvent) => handleDrag(e.clientY);
+    const onMouseUp = () => {
+      endDrag();
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const onTouchStart = (e: TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    startDrag(touch.clientY);
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleDrag(touch.clientY);
+    };
+
+    const onTouchEnd = () => {
+      endDrag();
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+
+    document.addEventListener('touchmove', onTouchMove);
+    document.addEventListener('touchend', onTouchEnd);
+  };
+
+  const onDoubleClick = () => {
+    const midValue = (min + max) / 2;
+    value.val = midValue;
+    onChange(midValue);
+  };
+
+  // Return the component
+  return div(
+    {
+      class: 'knob-container',
+      style: `
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      cursor: grab;
+      user-select: none;
+      ${() => (isDragging.val ? 'cursor: grabbing;' : '')}
+    `,
+      onmousedown: onMouseDown,
+      ontouchstart: onTouchStart,
+      ondblclick: onDoubleClick,
+    },
+    // Hidden input for form integration
+    input({
+      type: 'hidden',
+      name: props.name || '',
+      value: () => value.val,
+    }),
+
+    // SVG Knob Visual
+    svg(
+      {
+        viewBox: '0 0 60 60',
+        style:
+          'width: 100%; height: 100%; overflow: visible; pointer-events: none;',
+      },
+      defs(
+        // Gradient definitions
+        radialGradient(
+          { id: 'knob-shadow', cx: '0.5', cy: '0.5', r: '0.5' },
+          stop({
+            offset: '85%',
+            'stop-color': '#242a2e',
+            'stop-opacity': '0.4',
+          }),
+          stop({ offset: '100%', 'stop-color': '#242a2e', 'stop-opacity': '0' })
+        ),
+        linearGradient(
+          { id: 'knob-base', x1: '0', y1: '0', x2: '0', y2: '1' },
+          stop({ offset: '0%', 'stop-color': '#52595f' }),
+          stop({ offset: '100%', 'stop-color': '#2b3238' })
+        ),
+        linearGradient(
+          { id: 'knob-highlight', x1: '0', y1: '0', x2: '0', y2: '1' },
+          stop({ offset: '0%', 'stop-color': '#70777d', 'stop-opacity': '1' }),
+          stop({ offset: '40%', 'stop-color': '#70777d', 'stop-opacity': '0' }),
+          stop({ offset: '60%', 'stop-color': '#70777d', 'stop-opacity': '0' }),
+          stop({
+            offset: '100%',
+            'stop-color': '#70777d',
+            'stop-opacity': '0.3',
+          })
+        )
+      ),
+
+      // Knob body
+      g(
+        {
+          style: () =>
+            `transform-origin: 30px 30px; transform: rotate(${rotation.val}deg); transition: transform 0.1s ease;`,
+        },
+        // Shadow
+        circle({ cx: '30', cy: '30', r: '24', fill: 'url(#knob-shadow)' }),
+        // Soft shadow ellipse
+        ellipse({
+          cx: '30',
+          cy: '32',
+          rx: '21',
+          ry: '22',
+          fill: '#242a2e',
+          opacity: '0.15',
+        }),
+        // Main body
+        circle({
+          cx: '30',
+          cy: '30',
+          r: '21',
+          fill: 'url(#knob-base)',
+          stroke: '#242a2e',
+          'stroke-width': '1.5',
+        }),
+        // Highlight ring
+        circle({
+          cx: '30',
+          cy: '30',
+          r: '20',
+          fill: 'transparent',
+          stroke: 'url(#knob-highlight)',
+          'stroke-width': '1.5',
+        }),
+        // Indicator dot
+        circle({ cx: '30', cy: '12', r: '2', fill: '#4eccff' })
+      )
+    )
+  );
+};
+
+// Usage Example
+const App = () => {
+  const knobValue = van.state(25);
+
+  return div(
+    { style: 'padding: 20px; font-family: Arial, sans-serif;' },
+    div({ style: 'margin-bottom: 20px;' }, 'Knob Value: ', () => knobValue.val),
+    Knob({
+      min: 0,
+      max: 100,
+      value: knobValue.val,
+      onChange: (newValue) => {
+        knobValue.val = newValue;
+        console.log('Final value:', newValue);
+      },
+      onInput: (newValue) => {
+        knobValue.val = newValue;
+      },
+    })
+  );
+};
+
+// Export both the component and app
+export { Knob, App };
+
+// For testing, you can mount like this:
+// van.add(document.body, App());

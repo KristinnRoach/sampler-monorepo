@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modern WebAudio Knob</title>
+  </head>
+  <body>
+    <h2>Modern WebAudio Knob Component</h2>
+
+    <!-- Test the component -->
+    <webaudio-knob value="64" min="0" max="127" step="1" diameter="80">
+    </webaudio-knob>
+
+    <p>Drag the knob up/down to change value. Hold Shift for fine control.</p>
+    <p>Current value: <span id="output">64</span></p>
+
+    <script>
+      class WebAudioKnob extends HTMLElement {
+        constructor() {
+          super();
+          this.attachShadow({ mode: 'open' });
+
+          // Default properties
+          this._value = 0;
+          this._min = 0;
+          this._max = 127;
+          this._step = 1;
+          this._diameter = 64;
+          this._sprites = 30;
+          this._src = '';
+
+          // Mouse interaction state
+          this.startPos = null;
+          this.startVal = 0;
+          this.boundMousemove = null;
+          this.boundCancel = null;
+
+          this.render();
+          this.setupEventListeners();
+        }
+
+        static get observedAttributes() {
+          return ['value', 'min', 'max', 'step', 'diameter', 'sprites', 'src'];
+        }
+
+        attributeChangedCallback(name, oldValue, newValue) {
+          if (oldValue !== newValue) {
+            switch (name) {
+              case 'value':
+                this._value = parseFloat(newValue) || 0;
+                break;
+              case 'min':
+                this._min = parseFloat(newValue) || 0;
+                break;
+              case 'max':
+                this._max = parseFloat(newValue) || 127;
+                break;
+              case 'step':
+                this._step = parseFloat(newValue) || 1;
+                break;
+              case 'diameter':
+                this._diameter = parseInt(newValue) || 64;
+                break;
+              case 'sprites':
+                this._sprites = parseInt(newValue) || 30;
+                break;
+              case 'src':
+                this._src = newValue || '';
+                break;
+            }
+            this.updateKnob();
+          }
+        }
+
+        connectedCallback() {
+          this.updateKnob();
+        }
+
+        render() {
+          this.shadowRoot.innerHTML = `
+                    <style>
+                        :host {
+                            display: inline-block;
+                        }
+                        
+                        #knob {
+                            cursor: pointer;
+                            width: 64px;
+                            height: 64px;
+                            position: relative;
+                            border-radius: 50%;
+                            background: linear-gradient(145deg, #e0e0e0, #a0a0a0);
+                            border: 2px solid #888;
+                            box-shadow: 
+                                inset 2px 2px 5px rgba(255,255,255,0.8),
+                                inset -2px -2px 5px rgba(0,0,0,0.3),
+                                2px 2px 8px rgba(0,0,0,0.2);
+                        }
+                        
+                        #knob::before {
+                            content: '';
+                            position: absolute;
+                            top: 8px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 3px;
+                            height: 20px;
+                            background: #333;
+                            border-radius: 2px;
+                            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+                        }
+                        
+                        #value-tip {
+                            opacity: 0;
+                            border: solid 1px #666;
+                            background-color: #eee;
+                            position: absolute;
+                            top: 0;
+                            right: 0;
+                            padding: 1px 4px;
+                            font-size: 10px;
+                            font-family: Helvetica, Arial, sans-serif;
+                            transition: opacity 0.3s;
+                            pointer-events: none;
+                            z-index: 10;
+                        }
+                    </style>
+                    <div class="knob" id="knob">
+                        <span id="value-tip">${this._value}</span>
+                    </div>
+                `;
+        }
+
+        setupEventListeners() {
+          const knob = this.shadowRoot.getElementById('knob');
+          knob.addEventListener('mousedown', this.handleMouseDown.bind(this));
+        }
+
+        handleMouseDown(e) {
+          const valueTip = this.shadowRoot.getElementById('value-tip');
+          valueTip.style.opacity = '1';
+
+          this.startPos = e.pageY;
+          this.startVal = this._value;
+
+          this.boundMousemove = this.handleMouseMove.bind(this);
+          this.boundCancel = this.handleMouseUp.bind(this);
+
+          window.addEventListener('mousemove', this.boundMousemove, true);
+          window.addEventListener('mouseup', this.boundCancel, true);
+
+          e.preventDefault();
+        }
+
+        handleMouseMove(e) {
+          const offset = this.startPos - e.pageY || 0;
+          const value =
+            this.startVal +
+            (e.shiftKey ? Math.floor(offset / 3) : this._step * offset);
+          this.updateValue(value);
+        }
+
+        handleMouseUp(e) {
+          this.startPos = null;
+          const valueTip = this.shadowRoot.getElementById('value-tip');
+          valueTip.style.opacity = '0';
+
+          window.removeEventListener('mousemove', this.boundMousemove, true);
+          window.removeEventListener('mouseup', this.boundCancel, true);
+
+          this.dispatchEvent(new CustomEvent('cancel'));
+        }
+
+        updateValue(value) {
+          // Clamp value between min and max
+          this._value =
+            value < this._min
+              ? this._min
+              : value > this._max
+                ? this._max
+                : value;
+
+          // Update the attribute to reflect the new value
+          this.setAttribute('value', this._value.toString());
+
+          this.updateKnobPosition();
+          this.updateValueTip();
+
+          // Dispatch change event
+          this.dispatchEvent(
+            new CustomEvent('change', {
+              detail: { value: this._value },
+              bubbles: true,
+            })
+          );
+        }
+
+        updateKnob() {
+          const knob = this.shadowRoot.getElementById('knob');
+          if (!knob) return;
+
+          // Update size
+          knob.style.width = this._diameter + 'px';
+          knob.style.height = this._diameter + 'px';
+
+          // Update background image if provided
+          if (this._src) {
+            knob.style.backgroundImage = `url(${this._src})`;
+            knob.style.backgroundRepeat = 'no-repeat';
+            knob.style.backgroundPosition = 'center';
+            // Remove CSS styling when using sprite
+            knob.style.background = '';
+            knob.style.border = '';
+            knob.style.boxShadow = '';
+            knob.style.borderRadius = '';
+          }
+
+          this.updateKnobPosition();
+          this.updateValueTip();
+        }
+
+        updateKnobPosition() {
+          const knob = this.shadowRoot.getElementById('knob');
+          if (!knob) return;
+
+          const range = this._max - this._min;
+          const normalizedValue = (this._value - this._min) / range;
+
+          // If using sprites and src is provided
+          if (this._src && this._sprites > 1) {
+            const spriteIndex = Math.floor(
+              normalizedValue * (this._sprites - 1)
+            );
+            const yPos = -spriteIndex * this._diameter;
+
+            if ('backgroundPositionY' in knob.style) {
+              knob.style.backgroundPositionY = yPos + 'px';
+            } else {
+              knob.style.backgroundPosition = `center ${yPos}px`;
+            }
+          } else {
+            // Use CSS rotation (270 degrees range: -135 to +135)
+            const rotation = normalizedValue * 270 - 135;
+            knob.style.transform = `rotate(${rotation}deg)`;
+          }
+        }
+
+        updateValueTip() {
+          const valueTip = this.shadowRoot.getElementById('value-tip');
+          if (valueTip) {
+            valueTip.textContent = Math.round(this._value * 100) / 100; // Round to 2 decimal places
+          }
+        }
+
+        // Getters and setters for properties
+        get value() {
+          return this._value;
+        }
+        set value(val) {
+          this._value = parseFloat(val) || 0;
+          this.setAttribute('value', this._value.toString());
+        }
+
+        get min() {
+          return this._min;
+        }
+        set min(val) {
+          this._min = parseFloat(val) || 0;
+          this.setAttribute('min', this._min.toString());
+        }
+
+        get max() {
+          return this._max;
+        }
+        set max(val) {
+          this._max = parseFloat(val) || 127;
+          this.setAttribute('max', this._max.toString());
+        }
+
+        get step() {
+          return this._step;
+        }
+        set step(val) {
+          this._step = parseFloat(val) || 1;
+          this.setAttribute('step', this._step.toString());
+        }
+      }
+
+      // Register the custom element
+      customElements.define('webaudio-knob', WebAudioKnob);
+
+      // Demo: Listen for changes
+      document
+        .querySelector('webaudio-knob')
+        .addEventListener('change', (e) => {
+          document.getElementById('output').textContent = Math.round(
+            e.detail.value
+          );
+        });
+    </script>
+  </body>
+</html>
