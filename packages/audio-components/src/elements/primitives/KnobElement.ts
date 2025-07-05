@@ -67,13 +67,14 @@ export class KnobElement extends HTMLElement {
 
   constructor() {
     super();
-    // this.injectGlobalStyles();
+    this.injectGlobalStyles();
   }
 
   connectedCallback(): void {
     this.render();
     this.updateConfigFromAttributes();
-    this.init();
+
+    setTimeout(() => this.init(), 0);
   }
 
   disconnectedCallback(): void {
@@ -152,17 +153,6 @@ export class KnobElement extends HTMLElement {
         cursor: grabbing;
         transform: scale(0.95);
       }
-
-      knob-element .knob-indicator {
-        position: absolute;
-        top: calc(var(--knob-size) * 0.067);
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(var(--knob-size) * 0.033); 
-        height: calc(var(--knob-size) * 0.25);
-        background: var(--knob-indicator-color);
-        border-radius: calc(var(--knob-size) * 0.017);
-      }
       
       knob-element .center-dot {
         position: absolute;
@@ -216,88 +206,15 @@ export class KnobElement extends HTMLElement {
   }
 
   private render(): void {
-    // Using light DOM
     this.innerHTML = `
-    <style> 
-    
-      knob-element {
-        display: inline-block;
-        --knob-size: 120px;
-        --knob-bg: inherit;  /* or currentColor ? linear-gradient(145deg, #2d2d2d, #1a1a1a); */
-        --knob-border: rgb(234, 234, 234);
-        --knob-indicator-color: var(--knob-border); 
-
-       min-height: 30px;
-       min-width: 30px;
-      }
-      
-      knob-element[disabled] {
-        opacity: 0.5;
-        pointer-events: none;
-      }
-      
-      knob-element .knob-container {
-        position: relative;
-        width: var(--knob-size);
-        height: var(--knob-size);
-      }
-
-      knob-element .knob-border-svg {
-        position: absolute;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-      }
-      
-      knob-element .knob {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        position: relative;
-        cursor: grab;
-        transition: transform 0.1s ease;
-      }
-      
-      knob-element .knob:hover {
-        transform: scale(1.05);
-      }
-      
-      knob-element .knob:active {
-        cursor: grabbing;
-        transform: scale(0.95);
-      }
-
-      knob-element .knob-indicator {
-        position: absolute;
-        top: calc(var(--knob-size) * 0.067);
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(var(--knob-size) * 0.033); 
-        height: calc(var(--knob-size) * 0.25);
-        background: var(--knob-indicator-color);
-        border-radius: calc(var(--knob-size) * 0.017);
-      }
-      
-      knob-element .center-dot {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 4px;
-        height: 4px;
-        background: var(--knob-indicator-color);
-        border-radius: 50%;
-      }
-    </ style>
     <div class="knob-container">
       <!-- SVG border (doesn't rotate) -->
       <svg class="knob-border-svg" width="100%" height="100%" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="48" 
+          <path class="knob-border" 
                 fill="none" 
                 stroke="var(--knob-border)" 
                 stroke-width="4" 
-                class="knob-border"/>
+                d="M50,50Z"/>
       </svg>
       
       <!-- Rotating knob content -->
@@ -315,6 +232,12 @@ export class KnobElement extends HTMLElement {
   }
 
   private init(): void {
+    if (!this.knobElement) {
+      console.error('Knob element not found, retrying...');
+      setTimeout(() => this.init(), 10);
+      return;
+    }
+
     this.createUtilityFunctions();
     this.createDraggable();
     this.setValue(this.config.initialValue || this.config.minValue);
@@ -406,43 +329,32 @@ export class KnobElement extends HTMLElement {
 
   private updateBorder(): void {
     const borderStyle = this.getAttribute('border-style') || 'currentState';
-    const circle = this.querySelector('.knob-border') as SVGCircleElement;
-    if (!circle) return;
+    const path = this.querySelector('.knob-border') as SVGPathElement;
+    if (!path) {
+      console.warn('Path does not exist, retrying... ');
+      setTimeout(() => this.updateBorder(), 10);
+    }
 
     if (borderStyle === 'currentState') {
-      // Use the same approach as the reference - manual path calculation
-      const percentage =
-        (this.currentValue - this.config.minValue) /
-        (this.config.maxValue - this.config.minValue);
+      const r = 48;
+      const cx = 50;
+      const cy = 50;
 
-      const r = 48; // radius
-      const cx = 50,
-        cy = 50; // center
-
-      // Convert to theta (angle in radians), starting from bottom
-      const startAngle = (this.config.minRotation * Math.PI) / 180;
-      const endAngle =
-        startAngle +
-        (percentage *
-          (this.config.maxRotation - this.config.minRotation) *
-          Math.PI) /
-          180;
+      const startAngle = ((this.config.minRotation - 90) * Math.PI) / 180;
+      const currentAngle = ((this.currentRotation - 90) * Math.PI) / 180;
 
       const startX = r * Math.cos(startAngle) + cx;
       const startY = r * Math.sin(startAngle) + cy;
-      const endX = r * Math.cos(endAngle) + cx;
-      const endY = r * Math.sin(endAngle) + cy;
+      const endX = r * Math.cos(currentAngle) + cx;
+      const endY = r * Math.sin(currentAngle) + cy;
 
-      // Create arc path like in the reference
-      const largeArc = percentage > 0.5 ? 1 : 0;
+      const totalAngle = this.currentRotation - this.config.minRotation;
+      const largeArc = Math.abs(totalAngle) > 180 ? 1 : 0;
+
       const pathData = `M${cx},${cy} L${startX},${startY} A${r},${r},0,${largeArc},1,${endX},${endY} Z`;
-
-      // Convert circle to path element or use a separate path element
-      circle.style.display = 'none';
-      // Add path element with the calculated pathData
+      path.setAttribute('d', pathData);
     } else {
-      circle.style.display = 'block';
-      gsap.set(circle, { drawSVG: '100%' });
+      path.setAttribute('d', `M50,2 A48,48,0,1,1,49.9,2 Z`);
     }
   }
 

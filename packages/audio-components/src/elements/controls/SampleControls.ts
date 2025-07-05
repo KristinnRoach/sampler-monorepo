@@ -2,7 +2,6 @@
 import van, { State } from '@repo/vanjs-core';
 import { createSliderGSAP } from '../primitives/createSliderGSAP';
 import '../primitives/KnobElement.ts';
-import { SimpleKnob } from '../primitives/knob-experiments/SimpleKnob.ts';
 
 const { div, label } = van.tags;
 
@@ -17,31 +16,13 @@ export const SampleControls = (
   const loopEndOffset = van.state(0);
 
   const knobTag = van.tags['knob-element'];
-  const simpleKnob = document.createElement('simple-knob'); // as SimpleKnob;
-  const knobElement = document.createElement('knob-element'); //  as KnobElement;
 
-  document.querySelector('sampler-element')?.appendChild(knobElement);
-  document.querySelector('sampler-element')?.appendChild(simpleKnob);
   // Update loopEnd when either loopPoint or offset slider changes
   van.derive(() => {
     const proposedLoopEnd = loopEndPointSliderState.val - loopEndOffset.val;
     const minLoopEnd = loopStart.val + 0.001;
     loopEnd.val = Math.max(proposedLoopEnd, minLoopEnd);
   });
-
-  const loopPointSlider = () =>
-    div(
-      {
-        style: 'display: flex; align-items: center; column-gap: 0.5rem;',
-      },
-      label('Loop:'),
-      van.tags['slider-gsap']({
-        'onrange-change': (e: CustomEvent) => {
-          loopStart.val = e.detail.min;
-          loopEndPointSliderState.val = e.detail.max;
-        },
-      })
-    );
 
   const loopDurationCranker = () =>
     knobTag({
@@ -51,7 +32,7 @@ export const SampleControls = (
       width: '45',
       height: '45',
       value: () => loopEndOffset.val.toString(),
-      style: 'margin-left: 10px;',
+      style: 'margin-top: 10px;',
       class: 'cranker',
       'onknob-change': (e: CustomEvent) => {
         loopEndOffset.val = Math.max(0, e.detail.value);
@@ -64,15 +45,13 @@ export const SampleControls = (
     // Note: LoopPoint and Trim sliders use normalized range: 0 to 1
     div(
       {
-        style: 'display: flex; place-items: center; column-gap: 1rem;',
+        style:
+          'display: flex; place-items: center; column-gap: 0.5rem; margin-top: 10px;',
       },
-      loopPointSlider(),
+      createSliderGSAP('Loop', loopStart, loopEndPointSliderState),
       loopDurationCranker()
     ),
-    div(
-      { style: 'display: flex; align-items: center; column-gap: 0.5rem;' },
-      createSliderGSAP('Trim', startPoint, endPoint)
-    )
+    div({ style: '' }, createSliderGSAP('Trim', startPoint, endPoint))
   );
 
   return controls;
@@ -82,24 +61,16 @@ export const SampleControls = (
 // createTwoThumbSlider('Loop', loopStart, loopEnd, 0.0001, 1, 0.001, 0.002),
 // createTwoThumbSlider('Trim', startPoint, endPoint, 0, 1, 0.001, 0.03)
 
-// const loopDurationCranker = () =>
-//   input({
-//     type: 'range',
-//     min: 0,
-//     max: 0.5,
-//     step: 0.001,
-//     value: () => loopEndOffset.val,
-//     oninput: (e) => {
-//       loopEndOffset.val = Math.max(0, parseFloat(e.target.value || '0'));
+// const loopPointSlider = () =>
+//   div(
+//     {
+//       style: 'display: flex; align-items: center; column-gap: 0.5rem;',
 //     },
-//     style: 'margin-left: 10px;',
-//     class: 'cranker',
-//     onchange: () => {
-//       console.log(
-//         'crankState.val:',
-//         loopEndOffset.val,
-//         'loopEnd.val:',
-//         loopEnd.val
-//       );
-//     },
-//   });
+//     label('Loop:'),
+//     van.tags['slider-gsap']({
+//       'onrange-change': (e: CustomEvent) => {
+//         loopStart.val = e.detail.min;
+//         loopEndPointSliderState.val = e.detail.max;
+//       },
+//     })
+//   );

@@ -102,8 +102,8 @@ export class KnobElement extends HTMLElement {
                 stroke-width="4" 
                 d="M50,50Z"/>
         </svg>
-        <div class="knob">
-          <div class="knob-indicator"></div>
+
+        <div class="knob" style="background: red; widht: 50px; height: 50px; ">
           <div class="center-dot"></div>
         </div>
       </div>
@@ -195,12 +195,15 @@ export class KnobElement extends HTMLElement {
   private updateBorder(): void {
     const borderStyle = this.getAttribute('border-style') || 'currentState';
     const path = this.querySelector('.knob-border') as SVGPathElement;
-    if (!path) return;
+    if (!path) {
+      console.warn('Path does not exist, retrying... ');
+      setTimeout(() => this.updateBorder(), 10);
+    }
 
     if (borderStyle === 'currentState') {
       const r = 48;
-      const cx = 50,
-        cy = 50;
+      const cx = 50;
+      const cy = 50;
 
       const startAngle = ((this.config.minRotation - 90) * Math.PI) / 180;
       const currentAngle = ((this.currentRotation - 90) * Math.PI) / 180;
@@ -291,7 +294,6 @@ export class KnobElement extends HTMLElement {
       --knob-size: 120px;
       --knob-bg: inherit;
       --knob-border: rgb(234, 234, 234);
-      --knob-indicator-color: var(--knob-border); 
     }
     
     knob-element[disabled] {
@@ -330,16 +332,6 @@ export class KnobElement extends HTMLElement {
       transform: scale(0.95);
     }
 
-    knob-element .knob-indicator {
-      position: absolute;
-      top: calc(var(--knob-size) * 0.067);
-      left: 50%;
-      transform: translateX(-50%);
-      width: calc(var(--knob-size) * 0.033); 
-      height: calc(var(--knob-size) * 0.25);
-      background: var(--knob-indicator-color);
-      border-radius: calc(var(--knob-size) * 0.017);
-    }
     
     knob-element .center-dot {
       position: absolute;
@@ -348,7 +340,7 @@ export class KnobElement extends HTMLElement {
       transform: translate(-50%, -50%);
       width: 4px;
       height: 4px;
-      background: var(--knob-indicator-color);
+      background: white; 
       border-radius: 50%;
     }
   `;
