@@ -10,7 +10,10 @@ export const createSliderGSAP = (
   secondThumbState: State<number>
 ) => {
   return div(
-    { style: 'margin-bottom: 10px;' },
+    {
+      style:
+        'margin-bottom: 10px; display: flex; align-items: center; gap: 8px;',
+    },
     label(() => labelText + ':'),
     van.tags['slider-gsap']({
       'onrange-change': (e: CustomEvent) => {

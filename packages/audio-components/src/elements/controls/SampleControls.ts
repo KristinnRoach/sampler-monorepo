@@ -25,8 +25,10 @@ export const SampleControls = (
 
   const loopPointSlider = () =>
     div(
-      { style: 'margin-bottom: 10px;' },
-      label(() => 'Loop :'),
+      {
+        style: 'display: flex; align-items: center; column-gap: 0.5rem;',
+      },
+      label('Loop:'),
       van.tags['slider-gsap']({
         'onrange-change': (e: CustomEvent) => {
           loopStart.val = e.detail.min;
@@ -40,8 +42,8 @@ export const SampleControls = (
       'min-value': '0',
       'max-value': '0.5',
       'snap-increment': '0.001',
-      width: '50',
-      height: '50',
+      width: '35',
+      height: '35',
       value: () => loopEndOffset.val.toString(),
       style: 'margin-left: 10px;',
       class: 'cranker',
@@ -56,12 +58,14 @@ export const SampleControls = (
     // Note: LoopPoint and Trim sliders use normalized range: 0 to 1
 
     div(
-      { style: 'display: flex; place-items: center; margin-bottom: 10px;' },
+      {
+        style: 'display: flex; place-items: center; column-gap: 1rem;',
+      },
       loopPointSlider(),
       loopDurationCranker()
     ),
     div(
-      { style: 'display: flex; margin-bottom: 10px;' },
+      { style: 'display: flex; align-items: center; column-gap: 0.5rem;' },
       createSliderGSAP('Trim', startPoint, endPoint)
     )
   );
