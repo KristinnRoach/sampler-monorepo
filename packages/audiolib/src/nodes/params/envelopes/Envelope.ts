@@ -195,6 +195,8 @@ export class EnvelopeData {
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope {
   envelopeType: EnvelopeType;
+  #paramName: string;
+  #isEnabled: boolean;
 
   #data: EnvelopeData;
   #context: AudioContext;
@@ -208,9 +210,31 @@ export class CustomEnvelope {
     initialPoints: EnvelopePoint[] = [],
     valueRange: [number, number] = [0, 1],
     durationSeconds = 1,
-    logarithmic = false
+    logarithmic = false,
+    initEnable = true
   ) {
     this.envelopeType = envelopeType;
+
+    switch (envelopeType) {
+      case 'amp-env':
+        this.#paramName = 'envGain';
+        break;
+      case 'pitch-env':
+        this.#paramName = 'playbackRate';
+        break;
+      case 'filter-env':
+        this.#paramName = 'lpf';
+        break;
+      default:
+        console.error(
+          `CustomEnvelope not implemented for type: ${envelopeType}`
+        );
+        this.#paramName = 'default';
+        break;
+    }
+
+    this.#isEnabled = initEnable;
+
     this.#context = context;
     this.#logarithmic = logarithmic;
 
@@ -247,9 +271,21 @@ export class CustomEnvelope {
   getSVGPath!: EnvelopeData['getSVGPath'];
   setValueRange!: EnvelopeData['setValueRange'];
 
+  // Convenience ON/OFF methods
+  enable = () => (this.#isEnabled = true);
+  disable = () => (this.#isEnabled = false);
+
   // Property getters
   get data() {
     return this.#data;
+  }
+
+  get param() {
+    return this.#paramName;
+  }
+
+  get isEnabled() {
+    return this.#isEnabled;
   }
 
   get points() {
@@ -512,6 +548,7 @@ interface EnvelopeOptions {
   durationSeconds?: number;
   points?: EnvelopePoint[];
   valueRange?: [number, number];
+  initEnable?: boolean;
 }
 
 export function createEnvelope(
@@ -519,7 +556,12 @@ export function createEnvelope(
   type: EnvelopeType,
   options: EnvelopeOptions = {}
 ): CustomEnvelope {
-  const { durationSeconds = 1, points, valueRange } = options;
+  const {
+    durationSeconds = 1,
+    points,
+    valueRange = [0, 1],
+    initEnable = true,
+  } = options;
 
   // If custom points provided, use them
   if (points) {
@@ -528,7 +570,8 @@ export function createEnvelope(
       type,
       points,
       valueRange,
-      durationSeconds
+      durationSeconds,
+      initEnable
     );
   }
 

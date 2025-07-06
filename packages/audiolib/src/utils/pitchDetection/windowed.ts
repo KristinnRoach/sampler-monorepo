@@ -1,5 +1,3 @@
-import { highPassFilter } from './filter-util';
-
 interface PitchCandidate {
   frequency: number;
   confidence: number;
@@ -12,11 +10,8 @@ const MIN_Hz = 80;
 export async function detectPitchWindowed(
   audioBuffer: AudioBuffer
 ): Promise<{ frequency: number; confidence: number }> {
-  const rawData = audioBuffer.getChannelData(0);
+  const data = audioBuffer.getChannelData(0);
   const sampleRate = audioBuffer.sampleRate;
-
-  // Apply high-pass filter to remove boomy low frequencies
-  const data = highPassFilter(rawData, audioBuffer.sampleRate, 100);
 
   // Window parameters
   const windowSize = 4096; // ~93ms at 44.1kHz
@@ -109,15 +104,13 @@ function analyzeWindow(
     const y2 = correlations[bestLag];
     const y3 = correlations[bestLag + 1];
 
+    // Quadratic interpolation for fractional‐lag refinement:
+    // offset = (y3 – y1) / (2 * (2*y2 – y1 – y3))
     const denominator = 2 * (2 * y2 - y1 - y3);
     const offset = Math.abs(denominator) < 1e-10 ? 0 : (y3 - y1) / denominator;
 
-    // todo: if using windowed, check whether the quad formula version below should be used instead
-    // const denominator = 2 * (y1 - 2 * y2 + y3);
-    // const offset =
-    //   Math.abs(denominator) < 1e-10 ? 0 : (y1 - y3) / (2 * denominator);
-
     const frequency = sampleRate / (bestLag + offset);
+
     return { frequency, confidence };
   }
 

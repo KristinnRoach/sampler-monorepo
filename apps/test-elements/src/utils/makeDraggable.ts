@@ -19,7 +19,7 @@ export const makeDraggable = (
     className = '',
     handleClassName = '',
   } = elementOptions;
-  const { axis } = gsapOptions ?? null;
+  const { axis } = gsapOptions || null;
 
   let el: Element | null = null;
   if (element) el = element;
@@ -33,6 +33,8 @@ export const makeDraggable = (
   return Draggable.create(el, {
     type: axis || 'x,y',
     trigger:
-      handleElement || el.querySelector(handleClassName || '.drag-handle'),
+      handleElement ??
+      el.querySelector(handleClassName || '.drag-handle') ??
+      el,
   });
 };

@@ -505,6 +505,30 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  isNormalized(value: number, range = [0, 1]): boolean {
+    return value >= range[0] && value <= range[1];
+  }
+
+  readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
+
+  #getMinLoopDurationNormalized = () =>
+    this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
+
+  #scaleLoopPoint(
+    valueToAdjust: 'start' | 'end',
+    start: number,
+    end: number
+  ): number {
+    // Scaling factor increases as loop size decreases to provide finer control
+    // for small loops. The +0.001 prevents division by zero.
+
+    const proposedLoopSize = Math.abs(end - start);
+    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.01));
+
+    if (valueToAdjust === 'start') return Math.pow(start, scalingFactor);
+    else return Math.pow(end, scalingFactor);
+  }
+
   // setLoopStart(
   //   targetValue: number,
   //   rampTime: number = this.getLoopRampDuration()
@@ -539,13 +563,6 @@ export class SamplePlayer extends LibInstrument {
   ) {
     const currentLoopEnd = this.loopEnd;
 
-    console.debug(
-      'setLoopStart, targetValue: ',
-      targetValue,
-      ' loopEnd: ',
-      currentLoopEnd
-    );
-
     this.#macroLoopStart.ramp(
       targetValue,
       rampTime,
@@ -574,93 +591,69 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  isNormalized(value: number, range = [0, 1]): boolean {
-    return value >= range[0] && value <= range[1];
-  }
+  // setLoopPoint(
+  //   loopPoint: 'start' | 'end',
+  //   normalizedLoopStart: number,
+  //   normalizedLoopEnd: number,
+  //   rampDuration: number = this.getLoopRampDuration()
+  // ) {
+  //   // Validate input range
+  //   if (
+  //     !this.isNormalized(normalizedLoopStart) ||
+  //     !this.isNormalized(normalizedLoopEnd)
+  //   ) {
+  //     console.error(
+  //       `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
+  //     );
+  //     return this;
+  //   }
 
-  readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
+  //   // Scale and validate
+  //   const scaledPoint = this.#scaleLoopPoint(
+  //     loopPoint,
+  //     normalizedLoopStart,
+  //     normalizedLoopEnd
+  //   );
 
-  #getMinLoopDurationNormalized = () =>
-    this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
+  //   const RAMP_SENSITIVITY = 2;
+  //   const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-  #scaleLoopPoint(
-    valueToAdjust: 'start' | 'end',
-    start: number,
-    end: number
-  ): number {
-    // Scaling factor increases as loop size decreases to provide finer control
-    // for small loops. The +0.001 prevents division by zero.
+  //   // this.voicePool.applyToAllVoices((voice) => {
+  //   //   voice.setLoopPoints(scaledStart, scaledEnd, scaledRampTime);
+  //   // });
 
-    const proposedLoopSize = Math.abs(end - start);
-    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.001));
+  //   if (loopPoint === 'start') {
+  //     // && normalizedLoopStart !== this.loopStart) {
+  //     // const storeLoopStart = () =>
+  //     //   this.storeParamValue('loopStart', scaledPoint);
 
-    if (valueToAdjust === 'start') return Math.pow(start, scalingFactor);
-    else return Math.pow(end, scalingFactor);
-  }
+  //     // console.debug(
+  //     //   `Ramping to loopStart, targetValue:  ${scaledPoint}, loopEnd (constant): ${normalizedLoopEnd}`
+  //     // );
 
-  setLoopPoint(
-    loopPoint: 'start' | 'end',
-    normalizedLoopStart: number,
-    normalizedLoopEnd: number,
-    rampDuration: number = this.getLoopRampDuration()
-  ) {
-    // Validate input range
-    if (
-      !this.isNormalized(normalizedLoopStart) ||
-      !this.isNormalized(normalizedLoopEnd)
-    ) {
-      console.error(
-        `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
-      );
-      return this;
-    }
+  //     this.#macroLoopStart.ramp(
+  //       normalizedLoopStart,
+  //       scaledRampTime,
+  //       normalizedLoopEnd,
+  //       {
+  //         // onComplete: storeLoopStart,
+  //       }
+  //     );
+  //   } else if (loopPoint === 'end') {
+  //     // && normalizedLoopEnd !== this.loopEnd) {
+  //     // const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledPoint);
+  //     this.#macroLoopEnd.ramp(
+  //       normalizedLoopEnd,
+  //       scaledRampTime,
+  //       normalizedLoopStart,
+  //       {
+  //         // onComplete: storeLoopEnd,
+  //       }
+  //     );
+  //   }
 
-    // Scale and validate
-    const scaledPoint = this.#scaleLoopPoint(
-      loopPoint,
-      normalizedLoopStart,
-      normalizedLoopEnd
-    );
-
-    const RAMP_SENSITIVITY = 2;
-    const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
-
-    // this.voicePool.applyToAllVoices((voice) => {
-    //   voice.setLoopPoints(scaledStart, scaledEnd, scaledRampTime);
-    // });
-
-    if (loopPoint === 'start') {
-      // && normalizedLoopStart !== this.loopStart) {
-      // const storeLoopStart = () =>
-      //   this.storeParamValue('loopStart', scaledPoint);
-
-      // console.debug(
-      //   `Ramping to loopStart, targetValue:  ${scaledPoint}, loopEnd (constant): ${normalizedLoopEnd}`
-      // );
-
-      this.#macroLoopStart.ramp(
-        normalizedLoopStart,
-        scaledRampTime,
-        normalizedLoopEnd,
-        {
-          // onComplete: storeLoopStart,
-        }
-      );
-    } else if (loopPoint === 'end') {
-      // && normalizedLoopEnd !== this.loopEnd) {
-      // const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledPoint);
-      this.#macroLoopEnd.ramp(
-        normalizedLoopEnd,
-        scaledRampTime,
-        normalizedLoopStart,
-        {
-          // onComplete: storeLoopEnd,
-        }
-      );
-    }
-
-    return this;
-  }
+  //   return this;
+  // }
 
   /** PARAM GETTERS  */
 
@@ -710,6 +703,14 @@ export class SamplePlayer extends LibInstrument {
   getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
   // Expose envelopes for UI access
+
+  enableEnvelope = (envType: EnvelopeType) => {
+    this.voicePool.applyToAllVoices((voice) => voice.enableEnvelope(envType));
+  };
+
+  disableEnvelope = (envType: EnvelopeType) => {
+    this.voicePool.applyToAllVoices((voice) => voice.disableEnvelope(envType));
+  };
 
   getEnvelope(envType: EnvelopeType): CustomEnvelope {
     // if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro

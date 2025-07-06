@@ -56,11 +56,10 @@ body {
 .node-draggable {
   position: absolute;
 
-  min-height: fit-content;
-
-  /* height: 90dvh; replace sizing by using gsap */
+  /* todo: use gsap to animate the sizes instead */
+  /* min-height: fit-content;
   max-width: 50dvw;
-  max-height: 99dvw;
+  max-height: 99dvh; */
 
   background-color: #333;
   border: 4px solid rgba(27, 122, 30, 0.894);

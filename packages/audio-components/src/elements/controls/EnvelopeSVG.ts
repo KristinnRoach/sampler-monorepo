@@ -6,9 +6,18 @@ import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
-const { svg, path, line, g, div, circle } = van.tags(
-  'http://www.w3.org/2000/svg'
-);
+const { div, button } = van.tags;
+
+const { svg, path, line, g, circle } = van.tags('http://www.w3.org/2000/svg');
+
+export interface EnvelopeSVG {
+  element: Element | SVGSVGElement;
+  triggerPlayAnimation: (msg: any) => void;
+  releaseAnimation: (msg: any) => void;
+  updateMaxDuration: (seconds: number) => void;
+  updateEnvelopeDuration: (seconds: number) => void;
+  cleanup: () => void;
+}
 
 export const EnvelopeSVG = (
   envelopeType: EnvelopeType,
@@ -20,12 +29,15 @@ export const EnvelopeSVG = (
     time: number,
     value: number
   ) => void,
+  onEnable: (envType: EnvelopeType) => void,
+  onDisable: (envType: EnvelopeType) => void,
   width: string = '100%',
   height: string = '120px',
   snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
   snapThreshold = 0.025,
+  enabled = true,
   multiColorPlayheads = false
-) => {
+): EnvelopeSVG => {
   if (!initialPoints.length) {
     const emptyDiv = div(
       {
@@ -34,7 +46,7 @@ export const EnvelopeSVG = (
       'No envelope data'
     );
     return {
-      element: emptyDiv as unknown as SVGSVGElement,
+      element: emptyDiv,
       triggerPlayAnimation: () => {},
       releaseAnimation: () => {},
       updateMaxDuration: () => {},
@@ -61,6 +73,8 @@ export const EnvelopeSVG = (
   else noteColor = 'red';
 
   // UI states
+  const isEnabled = van.state(enabled);
+
   const maxDurationSeconds = van.state(maxDurationInSeconds);
   const currentDurationSeconds = van.state(maxDurationInSeconds);
 
@@ -123,9 +137,7 @@ export const EnvelopeSVG = (
     activeTimeouts.forEach(clearTimeout);
     activeTimeouts.clear();
 
-    while (pointsGroup.firstChild) {
-      pointsGroup.removeChild(pointsGroup.firstChild);
-    }
+    pointsGroup.replaceChildren();
 
     const pts = points.val;
 
@@ -140,7 +152,11 @@ export const EnvelopeSVG = (
       circle.setAttribute('r', '4');
       circle.setAttribute(
         'fill',
-        selectedPoint.val === index ? '#ff6b6b' : '#4ade80'
+        selectedPoint.val === index
+          ? '#ff6b6b'
+          : isEnabled.val
+            ? '#4ade80'
+            : '#666'
       );
       circle.setAttribute('stroke', '#fff');
       circle.setAttribute('stroke-width', '1');
@@ -155,7 +171,7 @@ export const EnvelopeSVG = (
           currentDurationSeconds.val = newDuration;
         }
 
-        circle.setAttribute('fill', '#ff9500'); // Orange for duration handles
+        circle.setAttribute('fill', isEnabled.val ? '#ff9500' : '#666'); // Orange for duration handles
         circle.setAttribute('r', '6'); // Slightly bigger
       }
 
@@ -167,6 +183,8 @@ export const EnvelopeSVG = (
       let clickTimeout: number;
 
       circle.addEventListener('mousedown', (e: MouseEvent) => {
+        if (!isEnabled.val) return;
+
         const currentCount = (clickCounts[index] || 0) + 1;
         clickCounts = { ...clickCounts, [index]: currentCount };
 
@@ -202,6 +220,8 @@ export const EnvelopeSVG = (
   };
 
   const handleMouseMove = (e: MouseEvent) => {
+    if (!isEnabled.val) return;
+
     if (isDragging.val && selectedPoint.val !== null) {
       const rect = svgElement.getBoundingClientRect();
 
@@ -239,11 +259,14 @@ export const EnvelopeSVG = (
   };
 
   const handleMouseUp = () => {
+    if (!isEnabled.val) return;
+
     isDragging.val = false;
     selectedPoint.val = null;
   };
 
   const handleDoubleClick = (e: MouseEvent) => {
+    if (!isEnabled.val) return;
     e.stopPropagation(); // Prevent bubbling
 
     if (isDragging.val) return;
@@ -268,6 +291,36 @@ export const EnvelopeSVG = (
     preserveAspectRatio: 'none',
     style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
   }) as SVGSVGElement;
+
+  const toggleButton = button({
+    style: () => `
+    position: absolute; 
+    top: 4px; 
+    right: 4px; 
+    width: 16px; 
+    height: 16px; 
+    border: none; 
+    border-radius: 50%; 
+    cursor: pointer; 
+    z-index: 10;
+    background: ${isEnabled.val ? '#4ade80' : '#666'};
+  `,
+    title: () => (isEnabled.val ? 'Disable envelope' : 'Enable envelope'),
+    onclick: () => {
+      isEnabled.val = !isEnabled.val;
+    },
+  });
+
+  // Create container div
+  const container = div(
+    {
+      style: `position: relative; display: inline-block; width: ${width}; height: ${height};`,
+    },
+    toggleButton
+  );
+
+  // Manually append the SVG element to avoid namespace issues
+  container.appendChild(svgElement);
 
   // Add event listeners
   svgElement.addEventListener('mousemove', handleMouseMove);
@@ -307,7 +360,7 @@ export const EnvelopeSVG = (
     id: 'path',
     d: () => generateSVGPath(points.val),
     fill: 'none',
-    stroke: '#4ade80',
+    stroke: () => (isEnabled.val ? '#4ade80' : '#666'),
     'stroke-width': 2,
   }) as SVGPathElement;
 
@@ -343,6 +396,8 @@ export const EnvelopeSVG = (
   van.derive(() => (maxDurationSeconds.val = maxDurationInSeconds));
 
   function createTimeBasedEase(pathElement: SVGPathElement): string | null {
+    if (!isEnabled.val) return null;
+
     const pathData = pathElement.getAttribute('d');
     if (!pathData) return null;
 
@@ -397,8 +452,8 @@ export const EnvelopeSVG = (
   }
 
   function triggerPlayAnimation(msg: any) {
+    if (!isEnabled.val) return;
     if (!currentEase.val) {
-      console.debug('Had to create currentEase in triggerPlayAnimation!');
       currentEase.val = createTimeBasedEase(envelopePath) || 'none';
     }
 
@@ -442,6 +497,8 @@ export const EnvelopeSVG = (
   }
 
   function releaseAnimation(msg: any) {
+    if (!isEnabled.val) return;
+
     if (activeTweens.has(msg.voiceId)) {
       const existing = activeTweens.get(msg.voiceId);
       existing && existing.isActive() && existing.kill();
@@ -457,6 +514,8 @@ export const EnvelopeSVG = (
   }
 
   function refreshPlayingAnimations() {
+    if (!isEnabled.val) return;
+
     // if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
 
     for (let [voiceId, tween] of activeTweens) {
@@ -498,15 +557,45 @@ export const EnvelopeSVG = (
     }
   }
 
+  const killAllTweens = () => {
+    for (let [voiceId, tween] of activeTweens) {
+      // Kill all active tweens
+      if (tween.isActive()) tween.kill();
+    }
+    activeTweens.clear();
+
+    for (let [voiceId, playhead] of playheads) {
+      if (playhead && playhead.parentNode === svgElement) {
+        svgElement.removeChild(playhead); // Remove all playheads
+      }
+    }
+    playheads.clear();
+  };
+
+  const hideAllPlayheads = () => {
+    for (let [voiceId, playhead] of playheads) {
+      playhead.setAttribute('fill', 'transparent');
+    }
+  };
+
   const updateMaxDuration = (seconds: number) => {
-    console.warn('updateMaxDuration', seconds);
     if (seconds !== maxDurationSeconds.val) maxDurationSeconds.val = seconds;
   };
+
   const updateEnvelopeDuration = (seconds: number) => {
     console.warn('updateEnvelopeDuration', seconds);
     if (seconds !== currentDurationSeconds.val)
       currentDurationSeconds.val = seconds;
   };
+
+  van.derive(() => {
+    if (!isEnabled.val) {
+      hideAllPlayheads();
+      onDisable(envelopeType);
+    } else {
+      onEnable(envelopeType);
+    }
+  });
 
   // van.derive(() => {
   //   currentDurationSeconds.val;
@@ -514,119 +603,14 @@ export const EnvelopeSVG = (
   // });
 
   return {
-    element: svgElement,
+    element: container,
     triggerPlayAnimation,
     releaseAnimation,
     updateMaxDuration,
     updateEnvelopeDuration,
-    cleanup: () => activeTimeouts.forEach(clearTimeout),
+    cleanup: () => {
+      killAllTweens();
+      activeTimeouts.forEach(clearTimeout);
+    },
   };
 };
-
-// === Ignore code comments below ===
-
-// function updateDuration(msg: any) {
-//   const { voiceID, envDurations, loopEnabled } = msg;
-
-//   const newDuration = envDurations[envelopeType];
-//   // const tween = activeTweens.get(voiceId);
-//   for (let [voiceId, tween] of activeTweens) {
-//     if (tween && tween.isActive() && tween.vars.repeat === -1) {
-//       // Only looping animations
-//       const progress = tween.progress();
-//       tween.kill();
-
-//       const playhead = playheads.get(voiceId);
-//       if (playhead) {
-//         const newTween = gsap.to(playhead, {
-//           motionPath: {
-//             path: envelopePath,
-//             align: envelopePath,
-//             alignOrigin: [0.5, 0.5],
-//           },
-//           duration: newDuration,
-//           repeat: -1,
-//           ease: currentEase || 'none',
-//           onStart: () => playhead.setAttribute('fill', 'red'),
-//           onComplete: () => playhead.setAttribute('fill', 'transparent'),
-//         });
-
-//         newTween.progress(progress);
-//         activeTweens.set(voiceId, newTween);
-//       }
-//     }
-//   }
-// }
-
-// function createTimeBasedEase(pathElement: SVGPathElement): string | null {
-//   const pathData = pathElement.getAttribute('d');
-//   if (!pathData) return null;
-
-//   const cacheKey = `ease-${pathData}`;
-//   if (easeCache.has(cacheKey)) return easeCache.get(cacheKey)!;
-
-//   try {
-//     const pathLength = pathElement.getTotalLength();
-
-//     const numSamples = 50;
-//     const samples = [];
-
-//     for (let i = 0; i <= numSamples; i++) {
-//       const progress = i / numSamples;
-//       const distanceAlongPath = progress * pathLength;
-//       const pointOnPath = pathElement.getPointAtLength(distanceAlongPath);
-//       const timeValue = pointOnPath.x / SVG_WIDTH;
-
-//       samples.push({ progress, time: timeValue });
-//     }
-
-//     const easePoints = [];
-//     const numEasePoints = 10;
-
-//     for (let i = 0; i <= numEasePoints; i++) {
-//       const targetTime = i / numEasePoints;
-
-//       let left = 0; // binary search
-//       let right = samples.length - 1;
-//       let closestSample = samples[0];
-
-//       while (left <= right) {
-//         const mid = Math.floor((left + right) / 2);
-//         const midSample = samples[mid];
-
-//         if (
-//           Math.abs(midSample.time - targetTime) <
-//           Math.abs(closestSample.time - targetTime)
-//         ) {
-//           closestSample = midSample;
-//         }
-
-//         if (midSample.time < targetTime) {
-//           left = mid + 1;
-//         } else {
-//           right = mid - 1;
-//         }
-//       }
-
-//       easePoints.push(closestSample.progress);
-//     }
-
-//     // Create path
-//     let pathDataStr = `M0,${easePoints[0]}`;
-//     for (let i = 1; i < easePoints.length; i++) {
-//       const x = i / (easePoints.length - 1);
-//       const y = easePoints[i];
-//       pathDataStr += ` L${x},${y}`;
-//     }
-
-//     // Create and cache
-//     const easeName = `timeCorrection-${Date.now()}`;
-//     CustomEase.create(easeName, pathDataStr);
-//     easeCache.set(cacheKey, easeName);
-
-//     return easeName;
-//   } catch (error) {
-//     console.warn('Failed to create time-based ease:', error);
-//     return null;
-//   }
-// }
