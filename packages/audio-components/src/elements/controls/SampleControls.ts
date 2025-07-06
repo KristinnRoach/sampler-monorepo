@@ -1,9 +1,10 @@
 // SampleControls.ts
 import van, { State } from '@repo/vanjs-core';
+import { defineElement } from '../elementRegistry.ts';
 import { createSliderGSAP } from '../primitives/createSliderGSAP';
-import '../primitives/KnobElement.ts';
+import { KnobElement } from '../primitives/KnobElement.ts';
 
-const { div, label } = van.tags;
+const { div } = van.tags;
 
 export const SampleControls = (
   loopStart: State<number>,
@@ -11,24 +12,28 @@ export const SampleControls = (
   startPoint: State<number>,
   endPoint: State<number>
 ) => {
+  defineElement('knob-element', KnobElement);
+  const knobTag = van.tags['knob-element'];
+
   const initialLoopEnd = loopEnd.val;
   const loopEndPointSliderState = van.state(initialLoopEnd); // Store the slider's base value
   const loopEndOffset = van.state(0);
 
-  const knobTag = van.tags['knob-element'];
-
   // Update loopEnd when either loopPoint or offset slider changes
   van.derive(() => {
     const proposedLoopEnd = loopEndPointSliderState.val - loopEndOffset.val;
-    const minLoopEnd = loopStart.val + 0.001;
+    const minLoopEnd = loopStart.val + 0.0001;
     loopEnd.val = Math.max(proposedLoopEnd, minLoopEnd);
   });
+
+  // TODO: IDEA -> Cranker is OFF at min pos, subsequent positions correspond to allowed periods.
+  // (maybe even gsap can animate smoothly to them and replace some of the macroparam logic)
 
   const loopDurationCranker = () =>
     knobTag({
       'min-value': '0',
-      'max-value': '0.5',
-      'snap-increment': '0.001',
+      'max-value': '0.025',
+      'snap-increment': '0.0001',
       width: '45',
       height: '45',
       value: () => loopEndOffset.val.toString(),

@@ -1,3 +1,4 @@
+// KnobElement.ts
 import { gsap } from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 
@@ -457,8 +458,7 @@ export class KnobElement extends HTMLElement {
   }
 }
 
-// Define the custom element
-customElements.define('knob-element', KnobElement);
-
-// Export for TypeScript module usage
 export default KnobElement;
+
+// Note: Defining elements has been delegated to src/elements/elementRegistry.ts
+// customElements.define('knob-element', KnobElement);
