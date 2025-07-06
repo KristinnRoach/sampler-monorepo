@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { useCallback, useState } from 'react';
 import './style.css';
 
-import { createAudiolib, Audiolib } from '@repo/audiolib';
+import { createAudiolib, Audiolib, getInstance } from '@repo/audiolib';
 
 import SamplerComponent from './components/SamplerComponent';
 import KarplusStrongSynthComponent from './components/KsSynthComponent';
@@ -14,7 +14,8 @@ const App = () => {
 
   const initializeAudio = useCallback(async () => {
     try {
-      const lib = await createAudiolib();
+      const lib = getInstance();
+      await lib.init();
       console.table(lib);
       setAudiolib(lib);
       setInitialized(true);

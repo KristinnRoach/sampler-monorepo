@@ -122,18 +122,18 @@ export class MacroParam {
     ) {
       const quantizedPeriod = this.#snapper.snapToMusicalPeriod(targetPeriod);
 
-      // console.debug(
-      //   'adjusting param: ',
-      //   this.#paramType,
-      //   'targetValue',
-      //   targetValue,
-      //   'constant',
-      //   constant,
-      //   'targetPeriod',
-      //   targetPeriod,
-      //   'quantizedPeriod',
-      //   quantizedPeriod
-      // );
+      console.debug(
+        'adjusting param: ',
+        this.#paramType,
+        'targetValue',
+        targetValue,
+        'constant',
+        constant,
+        'targetPeriod',
+        targetPeriod,
+        'quantizedPeriod',
+        quantizedPeriod
+      );
 
       let result;
 

@@ -514,146 +514,63 @@ export class SamplePlayer extends LibInstrument {
   #getMinLoopDurationNormalized = () =>
     this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
 
-  #scaleLoopPoint(
-    valueToAdjust: 'start' | 'end',
-    start: number,
-    end: number
-  ): number {
-    // Scaling factor increases as loop size decreases to provide finer control
-    // for small loops. The +0.001 prevents division by zero.
-
-    const proposedLoopSize = Math.abs(end - start);
-    const scalingFactor = Math.max(1, 1 / (proposedLoopSize + 0.01));
-
-    if (valueToAdjust === 'start') return Math.pow(start, scalingFactor);
-    else return Math.pow(end, scalingFactor);
-  }
-
-  // setLoopStart(
-  //   targetValue: number,
-  //   rampTime: number = this.getLoopRampDuration()
-  // ) {
-  //   console.debug(
-  //     'setLoopStart, targetValue: ',
-  //     targetValue,
-  //     ' loopEnd: ',
-  //     this.loopEnd
-  //   );
-  //   this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
-  //   return this;
-  // }
-
-  // setLoopEnd(
-  //   targetValue: number,
-  //   rampTime: number = this.getLoopRampDuration()
-  // ) {
-  //   console.debug(
-  //     'setLoopEnd, targetValue: ',
-  //     targetValue,
-  //     ' loopStart: ',
-  //     this.loopEnd
-  //   );
-  //   this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
-  //   return this;
-  // }
-
-  setLoopStart(
+  setLoopStart = (
     targetValue: number,
     rampTime: number = this.getLoopRampDuration()
-  ) {
-    const currentLoopEnd = this.loopEnd;
+  ) => this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
 
-    this.#macroLoopStart.ramp(
-      targetValue,
-      rampTime,
-      currentLoopEnd, // constant = the other loop point
-      {
-        onComplete: () => this.storeParamValue('loopStart', targetValue),
-      }
-    );
-    return this;
-  }
-
-  setLoopEnd(
+  setLoopEnd = (
     targetValue: number,
     rampTime: number = this.getLoopRampDuration()
-  ) {
-    const currentLoopStart = this.loopStart;
+  ) => this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
 
-    this.#macroLoopEnd.ramp(
-      targetValue,
-      rampTime,
-      currentLoopStart, // constant = the other loop point
-      {
-        onComplete: () => this.storeParamValue('loopEnd', targetValue),
-      }
-    );
+  setLoopPoint(
+    loopPoint: 'start' | 'end',
+    normalizedLoopStart: number,
+    normalizedLoopEnd: number,
+    rampDuration: number = this.getLoopRampDuration()
+  ) {
+    if (
+      !this.isNormalized(normalizedLoopStart) ||
+      !this.isNormalized(normalizedLoopEnd)
+    ) {
+      console.error(
+        `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
+      );
+      return this;
+    }
+
+    const RAMP_SENSITIVITY = 1;
+    const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
+
+    if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
+      const storeLoopStart = () =>
+        this.storeParamValue('loopStart', normalizedLoopStart);
+
+      this.#macroLoopStart.ramp(
+        normalizedLoopStart,
+        scaledRampTime,
+        normalizedLoopEnd,
+        {
+          onComplete: storeLoopStart,
+        }
+      );
+    } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
+      const storeLoopEnd = () =>
+        this.storeParamValue('loopEnd', normalizedLoopEnd);
+
+      this.#macroLoopEnd.ramp(
+        normalizedLoopEnd,
+        scaledRampTime,
+        normalizedLoopStart,
+        {
+          onComplete: storeLoopEnd,
+        }
+      );
+    }
+
     return this;
   }
-
-  // setLoopPoint(
-  //   loopPoint: 'start' | 'end',
-  //   normalizedLoopStart: number,
-  //   normalizedLoopEnd: number,
-  //   rampDuration: number = this.getLoopRampDuration()
-  // ) {
-  //   // Validate input range
-  //   if (
-  //     !this.isNormalized(normalizedLoopStart) ||
-  //     !this.isNormalized(normalizedLoopEnd)
-  //   ) {
-  //     console.error(
-  //       `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
-  //     );
-  //     return this;
-  //   }
-
-  //   // Scale and validate
-  //   const scaledPoint = this.#scaleLoopPoint(
-  //     loopPoint,
-  //     normalizedLoopStart,
-  //     normalizedLoopEnd
-  //   );
-
-  //   const RAMP_SENSITIVITY = 2;
-  //   const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
-
-  //   // this.voicePool.applyToAllVoices((voice) => {
-  //   //   voice.setLoopPoints(scaledStart, scaledEnd, scaledRampTime);
-  //   // });
-
-  //   if (loopPoint === 'start') {
-  //     // && normalizedLoopStart !== this.loopStart) {
-  //     // const storeLoopStart = () =>
-  //     //   this.storeParamValue('loopStart', scaledPoint);
-
-  //     // console.debug(
-  //     //   `Ramping to loopStart, targetValue:  ${scaledPoint}, loopEnd (constant): ${normalizedLoopEnd}`
-  //     // );
-
-  //     this.#macroLoopStart.ramp(
-  //       normalizedLoopStart,
-  //       scaledRampTime,
-  //       normalizedLoopEnd,
-  //       {
-  //         // onComplete: storeLoopStart,
-  //       }
-  //     );
-  //   } else if (loopPoint === 'end') {
-  //     // && normalizedLoopEnd !== this.loopEnd) {
-  //     // const storeLoopEnd = () => this.storeParamValue('loopEnd', scaledPoint);
-  //     this.#macroLoopEnd.ramp(
-  //       normalizedLoopEnd,
-  //       scaledRampTime,
-  //       normalizedLoopStart,
-  //       {
-  //         // onComplete: storeLoopEnd,
-  //       }
-  //     );
-  //   }
-
-  //   return this;
-  // }
 
   /** PARAM GETTERS  */
 

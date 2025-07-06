@@ -6,7 +6,7 @@ import {
 
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
 import { assert, tryCatch } from '@/utils';
-import { createAsyncInit, InitState } from '@/utils/async-initializable';
+// import { createAsyncInit, InitState } from '@/utils/async-initializable';
 
 import {
   Message,

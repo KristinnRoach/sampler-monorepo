@@ -219,10 +219,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
-    const adjustedDuration = this.#sampleDurationSeconds / playbackRate;
-
     // Apply amp, filter and pitch envelopes if enabled
-    this.applyEnvelopes(timestamp, adjustedDuration, playbackRate);
+    this.applyEnvelopes(timestamp, this.#sampleDurationSeconds, playbackRate);
 
     // Start playback
     this.sendToProcessor({
@@ -256,7 +254,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#envelopes.forEach((env, envType) => {
       if (!env.isEnabled) return; // ?
 
-      env.setSampleDuration(durationSeconds);
+      const scaledDuration = this.#sampleDurationSeconds / playbackRate;
+      if (envType !== 'filter-env') env.setSampleDuration(durationSeconds);
+      else env.setSampleDuration(scaledDuration);
+
       const param = this.getParam(env.param);
       if (!param) return;
 

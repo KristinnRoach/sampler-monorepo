@@ -80,7 +80,7 @@ const RecorderComponent = ({
   };
 
   return (
-    <div style={{ backgroundColor: 'green', padding: '20px' }}>
+    <div style={{ padding: '20px' }}>
       {isInitialized && (
         <button
           onClick={isRecording ? stopRecording : startRecording}

@@ -375,13 +375,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const loopDuration = calcLoopEnd - calcLoopStart;
 
-    const shouldSnap = loopDuration < this.snapper.longestPeriod;
-    if (shouldSnap && this.snapper.hasPeriodSnapping) {
-      calcLoopEnd =
-        calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
-    }
-    calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
-    calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
+    // !! TEMPORARILY DISABLED WHILE TESTING MACROPARAM
+    // const shouldSnap = loopDuration < this.snapper.longestPeriod;
+    // if (shouldSnap && this.snapper.hasPeriodSnapping) {
+    //   calcLoopEnd =
+    //     calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
+    // }
+    // calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
+    // calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
 
     return {
       loopStartSamples: calcLoopStart,

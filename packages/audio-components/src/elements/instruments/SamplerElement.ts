@@ -1,6 +1,6 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
-import { gsap } from 'gsap/gsap-core';
+import '../controls/webaudio-controls/webaudio-controls';
 
 import {
   type SamplePlayer,
@@ -27,6 +27,7 @@ const { div, button } = van.tags;
 const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
   let currentRecorder: Recorder | null = null;
+
   // Attributes
   const expanded = attributes.attr('expanded', 'true');
 
@@ -274,9 +275,16 @@ const SamplerElement = (attributes: ElementProps) => {
       }
     };
 
+    const keyboardSection = document.querySelector('.keyboard-section');
+    if (keyboardSection) {
+      keyboardSection.appendChild(keyboard);
+    }
+
     initializeAudio();
 
-    return () => samplePlayer?.dispose();
+    return () => {
+      samplePlayer?.dispose();
+    };
   });
 
   // File loading handler
@@ -443,6 +451,33 @@ const SamplerElement = (attributes: ElementProps) => {
     }
   };
 
+  // const knob = document.createElement('webaudio-knob') as HTMLElement;
+  // knob.setAttribute('value', '50');
+  // knob.setAttribute('min', '0');
+  // knob.setAttribute('max', '100');
+  // document.body.appendChild(knob);
+
+  const keyboard = document.createElement('webaudio-keyboard') as any;
+  keyboard.setAttribute('width', '300');
+  keyboard.setAttribute('height', '60');
+  keyboard.setAttribute('min', '37'); // C3 = 48
+  keyboard.setAttribute('keys', '31'); // 2 octaves + fifth (corresponding to curr computer keyboard range) // todo: use same keymap
+
+  // Add event listener for note events
+  keyboard.addEventListener('pointer', (event: any) => {
+    // // HAX to ignore keyevents, todo: modify source code to dispatch separate key, mouse & touch events
+    // // (currentKey will be set if keyevent)
+    // if ((event.target as any).currentKey !== -1) {
+    //   return;
+    // }
+    const [noteState, noteNumber] = event.note;
+    if (noteState === 1) {
+      samplePlayer?.play(noteNumber);
+    } else {
+      samplePlayer?.release(noteNumber);
+    }
+  });
+
   const defaultStyle = `display: flex; flex-direction: column; max-width: 50vw; padding: 1rem;`;
 
   return div(
@@ -548,13 +583,19 @@ const SamplerElement = (attributes: ElementProps) => {
             )
           : div(),
 
-      SampleControls(loopStart, loopEnd, startPoint, endPoint),
+      () => SampleControls(loopStart, loopEnd, startPoint, endPoint),
 
       div(
         { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },
         InputControls(keyboardEnabled, midiEnabled, icons.keys, icons.midi),
         LoopHoldControls(loopEnabled, loopLocked, holdLocked, icons)
       ),
+
+      div({
+        class: 'keyboard-section',
+        style: 'width: 30vw; height: 10vh; margin: 1rem 0;',
+      }),
+
       div(
         { style: 'font-size: 0.8rem; color: #666; margin-top: 0.5rem;' },
         () => `Status: ${status.val}`
