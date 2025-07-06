@@ -165,9 +165,10 @@ export class MacroParam {
 
   setAllowedPeriods(
     periods: number[],
-    normalize: NormalizeOptions | false
+    normalize: NormalizeOptions | false,
+    snapToZeroCrossings: number[] | false = false
   ): this {
-    this.#snapper.setAllowedPeriods(periods, normalize);
+    this.#snapper.setAllowedPeriods(periods, normalize, snapToZeroCrossings);
     return this;
   }
 
@@ -178,6 +179,7 @@ export class MacroParam {
       normalize: NormalizeOptions | false;
       lowestOctave?: number;
       highestOctave?: number;
+      snapToZeroCrossings: number[] | false;
     }
   ): this {
     const { lowestOctave = 0, highestOctave = 8 } = options;
@@ -189,7 +191,8 @@ export class MacroParam {
       scalePattern,
       lowestOctave,
       highestOctave,
-      options.normalize
+      options.normalize,
+      options.snapToZeroCrossings
     );
     return this;
   }

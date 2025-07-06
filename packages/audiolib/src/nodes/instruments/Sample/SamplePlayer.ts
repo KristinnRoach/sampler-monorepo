@@ -867,17 +867,19 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setScale(rootNote: string, scalePattern: number[], options?: any): this {
-    // Existing code to set scale on macros
-    this.#macroLoopStart.setScale(rootNote, scalePattern, options);
-    this.#macroLoopEnd.setScale(rootNote, scalePattern, options);
+    //  Snap periods to zero crossings by default !
+    this.#macroLoopStart.setScale(rootNote, scalePattern, {
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
+    this.#macroLoopEnd.setScale(rootNote, scalePattern, {
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
 
-    // Get the periods from the snapper
-    const periods = this.#macroLoopEnd.snapper.periods;
-
-    // ! Pass to voices IF they individually handle period quantization (snapping)
-    this.voicePool.applyToAllVoices((voice) =>
-      voice.setAllowedPeriods(periods)
-    );
+    // This is now handled by MacroParam. To be removed.
+    // const periods = this.#macroLoopEnd.snapper.periods;
+    // this.voicePool.applyToAllVoices((voice) => voice.setAllowedPeriods(periods));
 
     return this;
   }

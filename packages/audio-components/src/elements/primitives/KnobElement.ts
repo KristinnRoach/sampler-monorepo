@@ -309,6 +309,13 @@ export class KnobElement extends HTMLElement {
   private createDraggable(): void {
     if (this.config.disabled) return;
 
+    const pointerLockSupported =
+      'pointerLockElement' in document &&
+      'requestPointerLock' in HTMLElement.prototype;
+
+    if (!pointerLockSupported)
+      console.info(`KnobElement: Pointer lock not supported`);
+
     let startRotation = 0;
     let totalDeltaY = 0;
     let mouseMoveHandler: (e: MouseEvent) => void;
@@ -322,44 +329,75 @@ export class KnobElement extends HTMLElement {
         maxRotation: this.config.maxRotation,
       },
       onPress: () => {
-        this.knobElement.requestPointerLock();
-
         startRotation = this.currentRotation;
         totalDeltaY = 0;
 
-        mouseMoveHandler = (e: MouseEvent) => {
-          if (document.pointerLockElement === this.knobElement) {
-            totalDeltaY += e.movementY;
+        if (pointerLockSupported) {
+          this.knobElement.requestPointerLock();
 
-            const sensitivity = 4.0; // Adjust as needed
-            const newRotation = startRotation - totalDeltaY * sensitivity;
+          mouseMoveHandler = (e: MouseEvent) => {
+            if (document.pointerLockElement === this.knobElement) {
+              totalDeltaY += e.movementY;
 
-            this.currentRotation = gsap.utils.clamp(
-              this.config.minRotation,
-              this.config.maxRotation,
-              newRotation
-            );
+              const sensitivity = 4.0; // Adjust as needed
+              const newRotation = startRotation - totalDeltaY * sensitivity;
 
-            gsap.set(this.knobElement, {
-              y: 0,
-              rotation: this.currentRotation,
-              duration: 0,
-            });
+              this.currentRotation = gsap.utils.clamp(
+                this.config.minRotation,
+                this.config.maxRotation,
+                newRotation
+              );
 
-            const rawValue = this.rotationToValue(this.currentRotation);
+              gsap.set(this.knobElement, {
+                y: 0,
+                rotation: this.currentRotation,
+                duration: 0,
+              });
 
-            this.currentValue = rawValue;
-            this.updateBorder();
-            this.dispatchChangeEvent();
-          }
-        };
-        document.addEventListener('mousemove', mouseMoveHandler);
-      },
-      onRelease: () => {
-        document.exitPointerLock();
-        if (mouseMoveHandler) {
-          document.removeEventListener('mousemove', mouseMoveHandler);
+              const rawValue = this.rotationToValue(this.currentRotation);
+
+              this.currentValue = rawValue;
+              this.updateBorder();
+              this.dispatchChangeEvent();
+            }
+          };
+          document.addEventListener('mousemove', mouseMoveHandler);
         }
+        // ??? No else: fallback is handled by Draggable's own drag logic
+      },
+
+      onDrag: () => {
+        // Only run if pointer lock is NOT supported
+        if (!pointerLockSupported) {
+          const sensitivity = 4.0;
+          const newRotation =
+            startRotation - this.gsapDraggable.y * sensitivity;
+
+          this.currentRotation = gsap.utils.clamp(
+            this.config.minRotation,
+            this.config.maxRotation,
+            newRotation
+          );
+
+          gsap.set(this.knobElement, {
+            rotation: this.currentRotation,
+            y: 0, // Reset y to prevent visual drift
+          });
+
+          this.currentValue = this.rotationToValue(this.currentRotation);
+          this.updateBorder();
+          this.dispatchChangeEvent();
+        }
+      },
+
+      onRelease: () => {
+        if (pointerLockSupported) {
+          document.exitPointerLock();
+          if (mouseMoveHandler) {
+            document.removeEventListener('mousemove', mouseMoveHandler);
+          }
+        }
+        // ??? No else: Draggable handles release normally
       },
     })[0];
   }

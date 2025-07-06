@@ -28,58 +28,103 @@ export class ValueSnapper {
   #allowedValues: number[] = [];
   #allowedPeriods: number[] = [];
 
-  setAllowedValues(
-    values: number[],
-    normalize: NormalizeOptions | false
-  ): this {
-    const finalValues = normalize ? normalizeRange(values, normalize) : values;
-    this.#allowedValues = [...(finalValues as number[])].sort((a, b) => a - b);
-    return this;
-  }
-
-  setAllowedPeriods(
-    periods: number[],
-    normalize: NormalizeOptions | false
-  ): this {
-    const finalValues = normalize
-      ? normalizeRange(periods, normalize)
-      : periods;
-
-    this.#allowedPeriods = [...(finalValues as number[])].sort((a, b) => a - b);
-    // console.log(`setAllowedPeriods: `, { usingPeriods: this.#allowedPeriods });
-    return this;
-  }
-
   setScale(
     rootNote: string,
     scalePattern: readonly number[] | number[],
     lowestOctave: number = 0,
     highestOctave: number = 8,
-    normalize: NormalizeOptions | false
-  ): this {
+    normalize: NormalizeOptions | false,
+    snapToZeroCrossings: number[] | false = false
+  ) {
     // Create a copy of the pattern to ensure it's mutable
     const pattern = [...scalePattern];
 
     const scale = createScale(rootNote, pattern, lowestOctave, highestOctave);
     const periodsInSeconds = scale.periodsInSec.sort((a, b) => a - b);
 
-    return this.setAllowedPeriods(periodsInSeconds, normalize);
-  }
-
-  snapToValue(target: number): number {
-    if (this.#allowedValues.length === 0) return target;
-
-    return this.#allowedValues.reduce((prev, curr) =>
-      Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
+    return this.setAllowedPeriods(
+      periodsInSeconds,
+      normalize,
+      snapToZeroCrossings
     );
   }
 
-  // todo: If I want zero-snapping for periods -> Just pre-compute the optimal values and store them as the allowedPeriods !!
-  snapToMusicalPeriod(targetPeriod: number): number {
-    if (this.#allowedPeriods.length === 0) return targetPeriod;
+  setAllowedValues(values: number[], normalize: NormalizeOptions | false) {
+    const finalValues = normalize ? normalizeRange(values, normalize) : values;
+    this.#allowedValues = [...(finalValues as number[])].sort((a, b) => a - b);
+
+    console.log('Allowed Values: ', values);
+    return this.#allowedValues;
+  }
+
+  setAllowedPeriods(
+    periods: number[],
+    normalize: NormalizeOptions | false,
+    snapToZeroCrossings: number[] | false = false
+  ) {
+    let values = normalize
+      ? (normalizeRange([...periods], normalize) as number[])
+      : periods;
+
+    if (snapToZeroCrossings && snapToZeroCrossings.length) {
+      // Pre-compute the optimal values and store them as the allowedPeriods
+      console.log('Zero Crossings: ', snapToZeroCrossings);
+
+      console.log('Before snapping: ', values);
+      values.forEach((v, idx) => {
+        const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
+        const snapped = this.snapToValue(v, snapToZeroCrossings, tolerance);
+        values[idx] = snapped;
+      });
+      console.log('After snapping: ', values);
+    }
+
+    this.#allowedPeriods = [...(values as number[])].sort((a, b) => a - b);
+
+    return this.#allowedPeriods;
+  }
+
+  snapToValue(
+    target: number,
+    allowedValues = this.#allowedValues,
+    tolerance?: number
+  ): number {
+    if (allowedValues.length === 0) return target;
+
+    // If tolerance is specified, filter allowedValues first
+    const validValues =
+      tolerance !== undefined
+        ? allowedValues.filter((value) => Math.abs(value - target) <= tolerance)
+        : allowedValues;
+
+    if (validValues.length > 0) {
+      // Normal case: snap to closest within tolerance
+      return validValues.reduce((prev, curr) =>
+        Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
+      );
+    }
+
+    // Fallback: move partially toward closest zero crossing
+    if (tolerance !== undefined) {
+      const closest = allowedValues.reduce((prev, curr) =>
+        Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
+      );
+
+      const direction = Math.sign(closest - target);
+      return target + direction * tolerance;
+    }
+
+    return target;
+  }
+
+  snapToMusicalPeriod(
+    targetPeriod: number,
+    allowedPeriods = this.#allowedPeriods
+  ): number {
+    if (allowedPeriods.length === 0) return targetPeriod;
 
     // Find closest musical period to the target duration
-    const quantized = this.#allowedPeriods.reduce((prev, curr) =>
+    const quantized = allowedPeriods.reduce((prev, curr) =>
       Math.abs(curr - targetPeriod) < Math.abs(prev - targetPeriod)
         ? curr
         : prev
