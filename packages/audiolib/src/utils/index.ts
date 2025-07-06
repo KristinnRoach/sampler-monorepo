@@ -17,6 +17,9 @@ export * from './validate/audioparam';
 // Monitoring utils
 export * from './monitoring/LevelMonitor';
 
+// Search utils
+export * from './search';
+
 // Math utils
 export * from './math/normalize';
 export * from './math/zero-crossing';

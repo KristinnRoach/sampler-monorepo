@@ -290,20 +290,66 @@ export class KnobElement extends HTMLElement {
     }
   }
 
-  private createUtilityFunctions(): void {
-    this.rotationToValue = gsap.utils.mapRange(
-      this.config.minRotation,
-      this.config.maxRotation,
-      this.config.minValue,
-      this.config.maxValue
-    );
+  // private createUtilityFunctions(): void {
+  //   this.rotationToValue = gsap.utils.mapRange(
+  //     this.config.minRotation,
+  //     this.config.maxRotation,
+  //     this.config.minValue,
+  //     this.config.maxValue
+  //   );
 
-    this.valueToRotation = gsap.utils.mapRange(
-      this.config.minValue,
-      this.config.maxValue,
-      this.config.minRotation,
-      this.config.maxRotation
-    );
+  //   this.valueToRotation = gsap.utils.mapRange(
+  //     this.config.minValue,
+  //     this.config.maxValue,
+  //     this.config.minRotation,
+  //     this.config.maxRotation
+  //   );
+  // }
+
+  private createUtilityFunctions(): void {
+    // Exponential factor (>1 makes higher values more sensitive)
+    const curve = 0.1; // Adjust this value (1 = linear, 2 = quadratic, etc.)
+
+    this.rotationToValue = (rotation: number) => {
+      // Map rotation to 0-1 range
+      const normalizedRotation = gsap.utils.mapRange(
+        this.config.minRotation,
+        this.config.maxRotation,
+        0,
+        1
+      )(rotation);
+
+      // Apply exponential curve
+      const curvedValue = Math.pow(normalizedRotation, curve);
+
+      // Map back to actual value range
+      return gsap.utils.mapRange(
+        0,
+        1,
+        this.config.minValue,
+        this.config.maxValue
+      )(curvedValue);
+    };
+
+    this.valueToRotation = (value: number) => {
+      // Reverse the process
+      const normalizedValue = gsap.utils.mapRange(
+        this.config.minValue,
+        this.config.maxValue,
+        0,
+        1
+      )(value);
+
+      // Apply inverse curve
+      const curvedRotation = Math.pow(normalizedValue, 1 / curve);
+
+      return gsap.utils.mapRange(
+        0,
+        1,
+        this.config.minRotation,
+        this.config.maxRotation
+      )(curvedRotation);
+    };
   }
 
   private createDraggable(): void {

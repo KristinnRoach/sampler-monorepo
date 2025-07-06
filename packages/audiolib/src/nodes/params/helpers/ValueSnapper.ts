@@ -1,5 +1,6 @@
 import { createScale } from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
+import { findClosest } from '@/utils';
 
 const normalizeRange = (
   values: number | number[],
@@ -53,7 +54,7 @@ export class ValueSnapper {
     const finalValues = normalize ? normalizeRange(values, normalize) : values;
     this.#allowedValues = [...(finalValues as number[])].sort((a, b) => a - b);
 
-    console.log('Allowed Values: ', values);
+    // console.log('Allowed Values: ', values);
     return this.#allowedValues;
   }
 
@@ -68,15 +69,16 @@ export class ValueSnapper {
 
     if (snapToZeroCrossings && snapToZeroCrossings.length) {
       // Pre-compute the optimal values and store them as the allowedPeriods
-      console.log('Zero Crossings: ', snapToZeroCrossings);
 
-      console.log('Before snapping: ', values);
+      // console.log('Zero Crossings: ', snapToZeroCrossings);
+      // console.log('Before snapping: ', values);
+
       values.forEach((v, idx) => {
         const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
         const snapped = this.snapToValue(v, snapToZeroCrossings, tolerance);
         values[idx] = snapped;
       });
-      console.log('After snapping: ', values);
+      // console.log('After snapping: ', values);
     }
 
     this.#allowedPeriods = [...(values as number[])].sort((a, b) => a - b);
@@ -91,24 +93,24 @@ export class ValueSnapper {
   ): number {
     if (allowedValues.length === 0) return target;
 
-    // If tolerance is specified, filter allowedValues first
-    const validValues =
-      tolerance !== undefined
-        ? allowedValues.filter((value) => Math.abs(value - target) <= tolerance)
-        : allowedValues;
+    // No tolerance = simple closest value (for real time quick processing)
+    if (tolerance === undefined) {
+      return findClosest(allowedValues, target);
+    }
+
+    // Filter allowedValues by tolerance
+    const validValues = allowedValues.filter(
+      (value) => Math.abs(value - target) <= tolerance
+    );
 
     if (validValues.length > 0) {
       // Normal case: snap to closest within tolerance
-      return validValues.reduce((prev, curr) =>
-        Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
-      );
+      return findClosest(validValues, target);
     }
 
     // Fallback: move partially toward closest zero crossing
     if (tolerance !== undefined) {
-      const closest = allowedValues.reduce((prev, curr) =>
-        Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
-      );
+      const closest = findClosest(allowedValues, target);
 
       const direction = Math.sign(closest - target);
       return target + direction * tolerance;
@@ -124,11 +126,12 @@ export class ValueSnapper {
     if (allowedPeriods.length === 0) return targetPeriod;
 
     // Find closest musical period to the target duration
-    const quantized = allowedPeriods.reduce((prev, curr) =>
-      Math.abs(curr - targetPeriod) < Math.abs(prev - targetPeriod)
-        ? curr
-        : prev
-    );
+    const quantized = findClosest(allowedPeriods, targetPeriod);
+    // const quantized = allowedPeriods.reduce((prev, curr) =>
+    //   Math.abs(curr - targetPeriod) < Math.abs(prev - targetPeriod)
+    //     ? curr
+    //     : prev
+    // );
 
     return quantized;
   }

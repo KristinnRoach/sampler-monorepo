@@ -122,18 +122,7 @@ export class MacroParam {
     ) {
       const quantizedPeriod = this.#snapper.snapToMusicalPeriod(targetPeriod);
 
-      console.debug(
-        'adjusting param: ',
-        this.#paramType,
-        'targetValue',
-        targetValue,
-        'constant',
-        constant,
-        'targetPeriod',
-        targetPeriod,
-        'quantizedPeriod',
-        quantizedPeriod
-      );
+      // this.#debugProcessedValue(targetPeriod, constant, targetPeriod, quantizedPeriod);
 
       let result;
 
@@ -158,18 +147,20 @@ export class MacroParam {
   setAllowedParamValues(
     values: number[],
     normalize: NormalizeOptions | false
-  ): this {
-    this.#snapper.setAllowedValues(values, normalize);
-    return this;
+  ): number[] {
+    return this.#snapper.setAllowedValues(values, normalize);
   }
 
   setAllowedPeriods(
     periods: number[],
     normalize: NormalizeOptions | false,
     snapToZeroCrossings: number[] | false = false
-  ): this {
-    this.#snapper.setAllowedPeriods(periods, normalize, snapToZeroCrossings);
-    return this;
+  ): number[] {
+    return this.#snapper.setAllowedPeriods(
+      periods,
+      normalize,
+      snapToZeroCrossings
+    );
   }
 
   setScale(
@@ -181,12 +172,12 @@ export class MacroParam {
       highestOctave?: number;
       snapToZeroCrossings: number[] | false;
     }
-  ): this {
+  ): number[] {
     const { lowestOctave = 0, highestOctave = 8 } = options;
 
     const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
-    this.#snapper.setScale(
+    return this.#snapper.setScale(
       rootNote,
       scalePattern,
       lowestOctave,
@@ -194,7 +185,6 @@ export class MacroParam {
       options.normalize,
       options.snapToZeroCrossings
     );
-    return this;
   }
 
   // Delegate basic operations
@@ -261,6 +251,26 @@ export class MacroParam {
     this.#controller.dispose();
     // Clean up other resources
   }
+
+  #debugProcessedValue = (
+    targetValue: number,
+    constant: number,
+    targetPeriod: number,
+    quantizedPeriod: number
+  ) => {
+    console.debug(
+      'adjusting param: ',
+      this.#paramType,
+      'targetValue',
+      targetValue,
+      'constant',
+      constant,
+      'targetPeriod',
+      targetPeriod,
+      'quantizedPeriod',
+      quantizedPeriod
+    );
+  };
 
   // Stub methods for interface compliance
   connect(target: AudioParam, nodeType: NodeType, scaleFactor?: number): this {
