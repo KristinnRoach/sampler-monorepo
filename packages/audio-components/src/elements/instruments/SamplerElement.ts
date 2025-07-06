@@ -27,6 +27,7 @@ const { div, button } = van.tags;
 const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
   let currentRecorder: Recorder | null = null;
+
   // Attributes
   const expanded = attributes.attr('expanded', 'true');
 
@@ -281,7 +282,9 @@ const SamplerElement = (attributes: ElementProps) => {
 
     initializeAudio();
 
-    return () => samplePlayer?.dispose();
+    return () => {
+      samplePlayer?.dispose();
+    };
   });
 
   // File loading handler
@@ -580,7 +583,7 @@ const SamplerElement = (attributes: ElementProps) => {
             )
           : div(),
 
-      SampleControls(loopStart, loopEnd, startPoint, endPoint),
+      () => SampleControls(loopStart, loopEnd, startPoint, endPoint),
 
       div(
         { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },

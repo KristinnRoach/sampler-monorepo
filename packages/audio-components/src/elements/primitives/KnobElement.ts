@@ -4,18 +4,18 @@ import { Draggable } from 'gsap/Draggable';
 
 gsap.registerPlugin(Draggable);
 
-interface KnobConfig {
+export interface KnobConfig {
   minValue: number;
   maxValue: number;
+  defaultValue: number;
   minRotation: number;
   maxRotation: number;
   snapIncrement: number;
-  initialValue?: number;
   disabled?: boolean;
   borderStyle?: 'currentState' | 'fullCircle';
 }
 
-interface KnobChangeEventDetail {
+export interface KnobChangeEventDetail {
   value: number;
   rotation: number;
   percentage: number;
@@ -30,6 +30,7 @@ declare global {
 export class KnobElement extends HTMLElement {
   private knobElement!: HTMLElement;
   private indicatorElement!: HTMLElement;
+  private pathElement!: SVGPathElement;
 
   private gsapDraggable!: Draggable;
   private static stylesInjected = false;
@@ -37,10 +38,10 @@ export class KnobElement extends HTMLElement {
   private config: KnobConfig = {
     minValue: 0,
     maxValue: 100,
+    defaultValue: 0,
     minRotation: -170,
     maxRotation: 170,
     snapIncrement: 0.01,
-    initialValue: 0,
     disabled: false,
     borderStyle: 'currentState',
   };
@@ -55,6 +56,7 @@ export class KnobElement extends HTMLElement {
     return [
       'min-value',
       'max-value',
+      'default-value',
       'min-rotation',
       'max-rotation',
       'snap-increment',
@@ -68,14 +70,17 @@ export class KnobElement extends HTMLElement {
 
   constructor() {
     super();
-    this.injectGlobalStyles();
   }
 
   connectedCallback(): void {
+    this.injectGlobalStyles();
+    this.createUtilityFunctions();
     this.render();
-    this.updateConfigFromAttributes();
 
-    setTimeout(() => this.init(), 0);
+    setTimeout(() => {
+      this.createDraggable();
+      this.setValue(this.config.defaultValue || this.config.minValue);
+    }, 0);
   }
 
   disconnectedCallback(): void {
@@ -88,9 +93,48 @@ export class KnobElement extends HTMLElement {
     newValue: string
   ): void {
     if (oldValue !== newValue) {
-      this.updateConfigFromAttributes();
+      // Handle min/max changes BEFORE updating config
+      if (name === 'max-value' || name === 'min-value') {
+        const oldMin = this.config.minValue;
+        const oldMax = this.config.maxValue;
 
-      // For width/height and border-style changes, we don't need to reinitialize gsap's draggable
+        // Update config first
+        this.updateConfigFromAttributes();
+        this.updateBorder();
+
+        // Scale current value from old range to new range
+        let scaledValue: number;
+
+        if (name === 'max-value') {
+          scaledValue = gsap.utils.mapRange(
+            oldMin, // old min
+            parseFloat(oldValue), // old max
+            this.config.minValue, // new min
+            this.config.maxValue, // new max
+            this.currentValue
+          );
+        } else {
+          // min-value
+          scaledValue = gsap.utils.mapRange(
+            parseFloat(oldValue), // old min
+            oldMax, // old max
+            this.config.minValue, // new min
+            this.config.maxValue, // new max
+            this.currentValue
+          );
+        }
+
+        // Clamp to new bounds and update visually
+        this.createUtilityFunctions();
+        this.setValue(scaledValue); // This will clamp and update visuals
+
+        return;
+      }
+
+      // Handle other attributes normally
+      this.updateConfigFromAttributes();
+      this.updateBorder();
+
       if (name === 'width' || name === 'height') return;
       if (name === 'border-style') return;
 
@@ -180,10 +224,10 @@ export class KnobElement extends HTMLElement {
     this.config = {
       minValue: getValue('min-value', 0),
       maxValue: getValue('max-value', 100),
+      defaultValue: getValue('default-value', 0),
       minRotation: getValue('min-rotation', -150),
       maxRotation: getValue('max-rotation', 150),
       snapIncrement: getValue('snap-increment', 1),
-      initialValue: getValue('value', 0),
       disabled: this.hasAttribute('disabled'),
       borderStyle:
         (this.getAttribute('border-style') as
@@ -192,7 +236,6 @@ export class KnobElement extends HTMLElement {
           | undefined) || 'currentState',
     };
 
-    this.updateBorder();
     this.updateDimensions();
   }
 
@@ -230,23 +273,15 @@ export class KnobElement extends HTMLElement {
     this.indicatorElement = this.querySelector(
       '.knob-indicator'
     ) as HTMLElement;
-  }
 
-  private init(): void {
-    if (!this.knobElement) {
-      console.error('Knob element not found, retrying...');
-      setTimeout(() => this.init(), 10);
-      return;
-    }
-
-    this.createUtilityFunctions();
-    this.createDraggable();
-    this.setValue(this.config.initialValue || this.config.minValue);
+    this.pathElement = this.querySelector('.knob-border') as SVGPathElement;
   }
 
   private reinitialize(): void {
     this.cleanup();
-    this.init();
+    this.createUtilityFunctions();
+    this.createDraggable();
+    this.setValue(this.config.defaultValue || this.config.minValue);
   }
 
   private cleanup(): void {
@@ -314,6 +349,7 @@ export class KnobElement extends HTMLElement {
             const rawValue = this.rotationToValue(this.currentRotation);
 
             this.currentValue = rawValue;
+            this.updateBorder();
             this.dispatchChangeEvent();
           }
         };
@@ -329,12 +365,9 @@ export class KnobElement extends HTMLElement {
   }
 
   private updateBorder(): void {
+    if (!this.pathElement) return;
+
     const borderStyle = this.getAttribute('border-style') || 'currentState';
-    const path = this.querySelector('.knob-border') as SVGPathElement;
-    if (!path) {
-      console.warn('Path does not exist, retrying... ');
-      setTimeout(() => this.updateBorder(), 10);
-    }
 
     if (borderStyle === 'currentState') {
       const r = 48;
@@ -353,15 +386,13 @@ export class KnobElement extends HTMLElement {
       const largeArc = Math.abs(totalAngle) > 180 ? 1 : 0;
 
       const pathData = `M${cx},${cy} L${startX},${startY} A${r},${r},0,${largeArc},1,${endX},${endY} Z`;
-      path.setAttribute('d', pathData);
+      this.pathElement.setAttribute('d', pathData);
     } else {
-      path.setAttribute('d', `M50,2 A48,48,0,1,1,49.9,2 Z`);
+      this.pathElement.setAttribute('d', `M50,2 A48,48,0,1,1,49.9,2 Z`);
     }
   }
 
   private dispatchChangeEvent(): void {
-    this.updateBorder();
-
     const percentage = gsap.utils.mapRange(
       this.config.minValue,
       this.config.maxValue,
@@ -388,12 +419,8 @@ export class KnobElement extends HTMLElement {
     animationOptions?: { duration: number; ease: string }
   ): void {
     // Guard against calls before initialization
-    if (!this.valueToRotation) {
-      console.warn('setValue called before initialization, deferring...');
-      // Store the value to set after init
-      this.config.initialValue = value;
-      return;
-    }
+    if (!this.valueToRotation || !this.knobElement || !this.pathElement) return;
+
     this.currentValue = gsap.utils.clamp(
       this.config.minValue,
       this.config.maxValue,
@@ -411,6 +438,8 @@ export class KnobElement extends HTMLElement {
     } else {
       gsap.set(this.knobElement, { rotation: this.currentRotation });
     }
+
+    this.updateBorder();
 
     this.dispatchChangeEvent();
   }
@@ -441,13 +470,13 @@ export class KnobElement extends HTMLElement {
   }
 
   // Property getters/setters for easier JS usage
-  get value(): number {
-    return this.getValue();
-  }
+  // get value(): number {
+  //   return this.getValue();
+  // }
 
-  set value(val: number) {
-    this.setValue(val, true);
-  }
+  // set value(val: number) {
+  //   this.setValue(val, true);
+  // }
 
   get disabled(): boolean {
     return this.isDisabled();
