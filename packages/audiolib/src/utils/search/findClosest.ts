@@ -9,6 +9,7 @@
 export function findClosest<T>(
   sortedArray: T[],
   target: number,
+  direction: 'left' | 'right' | 'any' = 'any',
   getValue: (item: T) => number = (x) => x as unknown as number,
   getDistance: (a: number, b: number) => number = (a, b) => Math.abs(a - b)
 ): T {
@@ -45,7 +46,11 @@ export function findClosest<T>(
     }
   }
 
-  // Compare the two closest candidates
+  // If direction is specified, return the closest value to the left or right
+  if (direction === 'left') return sortedArray[left];
+  if (direction === 'right') return sortedArray[right];
+
+  // Else compare the two closest candidates
   const leftDistance = getDistance(getValue(sortedArray[left]), targetValue);
   const rightDistance = getDistance(getValue(sortedArray[right]), targetValue);
 

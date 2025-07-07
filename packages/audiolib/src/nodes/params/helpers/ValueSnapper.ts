@@ -1,6 +1,6 @@
 import { createScale } from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
-import { findClosest } from '@/utils';
+import { findClosest, findClosestNote, Note } from '@/utils';
 
 const normalizeRange = (
   values: number | number[],
@@ -28,6 +28,7 @@ const normalizeRange = (
 export class ValueSnapper {
   #allowedValues: number[] = [];
   #allowedPeriods: number[] = [];
+  paramType: string | null = null;
 
   setScale(
     rootNote: string,
@@ -50,46 +51,77 @@ export class ValueSnapper {
     );
   }
 
-  setAllowedValues(values: number[], normalize: NormalizeOptions | false) {
-    const finalValues = normalize ? normalizeRange(values, normalize) : values;
-    this.#allowedValues = [...(finalValues as number[])].sort((a, b) => a - b);
-
-    // console.log('Allowed Values: ', values);
-    return this.#allowedValues;
-  }
-
   setAllowedPeriods(
     periods: number[],
     normalize: NormalizeOptions | false,
-    snapToZeroCrossings: number[] | false = false
+    snapToZeroCrossings: number[] | false = false,
+    direction: 'left' | 'right' | 'any' = 'any'
   ) {
     let values = normalize
       ? (normalizeRange([...periods], normalize) as number[])
       : periods;
 
-    if (snapToZeroCrossings && snapToZeroCrossings.length) {
-      // Pre-compute the optimal values and store them as the allowedPeriods
+    // Keep original periods for musical calculations
+    // let values = [...periods];
 
-      // console.log('Zero Crossings: ', snapToZeroCrossings);
-      // console.log('Before snapping: ', values);
+    // if (snapToZeroCrossings && snapToZeroCrossings.length) {
+    //   // Pre-compute the optimal values and store them as the allowedPeriods
 
-      values = values.map((v) => {
-        const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
-        return this.snapToValue(v, snapToZeroCrossings, tolerance);
-      });
+    //   console.log('Zero Crossings: ', snapToZeroCrossings);
+    //   console.log('Before snapping: ', periods);
 
-      // console.log('After snapping: ', values);
-    }
+    //   values = values.map((v) => {
+    //     const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
+    //     const snapped = this.snapToValue(
+    //       v,
+    //       snapToZeroCrossings,
+    //       tolerance,
+    //       direction
+    //     );
+
+    //     const correctionFactor = 0.99; // For some reason ALMOST always better results
+    //     return snapped * correctionFactor;
+    //   });
+
+    //   console.log('After snapping: ', values);
+    // }
+
+    // // NOW normalize the snapped periods for 0-1 range
+    // const normalized = normalize
+    //   ? (normalizeRange(values, normalize) as number[])
+    //   : values;
+
+    // console.log('Normalized: ', normalized);
+
+    // this.#debugPeriods(periods, values, normalized);
 
     this.#allowedPeriods = [...(values as number[])].sort((a, b) => a - b);
 
     return this.#allowedPeriods;
   }
 
+  #debugPeriods(
+    beforeSnap: number[],
+    afterSnap: number[],
+    normalized: number[]
+  ) {
+    const beforeNoteInfo: Note[] = [];
+    beforeSnap.forEach((period) => {
+      beforeNoteInfo.push(findClosestNote(1 / period));
+    });
+    const afterNoteInfo: Note[] = [];
+    afterSnap.forEach((period) => {
+      afterNoteInfo.push(findClosestNote(1 / period));
+    });
+
+    console.info({ BEFORE: beforeNoteInfo, AFTER: afterNoteInfo, normalized });
+  }
+
   snapToValue(
     target: number,
     allowedValues = this.#allowedValues,
-    tolerance?: number
+    tolerance?: number,
+    preferDirection: 'left' | 'right' | 'any' = 'any'
   ): number {
     if (allowedValues.length === 0) return target;
 
@@ -105,15 +137,15 @@ export class ValueSnapper {
 
     if (validValues.length > 0) {
       // Normal case: snap to closest within tolerance
-      return findClosest(validValues, target);
+      return findClosest(validValues, target, preferDirection);
     }
 
     // Fallback: move partially toward closest zero crossing
     if (tolerance !== undefined) {
-      const closest = findClosest(allowedValues, target);
+      const closest = findClosest(allowedValues, target, preferDirection);
 
-      const direction = Math.sign(closest - target);
-      return target + direction * tolerance;
+      const directionToClosest = Math.sign(closest - target); // -1 or 1
+      return target + directionToClosest * tolerance;
     }
 
     return target;
@@ -129,6 +161,14 @@ export class ValueSnapper {
     const quantized = findClosest(allowedPeriods, targetPeriod);
 
     return quantized;
+  }
+
+  setAllowedValues(values: number[], normalize: NormalizeOptions | false) {
+    const finalValues = normalize ? normalizeRange(values, normalize) : values;
+    this.#allowedValues = [...(finalValues as number[])].sort((a, b) => a - b);
+
+    // console.log('Allowed Values: ', values);
+    return this.#allowedValues;
   }
 
   get periods() {
@@ -153,9 +193,27 @@ export class ValueSnapper {
   }
 }
 
-// Replaced with map in setAllowedPeriods, delete if no issues
-// values.forEach((v, idx) => {
-//   const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
-//   const snapped = this.snapToValue(v, snapToZeroCrossings, tolerance);
-//   values[idx] = snapped;
-// });
+// const C = {
+//   0: 0.06116,
+//   3: 0.007645,
+//   4: 0.003822,
+//   5: 0.001911,
+//   6: 0.000956,
+//   7: 0.000478,
+//   8: 0.000239,
+// };
+
+// // let directionToUse: 'left' | 'right' | 'any' = 'any';
+// // let preferredDirection: 'left' | 'right' | 'any' = 'any';
+// // if (this.paramType === 'loopEnd') preferredDirection = 'left';
+// // if (this.paramType === 'loopStart') preferredDirection = 'right';
+
+// values = values.map((v) => {
+//   // let tolerance = 0;
+//   // if (v <= C[0]) tolerance = v * 0.1;
+//   // if (v <= C[3]) tolerance = v * 0.001;
+//   // if (v <= C[4]) tolerance = v * 0.0007;
+//   // if (v <= C[5]) tolerance = v * 0.0005;
+//   // if (v <= C[6]) tolerance = v * 0.0002;
+//   // if (v <= C[7]) tolerance = v * 0.0001;
+//   // if (v <= C[8]) tolerance = v * 0.00005;

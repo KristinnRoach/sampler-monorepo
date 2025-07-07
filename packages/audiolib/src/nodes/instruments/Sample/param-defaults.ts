@@ -118,7 +118,7 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
     name: 'start-point',
     dataType: 'number',
     minValue: 0,
-    maxValue: 1,
+    maxValue: 9999, // Large enough for any reasonable sample length in seconds
     step: 0.001,
     defaultValue: 0,
     group: 'trim-sample',
@@ -130,9 +130,9 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
     name: 'end-point',
     dataType: 'number',
     minValue: 0,
-    maxValue: 1,
+    maxValue: 9999, // Large enough for any reasonable sample length in seconds
     step: 0.001,
-    defaultValue: 1,
+    defaultValue: 9999, // Will be set to actual buffer duration when loaded
     group: 'trim-sample',
     automationRate: 'k-rate',
   },

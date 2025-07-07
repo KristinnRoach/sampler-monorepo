@@ -119,6 +119,8 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  /* === MACROS === */
+
   getMacrosAudioParam(paramName: 'loopStart' | 'loopEnd') {
     switch (paramName) {
       case 'loopStart':
@@ -207,12 +209,10 @@ export class SamplePlayer extends LibInstrument {
 
     const defaultScaleOptions = {
       rootNote: 'C',
-      scalePattern: [0],
+      scale: [0],
       lowestOctave: 0,
       highestOctave: 6,
-      options: {
-        normalize: normalizeOptions,
-      },
+      normalize: normalizeOptions,
     };
 
     this.setScale(defaultScaleOptions);
@@ -220,11 +220,13 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  /* === LOAD / RESET === */
+
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = true
+    autoTranspose = false
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -314,6 +316,8 @@ export class SamplePlayer extends LibInstrument {
     return buffer.duration;
   }
 
+  /* === PLAYBACK === */
+
   play(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
@@ -355,77 +359,36 @@ export class SamplePlayer extends LibInstrument {
     return this;
   };
 
-  #handleModifierKeys(modifiers: PressedModifiers) {
-    if (modifiers.caps !== undefined) {
-      this.setLoopEnabled(modifiers.caps);
-    }
-    if (modifiers.shift !== undefined) {
-      this.setHoldEnabled(modifiers.shift);
-    }
-    return this;
-  }
+  /* === SCALE SETTINGS === */
 
-  enableKeyboard() {
-    if (!this.keyboardHandler) {
-      this.keyboardHandler = {
-        onNoteOn: this.play.bind(this),
-        onNoteOff: this.release.bind(this),
-        onBlur: () => this.panic(),
-        onModifierChange: this.#handleModifierKeys.bind(this),
-      };
-      globalKeyboardInput.addHandler(this.keyboardHandler);
-    }
-    return this;
-  }
+  setScale(options: {
+    rootNote: string;
+    scale: number[];
+    highestOctave: number;
+    lowestOctave: number;
+    normalize: NormalizeOptions | false;
+  }) {
+    const { rootNote, scale: scalePattern, normalize } = options;
 
-  disableKeyboard() {
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
-    return this;
-  }
+    console.log(normalize);
 
-  async initMidiController(): Promise<boolean> {
-    if (this.midiController?.isInitialized) {
-      return true;
-    }
+    console.warn(rootNote, scalePattern, {
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
 
-    if (!this.midiController) {
-      this.midiController = new MidiController();
-    }
+    //  Snap periods to zero crossings by default !
+    this.#macroLoopStart.setScale({
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
+    this.#macroLoopEnd.setScale({
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
 
-    assert(
-      this.midiController,
-      `SamplePlayer: Failed to create MIDI controller`
-    );
+    // Note: MacroParam's setScale returns the calculated zero-snapped values that could be cached.
 
-    const result = await tryCatch(() => this.midiController!.initialize());
-    assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
-    return result.data;
-  }
-
-  async enableMIDI(
-    midiController?: MidiController,
-    channel: number = 0
-  ): Promise<this> {
-    const controller = midiController || this.midiController;
-    const midiSuccess = await this.initMidiController(); // move ?
-
-    if (midiSuccess && controller?.isInitialized) {
-      controller.connectInstrument(this, channel);
-    }
-    return this;
-  }
-
-  disableMIDI(midiController?: MidiController, channel: number = 0): this {
-    const controller = midiController || this.midiController;
-    if (controller) controller.disconnectInstrument(channel);
-    return this;
-  }
-
-  setMidiController(midiController: MidiController): this {
-    this.midiController = midiController;
     return this;
   }
 
@@ -584,6 +547,38 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  setParameterValue(name: string, value: number): this {
+    switch (name) {
+      case 'attack':
+        this.setAttackTime(value);
+        break;
+      case 'release':
+        this.setReleaseTime(value);
+        break;
+      case 'startPoint':
+        this.setSampleStartPoint(value);
+        break;
+      case 'endPoint':
+        this.setSampleEndPoint(value);
+        break;
+      case 'playbackRate':
+        this.setPlaybackRate(value);
+        break;
+      case 'loopStart':
+        this.setLoopStart(value);
+        break;
+      case 'loopEnd':
+        this.setLoopEnd(value);
+        break;
+      case 'loopRampDuration':
+        this.setLoopRampDuration(value);
+        break;
+      default:
+        console.warn(`Unknown parameter: ${name}`);
+    }
+    return this;
+  }
+
   /** PARAM GETTERS  */
 
   getAttackTime(): number {
@@ -631,7 +626,51 @@ export class SamplePlayer extends LibInstrument {
   getHpfCutoff = () => this.getStoredParamValue('hpfCutoff', NaN);
   getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
-  // Expose envelopes for UI access
+  // for UI integration
+  getParameterDescriptors(): Record<string, LibParamDescriptor> {
+    return {
+      attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
+      release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
+      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
+      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
+      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
+      loopStart: this.#macroLoopStart.descriptor,
+      loopEnd: this.#macroLoopEnd.descriptor,
+      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
+      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
+    };
+  }
+
+  getParameterValue(name: string): number | undefined {
+    switch (name) {
+      case 'loopStart':
+        return this.loopStart;
+      case 'loopEnd':
+        return this.loopEnd;
+      case 'loopRampDuration':
+        return this.getLoopRampDuration();
+      case 'attack':
+        return this.getAttackTime();
+      case 'release':
+        return this.getReleaseTime();
+      case 'startPoint':
+        return this.getStartPoint();
+      case 'endPoint':
+        return this.getEndPoint();
+      case 'playbackRate':
+        return this.getPlaybackRate();
+      // case 'hpfCutoff':
+      //   return this.getHpfCutoff();
+      // case 'lpfCutoff':
+      //   return this.getLpfCutoff();
+      default:
+        console.warn(`Unknown parameter: ${name}`);
+        return undefined;
+    }
+  }
+
+  /* === ENVELOPES === */
 
   enableEnvelope = (envType: EnvelopeType) => {
     this.voicePool.applyToAllVoices((voice) => voice.enableEnvelope(envType));
@@ -689,48 +728,83 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.startLevelMonitoring(intervalMs);
   }
 
-  dispose(): void {
-    try {
-      this.releaseAll();
+  /* === I/O === */
 
-      if (this.voicePool) {
-        this.voicePool.dispose();
-        this.voicePool = null as unknown as SampleVoicePool;
-      }
-
-      if (this.outBus) {
-        this.outBus.dispose();
-        this.outBus = null as unknown as InstrumentMasterBus;
-      }
-
-      this.#macroLoopStart?.dispose();
-      this.#macroLoopEnd?.dispose();
-
-      this.#macroLoopStart = null as unknown as MacroParam;
-      this.#macroLoopEnd = null as unknown as MacroParam;
-
-      // Reset state variables
-      this.#bufferDuration = 0;
-      this.#isReady = false;
-      this.#isLoaded = false;
-      this.#zeroCrossings = [];
-      this.#useZeroCrossings = false;
-      this.#loopEnabled = false;
-
-      this.audioContext = null as unknown as AudioContext;
-      this.messages = null as unknown as MessageBus<Message>;
-
-      // Detach keyboard handler
-      if (this.keyboardHandler) {
-        globalKeyboardInput.removeHandler(this.keyboardHandler);
-        this.keyboardHandler = null;
-      }
-
-      // todo: disableMIDI
-    } catch (error) {
-      console.error(`Error disposing Sampler ${this.nodeId}:`, error);
+  #handleModifierKeys(modifiers: PressedModifiers) {
+    if (modifiers.caps !== undefined) {
+      this.setLoopEnabled(modifiers.caps);
     }
+    if (modifiers.shift !== undefined) {
+      this.setHoldEnabled(modifiers.shift);
+    }
+    return this;
   }
+
+  enableKeyboard() {
+    if (!this.keyboardHandler) {
+      this.keyboardHandler = {
+        onNoteOn: this.play.bind(this),
+        onNoteOff: this.release.bind(this),
+        onBlur: () => this.panic(),
+        onModifierChange: this.#handleModifierKeys.bind(this),
+      };
+      globalKeyboardInput.addHandler(this.keyboardHandler);
+    }
+    return this;
+  }
+
+  disableKeyboard() {
+    if (this.keyboardHandler) {
+      globalKeyboardInput.removeHandler(this.keyboardHandler);
+      this.keyboardHandler = null;
+    }
+    return this;
+  }
+
+  async initMidiController(): Promise<boolean> {
+    if (this.midiController?.isInitialized) {
+      return true;
+    }
+
+    if (!this.midiController) {
+      this.midiController = new MidiController();
+    }
+
+    assert(
+      this.midiController,
+      `SamplePlayer: Failed to create MIDI controller`
+    );
+
+    const result = await tryCatch(() => this.midiController!.initialize());
+    assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
+    return result.data;
+  }
+
+  async enableMIDI(
+    midiController?: MidiController,
+    channel: number = 0
+  ): Promise<this> {
+    const controller = midiController || this.midiController;
+    const midiSuccess = await this.initMidiController(); // move ?
+
+    if (midiSuccess && controller?.isInitialized) {
+      controller.connectInstrument(this, channel);
+    }
+    return this;
+  }
+
+  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+    const controller = midiController || this.midiController;
+    if (controller) controller.disconnectInstrument(channel);
+    return this;
+  }
+
+  setMidiController(midiController: MidiController): this {
+    this.midiController = midiController;
+    return this;
+  }
+
+  /* === PUBLIC GETTERS === */
 
   get out() {
     return this.outBus.output;
@@ -784,106 +858,48 @@ export class SamplePlayer extends LibInstrument {
     return this.#isLoaded;
   }
 
-  // for UI integration
-  getParameterDescriptors(): Record<string, LibParamDescriptor> {
-    return {
-      attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
-      release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
-      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
-      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
-      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
-      loopStart: this.#macroLoopStart.descriptor,
-      loopEnd: this.#macroLoopEnd.descriptor,
-      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
-      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
-      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
-    };
-  }
+  /* === CLEANUP === */
 
-  getParameterValue(name: string): number | undefined {
-    switch (name) {
-      case 'loopStart':
-        return this.loopStart;
-      case 'loopEnd':
-        return this.loopEnd;
-      case 'loopRampDuration':
-        return this.getLoopRampDuration();
-      case 'attack':
-        return this.getAttackTime();
-      case 'release':
-        return this.getReleaseTime();
-      case 'startPoint':
-        return this.getStartPoint();
-      case 'endPoint':
-        return this.getEndPoint();
-      case 'playbackRate':
-        return this.getPlaybackRate();
-      // case 'hpfCutoff':
-      //   return this.getHpfCutoff();
-      // case 'lpfCutoff':
-      //   return this.getLpfCutoff();
-      default:
-        console.warn(`Unknown parameter: ${name}`);
-        return undefined;
+  dispose(): void {
+    try {
+      this.releaseAll();
+
+      if (this.voicePool) {
+        this.voicePool.dispose();
+        this.voicePool = null as unknown as SampleVoicePool;
+      }
+
+      if (this.outBus) {
+        this.outBus.dispose();
+        this.outBus = null as unknown as InstrumentMasterBus;
+      }
+
+      this.#macroLoopStart?.dispose();
+      this.#macroLoopEnd?.dispose();
+
+      this.#macroLoopStart = null as unknown as MacroParam;
+      this.#macroLoopEnd = null as unknown as MacroParam;
+
+      // Reset state variables
+      this.#bufferDuration = 0;
+      this.#isReady = false;
+      this.#isLoaded = false;
+      this.#zeroCrossings = [];
+      this.#useZeroCrossings = false;
+      this.#loopEnabled = false;
+
+      this.audioContext = null as unknown as AudioContext;
+      this.messages = null as unknown as MessageBus<Message>;
+
+      // Detach keyboard handler
+      if (this.keyboardHandler) {
+        globalKeyboardInput.removeHandler(this.keyboardHandler);
+        this.keyboardHandler = null;
+      }
+
+      // todo: disableMIDI
+    } catch (error) {
+      console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }
-  }
-
-  setParameterValue(name: string, value: number): this {
-    switch (name) {
-      case 'attack':
-        this.setAttackTime(value);
-        break;
-      case 'release':
-        this.setReleaseTime(value);
-        break;
-      case 'startPoint':
-        this.setSampleStartPoint(value);
-        break;
-      case 'endPoint':
-        this.setSampleEndPoint(value);
-        break;
-      case 'playbackRate':
-        this.setPlaybackRate(value);
-        break;
-      case 'loopStart':
-        this.setLoopStart(value);
-        break;
-      case 'loopEnd':
-        this.setLoopEnd(value);
-        break;
-      case 'loopRampDuration':
-        this.setLoopRampDuration(value);
-        break;
-      default:
-        console.warn(`Unknown parameter: ${name}`);
-    }
-    return this;
-  }
-
-  setScale(scaleOptions: {
-    rootNote: string;
-    scalePattern: number[];
-    options?: any;
-  }) {
-    const { rootNote, scalePattern, options } = scaleOptions;
-
-    console.log(rootNote, scalePattern, {
-      snapToZeroCrossings: this.#zeroCrossings,
-      ...options,
-    });
-
-    //  Snap periods to zero crossings by default !
-    this.#macroLoopStart.setScale(rootNote, scalePattern, {
-      snapToZeroCrossings: this.#zeroCrossings,
-      ...options,
-    });
-    this.#macroLoopEnd.setScale(rootNote, scalePattern, {
-      snapToZeroCrossings: this.#zeroCrossings,
-      ...options,
-    });
-
-    // Note: MacroParam's setScale returns the calculated zero-snapped values that could be cached.
-
-    return this;
   }
 }

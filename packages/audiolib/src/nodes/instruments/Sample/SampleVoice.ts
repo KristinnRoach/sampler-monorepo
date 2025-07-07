@@ -231,21 +231,28 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // !!! TESTING direct ramping from 1 to current value
 
-    if (this.#loopEnabled && options.currentLoopEnd) {
+    const doIt = false;
+    if (doIt && this.#loopEnabled && options.currentLoopEnd) {
       const loopEndParam = this.getParam('loopEnd')!;
-      const currLoopEnd = loopEndParam.value;
-      console.log('currLoopEnd', currLoopEnd); // !! WRONG.. passing currentLoopEnd from SamplePlayer for testing, but still need to figure this out
+      // const currLoopEnd = loopEndParam.value;
+      // console.log('currLoopEnd', currLoopEnd); // !! WRONG.. passing currentLoopEnd from SamplePlayer for testing, but still need to figure this out
       console.log('macroLoopEnd: ', options.currentLoopEnd);
-
-      const startVal = Math.min(1, 1 - options.currentLoopEnd * 2);
-
+      const startVal = Math.min(1, options.currentLoopEnd + 0.001); // Math.max(0, Math.min(1, 1 - options.currentLoopEnd * 3));
       console.log('startVal', startVal);
-      loopEndParam.cancelScheduledValues(timestamp + 0.001);
-      loopEndParam.setValueAtTime(startVal, timestamp + 0.003);
+
+      loopEndParam.cancelScheduledValues(timestamp);
+      loopEndParam.setValueAtTime(startVal, timestamp);
+
       loopEndParam.exponentialRampToValueAtTime(
         options.currentLoopEnd,
-        timestamp + 0.3
+        timestamp + 0.3 //  + Math.random() * 0.3
       );
+
+      // loopEndParam.setTargetAtTime(
+      //   options.currentLoopEnd,
+      //   timestamp + 0.3 + Math.random() * 0.3,
+      //   playbackRate / 23
+      // );
     }
 
     this.sendUpstreamMessage('sample-envelopes:trigger', {
