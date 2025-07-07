@@ -34,7 +34,7 @@ export class SamplePlayer extends LibInstrument {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
-  // #loopEndEnvelope: CustomEnvelope;
+  #loopEndEnvelope: CustomEnvelope;
 
   #isReady = false;
   #isLoaded = false;
@@ -77,7 +77,12 @@ export class SamplePlayer extends LibInstrument {
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
 
-    this.#connectVoicesToMacros(); // !! Disconnect IF using voice period quantization
+    this.#loopEndEnvelope = new CustomEnvelope(context, 'loop-env');
+
+    // !! Disabling for now
+    this.#loopEndEnvelope.disable();
+
+    this.#connectVoicesToMacros();
 
     // Connect audiochain -- todo after generalizing voice pool
 
@@ -170,6 +175,12 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
+    // Set loop-env duration // todo: should scale with playrate ?
+    if (this.#loopEndEnvelope) {
+      this.#loopEndEnvelope.setSampleDuration(bufferDuration);
+    }
+
+    // Reset MacroParams
     const normalizedLoopEnd = 1;
     const normalizedLoopStart = 0;
 
@@ -184,11 +195,17 @@ export class SamplePlayer extends LibInstrument {
       to: [0, 1],
     };
 
-    this.setScale('C', [0], {
+    const defaultScaleOptions = {
+      rootNote: 'C',
+      scalePattern: [0],
       lowestOctave: 0,
-      highestOctave: 5,
-      normalize: normalizeOptions,
-    });
+      highestOctave: 6,
+      options: {
+        normalize: normalizeOptions,
+      },
+    };
+
+    this.setScale(defaultScaleOptions);
 
     return this;
   }
@@ -299,29 +316,28 @@ export class SamplePlayer extends LibInstrument {
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
+    if (this.#loopEndEnvelope?.isEnabled && this.#loopEnabled) {
+      const baseLoopEnd = this.getStoredParamValue('loopEnd', 1.0);
+      // this.#macroLoopEnd.audioParam.cancelScheduledValues(this.now);
+      // this.#macroLoopEnd.audioParam.setValueAtTime(baseLoopEnd, this.now); // ! this causes "overlap" scheduling error
+      const minLoopEnd = this.loopStart + 0.01;
+
+      this.#loopEndEnvelope.applyToAudioParam(
+        this.#macroLoopEnd.audioParam,
+        this.now,
+        {
+          baseValue: baseLoopEnd,
+          minValue: minLoopEnd,
+          maxValue: this.#bufferDuration,
+        }
+      );
+    }
+
     return this.voicePool.noteOn(
       midiNote,
       safeVelocity,
       0 // zero delay
     );
-
-    // if (this.#loopEnabled) {
-    //   const baseLoopEnd = this.getStoredParamValue('loopEnd', 1.0);
-    //   // this.#macroLoopEnd.audioParam.cancelScheduledValues(this.now);
-    //   // this.#macroLoopEnd.audioParam.setValueAtTime(baseLoopEnd, this.now); // ! this causes "overlap" scheduling error
-    //   const minLoopEnd = this.loopStart + 0.01;
-
-    //   this.#loopEndEnvelope.applyToAudioParam(
-    //     this.#macroLoopEnd.audioParam,
-    //     this.now,
-    //     this.#bufferDuration,
-    //     {
-    //       baseValue: baseLoopEnd,
-    //       minValue: minLoopEnd,
-    //       maxValue: this.#bufferDuration,
-    //     }
-    //   );
-    // }
   }
 
   release(midiNote: MidiValue, modifiers?: PressedModifiers): this {
@@ -540,7 +556,7 @@ export class SamplePlayer extends LibInstrument {
       return this;
     }
 
-    const RAMP_SENSITIVITY = 1;
+    const RAMP_SENSITIVITY = 1.5;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
@@ -630,7 +646,7 @@ export class SamplePlayer extends LibInstrument {
   };
 
   getEnvelope(envType: EnvelopeType): CustomEnvelope {
-    // if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro
+    if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro
 
     // Return the first voice's envelope as the "master" envelope
     const firstVoice = this.voicePool.allVoices[0];
@@ -648,7 +664,7 @@ export class SamplePlayer extends LibInstrument {
     mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
   ) => {
     if (envType === 'loop-env') {
-      // this.#loopEndEnvelope.setLoopEnabled(loop, mode);
+      this.#loopEndEnvelope.setLoopEnabled(loop, mode);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.setEnvelopeLoop(envType, loop, mode)
@@ -663,7 +679,7 @@ export class SamplePlayer extends LibInstrument {
     value: number
   ): void {
     if (envType === 'loop-env') {
-      // this.#loopEndEnvelope.updatePoint(index, time, value);
+      this.#loopEndEnvelope.updatePoint(index, time, value);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.updateEnvelopePoint(envType, index, time, value)
@@ -673,7 +689,7 @@ export class SamplePlayer extends LibInstrument {
 
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number): void {
     if (envType === 'loop-env') {
-      // this.#loopEndEnvelope.addPoint(time, value);
+      this.#loopEndEnvelope.addPoint(time, value);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.addEnvelopePoint(envType, time, value)
@@ -683,7 +699,7 @@ export class SamplePlayer extends LibInstrument {
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number): void {
     if (envType === 'loop-env') {
-      // this.#loopEndEnvelope.deletePoint(index);
+      this.#loopEndEnvelope.deletePoint(index);
     } else {
       this.voicePool.applyToAllVoices((v) =>
         v.deleteEnvelopePoint(envType, index)
@@ -866,18 +882,29 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setScale(rootNote: string, scalePattern: number[], options?: any): this {
-    // Existing code to set scale on macros
-    this.#macroLoopStart.setScale(rootNote, scalePattern, options);
-    this.#macroLoopEnd.setScale(rootNote, scalePattern, options);
+  setScale(scaleOptions: {
+    rootNote: string;
+    scalePattern: number[];
+    options?: any;
+  }) {
+    const { rootNote, scalePattern, options } = scaleOptions;
 
-    // Get the periods from the snapper
-    const periods = this.#macroLoopEnd.snapper.periods;
+    console.log(rootNote, scalePattern, {
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
 
-    // ! Pass to voices IF they individually handle period quantization (snapping)
-    this.voicePool.applyToAllVoices((voice) =>
-      voice.setAllowedPeriods(periods)
-    );
+    //  Snap periods to zero crossings by default !
+    this.#macroLoopStart.setScale(rootNote, scalePattern, {
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
+    this.#macroLoopEnd.setScale(rootNote, scalePattern, {
+      snapToZeroCrossings: this.#zeroCrossings,
+      ...options,
+    });
+
+    // Note: MacroParam's setScale returns the calculated zero-snapped values that could be cached.
 
     return this;
   }
