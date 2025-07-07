@@ -79,8 +79,7 @@ export class SamplePlayer extends LibInstrument {
 
     this.#loopEndEnvelope = new CustomEnvelope(context, 'loop-env');
 
-    // !! Disabling for now
-    this.#loopEndEnvelope.disable();
+    this.#loopEndEnvelope.disable(); // !! Remember to enable or remove
 
     this.#connectVoicesToMacros();
 

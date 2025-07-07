@@ -225,6 +225,9 @@ export class CustomEnvelope {
       case 'filter-env':
         this.#paramName = 'lpf';
         break;
+      case 'loop-env':
+        this.#paramName = 'loopEnd';
+        break;
       default:
         console.error(
           `CustomEnvelope not implemented for type: ${envelopeType}`
