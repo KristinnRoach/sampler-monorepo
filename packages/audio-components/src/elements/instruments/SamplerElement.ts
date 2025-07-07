@@ -36,7 +36,7 @@ const SamplerElement = (attributes: ElementProps) => {
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
   const filterEnvelope = van.state<CustomEnvelope | null>(null);
-  const loopEnvelope = van.state<CustomEnvelope | null>(null);
+  // const loopEnvelope = van.state<CustomEnvelope | null>(null);
 
   // Pitch params
   // const transposition = van.state(0);
@@ -44,7 +44,6 @@ const SamplerElement = (attributes: ElementProps) => {
   // Loop params
   const loopStart = van.state(0);
   const loopEnd = van.state(1);
-  const loopEndFineTune = van.state(0);
 
   // Trim sample params
   const startPoint = van.state(0);

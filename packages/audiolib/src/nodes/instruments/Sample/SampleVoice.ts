@@ -181,6 +181,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     midiNote: MidiValue;
     velocity: MidiValue;
     secondsFromNow?: number;
+    currentLoopEnd?: number;
   }): MidiValue | null {
     const {
       midiNote = 60,
@@ -227,6 +228,25 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       type: 'voice:start',
       timestamp,
     });
+
+    // !!! TESTING direct ramping from 1 to current value
+
+    if (this.#loopEnabled && options.currentLoopEnd) {
+      const loopEndParam = this.getParam('loopEnd')!;
+      const currLoopEnd = loopEndParam.value;
+      console.log('currLoopEnd', currLoopEnd); // !! WRONG.. passing currentLoopEnd from SamplePlayer for testing, but still need to figure this out
+      console.log('macroLoopEnd: ', options.currentLoopEnd);
+
+      const startVal = Math.min(1, 1 - options.currentLoopEnd * 2);
+
+      console.log('startVal', startVal);
+      loopEndParam.cancelScheduledValues(timestamp + 0.001);
+      loopEndParam.setValueAtTime(startVal, timestamp + 0.003);
+      loopEndParam.exponentialRampToValueAtTime(
+        options.currentLoopEnd,
+        timestamp + 0.3
+      );
+    }
 
     this.sendUpstreamMessage('sample-envelopes:trigger', {
       voiceId: this.nodeId,
@@ -569,7 +589,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
             this.setStartPoint(0);
             this.setEndPoint(1); // normalized !
 
-            this.setParam('loopEnd', 0, this.now); // ! Why can this not be set to 1 ??
+            // Initialize loopEnd to 0 to force the macro parameter to update
+            // This ensures the macro's value (1) will be applied when connected
+            this.setParam('loopEnd', 0, this.now);
           }
           break;
 

@@ -34,7 +34,6 @@ export class SamplePlayer extends LibInstrument {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
-  #loopEndEnvelope: CustomEnvelope;
 
   #isReady = false;
   #isLoaded = false;
@@ -76,10 +75,6 @@ export class SamplePlayer extends LibInstrument {
       context,
       DEFAULT_PARAM_DESCRIPTORS.LOOP_END
     );
-
-    this.#loopEndEnvelope = new CustomEnvelope(context, 'loop-env');
-
-    this.#loopEndEnvelope.disable(); // !! Remember to enable or remove
 
     this.#connectVoicesToMacros();
 
@@ -170,24 +165,40 @@ export class SamplePlayer extends LibInstrument {
       }
     });
 
+    //   if (loopStartParam) {
+    //     this.#macroLoopStart.addTarget(loopStartParam, 'loopStart');
+    //     // Force immediate update to ensure synchronization
+    //     loopStartParam.setValueAtTime(
+    //       this.#macroLoopStart.getValue(),
+    //       this.now
+    //     );
+    //   } else {
+    //     console.error('loopStart param is null!');
+    //   }
+
+    //   if (loopEndParam) {
+    //     this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
+    //     // Force immediate update to ensure synchronization
+    //     loopEndParam.setValueAtTime(this.#macroLoopEnd.getValue(), this.now);
+    //   } else {
+    //     console.error('loopEnd param is null!');
+    //   }
+    // });
+
     return this;
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    // Set loop-env duration // todo: should scale with playrate ?
-    if (this.#loopEndEnvelope) {
-      this.#loopEndEnvelope.setSampleDuration(bufferDuration);
-    }
-
+    // !! UPDATING (also in connectVoicesToMacros and samplevoice)
     // Reset MacroParams
-    const normalizedLoopEnd = 1;
-    const normalizedLoopStart = 0;
+    // const normalizedLoopEnd = 1;
+    // const normalizedLoopStart = 0;
 
-    this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
-    this.#macroLoopStart.audioParam.setValueAtTime(
-      normalizedLoopStart,
-      this.now
-    );
+    // this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
+    // this.#macroLoopStart.audioParam.setValueAtTime(
+    //   normalizedLoopStart,
+    //   this.now
+    // );
 
     const normalizeOptions: NormalizeOptions = {
       from: [0, bufferDuration],
@@ -315,27 +326,11 @@ export class SamplePlayer extends LibInstrument {
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
-    if (this.#loopEndEnvelope?.isEnabled && this.#loopEnabled) {
-      const baseLoopEnd = this.getStoredParamValue('loopEnd', 1.0);
-      // this.#macroLoopEnd.audioParam.cancelScheduledValues(this.now);
-      // this.#macroLoopEnd.audioParam.setValueAtTime(baseLoopEnd, this.now); // ! this causes "overlap" scheduling error
-      const minLoopEnd = this.loopStart + 0.01;
-
-      this.#loopEndEnvelope.applyToAudioParam(
-        this.#macroLoopEnd.audioParam,
-        this.now,
-        {
-          baseValue: baseLoopEnd,
-          minValue: minLoopEnd,
-          maxValue: this.#bufferDuration,
-        }
-      );
-    }
-
     return this.voicePool.noteOn(
       midiNote,
       safeVelocity,
-      0 // zero delay
+      0, // zero delay
+      this.#macroLoopEnd.getValue()
     );
   }
 
@@ -558,7 +553,8 @@ export class SamplePlayer extends LibInstrument {
     const RAMP_SENSITIVITY = 1.5;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-    if (loopPoint === 'start' && normalizedLoopStart !== this.loopStart) {
+    if (loopPoint === 'start') {
+      // && normalizedLoopStart !== this.loopStart) {
       const storeLoopStart = () =>
         this.storeParamValue('loopStart', normalizedLoopStart);
 
@@ -570,7 +566,8 @@ export class SamplePlayer extends LibInstrument {
           onComplete: storeLoopStart,
         }
       );
-    } else if (loopPoint === 'end' && normalizedLoopEnd !== this.loopEnd) {
+    } else if (loopPoint === 'end') {
+      // && normalizedLoopEnd !== this.loopEnd) {
       const storeLoopEnd = () =>
         this.storeParamValue('loopEnd', normalizedLoopEnd);
 
@@ -645,8 +642,6 @@ export class SamplePlayer extends LibInstrument {
   };
 
   getEnvelope(envType: EnvelopeType): CustomEnvelope {
-    if (envType === 'loop-env') return this.#loopEndEnvelope; // Applied to macro
-
     // Return the first voice's envelope as the "master" envelope
     const firstVoice = this.voicePool.allVoices[0];
     if (!firstVoice) throw new Error('No voices available in voice pool');
@@ -662,13 +657,9 @@ export class SamplePlayer extends LibInstrument {
     loop: boolean,
     mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
   ) => {
-    if (envType === 'loop-env') {
-      this.#loopEndEnvelope.setLoopEnabled(loop, mode);
-    } else {
-      this.voicePool.applyToAllVoices((v) =>
-        v.setEnvelopeLoop(envType, loop, mode)
-      );
-    }
+    this.voicePool.applyToAllVoices((v) =>
+      v.setEnvelopeLoop(envType, loop, mode)
+    );
   };
 
   updateEnvelopePoint(
@@ -677,33 +668,21 @@ export class SamplePlayer extends LibInstrument {
     time: number,
     value: number
   ): void {
-    if (envType === 'loop-env') {
-      this.#loopEndEnvelope.updatePoint(index, time, value);
-    } else {
-      this.voicePool.applyToAllVoices((v) =>
-        v.updateEnvelopePoint(envType, index, time, value)
-      );
-    }
+    this.voicePool.applyToAllVoices((v) =>
+      v.updateEnvelopePoint(envType, index, time, value)
+    );
   }
 
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number): void {
-    if (envType === 'loop-env') {
-      this.#loopEndEnvelope.addPoint(time, value);
-    } else {
-      this.voicePool.applyToAllVoices((v) =>
-        v.addEnvelopePoint(envType, time, value)
-      );
-    }
+    this.voicePool.applyToAllVoices((v) =>
+      v.addEnvelopePoint(envType, time, value)
+    );
   }
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number): void {
-    if (envType === 'loop-env') {
-      this.#loopEndEnvelope.deletePoint(index);
-    } else {
-      this.voicePool.applyToAllVoices((v) =>
-        v.deleteEnvelopePoint(envType, index)
-      );
-    }
+    this.voicePool.applyToAllVoices((v) =>
+      v.deleteEnvelopePoint(envType, index)
+    );
   }
 
   startLevelMonitoring(intervalMs?: number) {

@@ -227,6 +227,7 @@ export class CustomEnvelope {
         break;
       case 'loop-env':
         this.#paramName = 'loopEnd';
+        console.warn('CustomEnvelope not implemnted for type: loop-env');
         break;
       default:
         console.error(

@@ -150,7 +150,8 @@ export class SampleVoicePool {
   noteOn(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
-    secondsFromNow = 0
+    secondsFromNow = 0,
+    currentLoopEnd?: number
   ): MidiValue | null {
     const voice = this.allocate();
 
@@ -158,6 +159,7 @@ export class SampleVoicePool {
       midiNote: midiNote,
       velocity,
       secondsFromNow,
+      currentLoopEnd,
     });
 
     if (success) {
