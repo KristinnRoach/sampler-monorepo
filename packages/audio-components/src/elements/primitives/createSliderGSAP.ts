@@ -14,9 +14,22 @@ const { div, label } = van.tags;
 export const createSliderGSAP = (
   labelText: string,
   firstThumbState: State<number>,
-  secondThumbState: State<number>
+  secondThumbState: State<number>,
+  range: { min: number; max: number }
 ) => {
   const sliderElement = van.tags['slider-gsap']({});
+
+  //   // Wait for the custom element to be fully defined and connected
+  // await customElements.whenDefined('slider-gsap');
+  // // Small additional delay to ensure connectedCallback is complete
+  // await new Promise(resolve => setTimeout(resolve, 0));
+
+  // Defer the setRange call until after the element is fully connected
+  setTimeout(() => {
+    (sliderElement as any).setRange(range.min, range.max);
+    (sliderElement as any).setPosition(0, firstThumbState.val);
+    (sliderElement as any).setPosition(1, secondThumbState.val);
+  }, 0);
 
   // Add listener to the actual slider element
   (sliderElement as HTMLElement).addEventListener(
@@ -36,7 +49,7 @@ export const createSliderGSAP = (
     sliderElement
   );
 
-  return { container, sliderElement }; // Return both
+  return { container, sliderElement };
 };
 
 // export const createSliderGSAP = (

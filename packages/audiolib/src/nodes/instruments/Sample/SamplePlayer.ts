@@ -202,17 +202,12 @@ export class SamplePlayer extends LibInstrument {
     //   this.now
     // );
 
-    const normalizeOptions: NormalizeOptions = {
-      from: [0, bufferDuration],
-      to: [0, 1],
-    };
-
     const defaultScaleOptions = {
       rootNote: 'C',
       scale: [0],
       lowestOctave: 0,
       highestOctave: 6,
-      normalize: normalizeOptions,
+      normalize: false as NormalizeOptions | false,
     };
 
     this.setScale(defaultScaleOptions);
@@ -368,9 +363,9 @@ export class SamplePlayer extends LibInstrument {
     lowestOctave: number;
     normalize: NormalizeOptions | false;
   }) {
-    const { rootNote, scale: scalePattern, normalize } = options;
+    const { rootNote, scale: scalePattern } = options;
 
-    console.log(normalize);
+    console.log('setScale: Normalize options: ', options.normalize);
 
     console.warn(rootNote, scalePattern, {
       snapToZeroCrossings: this.#zeroCrossings,
@@ -484,34 +479,30 @@ export class SamplePlayer extends LibInstrument {
 
   readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
 
-  #getMinLoopDurationNormalized = () =>
-    this.MIN_LOOP_DURATION_SECONDS / this.#bufferDuration;
-
   setLoopStart = (
-    targetValue: number,
+    seconds: number,
     rampTime: number = this.getLoopRampDuration()
-  ) => this.setLoopPoint('start', targetValue, this.loopEnd, rampTime);
+  ) => this.setLoopPoint('start', seconds, this.loopEnd, rampTime);
 
   setLoopEnd = (
-    targetValue: number,
+    seconds: number,
     rampTime: number = this.getLoopRampDuration()
-  ) => this.setLoopPoint('end', this.loopStart, targetValue, rampTime);
+  ) => this.setLoopPoint('end', this.loopStart, seconds, rampTime);
 
   setLoopPoint(
     loopPoint: 'start' | 'end',
-    normalizedLoopStart: number,
-    normalizedLoopEnd: number,
+    loopStartSeconds: number,
+    loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    if (
-      !this.isNormalized(normalizedLoopStart) ||
-      !this.isNormalized(normalizedLoopEnd)
-    ) {
-      console.error(
-        `samplePlayer.setLoopPoint: Loop points must be in range 0-1`
-      );
-      return this;
-    }
+    // if (
+    //   loopStartSeconds > loopEndSeconds ||
+    //   loopEndSeconds < loopStartSeconds ||
+    //   loopEndSeconds > this.#bufferDuration
+    // ) {
+    //   console.error(`samplePlayer.setLoopPoint: Loop points out of bounds`);
+    //   return this;
+    // }
 
     const RAMP_SENSITIVITY = 1.5;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
@@ -519,12 +510,12 @@ export class SamplePlayer extends LibInstrument {
     if (loopPoint === 'start') {
       // && normalizedLoopStart !== this.loopStart) {
       const storeLoopStart = () =>
-        this.storeParamValue('loopStart', normalizedLoopStart);
+        this.storeParamValue('loopStart', loopStartSeconds);
 
       this.#macroLoopStart.ramp(
-        normalizedLoopStart,
+        loopStartSeconds,
         scaledRampTime,
-        normalizedLoopEnd,
+        loopEndSeconds,
         {
           onComplete: storeLoopStart,
         }
@@ -532,12 +523,12 @@ export class SamplePlayer extends LibInstrument {
     } else if (loopPoint === 'end') {
       // && normalizedLoopEnd !== this.loopEnd) {
       const storeLoopEnd = () =>
-        this.storeParamValue('loopEnd', normalizedLoopEnd);
+        this.storeParamValue('loopEnd', loopEndSeconds);
 
       this.#macroLoopEnd.ramp(
-        normalizedLoopEnd,
+        loopEndSeconds,
         scaledRampTime,
-        normalizedLoopStart,
+        loopStartSeconds,
         {
           onComplete: storeLoopEnd,
         }

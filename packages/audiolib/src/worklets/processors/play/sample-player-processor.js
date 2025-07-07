@@ -38,26 +38,26 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         name: 'loopStart',
         defaultValue: 0,
         minValue: 0,
-        maxValue: 1,
+        maxValue: 99999, // Max sample length in seconds
         automationRate: 'k-rate',
       },
       {
         name: 'loopEnd',
-        defaultValue: 1,
+        defaultValue: 99999, // Will be set to actual buffer duration when loaded
         minValue: 0,
-        maxValue: 1,
+        maxValue: 99999,
         automationRate: 'k-rate',
       },
       {
         name: 'startPoint',
         defaultValue: 0,
         minValue: 0,
-        maxValue: 9999,
+        maxValue: 9999, // Max sample length in seconds
         automationRate: 'k-rate',
       },
       {
         name: 'endPoint',
-        defaultValue: 1,
+        defaultValue: 9999, // Will be set to actual buffer duration when loaded
         minValue: 0,
         maxValue: 9999,
         automationRate: 'k-rate',
@@ -282,17 +282,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Convert normalized time (0-1) to absolute seconds based on buffer duration
-   * @param {number} normalizedTime - Time as 0-1 value
-   * @returns {number} - Time in seconds
-   */
-  #normalizedToSeconds(normalizedTime) {
-    if (!this.buffer || !this.buffer[0]) return 0;
-    const bufferDurationSec = this.buffer[0].length / sampleRate;
-    return normalizedTime * bufferDurationSec;
-  }
-
-  /**
    * Convert MIDI velocity (0-127) to gain multiplier (0-1)
    * @param {number} midiVelocity - MIDI velocity 0-127
    * @returns {number} - Gain multiplier 0-1
@@ -326,8 +315,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const samples = {
       startPointSamples: Math.floor(parameters.startPoint[0] * sampleRate),
       endPointSamples: Math.floor(parameters.endPoint[0] * sampleRate),
-      loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
-      loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
+      loopStartSamples: Math.floor(parameters.loopStart[0] * sampleRate),
+      loopEndSamples: Math.floor(parameters.loopEnd[0] * sampleRate),
     };
     return samples;
   }
