@@ -79,7 +79,10 @@ export class SamplePlayer extends LibInstrument {
 
     this.#loopEndEnvelope = new CustomEnvelope(context, 'loop-env');
 
-    this.#connectVoicesToMacros(); // !! Disconnect IF using voice period quantization
+    // !! Disabling for now
+    this.#loopEndEnvelope.disable();
+
+    this.#connectVoicesToMacros();
 
     // Connect audiochain -- todo after generalizing voice pool
 
@@ -173,7 +176,9 @@ export class SamplePlayer extends LibInstrument {
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
     // Set loop-env duration // todo: should scale with playrate ?
-    this.#loopEndEnvelope.setSampleDuration(bufferDuration);
+    if (this.#loopEndEnvelope) {
+      this.#loopEndEnvelope.setSampleDuration(bufferDuration);
+    }
 
     // Reset MacroParams
     const normalizedLoopEnd = 1;
@@ -311,7 +316,7 @@ export class SamplePlayer extends LibInstrument {
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
-    if (this.#loopEnabled) {
+    if (this.#loopEndEnvelope?.isEnabled && this.#loopEnabled) {
       const baseLoopEnd = this.getStoredParamValue('loopEnd', 1.0);
       // this.#macroLoopEnd.audioParam.cancelScheduledValues(this.now);
       // this.#macroLoopEnd.audioParam.setValueAtTime(baseLoopEnd, this.now); // ! this causes "overlap" scheduling error

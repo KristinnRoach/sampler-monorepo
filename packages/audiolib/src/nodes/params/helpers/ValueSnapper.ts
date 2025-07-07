@@ -73,11 +73,11 @@ export class ValueSnapper {
       // console.log('Zero Crossings: ', snapToZeroCrossings);
       // console.log('Before snapping: ', values);
 
-      values.forEach((v, idx) => {
+      values = values.map((v) => {
         const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
-        const snapped = this.snapToValue(v, snapToZeroCrossings, tolerance);
-        values[idx] = snapped;
+        return this.snapToValue(v, snapToZeroCrossings, tolerance);
       });
+
       // console.log('After snapping: ', values);
     }
 
@@ -127,11 +127,6 @@ export class ValueSnapper {
 
     // Find closest musical period to the target duration
     const quantized = findClosest(allowedPeriods, targetPeriod);
-    // const quantized = allowedPeriods.reduce((prev, curr) =>
-    //   Math.abs(curr - targetPeriod) < Math.abs(prev - targetPeriod)
-    //     ? curr
-    //     : prev
-    // );
 
     return quantized;
   }
@@ -157,3 +152,10 @@ export class ValueSnapper {
     return this.#allowedPeriods.length > 0;
   }
 }
+
+// Replaced with map in setAllowedPeriods, delete if no issues
+// values.forEach((v, idx) => {
+//   const tolerance = v < 0.01 ? v * 0.01 : v * 0.1; // 1% for periods < 10ms (~16 cents max), 10% for longer
+//   const snapped = this.snapToValue(v, snapToZeroCrossings, tolerance);
+//   values[idx] = snapped;
+// });
