@@ -5,7 +5,41 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, normalizedToSeconds_fn, midiVelocityToGain_fn, getBufferLengthSamples_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferLengthSamples_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn;
+class ValueSnapper {
+  constructor() {
+    this.allowedValues = [];
+    this.allowedPeriods = [];
+  }
+  setAllowedValues(values) {
+    this.allowedValues = [...values].sort((a, b) => a - b);
+  }
+  setAllowedPeriods(periods) {
+    this.allowedPeriods = [...periods].sort((a, b) => a - b);
+  }
+  snapToValue(target) {
+    if (this.allowedValues.length === 0) return target;
+    return this.allowedValues.reduce(
+      (prev, curr) => Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
+    );
+  }
+  snapToMusicalPeriod(periodToSnap) {
+    if (this.allowedPeriods.length === 0) return periodToSnap;
+    const closestPeriod = this.allowedPeriods.reduce(
+      (prev, curr) => Math.abs(curr - periodToSnap) < Math.abs(prev - periodToSnap) ? curr : prev
+    );
+    return closestPeriod;
+  }
+  get hasValueSnapping() {
+    return this.allowedValues.length > 0;
+  }
+  get hasPeriodSnapping() {
+    return this.allowedPeriods.length > 0;
+  }
+  get longestPeriod() {
+    return this.allowedPeriods[this.allowedPeriods.length - 1] || 0;
+  }
+}
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== CONSTRUCTOR =====
   constructor() {
@@ -14,6 +48,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     __privateAdd(this, _clamp, (value, min, max) => Math.max(min, Math.min(max, value)));
     __privateAdd(this, _clampZeroCrossing, (value) => __privateGet(this, _clamp).call(this, value, this.minZeroCrossing, this.maxZeroCrossing));
     this.buffer = null;
+    this.snapper = new ValueSnapper();
     this.playbackPosition = 0;
     this.transpositionPlaybackrate = 1;
     this.loopCount = 0;
@@ -54,7 +89,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: "velocity",
         defaultValue: 100,
-        // ? normalize ?
         minValue: 0,
         maxValue: 127,
         automationRate: "k-rate"
@@ -66,36 +100,37 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         maxValue: 8,
         automationRate: "k-rate"
       },
+      // NOTE: Time based params always use seconds
       {
         name: "loopStart",
         defaultValue: 0,
-        // normalized
         minValue: 0,
-        maxValue: 1,
+        maxValue: 99999,
+        // Max sample length in seconds
         automationRate: "k-rate"
       },
       {
         name: "loopEnd",
-        defaultValue: 1,
-        // normalized
+        defaultValue: 99999,
+        // Will be set to actual buffer duration when loaded
         minValue: 0,
-        maxValue: 1,
+        maxValue: 99999,
         automationRate: "k-rate"
       },
       {
         name: "startPoint",
         defaultValue: 0,
-        // normalized
         minValue: 0,
-        maxValue: 1,
+        maxValue: 9999,
+        // Max sample length in seconds
         automationRate: "k-rate"
       },
       {
         name: "endPoint",
-        defaultValue: 1,
-        // normalized
+        defaultValue: 9999,
+        // Will be set to actual buffer duration when loaded
         minValue: 0,
-        maxValue: 1,
+        maxValue: 9999,
         automationRate: "k-rate"
       }
     ];
@@ -103,6 +138,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== MAIN PROCESS METHOD =====
   process(inputs, outputs, parameters) {
     const output = outputs[0];
+    this.debugCounter++;
     if (!output || !this.isPlaying || !this.buffer) {
       return true;
     }
@@ -120,13 +156,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const numChannels = Math.min(output.length, this.buffer.length);
     for (let i = 0; i < output[0].length; i++) {
       if (this.loopEnabled && this.playbackPosition >= loopRange.loopEndSamples && this.loopCount < this.maxLoopCount) {
-        this.playbackPosition = loopRange.loopStartSamples;
-        this.loopCount++;
         this.port.postMessage({
           type: "voice:looped",
           count: this.loopCount,
-          timestamp: currentTime
+          timestamp: currentTime,
+          playbackPosition: this.playbackPosition,
+          loopEndSamples: loopRange.loopEndSamples,
+          loopStartSamples: loopRange.loopStartSamples
         });
+        this.playbackPosition = loopRange.loopStartSamples;
+        this.loopCount++;
       }
       if (this.playbackPosition >= playbackRange.endSamples) {
         __privateMethod(this, _SamplePlayerProcessor_instances, stop_fn).call(this);
@@ -165,11 +204,11 @@ handleMessage_fn = function(event) {
     type,
     value,
     buffer,
-    startPoint,
-    duration,
-    when,
+    timestamp,
+    durationSeconds,
     zeroCrossings,
-    semitones
+    semitones,
+    allowedPeriods
   } = event.data;
   switch (type) {
     case "voice:init":
@@ -182,7 +221,7 @@ handleMessage_fn = function(event) {
       this.buffer = buffer;
       this.port.postMessage({
         type: "voice:loaded",
-        duration,
+        durationSeconds,
         time: currentTime
       });
       break;
@@ -203,15 +242,21 @@ handleMessage_fn = function(event) {
         this.maxZeroCrossing = this.zeroCrossings[this.zeroCrossings.length - 1];
       }
       break;
+    case "setAllowedPeriods":
+      const periodsInSamples = allowedPeriods.map(
+        (periodSec) => periodSec * sampleRate
+      );
+      this.snapper.setAllowedPeriods(periodsInSamples);
+      break;
     case "voice:start":
       this.isReleasing = false;
       this.isPlaying = true;
       this.loopCount = 0;
-      this.startTime = when || currentTime;
+      this.startTime = timestamp || currentTime;
       this.playbackPosition = 0;
       this.port.postMessage({
         type: "voice:started",
-        time: currentTime
+        time: timestamp || currentTime
       });
       break;
     case "voice:release":
@@ -287,16 +332,6 @@ samplesToNormalized_fn = function(sampleIndex) {
   return sampleIndex / this.buffer[0].length;
 };
 /**
- * Convert normalized time (0-1) to absolute seconds based on buffer duration
- * @param {number} normalizedTime - Time as 0-1 value
- * @returns {number} - Time in seconds
- */
-normalizedToSeconds_fn = function(normalizedTime) {
-  if (!this.buffer || !this.buffer[0]) return 0;
-  const bufferDurationSec = this.buffer[0].length / sampleRate;
-  return normalizedTime * bufferDurationSec;
-};
-/**
  * Convert MIDI velocity (0-127) to gain multiplier (0-1)
  * @param {number} midiVelocity - MIDI velocity 0-127
  * @returns {number} - Gain multiplier 0-1
@@ -320,16 +355,16 @@ getBufferDurationSeconds_fn = function() {
   return __privateMethod(this, _SamplePlayerProcessor_instances, getBufferLengthSamples_fn).call(this) / sampleRate;
 };
 /**
- * Extract and convert all position parameters from normalized to samples
+ * Extract and convert all position parameters from seconds to samples
  * @param {Object} parameters - AudioWorkletProcessor parameters
  * @returns {Object} - Converted parameters in samples
  */
 extractPositionParams_fn = function(parameters) {
   const samples = {
-    startPointSamples: __privateMethod(this, _SamplePlayerProcessor_instances, normalizedToSamples_fn).call(this, parameters.startPoint[0]),
-    endPointSamples: __privateMethod(this, _SamplePlayerProcessor_instances, normalizedToSamples_fn).call(this, parameters.endPoint[0]),
-    loopStartSamples: __privateMethod(this, _SamplePlayerProcessor_instances, normalizedToSamples_fn).call(this, parameters.loopStart[0]),
-    loopEndSamples: __privateMethod(this, _SamplePlayerProcessor_instances, normalizedToSamples_fn).call(this, parameters.loopEnd[0])
+    startPointSamples: Math.floor(parameters.startPoint[0] * sampleRate),
+    endPointSamples: Math.floor(parameters.endPoint[0] * sampleRate),
+    loopStartSamples: Math.floor(parameters.loopStart[0] * sampleRate),
+    loopEndSamples: Math.floor(parameters.loopEnd[0] * sampleRate)
   };
   return samples;
 };
@@ -342,8 +377,8 @@ calculatePlaybackRange_fn = function(params) {
   const bufferLength = __privateMethod(this, _SamplePlayerProcessor_instances, getBufferLengthSamples_fn).call(this);
   const start = Math.max(0, params.startPointSamples);
   const end = params.endPointSamples > start ? Math.min(bufferLength, params.endPointSamples) : bufferLength;
-  const snappedStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, start);
-  const snappedEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, end);
+  const snappedStart = start;
+  const snappedEnd = end;
   return {
     startSamples: snappedStart,
     endSamples: snappedEnd,
@@ -360,18 +395,12 @@ calculateLoopRange_fn = function(params, playbackRange, originalParams) {
   const lpStart = params.loopStartSamples;
   const lpEnd = params.loopEndSamples;
   let calcLoopStart = lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
-  const bufferLengthSamples = __privateMethod(this, _SamplePlayerProcessor_instances, getBufferLengthSamples_fn).call(this);
-  let calcLoopEnd = lpEnd > lpStart && lpEnd <= bufferLengthSamples ? lpEnd : playbackRange.endSamples;
+  let calcLoopEnd = lpEnd > lpStart && lpEnd < playbackRange.endSamples ? lpEnd : playbackRange.endSamples;
   const loopDuration = calcLoopEnd - calcLoopStart;
-  const C3inSamples = 0.015288 * sampleRate;
-  if (loopDuration > C3inSamples) {
-    calcLoopStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopStart);
-    calcLoopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopEnd);
-  }
   return {
     loopStartSamples: calcLoopStart,
     loopEndSamples: calcLoopEnd,
-    loopDurationSamples: calcLoopEnd - calcLoopStart
+    loopDurationSamples: loopDuration
   };
 };
 registerProcessor("sample-player-processor", SamplePlayerProcessor);
