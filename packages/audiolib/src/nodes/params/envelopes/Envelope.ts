@@ -84,16 +84,16 @@ export class EnvelopeData {
 
     const sorted = [...this.points].sort((a, b) => a.time - b.time);
 
-    let finalTime: number;
+    let interpolatedValue: number;
 
     // Clamp to bounds
     if (timeSeconds <= sorted[0].time) {
-      finalTime = sorted[0].value;
+      interpolatedValue = sorted[0].value;
     } else if (timeSeconds >= sorted[sorted.length - 1].time) {
-      finalTime = sorted[sorted.length - 1].value;
+      interpolatedValue = sorted[sorted.length - 1].value;
     } else {
       // Find segment
-      finalTime = 0; // fallback
+      interpolatedValue = 0; // fallback
       for (let i = 0; i < sorted.length - 1; i++) {
         const left = sorted[i];
         const right = sorted[i + 1];
@@ -110,9 +110,10 @@ export class EnvelopeData {
             left.value > 0 &&
             right.value > 0
           ) {
-            finalTime = left.value * Math.pow(right.value / left.value, t);
+            interpolatedValue =
+              left.value * Math.pow(right.value / left.value, t);
           } else {
-            finalTime = left.value + (right.value - left.value) * t;
+            interpolatedValue = left.value + (right.value - left.value) * t;
           }
           break;
         }
@@ -121,7 +122,7 @@ export class EnvelopeData {
 
     // Scale value from 0-1 to target range (time remains absolute seconds)
     const [min, max] = this.#valueRange;
-    const result = min + finalTime * (max - min);
+    const result = min + interpolatedValue * (max - min);
 
     return result;
   }
@@ -519,10 +520,11 @@ export class CustomEnvelope {
     audioParam: AudioParam,
     startTime: number,
     options: {
-      baseValue?: number;
+      baseValue: number;
+      durationDivisor: number;
       minValue?: number;
       maxValue?: number;
-    } = { baseValue: 1 }
+    } = { baseValue: 1, durationDivisor: 1 }
   ) {
     this.stopLooping();
     this.#startLoop(audioParam, startTime, options);
