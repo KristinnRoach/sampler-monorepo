@@ -172,29 +172,32 @@ export class MacroParam {
   setScale(options: {
     rootNote: string;
     scale: keyof typeof SCALE_PATTERNS | number[];
+    tuningOffset: number;
     highestOctave: number;
     lowestOctave: number;
     snapToZeroCrossings: number[] | false;
     normalize: NormalizeOptions | false;
   }): number[] {
-    const { rootNote, scale, lowestOctave = 0, highestOctave = 8 } = options;
+    const {
+      rootNote,
+      scale,
+      tuningOffset = 0,
+      lowestOctave = 0,
+      highestOctave = 8,
+    } = options;
 
     const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
     return this.#snapper.setScale(
       rootNote,
       scalePattern,
+      tuningOffset,
       lowestOctave,
       highestOctave,
       options.normalize,
       options.snapToZeroCrossings
     );
   }
-
-  // // !! TEST:
-  // let direction: 'left' | 'right' | 'any' = 'any';
-  // // if (this.#paramType === 'loopStart') direction = 'right';
-  // if (this.#paramType === 'loopEnd') direction = 'left';
 
   // Delegate basic operations
   setValue(value: number): this {

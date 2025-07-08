@@ -8,7 +8,7 @@ import {
 import type { Scale } from '../types';
 
 /**
- * Creates a scale with frequencies, periods, and note names
+ * Returns a musical scale with frequencies, periods, and note names
  */
 export function createScale(
   rootNote: string,
@@ -58,6 +58,14 @@ export function createScale(
     scalePattern: pattern,
     noteNames,
   };
+}
+
+export function offsetPeriodsBySemitones(
+  periodsInSec: number[],
+  semitones: number
+): number[] {
+  const frequencyMultiplier = Math.pow(2, semitones / 12);
+  return periodsInSec.map((period) => period / frequencyMultiplier);
 }
 
 /**

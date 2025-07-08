@@ -1,4 +1,7 @@
-import { createScale } from '@/utils/music-theory/utils/scale-utils';
+import {
+  createScale,
+  offsetPeriodsBySemitones,
+} from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
 import { findClosest, findClosestNote, Note } from '@/utils';
 
@@ -33,6 +36,7 @@ export class ValueSnapper {
   setScale(
     rootNote: string,
     scalePattern: readonly number[] | number[],
+    tuningOffset: number = 0, // in semitones
     lowestOctave: number = 0,
     highestOctave: number = 8,
     normalize: NormalizeOptions | false,
@@ -42,7 +46,14 @@ export class ValueSnapper {
     const pattern = [...scalePattern];
 
     const scale = createScale(rootNote, pattern, lowestOctave, highestOctave);
-    const periodsInSeconds = scale.periodsInSec.sort((a, b) => a - b);
+    let periodsInSeconds = scale.periodsInSec.sort((a, b) => a - b);
+
+    if (tuningOffset !== 0) {
+      periodsInSeconds = offsetPeriodsBySemitones(
+        periodsInSeconds,
+        -tuningOffset // Offset by MINUS the current tuning
+      );
+    }
 
     return this.setAllowedPeriods(
       periodsInSeconds,

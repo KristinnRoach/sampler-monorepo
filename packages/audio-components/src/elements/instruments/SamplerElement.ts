@@ -76,7 +76,7 @@ const SamplerElement = (attributes: ElementProps) => {
     if (ampEnvelope.val && !ampEnvInstance && sampleDurationSeconds.val) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
-        ampEnvelope.val.points, // () => for reactive?
+        ampEnvelope.val.points, // todo: fix the mixing of van states and callbacks, choose one system
         sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
@@ -85,13 +85,18 @@ const SamplerElement = (attributes: ElementProps) => {
         handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
-        { x: [0, 1], y: [0, 1] }
+        { x: [0, 1], y: [0, 1] },
+        0.05,
+        true,
+        true,
+        true
+        // setEnvelopeTimeScale // ! TESTING
       );
     }
     if (filterEnvelope.val && !filterEnvInstance && sampleDurationSeconds.val) {
       filterEnvInstance = EnvelopeSVG(
         'filter-env',
-        filterEnvelope.val.points, // () => for reactive?
+        filterEnvelope.val.points,
         sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
@@ -428,6 +433,11 @@ const SamplerElement = (attributes: ElementProps) => {
   const disableEnvelope = (envType: EnvelopeType) => {
     if (!samplePlayer) return;
     samplePlayer.disableEnvelope(envType);
+  };
+
+  const setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
+    if (!samplePlayer) return;
+    samplePlayer.setEnvelopeTimeScale(envType, timeScale);
   };
 
   const handleEnvelopeChange = (

@@ -31,7 +31,6 @@ export class AudioParamController {
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
     if (scaleFactor === 1) {
-      // Connect ConstantSource directly to the AudioParam
       this.#constantSignal.connect(targetParam);
       this.#targets.push({ param: targetParam });
     } else {
@@ -87,7 +86,7 @@ export class AudioParamController {
   }
 
   get param(): AudioParam {
-    return this.#constantSignal.offset; // Use offset instead of gain
+    return this.#constantSignal.offset;
   }
 
   get value(): number {

@@ -184,13 +184,6 @@ export class EnvelopeData {
     return this.endTime - this.startTime;
   }
 
-  // get durationNormalized() {
-  //   return this.endTime - this.startTime;
-  // }
-  // get durationSeconds() {
-  //   return this.#durationSeconds; //* this.durationNormalized;
-  // }
-
   setDurationSeconds(seconds: number) {
     this.#durationSeconds = seconds;
   }
@@ -210,6 +203,8 @@ export class CustomEnvelope {
   #isEnabled: boolean;
   #loopEnabled = false;
   #syncedToPlaybackRate = false;
+
+  #timeScale = 1;
   #logarithmic = false;
 
   #stopLoopFn: (() => void) | null = null;
@@ -265,25 +260,39 @@ export class CustomEnvelope {
       durationSeconds,
       logarithmic
     );
-
-    // Bind data methods to this instance
-    this.addPoint = this.#data.addPoint.bind(this.#data);
-    this.updatePoint = this.#data.updatePoint.bind(this.#data);
-    this.deletePoint = this.#data.deletePoint.bind(this.#data);
-    this.updateStartPoint = this.#data.updateStartPoint.bind(this.#data);
-    this.updateEndPoint = this.#data.updateEndPoint.bind(this.#data);
-    this.getSVGPath = this.#data.getSVGPath.bind(this.#data);
-    this.setValueRange = this.#data.setValueRange.bind(this.#data);
   }
 
-  // Declare the bound methods (for TypeScript)
-  addPoint!: EnvelopeData['addPoint'];
-  updatePoint!: EnvelopeData['updatePoint'];
-  deletePoint!: EnvelopeData['deletePoint'];
-  updateStartPoint!: EnvelopeData['updateStartPoint'];
-  updateEndPoint!: EnvelopeData['updateEndPoint'];
-  getSVGPath!: EnvelopeData['getSVGPath'];
-  setValueRange!: EnvelopeData['setValueRange'];
+  // Delegate data operations to EnvelopeData // ? redundant ?
+  addPoint = (
+    time: number,
+    value: number,
+    curve?: 'linear' | 'exponential'
+  ): void => this.#data.addPoint(time * this.#timeScale, value, curve);
+
+  deletePoint = (index: number): void => this.#data.deletePoint(index);
+
+  updatePoint = (index: number, time?: number, value?: number) => {
+    this.#data.updatePoint(
+      index,
+      time ? time * this.#timeScale : undefined,
+      value
+    );
+  };
+
+  updateStartPoint = (time?: number, value?: number) =>
+    this.#data.updateStartPoint(time, value);
+
+  updateEndPoint = (time?: number, value?: number) =>
+    this.#data.updateEndPoint(time, value);
+
+  getSVGPath = (
+    width: number | undefined,
+    height: number | undefined,
+    durationSeconds: number
+  ): string => this.#data.getSVGPath(width, height, durationSeconds);
+
+  setValueRange = (range: [number, number]): [number, number] =>
+    this.#data.setValueRange(range);
 
   // Convenience ON/OFF methods
   enable = () => (this.#isEnabled = true);
@@ -305,9 +314,7 @@ export class CustomEnvelope {
   get points() {
     return this.#data.points;
   }
-  // get durationNormalized() {
-  //   return this.#data.durationNormalized;
-  // }
+
   get durationSeconds() {
     return this.#data.durationSeconds;
   }
@@ -384,24 +391,27 @@ export class CustomEnvelope {
       playbackRate: number;
     } = { baseValue: 1, playbackRate: 1 }
   ) {
+    // Scale the duration by the time scale
+    const scaledDuration = duration / this.#timeScale;
+
     const sampleRate = this.#logarithmic
-      ? duration < 1
+      ? scaledDuration < 1
         ? 1000
         : 750 // Higher rates for log curves
       : this.#data.hasSharpTransitions
         ? 1000
-        : duration < 1
+        : scaledDuration < 1
           ? 500
           : 250;
 
-    const numSamples = Math.max(2, Math.floor(duration * sampleRate));
+    const numSamples = Math.max(2, Math.floor(scaledDuration * sampleRate));
     const curve = new Float32Array(numSamples);
 
     const { baseValue: base, minValue: min, maxValue: max } = options;
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
-      const absoluteTime = normalizedProgress * duration; // Convert to seconds
+      const absoluteTime = normalizedProgress * scaledDuration; // Convert to seconds
 
       const envelopeTime = absoluteTime * options.playbackRate;
       //     const currentDuration = this.#syncToPlaybackRate
@@ -424,7 +434,7 @@ export class CustomEnvelope {
     const safeStart = Math.max(this.#context.currentTime, startTime);
     try {
       audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueCurveAtTime(curve, safeStart, duration);
+      audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
       try {
@@ -433,7 +443,7 @@ export class CustomEnvelope {
         audioParam.setValueAtTime(currentValue, safeStart);
         audioParam.linearRampToValueAtTime(
           curve[curve.length - 1],
-          safeStart + duration
+          safeStart + scaledDuration
         );
       } catch (fallbackError) {
         try {
@@ -457,18 +467,26 @@ export class CustomEnvelope {
     audioParam.cancelScheduledValues(safeStart);
     audioParam.setValueAtTime(currentValue, safeStart);
 
+    const scaledDuration = duration / this.#timeScale;
+
     try {
       if (curve === 'exponential' && currentValue > 0.001 && targetValue > 0) {
         audioParam.exponentialRampToValueAtTime(
           targetValue,
-          safeStart + duration
+          safeStart + scaledDuration
         );
       } else {
-        audioParam.linearRampToValueAtTime(targetValue, safeStart + duration);
+        audioParam.linearRampToValueAtTime(
+          targetValue,
+          safeStart + scaledDuration
+        );
       }
     } catch (error) {
       console.warn('Failed to apply release:', error);
-      audioParam.linearRampToValueAtTime(targetValue, safeStart + duration);
+      audioParam.linearRampToValueAtTime(
+        targetValue,
+        safeStart + scaledDuration
+      );
     }
   }
 
@@ -489,9 +507,12 @@ export class CustomEnvelope {
     const scheduleNext = () => {
       if (!isLooping) return;
 
-      const currentDuration = this.#syncedToPlaybackRate
+      const baseDuration = this.#syncedToPlaybackRate
         ? this.#data.durationSeconds / options.playbackRate
         : this.#data.durationSeconds;
+
+      // Apply time scale to the loop duration
+      const currentDuration = baseDuration / this.#timeScale;
 
       this.#applyEnvelope(
         audioParam,
@@ -545,7 +566,21 @@ export class CustomEnvelope {
     }
   }
 
-  // ===== LOOP CONTROL =====
+  // ===== LOOP / TIME CONTROL =====
+
+  setTimeScale = (timeScale: number) => {
+    this.#timeScale = timeScale;
+    console.warn(timeScale);
+    // For already looping envelopes, restart the loop with new timing
+    if (this.#stopLoopFn) {
+      // Store current loop state
+      // const wasLooping = true; // TODO: fix convoluted looping so we can easily update looping envelopes!
+      this.stopLooping();
+
+      // Note: To restart looping, the caller would need to call startLooping again
+    }
+  };
+
   setLoopEnabled = (
     enabled: boolean,
     mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'

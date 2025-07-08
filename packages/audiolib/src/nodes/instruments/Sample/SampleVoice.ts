@@ -371,6 +371,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#envelopes.get(envType)?.disable();
   };
 
+  setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
+    this.#envelopes.get(envType)?.setTimeScale(timeScale);
+  };
+
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
     const env = this.#envelopes.get(envType);
     if (env?.isEnabled) env.addPoint(time, value);

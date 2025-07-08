@@ -3,6 +3,11 @@ import van, { State } from '@repo/vanjs-core';
 import type { EnvelopePoint, EnvelopeType } from '@repo/audiolib';
 import { generateMidiNoteColors } from '../../utils/generateColors';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
+import { defineElement } from '../elementRegistry.ts';
+import {
+  KnobElement,
+  type KnobChangeEventDetail,
+} from '../primitives/KnobElement.ts';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
@@ -39,7 +44,9 @@ export const EnvelopeSVG = (
   snapThreshold = 0.025,
   enabled = true,
   initialLoopState = false,
-  multiColorPlayheads = true
+  multiColorPlayheads = true,
+
+  setEnvelopeTimeScale?: (envType: EnvelopeType, timeScale: number) => void // ! Testing
 ): EnvelopeSVG => {
   if (!initialPoints.length) {
     const emptyDiv = div(
@@ -352,7 +359,7 @@ export const EnvelopeSVG = (
     border-radius: 50%; 
     cursor: pointer; 
     z-index: 10;
-    background: ${syncToPlaybackRate.val ? '#ff6b6b' : '#666'};
+    background: ${syncToPlaybackRate.val ? '#336bcc' : '#666'};
   `,
     title: () => (syncToPlaybackRate.val ? 'Disable sync' : 'Enable sync'),
     onclick: () => {
@@ -363,7 +370,7 @@ export const EnvelopeSVG = (
   // Create container div
   const container = div(
     {
-      style: `position: relative; display: inline-block; width: ${width}; height: ${height};`,
+      style: `position: relative; display: inline-block; width: ${width}; height: ${height}; `,
     },
     enabledToggleBtn,
     loopToggleBtn,
@@ -372,6 +379,31 @@ export const EnvelopeSVG = (
 
   // Manually append the SVG element to avoid namespace issues
   container.appendChild(svgElement);
+
+  // ! === ! TESTING TimeScale ! == (cleanup after!)
+  if (setEnvelopeTimeScale !== undefined) {
+    defineElement('knob-element', KnobElement);
+    const knobElement: HTMLElement = document.createElement('knob-element');
+    knobElement.setAttribute('min-value', '1');
+    knobElement.setAttribute('max-value', '10'); // Todo: set the scaling (undo the 'curve' used for looppoints)
+    knobElement.setAttribute('snap-increment', '0.1');
+    knobElement.setAttribute('width', '45');
+    knobElement.setAttribute('height', '45');
+    knobElement.setAttribute('default-value', '1');
+    knobElement.style.marginTop = '10px';
+    knobElement.className = 'time-scale';
+
+    (knobElement as HTMLElement).addEventListener(
+      'knob-change',
+      (e: CustomEvent) => {
+        if (!knobElement) return;
+        const msg: KnobChangeEventDetail = e.detail;
+        setEnvelopeTimeScale(envelopeType, msg.value);
+      }
+    );
+    container.appendChild(knobElement);
+  }
+  // ! === ! END TESTING TimeScale ! == (cleanup after!)
 
   // Add event listeners
   svgElement.addEventListener('mousemove', handleMouseMove);
