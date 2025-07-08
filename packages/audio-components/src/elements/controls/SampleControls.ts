@@ -61,12 +61,13 @@ export const SampleControls = (
 
   // Update loopEnd when either loopPoint thumb or knob offset changes
   van.derive(() => {
-    console.log(
-      'loopEndSliderThumb.val',
-      loopEndSliderThumb.val,
-      'loopEndSeconds.val',
-      loopEndSeconds.val
-    );
+    // Todo: make knob properly update loopEnd when rolling back to 0
+    // console.log(
+    //   'loopEndSliderThumb.val',
+    //   loopEndSliderThumb.val,
+    //   'loopEndSeconds.val',
+    //   loopEndSeconds.val
+    // );
     const proposedLoopEnd = loopEndSliderThumb.val - loopEndKnobOffset.val;
     const minLoopEnd = loopStartSeconds.val + minLoopDurationSec;
     loopEndSeconds.val = Math.max(proposedLoopEnd, minLoopEnd);

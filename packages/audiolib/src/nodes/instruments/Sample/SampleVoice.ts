@@ -72,10 +72,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       processorOptions: options.processorOptions || {},
     });
 
-    const ampEnv = createEnvelope(context, 'amp-env');
+    const ampEnv = createEnvelope(context, 'amp-env', { durationSeconds: 0 }); // Duration must be set when sample is loaded
     this.#envelopes.set('amp-env', ampEnv);
 
-    const pitchEnv = createEnvelope(context, 'pitch-env');
+    const pitchEnv = createEnvelope(context, 'pitch-env', {
+      durationSeconds: 0, // set when loaded
+    });
     this.#envelopes.set('pitch-env', pitchEnv);
 
     this.#filtersEnabled = options.enableFilters ?? true;
@@ -162,6 +164,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       });
     }
 
+    // Update UI envelope duration
+    this.sendUpstreamMessage('sample-envelopes:maxDuration', {
+      voiceId: this.nodeId,
+      durationSeconds: buffer.duration,
+    });
+
     return true;
   }
 
@@ -220,48 +228,47 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       timestamp
     );
 
-    // Apply amp, filter and pitch envelopes if enabled
-    this.applyEnvelopes(timestamp, this.#sampleDurationSeconds, playbackRate);
-
     // Start playback
     this.sendToProcessor({
       type: 'voice:start',
       timestamp,
     });
 
-    // !!! TESTING direct ramping from 1 to current value
+    // Apply amp, filter and pitch envelopes if enabled
+    this.applyEnvelopes(timestamp, playbackRate);
 
-    const doIt = false;
-    if (doIt && this.#loopEnabled && options.currentLoopEnd) {
-      const loopEndParam = this.getParam('loopEnd')!;
-      // const currLoopEnd = loopEndParam.value;
-      // console.log('currLoopEnd', currLoopEnd); // !! WRONG.. passing currentLoopEnd from SamplePlayer for testing, but still need to figure this out
-      console.log('macroLoopEnd: ', options.currentLoopEnd);
-      const startVal = Math.min(1, options.currentLoopEnd + 0.001); // Math.max(0, Math.min(1, 1 - options.currentLoopEnd * 3));
-      console.log('startVal', startVal);
+    return this.#activeMidiNote;
+  }
 
-      loopEndParam.cancelScheduledValues(timestamp);
-      loopEndParam.setValueAtTime(startVal, timestamp);
+  applyEnvelopes(timestamp: number, playbackRate: number) {
+    this.#envelopes.forEach((env, envType) => {
+      if (!env.isEnabled) return;
 
-      loopEndParam.exponentialRampToValueAtTime(
-        options.currentLoopEnd,
-        timestamp + 0.3 //  + Math.random() * 0.3
-      );
+      const param = this.getParam(env.param);
+      if (!param) return;
 
-      // loopEndParam.setTargetAtTime(
-      //   options.currentLoopEnd,
-      //   timestamp + 0.3 + Math.random() * 0.3,
-      //   playbackRate / 23
-      // );
-    }
+      if (env.hasVariation()) {
+        // ? Should amp-env need to have variation?
+        const baseValue = envType === 'pitch-env' ? playbackRate : 1;
+        const durationDivisor = playbackRate; // Currently all envelopes get divided by playbackRate
+
+        env.applyToAudioParam(param, timestamp, {
+          baseValue,
+          durationDivisor,
+        });
+      }
+    });
 
     this.sendUpstreamMessage('sample-envelopes:trigger', {
       voiceId: this.nodeId,
       midiNote: this.#activeMidiNote,
       envDurations: {
-        'amp-env': this.#envelopes.get('amp-env')?.durationSeconds,
-        'pitch-env': this.#envelopes.get('pitch-env')?.durationSeconds,
-        'filter-env': this.#envelopes.get('filter-env')?.durationSeconds,
+        'amp-env':
+          this.#envelopes.get('amp-env')?.durationSeconds! / playbackRate,
+        'pitch-env':
+          this.#envelopes.get('pitch-env')?.durationSeconds! / playbackRate,
+        'filter-env':
+          this.#envelopes.get('filter-env')?.durationSeconds! / playbackRate,
       },
       loopEnabled: {
         'amp-env': this.#envelopes.get('amp-env')?.loopEnabled,
@@ -269,33 +276,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         'filter-env': this.#envelopes.get('filter-env')?.loopEnabled,
       },
     });
-
-    return this.#activeMidiNote;
   }
 
-  applyEnvelopes(
-    timestamp: number,
-    durationSeconds: number,
-    playbackRate: number
-  ) {
-    this.#envelopes.forEach((env, envType) => {
-      if (!env.isEnabled) return; // ?
-
-      const scaledDuration = this.#sampleDurationSeconds / playbackRate;
-      if (envType !== 'filter-env') env.setSampleDuration(durationSeconds);
-      else env.setSampleDuration(scaledDuration);
-
-      const param = this.getParam(env.param);
-      if (!param) return;
-
-      if (env.hasVariation()) {
-        const baseValue = envType === 'pitch-env' ? playbackRate : 1;
-        env.applyToAudioParam(param, timestamp, {
-          baseValue,
-        });
-      }
-    });
-  }
+  // const scaledDuration = this.#sampleDurationSeconds / playbackRate;
+  // env.setSampleDuration(scaledDuration);
 
   debugDuration() {
     console.info(`
@@ -501,7 +485,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   setStartPoint = (time: number, timestamp = this.now) => {
     this.setParam('startPoint', time, timestamp);
 
-    // const playDuration = this.endPoint - time;
     // this.#ampEnv.updateStartPoint(time);
     // this.#pitchEnv.updateStartPoint(time); // filterenv
     // Todo: figure out this system
@@ -589,13 +572,16 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
             this.#activeMidiNote = null;
             this.#sampleDurationSeconds = data.durationSeconds;
 
-            this.#envelopes.forEach((env) =>
-              env.setSampleDuration(data.durationSeconds)
-            );
+            this.#envelopes.forEach((env) => {
+              // Update the max duration and end point of each envelope
+              env.setSampleDuration(data.durationSeconds);
+              env.updateEndPoint(data.durationSeconds);
+            });
 
             this.setStartPoint(0);
-            this.setEndPoint(1); // normalized !
+            this.setEndPoint(data.durationSeconds);
 
+            // ? Why is this necessary ?
             // Initialize loopEnd to 0 to force the macro parameter to update
             // This ensures the macro's value (1) will be applied when connected
             this.setParam('loopEnd', 0, this.now);
@@ -668,16 +654,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       this.sendUpstreamMessage(type, data);
     };
   }
-
-  #normalizedToAbsolute(normalizedTime: number): number {
-    return normalizedTime * this.#sampleDurationSeconds;
-  }
-
-  #absoluteToNormalized(absoluteTime: number): number {
-    return absoluteTime / this.#sampleDurationSeconds;
-  }
-  #clamp = (value: number, min: number, max: number) =>
-    Math.max(min, Math.min(max, value));
 
   // Getters
 
@@ -823,6 +799,32 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 }
 
+// // !!! TESTING direct ramping from 1 to current value
+
+// const doIt = false;
+// if (doIt && this.#loopEnabled && options.currentLoopEnd) {
+//   const loopEndParam = this.getParam('loopEnd')!;
+//   // const currLoopEnd = loopEndParam.value;
+//   // console.log('currLoopEnd', currLoopEnd); // !! WRONG.. passing currentLoopEnd from SamplePlayer for testing, but still need to figure this out
+//   console.log('macroLoopEnd: ', options.currentLoopEnd);
+//   const startVal = Math.min(1, options.currentLoopEnd + 0.001); // Math.max(0, Math.min(1, 1 - options.currentLoopEnd * 3));
+//   console.log('startVal', startVal);
+
+//   loopEndParam.cancelScheduledValues(timestamp);
+//   loopEndParam.setValueAtTime(startVal, timestamp);
+
+//   loopEndParam.exponentialRampToValueAtTime(
+//     options.currentLoopEnd,
+//     timestamp + 0.3 //  + Math.random() * 0.3
+//   );
+
+//   // loopEndParam.setTargetAtTime(
+//   //   options.currentLoopEnd,
+//   //   timestamp + 0.3 + Math.random() * 0.3,
+//   //   playbackRate / 23
+//   // );
+// }
+
 // addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
 //   this.envelopes.addEnvelopePoint(envType, time, value);
 // }
@@ -887,3 +889,13 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
 // this.envelopes.triggerEnvelopes(timestamp, playbackRate);
 // this.envelopes.releaseEnvelopes(timestamp, release);
+
+// #normalizedToAbsolute(normalizedTime: number): number {
+//   return normalizedTime * this.#sampleDurationSeconds;
+// }
+
+// #absoluteToNormalized(absoluteTime: number): number {
+//   return absoluteTime / this.#sampleDurationSeconds;
+// }
+// #clamp = (value: number, min: number, max: number) =>
+//   Math.max(min, Math.min(max, value));

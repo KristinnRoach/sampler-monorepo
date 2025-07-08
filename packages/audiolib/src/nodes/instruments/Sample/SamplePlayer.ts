@@ -113,7 +113,7 @@ export class SamplePlayer extends LibInstrument {
       'voice:releasing',
       'sample:loaded',
       'sample-envelopes:trigger',
-      'sample-envelopes:duration',
+      'sample-envelopes:maxDuration',
     ]);
 
     return this;
@@ -150,6 +150,12 @@ export class SamplePlayer extends LibInstrument {
   #connectVoicesToMacros(): this {
     const voices = this.voicePool.allVoices;
 
+    this.#macroLoopStart.audioParam.setValueAtTime(0, this.now);
+    this.#macroLoopEnd.audioParam.setValueAtTime(
+      this.#bufferDuration,
+      this.now
+    );
+
     voices.forEach((voice, index) => {
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
@@ -167,47 +173,21 @@ export class SamplePlayer extends LibInstrument {
       }
     });
 
-    //   if (loopStartParam) {
-    //     this.#macroLoopStart.addTarget(loopStartParam, 'loopStart');
-    //     // Force immediate update to ensure synchronization
-    //     loopStartParam.setValueAtTime(
-    //       this.#macroLoopStart.getValue(),
-    //       this.now
-    //     );
-    //   } else {
-    //     console.error('loopStart param is null!');
-    //   }
-
-    //   if (loopEndParam) {
-    //     this.#macroLoopEnd.addTarget(loopEndParam, 'loopEnd');
-    //     // Force immediate update to ensure synchronization
-    //     loopEndParam.setValueAtTime(this.#macroLoopEnd.getValue(), this.now);
-    //   } else {
-    //     console.error('loopEnd param is null!');
-    //   }
-    // });
-
     return this;
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    // !! UPDATING (also in connectVoicesToMacros and samplevoice)
     // Reset MacroParams
-    // const normalizedLoopEnd = 1;
-    // const normalizedLoopStart = 0;
 
-    // this.#macroLoopEnd.audioParam.setValueAtTime(normalizedLoopEnd, this.now);
-    // this.#macroLoopStart.audioParam.setValueAtTime(
-    //   normalizedLoopStart,
-    //   this.now
-    // );
+    this.#macroLoopStart.audioParam.setValueAtTime(0, this.now);
+    this.#macroLoopEnd.audioParam.setValueAtTime(bufferDuration, this.now);
 
     const defaultScaleOptions = {
       rootNote: 'C',
       scale: [0],
       lowestOctave: 0,
       highestOctave: 6,
-      normalize: false as NormalizeOptions | false,
+      normalize: false as NormalizeOptions | false, // All time params updated to seconds, normalizing logic can be removed
     };
 
     this.setScale(defaultScaleOptions);
@@ -221,7 +201,7 @@ export class SamplePlayer extends LibInstrument {
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = false
+    autoTranspose = true
   ): Promise<number> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -269,7 +249,6 @@ export class SamplePlayer extends LibInstrument {
       });
 
       if (autoTranspose) {
-        // ! Increase min confidence if getting many bad results
         if (pitchSource.confidence > 0.35) {
           let transposeSemitones = 60 - midiFloat;
           // Wrap to nearest octave (-6 to +6 semitones)
@@ -305,8 +284,6 @@ export class SamplePlayer extends LibInstrument {
     this.#bufferDuration = buffer.duration;
 
     this.#resetMacros(buffer.duration);
-
-    // this.#isLoaded = true; // Sent via message when all voices loaded
 
     return buffer.duration;
   }
@@ -363,16 +340,7 @@ export class SamplePlayer extends LibInstrument {
     lowestOctave: number;
     normalize: NormalizeOptions | false;
   }) {
-    const { rootNote, scale: scalePattern } = options;
-
-    console.log('setScale: Normalize options: ', options.normalize);
-
-    console.warn(rootNote, scalePattern, {
-      snapToZeroCrossings: this.#zeroCrossings,
-      ...options,
-    });
-
-    //  Snap periods to zero crossings by default !
+    // Todo: rethink zero-snapping, since the absolute zero-crossings depend on BOTH loopStart and loopEnd
     this.#macroLoopStart.setScale({
       snapToZeroCrossings: this.#zeroCrossings,
       ...options,
@@ -382,8 +350,8 @@ export class SamplePlayer extends LibInstrument {
       ...options,
     });
 
-    // Note: MacroParam's setScale returns the calculated zero-snapped values that could be cached.
-
+    // Note: MacroParam's setScale returns the periods,
+    // in case it is helpful to cache them here later
     return this;
   }
 
@@ -651,10 +619,10 @@ export class SamplePlayer extends LibInstrument {
         return this.getEndPoint();
       case 'playbackRate':
         return this.getPlaybackRate();
-      // case 'hpfCutoff':
-      //   return this.getHpfCutoff();
-      // case 'lpfCutoff':
-      //   return this.getLpfCutoff();
+      case 'hpfCutoff':
+        return this.getHpfCutoff();
+      case 'lpfCutoff':
+        return this.getLpfCutoff();
       default:
         console.warn(`Unknown parameter: ${name}`);
         return undefined;

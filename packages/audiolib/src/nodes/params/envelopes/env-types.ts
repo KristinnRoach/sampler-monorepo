@@ -6,7 +6,7 @@ export type EnvelopeType =
   | 'default';
 
 export type EnvelopePoint = {
-  time: number; // 0-1 normalized
-  value: number; // 0-1
+  time: number; // Absolute time in seconds
+  value: number; // 0-1 normalized
   curve?: 'linear' | 'exponential'; // Curve type to next point
 };
