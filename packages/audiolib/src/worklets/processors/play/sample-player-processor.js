@@ -1,4 +1,5 @@
 import { ValueSnapper } from '../shared/ValueSnapper';
+import { findClosest } from '../../../utils/search/findClosest';
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== PARAMETER DESCRIPTORS =====
@@ -32,32 +33,33 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         maxValue: 8,
         automationRate: 'k-rate',
       },
+      // NOTE: Time based params always use seconds
       {
         name: 'loopStart',
-        defaultValue: 0, // normalized
+        defaultValue: 0,
         minValue: 0,
-        maxValue: 1,
+        maxValue: 99999, // Max sample length in seconds
         automationRate: 'k-rate',
       },
       {
         name: 'loopEnd',
-        defaultValue: 1, // normalized
+        defaultValue: 99999, // Will be set to actual buffer duration when loaded
         minValue: 0,
-        maxValue: 1,
+        maxValue: 99999,
         automationRate: 'k-rate',
       },
       {
         name: 'startPoint',
-        defaultValue: 0, // normalized
+        defaultValue: 0,
         minValue: 0,
-        maxValue: 1,
+        maxValue: 9999, // Max sample length in seconds
         automationRate: 'k-rate',
       },
       {
         name: 'endPoint',
-        defaultValue: 1, // normalized
+        defaultValue: 9999, // Will be set to actual buffer duration when loaded
         minValue: 0,
-        maxValue: 1,
+        maxValue: 9999,
         automationRate: 'k-rate',
       },
     ];
@@ -280,17 +282,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Convert normalized time (0-1) to absolute seconds based on buffer duration
-   * @param {number} normalizedTime - Time as 0-1 value
-   * @returns {number} - Time in seconds
-   */
-  #normalizedToSeconds(normalizedTime) {
-    if (!this.buffer || !this.buffer[0]) return 0;
-    const bufferDurationSec = this.buffer[0].length / sampleRate;
-    return normalizedTime * bufferDurationSec;
-  }
-
-  /**
    * Convert MIDI velocity (0-127) to gain multiplier (0-1)
    * @param {number} midiVelocity - MIDI velocity 0-127
    * @returns {number} - Gain multiplier 0-1
@@ -316,16 +307,16 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Extract and convert all position parameters from normalized to samples
+   * Extract and convert all position parameters from seconds to samples
    * @param {Object} parameters - AudioWorkletProcessor parameters
    * @returns {Object} - Converted parameters in samples
    */
   #extractPositionParams(parameters) {
     const samples = {
-      startPointSamples: this.#normalizedToSamples(parameters.startPoint[0]),
-      endPointSamples: this.#normalizedToSamples(parameters.endPoint[0]),
-      loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
-      loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
+      startPointSamples: Math.floor(parameters.startPoint[0] * sampleRate),
+      endPointSamples: Math.floor(parameters.endPoint[0] * sampleRate),
+      loopStartSamples: Math.floor(parameters.loopStart[0] * sampleRate),
+      loopEndSamples: Math.floor(parameters.loopEnd[0] * sampleRate),
     };
     return samples;
   }
@@ -344,8 +335,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         ? Math.min(bufferLength, params.endPointSamples)
         : bufferLength;
 
-    const snappedStart = this.#findNearestZeroCrossing(start);
-    const snappedEnd = this.#findNearestZeroCrossing(end);
+    const snappedStart = start; // findClosest(this.zeroCrossings, start, right); // this.#findNearestZeroCrossing(start);
+    const snappedEnd = end; // findClosest(this.zeroCrossings, left); // this.#findNearestZeroCrossing(end);
 
     return {
       startSamples: snappedStart,
@@ -381,8 +372,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     //   calcLoopEnd =
     //     calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
     // }
-    // calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart);
-    // calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd);
+    // calcLoopStart = findClosest(this.zeroCrossings, calcLoopStart, 'right');
+    // calcLoopEnd = findClosest(this.zeroCrossings, calcLoopEnd, 'right');
 
     return {
       loopStartSamples: calcLoopStart,

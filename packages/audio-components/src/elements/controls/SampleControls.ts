@@ -8,28 +8,35 @@ import {
 } from '../primitives/KnobElement.ts';
 
 export const SampleControls = (
-  loopStart: State<number>,
-  loopEnd: State<number>,
-  startPoint: State<number>,
-  endPoint: State<number>
+  loopStartSeconds: State<number>,
+  loopEndSeconds: State<number>,
+  startPointSeconds: State<number>,
+  endPointSeconds: State<number>,
+  sampleDurationSeconds: State<number>
 ) => {
-  // MUST use rawVal to avoid creating dependencies !!!
-  const initialLoopEnd = loopEnd.rawVal;
-  let initialThumbDistance = loopEnd.rawVal - loopStart.rawVal;
+  // Must use rawVal to avoid creating dependencies!
+  const initialLoopEnd = loopEndSeconds.rawVal;
+  let initialThumbDistance = loopEndSeconds.rawVal - loopStartSeconds.rawVal;
 
   const { div } = van.tags;
   defineElement('knob-element', KnobElement);
 
-  const minLoopDurationNorm = 0.001;
+  const minLoopDurationSec = 0.001;
 
   const loopEndSliderThumb = van.state(initialLoopEnd);
   let loopEndKnobOffset = van.state(0);
 
   const { container: loopSliderContainer, sliderElement: loopSliderEl } =
-    createSliderGSAP('Loop', loopStart, loopEndSliderThumb);
+    createSliderGSAP('Loop', loopStartSeconds, loopEndSliderThumb, {
+      min: 0,
+      max: sampleDurationSeconds.rawVal,
+    });
 
   const { container: trimSliderContainer, sliderElement: trimSliderEl } =
-    createSliderGSAP('Trim', startPoint, endPoint);
+    createSliderGSAP('Trim', startPointSeconds, endPointSeconds, {
+      min: 0,
+      max: sampleDurationSeconds.rawVal,
+    });
 
   const loopEndOffsetKnob = document.createElement(
     'knob-element'
@@ -54,13 +61,19 @@ export const SampleControls = (
 
   // Update loopEnd when either loopPoint thumb or knob offset changes
   van.derive(() => {
+    console.log(
+      'loopEndSliderThumb.val',
+      loopEndSliderThumb.val,
+      'loopEndSeconds.val',
+      loopEndSeconds.val
+    );
     const proposedLoopEnd = loopEndSliderThumb.val - loopEndKnobOffset.val;
-    const minLoopEnd = loopStart.val + minLoopDurationNorm;
-    loopEnd.val = Math.max(proposedLoopEnd, minLoopEnd);
+    const minLoopEnd = loopStartSeconds.val + minLoopDurationSec;
+    loopEndSeconds.val = Math.max(proposedLoopEnd, minLoopEnd);
   });
 
   const knobMaxValue = van.derive(() => {
-    const thumbDistance = loopEndSliderThumb.val - loopStart.val;
+    const thumbDistance = loopEndSliderThumb.val - loopStartSeconds.val;
     return Math.max(thumbDistance, 0.001);
   });
 
@@ -71,7 +84,7 @@ export const SampleControls = (
   const controls = div(
     { style: 'display: flex; flex-direction: column;' },
 
-    // Note: LoopPoint and Trim sliders use normalized range: 0 to 1
+    // Note: Time based sliders use absolute time in seconds
     div(
       {
         style:

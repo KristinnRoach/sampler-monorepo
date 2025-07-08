@@ -32,26 +32,25 @@ const SamplerElement = (attributes: ElementProps) => {
   const expanded = attributes.attr('expanded', 'true');
 
   // Audio params
-  const volume = van.state(0.5);
+  const volume = van.state(0.75);
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
   const filterEnvelope = van.state<CustomEnvelope | null>(null);
-  const loopEnvelope = van.state<CustomEnvelope | null>(null);
+  // const loopEnvelope = van.state<CustomEnvelope | null>(null);
 
   // Pitch params
   // const transposition = van.state(0);
 
   // Loop params
-  const loopStart = van.state(0);
-  const loopEnd = van.state(1);
-  const loopEndFineTune = van.state(0);
+  const loopStartSeconds = van.state(0);
+  const loopEndSeconds = van.state(0);
 
   // Trim sample params
-  const startPoint = van.state(0);
-  const endPoint = van.state(1);
+  const startPointSeconds = van.state(0);
+  const endPointSeconds = van.state(0);
 
   // Sample Duration
-  const sampleDuration = van.state(1);
+  const sampleDurationSeconds = van.state(0);
 
   // Control states
   const keyboardEnabled = van.state(true);
@@ -78,7 +77,7 @@ const SamplerElement = (attributes: ElementProps) => {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
         ampEnvelope.val.points, // () => for reactive?
-        sampleDuration.val,
+        sampleDurationSeconds.val,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
@@ -91,7 +90,7 @@ const SamplerElement = (attributes: ElementProps) => {
       filterEnvInstance = EnvelopeSVG(
         'filter-env',
         filterEnvelope.val.points, // () => for reactive?
-        sampleDuration.val,
+        sampleDurationSeconds.val,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
@@ -106,7 +105,7 @@ const SamplerElement = (attributes: ElementProps) => {
       pitchEnvInstance = EnvelopeSVG(
         'pitch-env',
         pitchEnvelope.val.points,
-        sampleDuration.val,
+        sampleDurationSeconds.val,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
@@ -153,26 +152,26 @@ const SamplerElement = (attributes: ElementProps) => {
 
         van.derive(() => {
           if (!samplePlayer) return;
-          if (loopStart.val !== samplePlayer.loopStart) {
-            samplePlayer.setLoopStart(loopStart.val);
+          if (loopStartSeconds.val !== samplePlayer.loopStart) {
+            samplePlayer.setLoopStart(loopStartSeconds.val);
           }
         });
 
         van.derive(() => {
           if (!samplePlayer) return;
-          if (loopEnd.val !== samplePlayer.loopEnd) {
-            samplePlayer.setLoopEnd(loopEnd.val);
+          if (loopEndSeconds.val !== samplePlayer.loopEnd) {
+            samplePlayer.setLoopEnd(loopEndSeconds.val);
           }
         });
 
         derive(() => {
           // if (samplePlayer?.isLoaded) {
-          samplePlayer?.setSampleStartPoint(startPoint.val);
+          samplePlayer?.setSampleStartPoint(startPointSeconds.val);
         });
 
         derive(() => {
           // if (samplePlayer?.isLoaded) {
-          samplePlayer?.setSampleEndPoint(endPoint.val);
+          samplePlayer?.setSampleEndPoint(endPointSeconds.val);
         });
 
         derive(() => {
@@ -210,7 +209,7 @@ const SamplerElement = (attributes: ElementProps) => {
             return;
           }
 
-          sampleDuration.val = msg.durationSeconds;
+          sampleDurationSeconds.val = msg.durationSeconds;
 
           ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
           filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
@@ -326,12 +325,12 @@ const SamplerElement = (attributes: ElementProps) => {
 
             if (durationSeconds > 0) {
               // Update sample duration and reset ranges
-              sampleDuration.val = durationSeconds;
+              sampleDurationSeconds.val = durationSeconds;
 
-              loopStart.val = 0;
-              loopEnd.val = 1; // Normalized
-              startPoint.val = 0;
-              endPoint.val = 1; // Normalized
+              loopStartSeconds.val = 0;
+              loopEndSeconds.val = durationSeconds;
+              startPointSeconds.val = 0;
+              endPointSeconds.val = durationSeconds;
 
               status.val = `Loaded: ${file.name}`;
               status.val = `Received duration from loadSample: ${durationSeconds}`;
@@ -583,7 +582,15 @@ const SamplerElement = (attributes: ElementProps) => {
             )
           : div(),
 
-      () => SampleControls(loopStart, loopEnd, startPoint, endPoint),
+      () =>
+        sampleDurationSeconds.val &&
+        SampleControls(
+          loopStartSeconds,
+          loopEndSeconds,
+          startPointSeconds,
+          endPointSeconds,
+          sampleDurationSeconds
+        ),
 
       div(
         { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },

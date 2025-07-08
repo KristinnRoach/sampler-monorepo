@@ -122,8 +122,6 @@ export class MacroParam {
     ) {
       const quantizedPeriod = this.#snapper.snapToMusicalPeriod(targetPeriod);
 
-      // this.#debugProcessedValue(targetPeriod, constant, targetPeriod, quantizedPeriod);
-
       let result;
 
       if (this.#paramType === 'loopEnd') {
@@ -133,6 +131,14 @@ export class MacroParam {
       if (this.#paramType === 'loopStart') {
         result = constant - quantizedPeriod;
       }
+
+      // this.#debugProcessedValue(
+      //   targetValue,
+      //   constant,
+      //   targetPeriod,
+      //   quantizedPeriod,
+      //   result ?? -1
+      // );
 
       if (result) return result;
     } else if (this.#snapper.hasValueSnapping) {
@@ -163,17 +169,15 @@ export class MacroParam {
     );
   }
 
-  setScale(
-    rootNote: string,
-    scale: keyof typeof SCALE_PATTERNS | number[],
-    options: {
-      normalize: NormalizeOptions | false;
-      lowestOctave?: number;
-      highestOctave?: number;
-      snapToZeroCrossings: number[] | false;
-    }
-  ): number[] {
-    const { lowestOctave = 0, highestOctave = 8 } = options;
+  setScale(options: {
+    rootNote: string;
+    scale: keyof typeof SCALE_PATTERNS | number[];
+    highestOctave: number;
+    lowestOctave: number;
+    snapToZeroCrossings: number[] | false;
+    normalize: NormalizeOptions | false;
+  }): number[] {
+    const { rootNote, scale, lowestOctave = 0, highestOctave = 8 } = options;
 
     const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
@@ -186,6 +190,11 @@ export class MacroParam {
       options.snapToZeroCrossings
     );
   }
+
+  // // !! TEST:
+  // let direction: 'left' | 'right' | 'any' = 'any';
+  // // if (this.#paramType === 'loopStart') direction = 'right';
+  // if (this.#paramType === 'loopEnd') direction = 'left';
 
   // Delegate basic operations
   setValue(value: number): this {
@@ -256,7 +265,8 @@ export class MacroParam {
     targetValue: number,
     constant: number,
     targetPeriod: number,
-    quantizedPeriod: number
+    quantizedPeriod: number,
+    result: number
   ) => {
     console.debug(
       'adjusting param: ',
@@ -268,7 +278,9 @@ export class MacroParam {
       'targetPeriod',
       targetPeriod,
       'quantizedPeriod',
-      quantizedPeriod
+      quantizedPeriod,
+      'result',
+      result
     );
   };
 

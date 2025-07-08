@@ -209,21 +209,22 @@ const SamplerComponent = ({ context: audiolib }: SamplerComponentProps) => {
   };
 
   const handleLoopStartNormalizedChange = (normalizedValue: number) => {
-    const clampedValue = Math.min(normalizedValue, loopEndNormalized);
-    setLoopStartNormalized(clampedValue); // update ui
-
+    // Convert normalized value to seconds
     const actualValue = normalizedValue * sampleDuration;
+    setLoopStartNormalized(normalizedValue); // Keep for UI slider
+    setLoopStart(actualValue); // Store actual seconds value
+
+    // Pass seconds directly to the API
     samplePlayerRef.current?.setLoopStart(actualValue, rampTime);
   };
 
   const handleLoopEndNormalizedChange = (normalizedValue: number) => {
-    const clampedValue = Math.max(normalizedValue, loopStartNormalized);
-    setLoopEndNormalized(clampedValue); // update ui
+    // Convert normalized value to seconds
+    const actualValue = normalizedValue * sampleDuration + fineTuneloopEnd;
+    setLoopEndNormalized(normalizedValue); // Keep for UI slider
+    setLoopEnd(actualValue); // Store actual seconds value
 
-    const actualValue = clampedValue * sampleDuration + fineTuneloopEnd;
-
-    setLoopEnd(actualValue);
-
+    // Pass seconds directly to the API
     samplePlayerRef.current?.setLoopEnd(actualValue, rampTime);
   };
 
@@ -251,16 +252,14 @@ const SamplerComponent = ({ context: audiolib }: SamplerComponentProps) => {
     setFineTuneloopEndNorm(normalizedValue);
 
     // Convert from normalized 0-1 to a small value in seconds (e.g., +/- 0.1s)
-    // This allows for fine adjustments after setting the main loop end point
     const fineTuneValue = (normalizedValue - 0.5) * 0.2; // -0.1s to +0.1s range
     setFineTuneloopEnd(fineTuneValue);
 
-    // Calculate the actual loop end time: main position + fine tune offset
+    // Calculate the actual loop end time in seconds
     const actualLoopEnd = loopEndNormalized * sampleDuration + fineTuneValue;
-
-    // Update the displayed loopEnd value
     setLoopEnd(actualLoopEnd);
 
+    // Pass seconds directly to the API
     samplePlayerRef.current?.setLoopEnd(actualLoopEnd, rampTime);
   };
 

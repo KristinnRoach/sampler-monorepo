@@ -6,6 +6,9 @@ class SliderGSAP extends HTMLElement {
   thumbs!: SVGCircleElement[];
   track!: SVGLineElement;
 
+  minValue: number = 0;
+  maxValue: number = 1;
+
   positionsPixels: number[];
   sliderMinPx: number = 10;
   sliderMaxPx: number = 210;
@@ -125,6 +128,23 @@ class SliderGSAP extends HTMLElement {
 
   norm = gsap.utils.mapRange(this.sliderMinPx, this.sliderMaxPx, 0, 1);
 
+  // normalized -> 0 to 1
+  valueToNormalized(value: number): number {
+    return (value - this.minValue) / (this.maxValue - this.minValue);
+  }
+
+  normalizedToValue(normalized: number): number {
+    return this.minValue + normalized * (this.maxValue - this.minValue);
+  }
+
+  normalizedToPixels(normalized: number): number {
+    return this.sliderMinPx + normalized * this.sliderWidthPx;
+  }
+
+  pixelsToNormalized(pixels: number): number {
+    return (pixels - this.sliderMinPx) / this.sliderWidthPx;
+  }
+
   onDrag(thumbIndex: number) {
     // Get normalized positions from GSAP
     let thumb0X = gsap.getProperty(this.thumbs[0], 'x') as number;
@@ -147,16 +167,36 @@ class SliderGSAP extends HTMLElement {
     this.dispatchChangeEvent();
   }
 
+  // dispatchChangeEvent() {
+  //   // Get base normalized positions (always 0-1)
+  //   const firstPos =
+  //     (this.positionsPixels[0] - this.sliderMinPx) / this.sliderWidthPx;
+  //   const secondPos =
+  //     (this.positionsPixels[1] - this.sliderMinPx) / this.sliderWidthPx;
+
+  //   this.dispatchEvent(
+  //     new CustomEvent('range-change', {
+  //       detail: { min: firstPos, max: secondPos },
+  //     })
+  //   );
+  // }
+
   dispatchChangeEvent() {
-    // Get base normalized positions (always 0-1)
-    const firstPos =
-      (this.positionsPixels[0] - this.sliderMinPx) / this.sliderWidthPx;
-    const secondPos =
-      (this.positionsPixels[1] - this.sliderMinPx) / this.sliderWidthPx;
+    const firstNormalized = this.pixelsToNormalized(this.positionsPixels[0]);
+    const secondNormalized = this.pixelsToNormalized(this.positionsPixels[1]);
+
+    const firstValue = this.normalizedToValue(firstNormalized);
+    const secondValue = this.normalizedToValue(secondNormalized);
 
     this.dispatchEvent(
       new CustomEvent('range-change', {
-        detail: { min: firstPos, max: secondPos },
+        detail: {
+          min: firstValue,
+          max: secondValue,
+          // Also provide normalized values if needed
+          minNormalized: firstNormalized,
+          maxNormalized: secondNormalized,
+        },
       })
     );
   }
@@ -187,20 +227,44 @@ class SliderGSAP extends HTMLElement {
     });
   }
 
-  // Public API methods - value is normalized (0 to 1)
-  setPosition(thumbIndex: number, normalizedValue: number) {
+  // Public API methods
+
+  setRange(min: number, max: number) {
+    this.minValue = min;
+    this.maxValue = max;
+    this.updateThumbs();
+  }
+
+  // setPosition(thumbIndex: number, normalizedValue: number) {
+  //   if (thumbIndex >= 0 && thumbIndex < this.positionsPixels.length) {
+  //     this.positionsPixels[thumbIndex] =
+  //       this.sliderMinPx + normalizedValue * this.sliderWidthPx;
+  //     this.updateThumbs();
+  //   }
+  // }
+
+  // getPosition(thumbIndex: number): number {
+  //   return this.positionsPixels[thumbIndex] || 0;
+  // }
+
+  // Accept actual values instead of normalized
+  setPosition(thumbIndex: number, value: number) {
     if (thumbIndex >= 0 && thumbIndex < this.positionsPixels.length) {
-      this.positionsPixels[thumbIndex] =
-        this.sliderMinPx + normalizedValue * this.sliderWidthPx;
+      const normalized = this.valueToNormalized(value);
+      this.positionsPixels[thumbIndex] = this.normalizedToPixels(normalized);
       this.updateThumbs();
     }
   }
 
+  // Return actual values instead of pixels
   getPosition(thumbIndex: number): number {
-    return this.positionsPixels[thumbIndex] || 0;
+    const normalized = this.pixelsToNormalized(
+      this.positionsPixels[thumbIndex]
+    );
+    return this.normalizedToValue(normalized);
   }
 
-  getPositions(): number[] {
+  getPositionsInPx(): number[] {
     return [...this.positionsPixels];
   }
 }
