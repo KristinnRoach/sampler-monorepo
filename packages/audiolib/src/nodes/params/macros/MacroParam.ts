@@ -227,10 +227,6 @@ export class MacroParam {
     return this.#controller.param;
   }
 
-  get value(): number {
-    return this.#controller.value;
-  }
-
   get type(): string {
     return this.#paramType;
   }

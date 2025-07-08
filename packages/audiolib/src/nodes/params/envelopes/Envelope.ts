@@ -54,6 +54,7 @@ export class EnvelopeData {
         value: value ?? currentPoint.value,
       };
     }
+
     this.#updateSharpTransitionsFlag();
   }
 
@@ -74,7 +75,7 @@ export class EnvelopeData {
 
   debugCounter = 0;
 
-  interpolateValueAtTime(normalizedTime: number): number {
+  interpolateValueAtTime(timeSeconds: number): number {
     if (this.points.length === 0) return this.#valueRange[0];
     if (this.points.length === 1) {
       const [min, max] = this.#valueRange;
@@ -83,71 +84,74 @@ export class EnvelopeData {
 
     const sorted = [...this.points].sort((a, b) => a.time - b.time);
 
-    let normalizedValue: number;
+    let finalTime: number;
 
     // Clamp to bounds
-    if (normalizedTime <= sorted[0].time) {
-      normalizedValue = sorted[0].value;
-    } else if (normalizedTime >= sorted[sorted.length - 1].time) {
-      normalizedValue = sorted[sorted.length - 1].value;
+    if (timeSeconds <= sorted[0].time) {
+      finalTime = sorted[0].value;
+    } else if (timeSeconds >= sorted[sorted.length - 1].time) {
+      finalTime = sorted[sorted.length - 1].value;
     } else {
       // Find segment
-      normalizedValue = 0; // fallback
+      finalTime = 0; // fallback
       for (let i = 0; i < sorted.length - 1; i++) {
         const left = sorted[i];
         const right = sorted[i + 1];
 
-        if (normalizedTime >= left.time && normalizedTime <= right.time) {
+        if (timeSeconds >= left.time && timeSeconds <= right.time) {
           const segmentDuration = right.time - left.time;
           const t =
             segmentDuration === 0
               ? 0
-              : (normalizedTime - left.time) / segmentDuration;
+              : (timeSeconds - left.time) / segmentDuration;
 
           if (
             left.curve === 'exponential' &&
             left.value > 0 &&
             right.value > 0
           ) {
-            normalizedValue =
-              left.value * Math.pow(right.value / left.value, t);
+            finalTime = left.value * Math.pow(right.value / left.value, t);
           } else {
-            normalizedValue = left.value + (right.value - left.value) * t;
+            finalTime = left.value + (right.value - left.value) * t;
           }
           break;
         }
       }
     }
 
-    // Scale from 0-1 to target range
+    // Scale value from 0-1 to target range (time remains absolute seconds)
     const [min, max] = this.#valueRange;
-    const result = min + normalizedValue * (max - min);
+    const result = min + finalTime * (max - min);
 
     return result;
   }
 
   #updateSharpTransitionsFlag() {
-    const threshold = 0.02;
+    const threshold = 0.02 * this.#durationSeconds;
     this.#hasSharpTransitions = this.points.some(
       (point, i) =>
         i > 0 && Math.abs(point.time - this.points[i - 1].time) < threshold
     );
   }
 
-  getSVGPath(width: number = 400, height: number = 200): string {
+  getSVGPath(
+    width: number = 400,
+    height: number = 200,
+    durationSeconds: number
+  ): string {
     if (this.points.length < 2) return `M0,${height} L${width},${height}`;
 
     const sorted = [...this.points].sort((a, b) => a.time - b.time);
-    let path = `M${sorted[0].time * width},${(1 - sorted[0].value) * height}`;
+    let path = `M${(sorted[0].time / durationSeconds) * width},${(1 - sorted[0].value) * height}`;
 
     for (let i = 1; i < sorted.length; i++) {
       const point = sorted[i];
       const prevPoint = sorted[i - 1];
-      const x = point.time * width;
+      const x = (point.time / durationSeconds) * width;
       const y = (1 - point.value) * height;
 
       if (prevPoint.curve === 'exponential') {
-        const prevX = prevPoint.time * width;
+        const prevX = (prevPoint.time / durationSeconds) * width;
         const prevY = (1 - prevPoint.value) * height;
         const cp1X = prevX + (x - prevX) * 0.3;
         const cp1Y = prevY;
@@ -172,19 +176,22 @@ export class EnvelopeData {
     return this.points[0]?.time ?? 0;
   }
   get endTime() {
-    return this.points[this.points.length - 1]?.time ?? 1;
-  }
-
-  get durationNormalized() {
-    return this.endTime - this.startTime;
-  }
-
-  setDurationSeconds(seconds: number) {
-    this.#durationSeconds = seconds;
+    return this.points[this.points.length - 1]?.time ?? this.#durationSeconds;
   }
 
   get durationSeconds() {
-    return this.#durationSeconds * this.durationNormalized;
+    return this.endTime - this.startTime;
+  }
+
+  // get durationNormalized() {
+  //   return this.endTime - this.startTime;
+  // }
+  // get durationSeconds() {
+  //   return this.#durationSeconds; //* this.durationNormalized;
+  // }
+
+  setDurationSeconds(seconds: number) {
+    this.#durationSeconds = seconds;
   }
 
   get hasSharpTransitions() {
@@ -295,9 +302,9 @@ export class CustomEnvelope {
   get points() {
     return this.#data.points;
   }
-  get durationNormalized() {
-    return this.#data.durationNormalized;
-  }
+  // get durationNormalized() {
+  //   return this.#data.durationNormalized;
+  // }
   get durationSeconds() {
     return this.#data.durationSeconds;
   }
@@ -323,14 +330,16 @@ export class CustomEnvelope {
     audioParam: AudioParam,
     startTime: number,
     options: {
-      baseValue?: number;
+      baseValue: number;
+      durationDivisor: number;
       minValue?: number;
       maxValue?: number;
-    } = { baseValue: 1 }
+    } = { baseValue: 1, durationDivisor: 1 }
   ) {
     this.stopLooping();
 
-    const durationSeconds = this.#data.durationSeconds;
+    const durationSeconds =
+      this.#data.durationSeconds / options.durationDivisor;
 
     if (this.#loopEnabled) {
       this.#startLoop(audioParam, startTime, options);
@@ -359,12 +368,13 @@ export class CustomEnvelope {
   #applyEnvelope(
     audioParam: AudioParam,
     startTime: number,
-    duration: number,
+    duration: number = this.durationSeconds,
     options: {
-      baseValue?: number;
+      baseValue: number;
       minValue?: number;
       maxValue?: number;
-    } = { baseValue: 1 }
+      durationDivisor: number;
+    } = { baseValue: 1, durationDivisor: 1 }
   ) {
     const sampleRate = this.#logarithmic
       ? duration < 1
@@ -382,8 +392,13 @@ export class CustomEnvelope {
     const { baseValue: base, minValue: min, maxValue: max } = options;
 
     for (let i = 0; i < numSamples; i++) {
-      const normalizedTime = i / (numSamples - 1);
-      let value = this.#data.interpolateValueAtTime(normalizedTime);
+      const normalizedProgress = i / (numSamples - 1);
+      const absoluteTime = normalizedProgress * duration; // Convert to seconds
+      // let value = this.#data.interpolateValueAtTime(absoluteTime);
+
+      // Scale the time back to original envelope coordinate system
+      const envelopeTime = absoluteTime * options.durationDivisor;
+      let value = this.#data.interpolateValueAtTime(envelopeTime);
 
       if (this.#logarithmic) {
         value = Math.exp(value);
@@ -452,10 +467,11 @@ export class CustomEnvelope {
     audioParam: AudioParam,
     startTime: number,
     options: {
-      baseValue?: number;
+      baseValue: number;
+      durationDivisor: number;
       minValue?: number;
       maxValue?: number;
-    } = { baseValue: 1 }
+    } = { baseValue: 1, durationDivisor: 1 }
   ): () => void {
     let isLooping = true;
     let currentCycleStart = startTime;
@@ -464,7 +480,9 @@ export class CustomEnvelope {
     const scheduleNext = () => {
       if (!isLooping) return;
 
-      const currentDuration = this.#data.durationSeconds;
+      // Apply duration divisor to the loop cycle duration
+      const currentDuration =
+        this.#data.durationSeconds / options.durationDivisor;
 
       this.#applyEnvelope(
         audioParam,
@@ -587,8 +605,8 @@ export function createEnvelope(
         'amp-env',
         [
           { time: 0, value: 0, curve: 'exponential' },
-          { time: 0.01, value: 1, curve: 'exponential' },
-          { time: 1, value: 0.0, curve: 'exponential' },
+          { time: 0.005, value: 1, curve: 'exponential' },
+          { time: durationSeconds, value: 0.0, curve: 'exponential' },
         ],
         valueRange || [0, 1],
         durationSeconds
@@ -600,7 +618,7 @@ export function createEnvelope(
         'pitch-env',
         [
           { time: 0, value: 0.5, curve: 'exponential' },
-          { time: 1, value: 0.5, curve: 'exponential' },
+          { time: durationSeconds, value: 0.5, curve: 'exponential' },
         ],
         valueRange || [0.5, 1.5],
         durationSeconds
@@ -612,8 +630,8 @@ export function createEnvelope(
         'filter-env',
         [
           { time: 0, value: 0, curve: 'linear' },
-          { time: 0.08, value: 1.0, curve: 'linear' },
-          { time: 1, value: 0.5, curve: 'linear' },
+          { time: 0.1, value: 1.0, curve: 'linear' },
+          { time: durationSeconds, value: 0.5, curve: 'linear' },
         ],
         valueRange || [30, 18000],
         durationSeconds,

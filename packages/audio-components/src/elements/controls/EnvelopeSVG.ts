@@ -1,5 +1,5 @@
 // EnvelopeSVG.ts
-import van from '@repo/vanjs-core';
+import van, { State } from '@repo/vanjs-core';
 import type { EnvelopePoint, EnvelopeType } from '@repo/audiolib';
 import { generateMidiNoteColors } from '../../utils/generateColors';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
@@ -22,7 +22,7 @@ export interface EnvelopeSVG {
 export const EnvelopeSVG = (
   envelopeType: EnvelopeType,
   initialPoints: EnvelopePoint[],
-  maxDurationInSeconds: number,
+  maxDurationInSeconds: State<number>,
   onPointUpdate: (
     envType: EnvelopeType,
     index: number,
@@ -36,7 +36,7 @@ export const EnvelopeSVG = (
   snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
   snapThreshold = 0.025,
   enabled = true,
-  multiColorPlayheads = false
+  multiColorPlayheads = true
 ): EnvelopeSVG => {
   if (!initialPoints.length) {
     const emptyDiv = div(
@@ -64,7 +64,6 @@ export const EnvelopeSVG = (
 
   const activeTweens: Map<number, gsap.core.Tween> = new Map();
   const playheads: Map<number, Element> = new Map();
-  // let currentEase: string | null = null;
   const easeCache = new Map<string, string>(); // ease key -> ease name
 
   let noteColor: string | Record<number, string>;
@@ -75,8 +74,8 @@ export const EnvelopeSVG = (
   // UI states
   const isEnabled = van.state(enabled);
 
-  const maxDurationSeconds = van.state(maxDurationInSeconds);
-  const currentDurationSeconds = van.state(maxDurationInSeconds);
+  const maxDurationSeconds = van.state(maxDurationInSeconds.val);
+  const currentDurationSeconds = van.state(maxDurationInSeconds.rawVal);
 
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
@@ -89,17 +88,17 @@ export const EnvelopeSVG = (
     if (pts.length < 2) return `M0,200 L400,200`;
 
     const sortedPoints = [...pts].sort((a, b) => a.time - b.time);
-    let path = `M${sortedPoints[0].time * SVG_WIDTH},${(1 - sortedPoints[0].value) * SVG_HEIGHT}`;
+    let path = `M${(sortedPoints[0].time / maxDurationSeconds.val) * SVG_WIDTH},${(1 - sortedPoints[0].value) * SVG_HEIGHT}`;
 
     for (let i = 1; i < sortedPoints.length; i++) {
       const point = sortedPoints[i];
       const prevPoint = sortedPoints[i - 1];
 
-      const x = point.time * SVG_WIDTH;
+      const x = (point.time / maxDurationSeconds.val) * SVG_WIDTH;
       const y = (1 - point.value) * SVG_HEIGHT;
 
       if (prevPoint.curve === 'exponential') {
-        const prevX = prevPoint.time * SVG_WIDTH;
+        const prevX = (prevPoint.time / maxDurationSeconds.val) * SVG_WIDTH;
         const prevY = (1 - prevPoint.value) * SVG_HEIGHT;
         const cp1X = prevX + (x - prevX) * 0.3;
         const cp1Y = prevY;
@@ -147,7 +146,11 @@ export const EnvelopeSVG = (
         'circle'
       );
 
-      circle.setAttribute('cx', (point.time * SVG_WIDTH).toString());
+      // circle.setAttribute('cx', (point.time * SVG_WIDTH).toString()); // !
+      circle.setAttribute(
+        'cx',
+        ((point.time / maxDurationSeconds.val) * SVG_WIDTH).toString()
+      );
       circle.setAttribute('cy', ((1 - point.value) * SVG_HEIGHT).toString());
       circle.setAttribute('r', '4');
       circle.setAttribute(
@@ -225,7 +228,9 @@ export const EnvelopeSVG = (
     if (isDragging.val && selectedPoint.val !== null) {
       const rect = svgElement.getBoundingClientRect();
 
-      let time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      // let time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      let time =
+        ((e.clientX - rect.left) / rect.width) * maxDurationSeconds.val;
       let value = Math.max(
         0,
         Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
@@ -271,7 +276,8 @@ export const EnvelopeSVG = (
 
     if (isDragging.val) return;
     const rect = svgElement.getBoundingClientRect();
-    const time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const time =
+      ((e.clientX - rect.left) / rect.width) * maxDurationSeconds.val;
     const value = Math.max(
       0, // todo: if click is near the current envelope line it should likely be exactly on the line when created
       Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
@@ -377,7 +383,6 @@ export const EnvelopeSVG = (
   van.derive(() => {
     points.val;
     selectedPoint.val;
-
     updateControlPoints();
 
     // setTimeout(() => refreshPlayingAnimations(), 0); // ensures path is updated
@@ -388,12 +393,12 @@ export const EnvelopeSVG = (
     }, 0);
   });
 
-  // Update current points and durationwhen prop changes
+  // Update current points and duration when prop changes
   van.derive(() => {
     points.val = initialPoints;
+    // maxDurationSeconds.val;
+    // maxDurationInSeconds.val; // !! GET rid of duplicate
   });
-
-  van.derive(() => (maxDurationSeconds.val = maxDurationInSeconds));
 
   function createTimeBasedEase(pathElement: SVGPathElement): string | null {
     if (!isEnabled.val) return null;
@@ -453,9 +458,6 @@ export const EnvelopeSVG = (
 
   function triggerPlayAnimation(msg: any) {
     if (!isEnabled.val) return;
-    if (!currentEase.val) {
-      currentEase.val = createTimeBasedEase(envelopePath) || 'none';
-    }
 
     if (activeTweens.has(msg.voiceId)) {
       const existing = activeTweens.get(msg.voiceId);
@@ -465,9 +467,9 @@ export const EnvelopeSVG = (
 
     if (!msg.envDurations[envelopeType]) return;
 
-    // const envDuration = currentDurationSeconds.val;
+    const envDuration =
+      msg.envDurations[envelopeType] ?? currentDurationSeconds.val;
 
-    const envDuration = msg.envDurations[envelopeType];
     if (currentDurationSeconds.val !== envDuration)
       currentDurationSeconds.val = envDuration;
 
@@ -515,8 +517,6 @@ export const EnvelopeSVG = (
 
   function refreshPlayingAnimations() {
     if (!isEnabled.val) return;
-
-    // if (envelopePath && points.val.length) createTimeBasedEase(envelopePath);
 
     for (let [voiceId, tween] of activeTweens) {
       if (tween.isActive()) {

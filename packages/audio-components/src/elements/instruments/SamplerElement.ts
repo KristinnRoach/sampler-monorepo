@@ -73,11 +73,11 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Create the envelopes and store references
   van.derive(() => {
-    if (ampEnvelope.val && !ampEnvInstance) {
+    if (ampEnvelope.val && !ampEnvInstance && sampleDurationSeconds.val) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
         ampEnvelope.val.points, // () => for reactive?
-        sampleDurationSeconds.val,
+        sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
@@ -86,11 +86,11 @@ const SamplerElement = (attributes: ElementProps) => {
         { x: [0, 1], y: [0, 1] }
       );
     }
-    if (filterEnvelope.val && !filterEnvInstance) {
+    if (filterEnvelope.val && !filterEnvInstance && sampleDurationSeconds.val) {
       filterEnvInstance = EnvelopeSVG(
         'filter-env',
         filterEnvelope.val.points, // () => for reactive?
-        sampleDurationSeconds.val,
+        sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
@@ -101,11 +101,11 @@ const SamplerElement = (attributes: ElementProps) => {
         false
       );
     }
-    if (pitchEnvelope.val && !pitchEnvInstance) {
+    if (pitchEnvelope.val && !pitchEnvInstance && sampleDurationSeconds.val) {
       pitchEnvInstance = EnvelopeSVG(
         'pitch-env',
         pitchEnvelope.val.points,
-        sampleDurationSeconds.val,
+        sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
@@ -201,19 +201,11 @@ const SamplerElement = (attributes: ElementProps) => {
         // === SAMPLE-PLAYER MESSAGES ===
 
         samplePlayer.onMessage('sample:loaded', (msg: any) => {
-          if (!msg.durationSeconds) {
-            console.warn(
-              'missing duration from sample:loaded msg',
-              msg.durationSeconds
-            );
-            return;
-          }
-
           sampleDurationSeconds.val = msg.durationSeconds;
-
           ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
           filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
           pitchEnvInstance?.updateMaxDuration(msg.durationSeconds);
+          status.val = `All voices loaded. Sample Duration: ${msg.durationSeconds}`;
         });
 
         samplePlayer.onMessage('sample-envelopes:trigger', (msg: any) => {
@@ -222,11 +214,11 @@ const SamplerElement = (attributes: ElementProps) => {
           pitchEnvInstance?.triggerPlayAnimation(msg);
         });
 
-        // samplePlayer.onMessage('sample-envelopes:duration', (msg: any) => {
-        //   ampEnvInstance?.updateDuration(msg);
-        //   filterEnvInstance?.updateDuration(msg);
-        //   pitchEnvInstance?.updateDuration(msg);
-        // });
+        samplePlayer.onMessage('sample-envelopes:maxDuration', (msg: any) => {
+          ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
+          filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
+          pitchEnvInstance?.updateMaxDuration(msg.durationSeconds);
+        });
 
         samplePlayer.onMessage('voice:releasing', (msg: any) => {
           ampEnvInstance?.releaseAnimation(msg);
@@ -317,7 +309,10 @@ const SamplerElement = (attributes: ElementProps) => {
             }
 
             const durationSeconds = await samplePlayer.loadSample(arrayBuffer);
-            console.log(durationSeconds);
+            console.log(
+              'fileInput.onchange, durationSeconds:',
+              durationSeconds
+            );
 
             await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -507,7 +502,10 @@ const SamplerElement = (attributes: ElementProps) => {
       VolumeControl(volume),
 
       () =>
-        ampEnvelope.val && pitchEnvelope.val && filterEnvelope.val
+        ampEnvelope.val &&
+        pitchEnvelope.val &&
+        filterEnvelope.val &&
+        sampleDurationSeconds.val
           ? div(
               { style: 'margin: 10px 0;' },
               div(

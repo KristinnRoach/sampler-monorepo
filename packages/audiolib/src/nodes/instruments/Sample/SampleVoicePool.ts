@@ -108,7 +108,7 @@ export class SampleVoicePool {
         'voice:loaded',
         'voice:transposed',
         'sample-envelopes:trigger',
-        'sample-envelopes:duration',
+        'sample-envelopes:maxDuration',
       ],
       (msg) => {
         if (msg.type === 'voice:loaded') {
@@ -116,6 +116,10 @@ export class SampleVoicePool {
 
           // Only send 'sample:loaded' when all voices are loaded
           if (this.#loaded.size === this.#allVoices.length) {
+            console.debug(
+              'sample:loaded, msg.durationSeconds:',
+              msg.durationSeconds
+            );
             return { ...msg, type: 'sample:loaded' };
           }
           return null; // Don't forward individual voice:loaded messages

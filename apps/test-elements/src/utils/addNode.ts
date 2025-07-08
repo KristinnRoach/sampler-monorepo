@@ -6,8 +6,7 @@ const { div, select, option, button } = van.tags;
 let nodeId = 0;
 export const addNode = (
   nodeType: 'sampler' | 'karplus-synth',
-  parent?: Element,
-  options: any = {}
+  parent?: Element
 ) => {
   const currId = nodeId++;
 
@@ -23,9 +22,6 @@ export const addNode = (
     { class: `${nodeType}-wrapper node-draggable` },
     handleEl,
     nodeElFn({
-      // polyphony: '32', // skip to use default
-      // id: `${nodeType}-${currId}`,
-      // class: `${nodeType}-${currId}`,
       expanded: false,
     })
   );
