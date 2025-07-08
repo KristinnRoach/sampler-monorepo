@@ -31,11 +31,14 @@ export const EnvelopeSVG = (
   ) => void,
   onEnable: (envType: EnvelopeType) => void,
   onDisable: (envType: EnvelopeType) => void,
+  onLoopChange: (envType: EnvelopeType, enabled: boolean) => void,
+  onSyncChange: (envType: EnvelopeType, enabled: boolean) => void,
   width: string = '100%',
   height: string = '120px',
   snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
   snapThreshold = 0.025,
   enabled = true,
+  initialLoopState = false,
   multiColorPlayheads = true
 ): EnvelopeSVG => {
   if (!initialPoints.length) {
@@ -73,6 +76,8 @@ export const EnvelopeSVG = (
 
   // UI states
   const isEnabled = van.state(enabled);
+  const isLooping = van.state(initialLoopState);
+  const syncToPlaybackRate = van.state(false);
 
   const maxDurationSeconds = van.state(maxDurationInSeconds.val);
   const currentDurationSeconds = van.state(maxDurationInSeconds.rawVal);
@@ -298,7 +303,7 @@ export const EnvelopeSVG = (
     style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
   }) as SVGSVGElement;
 
-  const toggleButton = button({
+  const enabledToggleBtn = button({
     style: () => `
     position: absolute; 
     top: 4px; 
@@ -317,12 +322,52 @@ export const EnvelopeSVG = (
     },
   });
 
+  const loopToggleBtn = button({
+    style: () => `
+    position: absolute; 
+    top: 4px; 
+    right: 24px; 
+    width: 16px; 
+    height: 16px; 
+    border: none; 
+    border-radius: 50%; 
+    cursor: pointer; 
+    z-index: 10;
+    background: ${isLooping.val ? '#ff6b6b' : '#666'};
+  `,
+    title: () => (isLooping.val ? 'Disable looping' : 'Enable looping'),
+    onclick: () => {
+      isLooping.val = !isLooping.val;
+    },
+  });
+
+  const syncToPlaybackRateToggleBtn = button({
+    style: () => `
+    position: absolute; 
+    top: 4px; 
+    right: 44px;  
+    width: 16px; 
+    height: 16px; 
+    border: none; 
+    border-radius: 50%; 
+    cursor: pointer; 
+    z-index: 10;
+    background: ${syncToPlaybackRate.val ? '#ff6b6b' : '#666'};
+  `,
+    title: () => (syncToPlaybackRate.val ? 'Disable sync' : 'Enable sync'),
+    onclick: () => {
+      syncToPlaybackRate.val = !syncToPlaybackRate.val;
+    },
+  });
+
   // Create container div
   const container = div(
     {
       style: `position: relative; display: inline-block; width: ${width}; height: ${height};`,
     },
-    toggleButton
+    enabledToggleBtn,
+    loopToggleBtn,
+    syncToPlaybackRateToggleBtn
   );
 
   // Manually append the SVG element to avoid namespace issues
@@ -398,6 +443,14 @@ export const EnvelopeSVG = (
     points.val = initialPoints;
     // maxDurationSeconds.val;
     // maxDurationInSeconds.val; // !! GET rid of duplicate
+  });
+
+  van.derive(() => {
+    onLoopChange(envelopeType, isLooping.val);
+  });
+
+  van.derive(() => {
+    onSyncChange(envelopeType, syncToPlaybackRate.val);
   });
 
   function createTimeBasedEase(pathElement: SVGPathElement): string | null {
@@ -476,7 +529,9 @@ export const EnvelopeSVG = (
     const playhead = createPlayhead(msg.voiceId);
     svgElement.appendChild(playhead);
 
-    const isLooping = msg.loopEnabled?.[envelopeType] ?? false;
+    const isLoopingEnv = msg.loopEnabled?.[envelopeType] ?? false;
+    // const isLoopingEnv = isLooping.val;
+
     const easeToUse = currentEase.val ? currentEase.val : 'none';
     const color = multiColorPlayheads ? noteColor[msg.midiNote] : 'red';
 
@@ -488,7 +543,7 @@ export const EnvelopeSVG = (
         alignOrigin: [0.5, 0.5],
       },
       duration: envDuration,
-      repeat: isLooping ? -1 : 0,
+      repeat: isLoopingEnv ? -1 : 0,
       ease: easeToUse,
       onStart: () => playhead.setAttribute('fill', color),
       onComplete: () => playhead.setAttribute('fill', 'transparent'),
@@ -522,7 +577,8 @@ export const EnvelopeSVG = (
       if (tween.isActive()) {
         // const progress = tween.progress();
         const totalTime = tween.time(); // <--- Capture absolute time
-        const isLooping = tween.vars.repeat === -1;
+        const isLoopingEnv = isLooping.val;
+        // tween.vars.repeat === -1;
         const tweenDuration = (tween.vars.duration as number) ?? 0;
 
         const currentDuration = currentDurationSeconds.val;
@@ -530,7 +586,7 @@ export const EnvelopeSVG = (
         // Always update path, but only update duration for loops if it changed
         const durationChanged =
           Math.abs(currentDuration - tweenDuration) > 0.001;
-        const shouldUpdateDuration = isLooping && durationChanged;
+        const shouldUpdateDuration = isLoopingEnv && durationChanged;
 
         tween.kill();
 
@@ -543,7 +599,7 @@ export const EnvelopeSVG = (
               alignOrigin: [0.5, 0.5],
             },
             duration: shouldUpdateDuration ? currentDuration : tweenDuration,
-            repeat: isLooping ? -1 : 0,
+            repeat: isLoopingEnv ? -1 : 0,
             ease: currentEase.val || 'none',
             onStart: () => playhead.setAttribute('fill', 'red'),
             onComplete: () => playhead.setAttribute('fill', 'transparent'),
@@ -596,11 +652,6 @@ export const EnvelopeSVG = (
       onEnable(envelopeType);
     }
   });
-
-  // van.derive(() => {
-  //   currentDurationSeconds.val;
-  //   console.warn('derive currentDur:', currentDurationSeconds.val);
-  // });
 
   return {
     element: container,

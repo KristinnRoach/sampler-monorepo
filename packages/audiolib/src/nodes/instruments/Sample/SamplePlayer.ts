@@ -186,7 +186,7 @@ export class SamplePlayer extends LibInstrument {
       rootNote: 'C',
       scale: [0],
       lowestOctave: 0,
-      highestOctave: 6,
+      highestOctave: 7,
       normalize: false as NormalizeOptions | false, // All time params updated to seconds, normalizing logic can be removed
     };
 
@@ -657,6 +657,12 @@ export class SamplePlayer extends LibInstrument {
   ) => {
     this.voicePool.applyToAllVoices((v) =>
       v.setEnvelopeLoop(envType, loop, mode)
+    );
+  };
+
+  setEnvelopeSync = (envType: EnvelopeType, sync: boolean) => {
+    this.voicePool.applyToAllVoices((v) =>
+      v.syncEnvelopeToPlaybackRate(envType, sync)
     );
   };
 

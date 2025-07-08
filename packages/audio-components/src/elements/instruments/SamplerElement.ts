@@ -81,6 +81,8 @@ const SamplerElement = (attributes: ElementProps) => {
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
+        handleEnvelopeLoopChange,
+        handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0, 1] }
@@ -94,6 +96,8 @@ const SamplerElement = (attributes: ElementProps) => {
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
+        handleEnvelopeLoopChange,
+        handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0] },
@@ -109,6 +113,8 @@ const SamplerElement = (attributes: ElementProps) => {
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
+        handleEnvelopeLoopChange,
+        handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0.5] },
@@ -443,6 +449,19 @@ const SamplerElement = (attributes: ElementProps) => {
     } else {
       samplePlayer.updateEnvelopePoint(envType, index, time, value);
     }
+  };
+
+  const handleEnvelopeLoopChange = (
+    envType: EnvelopeType,
+    enabled: boolean
+  ) => {
+    if (!samplePlayer) return;
+    samplePlayer.setEnvelopeLoop(envType, enabled, 'normal');
+  };
+
+  const handleEnvelopeSyncChange = (envType: EnvelopeType, sync: boolean) => {
+    if (!samplePlayer) return;
+    samplePlayer.setEnvelopeSync(envType, sync);
   };
 
   // const knob = document.createElement('webaudio-knob') as HTMLElement;
