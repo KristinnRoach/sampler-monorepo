@@ -44,6 +44,7 @@ const SamplerElement = (attributes: ElementProps) => {
   // Loop params
   const loopStartSeconds = van.state(0);
   const loopEndSeconds = van.state(0);
+  const loopRampSeconds = van.state(0.5);
 
   // Trim sample params
   const startPointSeconds = van.state(0);
@@ -76,24 +77,33 @@ const SamplerElement = (attributes: ElementProps) => {
     if (ampEnvelope.val && !ampEnvInstance && sampleDurationSeconds.val) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
-        ampEnvelope.val.points, // () => for reactive?
+        ampEnvelope.val.points, // todo: fix the mixing of van states and callbacks, choose one system
         sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
+        handleEnvelopeLoopChange,
+        handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
-        { x: [0, 1], y: [0, 1] }
+        { x: [0, 1], y: [0, 1] },
+        0.05,
+        true,
+        true,
+        true
+        // setEnvelopeTimeScale // ! TESTING
       );
     }
     if (filterEnvelope.val && !filterEnvInstance && sampleDurationSeconds.val) {
       filterEnvInstance = EnvelopeSVG(
         'filter-env',
-        filterEnvelope.val.points, // () => for reactive?
+        filterEnvelope.val.points,
         sampleDurationSeconds,
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
+        handleEnvelopeLoopChange,
+        handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0] },
@@ -109,6 +119,8 @@ const SamplerElement = (attributes: ElementProps) => {
         handleEnvelopeChange,
         enableEnvelope,
         disableEnvelope,
+        handleEnvelopeLoopChange,
+        handleEnvelopeSyncChange,
         envDimensions.val.width,
         envDimensions.val.height,
         { x: [0, 1], y: [0.5] },
@@ -153,14 +165,26 @@ const SamplerElement = (attributes: ElementProps) => {
         van.derive(() => {
           if (!samplePlayer) return;
           if (loopStartSeconds.val !== samplePlayer.loopStart) {
-            samplePlayer.setLoopStart(loopStartSeconds.val);
+            if (loopRampSeconds.val === 0) {
+              samplePlayer.scrollLoopPoints(
+                loopStartSeconds.val,
+                loopEndSeconds.val
+              );
+            } else {
+              samplePlayer.setLoopStart(
+                loopStartSeconds.val,
+                loopRampSeconds.val
+              );
+            }
           }
         });
 
         van.derive(() => {
           if (!samplePlayer) return;
+          if (loopRampSeconds.val === 0) return; // Todo: clarify
+
           if (loopEndSeconds.val !== samplePlayer.loopEnd) {
-            samplePlayer.setLoopEnd(loopEndSeconds.val);
+            samplePlayer.setLoopEnd(loopEndSeconds.val, loopRampSeconds.val);
           }
         });
 
@@ -424,6 +448,11 @@ const SamplerElement = (attributes: ElementProps) => {
     samplePlayer.disableEnvelope(envType);
   };
 
+  const setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
+    if (!samplePlayer) return;
+    samplePlayer.setEnvelopeTimeScale(envType, timeScale);
+  };
+
   const handleEnvelopeChange = (
     envType: EnvelopeType,
     index: number,
@@ -443,6 +472,19 @@ const SamplerElement = (attributes: ElementProps) => {
     } else {
       samplePlayer.updateEnvelopePoint(envType, index, time, value);
     }
+  };
+
+  const handleEnvelopeLoopChange = (
+    envType: EnvelopeType,
+    enabled: boolean
+  ) => {
+    if (!samplePlayer) return;
+    samplePlayer.setEnvelopeLoop(envType, enabled, 'normal');
+  };
+
+  const handleEnvelopeSyncChange = (envType: EnvelopeType, sync: boolean) => {
+    if (!samplePlayer) return;
+    samplePlayer.setEnvelopeSync(envType, sync);
   };
 
   // const knob = document.createElement('webaudio-knob') as HTMLElement;
@@ -585,6 +627,7 @@ const SamplerElement = (attributes: ElementProps) => {
         SampleControls(
           loopStartSeconds,
           loopEndSeconds,
+          loopRampSeconds,
           startPointSeconds,
           endPointSeconds,
           sampleDurationSeconds

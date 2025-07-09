@@ -11,6 +11,7 @@ export interface KnobConfig {
   minRotation: number;
   maxRotation: number;
   snapIncrement: number;
+  curve?: number;
   disabled?: boolean;
   borderStyle?: 'currentState' | 'fullCircle';
 }
@@ -42,6 +43,7 @@ export class KnobElement extends HTMLElement {
     minRotation: -170,
     maxRotation: 170,
     snapIncrement: 0.01,
+    curve: 1,
     disabled: false,
     borderStyle: 'currentState',
   };
@@ -65,6 +67,7 @@ export class KnobElement extends HTMLElement {
       'width',
       'height',
       'border-style',
+      'curve',
     ];
   }
 
@@ -137,6 +140,12 @@ export class KnobElement extends HTMLElement {
 
       if (name === 'width' || name === 'height') return;
       if (name === 'border-style') return;
+
+      if (name === 'curve') {
+        this.createUtilityFunctions();
+        this.setValue(this.currentValue); // Refresh with new curve
+        return;
+      }
 
       if (this.gsapDraggable) {
         this.reinitialize();
@@ -229,6 +238,7 @@ export class KnobElement extends HTMLElement {
       maxRotation: getValue('max-rotation', 150),
       snapIncrement: getValue('snap-increment', 1),
       disabled: this.hasAttribute('disabled'),
+      curve: getValue('curve', 1),
       borderStyle:
         (this.getAttribute('border-style') as
           | 'currentState'
@@ -290,25 +300,9 @@ export class KnobElement extends HTMLElement {
     }
   }
 
-  // private createUtilityFunctions(): void {
-  //   this.rotationToValue = gsap.utils.mapRange(
-  //     this.config.minRotation,
-  //     this.config.maxRotation,
-  //     this.config.minValue,
-  //     this.config.maxValue
-  //   );
-
-  //   this.valueToRotation = gsap.utils.mapRange(
-  //     this.config.minValue,
-  //     this.config.maxValue,
-  //     this.config.minRotation,
-  //     this.config.maxRotation
-  //   );
-  // }
-
   private createUtilityFunctions(): void {
-    // Exponential factor (>1 makes higher values more sensitive)
-    const curve = 0.1; // Adjust this value (1 = linear, 2 = quadratic, etc.)
+    // Exponential factor
+    const curve = this.config.curve || 1; // 1 = linear, 2 = quadratic, etc.
 
     this.rotationToValue = (rotation: number) => {
       // Map rotation to 0-1 range
@@ -532,13 +526,15 @@ export class KnobElement extends HTMLElement {
     return this.currentValue;
   }
 
-  public getPercentage(): number {
-    return gsap.utils.mapRange(
-      this.config.minValue,
-      this.config.maxValue,
-      0,
-      100
-    )(this.currentValue);
+  public setCurve(curve: number): void {
+    this.config.curve = curve;
+    this.createUtilityFunctions();
+    // Refresh the current value to apply the new curve
+    this.setValue(this.currentValue);
+  }
+
+  public getCurve(): number {
+    return this.config.curve || 1;
   }
 
   public setDisabled(disabled: boolean): void {
@@ -551,6 +547,15 @@ export class KnobElement extends HTMLElement {
 
   public isDisabled(): boolean {
     return this.hasAttribute('disabled');
+  }
+
+  public getPercentage(): number {
+    return gsap.utils.mapRange(
+      this.config.minValue,
+      this.config.maxValue,
+      0,
+      100
+    )(this.currentValue);
   }
 
   // Property getters/setters for easier JS usage

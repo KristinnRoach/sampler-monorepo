@@ -67,6 +67,10 @@ export class MacroParam {
       onCompleteDelayMs?: number;
     } = {}
   ): this {
+    const prev = this.#controller.value;
+    if (targetValue === prev) return this;
+    // const direction = targetValue > prev ? 'increment' : 'decrement';
+
     const {
       method = 'exponential',
       debounceMs = 20,
@@ -172,18 +176,26 @@ export class MacroParam {
   setScale(options: {
     rootNote: string;
     scale: keyof typeof SCALE_PATTERNS | number[];
+    tuningOffset: number;
     highestOctave: number;
     lowestOctave: number;
     snapToZeroCrossings: number[] | false;
     normalize: NormalizeOptions | false;
   }): number[] {
-    const { rootNote, scale, lowestOctave = 0, highestOctave = 8 } = options;
+    const {
+      rootNote,
+      scale,
+      tuningOffset = 0,
+      lowestOctave = 0,
+      highestOctave = 8,
+    } = options;
 
     const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
     return this.#snapper.setScale(
       rootNote,
       scalePattern,
+      tuningOffset,
       lowestOctave,
       highestOctave,
       options.normalize,
@@ -191,14 +203,9 @@ export class MacroParam {
     );
   }
 
-  // // !! TEST:
-  // let direction: 'left' | 'right' | 'any' = 'any';
-  // // if (this.#paramType === 'loopStart') direction = 'right';
-  // if (this.#paramType === 'loopEnd') direction = 'left';
-
   // Delegate basic operations
-  setValue(value: number): this {
-    this.#controller.setValue(value);
+  setValue(value: number, timestamp?: number): this {
+    this.#controller.setValue(value, timestamp);
     this.#sendValueChangedMessage(value);
     return this;
   }

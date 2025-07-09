@@ -15,7 +15,8 @@ export const createSliderGSAP = (
   labelText: string,
   firstThumbState: State<number>,
   secondThumbState: State<number>,
-  range: { min: number; max: number }
+  range: { min: number; max: number },
+  rampTime?: State<number> // ? Make generic
 ) => {
   const sliderElement = van.tags['slider-gsap']({});
 
@@ -29,6 +30,7 @@ export const createSliderGSAP = (
     (sliderElement as any).setRange(range.min, range.max);
     (sliderElement as any).setPosition(0, firstThumbState.val);
     (sliderElement as any).setPosition(1, secondThumbState.val);
+    rampTime && (sliderElement as any).setRampTime(rampTime.val);
   }, 0);
 
   // Add listener to the actual slider element
@@ -37,6 +39,9 @@ export const createSliderGSAP = (
     (e: CustomEvent) => {
       firstThumbState.val = e.detail.min;
       secondThumbState.val = e.detail.max;
+      if (rampTime) {
+        rampTime.val = e.detail.isShiftDragging ? 0 : 0.5;
+      }
     }
   );
 

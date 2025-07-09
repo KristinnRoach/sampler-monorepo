@@ -10,6 +10,7 @@ import {
 export const SampleControls = (
   loopStartSeconds: State<number>,
   loopEndSeconds: State<number>,
+  loopRampSeconds: State<number>,
   startPointSeconds: State<number>,
   endPointSeconds: State<number>,
   sampleDurationSeconds: State<number>
@@ -27,10 +28,16 @@ export const SampleControls = (
   let loopEndKnobOffset = van.state(0);
 
   const { container: loopSliderContainer, sliderElement: loopSliderEl } =
-    createSliderGSAP('Loop', loopStartSeconds, loopEndSliderThumb, {
-      min: 0,
-      max: sampleDurationSeconds.rawVal,
-    });
+    createSliderGSAP(
+      'Loop',
+      loopStartSeconds,
+      loopEndSliderThumb,
+      {
+        min: 0,
+        max: sampleDurationSeconds.rawVal,
+      },
+      loopRampSeconds
+    );
 
   const { container: trimSliderContainer, sliderElement: trimSliderEl } =
     createSliderGSAP('Trim', startPointSeconds, endPointSeconds, {
@@ -47,6 +54,9 @@ export const SampleControls = (
   loopEndOffsetKnob.setAttribute('width', '45');
   loopEndOffsetKnob.setAttribute('height', '45');
   loopEndOffsetKnob.setAttribute('default-value', '0');
+
+  loopEndOffsetKnob.setAttribute('curve', '0.1');
+
   loopEndOffsetKnob.style.marginTop = '10px';
   loopEndOffsetKnob.className = 'cranker';
 

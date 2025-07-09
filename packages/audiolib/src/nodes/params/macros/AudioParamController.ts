@@ -31,7 +31,6 @@ export class AudioParamController {
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
     if (scaleFactor === 1) {
-      // Connect ConstantSource directly to the AudioParam
       this.#constantSignal.connect(targetParam);
       this.#targets.push({ param: targetParam });
     } else {
@@ -70,11 +69,10 @@ export class AudioParamController {
     return this;
   }
 
-  setValue(value: number, cancelScheduled = true): this {
-    cancelScheduled &&
-      cancelScheduledParamValues(this.param, this.#context.currentTime);
+  setValue(value: number, timestamp = this.now, cancelScheduled = true): this {
+    cancelScheduled && this.param.cancelScheduledValues(timestamp); // cancelScheduledParamValues(this.param, timestamp);
 
-    this.param.setValueAtTime(value, this.#context.currentTime + 0.001);
+    this.param.setValueAtTime(value, timestamp); // + 0.00001 ?
     return this;
   }
 
@@ -86,8 +84,12 @@ export class AudioParamController {
     return this.#context;
   }
 
+  get now() {
+    return this.#context.currentTime;
+  }
+
   get param(): AudioParam {
-    return this.#constantSignal.offset; // Use offset instead of gain
+    return this.#constantSignal.offset;
   }
 
   get value(): number {

@@ -250,11 +250,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       if (env.hasVariation()) {
         // ? Should amp-env need to have variation?
         const baseValue = envType === 'pitch-env' ? playbackRate : 1;
-        const durationDivisor = playbackRate; // Currently all envelopes get divided by playbackRate
 
         env.applyToAudioParam(param, timestamp, {
           baseValue,
-          durationDivisor,
+          playbackRate,
         });
       }
     });
@@ -263,12 +262,15 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       voiceId: this.nodeId,
       midiNote: this.#activeMidiNote,
       envDurations: {
-        'amp-env':
-          this.#envelopes.get('amp-env')?.durationSeconds! / playbackRate,
-        'pitch-env':
-          this.#envelopes.get('pitch-env')?.durationSeconds! / playbackRate,
-        'filter-env':
-          this.#envelopes.get('filter-env')?.durationSeconds! / playbackRate,
+        'amp-env': this.#envelopes.get('amp-env')!.syncedToPlaybackRate
+          ? this.#envelopes.get('amp-env')!.durationSeconds / playbackRate
+          : this.#envelopes.get('amp-env')!.durationSeconds,
+        'pitch-env': this.#envelopes.get('pitch-env')!.syncedToPlaybackRate
+          ? this.#envelopes.get('pitch-env')!.durationSeconds / playbackRate
+          : this.#envelopes.get('pitch-env')!.durationSeconds,
+        'filter-env': this.#envelopes.get('filter-env')!.syncedToPlaybackRate
+          ? this.#envelopes.get('filter-env')!.durationSeconds / playbackRate
+          : this.#envelopes.get('filter-env')!.durationSeconds,
       },
       loopEnabled: {
         'amp-env': this.#envelopes.get('amp-env')?.loopEnabled,
@@ -367,6 +369,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   disableEnvelope = (envType: EnvelopeType) => {
     this.#envelopes.get(envType)?.disable();
+  };
+
+  setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
+    this.#envelopes.get(envType)?.setTimeScale(timeScale);
   };
 
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
@@ -737,9 +743,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     });
 
     this.#loopEnabled = enabled;
-    this.#envelopes.forEach((env) =>
-      this.setEnvelopeLoop(env.envelopeType, enabled, 'normal')
-    );
 
     return this;
   }
@@ -751,6 +754,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   ) => {
     const env = this.#envelopes.get(envType);
     env?.setLoopEnabled(loop, mode);
+    return this;
+  };
+
+  syncEnvelopeToPlaybackRate = (envType: EnvelopeType, sync: boolean) => {
+    const env = this.#envelopes.get(envType);
+    env?.syncToPlaybackRate(sync);
     return this;
   };
 

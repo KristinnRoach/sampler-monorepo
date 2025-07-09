@@ -1,4 +1,7 @@
-import { createScale } from '@/utils/music-theory/utils/scale-utils';
+import {
+  createScale,
+  offsetPeriodsBySemitones,
+} from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
 import { findClosest, findClosestNote, Note } from '@/utils';
 
@@ -28,11 +31,14 @@ const normalizeRange = (
 export class ValueSnapper {
   #allowedValues: number[] = [];
   #allowedPeriods: number[] = [];
+  #prevIndex = 0;
+
   paramType: string | null = null;
 
   setScale(
     rootNote: string,
     scalePattern: readonly number[] | number[],
+    tuningOffset: number = 0, // in semitones
     lowestOctave: number = 0,
     highestOctave: number = 8,
     normalize: NormalizeOptions | false,
@@ -42,7 +48,14 @@ export class ValueSnapper {
     const pattern = [...scalePattern];
 
     const scale = createScale(rootNote, pattern, lowestOctave, highestOctave);
-    const periodsInSeconds = scale.periodsInSec.sort((a, b) => a - b);
+    let periodsInSeconds = scale.periodsInSec.sort((a, b) => a - b);
+
+    if (tuningOffset !== 0) {
+      periodsInSeconds = offsetPeriodsBySemitones(
+        periodsInSeconds,
+        -tuningOffset // Offset by MINUS the current tuning
+      );
+    }
 
     return this.setAllowedPeriods(
       periodsInSeconds,
@@ -96,6 +109,8 @@ export class ValueSnapper {
     // this.#debugPeriods(periods, values, normalized);
 
     this.#allowedPeriods = [...(values as number[])].sort((a, b) => a - b);
+
+    this.#prevIndex = this.#allowedPeriods.length - 1;
 
     return this.#allowedPeriods;
   }
@@ -156,9 +171,35 @@ export class ValueSnapper {
     allowedPeriods = this.#allowedPeriods
   ): number {
     if (allowedPeriods.length === 0) return targetPeriod;
+    if (targetPeriod > this.longestPeriod) return targetPeriod;
 
     // Find closest musical period to the target duration
-    const quantized = findClosest(allowedPeriods, targetPeriod);
+
+    // TODO: Test current direction based approach VS 'findClosest'
+    // const quantized = findClosest(allowedPeriods, targetPeriod);
+
+    const prevPeriod = this.#allowedPeriods[this.#prevIndex];
+
+    if (targetPeriod === prevPeriod) return targetPeriod;
+
+    let quantized = targetPeriod;
+    let idx = this.#prevIndex;
+
+    const direction = targetPeriod > prevPeriod ? 'increment' : 'decrement';
+    if (direction === 'increment') {
+      if (targetPeriod < this.#allowedPeriods[idx + 1]) return prevPeriod;
+
+      while (this.#allowedPeriods[idx] < targetPeriod) idx++;
+      quantized = this.#allowedPeriods[idx];
+    }
+    if (direction === 'decrement') {
+      if (targetPeriod > this.#allowedPeriods[idx - 1]) return prevPeriod;
+
+      while (this.#allowedPeriods[idx] > targetPeriod) idx--;
+      quantized = this.#allowedPeriods[idx];
+    }
+
+    this.#prevIndex = idx;
 
     return quantized;
   }

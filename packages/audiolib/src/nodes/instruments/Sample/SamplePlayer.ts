@@ -177,21 +177,9 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    // Reset MacroParams
-
     this.#macroLoopStart.audioParam.setValueAtTime(0, this.now);
     this.#macroLoopEnd.audioParam.setValueAtTime(bufferDuration, this.now);
-
-    const defaultScaleOptions = {
-      rootNote: 'C',
-      scale: [0],
-      lowestOctave: 0,
-      highestOctave: 6,
-      normalize: false as NormalizeOptions | false, // All time params updated to seconds, normalizing logic can be removed
-    };
-
-    this.setScale(defaultScaleOptions);
-
+    // ? macroLoopStart.setScale(this.#scale)
     return this;
   }
 
@@ -227,50 +215,24 @@ export class SamplePlayer extends LibInstrument {
       );
     }
 
+    let tuningOffset = 0; // in semitones (float)
+
     if (shoulDetectPitch) {
-      const pitchSource = await detectSinglePitchAC(buffer);
-      // const pitchSource = await detectPitchWindowed(buffer);
-      const targetNoteInfo = findClosestNote(pitchSource.frequency);
-
-      const midiFloat = 69 + 12 * Math.log2(pitchSource.frequency / 440);
-      const playbackRateMultiplier =
-        targetNoteInfo.frequency / pitchSource.frequency;
-
-      console.table({
-        pitchSource,
-        targetNoteInfo,
-        playbackRateMultiplier,
-        midiFloat,
-      });
-
-      this.sendUpstreamMessage('sample:pitch-detected', {
-        pitchResults: pitchSource,
-        closestNoteInfo: targetNoteInfo,
-      });
+      const detectedPitch = await this.detectPitch(buffer);
 
       if (autoTranspose) {
-        if (pitchSource.confidence > 0.35) {
-          let transposeSemitones = 60 - midiFloat;
-          // Wrap to nearest octave (-6 to +6 semitones)
-          while (transposeSemitones > 6) transposeSemitones -= 12;
-          while (transposeSemitones < -6) transposeSemitones += 12;
-          this.voicePool.transposeSemitones = transposeSemitones;
-
-          console.info(`transposing by ${transposeSemitones} semitones`);
-
-          this.sendUpstreamMessage('sample:auto-transpose', {
-            didTranspose: true,
-            pitchResults: pitchSource,
-          });
+        if (detectedPitch.confidence > 0.35) {
+          tuningOffset = this.detectedPitchToTransposition(
+            detectedPitch.midiFloat,
+            60 // Target midi note //  Todo: use setScale
+          );
+          this.setTransposition(tuningOffset);
         } else {
-          console.info(`Skipped auto transpose due to unreliable results: `, {
-            pitchResults: pitchSource,
-          });
-
-          this.sendUpstreamMessage('sample:auto-transpose', {
-            didTranspose: false,
-            pitchResults: pitchSource,
-          });
+          console.info(
+            `Skipped auto transpose due to unreliable pitch detection results: `,
+            detectedPitch
+          );
+          this.sendUpstreamMessage('sample:auto-transpose:fail', {});
         }
       }
     }
@@ -285,7 +247,68 @@ export class SamplePlayer extends LibInstrument {
 
     this.#resetMacros(buffer.duration);
 
+    const defaultScaleOptions = {
+      rootNote: 'C',
+      scale: [0],
+      lowestOctave: 0,
+      highestOctave: 7,
+      tuningOffset,
+      // All time params updated to seconds, normalizing logic can be removed
+      normalize: false as NormalizeOptions | false,
+    };
+
+    this.setScale(defaultScaleOptions);
+
     return buffer.duration;
+  }
+
+  setTransposition = (semitones: number) => {
+    this.voicePool.transposeSemitones = semitones;
+
+    console.info(`transposing by ${semitones} semitones`);
+    this.sendUpstreamMessage('sample:auto-transpose:success', {
+      transposedBy: semitones,
+    });
+  };
+
+  async detectPitch(buffer: AudioBuffer) {
+    const pitchSource = await detectSinglePitchAC(buffer);
+    const targetNoteInfo = findClosestNote(pitchSource.frequency);
+
+    const midiFloat = 69 + 12 * Math.log2(pitchSource.frequency / 440);
+    const playbackRateMultiplier =
+      targetNoteInfo.frequency / pitchSource.frequency;
+
+    console.table({
+      pitchSource,
+      targetNoteInfo,
+      playbackRateMultiplier,
+      midiFloat,
+    });
+
+    this.sendUpstreamMessage('sample:pitch-detected', {
+      pitchResults: pitchSource,
+      closestNoteInfo: targetNoteInfo,
+    });
+
+    return {
+      frequency: pitchSource.frequency,
+      confidence: pitchSource.confidence,
+      midiFloat,
+      targetNoteInfo,
+    };
+  }
+
+  detectedPitchToTransposition(
+    detectedMidiFloat: number,
+    targetMidiNote: number
+  ) {
+    let transposeSemitones = targetMidiNote - detectedMidiFloat;
+    // Wrap to nearest octave (-6 to +6 semitones)
+    while (transposeSemitones > 6) transposeSemitones -= 12;
+    while (transposeSemitones < -6) transposeSemitones += 12;
+
+    return transposeSemitones;
   }
 
   /* === PLAYBACK === */
@@ -336,6 +359,7 @@ export class SamplePlayer extends LibInstrument {
   setScale(options: {
     rootNote: string;
     scale: number[];
+    tuningOffset: number;
     highestOctave: number;
     lowestOctave: number;
     normalize: NormalizeOptions | false;
@@ -472,7 +496,7 @@ export class SamplePlayer extends LibInstrument {
     //   return this;
     // }
 
-    const RAMP_SENSITIVITY = 1.5;
+    const RAMP_SENSITIVITY = 1;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start') {
@@ -503,6 +527,13 @@ export class SamplePlayer extends LibInstrument {
       );
     }
 
+    return this;
+  }
+
+  scrollLoopPoints(loopStart: number, loopEnd: number) {
+    const timestamp = this.now;
+    this.#macroLoopStart.setValue(loopStart, timestamp);
+    this.#macroLoopEnd.setValue(loopEnd, timestamp);
     return this;
   }
 
@@ -657,6 +688,20 @@ export class SamplePlayer extends LibInstrument {
   ) => {
     this.voicePool.applyToAllVoices((v) =>
       v.setEnvelopeLoop(envType, loop, mode)
+    );
+  };
+
+  setEnvelopeSync = (envType: EnvelopeType, sync: boolean) => {
+    this.voicePool.applyToAllVoices((v) =>
+      v.syncEnvelopeToPlaybackRate(envType, sync)
+    );
+  };
+
+  setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
+    console.warn(envType, timeScale);
+
+    this.voicePool.applyToAllVoices((v) =>
+      v.setEnvelopeTimeScale(envType, timeScale)
     );
   };
 
