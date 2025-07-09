@@ -67,6 +67,10 @@ export class MacroParam {
       onCompleteDelayMs?: number;
     } = {}
   ): this {
+    const prev = this.#controller.value;
+    if (targetValue === prev) return this;
+    // const direction = targetValue > prev ? 'increment' : 'decrement';
+
     const {
       method = 'exponential',
       debounceMs = 20,
