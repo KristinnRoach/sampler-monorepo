@@ -44,6 +44,7 @@ const SamplerElement = (attributes: ElementProps) => {
   // Loop params
   const loopStartSeconds = van.state(0);
   const loopEndSeconds = van.state(0);
+  const loopRampSeconds = van.state(0.5);
 
   // Trim sample params
   const startPointSeconds = van.state(0);
@@ -164,14 +165,26 @@ const SamplerElement = (attributes: ElementProps) => {
         van.derive(() => {
           if (!samplePlayer) return;
           if (loopStartSeconds.val !== samplePlayer.loopStart) {
-            samplePlayer.setLoopStart(loopStartSeconds.val);
+            if (loopRampSeconds.val === 0) {
+              samplePlayer.scrollLoopPoints(
+                loopStartSeconds.val,
+                loopEndSeconds.val
+              );
+            } else {
+              samplePlayer.setLoopStart(
+                loopStartSeconds.val,
+                loopRampSeconds.val
+              );
+            }
           }
         });
 
         van.derive(() => {
           if (!samplePlayer) return;
+          if (loopRampSeconds.val === 0) return; // Todo: clarify
+
           if (loopEndSeconds.val !== samplePlayer.loopEnd) {
-            samplePlayer.setLoopEnd(loopEndSeconds.val);
+            samplePlayer.setLoopEnd(loopEndSeconds.val, loopRampSeconds.val);
           }
         });
 
@@ -614,6 +627,7 @@ const SamplerElement = (attributes: ElementProps) => {
         SampleControls(
           loopStartSeconds,
           loopEndSeconds,
+          loopRampSeconds,
           startPointSeconds,
           endPointSeconds,
           sampleDurationSeconds

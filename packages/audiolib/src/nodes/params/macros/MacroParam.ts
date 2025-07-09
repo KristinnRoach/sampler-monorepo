@@ -200,8 +200,8 @@ export class MacroParam {
   }
 
   // Delegate basic operations
-  setValue(value: number): this {
-    this.#controller.setValue(value);
+  setValue(value: number, timestamp?: number): this {
+    this.#controller.setValue(value, timestamp);
     this.#sendValueChangedMessage(value);
     return this;
   }

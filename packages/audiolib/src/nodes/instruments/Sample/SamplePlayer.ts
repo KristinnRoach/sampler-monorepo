@@ -496,7 +496,7 @@ export class SamplePlayer extends LibInstrument {
     //   return this;
     // }
 
-    const RAMP_SENSITIVITY = 1.5;
+    const RAMP_SENSITIVITY = 1;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start') {
@@ -527,6 +527,13 @@ export class SamplePlayer extends LibInstrument {
       );
     }
 
+    return this;
+  }
+
+  scrollLoopPoints(loopStart: number, loopEnd: number) {
+    const timestamp = this.now;
+    this.#macroLoopStart.setValue(loopStart, timestamp);
+    this.#macroLoopEnd.setValue(loopEnd, timestamp);
     return this;
   }
 
