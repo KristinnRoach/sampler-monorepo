@@ -1,5 +1,5 @@
 import { ValueSnapper } from '../shared/ValueSnapper';
-import { findClosest } from '../../../utils/search/findClosest';
+import { findClosestIdx } from '../../../utils/search/findClosest';
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== PARAMETER DESCRIPTORS =====
@@ -88,9 +88,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.minZeroCrossing = 0;
     this.maxZeroCrossing = 0;
 
+    // Loop click compensation
+    this.applyClickCompensation = false;
+    this.loopClickCompensation = 0;
+
     // Other flags
     this.isReleasing = false;
     this.loopEnabled = false;
+    this.lockTrimToloop = false;
     this.usePlaybackPosition = false;
 
     // Cache quantized values per process block
@@ -211,6 +216,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       case 'voice:usePlaybackPosition':
         this.usePlaybackPosition = value;
         break;
+
+      case 'lock:trimToloop':
+        this.lockTrimToloop = true;
+        break;
+
+      case 'unlock:trimToLoop':
+        this.lockTrimToloop = false;
+        break;
     }
   }
 
@@ -225,6 +238,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.playbackPosition = 0;
     this.loopCount = 0;
     this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+
+    this.applyClickCompensation = false;
+    this.loopClickCompensation = 0;
+    this.lockTrimToloop = false;
   }
 
   #stop() {
@@ -360,20 +377,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
 
     let calcLoopEnd =
-      lpEnd > lpStart && lpEnd < playbackRange.endSamples
+      lpEnd > lpStart && lpEnd <= playbackRange.endSamples
         ? lpEnd
         : playbackRange.endSamples;
 
     const loopDuration = calcLoopEnd - calcLoopStart;
-
-    // !! TEMPORARILY DISABLED WHILE TESTING MACROPARAM
-    // const shouldSnap = loopDuration < this.snapper.longestPeriod;
-    // if (shouldSnap && this.snapper.hasPeriodSnapping) {
-    //   calcLoopEnd =
-    //     calcLoopStart + this.snapper.snapToMusicalPeriod(loopDuration);
-    // }
-    // calcLoopStart = findClosest(this.zeroCrossings, calcLoopStart, 'right');
-    // calcLoopEnd = findClosest(this.zeroCrossings, calcLoopEnd, 'right');
 
     return {
       loopStartSamples: calcLoopStart,
@@ -401,8 +409,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       parameters
     );
 
-    // Initialize playback position on first process call
-    if (this.playbackPosition === 0) {
+    // Initialize playback position
+    if (
+      this.playbackPosition === 0 ||
+      this.playbackPosition < playbackRange.startSamples
+    ) {
       this.playbackPosition = playbackRange.startSamples;
     }
 
@@ -416,40 +427,24 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const numChannels = Math.min(output.length, this.buffer.length);
 
-    // if (this.debugCounter % 1000 === 0) {
-    //   this.port.postMessage({
-    //     type: 'debug:loop',
-    //     loopEnabled: this.loopEnabled,
-    //     playbackPosition: this.playbackPosition,
-    //     loopStartSamples: loopRange.loopStartSamples,
-    //     loopEndSamples: loopRange.loopEndSamples,
-    //     playbackStartSamples: playbackRange.startSamples,
-    //     playbackEndSamples: playbackRange.endSamples,
-    //     rawLoopStart: parameters.loopStart[0],
-    //     rawLoopEnd: parameters.loopEnd[0],
-    //   });
-    // }
-
     // Process each sample
     for (let i = 0; i < output[0].length; i++) {
       // Handle looping
-      if (
-        this.loopEnabled &&
-        this.playbackPosition >= loopRange.loopEndSamples &&
-        this.loopCount < this.maxLoopCount
-      ) {
-        // Log when loop occurs
-        this.port.postMessage({
-          type: 'voice:looped',
-          count: this.loopCount,
-          timestamp: currentTime,
-          playbackPosition: this.playbackPosition,
-          loopEndSamples: loopRange.loopEndSamples,
-          loopStartSamples: loopRange.loopStartSamples,
-        });
+      if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
+        if (this.playbackPosition >= loopRange.loopEndSamples) {
+          // Get the actual samples we're transitioning between
+          const lastLoopSample =
+            this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
+          const newFirstSample =
+            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
 
-        this.playbackPosition = loopRange.loopStartSamples;
-        this.loopCount++;
+          // Store the difference for ONE sample compensation
+          this.loopClickCompensation = (lastLoopSample - newFirstSample) * 0.5;
+          this.applyClickCompensation = true;
+
+          this.playbackPosition = loopRange.loopStartSamples;
+          this.loopCount++;
+        }
       }
 
       // Check for end of playback range
@@ -469,7 +464,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         const current = bufferChannel[position] || 0;
         const next = bufferChannel[nextPosition] || 0;
 
-        const interpolatedSample = current + fraction * (next - current);
+        let interpolatedSample = current + fraction * (next - current);
+
+        // Apply ONE-SAMPLE click compensation
+        if (this.applyClickCompensation) {
+          interpolatedSample += this.loopClickCompensation;
+          this.applyClickCompensation = false; // Only apply to the very first sample
+        }
+
         const finalSample =
           interpolatedSample * finalVelocityGain * envelopeGain;
 
@@ -498,6 +500,20 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
+
+// if (this.debugCounter % 1000 === 0) {
+//   this.port.postMessage({
+//     type: 'debug:loop',
+//     loopEnabled: this.loopEnabled,
+//     playbackPosition: this.playbackPosition,
+//     loopStartSamples: loopRange.loopStartSamples,
+//     loopEndSamples: loopRange.loopEndSamples,
+//     playbackStartSamples: playbackRange.startSamples,
+//     playbackEndSamples: playbackRange.endSamples,
+//     rawLoopStart: parameters.loopStart[0],
+//     rawLoopEnd: parameters.loopEnd[0],
+//   });
+// }
 
 // === DEBUGGING REMOVE ===
 //if (this.loopEnabled && this.debugCounter % 1000 === 0) {
@@ -530,3 +546,13 @@ registerProcessor('sample-player-processor', SamplePlayerProcessor);
 // });
 //}
 // === DEBUGGING REMOVE END ===
+
+// // Log when loop occurs
+// this.port.postMessage({
+//   type: 'voice:looped',
+//   count: this.loopCount,
+//   timestamp: currentTime,
+//   playbackPosition: this.playbackPosition,
+//   loopEndSamples: loopRange.loopEndSamples,
+//   loopStartSamples: loopRange.loopStartSamples,
+// });

@@ -26,6 +26,7 @@ import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType } from '@/nodes/params/envelopes';
 
 export class SamplePlayer extends LibInstrument {
+  #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
   #loopEnabled = false;
   #loopLocked = false;
@@ -190,17 +191,13 @@ export class SamplePlayer extends LibInstrument {
     modSampleRate?: number,
     shoulDetectPitch = true,
     autoTranspose = true
-  ): Promise<number> {
+  ): Promise<AudioBuffer> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
       buffer = await ctx.decodeAudioData(buffer);
     }
 
     assert(isValidAudioBuffer(buffer));
-
-    this.releaseAll(0);
-    this.voicePool.transposeSemitones = 0; // or stored val
-    this.#isLoaded = false;
 
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
@@ -215,8 +212,12 @@ export class SamplePlayer extends LibInstrument {
       );
     }
 
-    let tuningOffset = 0; // in semitones (float)
+    this.releaseAll(0);
+    this.voicePool.transposeSemitones = 0; // or stored val
+    this.#isLoaded = false;
+    this.#audiobuffer = null;
 
+    let tuningOffset = 0; // in semitones (float)
     if (shoulDetectPitch) {
       const detectedPitch = await this.detectPitch(buffer);
 
@@ -251,7 +252,7 @@ export class SamplePlayer extends LibInstrument {
       rootNote: 'C',
       scale: [0],
       lowestOctave: 0,
-      highestOctave: 7,
+      highestOctave: 6,
       tuningOffset,
       // All time params updated to seconds, normalizing logic can be removed
       normalize: false as NormalizeOptions | false,
@@ -259,7 +260,9 @@ export class SamplePlayer extends LibInstrument {
 
     this.setScale(defaultScaleOptions);
 
-    return buffer.duration;
+    this.#audiobuffer = buffer;
+
+    return buffer;
   }
 
   setTransposition = (semitones: number) => {
@@ -487,20 +490,26 @@ export class SamplePlayer extends LibInstrument {
     loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    // if (
-    //   loopStartSeconds > loopEndSeconds ||
-    //   loopEndSeconds < loopStartSeconds ||
-    //   loopEndSeconds > this.#bufferDuration
-    // ) {
-    //   console.error(`samplePlayer.setLoopPoint: Loop points out of bounds`);
-    //   return this;
-    // }
+    if (
+      loopStartSeconds > loopEndSeconds ||
+      loopEndSeconds < loopStartSeconds ||
+      (this.isLoaded && loopEndSeconds > this.#bufferDuration)
+    ) {
+      console.error(
+        `samplePlayer.setLoopPoint: Loop points out of bounds.
+        Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
+      );
+      return this;
+    }
 
     const RAMP_SENSITIVITY = 1;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start') {
       // && normalizedLoopStart !== this.loopStart) {
+
+      // this.setSampleStartPoint(loopStartSeconds); // ! TEMPORARY: Locking startpoint to loopstart
+
       const storeLoopStart = () =>
         this.storeParamValue('loopStart', loopStartSeconds);
 
@@ -860,6 +869,10 @@ export class SamplePlayer extends LibInstrument {
 
   get isLoaded() {
     return this.#isLoaded;
+  }
+
+  get audiobuffer() {
+    return this.#audiobuffer;
   }
 
   /* === CLEANUP === */

@@ -74,7 +74,12 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Create the envelopes and store references
   van.derive(() => {
-    if (ampEnvelope.val && !ampEnvInstance && sampleDurationSeconds.val) {
+    if (
+      samplePlayer &&
+      ampEnvelope.val &&
+      // !ampEnvInstance &&
+      sampleDurationSeconds.val
+    ) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
         ampEnvelope.val.points, // todo: fix the mixing of van states and callbacks, choose one system
@@ -90,9 +95,11 @@ const SamplerElement = (attributes: ElementProps) => {
         0.05,
         true,
         true,
-        true
-        // setEnvelopeTimeScale // ! TESTING
+        true,
+        undefined // setEnvelopeTimeScale // ! TESTING
       );
+
+      onSampleLoaded(sampleDurationSeconds.val);
     }
     if (filterEnvelope.val && !filterEnvInstance && sampleDurationSeconds.val) {
       filterEnvInstance = EnvelopeSVG(
@@ -224,13 +231,9 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // === SAMPLE-PLAYER MESSAGES ===
 
-        samplePlayer.onMessage('sample:loaded', (msg: any) => {
-          sampleDurationSeconds.val = msg.durationSeconds;
-          ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          pitchEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          status.val = `All voices loaded. Sample Duration: ${msg.durationSeconds}`;
-        });
+        samplePlayer.onMessage('sample:loaded', (msg) =>
+          onSampleLoaded(msg.durationSeconds)
+        );
 
         samplePlayer.onMessage('sample-envelopes:trigger', (msg: any) => {
           ampEnvInstance?.triggerPlayAnimation(msg);
@@ -260,6 +263,8 @@ const SamplerElement = (attributes: ElementProps) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
         });
 
+        // === Other listeners (to be removed) === //
+
         // todo (later): Make KeyboardInputManager in audiolib handle caps robustly
         // and sampleplayer sendUpStreamMessage for loop & hold states
         // then remove these handlers
@@ -282,6 +287,8 @@ const SamplerElement = (attributes: ElementProps) => {
             }
           }
         });
+
+        // === END: Other listeners (to be removed) === //
 
         status.val = 'Ready';
       } catch (error) {
@@ -332,27 +339,20 @@ const SamplerElement = (attributes: ElementProps) => {
               return;
             }
 
-            const durationSeconds = await samplePlayer.loadSample(arrayBuffer);
-            console.log(
-              'fileInput.onchange, durationSeconds:',
-              durationSeconds
-            );
+            const audiobuffer = await samplePlayer.loadSample(arrayBuffer);
+            const durationSeconds = audiobuffer.duration;
 
             await new Promise((resolve) => setTimeout(resolve, 0));
-
-            console.log(durationSeconds);
 
             if (durationSeconds > 0) {
               // Update sample duration and reset ranges
               sampleDurationSeconds.val = durationSeconds;
-
-              loopStartSeconds.val = 0;
-              loopEndSeconds.val = durationSeconds;
-              startPointSeconds.val = 0;
-              endPointSeconds.val = durationSeconds;
+              // loopStartSeconds.val = 0;
+              // loopEndSeconds.val = durationSeconds;
+              // startPointSeconds.val = 0;
+              // endPointSeconds.val = durationSeconds;
 
               status.val = `Loaded: ${file.name}`;
-              status.val = `Received duration from loadSample: ${durationSeconds}`;
             }
           } catch (error) {
             console.error('Failed to load sample:', error);
@@ -367,6 +367,30 @@ const SamplerElement = (attributes: ElementProps) => {
       status.val = `Error: ${error instanceof Error ? error.message : String(error)}`;
     }
   };
+
+  function onSampleLoaded(duration: number) {
+    console.assert(typeof duration === 'number'); // until messages typed
+
+    const buffer = samplePlayer?.audiobuffer;
+    sampleDurationSeconds.val = duration;
+
+    // ampEnvInstance?.updateMaxDuration(duration); // ! Choose callbacks vs van states
+    // filterEnvInstance?.updateMaxDuration(duration);
+    // pitchEnvInstance?.updateMaxDuration(duration);
+
+    if (buffer instanceof AudioBuffer) {
+      console.log(
+        'sample:loaded message, samplePlayer?.audiobuffer: ',
+        samplePlayer?.audiobuffer,
+        'ampEnvInstance?',
+        ampEnvInstance
+      );
+      ampEnvInstance?.drawWaveform(buffer);
+      filterEnvInstance?.drawWaveform(buffer);
+      pitchEnvInstance?.drawWaveform(buffer);
+    }
+    status.val = `All voices loaded. Sample Duration: ${duration.toFixed(3)}`;
+  }
 
   // Recording handlers
   const startRecording = async () => {

@@ -21,13 +21,14 @@ export interface EnvelopeSVG {
   releaseAnimation: (msg: any) => void;
   updateMaxDuration: (seconds: number) => void;
   updateEnvelopeDuration: (seconds: number) => void;
+  drawWaveform: (audiobuffer: AudioBuffer) => void;
   cleanup: () => void;
 }
 
 export const EnvelopeSVG = (
   envelopeType: EnvelopeType,
   initialPoints: EnvelopePoint[],
-  maxDurationInSeconds: State<number>,
+  maxDurationSeconds: State<number>,
   onPointUpdate: (
     envType: EnvelopeType,
     index: number,
@@ -45,7 +46,6 @@ export const EnvelopeSVG = (
   enabled = true,
   initialLoopState = false,
   multiColorPlayheads = true,
-
   setEnvelopeTimeScale?: (envType: EnvelopeType, timeScale: number) => void // ! Testing
 ): EnvelopeSVG => {
   if (!initialPoints.length) {
@@ -61,6 +61,7 @@ export const EnvelopeSVG = (
       releaseAnimation: () => {},
       updateMaxDuration: () => {},
       updateEnvelopeDuration: () => {},
+      drawWaveform: () => {},
       cleanup: () => {},
     };
   }
@@ -71,6 +72,7 @@ export const EnvelopeSVG = (
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
+  let waveformPath: SVGPathElement | null = null;
 
   const activeTweens: Map<number, gsap.core.Tween> = new Map();
   const playheads: Map<number, Element> = new Map();
@@ -86,31 +88,38 @@ export const EnvelopeSVG = (
   const isLooping = van.state(initialLoopState);
   const syncToPlaybackRate = van.state(false);
 
-  const maxDurationSeconds = van.state(maxDurationInSeconds.val);
-  const currentDurationSeconds = van.state(maxDurationInSeconds.rawVal);
+  const currentDurationSeconds = van.state(maxDurationSeconds.rawVal);
 
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
-  const points = van.state(initialPoints); // Reactive - Overwrites current state if receives new props !
-  // const points = van.state([...initialEnvValues.points]); // Use this instead if values never change
+  const points = van.state([...initialPoints]);
   const currentEase = van.state<string | null>(null);
+
+  const timeToScreenX = (timeInSeconds: number): number => {
+    return (timeInSeconds / maxDurationSeconds.val) * SVG_WIDTH;
+  };
 
   // Helper to generate SVG path from points
   const generateSVGPath = (pts: EnvelopePoint[]): string => {
     if (pts.length < 2) return `M0,200 L400,200`;
 
     const sortedPoints = [...pts].sort((a, b) => a.time - b.time);
-    let path = `M${(sortedPoints[0].time / maxDurationSeconds.val) * SVG_WIDTH},${(1 - sortedPoints[0].value) * SVG_HEIGHT}`;
+    // let path = `M${(sortedPoints[0].time / maxDurationSeconds.val) * SVG_WIDTH},${(1 - sortedPoints[0].value) * SVG_HEIGHT}`;
+    let path = `M${sortedPoints[0].time * SVG_WIDTH},${(1 - sortedPoints[0].value) * SVG_HEIGHT}`;
 
     for (let i = 1; i < sortedPoints.length; i++) {
       const point = sortedPoints[i];
       const prevPoint = sortedPoints[i - 1];
 
-      const x = (point.time / maxDurationSeconds.val) * SVG_WIDTH;
+      // const x = (point.time / maxDurationSeconds.val) * SVG_WIDTH;
+      // const x = point.time * SVG_WIDTH;
+      const x = timeToScreenX(point.time);
       const y = (1 - point.value) * SVG_HEIGHT;
 
       if (prevPoint.curve === 'exponential') {
-        const prevX = (prevPoint.time / maxDurationSeconds.val) * SVG_WIDTH;
+        // const prevX = (prevPoint.time / maxDurationSeconds.val) * SVG_WIDTH;
+        // const prevX = prevPoint.time * SVG_WIDTH;
+        const prevX = timeToScreenX(prevPoint.time);
         const prevY = (1 - prevPoint.value) * SVG_HEIGHT;
         const cp1X = prevX + (x - prevX) * 0.3;
         const cp1Y = prevY;
@@ -158,11 +167,7 @@ export const EnvelopeSVG = (
         'circle'
       );
 
-      // circle.setAttribute('cx', (point.time * SVG_WIDTH).toString()); // !
-      circle.setAttribute(
-        'cx',
-        ((point.time / maxDurationSeconds.val) * SVG_WIDTH).toString()
-      );
+      circle.setAttribute('cx', timeToScreenX(point.time).toString());
       circle.setAttribute('cy', ((1 - point.value) * SVG_HEIGHT).toString());
       circle.setAttribute('r', '4');
       circle.setAttribute(
@@ -181,7 +186,9 @@ export const EnvelopeSVG = (
       if (index === 0 || index === pts.length - 1) {
         // Update duration based on time span of envelope points
         const timeSpan = pts[pts.length - 1].time - pts[0].time;
-        const newDuration = timeSpan * maxDurationSeconds.val; // Convert back to seconds
+
+        const newDuration = timeSpan; // * maxDurationSeconds.val; // ! NOT Convert back to seconds
+
         if (Math.abs(currentDurationSeconds.val - newDuration) > 0.001) {
           currentDurationSeconds.val = newDuration;
         }
@@ -240,9 +247,9 @@ export const EnvelopeSVG = (
     if (isDragging.val && selectedPoint.val !== null) {
       const rect = svgElement.getBoundingClientRect();
 
-      // let time = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       let time =
         ((e.clientX - rect.left) / rect.width) * maxDurationSeconds.val;
+
       let value = Math.max(
         0,
         Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
@@ -288,8 +295,10 @@ export const EnvelopeSVG = (
 
     if (isDragging.val) return;
     const rect = svgElement.getBoundingClientRect();
+
     const time =
       ((e.clientX - rect.left) / rect.width) * maxDurationSeconds.val;
+
     const value = Math.max(
       0, // todo: if click is near the current envelope line it should likely be exactly on the line when created
       Math.min(1, 1 - (e.clientY - rect.top) / rect.height)
@@ -340,7 +349,7 @@ export const EnvelopeSVG = (
     border-radius: 50%; 
     cursor: pointer; 
     z-index: 10;
-    background: ${isLooping.val ? '#ff6b6b' : '#666'};
+    background: ${isLooping.val && isEnabled.val ? '#ff6b6b' : '#666'};
   `,
     title: () => (isLooping.val ? 'Disable looping' : 'Enable looping'),
     onclick: () => {
@@ -359,7 +368,7 @@ export const EnvelopeSVG = (
     border-radius: 50%; 
     cursor: pointer; 
     z-index: 10;
-    background: ${syncToPlaybackRate.val ? '#336bcc' : '#666'};
+    background: ${syncToPlaybackRate.val && isEnabled.val ? '#336bcc' : '#666'};
   `,
     title: () => (syncToPlaybackRate.val ? 'Disable sync' : 'Enable sync'),
     onclick: () => {
@@ -440,8 +449,11 @@ export const EnvelopeSVG = (
 
   // Envelope path
   envelopePath = path({
-    id: 'path',
-    d: () => generateSVGPath(points.val),
+    id: 'envelope-path',
+    d: () => {
+      maxDurationSeconds.val; // Dependency
+      return generateSVGPath(points.val);
+    },
     fill: 'none',
     stroke: () => (isEnabled.val ? '#4ade80' : '#666'),
     'stroke-width': 2,
@@ -456,34 +468,33 @@ export const EnvelopeSVG = (
   svgElement.appendChild(envelopePath);
   svgElement.appendChild(pointsGroup);
 
-  // Update when points change
-  van.derive(() => {
-    points.val;
-    selectedPoint.val;
-    updateControlPoints();
+  // === WAVEFORM ===
 
-    // setTimeout(() => refreshPlayingAnimations(), 0); // ensures path is updated
+  function drawWaveform(audiobuffer: AudioBuffer) {
+    // Remove previous waveform path if it exists
+    if (waveformPath && waveformPath.parentNode === svgElement) {
+      svgElement.removeChild(waveformPath);
+      waveformPath = null;
+    }
 
-    setTimeout(() => {
-      currentEase.val = createTimeBasedEase(envelopePath);
-      refreshPlayingAnimations();
-    }, 0);
-  });
+    const waveformSVGData = getWaveformSVGData(
+      audiobuffer,
+      SVG_WIDTH,
+      SVG_HEIGHT
+    );
 
-  // Update current points and duration when prop changes
-  van.derive(() => {
-    points.val = initialPoints;
-    // maxDurationSeconds.val;
-    // maxDurationInSeconds.val; // !! GET rid of duplicate
-  });
+    waveformPath = path({
+      id: 'waveform-path',
+      d: waveformSVGData.trim(),
+      fill: 'none',
+      stroke: () => (isEnabled.val ? '#3467bc' : '#333'),
+      'stroke-width': 2,
+    }) as SVGPathElement;
 
-  van.derive(() => {
-    onLoopChange(envelopeType, isLooping.val);
-  });
+    svgElement.appendChild(waveformPath);
+  }
 
-  van.derive(() => {
-    onSyncChange(envelopeType, syncToPlaybackRate.val);
-  });
+  // === ANIMATION ===
 
   function createTimeBasedEase(pathElement: SVGPathElement): string | null {
     if (!isEnabled.val) return null;
@@ -671,10 +682,61 @@ export const EnvelopeSVG = (
   };
 
   const updateEnvelopeDuration = (seconds: number) => {
-    console.warn('updateEnvelopeDuration', seconds);
     if (seconds !== currentDurationSeconds.val)
       currentDurationSeconds.val = seconds;
   };
+
+  // 1. First derive: Update duration and points when maxDurationSeconds changes
+  let previousMaxDuration = maxDurationSeconds.val; // Track previous value
+
+  van.derive(() => {
+    const newMaxDuration = maxDurationSeconds.val;
+    currentDurationSeconds.val = newMaxDuration;
+
+    // Scale existing points proportionally
+    const scalingRatio = newMaxDuration / previousMaxDuration;
+    const scaledPoints = points.val.map((pt) => ({
+      ...pt,
+      time: pt.time * scalingRatio,
+    }));
+
+    points.val = scaledPoints;
+    previousMaxDuration = newMaxDuration; // Update for next time
+  });
+
+  // van.derive(() => {
+  //   currentDurationSeconds.val = maxDurationSeconds.val;
+
+  //   const scaledInitialPoints = initialPoints.map((pt) => ({
+  //     ...pt,
+  //     time: pt.time * maxDurationSeconds.val,
+  //   }));
+
+  //   points.val = scaledInitialPoints;
+  // });
+
+  // 2. Second derive: Update UI when points, selection, or duration changes
+  van.derive(() => {
+    points.val;
+    selectedPoint.val;
+    maxDurationSeconds.val;
+
+    updateControlPoints();
+
+    setTimeout(() => {
+      points.val = initialPoints;
+      currentEase.val = createTimeBasedEase(envelopePath);
+      refreshPlayingAnimations();
+    }, 0);
+  });
+
+  van.derive(() => {
+    onLoopChange(envelopeType, isLooping.val);
+  });
+
+  van.derive(() => {
+    onSyncChange(envelopeType, syncToPlaybackRate.val);
+  });
 
   van.derive(() => {
     if (!isEnabled.val) {
@@ -691,9 +753,36 @@ export const EnvelopeSVG = (
     releaseAnimation,
     updateMaxDuration,
     updateEnvelopeDuration,
+    drawWaveform,
     cleanup: () => {
       killAllTweens();
       activeTimeouts.forEach(clearTimeout);
+      if (waveformPath && waveformPath.parentNode === svgElement) {
+        svgElement.removeChild(waveformPath);
+      }
     },
   };
 };
+
+function getWaveformSVGData(
+  audiobuffer: AudioBuffer,
+  width: number,
+  height: number
+): string {
+  if (!audiobuffer.length) return '';
+
+  const channelData = audiobuffer.getChannelData(0);
+
+  const step = Math.ceil(channelData.length / width);
+  // const step = Math.ceil(audiobuffer.duration / width);
+  let path = '';
+
+  for (let i = 0; i < width; i++) {
+    const idx = i * step;
+    const v = channelData[idx] || 0;
+    const y = (1 - (v + 1) / 2) * height;
+    path += (i === 0 ? 'M' : 'L') + `${i},${y} `;
+  }
+
+  return path;
+}

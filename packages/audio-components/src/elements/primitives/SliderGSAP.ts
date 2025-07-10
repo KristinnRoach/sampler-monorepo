@@ -11,7 +11,7 @@ class SliderGSAP extends HTMLElement {
 
   minValue: number = 0;
   maxValue: number = 1;
-  rampTime: number = 0.5;
+  // rampTime: number = 0.5;
 
   positionsPixels: number[];
   sliderMinPx: number = 10;
@@ -156,15 +156,16 @@ class SliderGSAP extends HTMLElement {
   onPress(event: PointerEvent, thumbIndex: number) {
     this.isShiftDragging = event.shiftKey;
     if (this.isShiftDragging) {
-      this.rampTime = 0;
+      // this.rampTime = 0;
       // Store current positions at drag start
       this.dragStartPositions = [
         gsap.getProperty(this.thumbs[0], 'x') as number,
         gsap.getProperty(this.thumbs[1], 'x') as number,
       ];
-    } else {
-      this.rampTime = 0.5; // todo: use passed in value or state
     }
+    // else {
+    //   this.rampTime = 0.5; // todo: use passed in value or state
+    // }
   }
 
   onDrag(thumbIndex: number) {
@@ -250,7 +251,7 @@ class SliderGSAP extends HTMLElement {
         detail: {
           min: firstValue,
           max: secondValue,
-          rampTime: this.rampTime,
+          // rampTime: this.rampTime,
           isShiftDragging: this.isShiftDragging,
           // Also provide normalized values if needed
           minNormalized: firstNormalized,

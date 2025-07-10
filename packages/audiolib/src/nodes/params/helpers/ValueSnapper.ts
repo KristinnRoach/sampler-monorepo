@@ -3,7 +3,7 @@ import {
   offsetPeriodsBySemitones,
 } from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
-import { findClosest, findClosestNote, Note } from '@/utils';
+import { findClosestIdx, findClosestNote, Note } from '@/utils';
 
 const normalizeRange = (
   values: number | number[],
@@ -142,7 +142,7 @@ export class ValueSnapper {
 
     // No tolerance = simple closest value (for real time quick processing)
     if (tolerance === undefined) {
-      return findClosest(allowedValues, target);
+      return findClosestIdx(allowedValues, target);
     }
 
     // Filter allowedValues by tolerance
@@ -152,12 +152,12 @@ export class ValueSnapper {
 
     if (validValues.length > 0) {
       // Normal case: snap to closest within tolerance
-      return findClosest(validValues, target, preferDirection);
+      return findClosestIdx(validValues, target, preferDirection);
     }
 
     // Fallback: move partially toward closest zero crossing
     if (tolerance !== undefined) {
-      const closest = findClosest(allowedValues, target, preferDirection);
+      const closest = findClosestIdx(allowedValues, target, preferDirection);
 
       const directionToClosest = Math.sign(closest - target); // -1 or 1
       return target + directionToClosest * tolerance;
@@ -172,34 +172,37 @@ export class ValueSnapper {
   ): number {
     if (allowedPeriods.length === 0) return targetPeriod;
     if (targetPeriod > this.longestPeriod) return targetPeriod;
+    if (targetPeriod <= this.shortestPeriod) return this.shortestPeriod;
 
     // Find closest musical period to the target duration
-
-    // TODO: Test current direction based approach VS 'findClosest'
-    // const quantized = findClosest(allowedPeriods, targetPeriod);
 
     const prevPeriod = this.#allowedPeriods[this.#prevIndex];
 
     if (targetPeriod === prevPeriod) return targetPeriod;
 
-    let quantized = targetPeriod;
-    let idx = this.#prevIndex;
+    const direction = targetPeriod > prevPeriod ? 'right' : 'left';
+    // console.debug('PERIOD', direction);
 
-    const direction = targetPeriod > prevPeriod ? 'increment' : 'decrement';
-    if (direction === 'increment') {
-      if (targetPeriod < this.#allowedPeriods[idx + 1]) return prevPeriod;
+    // TODO: Test current direction based approach VS 'findClosest'
+    const newIndex = findClosestIdx(allowedPeriods, targetPeriod, direction);
+    const quantized = this.#allowedPeriods[newIndex];
 
-      while (this.#allowedPeriods[idx] < targetPeriod) idx++;
-      quantized = this.#allowedPeriods[idx];
-    }
-    if (direction === 'decrement') {
-      if (targetPeriod > this.#allowedPeriods[idx - 1]) return prevPeriod;
+    // let quantized = targetPeriod;
+    // let idx = this.#prevIndex;
+    // if (direction === 'right') {
+    //   if (targetPeriod < this.#allowedPeriods[idx + 1]) return prevPeriod;
 
-      while (this.#allowedPeriods[idx] > targetPeriod) idx--;
-      quantized = this.#allowedPeriods[idx];
-    }
+    //   while (this.#allowedPeriods[idx] < targetPeriod) idx++;
+    //   quantized = this.#allowedPeriods[idx];
+    // }
+    // if (direction === 'left') {
+    //   if (targetPeriod > this.#allowedPeriods[idx - 1]) return prevPeriod;
 
-    this.#prevIndex = idx;
+    //   while (this.#allowedPeriods[idx] > targetPeriod) idx--;
+    //   quantized = this.#allowedPeriods[idx];
+    // }
+
+    // this.#prevIndex = idx;
 
     return quantized;
   }
