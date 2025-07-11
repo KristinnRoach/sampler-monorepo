@@ -2,7 +2,7 @@ import { Connectable, Destination, LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { LevelMonitor } from '@/utils/monitoring/LevelMonitor';
+import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { assert } from '@/utils';
 
 export class InstrumentMasterBus implements LibNode, Connectable {

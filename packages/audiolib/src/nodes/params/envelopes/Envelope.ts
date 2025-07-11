@@ -1,12 +1,13 @@
-import { LibNode, NodeType } from '@/nodes/LibNode';
-import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+// import { LibNode, NodeType } from '@/nodes/LibNode';
+// import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+// import {
+//   Message,
+//   MessageHandler,
+//   createMessageBus,
+//   MessageBus,
+// } from '@/events';
+
 import { EnvelopePoint, EnvelopeType } from './env-types';
-import {
-  Message,
-  MessageHandler,
-  createMessageBus,
-  MessageBus,
-} from '@/events';
 
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
@@ -35,6 +36,20 @@ export class EnvelopeData {
       : 'exponential'
   ) {
     const newPoint = { time, value, curve };
+
+    // Prevent adding before first or after last point
+    if (this.points.length >= 2) {
+      const firstTime = this.points[0].time;
+      const lastTime = this.points[this.points.length - 1].time;
+
+      if (time <= firstTime || time >= lastTime) {
+        console.warn(
+          `Cannot add point at time ${time}. Must be between ${firstTime} and ${lastTime}`
+        );
+        return;
+      }
+    }
+
     const insertIndex = this.points.findIndex((p) => p.time > time);
 
     if (insertIndex === -1) {
@@ -48,15 +63,67 @@ export class EnvelopeData {
   updatePoint(index: number, time?: number, value?: number) {
     if (index >= 0 && index < this.points.length) {
       const currentPoint = this.points[index];
+      let newTime = time ?? currentPoint.time;
+
+      // Guard from passing the first and last points
+      if (index === 1 && newTime <= this.points[0].time) {
+        console.warn('Second point cannot go before first point');
+        return;
+      }
+
+      if (
+        index === this.points.length - 2 &&
+        newTime >= this.points[this.points.length - 1].time
+      ) {
+        console.warn('Second-to-last point cannot go after last point');
+        return;
+      }
+
       this.points[index] = {
         ...currentPoint,
-        time: time ?? currentPoint.time,
+        time: newTime,
         value: value ?? currentPoint.value,
       };
     }
 
     this.#updateSharpTransitionsFlag();
   }
+
+  // updatePoint(index: number, time?: number, value?: number) {
+  //   if (index >= 0 && index < this.points.length && time !== undefined) {
+  //     // Don't allow first/last points to move past adjacent points
+  //     if (index === 0 && this.points.length > 1) {
+  //       if (time >= this.points[1].time) {
+  //         console.warn('First point cannot move past second point');
+  //         return;
+  //       }
+  //     } else if (index === this.points.length - 1 && this.points.length > 1) {
+  //       if (time <= this.points[index - 1].time) {
+  //         console.warn('Last point cannot move past previous point');
+  //         return;
+  //       }
+  //     } else if (index > 0 && index < this.points.length - 1) {
+  //       // Middle points can't cross their neighbors
+  //       if (
+  //         time <= this.points[index - 1].time ||
+  //         time >= this.points[index + 1].time
+  //       ) {
+  //         console.warn('Point cannot cross neighboring points');
+  //         return;
+  //       }
+  //     }
+  //   }
+  //   if (index >= 0 && index < this.points.length) {
+  //     const currentPoint = this.points[index];
+  //     this.points[index] = {
+  //       ...currentPoint,
+  //       time: time ?? currentPoint.time,
+  //       value: value ?? currentPoint.value,
+  //     };
+  //   }
+
+  //   this.#updateSharpTransitionsFlag();
+  // }
 
   updateStartPoint = (time?: number, value?: number) => {
     this.updatePoint(0, time, value);
@@ -247,16 +314,9 @@ export class CustomEnvelope {
     this.#context = context;
     this.#logarithmic = logarithmic;
 
-    const finalRange: [number, number] = logarithmic
-      ? [
-          Math.log(Math.max(valueRange[0], 0.001)), // prevent using zero
-          Math.log(Math.max(valueRange[1], 0.001)),
-        ]
-      : valueRange;
-
     this.#data = new EnvelopeData(
       [...initialPoints],
-      finalRange,
+      valueRange,
       durationSeconds,
       logarithmic
     );
@@ -267,16 +327,12 @@ export class CustomEnvelope {
     time: number,
     value: number,
     curve?: 'linear' | 'exponential'
-  ): void => this.#data.addPoint(time * this.#timeScale, value, curve);
+  ): void => this.#data.addPoint(time, value, curve);
 
   deletePoint = (index: number): void => this.#data.deletePoint(index);
 
   updatePoint = (index: number, time?: number, value?: number) => {
-    this.#data.updatePoint(
-      index,
-      time ? time * this.#timeScale : undefined,
-      value
-    );
+    this.#data.updatePoint(index, time, value);
   };
 
   updateStartPoint = (time?: number, value?: number) =>
@@ -315,9 +371,14 @@ export class CustomEnvelope {
     return this.#data.points;
   }
 
-  get durationSeconds() {
+  get fullDuration() {
     return this.#data.durationSeconds;
   }
+
+  get timeScale() {
+    return this.#timeScale;
+  }
+
   get valueRange() {
     return this.#data.valueRange;
   }
@@ -383,7 +444,7 @@ export class CustomEnvelope {
   #applyEnvelope(
     audioParam: AudioParam,
     startTime: number,
-    duration: number = this.durationSeconds,
+    duration: number = this.fullDuration,
     options: {
       baseValue: number;
       minValue?: number;
@@ -411,16 +472,16 @@ export class CustomEnvelope {
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
-      const absoluteTime = normalizedProgress * scaledDuration; // Convert to seconds
-
-      const envelopeTime = absoluteTime * options.playbackRate;
+      const absoluteTime = normalizedProgress * duration; // sample the full duration (scale after)
       //     const currentDuration = this.#syncToPlaybackRate
       // ? this.#data.durationSeconds / options.playbackRate
       // : this.#data.durationSeconds;
-      let value = this.#data.interpolateValueAtTime(envelopeTime);
+      let value = this.#data.interpolateValueAtTime(
+        absoluteTime * options.playbackRate
+      );
 
       if (this.#logarithmic) {
-        value = Math.exp(value);
+        value = Math.pow(value, 2); // or just value * value if to aggressive
       }
 
       let finalValue = (base ?? 1) * value;
@@ -490,6 +551,30 @@ export class CustomEnvelope {
     }
   }
 
+  // ===== LOOP / TIME CONTROL =====
+
+  setTimeScale = (timeScale: number) => {
+    this.#timeScale = timeScale;
+    // New timescale is applied on next loop iteration
+    // for already looping envs
+  };
+
+  setLoopEnabled = (
+    enabled: boolean,
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+  ) => {
+    if (mode !== 'normal')
+      console.info(
+        `Only default env loop mode implemented. Other modes coming soon!`
+      );
+
+    this.#loopEnabled = enabled;
+  };
+
+  syncToPlaybackRate = (sync: boolean) => {
+    this.#syncedToPlaybackRate = sync;
+  };
+
   #startLoop(
     audioParam: AudioParam,
     startTime: number,
@@ -511,17 +596,16 @@ export class CustomEnvelope {
         ? this.#data.durationSeconds / options.playbackRate
         : this.#data.durationSeconds;
 
-      // Apply time scale to the loop duration
-      const currentDuration = baseDuration / this.#timeScale;
-
       this.#applyEnvelope(
         audioParam,
         currentCycleStart,
-        currentDuration,
+        baseDuration, // gets time scaled in applyEnvelope
         options
       );
 
-      currentCycleStart += currentDuration;
+      const scaledDuration = baseDuration / this.#timeScale;
+
+      currentCycleStart += scaledDuration;
       const timeUntilNext =
         (currentCycleStart - this.#context.currentTime) * 1000;
 
@@ -565,37 +649,6 @@ export class CustomEnvelope {
       this.#stopLoopFn = null;
     }
   }
-
-  // ===== LOOP / TIME CONTROL =====
-
-  setTimeScale = (timeScale: number) => {
-    this.#timeScale = timeScale;
-    console.warn(timeScale);
-    // For already looping envelopes, restart the loop with new timing
-    if (this.#stopLoopFn) {
-      // Store current loop state
-      // const wasLooping = true; // TODO: fix convoluted looping so we can easily update looping envelopes!
-      this.stopLooping();
-
-      // Note: To restart looping, the caller would need to call startLooping again
-    }
-  };
-
-  setLoopEnabled = (
-    enabled: boolean,
-    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
-  ) => {
-    if (mode !== 'normal')
-      console.info(
-        `Only default env loop mode implemented. Other modes coming soon!`
-      );
-
-    this.#loopEnabled = enabled;
-  };
-
-  syncToPlaybackRate = (sync: boolean) => {
-    this.#syncedToPlaybackRate = sync;
-  };
 
   // === UTILS ===
 
@@ -658,7 +711,8 @@ export function createEnvelope(
           { time: durationSeconds, value: 0.0, curve: 'exponential' },
         ],
         valueRange || [0, 1],
-        durationSeconds
+        durationSeconds,
+        true // log
       );
 
     case 'pitch-env':
@@ -671,6 +725,7 @@ export function createEnvelope(
         ],
         valueRange || [0.5, 1.5],
         durationSeconds
+        // true // log
       );
 
     case 'filter-env':
@@ -683,8 +738,8 @@ export function createEnvelope(
           { time: durationSeconds, value: 0.5, curve: 'linear' },
         ],
         valueRange || [30, 18000],
-        durationSeconds,
-        true // logarithmic = true
+        durationSeconds
+        // true // logarithmic = true
       );
 
     default:

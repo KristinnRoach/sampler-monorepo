@@ -6,7 +6,7 @@ import {
   type KarplusStrongSynth,
 } from '@repo/audiolib';
 
-import { createIcons } from '../../utils/svg-utils';
+import { createIcons } from '../../utils/icons';
 import { createSlider } from '../primitives/createInputEl';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
 

@@ -488,7 +488,7 @@ export const EnvelopeSVG = (
       d: waveformSVGData.trim(),
       fill: 'none',
       stroke: () => (isEnabled.val ? '#3467bc' : '#333'),
-      'stroke-width': 2,
+      'stroke-width': 1,
     }) as SVGPathElement;
 
     svgElement.appendChild(waveformPath);
@@ -704,17 +704,6 @@ export const EnvelopeSVG = (
     previousMaxDuration = newMaxDuration; // Update for next time
   });
 
-  // van.derive(() => {
-  //   currentDurationSeconds.val = maxDurationSeconds.val;
-
-  //   const scaledInitialPoints = initialPoints.map((pt) => ({
-  //     ...pt,
-  //     time: pt.time * maxDurationSeconds.val,
-  //   }));
-
-  //   points.val = scaledInitialPoints;
-  // });
-
   // 2. Second derive: Update UI when points, selection, or duration changes
   van.derive(() => {
     points.val;
@@ -772,9 +761,7 @@ function getWaveformSVGData(
   if (!audiobuffer.length) return '';
 
   const channelData = audiobuffer.getChannelData(0);
-
   const step = Math.ceil(channelData.length / width);
-  // const step = Math.ceil(audiobuffer.duration / width);
   let path = '';
 
   for (let i = 0; i < width; i++) {

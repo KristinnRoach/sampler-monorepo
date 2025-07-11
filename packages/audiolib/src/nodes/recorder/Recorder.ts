@@ -8,7 +8,9 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
+
 import { getMicrophone } from '@/io/devices/devices';
+import { normalizeAudioBuffer } from '@/utils';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -31,6 +33,9 @@ export const DEFAULT_RECORDER_OPTIONS = {
   autoStop: false,
   stopThreshold: -40, // todo: guard ensuring stopTreshold < startTreshold
   silenceTimeoutMs: 1000,
+
+  // processing options:
+  normalize: true,
 };
 
 export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;
@@ -127,7 +132,6 @@ export class Recorder implements LibNode {
     }
   }
 
-  // Single, unified audio monitoring method
   #setupAudioMonitoring(): void {
     this.#audioSource = this.#context.createMediaStreamSource(this.#stream!);
     this.#analyser = this.#context.createAnalyser();
@@ -210,7 +214,6 @@ export class Recorder implements LibNode {
   async stop(): Promise<AudioBuffer> {
     if (!this.#recorder) throw new Error('Recorder not initialized');
 
-    // Handle armed state cancellation
     if (this.#state === AudioRecorderState.ARMED) {
       this.#cleanupMonitoring();
 
@@ -228,7 +231,11 @@ export class Recorder implements LibNode {
     this.#cleanupMonitoring();
 
     const blob = await this.#stopRecording();
-    const buffer = await this.#blobToAudioBuffer(blob);
+    let buffer = await this.#blobToAudioBuffer(blob);
+
+    if (this.#config?.normalize) {
+      buffer = normalizeAudioBuffer(this.#context, buffer);
+    }
 
     if (this.#destination) {
       // Auto load sample

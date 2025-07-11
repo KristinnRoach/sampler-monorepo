@@ -1,6 +1,8 @@
 // audio data utils
 export * from './audiodata/convert/parseWavHeader';
 export * from './audiodata/validate/audiobuffer';
+export * from './audiodata/monitoring/LevelMonitor';
+export * from './audiodata/normalizeAudioBuffer';
 
 // Musical utils & constants
 export * from './music-theory';
@@ -13,9 +15,6 @@ export * from './code/generate/generateProcessorCode';
 // Validation utils
 export * from './validate/environment';
 export * from './validate/audioparam';
-
-// Monitoring utils
-export * from './monitoring/LevelMonitor';
 
 // Search utils
 export * from './search';

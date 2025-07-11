@@ -295,9 +295,9 @@ class SliderGSAP extends HTMLElement {
     this.updateThumbs();
   }
 
-  setRampTime(value: number) {
-    this.rampTime = value;
-  }
+  // setRampTime(value: number) {
+  //   this.rampTime = value;
+  // }
 
   // Accept actual values instead of normalized
   setPosition(thumbIndex: number, value: number) {

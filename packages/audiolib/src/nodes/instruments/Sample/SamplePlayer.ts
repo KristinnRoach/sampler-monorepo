@@ -1,7 +1,7 @@
 import { getAudioContext } from '@/context';
 import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
-import { detectSinglePitchAC } from '@/utils/pitchDetection';
+import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
 
 import {
@@ -707,8 +707,6 @@ export class SamplePlayer extends LibInstrument {
   };
 
   setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
-    console.warn(envType, timeScale);
-
     this.voicePool.applyToAllVoices((v) =>
       v.setEnvelopeTimeScale(envType, timeScale)
     );
