@@ -90,8 +90,6 @@ export class SamplePlayer extends LibInstrument {
 
     if (audioBuffer?.duration) {
       this.loadSample(audioBuffer, audioBuffer.sampleRate);
-    } else {
-      this.#isLoaded = false;
     }
   }
 
@@ -107,6 +105,8 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #setupMessageHandling(): this {
+    this.voicePool.onMessage('sample:loaded', () => (this.#isLoaded = true));
+
     // Forward voice pool messages upstream
     this.messages.forwardFrom(this.voicePool, [
       'voice:started',
@@ -116,7 +116,6 @@ export class SamplePlayer extends LibInstrument {
       'sample-envelopes:trigger',
       'sample-envelopes:maxDuration',
     ]);
-
     return this;
   }
 
@@ -508,8 +507,6 @@ export class SamplePlayer extends LibInstrument {
     if (loopPoint === 'start') {
       // && normalizedLoopStart !== this.loopStart) {
 
-      // this.setSampleStartPoint(loopStartSeconds); // ! TEMPORARY: Locking startpoint to loopstart
-
       const storeLoopStart = () =>
         this.storeParamValue('loopStart', loopStartSeconds);
 
@@ -518,7 +515,10 @@ export class SamplePlayer extends LibInstrument {
         scaledRampTime,
         loopEndSeconds,
         {
-          onComplete: storeLoopStart,
+          onComplete: () => {
+            storeLoopStart();
+            // this.setSampleStartPoint(loopStartSeconds);
+          },
         }
       );
     } else if (loopPoint === 'end') {
@@ -531,7 +531,10 @@ export class SamplePlayer extends LibInstrument {
         scaledRampTime,
         loopStartSeconds,
         {
-          onComplete: storeLoopEnd,
+          onComplete: () => {
+            storeLoopEnd();
+            // this.setSampleEndPoint(loopEndSeconds);
+          },
         }
       );
     }

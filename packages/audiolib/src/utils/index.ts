@@ -2,7 +2,7 @@
 export * from './audiodata/convert/parseWavHeader';
 export * from './audiodata/validate/audiobuffer';
 export * from './audiodata/monitoring/LevelMonitor';
-export * from './audiodata/normalizeAudioBuffer';
+export * from './audiodata/process/normalizeAudioBuffer';
 
 // Musical utils & constants
 export * from './music-theory';

@@ -71,91 +71,8 @@ export const SamplerElement = (attributes: ElementProps) => {
   let filterEnvInstance: EnvelopeSVG | null = null;
   let pitchEnvInstance: EnvelopeSVG | null = null;
 
-  // Create the envelopes and store references
-  // van.derive(() => {
-  //   // if (
-  //   //   samplePlayer?.isLoaded &&
-  //   //   sampleDurationSeconds.val &&
-  //   //   ampEnvelope.val?.points.length &&
-  //   //   filterEnvelope.val?.points.length &&
-  //   //   pitchEnvelope.val?.points.length
-  //   // ) {
-  //   //   // if (ampEnvInstance) ampEnvInstance.cleanup();
-  //   //   // if (filterEnvInstance) filterEnvInstance.cleanup();
-  //   //   // if (pitchEnvInstance) pitchEnvInstance.cleanup();
-
-  //   //   if (!ampEnvInstance) {
-  //   //     console.log('ampEnvelope.val?.points:', ampEnvelope.val?.points);
-
-  //   //     ampEnvInstance = EnvelopeSVG(
-  //   //       'amp-env',
-  //   //       ampEnvelope.val.points, // todo: use state ?
-  //   //       sampleDurationSeconds,
-  //   //       handleEnvelopeChange,
-  //   //       enableEnvelope,
-  //   //       disableEnvelope,
-  //   //       handleEnvelopeLoopChange,
-  //   //       handleEnvelopeSyncChange,
-  //   //       setEnvelopeTimeScale,
-  //   //       envDimensions.val.width,
-  //   //       envDimensions.val.height,
-  //   //       { x: [0, 1], y: [0, 1] }, // snapToValues
-  //   //       0.05, // snapThreshold
-  //   //       true, // enabled
-  //   //       true, // loop enabled
-  //   //       true // multiColorPlayheads
-  //   //     );
-  //   //   }
-
-  //   //   if (!filterEnvInstance) {
-  //   //     filterEnvInstance = EnvelopeSVG(
-  //   //       'filter-env',
-  //   //       filterEnvelope.val.points,
-  //   //       sampleDurationSeconds,
-  //   //       handleEnvelopeChange,
-  //   //       enableEnvelope,
-  //   //       disableEnvelope,
-  //   //       handleEnvelopeLoopChange,
-  //   //       handleEnvelopeSyncChange,
-  //   //       setEnvelopeTimeScale,
-  //   //       envDimensions.val.width,
-  //   //       envDimensions.val.height,
-  //   //       { x: [0, 1], y: [0] },
-  //   //       0.025,
-  //   //       false,
-  //   //       true,
-  //   //       true
-  //   //     );
-  //   //   }
-  //   // }
-
-  //   // if (!pitchEnvInstance) {
-  //   //   pitchEnvInstance = EnvelopeSVG(
-  //   //     'pitch-env',
-  //   //     pitchEnvelope.val!.points,
-  //   //     sampleDurationSeconds,
-  //   //     handleEnvelopeChange,
-  //   //     enableEnvelope,
-  //   //     disableEnvelope,
-  //   //     handleEnvelopeLoopChange,
-  //   //     handleEnvelopeSyncChange,
-  //   //     setEnvelopeTimeScale,
-  //   //     envDimensions.val.width,
-  //   //     envDimensions.val.height,
-  //   //     { x: [0, 1], y: [0.5] },
-  //   //     0.05,
-  //   //     true,
-  //   //     true,
-  //   //     true
-  //   //   );
-  //   // }
-
-  //   // onSampleLoaded(sampleDurationSeconds.val);
-  // });
-
   const createEnvelopes = (duration: number) => {
     if (
-      // samplePlayer?.isLoaded && // !! Should be true !!
       sampleDurationSeconds.val &&
       ampEnvelope.val?.points.length &&
       filterEnvelope.val?.points.length &&
@@ -165,7 +82,6 @@ export const SamplerElement = (attributes: ElementProps) => {
       if (filterEnvInstance) filterEnvInstance.cleanup();
       if (pitchEnvInstance) pitchEnvInstance.cleanup();
 
-      // if (!ampEnvInstance) {
       ampEnvInstance = EnvelopeSVG(
         'amp-env',
         ampEnvelope.val!.points, // todo: use state ?
@@ -185,7 +101,6 @@ export const SamplerElement = (attributes: ElementProps) => {
         true // multiColorPlayheads
       );
 
-      // if (!filterEnvInstance) {
       filterEnvInstance = EnvelopeSVG(
         'filter-env',
         filterEnvelope.val!.points,
@@ -206,7 +121,6 @@ export const SamplerElement = (attributes: ElementProps) => {
       );
     }
 
-    // if (!pitchEnvInstance) {
     pitchEnvInstance = EnvelopeSVG(
       'pitch-env',
       pitchEnvelope.val!.points,
@@ -323,7 +237,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         // === SAMPLE-PLAYER MESSAGES ===
 
-        samplePlayer.onMessage('sample:loaded', (msg) =>
+        samplePlayer.onMessage('sample:loaded', (msg: any) =>
           onSampleLoaded(msg.durationSeconds)
         );
 

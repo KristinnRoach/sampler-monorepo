@@ -10,7 +10,10 @@ import {
 } from '@/events';
 
 import { getMicrophone } from '@/io/devices/devices';
-import { normalizeAudioBuffer } from '@/utils';
+import {
+  preProcessAudioBuffer,
+  PreProcessOptions,
+} from '@/nodes/preprocessor/Preprocessor';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -33,9 +36,8 @@ export const DEFAULT_RECORDER_OPTIONS = {
   autoStop: false,
   stopThreshold: -40, // todo: guard ensuring stopTreshold < startTreshold
   silenceTimeoutMs: 1000,
-
-  // processing options:
-  normalize: true,
+  preprocess: true,
+  preprocessOptions: undefined, // use default options
 };
 
 export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;
@@ -233,8 +235,12 @@ export class Recorder implements LibNode {
     const blob = await this.#stopRecording();
     let buffer = await this.#blobToAudioBuffer(blob);
 
-    if (this.#config?.normalize) {
-      buffer = normalizeAudioBuffer(this.#context, buffer);
+    if (this.#config?.preprocess) {
+      buffer = preProcessAudioBuffer(
+        this.#context,
+        buffer,
+        this.#config.preprocessOptions
+      );
     }
 
     if (this.#destination) {
