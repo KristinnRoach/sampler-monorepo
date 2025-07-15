@@ -67,9 +67,9 @@ export const EnvelopeSVG = (
   }
 
   // Get envelope properties
-  const envelope: CustomEnvelope = instrument.getEnvelope(envType);
+  const envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
   const envelopeType = envType;
-  const [minValue, maxValue] = envelope.valueRange;
+  const [minValue, maxValue] = envelopeInfo.valueRange;
 
   // Value conversion helpers
   const normalizeValue = (displayValue: number): number => {
@@ -90,10 +90,10 @@ export const EnvelopeSVG = (
   let playheadManager: PlayheadManager;
 
   // UI states
-  const enabled = van.state<boolean>(envelope.isEnabled);
-  const loopEnabled = van.state<boolean>(envelope.loopEnabled);
+  const enabled = van.state<boolean>(envelopeInfo.isEnabled);
+  const loopEnabled = van.state<boolean>(envelopeInfo.loopEnabled);
   const syncedToPlaybackRate = van.state<boolean>(
-    envelope.syncedToPlaybackRate
+    envelopeInfo.syncedToPlaybackRate
   );
 
   const selectedPoint = van.state<number | null>(null);
@@ -110,7 +110,7 @@ export const EnvelopeSVG = (
 
     pointsGroup.replaceChildren();
 
-    const pts = envelope.points;
+    const pts = envelopeInfo.points;
 
     pts.forEach((point, index) => {
       const circle = document.createElementNS(
@@ -122,7 +122,7 @@ export const EnvelopeSVG = (
         'cx',
         secondsToScreenX(
           point.time,
-          envelope.fullDuration,
+          envelopeInfo.fullDuration,
           SVG_WIDTH
         ).toString()
       );
@@ -132,7 +132,7 @@ export const EnvelopeSVG = (
         'fill',
         selectedPoint.val === index
           ? '#ff6b6b'
-          : envelope.isEnabled
+          : envelopeInfo.isEnabled
             ? '#4ade80'
             : '#666'
       );
@@ -143,12 +143,18 @@ export const EnvelopeSVG = (
 
       // Special case for start/end points
       if (index === 0 || index === pts.length - 1) {
-        circle.setAttribute('fill', envelope.isEnabled ? '#ff9500' : '#666'); // Orange
+        circle.setAttribute(
+          'fill',
+          envelopeInfo.isEnabled ? '#ff9500' : '#666'
+        ); // Orange
         circle.setAttribute('r', '6'); // Slightly bigger
       }
 
-      if (index === envelope.sustainPointIndex) {
-        circle.setAttribute('fill', envelope.isEnabled ? '#ff2211' : '#666');
+      if (index === envelopeInfo.sustainPointIndex) {
+        circle.setAttribute(
+          'fill',
+          envelopeInfo.isEnabled ? '#ff2211' : '#666'
+        );
         circle.setAttribute('r', '6');
       }
 
@@ -159,7 +165,7 @@ export const EnvelopeSVG = (
       let clickTimeout: number;
 
       circle.addEventListener('mousedown', (e: MouseEvent) => {
-        if (!envelope.isEnabled) return;
+        if (!envelopeInfo.isEnabled) return;
 
         if (e.altKey) {
           e.preventDefault();
@@ -173,8 +179,8 @@ export const EnvelopeSVG = (
           envelopePath.setAttribute(
             'd',
             generateSVGPath(
-              envelope.points,
-              envelope.fullDuration,
+              envelopeInfo.points,
+              envelopeInfo.fullDuration,
               SVG_WIDTH,
               SVG_HEIGHT
             )
@@ -204,7 +210,7 @@ export const EnvelopeSVG = (
           // Second click - delete and stop dragging
           isDragging.val = false;
           if (index > 0 && index < pts.length - 1) {
-            const currentSustainIndex = envelope.sustainPointIndex;
+            const currentSustainIndex = envelopeInfo.sustainPointIndex;
 
             instrument.deleteEnvelopePoint(envelopeType, index);
 
@@ -224,8 +230,8 @@ export const EnvelopeSVG = (
             envelopePath.setAttribute(
               'd',
               generateSVGPath(
-                envelope.points,
-                envelope.fullDuration,
+                envelopeInfo.points,
+                envelopeInfo.fullDuration,
                 SVG_WIDTH,
                 SVG_HEIGHT
               )
@@ -300,8 +306,8 @@ export const EnvelopeSVG = (
     d: () => {
       //   envelope.getSVGPath(SVG_WIDTH, SVG_HEIGHT, envelope.fullDuration);
       return generateSVGPath(
-        envelope.points,
-        envelope.fullDuration,
+        envelopeInfo.points,
+        envelopeInfo.fullDuration,
         SVG_WIDTH,
         SVG_HEIGHT
       );
@@ -319,7 +325,7 @@ export const EnvelopeSVG = (
   playheadManager = Playheads(
     svgElement,
     envelopePath,
-    envelope,
+    envelopeInfo,
     SVG_WIDTH,
     multiColorPlayheads
   );
@@ -358,10 +364,10 @@ export const EnvelopeSVG = (
   // EVENT HANDLERS
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!envelope.isEnabled) return;
+    if (!envelopeInfo.isEnabled) return;
 
     if (isDragging.val && selectedPoint.val !== null) {
-      const pts = envelope.points;
+      const pts = envelopeInfo.points;
       const isStartPoint = selectedPoint.val === 0;
       const isEndPoint = selectedPoint.val === pts.length - 1;
 
@@ -370,7 +376,7 @@ export const EnvelopeSVG = (
       let time = screenXToSeconds(
         e.clientX - rect.left,
         rect.width,
-        envelope.fullDuration
+        envelopeInfo.fullDuration
       );
       let value = screenYToValue(e.clientY - rect.top, rect.height);
       value = applySnapping(value, snapToValues.y, snapThreshold);
@@ -379,7 +385,7 @@ export const EnvelopeSVG = (
       if (isStartPoint) {
         time = 0;
       } else if (isEndPoint) {
-        time = envelope.fullDuration;
+        time = envelopeInfo.fullDuration;
       } else {
         time = applySnapping(time, snapToValues.x, snapThreshold);
       }
@@ -396,8 +402,8 @@ export const EnvelopeSVG = (
       envelopePath.setAttribute(
         'd',
         generateSVGPath(
-          envelope.points,
-          envelope.fullDuration,
+          envelopeInfo.points,
+          envelopeInfo.fullDuration,
           SVG_WIDTH,
           SVG_HEIGHT
         )
@@ -406,13 +412,13 @@ export const EnvelopeSVG = (
   };
 
   const handleMouseUp = () => {
-    if (!envelope.isEnabled) return;
+    if (!envelopeInfo.isEnabled) return;
     isDragging.val = false;
     selectedPoint.val = null;
   };
 
   const handleDoubleClick = (e: MouseEvent) => {
-    if (!envelope.isEnabled) return;
+    if (!envelopeInfo.isEnabled) return;
     e.stopPropagation(); // Prevent bubbling
 
     if (isDragging.val) return;
@@ -421,19 +427,28 @@ export const EnvelopeSVG = (
     const time = screenXToSeconds(
       e.clientX - rect.left,
       rect.width,
-      envelope.fullDuration
+      envelopeInfo.fullDuration
     );
     const value = screenYToValue(e.clientY - rect.top, rect.height);
+
+    if (
+      envelopeInfo.sustainPointIndex &&
+      time < envelopeInfo.points[envelopeInfo.sustainPointIndex].time
+    ) {
+      instrument.setEnvelopeSustainPoint(
+        envelopeType,
+        envelopeInfo.sustainPointIndex + 1
+      );
+    }
 
     instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
 
-    // update the path:
     envelopePath.setAttribute(
       'd',
       generateSVGPath(
-        envelope.points,
-        envelope.fullDuration,
+        envelopeInfo.points,
+        envelopeInfo.fullDuration,
         SVG_WIDTH,
         SVG_HEIGHT
       )

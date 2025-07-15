@@ -18,7 +18,7 @@ export function createEnvelope(
   options: EnvelopeOptions = {}
 ): CustomEnvelope {
   const {
-    durationSeconds = 1,
+    durationSeconds = 2,
     points,
     valueRange,
     logarithmic,
