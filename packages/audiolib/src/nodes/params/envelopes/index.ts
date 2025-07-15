@@ -1,3 +1,4 @@
-export * from './Envelope';
+export * from './CustomEnvelope';
+export * from './createEnvelope';
 export * from './env-types';
-// export * from './env-defaults';
+export * from './EnvelopeData';

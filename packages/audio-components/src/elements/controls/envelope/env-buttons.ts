@@ -5,10 +5,10 @@ const { button } = van.tags;
 /**
  * Creates the envelope control buttons (enable, loop, sync)
  */
-export const createEnvelopeControlButtons = (
-  isEnabled: State<boolean>,
-  isLooping: State<boolean>,
-  syncToPlaybackRate: State<boolean>
+export const EnvToggleButtons = (
+  enabled: State<boolean>,
+  loopEnabled: State<boolean>,
+  syncedToPlaybackRate: State<boolean>
 ) => {
   const enabledToggle = button({
     style: () => `
@@ -21,12 +21,10 @@ export const createEnvelopeControlButtons = (
       border-radius: 50%; 
       cursor: pointer; 
       z-index: 10;
-      background: ${isEnabled.val ? '#4ade80' : '#666'};
+      background: ${enabled.val ? '#4ade80' : '#666'};
     `,
-    title: () => (isEnabled.val ? 'Disable envelope' : 'Enable envelope'),
-    onclick: () => {
-      isEnabled.val = !isEnabled.val;
-    },
+    title: () => (enabled.val ? 'Disable envelope' : 'Enable envelope'),
+    onclick: () => (enabled.val = !enabled.val),
   });
 
   const loopToggle = button({
@@ -40,12 +38,10 @@ export const createEnvelopeControlButtons = (
       border-radius: 50%; 
       cursor: pointer; 
       z-index: 10;
-      background: ${isLooping.val && isEnabled.val ? '#ff6b6b' : '#666'};
+      background: ${loopEnabled.val && enabled.val ? '#ff6b6b' : '#666'};
     `,
-    title: () => (isLooping.val ? 'Disable looping' : 'Enable looping'),
-    onclick: () => {
-      if (isEnabled.val) isLooping.val = !isLooping.val;
-    },
+    title: () => (loopEnabled.val ? 'Disable looping' : 'Enable looping'),
+    onclick: () => (loopEnabled.val = !loopEnabled.val),
   });
 
   const syncToggle = button({
@@ -59,12 +55,10 @@ export const createEnvelopeControlButtons = (
       border-radius: 50%; 
       cursor: pointer; 
       z-index: 10;
-      background: ${syncToPlaybackRate.val && isEnabled.val ? '#336bcc' : '#666'};
+      background: ${syncedToPlaybackRate.val && enabled.val ? '#336bcc' : '#666'};
     `,
-    title: () => (syncToPlaybackRate.val ? 'Disable sync' : 'Enable sync'),
-    onclick: () => {
-      if (isEnabled.val) syncToPlaybackRate.val = !syncToPlaybackRate.val;
-    },
+    title: () => (syncedToPlaybackRate.val ? 'Disable sync' : 'Enable sync'),
+    onclick: () => (syncedToPlaybackRate.val = !syncedToPlaybackRate.val),
   });
 
   return {
@@ -73,3 +67,30 @@ export const createEnvelopeControlButtons = (
     syncToggle,
   };
 };
+
+// const updateButtonStyles = () => {
+//   if (enabledToggle.style) {
+//     enabledToggle.style.background = envelope.isEnabled ? '#4ade80' : '#666';
+//   }
+//   enabledToggle.title = envelope.isEnabled
+//     ? 'Disable envelope'
+//     : 'Enable envelope';
+
+//   if (loopToggle.style) {
+//     loopToggle.style.background =
+//       envelope.loopEnabled && envelope.isEnabled ? '#ff6b6b' : '#666';
+//   }
+//   loopToggle.title = envelope.loopEnabled
+//     ? 'Disable looping'
+//     : 'Enable looping';
+
+//   if (syncToggle.style) {
+//     syncToggle.style.background =
+//       envelope.syncedToPlaybackRate && envelope.isEnabled
+//         ? '#336bcc'
+//         : '#666';
+//   }
+//   syncToggle.title = envelope.syncedToPlaybackRate
+//     ? 'Disable sync'
+//     : 'Enable sync';
+// };

@@ -23,11 +23,12 @@ import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
-import { EnvelopeType } from '@/nodes/params/envelopes';
+import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
 
 export class SamplePlayer extends LibInstrument {
   #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
+
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
@@ -35,6 +36,8 @@ export class SamplePlayer extends LibInstrument {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
+
+  #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
   #isReady = false;
   #isLoaded = false;
@@ -79,6 +82,29 @@ export class SamplePlayer extends LibInstrument {
 
     this.#connectVoicesToMacros();
 
+    // const ampDefaults = CustomEnvelope.getDefaults('amp-env', 1);
+    // const pitchDefaults = CustomEnvelope.getDefaults('pitch-env', 1);
+    // const filterDefault = CustomEnvelope.getDefaults('filter-env', 1);
+
+    // this.#envelopes.set(
+    //   'amp-env',
+    //   new EnvelopeData(ampDefaults.points, ampDefaults.valueRange, 1)
+    // );
+    // this.#envelopes.set(
+    //   'pitch-env',
+    //   new EnvelopeData(pitchDefaults.points, pitchDefaults.valueRange, 1)
+    // );
+    // this.#envelopes.set(
+    //   'filter-env',
+    //   new EnvelopeData(filterDefault.points, filterDefault.valueRange, 1)
+    // );
+
+    // this.voicePool.applyToAllVoices((voice) => {
+    //   this.#envelopes.forEach((envData, envType) => {
+    //     voice.addEnvelope(envType, envData);
+    //   });
+    // });
+
     // Connect audiochain -- todo after generalizing voice pool
 
     // Initialize the output bus methods
@@ -105,7 +131,13 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #setupMessageHandling(): this {
-    this.voicePool.onMessage('sample:loaded', () => (this.#isLoaded = true));
+    this.voicePool.onMessage('sample:loaded', (msg: Message) => {
+      this.#envelopes.forEach((env) => {
+        env.setDurationSeconds(msg.durationSeconds);
+      });
+
+      this.#isLoaded = true;
+    });
 
     // Forward voice pool messages upstream
     this.messages.forwardFrom(this.voicePool, [
@@ -113,8 +145,9 @@ export class SamplePlayer extends LibInstrument {
       'voice:stopped',
       'voice:releasing',
       'sample:loaded',
-      'sample-envelopes:trigger',
-      'sample-envelopes:maxDuration',
+      'envelope:trigger',
+      'envelope:release',
+      // 'sample-envelopes:maxDuration',
     ]);
     return this;
   }
@@ -714,6 +747,12 @@ export class SamplePlayer extends LibInstrument {
       v.setEnvelopeTimeScale(envType, timeScale)
     );
   };
+
+  setEnvelopeSustainPoint(envType: EnvelopeType, index: number | null) {
+    this.voicePool.applyToAllVoices((v) =>
+      v.setEnvelopeSustainPoint(envType, index)
+    );
+  }
 
   updateEnvelopePoint(
     envType: EnvelopeType,

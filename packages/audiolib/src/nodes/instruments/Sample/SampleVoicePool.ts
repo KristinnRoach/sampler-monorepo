@@ -23,12 +23,7 @@ export class SampleVoicePool {
   #playing = new Set<SampleVoice>();
   #releasing = new Set<SampleVoice>();
 
-  #holding = new Set<SampleVoice>();
-
   #isReady: boolean = false;
-  get isReady() {
-    return this.#isReady;
-  }
 
   constructor(
     context: AudioContext,
@@ -107,8 +102,8 @@ export class SampleVoicePool {
         'voice:releasing',
         'voice:loaded',
         'voice:transposed',
-        'sample-envelopes:trigger',
-        'sample-envelopes:maxDuration',
+        'envelope:trigger',
+        'envelope:release',
       ],
       (msg) => {
         if (msg.type === 'voice:loaded') {
@@ -139,9 +134,16 @@ export class SampleVoicePool {
   ): SampleVoice {
     let voice;
 
-    if (available.size) voice = pop(available);
-    else if (releasing.size) voice = pop(releasing);
-    else if (playing.size) voice = pop(playing);
+    if (available.size) {
+      voice = pop(available);
+    } else if (releasing.size) {
+      voice = pop(releasing);
+      voice?.stop();
+    } else if (playing.size) {
+      voice = pop(playing);
+      voice?.stop();
+    }
+
     if (!voice) throw new Error(`Could not allocate voice`);
 
     return voice;
@@ -234,6 +236,10 @@ export class SampleVoicePool {
     this.#loaded.clear();
     this.#isReady = false;
     deleteNodeId(this.nodeId);
+  }
+
+  get isReady() {
+    return this.#isReady;
   }
 
   get availableVoices() {

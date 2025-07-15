@@ -4,7 +4,7 @@ import type { EnvelopePoint } from '@repo/audiolib';
 /**
  * Convert time in seconds to SVG X coordinate
  */
-export const timeToScreenX = (
+export const secondsToScreenX = (
   timeInSeconds: number,
   maxDurationSeconds: number,
   svgWidth: number
@@ -15,7 +15,7 @@ export const timeToScreenX = (
 /**
  * Convert SVG X coordinate to time in seconds
  */
-export const screenToTime = (
+export const screenXToSeconds = (
   screenX: number,
   svgWidth: number,
   maxDurationSeconds: number
@@ -26,7 +26,7 @@ export const screenToTime = (
 /**
  * Convert SVG Y coordinate to envelope value (0-1)
  */
-export const screenToValue = (screenY: number, svgHeight: number): number => {
+export const screenYToValue = (screenY: number, svgHeight: number): number => {
   return Math.max(0, Math.min(1, 1 - screenY / svgHeight));
 };
 
@@ -55,17 +55,21 @@ export const generateSVGPath = (
   if (points.length < 2) return `M0,${svgHeight} L${svgWidth},${svgHeight}`;
 
   const sortedPoints = [...points].sort((a, b) => a.time - b.time);
-  let path = `M${timeToScreenX(sortedPoints[0].time, maxDurationSeconds, svgWidth)},${(1 - sortedPoints[0].value) * svgHeight}`;
+  let path = `M${secondsToScreenX(sortedPoints[0].time, maxDurationSeconds, svgWidth)},${(1 - sortedPoints[0].value) * svgHeight}`;
 
   for (let i = 1; i < sortedPoints.length; i++) {
     const point = sortedPoints[i];
     const prevPoint = sortedPoints[i - 1];
 
-    const x = timeToScreenX(point.time, maxDurationSeconds, svgWidth);
+    const x = secondsToScreenX(point.time, maxDurationSeconds, svgWidth);
     const y = (1 - point.value) * svgHeight;
 
     if (prevPoint.curve === 'exponential') {
-      const prevX = timeToScreenX(prevPoint.time, maxDurationSeconds, svgWidth);
+      const prevX = secondsToScreenX(
+        prevPoint.time,
+        maxDurationSeconds,
+        svgWidth
+      );
       const prevY = (1 - prevPoint.value) * svgHeight;
       const cp1X = prevX + (x - prevX) * 0.3;
       const cp1Y = prevY;

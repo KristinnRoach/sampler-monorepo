@@ -1,14 +1,15 @@
 // envelopeTimeScaleKnob.ts
 import { defineElement } from '../../elementRegistry.ts';
+import { EnvelopeType } from '@repo/audiolib';
+
 import {
   KnobElement,
   type KnobChangeEventDetail,
 } from '../../primitives/KnobElement.ts';
-import type { EnvelopeType } from '@repo/audiolib';
 
 export interface TimeScaleKnobConfig {
-  envelopeType: EnvelopeType;
   onTimeScaleChange: (envType: EnvelopeType, timeScale: number) => void;
+  envelopeType: EnvelopeType;
   minValue?: number;
   maxValue?: number;
   defaultValue?: number;
@@ -22,12 +23,12 @@ export interface TimeScaleKnobConfig {
  */
 export const TimeScaleKnob = (config: TimeScaleKnobConfig): HTMLElement => {
   const {
-    envelopeType,
     onTimeScaleChange,
+    envelopeType,
     minValue = 0.1,
     maxValue = 10,
     defaultValue = 1,
-    snapIncrement = 0.1,
+    snapIncrement = 1,
     width = 45,
     height = 45,
   } = config;
@@ -51,7 +52,7 @@ export const TimeScaleKnob = (config: TimeScaleKnobConfig): HTMLElement => {
   knobElement.className = 'envelope-time-scale-knob';
 
   // Add title/tooltip
-  knobElement.title = `Time scale for ${envelopeType} envelope (${minValue}x - ${maxValue}x)`;
+  knobElement.title = `Time scale (${minValue}x - ${maxValue}x)`;
 
   // Add change event listener
   knobElement.addEventListener('knob-change', (e: CustomEvent) => {

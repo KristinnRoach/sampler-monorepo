@@ -1,7 +1,11 @@
 // EnvelopeSVG.ts
-import van, { State } from '@repo/vanjs-core';
-import type { EnvelopePoint, EnvelopeType } from '@repo/audiolib';
-import { generateMidiNoteColors } from '../../../utils/generateColors.ts';
+import van from '@repo/vanjs-core';
+import {
+  CustomEnvelope,
+  EnvelopePoint,
+  EnvelopeType,
+  SamplePlayer,
+} from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
 import { TimeScaleKnob, LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
@@ -9,12 +13,12 @@ import { TimeScaleKnob, LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
 import {
   generateSVGPath,
   applySnapping,
-  screenToTime,
-  screenToValue,
-  timeToScreenX,
+  screenXToSeconds,
+  screenYToValue,
+  secondsToScreenX,
 } from './env-utils.ts';
 
-import { createEnvelopeControlButtons } from './env-buttons.ts';
+import { EnvToggleButtons } from './env-buttons.ts';
 import { createEnvelopeGrid } from './env-grid.ts';
 import { getWaveformSVGData } from '../../../utils/waveform-utils.ts';
 
@@ -33,36 +37,20 @@ export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
   triggerPlayAnimation: (msg: any) => void;
   releaseAnimation: (msg: any) => void;
-  updateEnvelopeDuration: (seconds: number) => void;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
   cleanup: () => void;
 }
 
 export const EnvelopeSVG = (
-  envelopeType: EnvelopeType,
-  initialPoints: EnvelopePoint[],
-  maxDurationSeconds: State<number>,
-  onPointUpdate: (
-    envType: EnvelopeType,
-    index: number,
-    time: number,
-    value: number
-  ) => void,
-  onEnable: (envType: EnvelopeType) => void,
-  onDisable: (envType: EnvelopeType) => void,
-  onLoopChange: (envType: EnvelopeType, enabled: boolean) => void,
-  onSyncChange: (envType: EnvelopeType, enabled: boolean) => void,
-  setEnvelopeTimeScale?: (envType: EnvelopeType, timeScale: number) => void,
+  instrument: SamplePlayer,
+  envType: EnvelopeType,
   width: string = '100%',
   height: string = '120px',
-  snapToValues: { y?: number[]; x?: number[] } = { y: [0], x: [0, 1] },
+  snapToValues: { y?: number[]; x?: number[] } = { y: [0] },
   snapThreshold = 0.025,
-  enabled = true,
-  initialLoopState = false,
-  multiColorPlayheads = true,
-  fixedStartEndTimes = true
+  multiColorPlayheads = true
 ): EnvelopeSVG => {
-  if (!initialPoints.length) {
+  if (!instrument.getEnvelope(envType).points.length) {
     const emptyDiv = div(
       {
         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
@@ -73,11 +61,24 @@ export const EnvelopeSVG = (
       element: emptyDiv,
       triggerPlayAnimation: () => {},
       releaseAnimation: () => {},
-      updateEnvelopeDuration: () => {},
       drawWaveform: () => {},
       cleanup: () => {},
     };
   }
+
+  // Get envelope properties
+  const envelope: CustomEnvelope = instrument.getEnvelope(envType);
+  const envelopeType = envType;
+  const [minValue, maxValue] = envelope.valueRange;
+
+  // Value conversion helpers
+  const normalizeValue = (displayValue: number): number => {
+    return (displayValue - minValue) / (maxValue - minValue);
+  };
+
+  const denormalizeValue = (normalizedValue: number): number => {
+    return minValue + normalizedValue * (maxValue - minValue);
+  };
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
@@ -88,39 +89,15 @@ export const EnvelopeSVG = (
   let waveformPath: SVGPathElement | null = null;
   let playheadManager: PlayheadManager;
 
-  let noteColor: string | Record<number, string>;
-  if (multiColorPlayheads)
-    noteColor = generateMidiNoteColors('none', [40, 90], true);
-  else noteColor = 'red';
-
   // UI states
-  const isEnabled = van.state(enabled);
-  const isLooping = van.state(initialLoopState);
-  const syncToPlaybackRate = van.state(false);
-
-  const currentDurationSeconds = van.state(maxDurationSeconds.rawVal);
+  const enabled = van.state<boolean>(envelope.isEnabled);
+  const loopEnabled = van.state<boolean>(envelope.loopEnabled);
+  const syncedToPlaybackRate = van.state<boolean>(
+    envelope.syncedToPlaybackRate
+  );
 
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
-
-  const initializePoints = (inputPoints: EnvelopePoint[]): EnvelopePoint[] => {
-    if (!fixedStartEndTimes) return [...inputPoints];
-
-    const pts = [...inputPoints];
-    if (pts.length >= 2) {
-      // Force first point to time 0
-      pts[0] = { ...pts[0], time: 0 };
-      // Force last point to max duration
-      pts[pts.length - 1] = {
-        ...pts[pts.length - 1],
-        time: maxDurationSeconds.rawVal,
-      };
-    }
-    return pts;
-  };
-
-  const points = van.state(initializePoints(initialPoints));
-  const currentEase = van.state<string | null>(null);
 
   let clickCounts: Record<number, number> = {};
   const activeTimeouts = new Set<number>();
@@ -133,7 +110,7 @@ export const EnvelopeSVG = (
 
     pointsGroup.replaceChildren();
 
-    const pts = points.val;
+    const pts = envelope.points;
 
     pts.forEach((point, index) => {
       const circle = document.createElementNS(
@@ -143,9 +120,9 @@ export const EnvelopeSVG = (
 
       circle.setAttribute(
         'cx',
-        timeToScreenX(
+        secondsToScreenX(
           point.time,
-          maxDurationSeconds.rawVal,
+          envelope.fullDuration,
           SVG_WIDTH
         ).toString()
       );
@@ -155,38 +132,56 @@ export const EnvelopeSVG = (
         'fill',
         selectedPoint.val === index
           ? '#ff6b6b'
-          : isEnabled.val
+          : envelope.isEnabled
             ? '#4ade80'
             : '#666'
       );
       circle.setAttribute('stroke', '#fff');
       circle.setAttribute('stroke-width', '1');
       circle.style.cursor = 'pointer';
+      circle.style.zIndex = '999';
 
       // Special case for start/end points
       if (index === 0 || index === pts.length - 1) {
-        if (!fixedStartEndTimes) {
-          // Update duration based on time span of envelope points
-          const timeSpan = pts[pts.length - 1].time - pts[0].time;
-          const newDuration = timeSpan;
-          if (Math.abs(currentDurationSeconds.val - newDuration) > 0.001) {
-            currentDurationSeconds.val = newDuration;
-          }
-        }
-
-        circle.setAttribute('fill', isEnabled.val ? '#ff9500' : '#666'); // Orange for duration handles
+        circle.setAttribute('fill', envelope.isEnabled ? '#ff9500' : '#666'); // Orange
         circle.setAttribute('r', '6'); // Slightly bigger
+      }
+
+      if (index === envelope.sustainPointIndex) {
+        circle.setAttribute('fill', envelope.isEnabled ? '#ff2211' : '#666');
+        circle.setAttribute('r', '6');
       }
 
       // Mouse down - start drag
       // Current approach is a somewhat convoluted way to allow using single click
       // for moving a point and double click for adding a point (only one that worked)
 
-      // const activeTimeouts = new Set<number>();
       let clickTimeout: number;
 
       circle.addEventListener('mousedown', (e: MouseEvent) => {
-        if (!isEnabled.val) return;
+        if (!envelope.isEnabled) return;
+
+        if (e.altKey) {
+          e.preventDefault();
+
+          instrument.setEnvelopeSustainPoint(envType, index);
+
+          playheadManager.refreshSustainPoint();
+
+          updateControlPoints();
+
+          envelopePath.setAttribute(
+            'd',
+            generateSVGPath(
+              envelope.points,
+              envelope.fullDuration,
+              SVG_WIDTH,
+              SVG_HEIGHT
+            )
+          );
+
+          return;
+        }
 
         const currentCount = (clickCounts[index] || 0) + 1;
         clickCounts = { ...clickCounts, [index]: currentCount };
@@ -199,20 +194,44 @@ export const EnvelopeSVG = (
         clearTimeout(clickTimeout);
 
         if (currentCount === 1) {
-          // 250ms time given to double click
+          // 200ms time given to double click
           clickTimeout = setTimeout(() => {
             clickCounts = { ...clickCounts, [index]: 0 };
             activeTimeouts.delete(clickTimeout);
-          }, 250);
+          }, 200);
           activeTimeouts.add(clickTimeout);
         } else if (currentCount === 2) {
           // Second click - delete and stop dragging
           isDragging.val = false;
           if (index > 0 && index < pts.length - 1) {
-            const newPoints = points.val.filter((_, i) => i !== index);
-            points.val = newPoints;
-            onPointUpdate(envelopeType, index, -1, -1);
+            const currentSustainIndex = envelope.sustainPointIndex;
+
+            instrument.deleteEnvelopePoint(envelopeType, index);
+
+            if (index === currentSustainIndex) {
+              instrument.setEnvelopeSustainPoint(envType, null);
+            } else if (currentSustainIndex && index < currentSustainIndex) {
+              instrument.setEnvelopeSustainPoint(
+                envType,
+                currentSustainIndex - 1
+              );
+            }
+
+            playheadManager.refreshSustainPoint();
+
+            updateControlPoints();
+
+            envelopePath.setAttribute(
+              'd',
+              generateSVGPath(
+                envelope.points,
+                envelope.fullDuration,
+                SVG_WIDTH,
+                SVG_HEIGHT
+              )
+            );
           }
+
           clickCounts = { ...clickCounts, [index]: 0 };
         }
         e.preventDefault();
@@ -222,77 +241,6 @@ export const EnvelopeSVG = (
     });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isEnabled.val) return;
-
-    if (isDragging.val && selectedPoint.val !== null) {
-      const pts = points.val;
-      const isStartPoint = selectedPoint.val === 0;
-      const isEndPoint = selectedPoint.val === pts.length - 1;
-
-      const rect = svgElement.getBoundingClientRect();
-
-      let time = screenToTime(
-        e.clientX - rect.left,
-        rect.width,
-        maxDurationSeconds.rawVal
-      );
-      let value = screenToValue(e.clientY - rect.top, rect.height);
-      value = applySnapping(value, snapToValues.y, snapThreshold);
-
-      // Handle fixed start/end times
-      if (fixedStartEndTimes) {
-        if (isStartPoint) time = 0;
-        else if (isEndPoint) time = maxDurationSeconds.val;
-      } else {
-        time = applySnapping(time, snapToValues.x, snapThreshold);
-      }
-
-      // Update UI state
-      const newPoints = [...points.val];
-
-      newPoints[selectedPoint.val] = {
-        ...newPoints[selectedPoint.val],
-        time,
-        value,
-      };
-
-      points.val = newPoints;
-
-      // Update audio logic via callback
-      onPointUpdate(envelopeType, selectedPoint.val, time, value);
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (!isEnabled.val) return;
-    isDragging.val = false;
-    selectedPoint.val = null;
-  };
-
-  const handleDoubleClick = (e: MouseEvent) => {
-    if (!isEnabled.val) return;
-    e.stopPropagation(); // Prevent bubbling
-
-    if (isDragging.val) return;
-    const rect = svgElement.getBoundingClientRect();
-
-    const time = screenToTime(
-      e.clientX - rect.left,
-      rect.width,
-      maxDurationSeconds.val
-    );
-    const value = screenToValue(e.clientY - rect.top, rect.height);
-
-    // Update UI state
-    const newPoint = { time, value, curve: 'exponential' as const };
-    const newPoints = [...points.val, newPoint].sort((a, b) => a.time - b.time);
-    points.val = newPoints;
-
-    // Update audio logic via callback
-    onPointUpdate(envelopeType, -1, time, value);
-  };
-
   // Create SVG element
   svgElement = svg({
     viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
@@ -300,10 +248,21 @@ export const EnvelopeSVG = (
     style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
   }) as SVGSVGElement;
 
-  const controlButtons = createEnvelopeControlButtons(
-    isEnabled,
-    isLooping,
-    syncToPlaybackRate
+  const controlButtons = EnvToggleButtons(
+    enabled,
+    loopEnabled,
+    syncedToPlaybackRate
+  );
+
+  van.derive(() => {
+    if (enabled.val) instrument.enableEnvelope(envelopeType);
+    else if (!enabled.val) instrument.disableEnvelope(envelopeType);
+  });
+
+  van.derive(() => instrument.setEnvelopeLoop(envelopeType, loopEnabled.val));
+
+  van.derive(() =>
+    instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val)
   );
 
   // Create container div
@@ -320,24 +279,17 @@ export const EnvelopeSVG = (
   container.appendChild(svgElement);
 
   // Add time scale knob if callback provided
-  if (setEnvelopeTimeScale !== undefined) {
-    const timeScaleKnob = LabeledTimeScaleKnob({
-      envelopeType,
-      onTimeScaleChange: setEnvelopeTimeScale,
-      minValue: 1, // ? make one in the middle (up position) ?
-      maxValue: 100,
-      defaultValue: 1,
-      snapIncrement: 0.01,
-      label: 'Speed',
-    });
-    container.appendChild(timeScaleKnob);
-  }
+  const timeScaleKnob = LabeledTimeScaleKnob({
+    onTimeScaleChange: instrument.setEnvelopeTimeScale,
+    envelopeType,
+    minValue: 1, // ? make one in the middle (up position) ?
+    maxValue: 20,
+    defaultValue: 1,
+    snapIncrement: 0.01,
+    label: 'Speed',
+  });
 
-  // Add event listeners
-  svgElement.addEventListener('mousemove', handleMouseMove);
-  svgElement.addEventListener('mouseup', handleMouseUp);
-  svgElement.addEventListener('mouseleave', handleMouseUp);
-  svgElement.addEventListener('dblclick', handleDoubleClick);
+  container.appendChild(timeScaleKnob);
 
   // Grid
   const gridGroup = createEnvelopeGrid(SVG_WIDTH, SVG_HEIGHT);
@@ -346,16 +298,16 @@ export const EnvelopeSVG = (
   envelopePath = path({
     id: 'envelope-path',
     d: () => {
-      maxDurationSeconds.val; // Dependency
+      //   envelope.getSVGPath(SVG_WIDTH, SVG_HEIGHT, envelope.fullDuration);
       return generateSVGPath(
-        points.val,
-        maxDurationSeconds.val,
+        envelope.points,
+        envelope.fullDuration,
         SVG_WIDTH,
         SVG_HEIGHT
       );
     },
     fill: 'none',
-    stroke: () => (isEnabled.val ? '#4ade80' : '#666'),
+    stroke: () => (enabled.val ? '#4ade80' : '#666'),
     'stroke-width': 2,
   }) as SVGPathElement;
 
@@ -363,22 +315,16 @@ export const EnvelopeSVG = (
   pointsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   pointsGroup.setAttribute('class', 'control-points');
 
-  // Assemble SVG
-  svgElement.appendChild(gridGroup);
-  svgElement.appendChild(envelopePath);
-  svgElement.appendChild(pointsGroup);
-
   // Animated Playheads
   playheadManager = Playheads(
     svgElement,
     envelopePath,
-    isEnabled,
-    currentDurationSeconds,
-    currentEase,
-    maxDurationSeconds,
+    envelope,
     SVG_WIDTH,
     multiColorPlayheads
   );
+
+  playheadManager.refreshSustainPoint();
 
   // === WAVEFORM ===
 
@@ -399,54 +345,113 @@ export const EnvelopeSVG = (
       id: 'waveform-path',
       d: waveformSVGData.trim(),
       fill: 'none',
-      stroke: () => (isEnabled.val ? '#3467bc' : '#333'),
+      stroke: () => (enabled.val ? '#3467bc' : '#333'),
       'stroke-width': 1,
+      style: 'z-index: -999; pointer-events: none; ',
+      'pointer-events': 'none', // SVG attribute, not CSS
     }) as SVGPathElement;
 
-    svgElement.appendChild(waveformPath);
+    // Insert waveform before points group
+    svgElement.insertBefore(waveformPath, pointsGroup);
   }
 
-  const updateEnvelopeDuration = (seconds: number) => {
-    if (seconds !== currentDurationSeconds.val)
-      currentDurationSeconds.val = seconds;
+  // EVENT HANDLERS
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!envelope.isEnabled) return;
+
+    if (isDragging.val && selectedPoint.val !== null) {
+      const pts = envelope.points;
+      const isStartPoint = selectedPoint.val === 0;
+      const isEndPoint = selectedPoint.val === pts.length - 1;
+
+      const rect = svgElement.getBoundingClientRect();
+
+      let time = screenXToSeconds(
+        e.clientX - rect.left,
+        rect.width,
+        envelope.fullDuration
+      );
+      let value = screenYToValue(e.clientY - rect.top, rect.height);
+      value = applySnapping(value, snapToValues.y, snapThreshold);
+
+      // Handle fixed start/end times
+      if (isStartPoint) {
+        time = 0;
+      } else if (isEndPoint) {
+        time = envelope.fullDuration;
+      } else {
+        time = applySnapping(time, snapToValues.x, snapThreshold);
+      }
+
+      instrument.updateEnvelopePoint(
+        envelopeType,
+        selectedPoint.val,
+        time,
+        value
+      );
+      updateControlPoints();
+
+      // update the path:
+      envelopePath.setAttribute(
+        'd',
+        generateSVGPath(
+          envelope.points,
+          envelope.fullDuration,
+          SVG_WIDTH,
+          SVG_HEIGHT
+        )
+      );
+    }
   };
 
-  // 1. First derive: Update duration
-  van.derive(() => {
-    const newMaxDuration = maxDurationSeconds.val;
-    currentDurationSeconds.val = newMaxDuration;
-    points.val = initialPoints; //initializePoints(points.val);
-  });
+  const handleMouseUp = () => {
+    if (!envelope.isEnabled) return;
+    isDragging.val = false;
+    selectedPoint.val = null;
+  };
 
-  // 2. Second derive: Update UI when points, selection, or duration changes
-  van.derive(() => {
-    points.val;
-    selectedPoint.val;
-    maxDurationSeconds.val;
+  const handleDoubleClick = (e: MouseEvent) => {
+    if (!envelope.isEnabled) return;
+    e.stopPropagation(); // Prevent bubbling
 
+    if (isDragging.val) return;
+    const rect = svgElement.getBoundingClientRect();
+
+    const time = screenXToSeconds(
+      e.clientX - rect.left,
+      rect.width,
+      envelope.fullDuration
+    );
+    const value = screenYToValue(e.clientY - rect.top, rect.height);
+
+    instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
 
-    setTimeout(() => {
-      playheadManager.refreshPlayingAnimations();
-    }, 0);
-  });
+    // update the path:
+    envelopePath.setAttribute(
+      'd',
+      generateSVGPath(
+        envelope.points,
+        envelope.fullDuration,
+        SVG_WIDTH,
+        SVG_HEIGHT
+      )
+    );
+  };
 
-  van.derive(() => {
-    onLoopChange(envelopeType, isLooping.val);
-  });
+  // Add event listeners
+  svgElement.addEventListener('mousemove', handleMouseMove);
+  svgElement.addEventListener('mouseup', handleMouseUp);
+  svgElement.addEventListener('mouseleave', handleMouseUp);
+  svgElement.addEventListener('dblclick', handleDoubleClick);
 
-  van.derive(() => {
-    onSyncChange(envelopeType, syncToPlaybackRate.val);
-  });
+  // Assemble SVG
+  svgElement.appendChild(gridGroup);
+  svgElement.appendChild(envelopePath);
+  svgElement.appendChild(pointsGroup);
 
-  van.derive(() => {
-    if (!isEnabled.val) {
-      playheadManager.hideAllPlayheads();
-      onDisable(envelopeType);
-    } else {
-      onEnable(envelopeType);
-    }
-  });
+  updateControlPoints();
 
   return {
     element: container,
@@ -457,7 +462,6 @@ export const EnvelopeSVG = (
     releaseAnimation: (msg: AnimationMessage) =>
       playheadManager.releaseAnimation(msg),
 
-    updateEnvelopeDuration,
     drawWaveform,
     cleanup: () => {
       playheadManager.cleanup();
@@ -468,28 +472,3 @@ export const EnvelopeSVG = (
     },
   };
 };
-
-// // ! === ! TESTING TimeScale ! == (cleanup after!)
-// if (setEnvelopeTimeScale !== undefined) {
-//   defineElement('knob-element', KnobElement);
-//   const knobElement: HTMLElement = document.createElement('knob-element');
-//   knobElement.setAttribute('min-value', '1');
-//   knobElement.setAttribute('max-value', '10'); // Todo: set the scaling (undo the 'curve' used for looppoints)
-//   knobElement.setAttribute('snap-increment', '0.1');
-//   knobElement.setAttribute('width', '45');
-//   knobElement.setAttribute('height', '45');
-//   knobElement.setAttribute('default-value', '1');
-//   knobElement.style.marginTop = '10px';
-//   knobElement.className = 'time-scale';
-
-//   (knobElement as HTMLElement).addEventListener(
-//     'knob-change',
-//     (e: CustomEvent) => {
-//       if (!knobElement) return;
-//       const msg: KnobChangeEventDetail = e.detail;
-//       setEnvelopeTimeScale(envelopeType, msg.value);
-//     }
-//   );
-//   container.appendChild(knobElement);
-// }
-// // ! === ! END TESTING TimeScale ! == (cleanup after!)
