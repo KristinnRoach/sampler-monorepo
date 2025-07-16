@@ -59,8 +59,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.scheduledEndTime = null;
     this.minZeroCrossing = 0;
     this.maxZeroCrossing = 0;
+    this.applyClickCompensation = false;
+    this.loopClickCompensation = 0;
     this.isReleasing = false;
     this.loopEnabled = false;
+    this.lockTrimToloop = false;
     this.usePlaybackPosition = false;
     this.blockQuantizedLoopStart = 0;
     this.blockQuantizedLoopEnd = 0;
@@ -145,7 +148,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const positionParams = __privateMethod(this, _SamplePlayerProcessor_instances, extractPositionParams_fn).call(this, parameters);
     const playbackRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculatePlaybackRange_fn).call(this, positionParams);
     const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters);
-    if (this.playbackPosition === 0) {
+    if (this.playbackPosition === 0 || this.playbackPosition < playbackRange.startSamples) {
       this.playbackPosition = playbackRange.startSamples;
     }
     const playbackRate = parameters.playbackRate[0];
@@ -155,17 +158,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const finalVelocityGain = velocityGain * velocitySensitivity;
     const numChannels = Math.min(output.length, this.buffer.length);
     for (let i = 0; i < output[0].length; i++) {
-      if (this.loopEnabled && this.playbackPosition >= loopRange.loopEndSamples && this.loopCount < this.maxLoopCount) {
-        this.port.postMessage({
-          type: "voice:looped",
-          count: this.loopCount,
-          timestamp: currentTime,
-          playbackPosition: this.playbackPosition,
-          loopEndSamples: loopRange.loopEndSamples,
-          loopStartSamples: loopRange.loopStartSamples
-        });
-        this.playbackPosition = loopRange.loopStartSamples;
-        this.loopCount++;
+      if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
+        if (this.playbackPosition >= loopRange.loopEndSamples) {
+          const lastLoopSample = this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
+          const newFirstSample = this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
+          this.loopClickCompensation = (lastLoopSample - newFirstSample) * 0.5;
+          this.applyClickCompensation = true;
+          this.playbackPosition = loopRange.loopStartSamples;
+          this.loopCount++;
+        }
       }
       if (this.playbackPosition >= playbackRange.endSamples) {
         __privateMethod(this, _SamplePlayerProcessor_instances, stop_fn).call(this);
@@ -178,7 +179,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
         const current = bufferChannel[position] || 0;
         const next = bufferChannel[nextPosition] || 0;
-        const interpolatedSample = current + fraction * (next - current);
+        let interpolatedSample = current + fraction * (next - current);
+        if (this.applyClickCompensation) {
+          interpolatedSample += this.loopClickCompensation;
+          this.applyClickCompensation = false;
+        }
         const finalSample = interpolatedSample * finalVelocityGain * envelopeGain;
         output[c][i] = Math.max(
           -1,
@@ -278,6 +283,12 @@ handleMessage_fn = function(event) {
     case "voice:usePlaybackPosition":
       this.usePlaybackPosition = value;
       break;
+    case "lock:trimToloop":
+      this.lockTrimToloop = true;
+      break;
+    case "unlock:trimToLoop":
+      this.lockTrimToloop = false;
+      break;
   }
 };
 // ===== METHODS =====
@@ -290,6 +301,9 @@ resetState_fn = function() {
   this.playbackPosition = 0;
   this.loopCount = 0;
   this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+  this.applyClickCompensation = false;
+  this.loopClickCompensation = 0;
+  this.lockTrimToloop = false;
 };
 stop_fn = function() {
   this.isPlaying = false;
@@ -395,7 +409,7 @@ calculateLoopRange_fn = function(params, playbackRange, originalParams) {
   const lpStart = params.loopStartSamples;
   const lpEnd = params.loopEndSamples;
   let calcLoopStart = lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
-  let calcLoopEnd = lpEnd > lpStart && lpEnd < playbackRange.endSamples ? lpEnd : playbackRange.endSamples;
+  let calcLoopEnd = lpEnd > lpStart && lpEnd <= playbackRange.endSamples ? lpEnd : playbackRange.endSamples;
   const loopDuration = calcLoopEnd - calcLoopStart;
   return {
     loopStartSamples: calcLoopStart,
