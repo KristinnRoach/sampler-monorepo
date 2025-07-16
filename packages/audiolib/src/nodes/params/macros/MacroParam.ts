@@ -56,6 +56,8 @@ export class MacroParam {
     return this;
   }
 
+  #currentTargetValue = 0;
+
   ramp(
     targetValue: number,
     duration: number,
@@ -67,9 +69,13 @@ export class MacroParam {
       onCompleteDelayMs?: number;
     } = {}
   ): this {
-    const prev = this.#controller.value;
-    if (targetValue === prev) return this;
-    // const direction = targetValue > prev ? 'increment' : 'decrement';
+    if (targetValue === this.#currentTargetValue) return this;
+
+    // const direction =
+    //   targetValue > this.#currentTargetValue ? 'increment' : 'decrement';
+    // console.debug(this.#paramType, direction);
+
+    this.#currentTargetValue = targetValue;
 
     const {
       method = 'exponential',
@@ -207,6 +213,8 @@ export class MacroParam {
   setValue(value: number, timestamp?: number): this {
     this.#controller.setValue(value, timestamp);
     this.#sendValueChangedMessage(value);
+
+    this.#currentTargetValue = value;
     return this;
   }
 

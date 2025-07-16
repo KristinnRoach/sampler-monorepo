@@ -3,7 +3,7 @@ import { DEFAULT_SAMPLE_RATE } from '@/constants/defaults/common';
 
 // Allowed Hz range for native web audio filters is 10 to the Nyquist frequency (half the sample rate).
 export const getMaxFilterFreq = (ctxSampleRate: number) =>
-  Math.floor(ctxSampleRate / 2 - 100);
+  Math.floor(ctxSampleRate / 2 - 1000);
 
 const MAX_HZ = getMaxFilterFreq(DEFAULT_SAMPLE_RATE); // Using default sample rate
 const MIN_HZ = 10; // Minimum frequency for filters

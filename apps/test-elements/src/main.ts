@@ -36,5 +36,6 @@ const init = async () => {
 document.addEventListener('DOMContentLoaded', () => init());
 
 document.addEventListener('keydown', (e) => {
+  // console.log(e.key);
   if (e.key === ' ') e.preventDefault();
 });

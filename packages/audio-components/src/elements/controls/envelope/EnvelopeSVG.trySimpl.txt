@@ -1,0 +1,579 @@
+// EnvelopeSVG.ts
+import van, { State } from '@repo/vanjs-core';
+import type { CustomEnvelope } from '@repo/audiolib';
+import { generateMidiNoteColors } from '../../../utils/generateColors.ts';
+import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
+
+import { LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
+
+import {
+  generateSVGPath,
+  applySnapping,
+  screenXToSeconds,
+  screenYToValue,
+  secondsToScreenX,
+} from './env-utils.ts';
+
+import { createEnvelopeControlButtons } from './env-buttons.ts';
+import { createEnvelopeGrid } from './env-grid.ts';
+import { getWaveformSVGData } from '../../../utils/waveform-utils.ts';
+
+import {
+  Playheads,
+  type AnimationMessage,
+  type PlayheadManager,
+} from './env-playheads.ts';
+
+gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
+
+const { div } = van.tags;
+const { svg, path } = van.tags('http://www.w3.org/2000/svg');
+
+export interface EnvelopeSVG {
+  element: Element | SVGSVGElement;
+  triggerPlayAnimation: (msg: any) => void;
+  releaseAnimation: (msg: any) => void;
+  updateEnvelopeDuration: (seconds: number) => void;
+  drawWaveform: (audiobuffer: AudioBuffer) => void;
+  cleanup: () => void;
+}
+
+export const EnvelopeSVG = (
+  envelope: CustomEnvelope,
+  maxDurationSeconds: State<number>,
+  width: string = '100%',
+  height: string = '120px',
+  snapThreshold = 0.025,
+  multiColorPlayheads = true,
+  fixedStartEndTimes = true
+): EnvelopeSVG => {
+  // Get envelope properties
+  const envelopeType = envelope.envelopeType;
+  const [minValue, maxValue] = envelope.valueRange;
+
+  // Value conversion helpers
+  const normalizeValue = (displayValue: number): number => {
+    return (displayValue - minValue) / (maxValue - minValue);
+  };
+
+  const denormalizeValue = (normalizedValue: number): number => {
+    return minValue + normalizedValue * (maxValue - minValue);
+  };
+
+  // Generate smart snap values based on envelope type and range
+  const generateSnapValues = () => {
+    const timeSnaps = [
+      0,
+      maxDurationSeconds.val * 0.25,
+      maxDurationSeconds.val * 0.5,
+      maxDurationSeconds.val * 0.75,
+      maxDurationSeconds.val,
+    ];
+
+    let valueSnaps: number[];
+    if (envelopeType === 'amp-env') {
+      valueSnaps = [0, 0.25, 0.5, 0.75, 1.0]; // Normalized values for amplitude
+    } else if (envelopeType === 'filter-env') {
+      valueSnaps = [30, 100, 500, 2000, 8000, 18000]; // Common filter frequencies
+    } else if (envelopeType === 'pitch-env') {
+      valueSnaps = [0.5, 0.75, 1.0, 1.25, 1.5]; // Pitch ratios
+    } else {
+      // Generate evenly spaced snaps for other types
+      valueSnaps = [
+        minValue,
+        minValue + (maxValue - minValue) * 0.25,
+        minValue + (maxValue - minValue) * 0.5,
+        minValue + (maxValue - minValue) * 0.75,
+        maxValue,
+      ];
+    }
+
+    return { x: timeSnaps, y: valueSnaps };
+  };
+
+  const snapToValues = generateSnapValues();
+
+  if (!envelope.points.length) {
+    const emptyDiv = div(
+      {
+        style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
+      },
+      'No envelope data'
+    );
+    return {
+      element: emptyDiv,
+      triggerPlayAnimation: () => {},
+      releaseAnimation: () => {},
+      updateEnvelopeDuration: () => {},
+      drawWaveform: () => {},
+      cleanup: () => {},
+    };
+  }
+
+  const SVG_WIDTH = 400;
+  const SVG_HEIGHT = 200;
+
+  let svgElement: SVGSVGElement;
+  let pointsGroup: SVGGElement;
+
+  let sustain: {
+    index: number;
+    x: number;
+    y: number;
+    point: any;
+  } | null = null;
+
+  let envelopePath: SVGPathElement;
+  let waveformPath: SVGPathElement | null = null;
+  let playheadManager: PlayheadManager;
+
+  let noteColor: string | Record<number, string>;
+  if (multiColorPlayheads)
+    noteColor = generateMidiNoteColors('none', [40, 90], true);
+  else noteColor = 'red';
+
+  // UI states synced with envelope
+  const isEnabled = van.state(envelope.isEnabled);
+  const isLooping = van.state(envelope.loopEnabled);
+  const syncToPlaybackRate = van.state(envelope.syncedToPlaybackRate);
+  const currentTimeScale = van.state(envelope.timeScale);
+
+  const currentDurationSeconds = van.state(maxDurationSeconds.rawVal);
+  const selectedPoint = van.state<number | null>(null);
+  const isDragging = van.state(false);
+
+  // Get points with denormalized values for display
+  const getDisplayPoints = () => {
+    return envelope.points.map((point) => ({
+      ...point,
+      value: denormalizeValue(point.value),
+    }));
+  };
+
+  const points = van.state(getDisplayPoints());
+  let clickCounts: Record<number, number> = {};
+  const activeTimeouts = new Set<number>();
+
+  const updateSustainIndex = (index: number) => {
+    const displayPoints = getDisplayPoints();
+    const sustainPoint = displayPoints[index];
+
+    if (!sustainPoint) {
+      console.error(
+        `Cannot updateSustain, point at index ${index} is ${sustainPoint}`
+      );
+      return;
+    }
+
+    const sustainX = secondsToScreenX(
+      sustainPoint.time,
+      maxDurationSeconds.val,
+      SVG_WIDTH
+    );
+    const sustainY = (1 - normalizeValue(sustainPoint.value)) * SVG_HEIGHT;
+
+    sustain = {
+      index,
+      point: sustainPoint,
+      x: sustainX,
+      y: sustainY,
+    };
+
+    console.debug('SVG updateSustain, new sustain.point is', {
+      index: sustain.index,
+      time: sustain.point.time,
+      value: sustain.point.value,
+    });
+
+    envelope.setSustainPoint(index);
+    playheadManager.setSustainPoint(sustain);
+  };
+
+  const refreshPoints = () => {
+    points.val = [...getDisplayPoints()];
+  };
+
+  const updateControlPoints = () => {
+    if (!pointsGroup) return;
+
+    activeTimeouts.forEach(clearTimeout);
+    activeTimeouts.clear();
+
+    pointsGroup.replaceChildren();
+
+    const pts = points.val;
+
+    pts.forEach((point, index) => {
+      const circle = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'circle'
+      );
+
+      circle.setAttribute(
+        'cx',
+        secondsToScreenX(
+          point.time,
+          maxDurationSeconds.rawVal,
+          SVG_WIDTH
+        ).toString()
+      );
+      circle.setAttribute(
+        'cy',
+        ((1 - normalizeValue(point.value)) * SVG_HEIGHT).toString()
+      );
+      circle.setAttribute('r', '4');
+      circle.setAttribute(
+        'fill',
+        selectedPoint.val === index
+          ? '#ff6b6b'
+          : isEnabled.val
+            ? '#4ade80'
+            : '#666'
+      );
+      circle.setAttribute('stroke', '#fff');
+      circle.setAttribute('stroke-width', '1');
+      circle.style.cursor = 'pointer';
+      circle.style.zIndex = '999';
+
+      // Special case for start/end points
+      if (index === 0 || index === pts.length - 1) {
+        if (!fixedStartEndTimes) {
+          const timeSpan = pts[pts.length - 1].time - pts[0].time;
+          const newDuration = timeSpan;
+          if (Math.abs(currentDurationSeconds.val - newDuration) > 0.001) {
+            currentDurationSeconds.val = newDuration;
+          }
+        }
+
+        circle.setAttribute('fill', isEnabled.val ? '#ff9500' : '#666');
+        circle.setAttribute('r', '6');
+      }
+
+      // Highlight sustain point
+      if (envelope.sustainPointIndex === index) {
+        circle.setAttribute('fill', isEnabled.val ? '#ff2211' : '#666');
+        circle.setAttribute('r', '6');
+      }
+
+      let clickTimeout: number;
+
+      circle.addEventListener('mousedown', (e: MouseEvent) => {
+        if (!isEnabled.val) return;
+
+        if (e.altKey) {
+          updateSustainIndex(index);
+          return;
+        }
+
+        const currentCount = (clickCounts[index] || 0) + 1;
+        clickCounts = { ...clickCounts, [index]: currentCount };
+
+        isDragging.val = true;
+        selectedPoint.val = index;
+
+        clearTimeout(clickTimeout);
+
+        if (currentCount === 1) {
+          clickTimeout = setTimeout(() => {
+            clickCounts = { ...clickCounts, [index]: 0 };
+            activeTimeouts.delete(clickTimeout);
+          }, 200);
+          activeTimeouts.add(clickTimeout);
+        } else if (currentCount === 2) {
+          isDragging.val = false;
+          if (index > 0 && index < pts.length - 1) {
+            envelope.deletePoint(index);
+            refreshPoints();
+          }
+          clickCounts = { ...clickCounts, [index]: 0 };
+        }
+        e.preventDefault();
+      });
+
+      pointsGroup.appendChild(circle);
+    });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isEnabled.val || !isDragging.val || selectedPoint.val === null) return;
+
+    const pts = points.val;
+    const isStartPoint = selectedPoint.val === 0;
+    const isEndPoint = selectedPoint.val === pts.length - 1;
+
+    const rect = svgElement.getBoundingClientRect();
+
+    let time = screenXToSeconds(
+      e.clientX - rect.left,
+      rect.width,
+      maxDurationSeconds.rawVal
+    );
+    let value = screenYToValue(e.clientY - rect.top, rect.height);
+
+    // Convert screen Y to actual value range
+    value = minValue + value * (maxValue - minValue);
+    value = applySnapping(
+      value,
+      snapToValues.y,
+      snapThreshold * (maxValue - minValue)
+    );
+
+    // Handle fixed start/end times
+    if (fixedStartEndTimes) {
+      if (isStartPoint) time = 0;
+      else if (isEndPoint) time = maxDurationSeconds.val;
+    } else {
+      time = applySnapping(
+        time,
+        snapToValues.x,
+        snapThreshold * maxDurationSeconds.val
+      );
+    }
+
+    // Update envelope with normalized value
+    const normalizedValue = normalizeValue(value);
+    envelope.updatePoint(selectedPoint.val, time, normalizedValue);
+    refreshPoints();
+
+    updateEnvelopePath(); // Manual update
+    updateControlPoints(); // Manual update
+  };
+
+  const handleMouseUp = () => {
+    if (!isEnabled.val) return;
+    isDragging.val = false;
+    selectedPoint.val = null;
+  };
+
+  const handleDoubleClick = (e: MouseEvent) => {
+    if (!isEnabled.val || isDragging.val) return;
+    e.stopPropagation();
+
+    const rect = svgElement.getBoundingClientRect();
+
+    const time = screenXToSeconds(
+      e.clientX - rect.left,
+      rect.width,
+      maxDurationSeconds.val
+    );
+    let value = screenYToValue(e.clientY - rect.top, rect.height);
+
+    // Convert to actual value range
+    value = minValue + value * (maxValue - minValue);
+
+    // Normalize for envelope
+    const normalizedValue = normalizeValue(value);
+
+    envelope.addPoint(time, normalizedValue);
+    refreshPoints();
+
+    updateEnvelopePath(); // Manual update
+    updateControlPoints(); // Manual update
+  };
+
+  // Create SVG element
+  svgElement = svg({
+    viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
+    preserveAspectRatio: 'none',
+    style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
+  }) as SVGSVGElement;
+
+  const controlButtons = createEnvelopeControlButtons(
+    isEnabled,
+    isLooping,
+    syncToPlaybackRate
+  );
+
+  // Create container div
+  const container = div(
+    {
+      style: `position: relative; display: inline-block; width: ${width}; height: ${height}; `,
+    },
+    controlButtons.enabledToggle,
+    controlButtons.loopToggle,
+    controlButtons.syncToggle
+  );
+
+  container.appendChild(svgElement);
+
+  // Add time scale knob
+  const timeScaleKnob = LabeledTimeScaleKnob({
+    envelopeType,
+    onTimeScaleChange: (envType, timeScale) => {
+      envelope.setTimeScale(timeScale);
+      currentTimeScale.val = timeScale;
+    },
+    minValue: 0.1,
+    maxValue: 10,
+    defaultValue: envelope.timeScale,
+    snapIncrement: 0.1,
+    label: 'Speed',
+  });
+  container.appendChild(timeScaleKnob);
+
+  // Add event listeners
+  svgElement.addEventListener('mousemove', handleMouseMove);
+  svgElement.addEventListener('mouseup', handleMouseUp);
+  svgElement.addEventListener('mouseleave', handleMouseUp);
+  svgElement.addEventListener('dblclick', handleDoubleClick);
+
+  // Grid
+  const gridGroup = createEnvelopeGrid(SVG_WIDTH, SVG_HEIGHT);
+
+  //   // Envelope path - using display points for proper visual representation
+  //   envelopePath = path({
+  //     id: 'envelope-path',
+  //     d: () => {
+  //       maxDurationSeconds.val; // Dependency
+  //       const displayPoints = points.val.map((p) => ({
+  //         ...p,
+  //         value: normalizeValue(p.value), // Normalize for SVG path generation
+  //       }));
+  //       return generateSVGPath(
+  //         displayPoints,
+  //         maxDurationSeconds.val,
+  //         SVG_WIDTH,
+  //         SVG_HEIGHT
+  //       );
+  //     },
+  //     fill: 'none',
+  //     stroke: () => (isEnabled.val ? '#4ade80' : '#666'),
+  //     'stroke-width': 2,
+  //   }) as SVGPathElement;
+
+  envelopePath = path({
+    id: 'envelope-path',
+    fill: 'none',
+    stroke: isEnabled.val ? '#4ade80' : '#666',
+    'stroke-width': 2,
+  }) as SVGPathElement;
+
+  const updateEnvelopePath = () => {
+    const displayPoints = getDisplayPoints().map((p) => ({
+      ...p,
+      value: normalizeValue(p.value),
+    }));
+
+    const pathData = generateSVGPath(
+      displayPoints,
+      maxDurationSeconds.val,
+      SVG_WIDTH,
+      SVG_HEIGHT
+    );
+
+    console.log(
+      'Manually updating path with:',
+      pathData.substring(0, 50) + '...'
+    );
+    envelopePath.setAttribute('d', pathData);
+    envelopePath.setAttribute('stroke', isEnabled.val ? '#4ade80' : '#666');
+  };
+
+  // Control points group
+  pointsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  pointsGroup.setAttribute('class', 'control-points');
+
+  // Assemble SVG
+  svgElement.appendChild(gridGroup);
+  svgElement.appendChild(envelopePath);
+  svgElement.appendChild(pointsGroup);
+
+  updateEnvelopePath(); // Manual update
+  updateControlPoints(); // Manual update
+
+  // Animated Playheads
+  playheadManager = Playheads(
+    svgElement,
+    envelopePath,
+    isEnabled,
+    currentDurationSeconds,
+    SVG_WIDTH,
+    multiColorPlayheads
+  );
+
+  // Initialize sustain point from envelope
+  if (envelope.sustainPointIndex !== null) {
+    updateSustainIndex(envelope.sustainPointIndex);
+  }
+
+  // === WAVEFORM ===
+  function drawWaveform(audiobuffer: AudioBuffer) {
+    if (waveformPath && waveformPath.parentNode === svgElement) {
+      svgElement.removeChild(waveformPath);
+      waveformPath = null;
+    }
+
+    const waveformSVGData = getWaveformSVGData(
+      audiobuffer,
+      SVG_WIDTH,
+      SVG_HEIGHT
+    );
+
+    waveformPath = path({
+      id: 'waveform-path',
+      d: waveformSVGData.trim(),
+      fill: 'none',
+      stroke: () => (isEnabled.val ? '#3467bc' : '#333'),
+      'stroke-width': 1,
+      style: 'z-index: -999; pointer-events: none;',
+    }) as SVGPathElement;
+
+    svgElement.appendChild(waveformPath);
+  }
+
+  const updateEnvelopeDuration = (seconds: number) => {
+    if (seconds !== currentDurationSeconds.val) {
+      currentDurationSeconds.val = seconds;
+    }
+  };
+
+  // Reactive updates
+  van.derive(() => {
+    const newMaxDuration = maxDurationSeconds.val;
+    currentDurationSeconds.val = newMaxDuration;
+    refreshPoints(); // Refresh from envelope data
+  });
+
+  van.derive(() => {
+    points.val;
+    selectedPoint.val;
+    maxDurationSeconds.val;
+    updateControlPoints();
+    setTimeout(() => playheadManager.refreshPlayingAnimations(), 0);
+  });
+
+  // Sync UI controls with envelope
+  van.derive(() => {
+    envelope.setLoopEnabled(isLooping.val);
+  });
+
+  van.derive(() => {
+    envelope.syncToPlaybackRate(syncToPlaybackRate.val);
+  });
+
+  van.derive(() => {
+    if (!isEnabled.val) {
+      playheadManager.hideAllPlayheads();
+      envelope.disable();
+    } else {
+      envelope.enable();
+    }
+  });
+
+  return {
+    element: container,
+    triggerPlayAnimation: (msg: AnimationMessage) =>
+      playheadManager.triggerPlayAnimation(msg, envelopeType),
+    releaseAnimation: (msg: AnimationMessage) =>
+      playheadManager.releaseAnimation(msg),
+    updateEnvelopeDuration,
+    drawWaveform,
+    cleanup: () => {
+      playheadManager.cleanup();
+      activeTimeouts.forEach(clearTimeout);
+      if (waveformPath && waveformPath.parentNode === svgElement) {
+        svgElement.removeChild(waveformPath);
+      }
+    },
+  };
+};

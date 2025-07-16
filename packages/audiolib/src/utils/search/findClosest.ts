@@ -4,21 +4,21 @@
  * @param target - Target value to search for
  * @param getValue - Function to extract comparison value from array elements (defaults to identity for number arrays)
  * @param getDistance - Optional function to calculate distance (defaults to absolute difference)
- * @returns The closest element from the array
+ * @returns The array index of the element which value is closest to the target value
  */
-export function findClosest<T>(
+export function findClosestIdx<T>(
   sortedArray: T[],
   target: number,
   direction: 'left' | 'right' | 'any' = 'any',
   getValue: (item: T) => number = (x) => x as unknown as number,
   getDistance: (a: number, b: number) => number = (a, b) => Math.abs(a - b)
-): T {
+): number {
   if (sortedArray.length === 0) {
     throw new Error('Array cannot be empty');
   }
 
   if (sortedArray.length === 1) {
-    return sortedArray[0];
+    return 0;
   }
 
   const targetValue = target;
@@ -26,8 +26,8 @@ export function findClosest<T>(
   const lastValue = getValue(sortedArray[sortedArray.length - 1]);
 
   // Handle edge cases
-  if (targetValue <= firstValue) return sortedArray[0];
-  if (targetValue >= lastValue) return sortedArray[sortedArray.length - 1];
+  if (targetValue <= firstValue) return 0;
+  if (targetValue >= lastValue) return sortedArray.length - 1;
 
   // Binary search for insertion point
   let left = 0;
@@ -38,7 +38,7 @@ export function findClosest<T>(
     const midValue = getValue(sortedArray[mid]);
 
     if (midValue === targetValue) {
-      return sortedArray[mid]; // Exact match
+      return mid; // Exact match
     } else if (midValue < targetValue) {
       left = mid;
     } else {
@@ -47,12 +47,12 @@ export function findClosest<T>(
   }
 
   // If direction is specified, return the closest value to the left or right
-  if (direction === 'left') return sortedArray[left];
-  if (direction === 'right') return sortedArray[right];
+  if (direction === 'left') return left;
+  if (direction === 'right') return right;
 
   // Else compare the two closest candidates
   const leftDistance = getDistance(getValue(sortedArray[left]), targetValue);
   const rightDistance = getDistance(getValue(sortedArray[right]), targetValue);
 
-  return leftDistance <= rightDistance ? sortedArray[left] : sortedArray[right];
+  return leftDistance <= rightDistance ? left : right;
 }

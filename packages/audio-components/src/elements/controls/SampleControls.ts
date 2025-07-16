@@ -22,14 +22,12 @@ export const SampleControls = (
   const { div } = van.tags;
   defineElement('knob-element', KnobElement);
 
-  const minLoopDurationSec = 0.001;
-
   const loopEndSliderThumb = van.state(initialLoopEnd);
   let loopEndKnobOffset = van.state(0);
 
   const { container: loopSliderContainer, sliderElement: loopSliderEl } =
     createSliderGSAP(
-      'Loop',
+      'Trim',
       loopStartSeconds,
       loopEndSliderThumb,
       {
@@ -38,12 +36,6 @@ export const SampleControls = (
       },
       loopRampSeconds
     );
-
-  const { container: trimSliderContainer, sliderElement: trimSliderEl } =
-    createSliderGSAP('Trim', startPointSeconds, endPointSeconds, {
-      min: 0,
-      max: sampleDurationSeconds.rawVal,
-    });
 
   const loopEndOffsetKnob = document.createElement(
     'knob-element'
@@ -69,20 +61,6 @@ export const SampleControls = (
     }
   );
 
-  // Update loopEnd when either loopPoint thumb or knob offset changes
-  van.derive(() => {
-    // Todo: make knob properly update loopEnd when rolling back to 0
-    // console.log(
-    //   'loopEndSliderThumb.val',
-    //   loopEndSliderThumb.val,
-    //   'loopEndSeconds.val',
-    //   loopEndSeconds.val
-    // );
-    const proposedLoopEnd = loopEndSliderThumb.val - loopEndKnobOffset.val;
-    const minLoopEnd = loopStartSeconds.val + minLoopDurationSec;
-    loopEndSeconds.val = Math.max(proposedLoopEnd, minLoopEnd);
-  });
-
   const knobMaxValue = van.derive(() => {
     const thumbDistance = loopEndSliderThumb.val - loopStartSeconds.val;
     return Math.max(thumbDistance, 0.001);
@@ -91,6 +69,17 @@ export const SampleControls = (
   van.derive(() => {
     loopEndOffsetKnob.setAttribute('max-value', knobMaxValue.val.toString());
   });
+
+  // Update loopEnd when either loopPoint thumb or knob offset changes
+  van.derive(() => {
+    loopEndSeconds.val = Math.max(
+      loopStartSeconds.rawVal + 0.001,
+      loopEndSliderThumb.val - loopEndKnobOffset.val
+    );
+  });
+
+  // van.derive(() => (startPointSeconds.val = loopStartSeconds.val));
+  // van.derive(() => (endPointSeconds.val = loopEndSeconds.val));
 
   const controls = div(
     { style: 'display: flex; flex-direction: column;' },
@@ -103,8 +92,8 @@ export const SampleControls = (
       },
       loopSliderContainer,
       loopEndOffsetKnob
-    ),
-    div({ style: '' }, trimSliderContainer)
+    )
+    // div({ style: '' }, trimSliderContainer) // Currently using same slider for loop and trim points
   );
 
   return controls;
@@ -112,3 +101,9 @@ export const SampleControls = (
 
 // !? IDEA -> Cranker is OFF at min pos, subsequent positions correspond to allowed periods.
 // (maybe even gsap can animate smoothly to them and replace some of the macroparam logic)
+
+// const { container: trimSliderContainer, sliderElement: trimSliderEl } =
+//   createSliderGSAP('Trim', startPointSeconds, endPointSeconds, {
+//     min: 0,
+//     max: sampleDurationSeconds.rawVal,
+//   });

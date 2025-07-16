@@ -3,7 +3,7 @@ export type EnvelopeType =
   | 'pitch-env'
   | 'filter-env'
   | 'loop-env'
-  | 'default';
+  | 'default-env';
 
 export type EnvelopePoint = {
   time: number; // Absolute time in seconds

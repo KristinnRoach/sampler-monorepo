@@ -1,7 +1,7 @@
 import { getAudioContext } from '@/context';
 import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
-import { detectSinglePitchAC } from '@/utils/pitchDetection';
+import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
 
 import {
@@ -23,10 +23,12 @@ import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
-import { EnvelopeType } from '@/nodes/params/envelopes';
+import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
 
 export class SamplePlayer extends LibInstrument {
+  #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
+
   #loopEnabled = false;
   #loopLocked = false;
   #holdEnabled = false;
@@ -34,6 +36,8 @@ export class SamplePlayer extends LibInstrument {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
+
+  #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
   #isReady = false;
   #isLoaded = false;
@@ -78,6 +82,29 @@ export class SamplePlayer extends LibInstrument {
 
     this.#connectVoicesToMacros();
 
+    // const ampDefaults = CustomEnvelope.getDefaults('amp-env', 1);
+    // const pitchDefaults = CustomEnvelope.getDefaults('pitch-env', 1);
+    // const filterDefault = CustomEnvelope.getDefaults('filter-env', 1);
+
+    // this.#envelopes.set(
+    //   'amp-env',
+    //   new EnvelopeData(ampDefaults.points, ampDefaults.valueRange, 1)
+    // );
+    // this.#envelopes.set(
+    //   'pitch-env',
+    //   new EnvelopeData(pitchDefaults.points, pitchDefaults.valueRange, 1)
+    // );
+    // this.#envelopes.set(
+    //   'filter-env',
+    //   new EnvelopeData(filterDefault.points, filterDefault.valueRange, 1)
+    // );
+
+    // this.voicePool.applyToAllVoices((voice) => {
+    //   this.#envelopes.forEach((envData, envType) => {
+    //     voice.addEnvelope(envType, envData);
+    //   });
+    // });
+
     // Connect audiochain -- todo after generalizing voice pool
 
     // Initialize the output bus methods
@@ -89,8 +116,6 @@ export class SamplePlayer extends LibInstrument {
 
     if (audioBuffer?.duration) {
       this.loadSample(audioBuffer, audioBuffer.sampleRate);
-    } else {
-      this.#isLoaded = false;
     }
   }
 
@@ -106,16 +131,28 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #setupMessageHandling(): this {
+    this.voicePool.onMessage('sample:loaded', (msg: Message) => {
+      this.#envelopes.forEach((env) => {
+        env.setDurationSeconds(msg.durationSeconds);
+      });
+
+      this.#isLoaded = true;
+    });
+
     // Forward voice pool messages upstream
     this.messages.forwardFrom(this.voicePool, [
       'voice:started',
       'voice:stopped',
       'voice:releasing',
       'sample:loaded',
-      'sample-envelopes:trigger',
-      'sample-envelopes:maxDuration',
-    ]);
 
+      'amp-env:trigger',
+      'amp-env:release',
+      'pitch-env:trigger',
+      'pitch-env:release',
+      'filter-env:trigger',
+      'filter-env:release',
+    ]);
     return this;
   }
 
@@ -190,17 +227,13 @@ export class SamplePlayer extends LibInstrument {
     modSampleRate?: number,
     shoulDetectPitch = true,
     autoTranspose = true
-  ): Promise<number> {
+  ): Promise<AudioBuffer> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
       buffer = await ctx.decodeAudioData(buffer);
     }
 
     assert(isValidAudioBuffer(buffer));
-
-    this.releaseAll(0);
-    this.voicePool.transposeSemitones = 0; // or stored val
-    this.#isLoaded = false;
 
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
@@ -215,8 +248,12 @@ export class SamplePlayer extends LibInstrument {
       );
     }
 
-    let tuningOffset = 0; // in semitones (float)
+    this.releaseAll(0);
+    this.voicePool.transposeSemitones = 0; // or stored val
+    this.#isLoaded = false;
+    this.#audiobuffer = null;
 
+    let tuningOffset = 0; // in semitones (float)
     if (shoulDetectPitch) {
       const detectedPitch = await this.detectPitch(buffer);
 
@@ -251,7 +288,7 @@ export class SamplePlayer extends LibInstrument {
       rootNote: 'C',
       scale: [0],
       lowestOctave: 0,
-      highestOctave: 7,
+      highestOctave: 6,
       tuningOffset,
       // All time params updated to seconds, normalizing logic can be removed
       normalize: false as NormalizeOptions | false,
@@ -259,7 +296,9 @@ export class SamplePlayer extends LibInstrument {
 
     this.setScale(defaultScaleOptions);
 
-    return buffer.duration;
+    this.#audiobuffer = buffer;
+
+    return buffer;
   }
 
   setTransposition = (semitones: number) => {
@@ -487,20 +526,24 @@ export class SamplePlayer extends LibInstrument {
     loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    // if (
-    //   loopStartSeconds > loopEndSeconds ||
-    //   loopEndSeconds < loopStartSeconds ||
-    //   loopEndSeconds > this.#bufferDuration
-    // ) {
-    //   console.error(`samplePlayer.setLoopPoint: Loop points out of bounds`);
-    //   return this;
-    // }
+    if (
+      loopStartSeconds > loopEndSeconds ||
+      loopEndSeconds < loopStartSeconds ||
+      (this.isLoaded && loopEndSeconds > this.#bufferDuration)
+    ) {
+      console.error(
+        `samplePlayer.setLoopPoint: Loop points out of bounds.
+        Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
+      );
+      return this;
+    }
 
     const RAMP_SENSITIVITY = 1;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start') {
       // && normalizedLoopStart !== this.loopStart) {
+
       const storeLoopStart = () =>
         this.storeParamValue('loopStart', loopStartSeconds);
 
@@ -509,7 +552,10 @@ export class SamplePlayer extends LibInstrument {
         scaledRampTime,
         loopEndSeconds,
         {
-          onComplete: storeLoopStart,
+          onComplete: () => {
+            storeLoopStart();
+            // this.setSampleStartPoint(loopStartSeconds);
+          },
         }
       );
     } else if (loopPoint === 'end') {
@@ -522,7 +568,10 @@ export class SamplePlayer extends LibInstrument {
         scaledRampTime,
         loopStartSeconds,
         {
-          onComplete: storeLoopEnd,
+          onComplete: () => {
+            storeLoopEnd();
+            // this.setSampleEndPoint(loopEndSeconds);
+          },
         }
       );
     }
@@ -698,12 +747,22 @@ export class SamplePlayer extends LibInstrument {
   };
 
   setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
-    console.warn(envType, timeScale);
-
     this.voicePool.applyToAllVoices((v) =>
       v.setEnvelopeTimeScale(envType, timeScale)
     );
   };
+
+  setEnvelopeSustainPoint(envType: EnvelopeType, index: number | null) {
+    this.voicePool.applyToAllVoices((v) =>
+      v.setEnvelopeSustainPoint(envType, index)
+    );
+  }
+
+  setEnvelopeReleasePoint(envType: EnvelopeType, index: number) {
+    this.voicePool.applyToAllVoices((v) =>
+      v.setEnvelopeReleasePoint(envType, index)
+    );
+  }
 
   updateEnvelopePoint(
     envType: EnvelopeType,
@@ -860,6 +919,10 @@ export class SamplePlayer extends LibInstrument {
 
   get isLoaded() {
     return this.#isLoaded;
+  }
+
+  get audiobuffer() {
+    return this.#audiobuffer;
   }
 
   /* === CLEANUP === */

@@ -19,18 +19,14 @@ export const createSliderGSAP = (
   rampTime?: State<number> // ? Make generic
 ) => {
   const sliderElement = van.tags['slider-gsap']({});
+  const initialRampTime = rampTime?.rawVal ?? 0.5;
 
-  //   // Wait for the custom element to be fully defined and connected
-  // await customElements.whenDefined('slider-gsap');
-  // // Small additional delay to ensure connectedCallback is complete
-  // await new Promise(resolve => setTimeout(resolve, 0));
-
-  // Defer the setRange call until after the element is fully connected
+  // Defer until element is fully connected
   setTimeout(() => {
     (sliderElement as any).setRange(range.min, range.max);
-    (sliderElement as any).setPosition(0, firstThumbState.val);
-    (sliderElement as any).setPosition(1, secondThumbState.val);
-    rampTime && (sliderElement as any).setRampTime(rampTime.val);
+    (sliderElement as any).setPosition(0, firstThumbState.rawVal); // ! rawVal ?
+    (sliderElement as any).setPosition(1, secondThumbState.rawVal);
+    // rampTime && (sliderElement as any).setRampTime(rampTime.rawVal);
   }, 0);
 
   // Add listener to the actual slider element
@@ -39,8 +35,8 @@ export const createSliderGSAP = (
     (e: CustomEvent) => {
       firstThumbState.val = e.detail.min;
       secondThumbState.val = e.detail.max;
-      if (rampTime) {
-        rampTime.val = e.detail.isShiftDragging ? 0 : 0.5;
+      if (rampTime !== undefined) {
+        rampTime.val = e.detail.isShiftDragging ? 0 : initialRampTime;
       }
     }
   );
@@ -57,22 +53,7 @@ export const createSliderGSAP = (
   return { container, sliderElement };
 };
 
-// export const createSliderGSAP = (
-//   labelText: string,
-//   firstThumbState: State<number>,
-//   secondThumbState: State<number>
-// ) => {
-//   return div(
-//     {
-//       style:
-//         'margin-bottom: 10px; display: flex; align-items: center; gap: 8px;',
-//     },
-//     label(() => labelText + ':'),
-//     van.tags['slider-gsap']({
-//       'onrange-change': (e: CustomEvent) => {
-//         firstThumbState.val = e.detail.min;
-//         secondThumbState.val = e.detail.max;
-//       },
-//     })
-//   );
-// };
+//  ? Use this if createSliderGSAP can be async ?
+//  Wait for the custom element to be fully defined and connected
+// await customElements.whenDefined('slider-gsap');
+// await new Promise(resolve => setTimeout(resolve, 0));

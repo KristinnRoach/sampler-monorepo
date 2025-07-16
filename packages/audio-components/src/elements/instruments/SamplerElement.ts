@@ -10,7 +10,7 @@ import {
   getInstance,
 } from '@repo/audiolib';
 
-import { createIcons } from '../../utils/svg-utils';
+import { createIcons } from '../../utils/icons';
 import { SampleControls } from '../controls/SampleControls';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
 import { FileOperations } from '../controls/FileOperations';
@@ -20,11 +20,11 @@ import {
   LoopHoldControls,
 } from '../controls/AudioControls';
 
-import { EnvelopeSVG } from '../controls/EnvelopeSVG';
+import { EnvelopeSVG } from '../controls/envelope/EnvelopeSVG';
 
 const { div, button } = van.tags;
 
-const SamplerElement = (attributes: ElementProps) => {
+export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
   let currentRecorder: Recorder | null = null;
 
@@ -36,7 +36,6 @@ const SamplerElement = (attributes: ElementProps) => {
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
   const filterEnvelope = van.state<CustomEnvelope | null>(null);
-  // const loopEnvelope = van.state<CustomEnvelope | null>(null);
 
   // Pitch params
   // const transposition = van.state(0);
@@ -72,62 +71,45 @@ const SamplerElement = (attributes: ElementProps) => {
   let filterEnvInstance: EnvelopeSVG | null = null;
   let pitchEnvInstance: EnvelopeSVG | null = null;
 
-  // Create the envelopes and store references
-  van.derive(() => {
-    if (ampEnvelope.val && !ampEnvInstance && sampleDurationSeconds.val) {
-      ampEnvInstance = EnvelopeSVG(
-        'amp-env',
-        ampEnvelope.val.points, // todo: fix the mixing of van states and callbacks, choose one system
-        sampleDurationSeconds,
-        handleEnvelopeChange,
-        enableEnvelope,
-        disableEnvelope,
-        handleEnvelopeLoopChange,
-        handleEnvelopeSyncChange,
-        envDimensions.val.width,
-        envDimensions.val.height,
-        { x: [0, 1], y: [0, 1] },
-        0.05,
-        true,
-        true,
-        true
-        // setEnvelopeTimeScale // ! TESTING
-      );
-    }
-    if (filterEnvelope.val && !filterEnvInstance && sampleDurationSeconds.val) {
-      filterEnvInstance = EnvelopeSVG(
-        'filter-env',
-        filterEnvelope.val.points,
-        sampleDurationSeconds,
-        handleEnvelopeChange,
-        enableEnvelope,
-        disableEnvelope,
-        handleEnvelopeLoopChange,
-        handleEnvelopeSyncChange,
-        envDimensions.val.width,
-        envDimensions.val.height,
-        { x: [0, 1], y: [0] },
-        0.025,
-        false
-      );
-    }
-    if (pitchEnvelope.val && !pitchEnvInstance && sampleDurationSeconds.val) {
-      pitchEnvInstance = EnvelopeSVG(
-        'pitch-env',
-        pitchEnvelope.val.points,
-        sampleDurationSeconds,
-        handleEnvelopeChange,
-        enableEnvelope,
-        disableEnvelope,
-        handleEnvelopeLoopChange,
-        handleEnvelopeSyncChange,
-        envDimensions.val.width,
-        envDimensions.val.height,
-        { x: [0, 1], y: [0.5] },
-        0.05
-      );
-    }
-  });
+  const createEnvelopes = () => {
+    if (!samplePlayer) return;
+
+    // Clean up previous instances
+    if (ampEnvInstance) ampEnvInstance.cleanup();
+    if (filterEnvInstance) filterEnvInstance.cleanup();
+    if (pitchEnvInstance) pitchEnvInstance.cleanup();
+
+    ampEnvelope.val = samplePlayer.getEnvelope('amp-env');
+    filterEnvelope.val = samplePlayer.getEnvelope('filter-env');
+    pitchEnvelope.val = samplePlayer.getEnvelope('pitch-env');
+
+    ampEnvInstance = EnvelopeSVG(
+      samplePlayer,
+      'amp-env',
+      envDimensions.val.width,
+      envDimensions.val.height
+    );
+
+    filterEnvInstance = EnvelopeSVG(
+      samplePlayer,
+      'filter-env',
+      envDimensions.val.width,
+      envDimensions.val.height
+    );
+
+    pitchEnvInstance = EnvelopeSVG(
+      samplePlayer,
+      'pitch-env',
+      envDimensions.val.width,
+      envDimensions.val.height
+    );
+  };
+
+  const drawWaveform = (buffer: AudioBuffer) => {
+    ampEnvInstance?.drawWaveform(buffer);
+    filterEnvInstance?.drawWaveform(buffer);
+    pitchEnvInstance?.drawWaveform(buffer);
+  };
 
   // Recording state
   const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
@@ -156,12 +138,6 @@ const SamplerElement = (attributes: ElementProps) => {
           return;
         }
 
-        // Setup envelopes
-        ampEnvelope.val = samplePlayer.getEnvelope('amp-env');
-        filterEnvelope.val = samplePlayer.getEnvelope('filter-env');
-        pitchEnvelope.val = samplePlayer.getEnvelope('pitch-env');
-        // loopEnvelope.val = samplePlayer.getEnvelope('loop-env');
-
         van.derive(() => {
           if (!samplePlayer) return;
           if (loopStartSeconds.val !== samplePlayer.loopStart) {
@@ -189,13 +165,13 @@ const SamplerElement = (attributes: ElementProps) => {
         });
 
         derive(() => {
-          // if (samplePlayer?.isLoaded) {
           samplePlayer?.setSampleStartPoint(startPointSeconds.val);
         });
 
         derive(() => {
-          // if (samplePlayer?.isLoaded) {
-          samplePlayer?.setSampleEndPoint(endPointSeconds.val);
+          if (samplePlayer?.isLoaded) {
+            samplePlayer?.setSampleEndPoint(endPointSeconds.val);
+          }
         });
 
         derive(() => {
@@ -224,45 +200,19 @@ const SamplerElement = (attributes: ElementProps) => {
 
         // === SAMPLE-PLAYER MESSAGES ===
 
-        samplePlayer.onMessage('sample:loaded', (msg: any) => {
-          sampleDurationSeconds.val = msg.durationSeconds;
-          ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          pitchEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          status.val = `All voices loaded. Sample Duration: ${msg.durationSeconds}`;
-        });
-
-        samplePlayer.onMessage('sample-envelopes:trigger', (msg: any) => {
-          ampEnvInstance?.triggerPlayAnimation(msg);
-          filterEnvInstance?.triggerPlayAnimation(msg);
-          pitchEnvInstance?.triggerPlayAnimation(msg);
-        });
-
-        samplePlayer.onMessage('sample-envelopes:maxDuration', (msg: any) => {
-          ampEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          filterEnvInstance?.updateMaxDuration(msg.durationSeconds);
-          pitchEnvInstance?.updateMaxDuration(msg.durationSeconds);
-        });
-
-        samplePlayer.onMessage('voice:releasing', (msg: any) => {
-          ampEnvInstance?.releaseAnimation(msg);
-          filterEnvInstance?.releaseAnimation(msg);
-          pitchEnvInstance?.releaseAnimation(msg);
-        });
+        samplePlayer.onMessage('sample:loaded', (msg: any) =>
+          onSampleLoaded(msg.durationSeconds)
+        );
 
         samplePlayer.onMessage('voice:stopped', (msg: any) => {
-          ampEnvInstance?.releaseAnimation(msg);
-          filterEnvInstance?.releaseAnimation(msg);
-          pitchEnvInstance?.releaseAnimation(msg);
+          // todo: ampEnvInstance?.stopAnimation(msg);
         });
 
         samplePlayer.onMessage('sample:pitch-detected', (msg: any) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
         });
 
-        // todo (later): Make KeyboardInputManager in audiolib handle caps robustly
-        // and sampleplayer sendUpStreamMessage for loop & hold states
-        // then remove these handlers
+        // === Other listeners (to be removed) === //
         document.addEventListener('keydown', (e) => {
           if (e.code === 'CapsLock') {
             const capsState = e.getModifierState('CapsLock');
@@ -282,6 +232,8 @@ const SamplerElement = (attributes: ElementProps) => {
             }
           }
         });
+
+        // === END: Other listeners (to be removed) === //
 
         status.val = 'Ready';
       } catch (error) {
@@ -332,27 +284,14 @@ const SamplerElement = (attributes: ElementProps) => {
               return;
             }
 
-            const durationSeconds = await samplePlayer.loadSample(arrayBuffer);
-            console.log(
-              'fileInput.onchange, durationSeconds:',
-              durationSeconds
-            );
+            const audiobuffer = await samplePlayer.loadSample(arrayBuffer);
+            const durationSeconds = audiobuffer.duration;
 
             await new Promise((resolve) => setTimeout(resolve, 0));
 
-            console.log(durationSeconds);
-
             if (durationSeconds > 0) {
-              // Update sample duration and reset ranges
               sampleDurationSeconds.val = durationSeconds;
-
-              loopStartSeconds.val = 0;
-              loopEndSeconds.val = durationSeconds;
-              startPointSeconds.val = 0;
-              endPointSeconds.val = durationSeconds;
-
               status.val = `Loaded: ${file.name}`;
-              status.val = `Received duration from loadSample: ${durationSeconds}`;
             }
           } catch (error) {
             console.error('Failed to load sample:', error);
@@ -367,6 +306,16 @@ const SamplerElement = (attributes: ElementProps) => {
       status.val = `Error: ${error instanceof Error ? error.message : String(error)}`;
     }
   };
+
+  function onSampleLoaded(duration: number) {
+    const buffer = samplePlayer?.audiobuffer;
+    sampleDurationSeconds.val = duration;
+
+    createEnvelopes();
+    if (buffer instanceof AudioBuffer) drawWaveform(buffer);
+
+    status.val = `All voices loaded. Sample Duration: ${duration.toFixed(3)}`;
+  }
 
   // Recording handlers
   const startRecording = async () => {
@@ -438,60 +387,55 @@ const SamplerElement = (attributes: ElementProps) => {
     }
   };
 
-  const enableEnvelope = (envType: EnvelopeType) => {
-    if (!samplePlayer) return;
-    samplePlayer.enableEnvelope(envType);
-  };
+  // const enableEnvelope = (envType: EnvelopeType) => {
+  //   if (!samplePlayer) return;
+  //   samplePlayer.enableEnvelope(envType);
+  // };
 
-  const disableEnvelope = (envType: EnvelopeType) => {
-    if (!samplePlayer) return;
-    samplePlayer.disableEnvelope(envType);
-  };
+  // const disableEnvelope = (envType: EnvelopeType) => {
+  //   if (!samplePlayer) return;
+  //   samplePlayer.disableEnvelope(envType);
+  // };
 
-  const setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
-    if (!samplePlayer) return;
-    samplePlayer.setEnvelopeTimeScale(envType, timeScale);
-  };
+  // const setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
+  //   if (!samplePlayer) return;
+  //   samplePlayer.setEnvelopeTimeScale(envType, timeScale);
+  // };
 
-  const handleEnvelopeChange = (
-    envType: EnvelopeType,
-    index: number,
-    time: number,
-    value: number
-  ) => {
-    if (!samplePlayer) return;
+  // const handleSustainIdxChange = (envType: EnvelopeType, index: number) => {
+  //   if (!samplePlayer) return;
+  //   samplePlayer.setEnvelopeSustainPoint(envType, index);
+  // };
 
-    if (index === -1) {
-      samplePlayer.addEnvelopePoint(envType, time, value);
-    } else if (time === -1 && value === -1) {
-      samplePlayer.deleteEnvelopePoint(envType, index);
-      // } else {
-      //   const lastIndex = samplePlayer.getEnvelope(envType).points.length - 1;
-      //   if (index === 0) loopStart.val = time;
-      //   if (index === lastIndex) loopEnd.val = time;
-    } else {
-      samplePlayer.updateEnvelopePoint(envType, index, time, value);
-    }
-  };
+  // const handleEnvelopeChange = (
+  //   envType: EnvelopeType,
+  //   index: number,
+  //   time: number,
+  //   value: number
+  // ) => {
+  //   if (!samplePlayer) return;
 
-  const handleEnvelopeLoopChange = (
-    envType: EnvelopeType,
-    enabled: boolean
-  ) => {
-    if (!samplePlayer) return;
-    samplePlayer.setEnvelopeLoop(envType, enabled, 'normal');
-  };
+  //   if (index === -1) {
+  //     samplePlayer.addEnvelopePoint(envType, time, value);
+  //   } else if (time === -1 && value === -1) {
+  //     samplePlayer.deleteEnvelopePoint(envType, index);
+  //   } else {
+  //     samplePlayer.updateEnvelopePoint(envType, index, time, value);
+  //   }
+  // };
 
-  const handleEnvelopeSyncChange = (envType: EnvelopeType, sync: boolean) => {
-    if (!samplePlayer) return;
-    samplePlayer.setEnvelopeSync(envType, sync);
-  };
+  // const handleEnvelopeLoopChange = (
+  //   envType: EnvelopeType,
+  //   enabled: boolean
+  // ) => {
+  //   if (!samplePlayer) return;
+  //   samplePlayer.setEnvelopeLoop(envType, enabled, 'normal');
+  // };
 
-  // const knob = document.createElement('webaudio-knob') as HTMLElement;
-  // knob.setAttribute('value', '50');
-  // knob.setAttribute('min', '0');
-  // knob.setAttribute('max', '100');
-  // document.body.appendChild(knob);
+  // const handleEnvelopeSyncChange = (envType: EnvelopeType, sync: boolean) => {
+  //   if (!samplePlayer) return;
+  //   samplePlayer.setEnvelopeSync(envType, sync);
+  // };
 
   const keyboard = document.createElement('webaudio-keyboard') as any;
   keyboard.setAttribute('width', '300');
@@ -501,11 +445,6 @@ const SamplerElement = (attributes: ElementProps) => {
 
   // Add event listener for note events
   keyboard.addEventListener('pointer', (event: any) => {
-    // // HAX to ignore keyevents, todo: modify source code to dispatch separate key, mouse & touch events
-    // // (currentKey will be set if keyevent)
-    // if ((event.target as any).currentKey !== -1) {
-    //   return;
-    // }
     const [noteState, noteNumber] = event.note;
     if (noteState === 1) {
       samplePlayer?.play(noteNumber);
