@@ -426,6 +426,8 @@ export const EnvelopeSVG = (
     updateControlPoints();
   };
 
+  //
+
   const handleMouseLeave = () => {
     if (!envelopeInfo.isEnabled) return;
     isDragging.val = false;
