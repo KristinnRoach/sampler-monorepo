@@ -1,4 +1,4 @@
-// playheadAnimationManager.ts
+// env-playheads.ts
 import { gsap, MotionPathPlugin, CustomEase } from 'gsap/all';
 import { generateMidiNoteColors } from '../../../utils/generateColors';
 import type { CustomEnvelope, EnvelopePoint } from '@repo/audiolib';
@@ -148,12 +148,6 @@ export const Playheads = (
 
     const envDuration = msg.envDurations[envelopeType] ?? envelope.fullDuration;
 
-    // console.log(
-    //   'msg.envDurations[envelopeType]',
-    //   msg.envDurations[envelopeType],
-    //   'envelope.fullDuration',
-    //   envelope.fullDuration
-    // );
     // Update envelope points for current path
     updateEnvelopePoints();
 

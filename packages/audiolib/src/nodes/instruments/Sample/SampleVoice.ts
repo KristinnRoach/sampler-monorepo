@@ -107,7 +107,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       this.#destination = destination;
     }
 
-    this.#setupMessageHandling();
+    this.#setupWorkletMessageHandling();
     this.sendToProcessor({ type: 'voice:init' });
 
     this.#worklet.port.start();
@@ -141,6 +141,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
       this.#envelopes.set('filter-env', filterEnv);
     }
+
+    this.#setupEnvelopeMessageHandling();
   }
 
   logAvailableParams = () => {
@@ -247,19 +249,16 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     });
 
     // Apply amp, filter and pitch envelopes if enabled
-    this.applyEnvelopes(timestamp, playbackRate);
+    this.applyEnvelopes(timestamp, playbackRate, midiNote);
 
     return this.#activeMidiNote;
   }
 
-  applyEnvelopes(timestamp: number, playbackRate: number) {
+  applyEnvelopes(timestamp: number, playbackRate: number, midiNote?: number) {
     this.#envelopes.forEach((env, envType) => {
       if (!env.isEnabled) return;
       const param = this.getParam(env.param);
       if (!param) return;
-
-      // const initialValue = env.points[0]?.value || 0;
-      // param.setValueAtTime(initialValue, timestamp);
 
       if (envType === 'pitch-env' && !env.hasVariation()) return;
 
@@ -268,6 +267,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       env.triggerEnvelope(param, timestamp, {
         baseValue,
         playbackRate,
+        voiceId: this.nodeId,
+        midiNote: midiNote ?? 60,
       });
     });
 
@@ -320,7 +321,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       env.releaseEnvelope(param, timestamp, {
         playbackRate,
         baseValue,
-        duration: release, // todo: consider removing passed in release time (just use stop instead for immediate)
+        voiceId: this.nodeId,
+        midiNote: this.#activeMidiNote ?? 60, // not used
       });
     });
 
@@ -404,6 +406,11 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     if (env?.isEnabled) env.setSustainPoint(index);
   };
 
+  setEnvelopeReleasePoint = (envType: EnvelopeType, index: number) => {
+    const env = this.#envelopes.get(envType);
+    if (env?.isEnabled) env.setReleasePoint(index);
+  };
+
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
     const env = this.#envelopes.get(envType);
     if (env?.isEnabled) env.addPoint(time, value);
@@ -427,6 +434,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   getEnvelope = (envType: EnvelopeType): CustomEnvelope | undefined => {
     return this.#envelopes.get(envType);
   };
+
+  get envelopes() {
+    return this.#envelopes;
+  }
 
   setStartPoint = (time: number, timestamp = this.now) => {
     this.setParam('startPoint', time, timestamp);
@@ -583,11 +594,11 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this;
   }
 
-  #setupMessageHandling() {
-    this.#envelopes.forEach((env) => {
+  #setupEnvelopeMessageHandling() {
+    this.#envelopes.forEach((env, envType) => {
       this.#messages.forwardFrom(
         env,
-        ['envelope:trigger', 'envelope:release'],
+        [`${envType}:trigger`, `${envType}:release`],
         (msg) => ({
           ...msg,
           voiceId: this.nodeId,
@@ -595,7 +606,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         })
       );
     });
+  }
 
+  #setupWorkletMessageHandling() {
     this.#worklet.port.onmessage = (event: MessageEvent) => {
       let { type, ...data } = event.data;
 

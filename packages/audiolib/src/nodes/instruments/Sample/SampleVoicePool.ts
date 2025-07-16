@@ -102,8 +102,13 @@ export class SampleVoicePool {
         'voice:releasing',
         'voice:loaded',
         'voice:transposed',
-        'envelope:trigger',
-        'envelope:release',
+
+        'amp-env:trigger',
+        'amp-env:release',
+        'pitch-env:trigger',
+        'pitch-env:release',
+        'filter-env:trigger',
+        'filter-env:release',
       ],
       (msg) => {
         if (msg.type === 'voice:loaded') {

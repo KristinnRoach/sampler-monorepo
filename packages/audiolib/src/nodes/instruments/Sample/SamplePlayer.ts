@@ -145,9 +145,13 @@ export class SamplePlayer extends LibInstrument {
       'voice:stopped',
       'voice:releasing',
       'sample:loaded',
-      'envelope:trigger',
-      'envelope:release',
-      // 'sample-envelopes:maxDuration',
+
+      'amp-env:trigger',
+      'amp-env:release',
+      'pitch-env:trigger',
+      'pitch-env:release',
+      'filter-env:trigger',
+      'filter-env:release',
     ]);
     return this;
   }
@@ -751,6 +755,12 @@ export class SamplePlayer extends LibInstrument {
   setEnvelopeSustainPoint(envType: EnvelopeType, index: number | null) {
     this.voicePool.applyToAllVoices((v) =>
       v.setEnvelopeSustainPoint(envType, index)
+    );
+  }
+
+  setEnvelopeReleasePoint(envType: EnvelopeType, index: number) {
+    this.voicePool.applyToAllVoices((v) =>
+      v.setEnvelopeReleasePoint(envType, index)
     );
   }
 

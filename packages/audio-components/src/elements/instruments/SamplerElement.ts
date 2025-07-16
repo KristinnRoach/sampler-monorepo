@@ -204,27 +204,6 @@ export const SamplerElement = (attributes: ElementProps) => {
           onSampleLoaded(msg.durationSeconds)
         );
 
-        // samplePlayer.onMessage('envelope:trigger', (msg: any) => {
-        //   if (msg.envType === 'amp-env')
-        //     ampEnvInstance?.triggerPlayAnimation(msg);
-
-        //   if (msg.envType === 'filter-env')
-        //     filterEnvInstance?.triggerPlayAnimation(msg);
-
-        //   if (msg.envType === 'pitch-env')
-        //     pitchEnvInstance?.triggerPlayAnimation(msg);
-        // });
-
-        // samplePlayer.onMessage('envelope:release', (msg: any) => {
-        //   if (msg.envType === 'amp-env') ampEnvInstance?.releaseAnimation(msg);
-
-        //   if (msg.envType === 'filter-env')
-        //     filterEnvInstance?.releaseAnimation(msg);
-
-        //   if (msg.envType === 'pitch-env')
-        //     pitchEnvInstance?.releaseAnimation(msg);
-        // });
-
         samplePlayer.onMessage('voice:stopped', (msg: any) => {
           // todo: ampEnvInstance?.stopAnimation(msg);
         });

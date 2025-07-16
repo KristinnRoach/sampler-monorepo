@@ -8,10 +8,9 @@ import {
 } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-import { TimeScaleKnob, LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
+import { LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
 
 import {
-  generateSVGPath,
   applySnapping,
   screenXToSeconds,
   screenYToValue,
@@ -23,10 +22,9 @@ import { createEnvelopeGrid } from './env-grid.ts';
 import { getWaveformSVGData } from '../../../utils/waveform-utils.ts';
 
 import {
-  Playheads,
-  type AnimationMessage,
+  createSimplePlayheads,
   type PlayheadManager,
-} from './env-playheads.ts';
+} from './env-simple-playheads.ts';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
@@ -35,8 +33,6 @@ const { svg, path } = van.tags('http://www.w3.org/2000/svg');
 
 export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
-  triggerPlayAnimation: (msg: any) => void;
-  releaseAnimation: (msg: any) => void;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
   cleanup: () => void;
 }
@@ -59,8 +55,6 @@ export const EnvelopeSVG = (
     );
     return {
       element: emptyDiv,
-      triggerPlayAnimation: () => {},
-      releaseAnimation: () => {},
       drawWaveform: () => {},
       cleanup: () => {},
     };
@@ -87,7 +81,7 @@ export const EnvelopeSVG = (
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
   let waveformPath: SVGPathElement | null = null;
-  let playheadManager: PlayheadManager;
+  //   let playheadManager: PlayheadManager;
 
   // UI states
   const enabled = van.state<boolean>(envelopeInfo.isEnabled);
@@ -128,14 +122,34 @@ export const EnvelopeSVG = (
       );
       circle.setAttribute('cy', ((1 - point.value) * SVG_HEIGHT).toString());
       circle.setAttribute('r', '4');
-      circle.setAttribute(
-        'fill',
+
+      // Default color
+      let fillColor =
         selectedPoint.val === index
           ? '#ff6b6b'
           : envelopeInfo.isEnabled
             ? '#4ade80'
-            : '#666'
-      );
+            : '#666';
+
+      // Special case for start/end points
+      if (index === 0 || index === pts.length - 1) {
+        fillColor = envelopeInfo.isEnabled ? '#ff9500' : '#666'; // Orange
+        circle.setAttribute('r', '6'); // Slightly bigger
+      }
+
+      // Sustain point (red)
+      if (index === envelopeInfo.sustainPointIndex) {
+        fillColor = envelopeInfo.isEnabled ? '#ff2211' : '#666';
+        circle.setAttribute('r', '6');
+      }
+
+      // Release point (blue)
+      if (index === envelopeInfo.releasePointIndex) {
+        fillColor = envelopeInfo.isEnabled ? '#2196f3' : '#666';
+        circle.setAttribute('r', '6');
+      }
+
+      circle.setAttribute('fill', fillColor);
       circle.setAttribute('stroke', '#fff');
       circle.setAttribute('stroke-width', '1');
       circle.style.cursor = 'pointer';
@@ -169,23 +183,31 @@ export const EnvelopeSVG = (
 
         if (e.altKey) {
           e.preventDefault();
-
-          instrument.setEnvelopeSustainPoint(envType, index);
-
-          playheadManager.refreshSustainPoint();
-
+          if (index === envelopeInfo.sustainPointIndex) {
+            instrument.setEnvelopeSustainPoint(envType, null);
+          } else {
+            instrument.setEnvelopeSustainPoint(envType, index);
+          }
           updateControlPoints();
+          updateEnvelopePath();
+          return;
+        }
 
-          envelopePath.setAttribute(
-            'd',
-            generateSVGPath(
-              envelopeInfo.points,
-              envelopeInfo.fullDuration,
-              SVG_WIDTH,
-              SVG_HEIGHT
-            )
-          );
-
+        if (e.metaKey) {
+          e.preventDefault();
+          if (
+            index === envelopeInfo.releasePointIndex &&
+            envelopeInfo.sustainPointIndex
+          ) {
+            instrument.setEnvelopeReleasePoint(
+              envType,
+              envelopeInfo.sustainPointIndex
+            );
+          } else {
+            instrument.setEnvelopeReleasePoint(envType, index);
+          }
+          updateControlPoints();
+          updateEnvelopePath();
           return;
         }
 
@@ -223,19 +245,8 @@ export const EnvelopeSVG = (
               );
             }
 
-            playheadManager.refreshSustainPoint();
-
             updateControlPoints();
-
-            envelopePath.setAttribute(
-              'd',
-              generateSVGPath(
-                envelopeInfo.points,
-                envelopeInfo.fullDuration,
-                SVG_WIDTH,
-                SVG_HEIGHT
-              )
-            );
+            updateEnvelopePath();
           }
 
           clickCounts = { ...clickCounts, [index]: 0 };
@@ -301,36 +312,42 @@ export const EnvelopeSVG = (
   const gridGroup = createEnvelopeGrid(SVG_WIDTH, SVG_HEIGHT);
 
   // Envelope path
+
+  const updateEnvelopePath = () => {
+    envelopePath.setAttribute(
+      'd',
+      envelopeInfo.data.getSVGPath(
+        SVG_WIDTH,
+        SVG_HEIGHT,
+        envelopeInfo.fullDuration
+      )
+    );
+  };
+
   envelopePath = path({
     id: 'envelope-path',
-    d: () => {
-      //   envelope.getSVGPath(SVG_WIDTH, SVG_HEIGHT, envelope.fullDuration);
-      return generateSVGPath(
-        envelopeInfo.points,
-        envelopeInfo.fullDuration,
-        SVG_WIDTH,
-        SVG_HEIGHT
-      );
-    },
     fill: 'none',
     stroke: () => (enabled.val ? '#4ade80' : '#666'),
     'stroke-width': 2,
   }) as SVGPathElement;
+
+  updateEnvelopePath();
 
   // Control points group
   pointsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   pointsGroup.setAttribute('class', 'control-points');
 
   // Animated Playheads
-  playheadManager = Playheads(
+  // Create simplified playhead manager
+  const playheadManager: PlayheadManager = createSimplePlayheads(
     svgElement,
-    envelopePath,
+    pointsGroup,
     envelopeInfo,
+    instrument,
+    envelopeType,
     SVG_WIDTH,
-    multiColorPlayheads
+    SVG_HEIGHT
   );
-
-  playheadManager.refreshSustainPoint();
 
   // === WAVEFORM ===
 
@@ -396,18 +413,9 @@ export const EnvelopeSVG = (
         time,
         value
       );
-      updateControlPoints();
 
-      // update the path:
-      envelopePath.setAttribute(
-        'd',
-        generateSVGPath(
-          envelopeInfo.points,
-          envelopeInfo.fullDuration,
-          SVG_WIDTH,
-          SVG_HEIGHT
-        )
-      );
+      updateControlPoints();
+      updateEnvelopePath();
     }
   };
 
@@ -415,6 +423,14 @@ export const EnvelopeSVG = (
     if (!envelopeInfo.isEnabled) return;
     isDragging.val = false;
     selectedPoint.val = null;
+    updateControlPoints();
+  };
+
+  const handleMouseLeave = () => {
+    if (!envelopeInfo.isEnabled) return;
+    isDragging.val = false;
+    selectedPoint.val = null;
+    updateControlPoints();
   };
 
   const handleDoubleClick = (e: MouseEvent) => {
@@ -431,34 +447,15 @@ export const EnvelopeSVG = (
     );
     const value = screenYToValue(e.clientY - rect.top, rect.height);
 
-    if (
-      envelopeInfo.sustainPointIndex &&
-      time < envelopeInfo.points[envelopeInfo.sustainPointIndex].time
-    ) {
-      instrument.setEnvelopeSustainPoint(
-        envelopeType,
-        envelopeInfo.sustainPointIndex + 1
-      );
-    }
-
     instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
-
-    envelopePath.setAttribute(
-      'd',
-      generateSVGPath(
-        envelopeInfo.points,
-        envelopeInfo.fullDuration,
-        SVG_WIDTH,
-        SVG_HEIGHT
-      )
-    );
+    updateEnvelopePath();
   };
 
   // Add event listeners
   svgElement.addEventListener('mousemove', handleMouseMove);
   svgElement.addEventListener('mouseup', handleMouseUp);
-  svgElement.addEventListener('mouseleave', handleMouseUp);
+  svgElement.addEventListener('mouseleave', handleMouseLeave);
   svgElement.addEventListener('dblclick', handleDoubleClick);
 
   // Assemble SVG
@@ -470,13 +467,6 @@ export const EnvelopeSVG = (
 
   return {
     element: container,
-
-    triggerPlayAnimation: (msg: AnimationMessage) =>
-      playheadManager.triggerPlayAnimation(msg, envelopeType),
-
-    releaseAnimation: (msg: AnimationMessage) =>
-      playheadManager.releaseAnimation(msg),
-
     drawWaveform,
     cleanup: () => {
       playheadManager.cleanup();
