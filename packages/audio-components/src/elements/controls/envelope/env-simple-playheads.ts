@@ -33,32 +33,49 @@ export const createSimplePlayheads = (
       'http://www.w3.org/2000/svg',
       'circle'
     );
-    circle.setAttribute('r', '5');
     circle.setAttribute('fill', colors[midiNote]);
+    circle.setAttribute('pointer-events', 'none'); // SVG attribute
     circle.setAttribute('stroke', '#fff');
-    circle.setAttribute('stroke-width', '2');
+    circle.setAttribute('stroke-width', '1');
     circle.style.pointerEvents = 'none';
     return circle;
   };
 
+  const entryTween = (playhead: SVGCircleElement) =>
+    gsap.fromTo(
+      playhead,
+      {
+        r: 0,
+        strokeWidth: 0,
+        opacity: 0,
+      },
+      {
+        r: 5,
+        strokeWidth: 1,
+        opacity: 1,
+        duration: 0.2,
+      }
+    );
+
+  //   const exitTween = (playhead: SVGCircleElement) =>
+  //     entryTween(playhead).reverse();
+
   // Listen to envelope messages
-  const unsubscribe = instrument.onMessage(`${envType}:trigger`, (msg) => {
+  instrument.onMessage(`${envType}:trigger`, (msg: any) => {
     if (!msg.voiceId) return;
 
     const { voiceId, midiNote = 60, duration, sustainEnabled } = msg; // curveData
 
-    // Clean up existing animation
     stopAnimation(voiceId);
 
-    // Create new playhead
     const playhead = createPlayhead(voiceId, midiNote);
     svgElement.appendChild(playhead);
     playheads.set(voiceId, playhead);
 
-    // Set initial position at center left
-    gsap.set(playhead, { x: 0, y: centerY });
+    gsap.set(playhead, { x: 0, y: centerY }); // init pos
 
     const tl = gsap.timeline();
+    tl.add(entryTween(playhead), 0);
 
     if (sustainEnabled && envelope.sustainPointIndex !== null) {
       // Calculate sustain point x position
@@ -66,102 +83,100 @@ export const createSimplePlayheads = (
       const sustainX = (sustainPoint.time / envelope.fullDuration) * svgWidth;
 
       // Phase 1: Animate to sustain point
-      tl.to(playhead, {
-        x: sustainX,
-        // r: curveData
-        //   ? () => {
-        //       const progress = tl.progress(); // Use timeline reference instead of 'this'
-        //       const index = Math.floor(progress * (curveData.length - 1));
-        //       return 5 + (curveData[index] || 0) * 10;
-        //     }
-        //   : 5,
-        duration: duration,
-        ease: 'none',
-        onComplete: () => {
-          tl.pause(); // Wait for release
+      tl.to(
+        playhead,
+        {
+          x: sustainX,
+          // r: curveData
+          //   ? () => {
+          //       const progress = tl.progress(); // Use timeline reference instead of 'this'
+          //       const index = Math.floor(progress * (curveData.length - 1));
+          //       return 5 + (curveData[index] || 0) * 10;
+          //     }
+          //   : 5,
+          duration: duration,
+          ease: 'none',
+          onComplete: () => {
+            tl.pause(); // Wait for release
+          },
         },
-      });
-
-      // Phase 2: Continue from release point to end
-      const releasePoint = envelope.points[envelope.releasePointIndex];
-      const releaseX = (releasePoint.time / envelope.fullDuration) * svgWidth;
-
-      tl.to(playhead, {
-        x: svgWidth,
-        r: 5, // Will be updated with release curve data
-
-        duration: envelope.releaseTime,
-        ease: 'none',
-        onComplete: () => {
-          stopAnimation(voiceId);
-        },
-      });
+        0
+      );
     } else {
       // No sustain: animate straight to end
-      tl.to(playhead, {
-        x: svgWidth,
-        // r: curveData
-        //   ? () => {
-        //       const progress = tl.progress(); // Use timeline reference instead of 'this'
-        //       const index = Math.floor(progress * (curveData.length - 1));
-        //       return 5 + (curveData[index] || 0) * 10;
-        //     }
-        //   : 5,
-        duration: duration,
-        ease: 'none',
-        onComplete: () => {
-          stopAnimation(voiceId);
+      tl.to(
+        playhead,
+        {
+          x: svgWidth,
+          // r: curveData
+          //   ? () => {
+          //       const progress = tl.progress(); // Use timeline reference instead of 'this'
+          //       const index = Math.floor(progress * (curveData.length - 1));
+          //       return 5 + (curveData[index] || 0) * 10;
+          //     }
+          //   : 5,
+          duration: duration,
+          ease: 'none',
+          onComplete: () => {
+            stopAnimation(voiceId);
+          },
         },
-      });
+        0
+      );
     }
+
+    tl.to(playhead, { r: 0, opacity: 0, duration: 0.2 });
 
     activeAnimations.set(voiceId, tl);
   });
 
-  const unsubscribeRelease = instrument.onMessage(
-    `${envType}:release`,
-    (msg) => {
-      if (!msg.voiceId) return;
+  instrument.onMessage(`${envType}:release`, (msg: any) => {
+    if (!msg.voiceId) return;
 
-      const tl = activeAnimations.get(msg.voiceId);
-      const playhead = playheads.get(msg.voiceId);
+    const tl = activeAnimations.get(msg.voiceId);
+    const playhead = playheads.get(msg.voiceId);
 
-      if (tl && playhead) {
-        // Dim the playhead for release phase
-        gsap.set(playhead, { opacity: 0.75 });
+    if (tl && playhead) {
+      // Jump to release point x position
+      const releasePoint = envelope.points[envelope.releasePointIndex];
+      const releaseX = (releasePoint.time / envelope.fullDuration) * svgWidth;
+      // const releaseX = msg.releasePointTime * svgWidth; // should be the same, check later
 
-        // Jump to release point x position
-        const releasePoint = envelope.points[envelope.releasePointIndex];
-        const releaseX = (releasePoint.time / envelope.fullDuration) * svgWidth;
-        // const releaseX = msg.releasePointTime * svgWidth; // should be the same, check later
+      gsap.set(playhead, { x: releaseX });
+      gsap.set(playhead, { opacity: 0.7 });
 
-        gsap.set(playhead, { x: releaseX });
+      // Kill current animation and start release phase
+      tl.kill();
+      const newTl = gsap.timeline();
 
-        // Kill current animation and start release phase
-        tl.kill();
-        const newTl = gsap.timeline();
-        newTl.to(playhead, {
+      // Phase 2: Continue from release point to end
+      newTl
+        .to(playhead, {
           x: svgWidth,
-          opacity: 0.1,
-          //   r: msg.curveData
-          //     ? () => {
-          //         const progress = newTl.progress(); // Use timeline reference instead of 'this'
-          //         const index = Math.floor(progress * (msg.curveData.length - 1));
-          //         return 5 + (msg.curveData[index] || 0) * 10;
-          //       }
-          //     : 5,
           duration: msg.remainingDuration,
           ease: 'none',
           onComplete: () => stopAnimation(msg.voiceId),
-        });
-        activeAnimations.set(msg.voiceId, newTl);
-      }
+        })
+        .to(
+          // exitTween
+          playhead,
+          {
+            r: 0,
+            strokeWidth: 0,
+            opacity: 0.1,
+            duration: Math.min(0.2, msg.remainingDuration - 0.2),
+          },
+          msg.remainingDuration - 0.2
+        );
+
+      activeAnimations.set(msg.voiceId, newTl);
     }
-  );
+  });
 
   const stopAnimation = (voiceId: string) => {
     const tl = activeAnimations.get(voiceId);
     const playhead = playheads.get(voiceId);
+    const wasPaused = tl?.paused() ?? false;
 
     if (tl) {
       tl.kill();
@@ -169,15 +184,31 @@ export const createSimplePlayheads = (
     }
 
     if (playhead && playhead.parentNode === svgElement) {
-      svgElement.removeChild(playhead);
-      playheads.delete(voiceId);
+      const exitTl = gsap.timeline({
+        onComplete: () => {
+          if (playhead.parentNode === svgElement) {
+            svgElement.removeChild(playhead);
+          }
+          playheads.delete(voiceId);
+          exitTl.kill();
+        },
+      });
+
+      exitTl.to(playhead, {
+        r: 0,
+        x: wasPaused ? '+=0' : '+=20',
+        strokeWidth: 0,
+        duration: 0.2,
+        ease: 'none',
+      });
     }
   };
+  instrument.onMessage('voice:stopped', (msg: any) => {
+    stopAnimation(msg.voiceId);
+  });
 
   return {
     cleanup: () => {
-      unsubscribe();
-      unsubscribeRelease();
       [...activeAnimations.keys()].forEach(stopAnimation);
     },
   };

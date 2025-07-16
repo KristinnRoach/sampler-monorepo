@@ -376,6 +376,12 @@ export const EnvelopeSVG = (
 
     // Insert waveform before points group
     svgElement.insertBefore(waveformPath, pointsGroup);
+
+    gsap.from(waveformPath, {
+      duration: 1.5,
+      drawSVG: 0,
+      ease: 'none',
+    });
   }
 
   // EVENT HANDLERS
@@ -466,6 +472,32 @@ export const EnvelopeSVG = (
   svgElement.appendChild(pointsGroup);
 
   updateControlPoints();
+
+  let tl = gsap.timeline();
+  tl.from(gridGroup.children, {
+    duration: 0.25,
+    drawSVG: 0,
+    ease: 'none',
+    stagger: 0.1,
+  })
+    .from(
+      envelopePath,
+      {
+        duration: 0.25,
+        drawSVG: 0,
+        ease: 'none',
+      },
+      '<0.1'
+    )
+    .from(
+      pointsGroup,
+      {
+        opacity: 0,
+        duration: 0.25,
+        ease: 'none',
+      },
+      '-=0.2'
+    );
 
   return {
     element: container,
