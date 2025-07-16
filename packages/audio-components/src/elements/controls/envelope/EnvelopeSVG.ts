@@ -21,10 +21,7 @@ import { EnvToggleButtons } from './env-buttons.ts';
 import { createEnvelopeGrid } from './env-grid.ts';
 import { getWaveformSVGData } from '../../../utils/waveform-utils.ts';
 
-import {
-  createSimplePlayheads,
-  type PlayheadManager,
-} from './env-simple-playheads.ts';
+import { createPlayheads, type PlayheadManager } from './env-playheads.ts';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
@@ -339,7 +336,7 @@ export const EnvelopeSVG = (
 
   // Animated Playheads
   // Create simplified playhead manager
-  const playheadManager: PlayheadManager = createSimplePlayheads(
+  const playheadManager: PlayheadManager = createPlayheads(
     svgElement,
     pointsGroup,
     envelopeInfo,

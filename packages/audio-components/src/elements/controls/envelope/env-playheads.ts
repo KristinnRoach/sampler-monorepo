@@ -8,7 +8,7 @@ export interface PlayheadManager {
   cleanup: () => void;
 }
 
-export const createSimplePlayheads = (
+export const createPlayheads = (
   svgElement: SVGSVGElement,
   pointsGroup: SVGGElement,
   envelope: CustomEnvelope,
@@ -173,7 +173,11 @@ export const createSimplePlayheads = (
     }
   });
 
+  const activeExitAnimations = new Map<string, gsap.core.Timeline>();
+
   const stopAnimation = (voiceId: string) => {
+    if (activeExitAnimations.has(voiceId)) return;
+
     const tl = activeAnimations.get(voiceId);
     const playhead = playheads.get(voiceId);
     const wasPaused = tl?.paused() ?? false;
@@ -190,9 +194,12 @@ export const createSimplePlayheads = (
             svgElement.removeChild(playhead);
           }
           playheads.delete(voiceId);
+          activeExitAnimations.delete(voiceId);
           exitTl.kill();
         },
       });
+
+      activeExitAnimations.set(voiceId, exitTl);
 
       exitTl.to(playhead, {
         r: 0,
@@ -203,6 +210,7 @@ export const createSimplePlayheads = (
       });
     }
   };
+
   instrument.onMessage('voice:stopped', (msg: any) => {
     stopAnimation(msg.voiceId);
   });
