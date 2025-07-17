@@ -8,10 +8,10 @@ export class EnvelopeData {
   #durationSeconds: number = 0;
   #hasSharpTransitions = false;
 
-  #startPointIndex: number; // todo: try out using start and end points for somthn fun
-  #sustainPointIndex: number | null = null;
-  #releasePointIndex: number | null = null;
-  #endPointIndex: number;
+  #startIdx: number; // todo: try out using start and end points for somthn fun
+  #sustainIdx: number | null = null;
+  #releaseIdx: number;
+  #endIdx: number;
 
   constructor(
     public points: EnvelopePoint[] = [],
@@ -28,10 +28,16 @@ export class EnvelopeData {
     this.#durationSeconds = durationSeconds;
     this.#valueRange = valueRange;
 
-    this.#startPointIndex = 0;
-    this.#sustainPointIndex = sustainIdx ? sustainIdx : points.length - 2; // skip or customize based on env type?
-    this.#releasePointIndex = releaseIdx ? releaseIdx : points.length - 2; // needs logic if able to init with fewer points
-    this.#endPointIndex = points.length - 1;
+    this.#startIdx = 0;
+    this.#endIdx = points.length - 1;
+
+    this.#sustainIdx =
+      sustainIdx && points[sustainIdx] ? sustainIdx : this.#endIdx - 1;
+
+    this.#releaseIdx =
+      releaseIdx && points[releaseIdx]
+        ? releaseIdx
+        : Math.max(0, this.#endIdx - 1);
   }
 
   addPoint(
@@ -44,7 +50,7 @@ export class EnvelopeData {
     // Prevent adding before first or after last point
     if (this.points.length >= 2) {
       const firstTime = this.points[this.startPointIndex].time;
-      const lastTime = this.points[this.points.length - 1].time; // todo: use this.endPointIndex if useful
+      const lastTime = this.points[this.#endIdx].time;
 
       if (time <= firstTime || time >= lastTime) {
         console.warn(
@@ -58,23 +64,19 @@ export class EnvelopeData {
 
     if (insertIndex === -1) {
       this.points.push(newPoint);
+      this.#endIdx = this.points.length - 1;
     } else {
       this.points.splice(insertIndex, 0, newPoint);
+      this.#endIdx = this.points.length - 1;
 
       // Adjust sustain point index if insertion affects it
-      if (
-        this.#sustainPointIndex !== null &&
-        insertIndex <= this.#sustainPointIndex
-      ) {
-        this.#sustainPointIndex++;
+      if (this.#sustainIdx !== null && insertIndex <= this.#sustainIdx) {
+        this.#sustainIdx++;
       }
 
       // Adjust release point index if insertion affects it
-      if (
-        this.#releasePointIndex !== null &&
-        insertIndex <= this.#releasePointIndex
-      ) {
-        this.#releasePointIndex++;
+      if (this.#releaseIdx !== null && insertIndex <= this.#releaseIdx) {
+        this.#releaseIdx++;
       }
     }
     this.#updateSharpTransitionsFlag();
@@ -86,14 +88,14 @@ export class EnvelopeData {
       let newTime = time ?? currentPoint.time;
 
       // Guard from passing the first and last points
-      if (index === 1 && newTime <= this.points[0].time) {
+      if (index === 1 && newTime <= this.points[this.#startIdx].time) {
         console.warn('Second point cannot go before first point');
         return;
       }
 
       if (
-        index === this.points.length - 2 &&
-        newTime >= this.points[this.points.length - 1].time
+        index === this.#endIdx - 1 &&
+        newTime >= this.points[this.#endIdx].time
       ) {
         console.warn('Second-to-last point cannot go after last point');
         return;
@@ -110,23 +112,38 @@ export class EnvelopeData {
   }
 
   updateStartPoint = (time?: number, value?: number) => {
-    this.updatePoint(0, time, value);
+    this.updatePoint(this.#startIdx, time, value);
   };
 
   updateEndPoint = (time?: number, value?: number) => {
-    this.updatePoint(this.points.length - 1, time, value);
+    this.updatePoint(this.#endIdx, time, value);
   };
 
   deletePoint(index: number) {
-    if (this.points.length > 2 && index > 0 && index < this.points.length - 1) {
+    if (
+      this.points.length > 2 &&
+      index > this.#startIdx &&
+      index < this.#endIdx
+    ) {
       this.points.splice(index, 1);
+      this.#endIdx = this.points.length - 1;
     }
-    this.#updateSharpTransitionsFlag();
 
-    // ? necessary ? Update release point if it was at the default position
-    if (this.#releasePointIndex === null) {
-      this.#releasePointIndex = Math.max(0, this.points.length - 2);
+    // Adjust release point index if affected by deletion
+    if (this.#releaseIdx !== null) {
+      if (index < this.#releaseIdx) {
+        // Point deleted before release point - shift index down
+        this.#releaseIdx--;
+      } else if (index === this.#releaseIdx) {
+        this.#releaseIdx =
+          this.#endIdx > this.#releaseIdx + 1
+            ? this.#releaseIdx + 1
+            : Math.max(0, this.#endIdx - 1);
+      }
+      // If index > releasePointIndex, no adjustment needed
     }
+
+    this.#updateSharpTransitionsFlag();
   }
 
   interpolateValueAtTime(timeSeconds: number): number {
@@ -223,44 +240,40 @@ export class EnvelopeData {
 
   setSustainPoint(index: number | null) {
     if (index === null || index === undefined) {
-      this.#sustainPointIndex = null;
+      this.#sustainIdx = null;
       return;
     }
 
     if (index >= 0 && index < this.points.length) {
-      this.#sustainPointIndex = index;
+      this.#sustainIdx = index;
     }
   }
 
   setReleasePoint(index: number) {
     if (index >= 0 && index < this.points.length) {
-      this.#releasePointIndex = index;
+      this.#releaseIdx = index;
     } else {
       console.error('EnvelopeData.setReleasePoint: invalid index');
     }
   }
 
   get startPointIndex() {
-    return this.#startPointIndex;
+    return this.#startIdx;
   }
 
   get sustainPointIndex() {
-    return this.#sustainPointIndex;
+    return this.#sustainIdx;
   }
 
   get releasePointIndex() {
-    // Always return a valid index, defaulting to second-to-last
-    if (
-      this.#releasePointIndex === null ||
-      this.#releasePointIndex >= this.points.length
-    ) {
-      return Math.max(0, this.points.length - 2);
+    if (this.#releaseIdx >= this.points.length) {
+      this.#releaseIdx = Math.max(0, this.points.length - 2);
     }
-    return this.#releasePointIndex;
+    return this.#releaseIdx;
   }
 
   get endPointIndex() {
-    return this.#endPointIndex;
+    return this.#endIdx;
   }
 
   get valueRange() {
@@ -270,10 +283,10 @@ export class EnvelopeData {
   setValueRange = (range: [number, number]) => (this.#valueRange = range);
 
   get startTime() {
-    return this.points[0]?.time ?? 0;
+    return this.points[this.#startIdx]?.time ?? 0;
   }
   get endTime() {
-    return this.points[this.points.length - 1]?.time ?? this.#durationSeconds;
+    return this.points[this.#endIdx]?.time ?? this.#durationSeconds;
   }
 
   get durationSeconds() {
