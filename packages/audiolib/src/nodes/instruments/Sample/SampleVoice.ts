@@ -116,12 +116,14 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   addEnvelope(envType: EnvelopeType, data: EnvelopeData) {
     console.warn('Currently using createEnvelopes instead.');
     return;
-
     // const env = new CustomEnvelope(this.context, envType, data);
     // this.#envelopes.set(envType, env);
   }
 
   #createEnvelopes() {
+    this.#envelopes.forEach((env) => env.dispose());
+    this.#envelopes.clear();
+
     const durationSeconds = this.#sampleDurationSeconds || undefined;
     const ampEnv = createEnvelope(this.context, 'amp-env', { durationSeconds });
     this.#envelopes.set('amp-env', ampEnv);
@@ -627,7 +629,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
             this.#activeMidiNote = null;
             this.#sampleDurationSeconds = data.durationSeconds;
 
-            this.#createEnvelopes(); // ! Remove if using addEnvelope instead
+            this.#createEnvelopes();
 
             this.setStartPoint(0);
             this.setEndPoint(data.durationSeconds);

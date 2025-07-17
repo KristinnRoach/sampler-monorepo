@@ -1,5 +1,4 @@
 // CustomEnvelope.ts
-
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 
 import {
@@ -87,19 +86,30 @@ export class CustomEnvelope {
     time: number,
     value: number,
     curve?: 'linear' | 'exponential'
-  ): void => this.#data.addPoint(time, value, curve);
+  ): void => {
+    this.#data.addPoint(time, value, curve);
+    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
+  };
 
-  deletePoint = (index: number): void => this.#data.deletePoint(index);
+  deletePoint = (index: number): void => {
+    this.#data.deletePoint(index);
+    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
+  };
 
   updatePoint = (index: number, time?: number, value?: number) => {
     this.#data.updatePoint(index, time, value);
+    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
   };
 
-  updateStartPoint = (time?: number, value?: number) =>
+  updateStartPoint = (time?: number, value?: number) => {
     this.#data.updateStartPoint(time, value);
+    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
+  };
 
-  updateEndPoint = (time?: number, value?: number) =>
+  updateEndPoint = (time?: number, value?: number) => {
     this.#data.updateEndPoint(time, value);
+    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
+  };
 
   getSVGPath = (
     width: number | undefined,
@@ -212,20 +222,20 @@ export class CustomEnvelope {
     const toTime = this.points[toIdx].time;
     const rawDuration = toTime - fromTime;
 
-    let scaledDuration = rawDuration;
+    let duration = rawDuration;
 
     // Apply playback rate scaling if synced
     if (this.#syncedToPlaybackRate) {
-      scaledDuration = scaledDuration / playbackRate;
+      duration = duration / playbackRate;
     }
 
     // Apply time scale
-    return scaledDuration / timeScale;
+    return duration / timeScale;
   }
 
-  #getSampleRate(duration: number): number {
+  #getCurveSamplingRate(duration: number): number {
     if (this.#logarithmic) {
-      return duration < 1 ? 1000 : 750; // Higher rates for log curves
+      return duration < 1 ? 1000 : 750;
     }
     if (this.#data.hasSharpTransitions) {
       return 1000;
@@ -243,7 +253,7 @@ export class CustomEnvelope {
       playbackRate: number;
     }
   ): Float32Array {
-    const sampleRate = this.#getSampleRate(scaledDuration);
+    const sampleRate = this.#getCurveSamplingRate(scaledDuration);
     const numSamples = Math.max(2, Math.floor(scaledDuration * sampleRate));
     const curve = new Float32Array(numSamples);
 
@@ -303,10 +313,12 @@ export class CustomEnvelope {
     if (options.voiceId !== undefined) {
       this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
         voiceId: options.voiceId,
-        midiNote: options.midiNote ?? 60,
+        midiNote: options.midiNote || 60,
         duration: scaledDuration,
         sustainEnabled: this.sustainEnabled,
+        loopEnabled: false,
         sustainPoint: this.sustainPoint,
+        releasePoint: this.releasePoint,
         // curveData: curve,
       });
     }
@@ -343,6 +355,8 @@ export class CustomEnvelope {
   }
 
   #isReleased = false;
+  #isCurrentlyLooping = false;
+  #loopUpdateFlag = false;
   #shouldLoop = () => this.#loopEnabled && !this.#isReleased;
 
   #startLoopingEnv(
@@ -357,55 +371,154 @@ export class CustomEnvelope {
       maxValue?: number;
     }
   ) {
-    let currentStart = Math.max(this.#context.currentTime, startTime);
+    let cachedDuration = this.#getScaledDuration(
+      this.#data.startPointIndex,
+      this.#data.endPointIndex,
+      options.playbackRate,
+      this.#timeScale
+    );
+    let cachedCurve = this.#generateCurve(
+      cachedDuration,
+      this.fullDuration,
+      options
+    );
+
+    // Send initial trigger message
+    if (options.voiceId !== undefined) {
+      this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
+        voiceId: options.voiceId,
+        midiNote: options.midiNote || 60,
+        duration: cachedDuration,
+        sustainEnabled: false,
+        loopEnabled: true,
+        sustainPoint: this.sustainPoint,
+        releasePoint: this.releasePoint,
+      });
+    }
+
+    let phase = Math.max(this.#context.currentTime, startTime);
+
+    // const lookAhead = 0.01;
+    // const lookAhead = Math.max(0.1, cachedDuration * 3);
+    const lookAhead = Math.max(0.15, Math.min(cachedDuration * 3, 0.5));
+    const safetyBuffer = 0.005;
+    let lastScheduledEnd = 0;
+    let debugOverlapCount = 0;
+
+    this.#isCurrentlyLooping = true;
+    let isScheduling = false;
+    let nextScheduleTimeout: number | null = null;
 
     const scheduleNext = () => {
-      if (!this.#shouldLoop()) return;
-
-      const scaledDuration = this.#getScaledDuration(
-        0,
-        this.points.length - 1,
-        options.playbackRate,
-        this.#timeScale
-      );
-
-      const curve = this.#generateCurve(
-        scaledDuration,
-        this.fullDuration,
-        options
-      );
-
-      if (options.voiceId !== undefined) {
-        this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
-          voiceId: options.voiceId,
-          midiNote: options.midiNote ?? 60,
-          duration: scaledDuration,
-          sustainEnabled: this.sustainEnabled,
-          sustainPoint: this.sustainPoint,
-          // curveData: curve,
-        });
+      // Clear any pending schedule // ? Redundant ?
+      if (nextScheduleTimeout !== null) {
+        clearTimeout(nextScheduleTimeout);
+        nextScheduleTimeout = null;
       }
 
-      // Prevent schedule overlapping
-      currentStart = Math.max(currentStart, this.#context.currentTime + 0.001);
-      audioParam.cancelScheduledValues(currentStart);
+      if (isScheduling) return; // Prevent concurrent scheduling
+      isScheduling = true;
 
-      audioParam.setValueCurveAtTime(curve, currentStart, scaledDuration);
-      currentStart += scaledDuration + 0.005;
+      try {
+        if (!this.#shouldLoop()) {
+          if (options.voiceId !== undefined) {
+            this.sendUpstreamMessage(`${this.envelopeType}:release:loop`, {
+              voiceId: options.voiceId,
+              midiNote: options.midiNote || 60,
+            });
+          }
 
-      // Schedule next iteration just before this one ends
-      const nextCallTime =
-        (currentStart - scaledDuration - this.#context.currentTime) * 1000 - 10;
+          this.#isCurrentlyLooping = false;
+          return;
+        }
 
-      if (options.voiceId !== undefined) {
-        this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
-          voiceId: options.voiceId,
-          midiNote: options.midiNote ?? 60,
-          duration: scaledDuration,
-          sustainEnabled: false,
-        });
+        // Recalculate if envelope has changed
+        if (this.#loopUpdateFlag) {
+          cachedDuration = this.#getScaledDuration(
+            this.#data.startPointIndex,
+            this.#data.endPointIndex,
+            options.playbackRate,
+            this.#timeScale
+          );
+
+          cachedCurve = this.#generateCurve(
+            cachedDuration,
+            this.fullDuration,
+            options
+          );
+        }
+
+        // Schedule with lookahead
+        while (
+          phase < this.#context.currentTime + lookAhead &&
+          phase >= lastScheduledEnd
+        ) {
+          const safeCurveDuration = cachedDuration - safetyBuffer;
+
+          // NOTE: IF having overlapping scheduling issues,
+          // could resort to using "audioParam.cancelScheduledValues(phase)"
+          // instead of the other tricks, e.g. 'lastScheduledEnd', safetyBuffer etc.
+
+          try {
+            audioParam.setValueCurveAtTime(
+              cachedCurve,
+              phase,
+              safeCurveDuration
+            );
+          } catch (error) {
+            // Curve overlap, advance phase
+            debugOverlapCount++;
+            if (debugOverlapCount >= 100) {
+              console.warn(
+                `Multiple curve overlaps: ${debugOverlapCount} (loop duration: ${cachedDuration.toFixed(3)}s, buffer: ${safetyBuffer})`
+              );
+              debugOverlapCount = 0;
+            }
+          }
+
+          phase += cachedDuration + safetyBuffer;
+          lastScheduledEnd = phase;
+
+          // Convert audio context time to performance time for UI sync
+          if (options.voiceId !== undefined) {
+            const timestamp = this.#context.getOutputTimestamp();
+
+            if (
+              timestamp.contextTime !== undefined &&
+              timestamp.performanceTime !== undefined
+            ) {
+              const elapsedTime = phase - timestamp.contextTime;
+              const performanceTime =
+                timestamp.performanceTime + elapsedTime * 1000;
+
+              // Schedule UI update at performance time
+              const delay = Math.max(0, performanceTime - performance.now());
+
+              setTimeout(() => {
+                this.sendUpstreamMessage(`${this.envelopeType}:trigger:loop`, {
+                  voiceId: options.voiceId,
+                  midiNote: options.midiNote || 60,
+                  duration: cachedDuration,
+                });
+              }, delay);
+            } else {
+              // Fallback: send message immediately if timestamp is not available
+              this.sendUpstreamMessage(`${this.envelopeType}:trigger:loop`, {
+                voiceId: options.voiceId,
+                midiNote: options.midiNote || 60,
+                duration: cachedDuration,
+              });
+            }
+          }
+        }
+
+        // Schedule next iteration BEFORE releasing lock
+        nextScheduleTimeout = setTimeout(() => {
+          scheduleNext();
+        }, 100);
+      } finally {
+        isScheduling = false;
       }
-      setTimeout(scheduleNext, Math.max(0, nextCallTime));
     };
 
     scheduleNext();
@@ -446,7 +559,7 @@ export class CustomEnvelope {
     const currentValue = audioParam.value;
 
     // Generate the release curve shape from sustain point to end
-    const sampleRate = this.#getSampleRate(scaledRemainingDuration);
+    const sampleRate = this.#getCurveSamplingRate(scaledRemainingDuration);
     const numSamples = Math.max(
       2,
       Math.floor(scaledRemainingDuration * sampleRate)
@@ -500,15 +613,17 @@ export class CustomEnvelope {
       // curve[i] = i === 0 ? currentValue : this.#clampToValueRange(scaledValue); // prevent a sudden jump at the start of the curve
     }
 
+    let releasePointTime = this.points[this.releasePointIndex].time;
+    if (this.#syncedToPlaybackRate)
+      releasePointTime = releasePointTime / options.playbackRate;
+    const scaledReleasePointTime = releasePointTime / this.#timeScale;
+
     // Emit release event
     if (options.voiceId !== undefined) {
       this.sendUpstreamMessage(`${this.envelopeType}:release`, {
         voiceId: options.voiceId,
-        midiNote: options.midiNote ?? 60, // Currently not used
-        releasePointTime:
-          this.points[this.releasePointIndex].time /
-          this.currentPlaybackRate /
-          this.timeScale,
+        midiNote: options.midiNote || 60, // Currently not used
+        releasePointTime: scaledReleasePointTime,
         remainingDuration: scaledRemainingDuration,
         // curveData: curve,
       });
@@ -538,7 +653,7 @@ export class CustomEnvelope {
 
   setTimeScale = (timeScale: number) => {
     this.#timeScale = timeScale;
-    // Takes effect on next loop iteration for looping envelopes
+    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
   };
 
   setLoopEnabled = (
@@ -598,6 +713,14 @@ export class CustomEnvelope {
     return this.#currentPlaybackRate;
   }
 
+  setCurrentPlaybackRate(playbackRate: number) {
+    this.#currentPlaybackRate = playbackRate;
+
+    if (this.#syncedToPlaybackRate && this.#isCurrentlyLooping) {
+      this.#loopUpdateFlag = true;
+    }
+  }
+
   // === MESSAGES ===
 
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
@@ -647,6 +770,8 @@ export class CustomEnvelope {
           valueRange: [0, 1] as [number, number],
           logarithmic: true,
           initEnable: true,
+          sustainPointIndex: 2,
+          releasePointIndex: 3,
         };
 
       case 'pitch-env':
@@ -662,6 +787,8 @@ export class CustomEnvelope {
           valueRange: [0.5, 1.5] as [number, number],
           logarithmic: false,
           initEnable: false,
+          sustainPointIndex: null, // No sustain for pitch
+          releasePointIndex: 1, // ? should be null ? or special handling for pitch
         };
 
       case 'filter-env':
@@ -678,6 +805,8 @@ export class CustomEnvelope {
           valueRange: [30, 18000] as [number, number],
           logarithmic: false,
           initEnable: false,
+          sustainPointIndex: null, // No sustain for filter
+          releasePointIndex: 1, // Release from second point
         };
 
       default:
@@ -689,6 +818,8 @@ export class CustomEnvelope {
           valueRange: [0, 1] as [number, number],
           logarithmic: false,
           initEnable: true,
+          sustainPointIndex: null,
+          releasePointIndex: 0, // ??
         };
     }
   }
@@ -700,3 +831,128 @@ export class CustomEnvelope {
     deleteNodeId(this.nodeId);
   }
 }
+
+// Ignore.. A bit simplified looping version below, would need testing:
+// #startLoopingEnv(
+//   audioParam: AudioParam,
+//   startTime: number,
+//   options: {
+//     baseValue: number;
+//     playbackRate: number;
+//     voiceId?: string;
+//     midiNote?: number;
+//     minValue?: number;
+//     maxValue?: number;
+//   }
+// ) {
+//   let cachedDuration = this.#getScaledDuration(
+//     this.#data.startPointIndex,
+//     this.#data.endPointIndex,
+//     options.playbackRate,
+//     this.#timeScale
+//   );
+//   let cachedCurve = this.#generateCurve(
+//     cachedDuration,
+//     this.fullDuration,
+//     options
+//   );
+
+//   // Send initial trigger message
+//   if (options.voiceId !== undefined) {
+//     this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
+//       voiceId: options.voiceId,
+//       midiNote: options.midiNote || 60,
+//       duration: cachedDuration,
+//       sustainEnabled: false,
+//       loopEnabled: true,
+//       sustainPoint: this.sustainPoint,
+//       releasePoint: this.releasePoint,
+//     });
+//   }
+
+//   let phase = Math.max(this.#context.currentTime, startTime);
+//   const lookAhead = 0.01;
+//   const safetyBuffer = 0.002;
+//   let debugOverlapCount = 0;
+
+//   this.#isCurrentlyLooping = true;
+//   let isScheduling = false;
+//   let nextScheduleTimeout: number | null = null;
+
+//   const scheduleNext = () => {
+//     if (nextScheduleTimeout !== null) {
+//       clearTimeout(nextScheduleTimeout);
+//       nextScheduleTimeout = null;
+//     }
+
+//     if (isScheduling) return;
+//     isScheduling = true;
+
+//     try {
+//       if (!this.#shouldLoop()) {
+//         if (options.voiceId !== undefined) {
+//           this.sendUpstreamMessage(`${this.envelopeType}:release:loop`, {
+//             voiceId: options.voiceId,
+//             midiNote: options.midiNote || 60,
+//           });
+//         }
+//         this.#isCurrentlyLooping = false;
+//         return;
+//       }
+
+//       // Recalculate if envelope has changed
+//       if (this.#loopUpdateFlag) {
+//         cachedDuration = this.#getScaledDuration(
+//           this.#data.startPointIndex,
+//           this.#data.endPointIndex,
+//           options.playbackRate,
+//           this.#timeScale
+//         );
+
+//         cachedCurve = this.#generateCurve(
+//           cachedDuration,
+//           this.fullDuration,
+//           options
+//         );
+//       }
+
+//       // Schedule with lookahead
+//       while (phase < this.#context.currentTime + lookAhead) {
+//         const safeCurveDuration = cachedDuration - safetyBuffer;
+
+//         try {
+//           audioParam.setValueCurveAtTime(
+//             cachedCurve,
+//             phase,
+//             safeCurveDuration
+//           );
+
+//           // Simple UI message - send immediately
+//           if (options.voiceId !== undefined) {
+//             this.sendUpstreamMessage(`${this.envelopeType}:trigger:loop`, {
+//               voiceId: options.voiceId,
+//               midiNote: options.midiNote || 60,
+//               duration: cachedDuration,
+//             });
+//           }
+//         } catch (error) {
+//           debugOverlapCount++;
+//           if (debugOverlapCount >= 10) {
+//             console.debug(
+//               `Curve overlaps: ${debugOverlapCount} (duration: ${cachedDuration.toFixed(3)}s)`
+//             );
+//             debugOverlapCount = 0;
+//           }
+//         }
+
+//         phase += cachedDuration + safetyBuffer;
+//       }
+
+//       nextScheduleTimeout = setTimeout(scheduleNext, 100);
+//     } finally {
+//       isScheduling = false;
+//     }
+//   };
+
+//   scheduleNext();
+// }

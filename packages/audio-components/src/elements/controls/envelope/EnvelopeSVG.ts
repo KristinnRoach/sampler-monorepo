@@ -21,10 +21,7 @@ import { EnvToggleButtons } from './env-buttons.ts';
 import { createEnvelopeGrid } from './env-grid.ts';
 import { getWaveformSVGData } from '../../../utils/waveform-utils.ts';
 
-import {
-  createSimplePlayheads,
-  type PlayheadManager,
-} from './env-simple-playheads.ts';
+import { createPlayheads, type PlayheadManager } from './env-playheads.ts';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
@@ -300,7 +297,7 @@ export const EnvelopeSVG = (
     onTimeScaleChange: instrument.setEnvelopeTimeScale,
     envelopeType,
     minValue: 1, // ? make one in the middle (up position) ?
-    maxValue: 20,
+    maxValue: 111, // todo: increase in rational durations until cray fast
     defaultValue: 1,
     snapIncrement: 0.01,
     label: 'Speed',
@@ -339,7 +336,7 @@ export const EnvelopeSVG = (
 
   // Animated Playheads
   // Create simplified playhead manager
-  const playheadManager: PlayheadManager = createSimplePlayheads(
+  const playheadManager: PlayheadManager = createPlayheads(
     svgElement,
     pointsGroup,
     envelopeInfo,
@@ -376,6 +373,12 @@ export const EnvelopeSVG = (
 
     // Insert waveform before points group
     svgElement.insertBefore(waveformPath, pointsGroup);
+
+    gsap.from(waveformPath, {
+      duration: 1.5,
+      drawSVG: 0,
+      ease: 'none',
+    });
   }
 
   // EVENT HANDLERS
@@ -466,6 +469,32 @@ export const EnvelopeSVG = (
   svgElement.appendChild(pointsGroup);
 
   updateControlPoints();
+
+  let tl = gsap.timeline();
+  tl.from(gridGroup.children, {
+    duration: 0.25,
+    drawSVG: 0,
+    ease: 'none',
+    stagger: 0.1,
+  })
+    .from(
+      envelopePath,
+      {
+        duration: 0.25,
+        drawSVG: 0,
+        ease: 'none',
+      },
+      '<0.1'
+    )
+    .from(
+      pointsGroup,
+      {
+        opacity: 0,
+        duration: 0.25,
+        ease: 'none',
+      },
+      '-=0.2'
+    );
 
   return {
     element: container,

@@ -10,6 +10,8 @@ interface EnvelopeOptions {
   logarithmic?: boolean;
   initEnable?: boolean;
   sharedData?: EnvelopeData;
+  sustainPointIndex?: number | null;
+  releasePointIndex?: number;
 }
 
 export function createEnvelope(
@@ -20,43 +22,53 @@ export function createEnvelope(
   const {
     durationSeconds = 2,
     points,
+    sustainPointIndex,
+    releasePointIndex,
     valueRange,
     logarithmic,
     initEnable,
     sharedData,
   } = options;
 
-  // Use shared data if provided
+  // Use shared data if provided // todo: finish or remove
   if (sharedData) {
     return new CustomEnvelope(context, type, sharedData);
   }
 
-  // If custom points provided, use them
-  if (points) {
-    return new CustomEnvelope(
-      context,
-      type,
-      undefined, // no shared data
-      points,
-      valueRange || [0, 1],
-      durationSeconds,
-      logarithmic || false,
-      initEnable !== undefined ? initEnable : true
-    );
-  }
-
-  // Otherwise use defaults
   const defaults = CustomEnvelope.getDefaults(type, durationSeconds);
-  return new CustomEnvelope(
+
+  // Use custom values or defaults
+  const finalPoints = points || defaults.points;
+  const finalValueRange = valueRange || defaults.valueRange;
+  const finalLogarithmic =
+    logarithmic !== undefined ? logarithmic : defaults.logarithmic;
+  const finalInitEnable =
+    initEnable !== undefined ? initEnable : defaults.initEnable;
+  const finalSustainIndex =
+    sustainPointIndex !== undefined
+      ? sustainPointIndex
+      : defaults.sustainPointIndex;
+  const finalReleaseIndex =
+    releasePointIndex !== undefined
+      ? releasePointIndex
+      : defaults.releasePointIndex;
+
+  const envelope = new CustomEnvelope(
     context,
     type,
     undefined, // no shared data
-    defaults.points,
-    valueRange || defaults.valueRange,
+    finalPoints,
+    finalValueRange,
     durationSeconds,
-    logarithmic !== undefined ? logarithmic : defaults.logarithmic,
-    initEnable !== undefined ? initEnable : defaults.initEnable
+    finalLogarithmic,
+    finalInitEnable
   );
+
+  // Set sustain and release points
+  envelope.setSustainPoint(finalSustainIndex);
+  envelope.setReleasePoint(finalReleaseIndex);
+
+  return envelope;
 }
 
 // // createEnvelope.ts
