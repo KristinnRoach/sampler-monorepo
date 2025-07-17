@@ -2,8 +2,10 @@ import { Connectable, Destination, LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { assert } from '@/utils';
+
+import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
+import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
 
 const DEFAULT_COMPRESSOR_SETTINGS = {
   threshold: -12.0, // Start compressing at -12dB to catch loud peaks
@@ -26,7 +28,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   #levelMonitor: LevelMonitor | null = null;
 
   #compressor: DynamicsCompressorNode | null = null;
-  #reverb: AudioWorkletNode | null = null;
+  #reverb: DattorroReverb | null = null;
 
   #compressorEnabled: boolean = true;
   #reverbEnabled: boolean = true;
@@ -69,13 +71,9 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS);
 
   /**
-   * Creates a compressor with default settings
+   * Creates a reverb with default settings
    */
-  #createReverb = (): AudioWorkletNode => {
-    return new AudioWorkletNode(this.#context, 'dattorro-reverb-processor', {
-      outputChannelCount: [2],
-    });
-  };
+  #createReverb = () => new DattorroReverb(this.#context);
 
   #setupRouting(): void {
     this.#input.disconnect();
@@ -90,8 +88,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     }
 
     if (this.#reverbEnabled && this.#reverb) {
-      currentNode.connect(this.#reverb);
-      currentNode = this.#reverb;
+      currentNode.connect(this.#reverb.input);
+      currentNode = this.#reverb.output;
     }
 
     currentNode.connect(this.#output);

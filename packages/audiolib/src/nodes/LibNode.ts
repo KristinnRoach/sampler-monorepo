@@ -29,9 +29,9 @@ export type NodeType =
   | InstrumentType
   | VoiceType
   | ContainerType
-  | string;
+  | string
+  | FxType;
 // | ParamType
-// | FxType;
 
 // Base interface for all nodes
 export interface LibNode {
