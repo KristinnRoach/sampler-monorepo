@@ -5,8 +5,9 @@
 
 // Note: JS files don't need explicit export since registration happens at import time
 import './play/sample-player-processor';
-import './gen/random-noise-processor';
-import './fx/feedback-delay-processor';
+import './noise/random-noise-processor';
+import './delay/feedback-delay-processor';
+import './reverb/dattorro-reverb-processor';
 
 // For dev de-bugging / testing:
 // import './debug/js-test-processor.js';

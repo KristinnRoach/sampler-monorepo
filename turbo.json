@@ -7,8 +7,7 @@
   "tasks": {
     "test": {
       "dependsOn": ["^test"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["coverage/**"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -33,7 +32,6 @@
       "cache": false,
       "persistent": true
     },
-    
 
     "clean": {
       "dependsOn": ["^clean"],

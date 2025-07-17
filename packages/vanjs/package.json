@@ -19,7 +19,7 @@
   },
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"Error: no test specified\"",
     "build": "echo \"No build required for VanJS\"",
     "watch": "echo \"No watch required for VanJS\""
   },

@@ -375,7 +375,7 @@ export const EnvelopeSVG = (
     svgElement.insertBefore(waveformPath, pointsGroup);
 
     gsap.from(waveformPath, {
-      duration: 1.5,
+      duration: 0.5,
       drawSVG: 0,
       ease: 'none',
     });
@@ -471,12 +471,16 @@ export const EnvelopeSVG = (
   updateControlPoints();
 
   let tl = gsap.timeline();
-  tl.from(gridGroup.children, {
-    duration: 0.25,
-    drawSVG: 0,
-    ease: 'none',
-    stagger: 0.1,
-  })
+  tl.from(
+    gridGroup.children,
+    {
+      duration: 0.25,
+      drawSVG: 0,
+      ease: 'none',
+      stagger: 0.1,
+    },
+    0.1
+  )
     .from(
       envelopePath,
       {
@@ -484,7 +488,7 @@ export const EnvelopeSVG = (
         drawSVG: 0,
         ease: 'none',
       },
-      '<0.1'
+      0.2
     )
     .from(
       pointsGroup,

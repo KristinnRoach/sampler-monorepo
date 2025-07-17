@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { findClosest } from '../findClosest';
+import { describe, it, expect } from 'vitest';
+import { findClosest } from '../index';
 
 describe('findClosest', () => {
   // Helper function for simple reduce-based approach (from ValueSnapper.ts)
@@ -53,19 +53,19 @@ describe('findClosest', () => {
   describe('Basic Functionality', () => {
     it('finds exact match in sorted number array', () => {
       const array = [1, 3, 5, 7, 9];
-      const result = findClosest(array, 5, (x) => x);
+      const result = findClosest(array, 5, 'any', (x) => x);
       expect(result).toBe(5);
     });
 
     it('finds closest value when target is between elements', () => {
       const array = [1, 3, 5, 7, 9];
-      const result = findClosest(array, 4, (x) => x);
+      const result = findClosest(array, 4, 'any', (x) => x);
       expect(result).toBe(3); // 4 is closer to 3 than to 5
     });
 
     it('finds closest value when target is exactly between two elements', () => {
       const array = [1, 3, 5, 7, 9];
-      const result = findClosest(array, 4, (x) => x); // Exactly between 3 and 5
+      const result = findClosest(array, 4, 'any', (x) => x); // Exactly between 3 and 5
       expect(result).toBe(3); // Should prefer left element when distances are equal
     });
 
@@ -139,7 +139,13 @@ describe('findClosest', () => {
         Math.abs(Math.log2(a) - Math.log2(b));
 
       // Target is 330Hz - closer to 220 in log scale than 440
-      const result = findClosest(frequencies, 330, (x) => x, logDistance);
+      const result = findClosest(
+        frequencies,
+        330,
+        'any',
+        (x) => x,
+        logDistance
+      );
       expect(result).toBe(440); // In log scale, 330 is closer to 440
     });
 
@@ -151,7 +157,7 @@ describe('findClosest', () => {
         return Math.min(diff, 360 - diff);
       };
 
-      const result = findClosest(angles, 5, (x) => x, circularDistance);
+      const result = findClosest(angles, 5, 'any', (x) => x, circularDistance);
       expect(result).toBe(10); // 5 is closer to 10 than to 350 in circular distance
     });
   });
@@ -255,15 +261,25 @@ describe('findClosest', () => {
       const notes = generateMusicalFrequencies();
 
       // Test finding A4 (440Hz) exactly
-      const exactResult = findClosest(notes, 440, (note) => note.frequency);
+      const exactResult = findClosest(
+        notes,
+        440,
+        'any',
+        (note) => note.frequency
+      );
       expect(exactResult.note).toBe('A4');
 
       // Test finding closest to 435Hz (should be A4)
-      const closeResult = findClosest(notes, 435, (note) => note.frequency);
+      const closeResult = findClosest(
+        notes,
+        435,
+        'any',
+        (note) => note.frequency
+      );
       expect(closeResult.note).toBe('A4');
 
       // Test finding closest to 260Hz (should be C4)
-      const c4Result = findClosest(notes, 260, (note) => note.frequency);
+      const c4Result = findClosest(notes, 260, 'any', (note) => note.frequency);
       expect(c4Result.note).toBe('C4');
     });
 
@@ -279,6 +295,7 @@ describe('findClosest', () => {
       const result = findClosest(
         timestamps,
         targetTime,
+        'any',
         (sample) => sample.timeSeconds
       );
 
@@ -298,12 +315,12 @@ describe('findClosest', () => {
       ];
 
       // Target 300 is equidistant from 100 and 500, function prefers left element
-      const result = findClosest(sparseData, 300, (point) => point.x);
+      const result = findClosest(sparseData, 300, 'any', (point) => point.x);
       expect(result.x).toBe(100);
       expect(result.y).toBe(1);
 
       // Test with target closer to 500
-      const result2 = findClosest(sparseData, 450, (point) => point.x);
+      const result2 = findClosest(sparseData, 450, 'any', (point) => point.x);
       expect(result2.x).toBe(500);
       expect(result2.y).toBe(2);
     });
@@ -314,12 +331,12 @@ describe('findClosest', () => {
       // Note: The function expects sorted arrays, but let's test what happens
       const unsorted = [5, 1, 9, 3, 7];
       // This might not work correctly, but shouldn't crash
-      expect(() => findClosest(unsorted, 4, (x) => x)).not.toThrow();
+      expect(() => findClosest(unsorted, 4, 'any', (x) => x)).not.toThrow();
     });
 
     it('handles NaN and Infinity values', () => {
       const arrayWithSpecial = [1, 5, 10, Infinity];
-      const result = findClosest(arrayWithSpecial, 100, (x) => x);
+      const result = findClosest(arrayWithSpecial, 100, 'any', (x) => x);
       // For target 100: distances are |1-100|=99, |5-100|=95, |10-100|=90, |Infinity-100|=Infinity
       // So 10 is actually closest
       expect(result).toBe(10);
@@ -341,7 +358,7 @@ describe('findClosest', () => {
         { id: 3, value: 30 },
       ];
 
-      const result = findClosest(objects, 15, (obj) => obj.value);
+      const result = findClosest(objects, 15, 'any', (obj) => obj.value);
       expect(result).toBe(objects[0]); // Should return exact reference
     });
 
@@ -430,7 +447,7 @@ describe('findClosest', () => {
         { value: 20 },
       ];
 
-      const result = findClosest(objects, 12, (obj) => obj.value);
+      const result = findClosest(objects, 12, 'any', (obj) => obj.value);
       expect(result.value).toBe(10);
     });
 

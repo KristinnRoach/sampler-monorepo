@@ -56,3 +56,28 @@ export function findClosestIdx<T>(
 
   return leftDistance <= rightDistance ? left : right;
 }
+
+/**
+ * Generic binary search that finds the closest element using a custom comparison function
+ * @param sortedArray - Array sorted according to the compareValue function
+ * @param target - Target value to search for
+ * @param getValue - Function to extract comparison value from array elements (defaults to identity for number arrays)
+ * @param getDistance - Optional function to calculate distance (defaults to absolute difference)
+ * @returns The array element which value is closest to the target value
+ */
+export function findClosest<T>(
+  sortedArray: T[],
+  target: number,
+  direction: 'left' | 'right' | 'any' = 'any',
+  getValue: (item: T) => number = (x) => x as unknown as number,
+  getDistance: (a: number, b: number) => number = (a, b) => Math.abs(a - b)
+): T {
+  const index = findClosestIdx(
+    sortedArray,
+    target,
+    direction,
+    getValue,
+    getDistance
+  );
+  return sortedArray[index];
+}
