@@ -24,6 +24,9 @@ import {
   type EnvelopeType,
   createEnvelope,
 } from '@/nodes/params/envelopes';
+
+import { LFO } from '@/nodes/params/LFOs/LFO';
+
 import { DEFAULT_PARAM_DESCRIPTORS, getMaxFilterFreq } from './param-defaults';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
@@ -44,6 +47,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #sampleDurationSeconds = 0;
 
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
+  #lfoGain: LFO | null = null;
+  #lfoRate: LFO | null = null;
 
   #hpf: BiquadFilterNode | null = null;
   #lpf: BiquadFilterNode | null = null;
@@ -111,6 +116,23 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.sendToProcessor({ type: 'voice:init' });
 
     this.#worklet.port.start();
+  }
+
+  #setupLFOs() {
+    // LFO for envGain
+    this.#lfoGain = new LFO(this.context); // ? would need separate gainNode (todo: create an lfo pool of gainnodes in voice pool or splayer)
+    this.#lfoGain.setWaveform('sine');
+    this.#lfoGain.setFrequency(440);
+    this.#lfoGain.setDepth(0.5);
+    this.getParam('envGain')!.value = 0.5; // Base level
+    this.#lfoGain.connect(this.getParam('envGain')!);
+
+    // // LFO for playbackRate
+    this.#lfoRate = new LFO(this.context);
+    this.#lfoRate.setWaveform('sine');
+    this.#lfoRate.setFrequency(6); // 6 Hz vibrato
+    this.#lfoRate.setDepth(0.1); // 10% pitch variation
+    this.#lfoRate.connect(this.getParam('playbackRate')!);
   }
 
   addEnvelope(envType: EnvelopeType, data: EnvelopeData) {
@@ -252,6 +274,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // Apply amp, filter and pitch envelopes if enabled
     this.applyEnvelopes(timestamp, playbackRate, midiNote);
+
+    // if (!this.#lfoGain) this.#setupLFOs();
+    // this.#lfoGain?.setMusicalNote(midiNote);
+    // this.#lfoRate?.setMusicalNote(midiNote);
 
     return this.#activeMidiNote;
   }
@@ -835,6 +861,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.stop();
     this.disconnect();
     this.#envelopes.forEach((env) => env.dispose());
+    this.#lfoGain?.dispose();
+    this.#lfoRate?.dispose();
     this.#worklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
     deleteNodeId(this.nodeId);

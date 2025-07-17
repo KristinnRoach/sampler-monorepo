@@ -297,7 +297,7 @@ export const EnvelopeSVG = (
     onTimeScaleChange: instrument.setEnvelopeTimeScale,
     envelopeType,
     minValue: 1, // ? make one in the middle (up position) ?
-    maxValue: 111, // todo: increase in rational durations until cray fast
+    maxValue: 150, // todo: increase in rational durations until cray fast
     defaultValue: 1,
     snapIncrement: 0.01,
     label: 'Speed',

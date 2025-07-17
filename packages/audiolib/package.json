@@ -17,7 +17,8 @@
   "scripts": {
     "build:worklets": "node build-processors.js && mkdir -p dist",
     "build": "pnpm clean && node build-processors.js && vite build && tsc --emitDeclarationOnly",
-    "watch": "mkdir -p dist && node build-processors.js && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\"",
+    "watch:processors": "node watch-processors.js",
+    "watch": "mkdir -p dist && node build-processors.js && concurrently \"vitest\" \"tsc --emitDeclarationOnly --watch\" \"vite build --watch\" \"pnpm watch:processors\"",
     "clean": "rimraf dist && mkdir -p dist",
     "clean:turbo": "rimraf .turbo",
     "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune",

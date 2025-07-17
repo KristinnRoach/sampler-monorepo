@@ -157,7 +157,12 @@ export class ValueSnapper {
 
     // Fallback: move partially toward closest zero crossing
     if (tolerance !== undefined) {
-      const closest = findClosestIdx(allowedValues, target, preferDirection);
+      const closestIndex = findClosestIdx(
+        allowedValues,
+        target,
+        preferDirection
+      );
+      const closest = allowedValues[closestIndex];
 
       const directionToClosest = Math.sign(closest - target); // -1 or 1
       return target + directionToClosest * tolerance;

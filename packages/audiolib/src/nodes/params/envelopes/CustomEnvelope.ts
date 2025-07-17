@@ -755,7 +755,7 @@ export class CustomEnvelope {
           points: [
             { time: 0, value: 0, curve: 'exponential' as const },
             { time: 0.005, value: 1, curve: 'exponential' as const },
-            { time: 0.3, value: 0.5, curve: 'exponential' as const },
+            { time: 0.67, value: 0.75, curve: 'exponential' as const },
             {
               time: durationSeconds - 0.1,
               value: 0.5,
