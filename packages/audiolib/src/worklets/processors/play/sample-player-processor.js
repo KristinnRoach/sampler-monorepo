@@ -17,7 +17,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: 0,
         maxValue: 1,
-        automationRate: 'k-rate',
+        automationRate: 'a-rate',
       },
       {
         name: 'velocity',
@@ -418,9 +418,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     }
 
     // ===== AUDIO PROCESSING =====
-    const playbackRate = parameters.playbackRate[0];
-    const envelopeGain = parameters.envGain[0];
     const velocityGain = this.#midiVelocityToGain(parameters.velocity[0]);
+    const playbackRate = parameters.playbackRate[0]; // ! TESTING A-RATE !
+    // const envelopeGain = parameters.envGain[0]; // ! TESTING A-RATE !
 
     const velocitySensitivity = 0.9;
     const finalVelocityGain = velocityGain * velocitySensitivity;
@@ -429,6 +429,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Process each sample
     for (let i = 0; i < output[0].length; i++) {
+      const envelopeGain = parameters.envGain[i]; // ! ← Read per sample
+      // const playbackRate = parameters.playbackRate[i]; // ! ← Read per sample
+
       // Handle looping
       if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
         if (this.playbackPosition >= loopRange.loopEndSamples) {

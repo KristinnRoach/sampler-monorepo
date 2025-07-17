@@ -5,19 +5,13 @@ import { UNICODES } from '../../utils/unicodes';
 
 const { div } = van.tags;
 
-export const VolumeControl = (volume: State<number>) => {
-  return createSlider('Volume', volume, 0, 1, 0.01);
+export const VolumeSlider = (volume: State<number>) => {
+  return createSlider('Volume', volume, 0, 1, 0.001);
 };
 
-export const EnvelopeControls = (
-  attack: State<number>,
-  release: State<number>
-) =>
-  div(
-    { style: 'display: flex; flex-direction: column; gap: 0.5rem;' },
-    createSlider('Attack', attack, 0, 1, 0.001),
-    createSlider('Release', release, 0, 2, 0.01)
-  );
+export const ReverbMixSlider = (reverbMix: State<number>) => {
+  return createSlider('Reverb', reverbMix, 0, 1, 0.01);
+};
 
 export const InputControls = (
   keyboardEnabled: State<boolean>,
@@ -53,7 +47,7 @@ export const LoopHoldControls = (
     })
   );
 
-export const FilterControls = (
+export const FilterSliders = (
   lpfFreq: State<number>,
   hpfFreq: State<number>
 ) => {
@@ -66,3 +60,10 @@ export const FilterControls = (
     createSlider('LowCut', hpfFreq, 20, 20000, 1) // , true, ' Hz', 1)
   );
 };
+
+export const AREnvSliders = (attack: State<number>, release: State<number>) =>
+  div(
+    { style: 'display: flex; flex-direction: column; gap: 0.5rem;' },
+    createSlider('Attack', attack, 0, 1, 0.001),
+    createSlider('Release', release, 0, 2, 0.01)
+  );

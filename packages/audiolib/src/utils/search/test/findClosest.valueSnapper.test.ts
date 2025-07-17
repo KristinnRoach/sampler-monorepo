@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findClosest } from '../findClosest';
+import { findClosest } from '../index';
 import { ValueSnapper } from '../../../nodes/params/helpers/ValueSnapper';
 
 describe('findClosest ValueSnapper Integration', () => {

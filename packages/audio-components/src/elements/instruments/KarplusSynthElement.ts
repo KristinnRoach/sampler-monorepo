@@ -11,11 +11,11 @@ import { createSlider } from '../primitives/createInputEl';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
 
 import {
-  VolumeControl,
-  EnvelopeControls,
+  VolumeSlider,
+  AREnvSliders,
   InputControls,
   LoopHoldControls,
-  FilterControls,
+  FilterSliders,
 } from '../controls/AudioControls';
 
 const { div } = van.tags;
@@ -122,13 +122,13 @@ const KarplusSynthElement = (attributes: ElementProps) => {
           class: 'controls',
           style: () => (expanded.val === 'true' ? '' : 'display: none'),
         },
-        VolumeControl(volume),
+        VolumeSlider(volume),
 
         createSlider('Attack', attack, 0, 1, 0.01),
         createSlider('Decay', decay, 0, 1, 0.01),
         createSlider('Thickness', noiseTime, 1, 100, 1),
 
-        FilterControls(lpfFreq, hpfFreq),
+        FilterSliders(lpfFreq, hpfFreq),
 
         div(
           { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },

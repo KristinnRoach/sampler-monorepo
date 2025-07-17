@@ -297,7 +297,7 @@ export const EnvelopeSVG = (
     onTimeScaleChange: instrument.setEnvelopeTimeScale,
     envelopeType,
     minValue: 1, // ? make one in the middle (up position) ?
-    maxValue: 111, // todo: increase in rational durations until cray fast
+    maxValue: 150, // todo: increase in rational durations until cray fast
     defaultValue: 1,
     snapIncrement: 0.01,
     label: 'Speed',
@@ -375,7 +375,7 @@ export const EnvelopeSVG = (
     svgElement.insertBefore(waveformPath, pointsGroup);
 
     gsap.from(waveformPath, {
-      duration: 1.5,
+      duration: 0.5,
       drawSVG: 0,
       ease: 'none',
     });
@@ -471,12 +471,16 @@ export const EnvelopeSVG = (
   updateControlPoints();
 
   let tl = gsap.timeline();
-  tl.from(gridGroup.children, {
-    duration: 0.25,
-    drawSVG: 0,
-    ease: 'none',
-    stagger: 0.1,
-  })
+  tl.from(
+    gridGroup.children,
+    {
+      duration: 0.25,
+      drawSVG: 0,
+      ease: 'none',
+      stagger: 0.1,
+    },
+    0.1
+  )
     .from(
       envelopePath,
       {
@@ -484,7 +488,7 @@ export const EnvelopeSVG = (
         drawSVG: 0,
         ease: 'none',
       },
-      '<0.1'
+      0.2
     )
     .from(
       pointsGroup,

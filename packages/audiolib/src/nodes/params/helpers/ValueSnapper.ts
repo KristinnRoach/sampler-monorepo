@@ -3,7 +3,7 @@ import {
   offsetPeriodsBySemitones,
 } from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
-import { findClosestIdx, findClosestNote, Note } from '@/utils';
+import { findClosest, findClosestNote, Note } from '@/utils';
 
 const normalizeRange = (
   values: number | number[],
@@ -142,7 +142,7 @@ export class ValueSnapper {
 
     // No tolerance = simple closest value (for real time quick processing)
     if (tolerance === undefined) {
-      return findClosestIdx(allowedValues, target);
+      return findClosest(allowedValues, target);
     }
 
     // Filter allowedValues by tolerance
@@ -152,13 +152,13 @@ export class ValueSnapper {
 
     if (validValues.length > 0) {
       // Normal case: snap to closest within tolerance
-      return findClosestIdx(validValues, target, preferDirection);
+
+      return findClosest(validValues, target, preferDirection);
     }
 
     // Fallback: move partially toward closest zero crossing
     if (tolerance !== undefined) {
-      const closest = findClosestIdx(allowedValues, target, preferDirection);
-
+      const closest = findClosest(allowedValues, target, preferDirection);
       const directionToClosest = Math.sign(closest - target); // -1 or 1
       return target + directionToClosest * tolerance;
     }
@@ -184,8 +184,7 @@ export class ValueSnapper {
     // console.debug('PERIOD', direction);
 
     // TODO: Test current direction based approach VS 'findClosest'
-    const newIndex = findClosestIdx(allowedPeriods, targetPeriod, direction);
-    const quantized = this.#allowedPeriods[newIndex];
+    const quantized = findClosest(allowedPeriods, targetPeriod, direction);
 
     // let quantized = targetPeriod;
     // let idx = this.#prevIndex;

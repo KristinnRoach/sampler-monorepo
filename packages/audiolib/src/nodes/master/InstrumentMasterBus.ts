@@ -2,37 +2,63 @@ import { Connectable, Destination, LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler, createMessageBus } from '@/events';
-import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { assert } from '@/utils';
+
+import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
+import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
+
+const DEFAULT_COMPRESSOR_SETTINGS = {
+  threshold: -12.0, // Start compressing at -12dB to catch loud peaks
+  knee: 6.0, // Moderate knee for musical compression
+  ratio: 3.0, // Gentle 3:1 ratio for polyphonic material
+  attack: 0.003, // Fast attack to catch transients (3ms)
+  release: 0.05, // Quick release to avoid pumping (50ms)
+} as const;
 
 export class InstrumentMasterBus implements LibNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'fx';
+  #messages;
 
   #context: AudioContext;
   #destination: Destination | null = null;
   #input: GainNode;
-  #compressor: DynamicsCompressorNode;
   #output: GainNode;
   #altOut: GainNode | null = null;
-  #messages;
-  #compressorEnabled: boolean = true;
   #levelMonitor: LevelMonitor | null = null;
+
+  #compressor: DynamicsCompressorNode | null = null;
+  #reverb: DattorroReverb | null = null;
+
+  #compressorEnabled: boolean = true;
+  #reverbEnabled: boolean = true;
   #isReady: boolean = false;
 
   get initialized() {
     return this.#isReady;
   }
 
-  constructor() {
+  constructor(
+    context?: AudioContext,
+    options = { useCompressor: true, useReverb: true }
+  ) {
     this.nodeId = createNodeId(this.nodeType);
-    this.#context = getAudioContext();
+    this.#context = context || getAudioContext();
     this.#messages = createMessageBus<Message>(this.nodeId);
+
+    const { useCompressor = true, useReverb = true } = options;
+
+    this.#compressorEnabled = useCompressor;
+    this.#reverbEnabled = useReverb;
 
     // Create audio nodes
     this.#input = new GainNode(this.#context, { gain: 1.0 });
-    this.#compressor = this.#createCompressor();
     this.#output = new GainNode(this.#context, { gain: 1.0 });
+
+    if (useCompressor) this.#compressor = this.#createCompressor();
+    if (useReverb) {
+      this.#reverb = this.#createReverb().setWetDryMix({ wet: 0, dry: 1 }); // default to dry fro now
+    }
 
     // Connect nodes
     this.#setupRouting();
@@ -41,41 +67,36 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   /**
-   * todo: this is just to equalize the volume for quiet samples rn, re-implement once normalization is achieved
-   * Creates a compressor optimized for boosting quiet signals
-   * This is kept as a separate method for easy refactoring later
+   * Creates a compressor with default settings
    */
-  #createCompressor(): DynamicsCompressorNode {
-    const compressor = new DynamicsCompressorNode(this.#context, {
-      threshold: -50.0, // Very low threshold to catch quiet signals (dB)
-      knee: 12.0, // Soft knee for smooth transition (dB)
-      ratio: 4.0, // Moderate compression ratio
-      attack: 0.005, // Fast attack to catch transients (seconds)
-      release: 0.1, // Quick release (seconds)
-    });
-
-    // Set makeup gain to boost the signal after compression
-    // We use a post-compressor gain node (this.#output) for this
-
-    return compressor;
-  }
+  #createCompressor = (): DynamicsCompressorNode =>
+    new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS);
 
   /**
-   * Sets up the audio routing based on whether compression is enabled
+   * Creates a reverb with default settings
    */
-  #setupRouting(): void {
-    // Disconnect existing connections
-    this.#input.disconnect();
-    this.#compressor.disconnect();
+  #createReverb = () => {
+    return new DattorroReverb(this.#context);
+  };
 
-    if (this.#compressorEnabled) {
-      // Route through compressor
-      this.#input.connect(this.#compressor);
-      this.#compressor.connect(this.#output);
-    } else {
-      // Bypass compressor
-      this.#input.connect(this.#output);
+  #setupRouting(): void {
+    this.#input.disconnect();
+    this.#compressor?.disconnect();
+    this.#reverb?.disconnect();
+
+    let currentNode: AudioNode = this.#input;
+
+    if (this.#compressorEnabled && this.#compressor) {
+      currentNode.connect(this.#compressor);
+      currentNode = this.#compressor;
     }
+
+    if (this.#reverbEnabled && this.#reverb) {
+      currentNode.connect(this.#reverb.input);
+      currentNode = this.#reverb.output;
+    }
+
+    currentNode.connect(this.#output);
   }
 
   /**
@@ -163,13 +184,6 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   /**
-   * Get compressor enabled state
-   */
-  get compressorEnabled(): boolean {
-    return this.#compressorEnabled;
-  }
-
-  /**
    * Set compressor parameters
    */
   setCompressorParams(params: {
@@ -179,6 +193,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     attack?: number;
     release?: number;
   }): this {
+    if (!this.#compressor) return this;
+
     if (params.threshold !== undefined) {
       this.#compressor.threshold.setValueAtTime(params.threshold, this.now);
     }
@@ -251,7 +267,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.stopLevelMonitoring();
     this.disconnect();
     this.#input.disconnect();
-    this.#compressor.disconnect();
+    this.#compressor?.disconnect();
     this.#input = null as unknown as GainNode;
     this.#compressor = null as unknown as DynamicsCompressorNode;
     this.#output = null as unknown as GainNode;
@@ -269,6 +285,21 @@ export class InstrumentMasterBus implements LibNode, Connectable {
 
   get output() {
     return this.#output;
+  }
+
+  setReverbMix(mix: { wet?: number; dry?: number }) {
+    if (!this.#reverbEnabled || !this.#reverb) return;
+
+    this.#reverb.setWetDryMix(mix);
+    return this;
+  }
+
+  get compressorEnabled(): boolean {
+    return this.#compressorEnabled;
+  }
+
+  get reverbEnabled(): boolean {
+    return this.#reverbEnabled;
   }
 
   get volume(): number {
