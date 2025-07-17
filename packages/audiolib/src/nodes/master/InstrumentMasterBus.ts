@@ -56,7 +56,9 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#output = new GainNode(this.#context, { gain: 1.0 });
 
     if (useCompressor) this.#compressor = this.#createCompressor();
-    if (useReverb) this.#reverb = this.#createReverb();
+    if (useReverb) {
+      this.#reverb = this.#createReverb().setWetDryMix({ wet: 0, dry: 1 }); // default to dry fro now
+    }
 
     // Connect nodes
     this.#setupRouting();
@@ -73,7 +75,9 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   /**
    * Creates a reverb with default settings
    */
-  #createReverb = () => new DattorroReverb(this.#context);
+  #createReverb = () => {
+    return new DattorroReverb(this.#context);
+  };
 
   #setupRouting(): void {
     this.#input.disconnect();
@@ -180,13 +184,6 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   /**
-   * Get compressor enabled state
-   */
-  get compressorEnabled(): boolean {
-    return this.#compressorEnabled;
-  }
-
-  /**
    * Set compressor parameters
    */
   setCompressorParams(params: {
@@ -288,6 +285,21 @@ export class InstrumentMasterBus implements LibNode, Connectable {
 
   get output() {
     return this.#output;
+  }
+
+  setReverbMix(mix: { wet?: number; dry?: number }) {
+    if (!this.#reverbEnabled || !this.#reverb) return;
+
+    this.#reverb.setWetDryMix(mix);
+    return this;
+  }
+
+  get compressorEnabled(): boolean {
+    return this.#compressorEnabled;
+  }
+
+  get reverbEnabled(): boolean {
+    return this.#reverbEnabled;
   }
 
   get volume(): number {

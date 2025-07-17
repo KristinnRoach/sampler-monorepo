@@ -15,10 +15,12 @@ import { SampleControls } from '../controls/SampleControls';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
 import { FileOperations } from '../controls/FileOperations';
 import {
-  VolumeControl,
   InputControls,
   LoopHoldControls,
+  VolumeSlider,
+  ReverbMixSlider,
 } from '../controls/AudioControls';
+// import { createSlider } from '../primitives/createInputEl';
 
 import { EnvelopeSVG } from '../controls/envelope/EnvelopeSVG';
 
@@ -33,6 +35,8 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   // Audio params
   const volume = van.state(0.75);
+  const reverbMix = van.state(0.0);
+
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
   const filterEnvelope = van.state<CustomEnvelope | null>(null);
@@ -178,6 +182,11 @@ export const SamplerElement = (attributes: ElementProps) => {
           if (samplePlayer?.volume !== undefined) {
             samplePlayer.volume = volume.val;
           }
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setReverbMix(reverbMix.val);
         });
 
         // Control states
@@ -480,7 +489,8 @@ export const SamplerElement = (attributes: ElementProps) => {
           expanded.val === 'true' ? '' : 'display: none; padding: 0.5rem;',
       },
 
-      VolumeControl(volume),
+      VolumeSlider(volume),
+      ReverbMixSlider(reverbMix),
 
       () =>
         ampEnvelope.val &&
@@ -579,6 +589,7 @@ export const SamplerElement = (attributes: ElementProps) => {
       ),
 
       div({
+        // dataset: {'data-instrument-id': `${samplePlayer?.nodeId}`},
         class: 'keyboard-section',
         style: 'width: 30vw; height: 10vh; margin: 1rem 0;',
       }),

@@ -60,6 +60,15 @@ export class DattorroReverb {
     this.#setParam('dry', value);
   }
 
+  setWetDryMix(mix: { wet?: number; dry?: number }) {
+    const { wet, dry } = mix;
+
+    if (wet !== undefined && wet >= 0 && wet <= 1) this.wet = wet;
+    if (dry !== undefined && dry >= 0 && dry <= 1) this.dry = dry;
+
+    return this;
+  }
+
   // === GETTERS ===
 
   get input(): AudioNode {

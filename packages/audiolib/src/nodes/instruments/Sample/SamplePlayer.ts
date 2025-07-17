@@ -791,6 +791,17 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.startLevelMonitoring(intervalMs);
   }
 
+  /* === FX === */
+
+  setReverbMix = (wetMix: number) => {
+    this.outBus.setReverbMix({ wet: wetMix });
+  };
+
+  setReverbDryMix = (dryMix: number) => {
+    // todo: refactor to make reverb just wet ?
+    this.outBus.setReverbMix({ dry: dryMix });
+  };
+
   /* === I/O === */
 
   #handleModifierKeys(modifiers: PressedModifiers) {
