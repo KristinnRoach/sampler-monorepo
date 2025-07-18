@@ -267,10 +267,16 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.stopLevelMonitoring();
     this.disconnect();
     this.#input.disconnect();
+    this.#output.disconnect();
+    this.#altOut?.disconnect();
     this.#compressor?.disconnect();
+    this.#reverb?.disconnect();
+
     this.#input = null as unknown as GainNode;
-    this.#compressor = null as unknown as DynamicsCompressorNode;
     this.#output = null as unknown as GainNode;
+    this.#altOut = null as unknown as GainNode;
+    this.#compressor = null as unknown as DynamicsCompressorNode;
+    this.#reverb = null as unknown as DattorroReverb;
     this.#context = null as unknown as AudioContext;
   }
 

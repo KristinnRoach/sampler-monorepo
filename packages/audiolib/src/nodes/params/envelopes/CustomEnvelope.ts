@@ -245,7 +245,7 @@ export class CustomEnvelope {
 
   #generateCurve(
     scaledDuration: number,
-    fullDuration = this.fullDuration,
+    endTime = this.fullDuration,
     options: {
       baseValue: number;
       minValue?: number;
@@ -261,7 +261,7 @@ export class CustomEnvelope {
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
-      const absoluteTime = normalizedProgress * fullDuration;
+      const absoluteTime = normalizedProgress * endTime;
 
       let value = this.#data.interpolateValueAtTime(absoluteTime);
 
@@ -328,12 +328,6 @@ export class CustomEnvelope {
     try {
       audioParam.cancelScheduledValues(safeStart);
       audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
-
-      // If sustainEnabled, hold the final curve value
-      if (this.sustainEnabled) {
-        const sustainValue = curve[curve.length - 1]; // this.points[this.sustainPointIndex].value;
-        audioParam.setValueAtTime(sustainValue, safeStart + scaledDuration);
-      }
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
       try {
@@ -469,8 +463,9 @@ export class CustomEnvelope {
             // Curve overlap, advance phase
             debugOverlapCount++;
             if (debugOverlapCount >= 100) {
-              console.warn(
-                `Multiple curve overlaps: ${debugOverlapCount} (loop duration: ${cachedDuration.toFixed(3)}s, buffer: ${safetyBuffer})`
+              console.debug(
+                `Multiple curve overlaps in looping envelope, nr of overlaps: ${debugOverlapCount} 
+                (loop duration: ${cachedDuration.toFixed(3)}s, buffer: ${safetyBuffer})`
               );
               debugOverlapCount = 0;
             }
