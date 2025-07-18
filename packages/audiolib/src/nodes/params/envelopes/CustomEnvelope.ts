@@ -171,42 +171,6 @@ export class CustomEnvelope {
   }
 
   // ===== AUDIO OPERATIONS =====
-  triggerEnvelope(
-    audioParam: AudioParam,
-    startTime: number,
-    options: {
-      baseValue: number;
-      playbackRate: number;
-      voiceId?: string;
-      midiNote?: number;
-      minValue?: number;
-      maxValue?: number;
-    } = { baseValue: 1, playbackRate: 1 }
-  ) {
-    this.#isReleased = false;
-    this.#currentPlaybackRate = options.playbackRate;
-
-    if (this.#loopEnabled) {
-      this.#startLoopingEnv(audioParam, startTime, options);
-    } else {
-      this.#startSingleEnv(audioParam, startTime, options);
-    }
-  }
-
-  releaseEnvelope(
-    audioParam: AudioParam,
-    startTime: number,
-    options: {
-      baseValue: number;
-      playbackRate: number;
-      voiceId?: string;
-      midiNote?: number;
-    } = { baseValue: 1, playbackRate: this.#currentPlaybackRate }
-  ) {
-    this.#isReleased = true;
-    const releaseIndex = this.releasePointIndex;
-    this.#continueFromPoint(audioParam, startTime, releaseIndex, options);
-  }
 
   #getScaledDuration(
     fromIdx: number,
@@ -277,6 +241,28 @@ export class CustomEnvelope {
     }
 
     return curve;
+  }
+
+  triggerEnvelope(
+    audioParam: AudioParam,
+    startTime: number,
+    options: {
+      baseValue: number;
+      playbackRate: number;
+      voiceId?: string;
+      midiNote?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1, playbackRate: 1 }
+  ) {
+    this.#isReleased = false;
+    this.#currentPlaybackRate = options.playbackRate;
+
+    if (this.#loopEnabled) {
+      this.#startLoopingEnv(audioParam, startTime, options);
+    } else {
+      this.#startSingleEnv(audioParam, startTime, options);
+    }
   }
 
   #startSingleEnv(
@@ -519,6 +505,21 @@ export class CustomEnvelope {
     scheduleNext();
   }
 
+  releaseEnvelope(
+    audioParam: AudioParam,
+    startTime: number,
+    options: {
+      baseValue: number;
+      playbackRate: number;
+      voiceId?: string;
+      midiNote?: number;
+    } = { baseValue: 1, playbackRate: this.#currentPlaybackRate }
+  ) {
+    this.#isReleased = true;
+    const releaseIndex = this.releasePointIndex;
+    this.#continueFromPoint(audioParam, startTime, releaseIndex, options);
+  }
+
   #continueFromPoint(
     audioParam: AudioParam,
     startTime: number,
@@ -595,17 +596,7 @@ export class CustomEnvelope {
       if (min !== undefined) targetValue = Math.max(targetValue, min);
       if (max !== undefined) targetValue = Math.min(targetValue, max);
 
-      // Scale the envelope shape to start from currentValue instead of sustainValue
-      const envelopeProgress =
-        startAudioValue !== finalEndValue
-          ? (targetValue - startAudioValue) / (finalEndValue - startAudioValue)
-          : 0;
-
-      const scaledValue =
-        currentValue + envelopeProgress * (finalEndValue - currentValue);
-
-      curve[i] = this.#clampToValueRange(scaledValue);
-      // curve[i] = i === 0 ? currentValue : this.#clampToValueRange(scaledValue); // prevent a sudden jump at the start of the curve
+      curve[i] = this.#clampToValueRange(targetValue);
     }
 
     let releasePointTime = this.points[this.releasePointIndex].time;
@@ -626,9 +617,31 @@ export class CustomEnvelope {
 
     const safeStart = Math.max(this.#context.currentTime, startTime);
 
+    // Calculate the release point's target value
+    const releasePointValue =
+      (base ?? 1) * (this.#logarithmic ? Math.pow(startValue, 2) : startValue);
+    const finalReleaseValue = Math.max(
+      min ?? -Infinity,
+      Math.min(max ?? Infinity, releasePointValue)
+    );
+
     try {
       audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueCurveAtTime(curve, safeStart, scaledRemainingDuration);
+
+      // Phase 1: Ramp to release point value (very short duration)
+      const rampDuration = 0.003; // 3ms ramp to avoid clicks
+      audioParam.setValueAtTime(currentValue, safeStart);
+      audioParam.linearRampToValueAtTime(
+        finalReleaseValue,
+        safeStart + rampDuration
+      );
+
+      // Phase 2: Apply curve from release point
+      audioParam.setValueCurveAtTime(
+        curve,
+        safeStart + rampDuration,
+        scaledRemainingDuration - rampDuration
+      );
     } catch (error) {
       console.warn(
         'Failed to apply release curve, falling back to linear ramp:',

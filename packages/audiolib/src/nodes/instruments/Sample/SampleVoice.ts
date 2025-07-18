@@ -50,20 +50,19 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #lfoGain: LFO | null = null;
   #lfoRate: LFO | null = null;
 
-  #hpf: BiquadFilterNode | null = null;
-  #lpf: BiquadFilterNode | null = null;
-
-  #filtersEnabled: boolean;
   #loopEnabled = false;
   #holdEnabled = false;
 
   #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
   #releaseSec: number = 0.1;
 
+  #filtersEnabled: boolean;
+  #hpf: BiquadFilterNode | null = null;
+  #lpf: BiquadFilterNode | null = null;
   #hpfHz: number = 100;
+  #hpfQ: number = 1;
   #lpfHz: number = 18000; // updated in constructor
   #lpfQ: number = 1;
-  #hpfQ: number = 1;
 
   constructor(
     private context: AudioContext = getAudioContext(),
@@ -83,9 +82,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // Create filters if enabled
     if (this.#filtersEnabled) {
-      // Set low-pass filter frequency based on context sample rate
-      this.#lpfHz = this.context.sampleRate / 2 - 1000;
-
       this.#hpf = new BiquadFilterNode(context, {
         type: 'highpass',
         frequency: this.#hpfHz,
@@ -97,6 +93,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         frequency: this.#lpfHz,
         Q: this.#lpfQ,
       });
+
+      this.#hpfHz = 50;
+      this.#lpfHz = this.context.sampleRate / 2 - 1000;
 
       // Connect chain: worklet → hpf → lpf -> destination
       this.#worklet.connect(this.#hpf);
@@ -178,7 +177,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   async loadBuffer(
     buffer: AudioBuffer,
-    zeroCrossings?: number[]
+    zeroCrossings?: number[],
+    fundamentalFreq?: number
   ): Promise<boolean> {
     this.#state = VoiceState.NOT_READY;
 
@@ -206,6 +206,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         type: 'voice:set_zero_crossings',
         zeroCrossings,
       });
+    }
+
+    if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
+      this.setParam('hpf', fundamentalFreq, this.now);
     }
 
     return true;
