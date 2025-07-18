@@ -10,7 +10,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 0,
         minValue: 0,
         maxValue: 99999,
-        automationRate: 'k-rate',
+        automationRate: 'k-rate', // a or k ?
       },
       {
         name: 'envGain',
@@ -31,7 +31,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 1,
         minValue: 0.1,
         maxValue: 8,
-        automationRate: 'k-rate',
+        automationRate: 'a-rate', // a or k ?
       },
       // NOTE: Time based params always use seconds
       {
@@ -308,19 +308,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Get buffer length in samples
-   * @returns {number} - Buffer length in samples
-   */
-  #getBufferLengthSamples() {
-    return this.buffer?.[0]?.length || 0;
-  }
-
-  /**
    * Get buffer duration in seconds
    * @returns {number} - Buffer duration in seconds
    */
   #getBufferDurationSeconds() {
-    return this.#getBufferLengthSamples() / sampleRate;
+    return (this.buffer?.[0]?.length || 0) / sampleRate;
   }
 
   /**
@@ -344,7 +336,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
    * @returns {Object} - Effective start and end positions
    */
   #calculatePlaybackRange(params) {
-    const bufferLength = this.#getBufferLengthSamples();
+    const bufferLength = this.buffer?.[0]?.length || 0;
 
     const start = Math.max(0, params.startPointSamples);
     const end =
@@ -390,13 +382,25 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     };
   }
 
+  #getSafeParam(paramArray, index, isConstant) {
+    return isConstant
+      ? paramArray[0]
+      : paramArray[Math.min(index, paramArray.length - 1)];
+  }
+
+  #getConstantFlags(parameters) {
+    return Object.fromEntries(
+      Object.keys(parameters).map((key) => [key, parameters[key].length === 1])
+    );
+  }
+
   // ===== MAIN PROCESS METHOD =====
 
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     this.debugCounter++;
 
-    if (!output || !this.isPlaying || !this.buffer) {
+    if (!output || !this.isPlaying || !this.buffer?.[0]?.length) {
       return true;
     }
 
@@ -419,18 +423,30 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // ===== AUDIO PROCESSING =====
     const velocityGain = this.#midiVelocityToGain(parameters.velocity[0]);
-    const playbackRate = parameters.playbackRate[0]; // ! TESTING A-RATE !
-    // const envelopeGain = parameters.envGain[0]; // ! TESTING A-RATE !
-
     const velocitySensitivity = 0.9;
     const finalVelocityGain = velocityGain * velocitySensitivity;
 
+    const useExternalPosition = this.usePlaybackPosition;
+    const bufferLength = useExternalPosition ? this.buffer[0].length : 0;
+
     const numChannels = Math.min(output.length, this.buffer.length);
+
+    const isConstant = this.#getConstantFlags(parameters);
 
     // Process each sample
     for (let i = 0; i < output[0].length; i++) {
-      const envelopeGain = parameters.envGain[i]; // ! ← Read per sample
-      // const playbackRate = parameters.playbackRate[i]; // ! ← Read per sample
+      const envelopeGain = this.#getSafeParam(
+        parameters.envGain,
+        i,
+        isConstant.envGain
+      );
+
+      const playbackRate = this.#getSafeParam(
+        parameters.playbackRate,
+        i,
+        isConstant.playbackRate
+      );
+      // ... etc for params that should support a-rate
 
       // Handle looping
       if (this.loopEnabled && this.loopCount < this.maxLoopCount) {

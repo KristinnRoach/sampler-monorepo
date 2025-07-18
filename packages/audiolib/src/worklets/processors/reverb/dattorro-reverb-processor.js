@@ -113,6 +113,9 @@ class DattorroReverb extends AudioWorkletProcessor {
   // First input will be downmixed to mono if number of channels is not 2
   // Outputs Stereo.
   process(inputs, outputs, parameters) {
+    const TWO_PI = 6.283185307179586;
+    const TWO_PI_DETUNE = 6.284702653297906; // ~0.075% higher
+
     const pd = ~~parameters.preDelay[0],
       bw = parameters.bandwidth[0],
       fi = parameters.inputDiffusion1[0],
@@ -174,8 +177,8 @@ class DattorroReverb extends AudioWorkletProcessor {
 
       // excursions
       // could be optimized?
-      let exc = ed * (1 + Math.cos(this._excPhase * 6.28));
-      let exc2 = ed * (1 + Math.sin(this._excPhase * 6.2847));
+      let exc = ed * (1 + Math.cos(this._excPhase * TWO_PI));
+      let exc2 = ed * (1 + Math.sin(this._excPhase * TWO_PI_DETUNE));
 
       // left loop
       let temp = this.writeDelay(
@@ -218,14 +221,14 @@ class DattorroReverb extends AudioWorkletProcessor {
       outputs[0][1][i] += ro * we;
 
       this._excPhase += ex;
+      // phase wrapping to prevent precision issues
+      if (this._excPhase >= 1.0) this._excPhase -= 1.0;
 
       i++;
 
-      for (
-        let j = 0, d = this._Delays[0];
-        j < this._Delays.length;
-        d = this._Delays[++j]
-      ) {
+      const delays = this._Delays;
+      for (let j = 0; j < delays.length; j++) {
+        const d = delays[j];
         d[1] = (d[1] + 1) & d[3];
         d[2] = (d[2] + 1) & d[3];
       }
