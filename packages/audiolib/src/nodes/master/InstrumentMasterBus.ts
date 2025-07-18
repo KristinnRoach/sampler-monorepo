@@ -27,6 +27,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   #altOut: GainNode | null = null;
   #levelMonitor: LevelMonitor | null = null;
 
+  #wetGain: GainNode | null = null;
+
   #compressor: DynamicsCompressorNode | null = null;
   #reverb: DattorroReverb | null = null;
 
@@ -54,10 +56,12 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     // Create audio nodes
     this.#input = new GainNode(this.#context, { gain: 1.0 });
     this.#output = new GainNode(this.#context, { gain: 1.0 });
+    this.#wetGain = new GainNode(this.#context, { gain: 0.3 });
 
     if (useCompressor) this.#compressor = this.#createCompressor();
     if (useReverb) {
-      this.#reverb = this.#createReverb().setWetDryMix({ wet: 0, dry: 1 }); // default to dry fro now
+      this.#reverb = this.#createReverb(); // .setWetDryMix({ wet: 0, dry: 1 }); // default to dry for now
+      this.#reverb.setPreset('ether');
     }
 
     // Connect nodes
@@ -83,6 +87,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#input.disconnect();
     this.#compressor?.disconnect();
     this.#reverb?.disconnect();
+    this.#wetGain?.disconnect();
 
     let currentNode: AudioNode = this.#input;
 
@@ -91,12 +96,15 @@ export class InstrumentMasterBus implements LibNode, Connectable {
       currentNode = this.#compressor;
     }
 
-    if (this.#reverbEnabled && this.#reverb) {
-      currentNode.connect(this.#reverb.input);
-      currentNode = this.#reverb.output;
-    }
-
+    // Main dry signal path
     currentNode.connect(this.#output);
+
+    // Reverb send path
+    if (this.#reverbEnabled && this.#reverb && this.#wetGain) {
+      currentNode.connect(this.#wetGain);
+      this.#wetGain.connect(this.#reverb.input);
+      this.#reverb.connect(this.#output); // Wet signal mixed back to output
+    }
   }
 
   /**
@@ -271,12 +279,14 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#altOut?.disconnect();
     this.#compressor?.disconnect();
     this.#reverb?.disconnect();
+    this.#wetGain?.disconnect();
 
     this.#input = null as unknown as GainNode;
     this.#output = null as unknown as GainNode;
     this.#altOut = null as unknown as GainNode;
     this.#compressor = null as unknown as DynamicsCompressorNode;
     this.#reverb = null as unknown as DattorroReverb;
+    this.#wetGain = null as unknown as GainNode;
     this.#context = null as unknown as AudioContext;
   }
 
@@ -293,10 +303,10 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     return this.#output;
   }
 
-  setReverbMix(mix: { wet?: number; dry?: number }) {
-    if (!this.#reverbEnabled || !this.#reverb) return;
+  setReverbMix(send: number): this {
+    if (!this.#reverbEnabled || !this.#wetGain) return this;
 
-    this.#reverb.setWetDryMix(mix);
+    this.#wetGain.gain.setValueAtTime(send, this.now);
     return this;
   }
 

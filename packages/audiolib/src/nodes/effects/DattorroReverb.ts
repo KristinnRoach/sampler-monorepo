@@ -1,10 +1,64 @@
 export class DattorroReverb {
   #node: AudioWorkletNode;
 
+  // todo: make better presets and ensure dry / wet mix has consistent volume
+  static readonly #presets = {
+    room: {
+      preDelay: 1525,
+      bandwidth: 0.5683,
+      inputDiffusion1: 0.4666,
+      inputDiffusion2: 0.5853,
+      decay: 0.3226,
+      decayDiffusion1: 0.6954,
+      decayDiffusion2: 0.6022,
+      damping: 0.6446,
+      excursionRate: 0,
+      excursionDepth: 0,
+    },
+    church: {
+      preDelay: 0,
+      bandwidth: 0.928,
+      inputDiffusion1: 0.7331,
+      inputDiffusion2: 0.4534,
+      decay: 0.7,
+      decayDiffusion1: 0.7839,
+      decayDiffusion2: 0.1992,
+      damping: 0.5975,
+      excursionRate: 0,
+      excursionDepth: 0,
+    },
+    freeze: {
+      preDelay: 0,
+      bandwidth: 0.999,
+      inputDiffusion1: 0.75,
+      inputDiffusion2: 0.625,
+      decay: 1,
+      decayDiffusion1: 0.5,
+      decayDiffusion2: 0.711,
+      damping: 0.005,
+      excursionRate: 0.3,
+      excursionDepth: 1.4,
+    },
+    ether: {
+      preDelay: 0,
+      bandwidth: 0.999,
+      inputDiffusion1: 0.23,
+      inputDiffusion2: 0.667,
+      decay: 0.45,
+      decayDiffusion1: 0.7,
+      decayDiffusion2: 0.5,
+      damping: 0.3,
+      excursionRate: 0.85,
+      excursionDepth: 1.2,
+    },
+  } as const;
+
   constructor(context: AudioContext) {
     this.#node = new AudioWorkletNode(context, 'dattorro-reverb-processor', {
       outputChannelCount: [2], // NOTE: Currently ONLY supports stereo output
     });
+
+    this.#setParam('dry', 0); // Only using wet! (todo: consider refactoring processor to enforce this & optimize)
   }
 
   connect(destination: AudioNode): void {
@@ -56,17 +110,43 @@ export class DattorroReverb {
   set wet(value: number) {
     this.#setParam('wet', value);
   }
-  set dry(value: number) {
-    this.#setParam('dry', value);
+  // set dry(value: number) {
+  //   this.#setParam('dry', value);
+  // }
+
+  // setWetDryMix(mix: { wet?: number; dry?: number }) {
+  //   const { wet, dry } = mix;
+
+  //   if (wet !== undefined && wet >= 0 && wet <= 1) this.wet = wet;
+  //   if (dry !== undefined && dry >= 0 && dry <= 1) this.dry = dry;
+
+  //   return this;
+  // }
+
+  // === PRESET METHODS ===
+
+  setPreset(
+    preset: 'room' | 'church' | 'freeze' | 'ether' = 'room',
+    rampTime = 0.2
+  ): void {
+    const values = DattorroReverb.#presets[preset];
+    const currentTime = this.#node.context.currentTime;
+
+    Object.entries(values).forEach(([paramName, value]) => {
+      this.#node.parameters
+        .get(paramName)
+        ?.linearRampToValueAtTime(value, currentTime + rampTime);
+    });
   }
 
-  setWetDryMix(mix: { wet?: number; dry?: number }) {
-    const { wet, dry } = mix;
+  getPreset(): Record<string, number> {
+    const result: Record<string, number> = {};
 
-    if (wet !== undefined && wet >= 0 && wet <= 1) this.wet = wet;
-    if (dry !== undefined && dry >= 0 && dry <= 1) this.dry = dry;
+    Array.from(this.#node.parameters.keys()).forEach((paramName) => {
+      result[paramName] = this.#node.parameters.get(paramName)?.value ?? 0;
+    });
 
-    return this;
+    return result;
   }
 
   // === GETTERS ===

@@ -426,9 +426,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const velocitySensitivity = 0.9;
     const finalVelocityGain = velocityGain * velocitySensitivity;
 
-    const useExternalPosition = this.usePlaybackPosition;
-    const bufferLength = useExternalPosition ? this.buffer[0].length : 0;
-
     const numChannels = Math.min(output.length, this.buffer.length);
 
     const isConstant = this.#getConstantFlags(parameters);
