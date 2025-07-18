@@ -502,32 +502,67 @@ export const SamplerElement = (attributes: ElementProps) => {
               div(
                 {
                   style:
-                    'display: flex; column-gap: 0.5rem; margin-left: 0.5rem;',
+                    'display: flex; justify-content: space-between; align-items: center; height: 5vh; column-gap: 0.5rem; margin-left: 0.5rem;',
                 },
 
-                button(
+                // Group lable-buttons on the left
+                div(
                   {
-                    style: () =>
-                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
-                    onclick: () => (chosenEnvelope.val = 'amp-env'),
+                    style: 'display: flex; column-gap: 0.5rem;',
                   },
-                  'Amp Env'
+
+                  button(
+                    {
+                      style: () =>
+                        'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
+                      onclick: () => (chosenEnvelope.val = 'amp-env'),
+                    },
+                    'Amp Env'
+                  ),
+                  button(
+                    {
+                      style: () =>
+                        'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
+                      onclick: () => (chosenEnvelope.val = 'filter-env'),
+                    },
+                    'Filter Env'
+                  ),
+                  button(
+                    {
+                      style: () =>
+                        'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
+                      onclick: () => (chosenEnvelope.val = 'pitch-env'),
+                    },
+                    'Pitch Env'
+                  )
                 ),
-                button(
+
+                // TimeScale knobs to the right
+                div(
                   {
-                    style: () =>
-                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
-                    onclick: () => (chosenEnvelope.val = 'filter-env'),
+                    style: 'position: relative;', // Stack knobs on top of each other
                   },
-                  'Filter Env'
-                ),
-                button(
-                  {
-                    style: () =>
-                      'cursor: pointer; font-size: 0.9rem; margin-bottom: 5px; padding: 0.5rem;',
-                    onclick: () => (chosenEnvelope.val = 'pitch-env'),
-                  },
-                  'Pitch Env'
+                  div(
+                    {
+                      style: () =>
+                        `visibility: ${chosenEnvelope.val === 'amp-env' ? 'visible' : 'hidden'}`,
+                    },
+                    ampEnvInstance?.timeScaleKnob
+                  ),
+                  div(
+                    {
+                      style: () =>
+                        `position: absolute; top: 0; visibility: ${chosenEnvelope.val === 'pitch-env' ? 'visible' : 'hidden'}`,
+                    },
+                    pitchEnvInstance?.timeScaleKnob
+                  ),
+                  div(
+                    {
+                      style: () =>
+                        `position: absolute; top: 0; visibility: ${chosenEnvelope.val === 'filter-env' ? 'visible' : 'hidden'}`,
+                    },
+                    filterEnvInstance?.timeScaleKnob
+                  )
                 )
               ),
 

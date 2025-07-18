@@ -31,6 +31,8 @@ export class CustomEnvelope {
   #timeScale = 1;
   #logarithmic = false;
 
+  #MIN_CURVE_DURATION = 0.05; // test for optimal values
+
   constructor(
     context: AudioContext,
     envelopeType: EnvelopeType,
@@ -357,6 +359,13 @@ export class CustomEnvelope {
       options.playbackRate,
       this.#timeScale
     );
+
+    // if (cachedDuration < this.#MIN_CURVE_DURATION) {
+    //   TODO: consider using simple linear ramp instead of curve for super short durations
+    //   console.debug('Starting simpleLoopingEnv, duration:', cachedDuration);
+    //   return;
+    // }
+
     let cachedCurve = this.#generateCurve(
       cachedDuration,
       this.fullDuration,
@@ -377,11 +386,9 @@ export class CustomEnvelope {
     }
 
     let phase = Math.max(this.#context.currentTime, startTime);
-
-    // const lookAhead = 0.01;
-    // const lookAhead = Math.max(0.1, cachedDuration * 3);
     const lookAhead = Math.max(0.15, Math.min(cachedDuration * 3, 0.5));
     const safetyBuffer = 0.005;
+
     let lastScheduledEnd = 0;
     let debugOverlapCount = 0;
 
@@ -436,8 +443,7 @@ export class CustomEnvelope {
           const safeCurveDuration = cachedDuration - safetyBuffer;
 
           // NOTE: IF having overlapping scheduling issues,
-          // could resort to using "audioParam.cancelScheduledValues(phase)"
-          // instead of the other tricks, e.g. 'lastScheduledEnd', safetyBuffer etc.
+          // last resort that should always work is just:  "audioParam.cancelScheduledValues(phase)"
 
           try {
             audioParam.setValueCurveAtTime(
@@ -513,6 +519,8 @@ export class CustomEnvelope {
       playbackRate: number;
       voiceId?: string;
       midiNote?: number;
+      minValue?: number;
+      maxValue?: number;
     } = { baseValue: 1, playbackRate: this.#currentPlaybackRate }
   ) {
     this.#isReleased = true;
@@ -546,7 +554,9 @@ export class CustomEnvelope {
       this.#timeScale
     );
 
-    if (scaledRemainingDuration <= 0) return;
+    // Return early if duration is too small to be meaningful for audio scheduling
+    // AudioContext typically requires durations > 0.001 seconds to work reliably
+    if (scaledRemainingDuration <= 0.0001) return;
 
     // Get the original envelope values from sustain to end
     let startValue = this.#data.interpolateValueAtTime(fromPoint.time);
@@ -575,8 +585,8 @@ export class CustomEnvelope {
 
     // Apply min/max constraints
     const finalEndValue = Math.max(
-      min ?? -Infinity,
-      Math.min(max ?? Infinity, endAudioValue)
+      min ?? this.valueRange[0],
+      Math.min(max ?? this.valueRange[1], endAudioValue)
     );
 
     // Generate curve that follows envelope shape but starts from currentValue
@@ -628,32 +638,52 @@ export class CustomEnvelope {
     try {
       audioParam.cancelScheduledValues(safeStart);
 
-      // Phase 1: Ramp to release point value (very short duration)
-      const rampDuration = 0.003; // 3ms ramp to avoid clicks
-      audioParam.setValueAtTime(currentValue, safeStart);
-      audioParam.linearRampToValueAtTime(
-        finalReleaseValue,
-        safeStart + rampDuration
-      );
+      const rampDuration = Math.min(0.003, scaledRemainingDuration * 0.5);
+      const curveDuration = scaledRemainingDuration - rampDuration;
 
-      // Phase 2: Apply curve from release point
-      audioParam.setValueCurveAtTime(
-        curve,
-        safeStart + rampDuration,
-        scaledRemainingDuration - rampDuration
-      );
+      if (curveDuration < this.#MIN_CURVE_DURATION) {
+        const endPoint = this.points[this.points.length - 1];
+        audioParam.linearRampToValueAtTime(
+          endPoint.value,
+          scaledRemainingDuration
+        );
+      } else {
+        // First ramp quickly to release point value to avoid clicks
+        audioParam.setValueAtTime(currentValue, safeStart);
+        audioParam.linearRampToValueAtTime(
+          finalReleaseValue,
+          safeStart + rampDuration
+        );
+
+        // Then apply curve from release point
+        audioParam.setValueCurveAtTime(
+          curve,
+          safeStart + rampDuration,
+          curveDuration
+        );
+      }
     } catch (error) {
       console.warn(
         'Failed to apply release curve, falling back to linear ramp:',
         error
       );
       // Fallback to simple linear ramp
-      audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueAtTime(currentValue, safeStart);
-      audioParam.linearRampToValueAtTime(
-        finalEndValue,
-        safeStart + scaledRemainingDuration
-      );
+      try {
+        audioParam.cancelScheduledValues(safeStart);
+        audioParam.setValueAtTime(currentValue, safeStart);
+        audioParam.linearRampToValueAtTime(
+          finalEndValue,
+          safeStart + scaledRemainingDuration
+        );
+      } catch (fallbackError) {
+        console.warn('Fallback linear ramp also failed:', fallbackError);
+        // Final fallback - just set the end value
+        try {
+          audioParam.setValueAtTime(finalEndValue, safeStart);
+        } catch (finalError) {
+          console.warn('All AudioParam operations failed:', finalError);
+        }
+      }
     }
   }
 
