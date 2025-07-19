@@ -1,14 +1,9 @@
 // EnvelopeSVG.ts
 import van from '@repo/vanjs-core';
-import {
-  CustomEnvelope,
-  EnvelopePoint,
-  EnvelopeType,
-  SamplePlayer,
-} from '@repo/audiolib';
+import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-import { LabeledTimeScaleKnob, TimeScaleKnob } from './TimeScaleKnob.ts';
+import { TimeScaleKnob } from './TimeScaleKnob.ts';
 
 import {
   applySnapping,
@@ -130,10 +125,12 @@ export const EnvelopeSVG = (
             ? '#4ade80'
             : '#666';
 
-      // Special case for start/end points
-      if (index === 0 || index === pts.length - 1) {
-        fillColor = envelopeInfo.isEnabled ? '#ff9500' : '#666'; // Orange
-        circle.setAttribute('r', '6'); // Slightly bigger
+      if (index === envelopeInfo.sustainPointIndex) {
+        circle.setAttribute(
+          'fill',
+          envelopeInfo.isEnabled ? '#ff2211' : '#666'
+        );
+        circle.setAttribute('r', '6');
       }
 
       // Sustain point (red)
@@ -148,28 +145,20 @@ export const EnvelopeSVG = (
         circle.setAttribute('r', '6');
       }
 
+      // Same point (purple)
+      if (
+        index === envelopeInfo.sustainPointIndex &&
+        index === envelopeInfo.releasePointIndex
+      ) {
+        console.log('THE SAME');
+        fillColor = envelopeInfo.isEnabled ? '#9c27b0' : '#666';
+      }
+
       circle.setAttribute('fill', fillColor);
       circle.setAttribute('stroke', '#fff');
       circle.setAttribute('stroke-width', '1');
       circle.style.cursor = 'pointer';
       circle.style.zIndex = '999';
-
-      // Special case for start/end points
-      if (index === 0 || index === pts.length - 1) {
-        circle.setAttribute(
-          'fill',
-          envelopeInfo.isEnabled ? '#ff9500' : '#666'
-        ); // Orange
-        circle.setAttribute('r', '6'); // Slightly bigger
-      }
-
-      if (index === envelopeInfo.sustainPointIndex) {
-        circle.setAttribute(
-          'fill',
-          envelopeInfo.isEnabled ? '#ff2211' : '#666'
-        );
-        circle.setAttribute('r', '6');
-      }
 
       // Mouse down - start drag
       // Current approach is a somewhat convoluted way to allow using single click
@@ -282,10 +271,9 @@ export const EnvelopeSVG = (
   );
 
   // Add time scale knob if callback provided
-  const timeScaleKnob = LabeledTimeScaleKnob({
+  const timeScaleKnob = TimeScaleKnob({
     onTimeScaleChange: instrument.setEnvelopeTimeScale,
     envelopeType,
-    label: '',
     height: 40,
     width: 40,
   });

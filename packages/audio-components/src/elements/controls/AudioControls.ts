@@ -13,6 +13,14 @@ export const ReverbMixSlider = (reverbMix: State<number>) => {
   return createSlider('Reverb', reverbMix, 0, 1, 0.01);
 };
 
+export const LFORateSlider = (rate: State<number>, label: string = '') => {
+  return createSlider(label, rate, 0, 1, 0.01);
+};
+
+export const LFODepthSlider = (depth: State<number>, label: string = '') => {
+  return createSlider(label, depth, 0, 1, 0.01);
+};
+
 export const InputControls = (
   keyboardEnabled: State<boolean>,
   midiEnabled: State<boolean>,

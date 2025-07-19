@@ -89,7 +89,8 @@ export const createPlayheads = (
     gsap.set(playhead, { x: 0, y: centerY }); // init pos
 
     const triggerTl = gsap.timeline();
-    triggerTl.add(entryTween(playhead), 0);
+
+    if (duration > 0.3) triggerTl.add(entryTween(playhead), 0);
 
     const safeDuration = Math.max(0.3, duration);
 
@@ -137,67 +138,48 @@ export const createPlayheads = (
           x: svgWidth,
           duration: safeDuration,
           ease: 'none',
-          onComplete: () => {
-            stopAnimation(voiceId);
-          },
         },
         0
       );
     }
 
-    // Only add exit tween for non-sustain envelopes
-    if (!sustainEnabled) {
-      const safeDuration = Math.max(0.3, duration);
-      triggerTl.to(
-        playhead,
-        {
-          r: 0,
-          opacity: 0,
-          duration: Math.min(0.15, safeDuration * 0.3),
-        },
-        safeDuration * 0.7
-      ); // Start at 70% through the animation
-    }
     activeAnimations.set(voiceId, triggerTl);
   });
 
   // Loop iteration handler
   instrument.onMessage(`${envType}:trigger:loop`, (msg: any) => {
-    const { voiceId } = msg;
+    if (!msg.voiceId || !activeLoopingAnimations.has(msg.voiceId)) return;
 
-    if (!voiceId || !activeLoopingAnimations.has(voiceId)) return;
-
-    const loopTl = activeLoopingAnimations.get(voiceId);
+    const loopTl = activeLoopingAnimations.get(msg.voiceId);
     if (loopTl) {
       loopTl.restart(); // Restart the animation
     }
   });
 
-  instrument.onMessage(`${envType}:release:loop`, (msg: any) => {
-    const { voiceId } = msg;
-
-    activeLoopingAnimations.delete(voiceId);
-    stopAnimation(voiceId);
-  });
-
   instrument.onMessage(`${envType}:release`, (msg: any) => {
-    const { voiceId, remainingDuration } = msg;
+    const { voiceId, remainingDuration, releasePoint } = msg;
+    if (!voiceId || !remainingDuration || !releasePoint) return;
 
-    if (!voiceId || !remainingDuration) return;
-    if (!activeAnimations.has(msg.voiceId)) return;
+    // Handle looping animations
+    if (activeLoopingAnimations.has(voiceId)) {
+      const loopTl = activeLoopingAnimations.get(voiceId);
+      loopTl?.kill();
+      activeLoopingAnimations.delete(voiceId);
+      // continues to release animation
+    }
+
+    if (!activeAnimations.has(voiceId)) return;
 
     const triggerTl = activeAnimations.get(voiceId);
     const playhead = playheads.get(voiceId);
 
     if (triggerTl && playhead) {
       // Jump to release point x position
-      const releaseX =
-        (msg.releasePointTime / envelope.fullDuration) * svgWidth; // Should or should not use scaled releasePointTime?
+      const releaseX = releasePoint.normalizedTime * svgWidth;
 
       gsap.set(playhead, { x: releaseX });
       gsap.set(playhead, { opacity: 0.7 });
 
-      // Kill current animation and start release phase
       triggerTl.kill();
       const releaseTl = gsap.timeline();
 
@@ -269,9 +251,9 @@ export const createPlayheads = (
     }
   };
 
-  // instrument.onMessage('voice:stopped', (msg: any) => {
-  //   stopAnimation(msg.voiceId);
-  // });
+  instrument.onMessage('voice:stopped', (msg: any) => {
+    stopAnimation(msg.voiceId);
+  });
 
   return {
     cleanup: () => {
@@ -286,11 +268,3 @@ export const createPlayheads = (
     },
   };
 };
-
-// r: curveData
-//   ? () => {
-//       const progress = tl.progress(); // Use timeline reference instead of 'this'
-//       const index = Math.floor(progress * (curveData.length - 1));
-//       return 5 + (curveData[index] || 0) * 10;
-//     }
-//   : 5,

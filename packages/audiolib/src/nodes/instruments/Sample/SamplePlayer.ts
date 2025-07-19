@@ -5,6 +5,11 @@ import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
 
 import {
+  preProcessAudioBuffer,
+  PreProcessOptions,
+} from '@/nodes/preprocessor/Preprocessor';
+
+import {
   assert,
   tryCatch,
   isValidAudioBuffer,
@@ -18,6 +23,8 @@ import {
   DEFAULT_PARAM_DESCRIPTORS,
   NormalizeOptions,
 } from '@/nodes/params';
+
+import { LFO } from '@/nodes/params/LFOs/LFO';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
@@ -36,6 +43,10 @@ export class SamplePlayer extends LibInstrument {
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
+  #gainLFO: LFO | null = null;
+  #pitchLFO: LFO | null = null;
+
+  syncLFOsToMidiNote = false; // todo setter
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
@@ -43,6 +54,7 @@ export class SamplePlayer extends LibInstrument {
   #isLoaded = false;
   #zeroCrossings: number[] = [];
   #useZeroCrossings = true;
+  #preprocessAudio = true;
   randomizeVelocity = false;
 
   voicePool: SampleVoicePool;
@@ -81,6 +93,8 @@ export class SamplePlayer extends LibInstrument {
     );
 
     this.#connectVoicesToMacros();
+
+    this.#setupLFOs();
 
     // const ampDefaults = CustomEnvelope.getDefaults('amp-env', 1);
     // const pitchDefaults = CustomEnvelope.getDefaults('pitch-env', 1);
@@ -147,10 +161,13 @@ export class SamplePlayer extends LibInstrument {
       'sample:loaded',
 
       'amp-env:trigger',
+      'amp-env:trigger:loop',
       'amp-env:release',
       'pitch-env:trigger',
+      'pitch-env:trigger:loop',
       'pitch-env:release',
       'filter-env:trigger',
+      'filter-env:trigger:loop',
       'filter-env:release',
     ]);
     return this;
@@ -220,13 +237,41 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  /* === LFOs === */
+
+  #setupLFOs() {
+    // Move the exact same code from SampleVoicePool here
+    this.#gainLFO = new LFO(this.context);
+    this.#gainLFO.setWaveform('sine');
+    this.#gainLFO.setFrequency(8);
+    this.#gainLFO.setDepth(0.01);
+
+    this.#pitchLFO = new LFO(this.context);
+    const wobbleWave = this.#pitchLFO.getPitchWobbleWaveform();
+    this.#pitchLFO.setWaveform(wobbleWave);
+    this.#pitchLFO.setFrequency(0.4);
+    this.#pitchLFO.setDepth(0.005);
+
+    // Connect to all voices
+    this.#connectLFOToAllVoices(this.#gainLFO, 'envGain');
+    this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
+  }
+
+  #connectLFOToAllVoices(lfo: LFO, paramName: string) {
+    this.voicePool.applyToAllVoices((voice) => {
+      const param = voice.getParam(paramName);
+      if (param) lfo.connect(param);
+    });
+  }
+
   /* === LOAD / RESET === */
 
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     shoulDetectPitch = true,
-    autoTranspose = true
+    autoTranspose = true,
+    preprocessOptions?: PreProcessOptions
   ): Promise<AudioBuffer> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -234,6 +279,10 @@ export class SamplePlayer extends LibInstrument {
     }
 
     assert(isValidAudioBuffer(buffer));
+
+    if (this.#preprocessAudio) {
+      buffer = preProcessAudioBuffer(this.context, buffer, preprocessOptions);
+    }
 
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
@@ -366,6 +415,11 @@ export class SamplePlayer extends LibInstrument {
     }
 
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
+
+    if (this.syncLFOsToMidiNote) {
+      this.#gainLFO?.setMusicalNote(midiNote);
+      this.#pitchLFO?.setMusicalNote(midiNote);
+    }
 
     return this.voicePool.noteOn(
       midiNote,
@@ -914,6 +968,14 @@ export class SamplePlayer extends LibInstrument {
     return this.#holdEnabled;
   }
 
+  get gainLFO() {
+    return this.#gainLFO;
+  }
+
+  get pitchLFO() {
+    return this.#pitchLFO;
+  }
+
   get loopStart(): number {
     return this.#macroLoopStart.getValue();
   }
@@ -952,9 +1014,11 @@ export class SamplePlayer extends LibInstrument {
 
       this.#macroLoopStart?.dispose();
       this.#macroLoopEnd?.dispose();
-
       this.#macroLoopStart = null as unknown as MacroParam;
       this.#macroLoopEnd = null as unknown as MacroParam;
+
+      this.#gainLFO?.dispose();
+      this.#pitchLFO?.dispose();
 
       // Reset state variables
       this.#bufferDuration = 0;

@@ -19,6 +19,8 @@ import {
   LoopHoldControls,
   VolumeSlider,
   ReverbMixSlider,
+  LFORateSlider,
+  LFODepthSlider,
 } from '../controls/AudioControls';
 // import { createSlider } from '../primitives/createInputEl';
 
@@ -41,8 +43,10 @@ export const SamplerElement = (attributes: ElementProps) => {
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
   const filterEnvelope = van.state<CustomEnvelope | null>(null);
 
-  // Pitch params
-  // const transposition = van.state(0);
+  const pitchLFORate = van.state<number>(0);
+  const pitchLFODepth = van.state<number>(0);
+  const gainLFORate = van.state<number>(0);
+  const gainLFODepth = van.state<number>(0);
 
   // Loop params
   const loopStartSeconds = van.state(0);
@@ -187,6 +191,32 @@ export const SamplerElement = (attributes: ElementProps) => {
         derive(() => {
           if (!samplePlayer) return;
           samplePlayer.setReverbMix(reverbMix.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          // Scale 0-1 to 0.1-10 Hz
+          const freqHz = gainLFORate.val * 100 + 0.1;
+          samplePlayer.gainLFO?.setFrequency(freqHz);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.gainLFO?.setDepth(gainLFODepth.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          // Scale 0-1 to 0.1-10 Hz
+          const freqHz = pitchLFORate.val * 100 + 0.1;
+          samplePlayer.pitchLFO?.setFrequency(freqHz);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+
+          const scaledDepth = pitchLFODepth.val / 10;
+          samplePlayer.pitchLFO?.setDepth(scaledDepth);
         });
 
         // Control states
@@ -471,7 +501,6 @@ export const SamplerElement = (attributes: ElementProps) => {
       'Sampler',
       expanded,
 
-      // () =>
       FileOperations(
         samplePlayer,
         status,
@@ -491,6 +520,10 @@ export const SamplerElement = (attributes: ElementProps) => {
 
       VolumeSlider(volume),
       ReverbMixSlider(reverbMix),
+      LFORateSlider(gainLFORate, 'amp-lfo-rate'),
+      LFODepthSlider(gainLFODepth, 'amp-lfo-depth'),
+      LFORateSlider(pitchLFORate, 'p-lfo-rate'),
+      LFODepthSlider(pitchLFODepth, 'p-lfo-depth'),
 
       () =>
         ampEnvelope.val &&
