@@ -59,10 +59,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#wetGain = new GainNode(this.#context, { gain: 0.3 });
 
     if (useCompressor) this.#compressor = this.#createCompressor();
-    if (useReverb) {
-      this.#reverb = this.#createReverb(); // .setWetDryMix({ wet: 0, dry: 1 }); // default to dry for now
-      this.#reverb.setPreset('ether');
-    }
+    if (useReverb) this.#reverb = this.#createReverb();
 
     // Connect nodes
     this.#setupRouting();
@@ -303,10 +300,18 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     return this.#output;
   }
 
-  setReverbMix(send: number): this {
+  setReverbSendMix(send: number): this {
     if (!this.#reverbEnabled || !this.#wetGain) return this;
-
     this.#wetGain.gain.setValueAtTime(send, this.now);
+    return this;
+  }
+
+  setReverbAmount(amount: number): this {
+    if (!this.#reverbEnabled || !this.#reverb || !this.#wetGain) return this;
+
+    this.setReverbSendMix(amount);
+
+    this.#reverb.setAmountMacro(amount);
     return this;
   }
 

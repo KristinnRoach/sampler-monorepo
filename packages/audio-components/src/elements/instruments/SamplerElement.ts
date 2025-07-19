@@ -190,7 +190,8 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
-          samplePlayer.setReverbMix(reverbMix.val);
+          // samplePlayer.setReverbMix(reverbMix.val);
+          samplePlayer.setReverbAmount(reverbMix.val);
         });
 
         derive(() => {
