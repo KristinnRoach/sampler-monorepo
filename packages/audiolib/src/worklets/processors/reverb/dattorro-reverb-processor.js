@@ -15,16 +15,11 @@ class DattorroReverb extends AudioWorkletProcessor {
     return [
       ['preDelay', 0, 0, sampleRate - 1, 'k-rate'],
       ['bandwidth', 0.9999, 0, 1, 'k-rate'],
-
-      // Testing single diff param:
-      ['diffusion', 0.7, 0, 1, 'k-rate'], // Single user-facing param
-
-      // ['inputDiffusion1', 0.75, 0, 1, 'k-rate'],
-      // ['inputDiffusion2', 0.625, 0, 1, 'k-rate'],
-      // ['decayDiffusion1', 0.7, 0, 0.999999, 'k-rate'],
-      // ['decayDiffusion2', 0.5, 0, 0.999999, 'k-rate'],
-
+      ['inputDiffusion1', 0.75, 0, 1, 'k-rate'],
+      ['inputDiffusion2', 0.625, 0, 1, 'k-rate'],
       ['decay', 0.5, 0, 1, 'k-rate'],
+      ['decayDiffusion1', 0.7, 0, 0.999999, 'k-rate'],
+      ['decayDiffusion2', 0.5, 0, 0.999999, 'k-rate'],
       ['damping', 0.005, 0, 1, 'k-rate'],
       ['excursionRate', 0.5, 0, 2, 'k-rate'],
       ['excursionDepth', 0.7, 0, 2, 'k-rate'],
@@ -123,24 +118,16 @@ class DattorroReverb extends AudioWorkletProcessor {
 
     const pd = ~~parameters.preDelay[0],
       bw = parameters.bandwidth[0],
-      // fi = parameters.inputDiffusion1[0],
-      // si = parameters.inputDiffusion2[0],
+      fi = parameters.inputDiffusion1[0],
+      si = parameters.inputDiffusion2[0],
       dc = parameters.decay[0],
-      // ft = parameters.decayDiffusion1[0],
-      // st = parameters.decayDiffusion2[0],
+      ft = parameters.decayDiffusion1[0],
+      st = parameters.decayDiffusion2[0],
       dp = 1 - parameters.damping[0],
       ex = parameters.excursionRate[0] / sampleRate,
       ed = (parameters.excursionDepth[0] * sampleRate) / 1000,
       we = parameters.wet[0] * 0.6, // lo & ro both mult. by 0.6 anyways
       dr = parameters.dry[0];
-
-    const diffusion = parameters.diffusion[0];
-
-    // Map to internal values (maintaining the original relationships)
-    const fi = Math.max(0.1, diffusion * 0.75);
-    const si = Math.max(0.1, diffusion * 0.625);
-    const ft = Math.min(0.7, Math.max(0.1, diffusion * 0.6));
-    const st = Math.max(0.2, diffusion * 0.4);
 
     // write to predelay and dry output
     if (inputs[0].length == 2) {
@@ -255,15 +242,3 @@ class DattorroReverb extends AudioWorkletProcessor {
 }
 
 registerProcessor('dattorro-reverb-processor', DattorroReverb);
-
-/*
-DIFFUSION PARAMETER (0.0 - 1.0, default: 0.7)
-Controls reverb density and scatter. Higher = more complex tail.
-
-0.0 - No diffusion, echoes/delays only        | Special effects, rhythmic delays
-0.3 - Light scatter, clear open sound         | Vocals, acoustic instruments  
-0.5 - Moderate density, balanced              | General purpose, drums
-0.7 - Rich diffusion, full reverb tail        | Orchestral, ambient music
-0.9 - Very dense, thick complex tail          | Dense mixes, sound design
-1.0 - Maximum density, can sound harsh        | Experimental/aggressive sounds
-*/

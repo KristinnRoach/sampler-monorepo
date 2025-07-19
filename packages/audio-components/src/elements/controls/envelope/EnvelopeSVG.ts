@@ -150,7 +150,6 @@ export const EnvelopeSVG = (
         index === envelopeInfo.sustainPointIndex &&
         index === envelopeInfo.releasePointIndex
       ) {
-        console.log('THE SAME');
         fillColor = envelopeInfo.isEnabled ? '#9c27b0' : '#666';
       }
 
