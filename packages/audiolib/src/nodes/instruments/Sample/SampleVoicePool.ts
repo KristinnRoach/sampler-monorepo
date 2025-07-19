@@ -104,10 +104,13 @@ export class SampleVoicePool {
         'voice:transposed',
 
         'amp-env:trigger',
+        'amp-env:trigger:loop',
         'amp-env:release',
         'pitch-env:trigger',
+        'pitch-env:trigger:loop',
         'pitch-env:release',
         'filter-env:trigger',
+        'filter-env:trigger:loop',
         'filter-env:release',
       ],
       (msg) => {

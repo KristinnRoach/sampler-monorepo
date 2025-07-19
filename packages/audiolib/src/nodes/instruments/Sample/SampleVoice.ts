@@ -654,7 +654,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#envelopes.forEach((env, envType) => {
       this.#messages.forwardFrom(
         env,
-        [`${envType}:trigger`, `${envType}:release`],
+        [`${envType}:trigger`, `${envType}:release`, `${envType}:trigger:loop`],
         (msg) => ({
           ...msg,
           voiceId: this.nodeId,
