@@ -22,7 +22,7 @@ import {
   LFORateSlider,
   LFODepthSlider,
 } from '../controls/AudioControls';
-// import { createSlider } from '../primitives/createInputEl';
+import { createLabeledKnob } from '../primitives/createKnob';
 
 import { EnvelopeSVG } from '../controls/envelope/EnvelopeSVG';
 
@@ -519,12 +519,65 @@ export const SamplerElement = (attributes: ElementProps) => {
           expanded.val === 'true' ? '' : 'display: none; padding: 0.5rem;',
       },
 
-      VolumeSlider(volume),
-      ReverbMixSlider(reverbMix),
-      LFORateSlider(gainLFORate, 'amp-lfo-rate'),
-      LFODepthSlider(gainLFODepth, 'amp-lfo-depth'),
-      LFORateSlider(pitchLFORate, 'p-lfo-rate'),
-      LFODepthSlider(pitchLFODepth, 'p-lfo-depth'),
+      div(
+        {
+          class: 'knobs',
+          style: () =>
+            expanded.val === 'true'
+              ? `
+                  display: grid;
+                  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                  gap: 1rem;
+                  padding: 1rem;
+                  max-width: 100%;
+                  justify-items: center;
+                  align-items: start;
+                `
+              : 'display: none; padding: 0.5rem;',
+        },
+
+        createLabeledKnob({
+          label: 'Volume',
+          defaultValue: 0.5,
+          onChange: (value: number) => (volume.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'Reverb',
+          defaultValue: 0,
+          onChange: (value: number) => (reverbMix.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'amp-lfo-rate',
+          defaultValue: 0.01,
+          onChange: (value: number) => (gainLFORate.val = value),
+          curve: 5,
+          snapIncrement: 0,
+        }),
+
+        createLabeledKnob({
+          label: 'amp-lfo-depth',
+          defaultValue: 0,
+          onChange: (value: number) => (gainLFODepth.val = value),
+          curve: 1.5,
+        }),
+
+        createLabeledKnob({
+          label: 'pitch-lfo-rate',
+          defaultValue: 0.01,
+          onChange: (value: number) => (pitchLFORate.val = value),
+          curve: 5,
+          snapIncrement: 0,
+        }),
+
+        createLabeledKnob({
+          defaultValue: 0,
+          label: 'pitch-lfo-depth',
+          onChange: (value: number) => (pitchLFODepth.val = value),
+          curve: 1.5,
+        })
+      ),
 
       () =>
         ampEnvelope.val &&
@@ -674,3 +727,10 @@ export const SamplerElement = (attributes: ElementProps) => {
 export const defineSampler = (elementName: string = 'sampler-element') => {
   define(elementName, SamplerElement, false);
 };
+
+// VolumeSlider(volume),
+// ReverbMixSlider(reverbMix),
+// LFORateSlider(gainLFORate, 'amp-lfo-rate'),
+// LFODepthSlider(gainLFODepth, 'amp-lfo-depth'),
+// LFORateSlider(pitchLFORate, 'p-lfo-rate'),
+// LFODepthSlider(pitchLFODepth, 'p-lfo-depth'),
