@@ -71,8 +71,8 @@ class DattorroReverb extends AudioWorkletProcessor {
     let nextPow2 = 2 ** Math.ceil(Math.log2(len));
     this._Delays.push([
       new Float32Array(nextPow2),
-      len - 1,
-      0 | 0,
+      len - 1, // ? or should be 0 ?
+      0 | 0, // ? or should be len - 1 ?
       nextPow2 - 1,
     ]);
   }

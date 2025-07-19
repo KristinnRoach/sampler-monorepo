@@ -240,7 +240,6 @@ export class SamplePlayer extends LibInstrument {
   /* === LFOs === */
 
   #setupLFOs() {
-    // Move the exact same code from SampleVoicePool here
     this.#gainLFO = new LFO(this.context);
     this.#gainLFO.setWaveform('sine');
     this.#gainLFO.setFrequency(8);
@@ -252,7 +251,6 @@ export class SamplePlayer extends LibInstrument {
     this.#pitchLFO.setFrequency(0.4);
     this.#pitchLFO.setDepth(0.005);
 
-    // Connect to all voices
     this.#connectLFOToAllVoices(this.#gainLFO, 'envGain');
     this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
   }
@@ -851,7 +849,11 @@ export class SamplePlayer extends LibInstrument {
   /* === FX === */
 
   setReverbMix = (wetMix: number) => {
-    this.outBus.setReverbMix(wetMix);
+    this.outBus.setReverbSendMix(wetMix);
+  };
+
+  setReverbAmount = (amount: number) => {
+    this.outBus.setReverbAmount(amount);
   };
 
   /* === I/O === */
