@@ -121,6 +121,7 @@ export class DattorroReverb {
   setAmountMacro(amount: number) {
     if (amount < 0 || amount > 1) {
       console.warn('Reverb amount must be 0-1 range');
+      return;
     }
 
     const presetValues = DattorroReverb.PRESETS[this.#currentPreset];

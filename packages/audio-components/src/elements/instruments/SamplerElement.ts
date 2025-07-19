@@ -525,15 +525,24 @@ export const SamplerElement = (attributes: ElementProps) => {
           style: () =>
             expanded.val === 'true'
               ? `
-                  display: grid;
-                  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-                  gap: 1rem;
-                  padding: 1rem;
-                  max-width: 100%;
-                  justify-items: center;
-                  align-items: start;
-                `
-              : 'display: none; padding: 0.5rem;',
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+          gap: 1rem;
+          padding: 1rem;
+          max-width: 100%;
+          justify-items: center;
+          align-items: start;
+        `
+              : // `
+                //     display: grid;
+                //     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                //     gap: 1rem;
+                //     padding: 1rem;
+                //     max-width: 100%;
+                //     justify-items: center;
+                //     align-items: start;
+                // `
+                'display: none; padding: 0.5rem;',
         },
 
         createLabeledKnob({
@@ -550,7 +559,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         createLabeledKnob({
           label: 'amp-lfo-rate',
-          defaultValue: 0.01,
+          defaultValue: 0.045,
           onChange: (value: number) => (gainLFORate.val = value),
           curve: 5,
           snapIncrement: 0,
