@@ -254,11 +254,14 @@ export class SamplePlayer extends LibInstrument {
     this.#audiobuffer = null;
 
     let tuningOffset = 0; // in semitones (float)
+    let fundamentalFreq = undefined;
     if (shoulDetectPitch) {
       const detectedPitch = await this.detectPitch(buffer);
 
-      if (autoTranspose) {
-        if (detectedPitch.confidence > 0.35) {
+      if (detectedPitch.confidence > 0.35) {
+        fundamentalFreq = detectedPitch.frequency;
+
+        if (autoTranspose && detectedPitch.confidence > 0.35) {
           tuningOffset = this.detectedPitchToTransposition(
             detectedPitch.midiFloat,
             60 // Target midi note //  Todo: use setScale
@@ -279,7 +282,7 @@ export class SamplePlayer extends LibInstrument {
       this.#zeroCrossings = zeroes;
     }
 
-    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
+    this.voicePool.setBuffer(buffer, this.#zeroCrossings, fundamentalFreq);
     this.#bufferDuration = buffer.duration;
 
     this.#resetMacros(buffer.duration);

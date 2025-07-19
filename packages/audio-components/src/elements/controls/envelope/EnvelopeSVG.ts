@@ -8,7 +8,7 @@ import {
 } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-import { LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
+import { LabeledTimeScaleKnob, TimeScaleKnob } from './TimeScaleKnob.ts';
 
 import {
   applySnapping,
@@ -30,6 +30,7 @@ const { svg, path } = van.tags('http://www.w3.org/2000/svg');
 
 export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
+  timeScaleKnob: HTMLElement;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
   cleanup: () => void;
 }
@@ -52,6 +53,7 @@ export const EnvelopeSVG = (
     );
     return {
       element: emptyDiv,
+      timeScaleKnob: emptyDiv,
       drawWaveform: () => {},
       cleanup: () => {},
     };
@@ -279,10 +281,19 @@ export const EnvelopeSVG = (
     instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val)
   );
 
+  // Add time scale knob if callback provided
+  const timeScaleKnob = LabeledTimeScaleKnob({
+    onTimeScaleChange: instrument.setEnvelopeTimeScale,
+    envelopeType,
+    label: '',
+    height: 40,
+    width: 40,
+  });
+
   // Create container div
   const container = div(
     {
-      style: `position: relative; display: inline-block; width: ${width}; height: ${height}; `,
+      style: `position: relative; width: ${width}; height: ${height};`,
     },
     controlButtons.enabledToggle,
     controlButtons.loopToggle,
@@ -291,19 +302,6 @@ export const EnvelopeSVG = (
 
   // Manually append the SVG element to avoid namespace issues
   container.appendChild(svgElement);
-
-  // Add time scale knob if callback provided
-  const timeScaleKnob = LabeledTimeScaleKnob({
-    onTimeScaleChange: instrument.setEnvelopeTimeScale,
-    envelopeType,
-    minValue: 1, // ? make one in the middle (up position) ?
-    maxValue: 150, // todo: increase in rational durations until cray fast
-    defaultValue: 1,
-    snapIncrement: 0.01,
-    label: 'Speed',
-  });
-
-  container.appendChild(timeScaleKnob);
 
   // Grid
   const gridGroup = createEnvelopeGrid(SVG_WIDTH, SVG_HEIGHT);
@@ -502,6 +500,7 @@ export const EnvelopeSVG = (
 
   return {
     element: container,
+    timeScaleKnob,
     drawWaveform,
     cleanup: () => {
       playheadManager.cleanup();

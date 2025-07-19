@@ -31,6 +31,8 @@ export class CustomEnvelope {
   #timeScale = 1;
   #logarithmic = false;
 
+  #MIN_CURVE_DURATION = 0.05; // test for optimal values
+
   constructor(
     context: AudioContext,
     envelopeType: EnvelopeType,
@@ -171,42 +173,6 @@ export class CustomEnvelope {
   }
 
   // ===== AUDIO OPERATIONS =====
-  triggerEnvelope(
-    audioParam: AudioParam,
-    startTime: number,
-    options: {
-      baseValue: number;
-      playbackRate: number;
-      voiceId?: string;
-      midiNote?: number;
-      minValue?: number;
-      maxValue?: number;
-    } = { baseValue: 1, playbackRate: 1 }
-  ) {
-    this.#isReleased = false;
-    this.#currentPlaybackRate = options.playbackRate;
-
-    if (this.#loopEnabled) {
-      this.#startLoopingEnv(audioParam, startTime, options);
-    } else {
-      this.#startSingleEnv(audioParam, startTime, options);
-    }
-  }
-
-  releaseEnvelope(
-    audioParam: AudioParam,
-    startTime: number,
-    options: {
-      baseValue: number;
-      playbackRate: number;
-      voiceId?: string;
-      midiNote?: number;
-    } = { baseValue: 1, playbackRate: this.#currentPlaybackRate }
-  ) {
-    this.#isReleased = true;
-    const releaseIndex = this.releasePointIndex;
-    this.#continueFromPoint(audioParam, startTime, releaseIndex, options);
-  }
 
   #getScaledDuration(
     fromIdx: number,
@@ -277,6 +243,28 @@ export class CustomEnvelope {
     }
 
     return curve;
+  }
+
+  triggerEnvelope(
+    audioParam: AudioParam,
+    startTime: number,
+    options: {
+      baseValue: number;
+      playbackRate: number;
+      voiceId?: string;
+      midiNote?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1, playbackRate: 1 }
+  ) {
+    this.#isReleased = false;
+    this.#currentPlaybackRate = options.playbackRate;
+
+    if (this.#loopEnabled) {
+      this.#startLoopingEnv(audioParam, startTime, options);
+    } else {
+      this.#startSingleEnv(audioParam, startTime, options);
+    }
   }
 
   #startSingleEnv(
@@ -371,6 +359,13 @@ export class CustomEnvelope {
       options.playbackRate,
       this.#timeScale
     );
+
+    // if (cachedDuration < this.#MIN_CURVE_DURATION) {
+    //   TODO: consider using simple linear ramp instead of curve for super short durations
+    //   console.debug('Starting simpleLoopingEnv, duration:', cachedDuration);
+    //   return;
+    // }
+
     let cachedCurve = this.#generateCurve(
       cachedDuration,
       this.fullDuration,
@@ -391,11 +386,9 @@ export class CustomEnvelope {
     }
 
     let phase = Math.max(this.#context.currentTime, startTime);
-
-    // const lookAhead = 0.01;
-    // const lookAhead = Math.max(0.1, cachedDuration * 3);
     const lookAhead = Math.max(0.15, Math.min(cachedDuration * 3, 0.5));
     const safetyBuffer = 0.005;
+
     let lastScheduledEnd = 0;
     let debugOverlapCount = 0;
 
@@ -450,8 +443,7 @@ export class CustomEnvelope {
           const safeCurveDuration = cachedDuration - safetyBuffer;
 
           // NOTE: IF having overlapping scheduling issues,
-          // could resort to using "audioParam.cancelScheduledValues(phase)"
-          // instead of the other tricks, e.g. 'lastScheduledEnd', safetyBuffer etc.
+          // last resort that should always work is just:  "audioParam.cancelScheduledValues(phase)"
 
           try {
             audioParam.setValueCurveAtTime(
@@ -519,6 +511,23 @@ export class CustomEnvelope {
     scheduleNext();
   }
 
+  releaseEnvelope(
+    audioParam: AudioParam,
+    startTime: number,
+    options: {
+      baseValue: number;
+      playbackRate: number;
+      voiceId?: string;
+      midiNote?: number;
+      minValue?: number;
+      maxValue?: number;
+    } = { baseValue: 1, playbackRate: this.#currentPlaybackRate }
+  ) {
+    this.#isReleased = true;
+    const releaseIndex = this.releasePointIndex;
+    this.#continueFromPoint(audioParam, startTime, releaseIndex, options);
+  }
+
   #continueFromPoint(
     audioParam: AudioParam,
     startTime: number,
@@ -545,7 +554,9 @@ export class CustomEnvelope {
       this.#timeScale
     );
 
-    if (scaledRemainingDuration <= 0) return;
+    // Return early if duration is too small to be meaningful for audio scheduling
+    // AudioContext typically requires durations > 0.001 seconds to work reliably
+    if (scaledRemainingDuration <= 0.0001) return;
 
     // Get the original envelope values from sustain to end
     let startValue = this.#data.interpolateValueAtTime(fromPoint.time);
@@ -574,8 +585,8 @@ export class CustomEnvelope {
 
     // Apply min/max constraints
     const finalEndValue = Math.max(
-      min ?? -Infinity,
-      Math.min(max ?? Infinity, endAudioValue)
+      min ?? this.valueRange[0],
+      Math.min(max ?? this.valueRange[1], endAudioValue)
     );
 
     // Generate curve that follows envelope shape but starts from currentValue
@@ -595,17 +606,7 @@ export class CustomEnvelope {
       if (min !== undefined) targetValue = Math.max(targetValue, min);
       if (max !== undefined) targetValue = Math.min(targetValue, max);
 
-      // Scale the envelope shape to start from currentValue instead of sustainValue
-      const envelopeProgress =
-        startAudioValue !== finalEndValue
-          ? (targetValue - startAudioValue) / (finalEndValue - startAudioValue)
-          : 0;
-
-      const scaledValue =
-        currentValue + envelopeProgress * (finalEndValue - currentValue);
-
-      curve[i] = this.#clampToValueRange(scaledValue);
-      // curve[i] = i === 0 ? currentValue : this.#clampToValueRange(scaledValue); // prevent a sudden jump at the start of the curve
+      curve[i] = this.#clampToValueRange(targetValue);
     }
 
     let releasePointTime = this.points[this.releasePointIndex].time;
@@ -626,21 +627,63 @@ export class CustomEnvelope {
 
     const safeStart = Math.max(this.#context.currentTime, startTime);
 
+    // Calculate the release point's target value
+    const releasePointValue =
+      (base ?? 1) * (this.#logarithmic ? Math.pow(startValue, 2) : startValue);
+    const finalReleaseValue = Math.max(
+      min ?? -Infinity,
+      Math.min(max ?? Infinity, releasePointValue)
+    );
+
     try {
       audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueCurveAtTime(curve, safeStart, scaledRemainingDuration);
+
+      const rampDuration = Math.min(0.003, scaledRemainingDuration * 0.5);
+      const curveDuration = scaledRemainingDuration - rampDuration;
+
+      if (curveDuration < this.#MIN_CURVE_DURATION) {
+        const endPoint = this.points[this.points.length - 1];
+        audioParam.linearRampToValueAtTime(
+          endPoint.value,
+          scaledRemainingDuration
+        );
+      } else {
+        // First ramp quickly to release point value to avoid clicks
+        audioParam.setValueAtTime(currentValue, safeStart);
+        audioParam.linearRampToValueAtTime(
+          finalReleaseValue,
+          safeStart + rampDuration
+        );
+
+        // Then apply curve from release point
+        audioParam.setValueCurveAtTime(
+          curve,
+          safeStart + rampDuration,
+          curveDuration
+        );
+      }
     } catch (error) {
       console.warn(
         'Failed to apply release curve, falling back to linear ramp:',
         error
       );
       // Fallback to simple linear ramp
-      audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueAtTime(currentValue, safeStart);
-      audioParam.linearRampToValueAtTime(
-        finalEndValue,
-        safeStart + scaledRemainingDuration
-      );
+      try {
+        audioParam.cancelScheduledValues(safeStart);
+        audioParam.setValueAtTime(currentValue, safeStart);
+        audioParam.linearRampToValueAtTime(
+          finalEndValue,
+          safeStart + scaledRemainingDuration
+        );
+      } catch (fallbackError) {
+        console.warn('Fallback linear ramp also failed:', fallbackError);
+        // Final fallback - just set the end value
+        try {
+          audioParam.setValueAtTime(finalEndValue, safeStart);
+        } catch (finalError) {
+          console.warn('All AudioParam operations failed:', finalError);
+        }
+      }
     }
   }
 

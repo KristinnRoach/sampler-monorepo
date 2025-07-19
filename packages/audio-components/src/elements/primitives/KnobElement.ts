@@ -12,6 +12,7 @@ export interface KnobConfig {
   maxRotation: number;
   snapIncrement: number;
   curve?: number;
+  snapThresholds?: Array<{ maxValue: number; increment: number }>;
   disabled?: boolean;
   borderStyle?: 'currentState' | 'fullCircle';
 }
@@ -42,7 +43,7 @@ export class KnobElement extends HTMLElement {
     defaultValue: 0,
     minRotation: -170,
     maxRotation: 170,
-    snapIncrement: 0.01,
+    snapIncrement: 1,
     curve: 1,
     disabled: false,
     borderStyle: 'currentState',
@@ -52,6 +53,7 @@ export class KnobElement extends HTMLElement {
   private currentRotation: number = 0;
   private rotationToValue!: (rotation: number) => number;
   private valueToRotation!: (value: number) => number;
+  private applySnapping!: (value: number) => number;
 
   // Observed attributes
   static get observedAttributes(): string[] {
@@ -161,14 +163,16 @@ export class KnobElement extends HTMLElement {
     styleElement.id = 'knob-element-styles';
     styleElement.textContent = `
       knob-element {
-        display: inline-block;
+        display: block;
+        box-sizing: border-box;
+
         --knob-size: 120px;
         --knob-bg: inherit;  /* or currentColor ? linear-gradient(145deg, #2d2d2d, #1a1a1a); */
         --knob-border: rgb(234, 234, 234);
         --knob-indicator-color: var(--knob-border); 
 
-       min-height: 30px;
-       min-width: 30px;
+        width: var(--knob-size, 120px);  /* Default, but overridable */
+        height: var(--knob-size, 120px);
       }
       
       knob-element[disabled] {
@@ -178,8 +182,8 @@ export class KnobElement extends HTMLElement {
       
       knob-element .knob-container {
         position: relative;
-        width: var(--knob-size);
-        height: var(--knob-size);
+        width: 100%; /* Fill parent */
+        height: 100%; 
       }
 
       knob-element .knob-border-svg {
@@ -209,41 +213,68 @@ export class KnobElement extends HTMLElement {
       }
       
       knob-element .center-dot {
+        display: none; 
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: calc(50% - 2px);
+        left: calc(50% - 2px);
         width: 4px;
         height: 4px;
         background: var(--knob-indicator-color);
         border-radius: 50%;
+        pointer-events: none;
       }
     `;
+
+    // TODO: Remove center dot if not using
 
     document.head.appendChild(styleElement);
     KnobElement.stylesInjected = true;
   }
 
   private updateConfigFromAttributes(): void {
-    const getValue = (attr: string, defaultValue: number): number => {
+    const getNumericValue = (attr: string, defaultValue: number): number => {
       const value = this.getAttribute(attr);
       return value !== null ? parseFloat(value) : defaultValue;
     };
 
+    const getStringValue = <T extends string>(
+      attr: string,
+      defaultValue: T
+    ): T => {
+      return (this.getAttribute(attr) as T) || defaultValue;
+    };
+
+    const getJsonValue = <T>(attr: string): T | undefined => {
+      const value = this.getAttribute(attr);
+      if (!value) return undefined;
+
+      try {
+        return JSON.parse(value);
+      } catch (e) {
+        console.warn(`KnobElement: Invalid ${attr} JSON:`, value);
+        return undefined;
+      }
+    };
+
     this.config = {
-      minValue: getValue('min-value', 0),
-      maxValue: getValue('max-value', 100),
-      defaultValue: getValue('default-value', 0),
-      minRotation: getValue('min-rotation', -150),
-      maxRotation: getValue('max-rotation', 150),
-      snapIncrement: getValue('snap-increment', 1),
+      minValue: getNumericValue('min-value', 0),
+      maxValue: getNumericValue('max-value', 100),
+      defaultValue: getNumericValue('default-value', 0),
+      minRotation: getNumericValue('min-rotation', -150),
+      maxRotation: getNumericValue('max-rotation', 150),
+      snapIncrement: getNumericValue('snap-increment', 1),
+      curve: getNumericValue('curve', 1),
+
+      borderStyle: getStringValue<'currentState' | 'fullCircle'>(
+        'border-style',
+        'currentState'
+      ),
+
+      snapThresholds:
+        getJsonValue<Array<{ maxValue: number; increment: number }>>(
+          'snap-thresholds'
+        ),
       disabled: this.hasAttribute('disabled'),
-      curve: getValue('curve', 1),
-      borderStyle:
-        (this.getAttribute('border-style') as
-          | 'currentState'
-          | 'fullCircle'
-          | undefined) || 'currentState',
     };
 
     this.updateDimensions();
@@ -274,8 +305,10 @@ export class KnobElement extends HTMLElement {
       <!-- Rotating knob content -->
       <div class="knob">
         <div class="knob-indicator"></div>
-        <div class="center-dot"></div>
       </div>
+
+      <!-- Fixed center dot -->
+        <div class="center-dot"></div>
     </div>
   `;
 
@@ -317,12 +350,14 @@ export class KnobElement extends HTMLElement {
       const curvedValue = Math.pow(normalizedRotation, curve);
 
       // Map back to actual value range
-      return gsap.utils.mapRange(
+      const value = gsap.utils.mapRange(
         0,
         1,
         this.config.minValue,
         this.config.maxValue
       )(curvedValue);
+
+      return value;
     };
 
     this.valueToRotation = (value: number) => {
@@ -343,6 +378,24 @@ export class KnobElement extends HTMLElement {
         this.config.minRotation,
         this.config.maxRotation
       )(curvedRotation);
+    };
+
+    this.applySnapping = (value: number): number => {
+      if (this.config.snapIncrement <= 0) return value;
+
+      let snapIncrement = this.config.snapIncrement;
+
+      if (this.config.snapThresholds) {
+        // Find the right increment for current value
+        for (const { maxValue, increment } of this.config.snapThresholds) {
+          if (value < maxValue) {
+            snapIncrement = increment;
+            break;
+          }
+        }
+      }
+
+      return Math.round(value / snapIncrement) * snapIncrement;
     };
   }
 
@@ -382,21 +435,28 @@ export class KnobElement extends HTMLElement {
               const sensitivity = 4.0; // Adjust as needed
               const newRotation = startRotation - totalDeltaY * sensitivity;
 
-              this.currentRotation = gsap.utils.clamp(
+              const clampedRotation = gsap.utils.clamp(
                 this.config.minRotation,
                 this.config.maxRotation,
                 newRotation
               );
 
+              const rawValue = this.rotationToValue(clampedRotation);
+              const snappedValue = this.applySnapping(rawValue);
+              this.currentValue = snappedValue;
+
+              if (snappedValue !== rawValue) {
+                this.currentRotation = this.valueToRotation(snappedValue);
+              } else {
+                this.currentRotation = clampedRotation;
+              }
+
               gsap.set(this.knobElement, {
                 y: 0,
-                rotation: this.currentRotation,
+                rotation: this.currentRotation, // Use snapped rotation
                 duration: 0,
               });
 
-              const rawValue = this.rotationToValue(this.currentRotation);
-
-              this.currentValue = rawValue;
               this.updateBorder();
               this.dispatchChangeEvent();
             }
@@ -413,18 +473,28 @@ export class KnobElement extends HTMLElement {
           const newRotation =
             startRotation - this.gsapDraggable.y * sensitivity;
 
-          this.currentRotation = gsap.utils.clamp(
+          const clampedRotation = gsap.utils.clamp(
             this.config.minRotation,
             this.config.maxRotation,
             newRotation
           );
 
+          const rawValue = this.rotationToValue(clampedRotation);
+          const snappedValue = this.applySnapping(rawValue);
+
+          this.currentValue = snappedValue;
+
+          if (snappedValue !== rawValue) {
+            this.currentRotation = this.valueToRotation(snappedValue);
+          } else {
+            this.currentRotation = clampedRotation;
+          }
+
           gsap.set(this.knobElement, {
             rotation: this.currentRotation,
-            y: 0, // Reset y to prevent visual drift
+            y: 0,
           });
 
-          this.currentValue = this.rotationToValue(this.currentRotation);
           this.updateBorder();
           this.dispatchChangeEvent();
         }
@@ -437,7 +507,7 @@ export class KnobElement extends HTMLElement {
             document.removeEventListener('mousemove', mouseMoveHandler);
           }
         }
-        // ??? No else: Draggable handles release normally
+        // No else: Draggable handles release normally // ?
       },
     })[0];
   }
@@ -559,13 +629,13 @@ export class KnobElement extends HTMLElement {
   }
 
   // Property getters/setters for easier JS usage
-  // get value(): number {
-  //   return this.getValue();
-  // }
+  get value(): number {
+    return this.getValue();
+  }
 
-  // set value(val: number) {
-  //   this.setValue(val, true);
-  // }
+  set value(val: number) {
+    this.setValue(val, false);
+  }
 
   get disabled(): boolean {
     return this.isDisabled();

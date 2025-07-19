@@ -1,7 +1,7 @@
 export class DattorroReverb {
   #node: AudioWorkletNode;
 
-  // todo: make better presets and ensure dry / wet mix has consistent volume
+  // todo: make better presets and ensure consistent volume
   static readonly #presets = {
     room: {
       preDelay: 1525,
@@ -114,15 +114,6 @@ export class DattorroReverb {
   //   this.#setParam('dry', value);
   // }
 
-  // setWetDryMix(mix: { wet?: number; dry?: number }) {
-  //   const { wet, dry } = mix;
-
-  //   if (wet !== undefined && wet >= 0 && wet <= 1) this.wet = wet;
-  //   if (dry !== undefined && dry >= 0 && dry <= 1) this.dry = dry;
-
-  //   return this;
-  // }
-
   // === PRESET METHODS ===
 
   setPreset(
@@ -133,9 +124,12 @@ export class DattorroReverb {
     const currentTime = this.#node.context.currentTime;
 
     Object.entries(values).forEach(([paramName, value]) => {
-      this.#node.parameters
-        .get(paramName)
-        ?.linearRampToValueAtTime(value, currentTime + rampTime);
+      const param = this.#node.parameters.get(paramName);
+      if (param) {
+        param.linearRampToValueAtTime(value, currentTime + rampTime);
+      } else {
+        console.warn(`Parameter '${paramName}' not found in reverb node`);
+      }
     });
   }
 

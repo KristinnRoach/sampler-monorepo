@@ -50,20 +50,19 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #lfoGain: LFO | null = null;
   #lfoRate: LFO | null = null;
 
-  #hpf: BiquadFilterNode | null = null;
-  #lpf: BiquadFilterNode | null = null;
-
-  #filtersEnabled: boolean;
   #loopEnabled = false;
   #holdEnabled = false;
 
   #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
   #releaseSec: number = 0.1;
 
+  #filtersEnabled: boolean;
+  #hpf: BiquadFilterNode | null = null;
+  #lpf: BiquadFilterNode | null = null;
   #hpfHz: number = 100;
+  #hpfQ: number = 1;
   #lpfHz: number = 18000; // updated in constructor
   #lpfQ: number = 1;
-  #hpfQ: number = 1;
 
   constructor(
     private context: AudioContext = getAudioContext(),
@@ -83,9 +82,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // Create filters if enabled
     if (this.#filtersEnabled) {
-      // Set low-pass filter frequency based on context sample rate
-      this.#lpfHz = this.context.sampleRate / 2 - 1000;
-
       this.#hpf = new BiquadFilterNode(context, {
         type: 'highpass',
         frequency: this.#hpfHz,
@@ -97,6 +93,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         frequency: this.#lpfHz,
         Q: this.#lpfQ,
       });
+
+      this.#hpfHz = 50;
+      this.#lpfHz = this.context.sampleRate / 2 - 1000;
 
       // Connect chain: worklet → hpf → lpf -> destination
       this.#worklet.connect(this.#hpf);
@@ -122,17 +121,41 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     // LFO for envGain
     this.#lfoGain = new LFO(this.context); // ? would need separate gainNode (todo: create an lfo pool of gainnodes in voice pool or splayer)
     this.#lfoGain.setWaveform('sine');
-    this.#lfoGain.setFrequency(440);
-    this.#lfoGain.setDepth(0.5);
-    this.getParam('envGain')!.value = 0.5; // Base level
+    this.#lfoGain.setFrequency(8); // Hz
+    this.#lfoGain.setDepth(0.01); // (0-1)
     this.#lfoGain.connect(this.getParam('envGain')!);
 
-    // // LFO for playbackRate
+    const wobbleWaveform = this.#getPitchWobbleWaveform();
+
+    // LFO for playbackRate
     this.#lfoRate = new LFO(this.context);
-    this.#lfoRate.setWaveform('sine');
-    this.#lfoRate.setFrequency(6); // 6 Hz vibrato
-    this.#lfoRate.setDepth(0.1); // 10% pitch variation
+    this.#lfoRate.setWaveform(wobbleWaveform);
+    this.#lfoRate.setFrequency(0.5); // Hz
+    this.#lfoRate.setDepth(0.005); // (0-1)
     this.#lfoRate.connect(this.getParam('playbackRate')!);
+  }
+
+  #getPitchWobbleWaveform() {
+    // Number of harmonics for complexity
+    const harmonics = 8;
+    const real = new Float32Array(harmonics);
+    const imag = new Float32Array(harmonics);
+
+    // First value is always 0 (DC offset)
+    real[0] = 0;
+    imag[0] = 0;
+
+    // Fill harmonics with random values for a unique wobble shape
+    for (let i = 1; i < harmonics; i++) {
+      real[i] = Math.random() * 0.5; // Random amplitude
+      imag[i] = Math.random() * 0.5; // Random phase offset
+    }
+
+    const wave = this.context.createPeriodicWave(real, imag, {
+      disableNormalization: true,
+    });
+
+    return wave;
   }
 
   addEnvelope(envType: EnvelopeType, data: EnvelopeData) {
@@ -178,7 +201,8 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   async loadBuffer(
     buffer: AudioBuffer,
-    zeroCrossings?: number[]
+    zeroCrossings?: number[],
+    fundamentalFreq?: number
   ): Promise<boolean> {
     this.#state = VoiceState.NOT_READY;
 
@@ -206,6 +230,10 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
         type: 'voice:set_zero_crossings',
         zeroCrossings,
       });
+    }
+
+    if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
+      this.setParam('hpf', fundamentalFreq, this.now);
     }
 
     return true;
@@ -275,7 +303,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     // Apply amp, filter and pitch envelopes if enabled
     this.applyEnvelopes(timestamp, playbackRate, midiNote);
 
-    // if (!this.#lfoGain) this.#setupLFOs();
+    if (!this.#lfoGain) this.#setupLFOs();
     // this.#lfoGain?.setMusicalNote(midiNote);
     // this.#lfoRate?.setMusicalNote(midiNote);
 

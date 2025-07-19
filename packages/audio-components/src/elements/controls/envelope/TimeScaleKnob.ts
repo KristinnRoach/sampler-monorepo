@@ -16,6 +16,8 @@ export interface TimeScaleKnobConfig {
   snapIncrement?: number;
   width?: number;
   height?: number;
+  curve?: number;
+  snapThresholds?: Array<{ maxValue: number; increment: number }>;
 }
 
 /**
@@ -26,11 +28,14 @@ export const TimeScaleKnob = (config: TimeScaleKnobConfig): HTMLElement => {
     onTimeScaleChange,
     envelopeType,
     minValue = 0.1,
-    maxValue = 10,
+    maxValue = 180,
     defaultValue = 1,
     snapIncrement = 1,
     width = 45,
     height = 45,
+    curve = 3.5,
+    // Below values of 1.0 use 0.1, above 1 use default snapIncrement
+    snapThresholds = [{ maxValue: 1.0, increment: 0.1 }],
   } = config;
 
   // Ensure knob element is defined
@@ -43,12 +48,12 @@ export const TimeScaleKnob = (config: TimeScaleKnobConfig): HTMLElement => {
   knobElement.setAttribute('min-value', minValue.toString());
   knobElement.setAttribute('max-value', maxValue.toString());
   knobElement.setAttribute('snap-increment', snapIncrement.toString());
+  knobElement.setAttribute('snap-thresholds', JSON.stringify(snapThresholds));
   knobElement.setAttribute('width', width.toString());
   knobElement.setAttribute('height', height.toString());
   knobElement.setAttribute('default-value', defaultValue.toString());
+  knobElement.setAttribute('curve', curve.toString());
 
-  // Add styling
-  knobElement.style.marginTop = '10px';
   knobElement.className = 'envelope-time-scale-knob';
 
   // Add title/tooltip
@@ -93,7 +98,6 @@ export const LabeledTimeScaleKnob = (
     font-size: 10px;
     color: #999;
     text-align: center;
-    min-width: 30px;
   `;
 
   // Update value display when knob changes

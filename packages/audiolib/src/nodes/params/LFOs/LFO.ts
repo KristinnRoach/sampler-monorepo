@@ -24,8 +24,16 @@ export class LFO {
   }
 
   // Set waveform
-  setWaveform(type: OscillatorType) {
-    this.#oscillator.type = type;
+  setWaveform(waveform: OscillatorType | PeriodicWave) {
+    if (waveform instanceof PeriodicWave) {
+      this.#oscillator.setPeriodicWave(waveform);
+    } else {
+      this.#oscillator.type = waveform;
+    }
+  }
+
+  setPeriodicWave(wave: PeriodicWave) {
+    this.#oscillator.setPeriodicWave(wave);
   }
 
   // Connect to target AudioParam

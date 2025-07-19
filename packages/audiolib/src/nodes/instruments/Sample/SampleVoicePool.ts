@@ -125,10 +125,16 @@ export class SampleVoicePool {
     );
   }
 
-  setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
+  setBuffer(
+    buffer: AudioBuffer,
+    zeroCrossings?: number[],
+    fundamentalFreq?: number
+  ) {
     // Reset loaded voices tracking for new buffer
     this.#loaded.clear();
-    this.#allVoices.forEach((voice) => voice.loadBuffer(buffer, zeroCrossings));
+    this.#allVoices.forEach((voice) =>
+      voice.loadBuffer(buffer, zeroCrossings, fundamentalFreq)
+    );
     return this;
   }
 
