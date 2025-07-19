@@ -25,8 +25,6 @@ import {
   createEnvelope,
 } from '@/nodes/params/envelopes';
 
-import { LFO } from '@/nodes/params/LFOs/LFO';
-
 import { DEFAULT_PARAM_DESCRIPTORS, getMaxFilterFreq } from './param-defaults';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
@@ -47,13 +45,11 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   #sampleDurationSeconds = 0;
 
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
-  #lfoGain: LFO | null = null;
-  #lfoRate: LFO | null = null;
 
-  #loopEnabled = false;
-  #holdEnabled = false;
+  // #loopEnabled = false;
+  // #holdEnabled = false;
+  // #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
 
-  #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
   #releaseSec: number = 0.1;
 
   #filtersEnabled: boolean;
@@ -115,47 +111,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.sendToProcessor({ type: 'voice:init' });
 
     this.#worklet.port.start();
-  }
-
-  #setupLFOs() {
-    // LFO for envGain
-    this.#lfoGain = new LFO(this.context); // ? would need separate gainNode (todo: create an lfo pool of gainnodes in voice pool or splayer)
-    this.#lfoGain.setWaveform('sine');
-    this.#lfoGain.setFrequency(8); // Hz
-    this.#lfoGain.setDepth(0.01); // (0-1)
-    this.#lfoGain.connect(this.getParam('envGain')!);
-
-    const wobbleWaveform = this.#getPitchWobbleWaveform();
-
-    // LFO for playbackRate
-    this.#lfoRate = new LFO(this.context);
-    this.#lfoRate.setWaveform(wobbleWaveform);
-    this.#lfoRate.setFrequency(0.5); // Hz
-    this.#lfoRate.setDepth(0.005); // (0-1)
-    this.#lfoRate.connect(this.getParam('playbackRate')!);
-  }
-
-  #getPitchWobbleWaveform() {
-    // Number of harmonics for complexity
-    const harmonics = 8;
-    const real = new Float32Array(harmonics);
-    const imag = new Float32Array(harmonics);
-
-    // First value is always 0 (DC offset)
-    real[0] = 0;
-    imag[0] = 0;
-
-    // Fill harmonics with random values for a unique wobble shape
-    for (let i = 1; i < harmonics; i++) {
-      real[i] = Math.random() * 0.5; // Random amplitude
-      imag[i] = Math.random() * 0.5; // Random phase offset
-    }
-
-    const wave = this.context.createPeriodicWave(real, imag, {
-      disableNormalization: true,
-    });
-
-    return wave;
   }
 
   addEnvelope(envType: EnvelopeType, data: EnvelopeData) {
@@ -302,10 +257,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // Apply amp, filter and pitch envelopes if enabled
     this.applyEnvelopes(timestamp, playbackRate, midiNote);
-
-    if (!this.#lfoGain) this.#setupLFOs();
-    // this.#lfoGain?.setMusicalNote(midiNote);
-    // this.#lfoRate?.setMusicalNote(midiNote);
 
     return this.#activeMidiNote;
   }
@@ -558,7 +509,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   }
 
   setAttack = (attack_sec: number) => {
-    this.#attackSec = attack_sec;
+    // this.#attackSec = attack_sec;
     console.info(`setAttack called, to be replaced with envelope`);
   };
 
@@ -726,7 +677,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           break;
 
         case 'loop:enabled':
-          this.#loopEnabled = true;
+          // this.#loopEnabled = true;
           break;
 
         case 'voice:looped':
@@ -843,7 +794,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       value: enabled,
     });
 
-    this.#loopEnabled = enabled;
+    // this.#loopEnabled = enabled;
 
     return this;
   }
@@ -889,8 +840,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.stop();
     this.disconnect();
     this.#envelopes.forEach((env) => env.dispose());
-    this.#lfoGain?.dispose();
-    this.#lfoRate?.dispose();
     this.#worklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
     deleteNodeId(this.nodeId);

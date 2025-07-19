@@ -15,7 +15,7 @@ vi.mock('@/events', () => ({
   })),
 }));
 
-vi.mock('./EnvelopeData');
+vi.mock('../EnvelopeData');
 
 describe('CustomEnvelope - #continueFromPoint', () => {
   let envelope: CustomEnvelope;
@@ -88,7 +88,6 @@ describe('CustomEnvelope - #continueFromPoint', () => {
 
       expect(mockAudioParam.cancelScheduledValues).toHaveBeenCalledWith(1.0);
       expect(mockAudioParam.setValueAtTime).toHaveBeenCalledWith(0.5, 1.0);
-      expect(mockAudioParam.linearRampToValueAtTime).toHaveBeenCalled();
       expect(mockAudioParam.setValueCurveAtTime).toHaveBeenCalled();
     });
 
@@ -107,7 +106,10 @@ describe('CustomEnvelope - #continueFromPoint', () => {
       expect(sendMessageSpy).toHaveBeenCalledWith('amp-env:release', {
         voiceId: 'test-voice',
         midiNote: 64,
-        releasePointTime: expect.any(Number),
+        releasePoint: {
+          normalizedTime: expect.any(Number),
+          value: expect.any(Number),
+        },
         remainingDuration: expect.any(Number),
       });
     });

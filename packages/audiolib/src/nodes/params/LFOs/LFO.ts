@@ -13,17 +13,14 @@ export class LFO {
     this.#oscillator.start();
   }
 
-  // Set frequency (can be audio rate for pitch effects)
   setFrequency(hz: number) {
     this.#oscillator.frequency.value = hz;
   }
 
-  // Set modulation depth
   setDepth(amount: number) {
     this.#gain.gain.value = amount;
   }
 
-  // Set waveform
   setWaveform(waveform: OscillatorType | PeriodicWave) {
     if (waveform instanceof PeriodicWave) {
       this.#oscillator.setPeriodicWave(waveform);
@@ -59,15 +56,31 @@ export class LFO {
     this.setFrequency(hz);
   }
 
+  getPitchWobbleWaveform() {
+    // Number of harmonics for complexity
+    const harmonics = 8;
+    const real = new Float32Array(harmonics);
+    const imag = new Float32Array(harmonics);
+
+    // First value is always 0 (DC offset)
+    real[0] = 0;
+    imag[0] = 0;
+
+    // Fill harmonics with random values for a unique wobble shape
+    for (let i = 1; i < harmonics; i++) {
+      real[i] = Math.random() * 0.5; // Random amplitude
+      imag[i] = Math.random() * 0.5; // Random phase offset
+    }
+
+    const wave = this.#context.createPeriodicWave(real, imag, {
+      disableNormalization: true,
+    });
+
+    return wave;
+  }
+
   dispose() {
     this.#oscillator.stop();
     this.disconnect();
   }
 }
-
-// // Usage:
-// const lfo = new LFO(audioContext);
-// lfo.setWaveform('sine');
-// lfo.setFrequency(440); // A4 pitch
-// lfo.setDepth(0.5);
-// lfo.connect(gainNode.gain); // Modulate amplitude
