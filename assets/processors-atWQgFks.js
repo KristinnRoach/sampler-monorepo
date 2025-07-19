@@ -5,7 +5,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferLengthSamples_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn;
 class ValueSnapper {
   constructor() {
     this.allowedValues = [];
@@ -81,13 +81,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         minValue: 0,
         maxValue: 99999,
         automationRate: "k-rate"
+        // a or k ?
       },
       {
         name: "envGain",
         defaultValue: 0,
         minValue: 0,
         maxValue: 1,
-        automationRate: "k-rate"
+        automationRate: "a-rate"
       },
       {
         name: "velocity",
@@ -101,7 +102,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 1,
         minValue: 0.1,
         maxValue: 8,
-        automationRate: "k-rate"
+        automationRate: "a-rate"
+        // a or k ?
       },
       // NOTE: Time based params always use seconds
       {
@@ -140,9 +142,10 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
   // ===== MAIN PROCESS METHOD =====
   process(inputs, outputs, parameters) {
+    var _a, _b;
     const output = outputs[0];
     this.debugCounter++;
-    if (!output || !this.isPlaying || !this.buffer) {
+    if (!output || !this.isPlaying || !((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length)) {
       return true;
     }
     const positionParams = __privateMethod(this, _SamplePlayerProcessor_instances, extractPositionParams_fn).call(this, parameters);
@@ -151,13 +154,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     if (this.playbackPosition === 0 || this.playbackPosition < playbackRange.startSamples) {
       this.playbackPosition = playbackRange.startSamples;
     }
-    const playbackRate = parameters.playbackRate[0];
-    const envelopeGain = parameters.envGain[0];
     const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]);
     const velocitySensitivity = 0.9;
     const finalVelocityGain = velocityGain * velocitySensitivity;
     const numChannels = Math.min(output.length, this.buffer.length);
+    const isConstant = __privateMethod(this, _SamplePlayerProcessor_instances, getConstantFlags_fn).call(this, parameters);
     for (let i = 0; i < output[0].length; i++) {
+      const envelopeGain = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.envGain, i, isConstant.envGain);
+      const playbackRate = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.playbackRate, i, isConstant.playbackRate);
       if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
         if (this.playbackPosition >= loopRange.loopEndSamples) {
           const lastLoopSample = this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
@@ -354,19 +358,12 @@ midiVelocityToGain_fn = function(midiVelocity) {
   return Math.max(0, Math.min(1, midiVelocity / 127));
 };
 /**
- * Get buffer length in samples
- * @returns {number} - Buffer length in samples
- */
-getBufferLengthSamples_fn = function() {
-  var _a, _b;
-  return ((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length) || 0;
-};
-/**
  * Get buffer duration in seconds
  * @returns {number} - Buffer duration in seconds
  */
 getBufferDurationSeconds_fn = function() {
-  return __privateMethod(this, _SamplePlayerProcessor_instances, getBufferLengthSamples_fn).call(this) / sampleRate;
+  var _a, _b;
+  return (((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length) || 0) / sampleRate;
 };
 /**
  * Extract and convert all position parameters from seconds to samples
@@ -388,7 +385,8 @@ extractPositionParams_fn = function(parameters) {
  * @returns {Object} - Effective start and end positions
  */
 calculatePlaybackRange_fn = function(params) {
-  const bufferLength = __privateMethod(this, _SamplePlayerProcessor_instances, getBufferLengthSamples_fn).call(this);
+  var _a, _b;
+  const bufferLength = ((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length) || 0;
   const start = Math.max(0, params.startPointSamples);
   const end = params.endPointSamples > start ? Math.min(bufferLength, params.endPointSamples) : bufferLength;
   const snappedStart = start;
@@ -416,6 +414,14 @@ calculateLoopRange_fn = function(params, playbackRange, originalParams) {
     loopEndSamples: calcLoopEnd,
     loopDurationSamples: loopDuration
   };
+};
+getSafeParam_fn = function(paramArray, index, isConstant) {
+  return isConstant ? paramArray[0] : paramArray[Math.min(index, paramArray.length - 1)];
+};
+getConstantFlags_fn = function(parameters) {
+  return Object.fromEntries(
+    Object.keys(parameters).map((key) => [key, parameters[key].length === 1])
+  );
 };
 registerProcessor("sample-player-processor", SamplePlayerProcessor);
 class RandomNoiseProcessor extends AudioWorkletProcessor {
@@ -474,3 +480,176 @@ registerProcessor(
     }
   }
 );
+class DattorroReverb extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      ["preDelay", 0, 0, sampleRate - 1, "k-rate"],
+      ["bandwidth", 0.9999, 0, 1, "k-rate"],
+      ["inputDiffusion1", 0.75, 0, 1, "k-rate"],
+      ["inputDiffusion2", 0.625, 0, 1, "k-rate"],
+      ["decay", 0.5, 0, 1, "k-rate"],
+      ["decayDiffusion1", 0.7, 0, 0.999999, "k-rate"],
+      ["decayDiffusion2", 0.5, 0, 0.999999, "k-rate"],
+      ["damping", 5e-3, 0, 1, "k-rate"],
+      ["excursionRate", 0.5, 0, 2, "k-rate"],
+      ["excursionDepth", 0.7, 0, 2, "k-rate"],
+      ["wet", 0.3, 0, 1, "k-rate"],
+      ["dry", 0.6, 0, 1, "k-rate"]
+    ].map(
+      (x) => new Object({
+        name: x[0],
+        defaultValue: x[1],
+        minValue: x[2],
+        maxValue: x[3],
+        automationRate: x[4]
+      })
+    );
+  }
+  constructor(options) {
+    super(options);
+    this._Delays = [];
+    this._pDLength = sampleRate + (128 - sampleRate % 128);
+    this._preDelay = new Float32Array(this._pDLength);
+    this._pDWrite = 0;
+    this._lp1 = 0;
+    this._lp2 = 0;
+    this._lp3 = 0;
+    this._excPhase = 0;
+    [
+      4771345e-9,
+      3595309e-9,
+      0.012734787,
+      9307483e-9,
+      0.022579886,
+      0.149625349,
+      0.060481839,
+      0.1249958,
+      0.030509727,
+      0.141695508,
+      0.089244313,
+      0.106280031
+    ].forEach((x) => this.makeDelay(x));
+    this._taps = Int16Array.from(
+      [
+        8937872e-9,
+        0.099929438,
+        0.064278754,
+        0.067067639,
+        0.066866033,
+        6283391e-9,
+        0.035818689,
+        0.011861161,
+        0.121870905,
+        0.041262054,
+        0.08981553,
+        0.070931756,
+        0.011256342,
+        4065724e-9
+      ],
+      (x) => Math.round(x * sampleRate)
+    );
+  }
+  makeDelay(length) {
+    let len = Math.round(length * sampleRate);
+    let nextPow2 = 2 ** Math.ceil(Math.log2(len));
+    this._Delays.push([
+      new Float32Array(nextPow2),
+      len - 1,
+      // ? or should be 0 ?
+      0 | 0,
+      // ? or should be len - 1 ?
+      nextPow2 - 1
+    ]);
+  }
+  writeDelay(index, data) {
+    return this._Delays[index][0][this._Delays[index][1]] = data;
+  }
+  readDelay(index) {
+    return this._Delays[index][0][this._Delays[index][2]];
+  }
+  readDelayAt(index, i) {
+    let d = this._Delays[index];
+    return d[0][d[2] + i & d[3]];
+  }
+  // cubic interpolation
+  // O. Niemitalo: https://www.musicdsp.org/en/latest/Other/49-cubic-interpollation.html
+  readDelayCAt(index, i) {
+    let d = this._Delays[index], frac = i - ~~i, int = ~~i + d[2] - 1, mask = d[3];
+    let x0 = d[0][int++ & mask], x1 = d[0][int++ & mask], x2 = d[0][int++ & mask], x3 = d[0][int & mask];
+    let a = (3 * (x1 - x2) - x0 + x3) / 2, b = 2 * x2 + x0 - (5 * x1 + x3) / 2, c = (x2 - x0) / 2;
+    return ((a * frac + b) * frac + c) * frac + x1;
+  }
+  // First input will be downmixed to mono if number of channels is not 2
+  // Outputs Stereo.
+  process(inputs, outputs, parameters) {
+    const TWO_PI = 6.283185307179586;
+    const TWO_PI_DETUNE = 6.284702653297906;
+    const pd = ~~parameters.preDelay[0], bw = parameters.bandwidth[0], fi = parameters.inputDiffusion1[0], si = parameters.inputDiffusion2[0], dc = parameters.decay[0], ft = parameters.decayDiffusion1[0], st = parameters.decayDiffusion2[0], dp = 1 - parameters.damping[0], ex = parameters.excursionRate[0] / sampleRate, ed = parameters.excursionDepth[0] * sampleRate / 1e3, we = parameters.wet[0] * 0.6, dr = parameters.dry[0];
+    if (inputs[0].length == 2) {
+      for (let i2 = 127; i2 >= 0; i2--) {
+        this._preDelay[this._pDWrite + i2] = (inputs[0][0][i2] + inputs[0][1][i2]) * 0.5;
+        outputs[0][0][i2] = inputs[0][0][i2] * dr;
+        outputs[0][1][i2] = inputs[0][1][i2] * dr;
+      }
+    } else if (inputs[0].length > 0) {
+      this._preDelay.set(inputs[0][0], this._pDWrite);
+      for (let i2 = 127; i2 >= 0; i2--)
+        outputs[0][0][i2] = outputs[0][1][i2] = inputs[0][0][i2] * dr;
+    } else {
+      this._preDelay.set(new Float32Array(128), this._pDWrite);
+    }
+    let i = 0 | 0;
+    while (i < 128) {
+      let lo = 0, ro = 0;
+      this._lp1 += bw * (this._preDelay[(this._pDLength + this._pDWrite - pd + i) % this._pDLength] - this._lp1);
+      let pre = this.writeDelay(0, this._lp1 - fi * this.readDelay(0));
+      pre = this.writeDelay(
+        1,
+        fi * (pre - this.readDelay(1)) + this.readDelay(0)
+      );
+      pre = this.writeDelay(
+        2,
+        fi * pre + this.readDelay(1) - si * this.readDelay(2)
+      );
+      pre = this.writeDelay(
+        3,
+        si * (pre - this.readDelay(3)) + this.readDelay(2)
+      );
+      let split = si * pre + this.readDelay(3);
+      let exc = ed * (1 + Math.cos(this._excPhase * TWO_PI));
+      let exc2 = ed * (1 + Math.sin(this._excPhase * TWO_PI_DETUNE));
+      let temp = this.writeDelay(
+        4,
+        split + dc * this.readDelay(11) + ft * this.readDelayCAt(4, exc)
+      );
+      this.writeDelay(5, this.readDelayCAt(4, exc) - ft * temp);
+      this._lp2 += dp * (this.readDelay(5) - this._lp2);
+      temp = this.writeDelay(6, dc * this._lp2 - st * this.readDelay(6));
+      this.writeDelay(7, this.readDelay(6) + st * temp);
+      temp = this.writeDelay(
+        8,
+        split + dc * this.readDelay(7) + ft * this.readDelayCAt(8, exc2)
+      );
+      this.writeDelay(9, this.readDelayCAt(8, exc2) - ft * temp);
+      this._lp3 += dp * (this.readDelay(9) - this._lp3);
+      temp = this.writeDelay(10, dc * this._lp3 - st * this.readDelay(10));
+      this.writeDelay(11, this.readDelay(10) + st * temp);
+      lo = this.readDelayAt(9, this._taps[0]) + this.readDelayAt(9, this._taps[1]) - this.readDelayAt(10, this._taps[2]) + this.readDelayAt(11, this._taps[3]) - this.readDelayAt(5, this._taps[4]) - this.readDelayAt(6, this._taps[5]) - this.readDelayAt(7, this._taps[6]);
+      ro = this.readDelayAt(5, this._taps[7]) + this.readDelayAt(5, this._taps[8]) - this.readDelayAt(6, this._taps[9]) + this.readDelayAt(7, this._taps[10]) - this.readDelayAt(9, this._taps[11]) - this.readDelayAt(10, this._taps[12]) - this.readDelayAt(11, this._taps[13]);
+      outputs[0][0][i] += lo * we;
+      outputs[0][1][i] += ro * we;
+      this._excPhase += ex;
+      if (this._excPhase >= 1) this._excPhase -= 1;
+      i++;
+      const delays = this._Delays;
+      for (let j = 0; j < delays.length; j++) {
+        const d = delays[j];
+        d[1] = d[1] + 1 & d[3];
+        d[2] = d[2] + 1 & d[3];
+      }
+    }
+    this._pDWrite = (this._pDWrite + 128) % this._pDLength;
+    return true;
+  }
+}
+registerProcessor("dattorro-reverb-processor", DattorroReverb);
