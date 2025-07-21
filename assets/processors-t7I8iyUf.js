@@ -425,11 +425,29 @@ getConstantFlags_fn = function(parameters) {
 };
 registerProcessor("sample-player-processor", SamplePlayerProcessor);
 class RandomNoiseProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.previousSample = 0;
+    this.hpfHz = 150;
+    this.alpha = this.hpfHz / (this.hpfHz + sampleRate / (2 * Math.PI));
+    this.port.onmessage = (event) => {
+      if (event.data.type === "setHpfHz") {
+        this.hpfHz = event.data.value;
+        this.alpha = this.calculateAlpha(this.hpfHz);
+      }
+    };
+  }
+  calculateAlpha(frequency) {
+    return frequency / (frequency + sampleRate / (2 * Math.PI));
+  }
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     output.forEach((channel) => {
       for (let i = 0; i < channel.length; i++) {
-        channel[i] = Math.random() * 2 - 1;
+        const noise = Math.random() * 2 - 1;
+        const filtered = this.alpha * (this.previousSample + noise - this.previousSample);
+        this.previousSample = noise;
+        channel[i] = filtered;
       }
     });
     return true;
@@ -448,7 +466,117 @@ registerProcessor(
           maxValue: 1,
           automationRate: "k-rate"
         },
-        // ? minValue used to be -1, why ?
+        {
+          name: "delayTime",
+          defaultValue: 10,
+          minValue: 0,
+          maxValue: 1e3,
+          automationRate: "k-rate"
+        }
+      ];
+    }
+    constructor() {
+      super();
+      this.Buffer = null;
+      this.bufferInitialized = false;
+      this.ReadPtr = 0;
+      this.WritePtr = 0;
+      this.maxOutput = 0.5;
+      this.limitingMode = "hard-clipping";
+      this.autoGainEnabled = true;
+      this.setupMessageHandling();
+    }
+    setupMessageHandling() {
+      this.port.onmessage = (event) => {
+        switch (event.data.type) {
+          case "setLimiting":
+            this.limitingMode = event.data.mode;
+            break;
+          case "setAutoGain":
+            this.autoGainEnabled = event.data.enabled;
+            break;
+          case "setMaxOutput":
+            this.maxOutput = Math.max(0.1, Math.min(1, event.data.level));
+            break;
+        }
+      };
+    }
+    updateBufferPointers(delaySamples, bufferSize) {
+      this.WritePtr++;
+      if (this.WritePtr >= bufferSize)
+        this.WritePtr = this.WritePtr - bufferSize;
+      this.ReadPtr = this.WritePtr - delaySamples;
+      if (this.ReadPtr < 0) this.ReadPtr = this.ReadPtr + bufferSize;
+    }
+    process(inputs, outputs, parameters) {
+      if (!this.bufferInitialized) {
+        this.Buffer = new Array(Math.round(sampleRate)).fill(0);
+        this.bufferInitialized = true;
+      }
+      if (!inputs[0] || !outputs[0] || !inputs[0][0] || !outputs[0][0]) {
+        return true;
+      }
+      const delaySamples = Math.round(
+        sampleRate * parameters.delayTime[0] / 1e3
+      );
+      const bufferSize = this.Buffer.length;
+      const gain = parameters.gain[0];
+      const outputChannel = outputs[0][0];
+      const inputChannel = inputs[0][0];
+      outputChannel.length;
+      const autogainSensitivity = 0.3;
+      const adjustedGain = this.autoGainEnabled ? (
+        // ? gain * (1 - Math.sqrt(gain) * autogainSensitivity) // smoother reduction curve (just use if sounds better)
+        gain * (1 - gain * autogainSensitivity)
+      ) : gain;
+      switch (this.limitingMode) {
+        case "soft-clipping":
+          for (let i = 0; i < outputChannel.length; ++i) {
+            let sample = adjustedGain * this.Buffer[this.ReadPtr] + inputChannel[i];
+            sample = this.maxOutput * Math.tanh(sample / this.maxOutput);
+            outputChannel[i] = sample;
+            this.Buffer[this.WritePtr] = sample;
+            this.updateBufferPointers(delaySamples, bufferSize);
+          }
+          break;
+        case "hard-clipping":
+          for (let i = 0; i < outputChannel.length; ++i) {
+            let sample = adjustedGain * this.Buffer[this.ReadPtr] + inputChannel[i];
+            sample = Math.max(
+              -this.maxOutput,
+              Math.min(this.maxOutput, sample)
+            );
+            outputChannel[i] = sample;
+            this.Buffer[this.WritePtr] = sample;
+            this.updateBufferPointers(delaySamples, bufferSize);
+          }
+          break;
+        case "none":
+        default:
+          for (let i = 0; i < outputChannel.length; ++i) {
+            let sample = adjustedGain * this.Buffer[this.ReadPtr] + inputChannel[i];
+            outputChannel[i] = sample;
+            this.Buffer[this.WritePtr] = sample;
+            this.updateBufferPointers(delaySamples, bufferSize);
+          }
+          break;
+      }
+      return true;
+    }
+  }
+);
+registerProcessor(
+  "karplus-fb-delay-processor",
+  class extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+      return [
+        {
+          name: "gain",
+          defaultValue: 0.5,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: "k-rate"
+        },
         {
           name: "delayTime",
           defaultValue: 10,
@@ -462,13 +590,17 @@ registerProcessor(
       super();
       this.Buffer = new Array(48e3).fill(0);
       this.ReadPtr = 0, this.WritePtr = 0;
+      this.maxOutput = 0.5;
     }
     process(inputs, outputs, parameters) {
       let delaySamples = Math.round(
         sampleRate * parameters.delayTime[0] / 1e3
       ), bufferSize = this.Buffer.length;
+      const maxOut = 1;
       for (let i = 0; i < outputs[0][0].length; ++i) {
-        outputs[0][0][i] = parameters.gain[0] * this.Buffer[this.ReadPtr] + inputs[0][0][i];
+        let sample = parameters.gain[0] * this.Buffer[this.ReadPtr] + inputs[0][0][i];
+        sample = Math.max(-1, Math.min(maxOut, sample));
+        outputs[0][0][i] = sample;
         this.Buffer[this.WritePtr] = outputs[0][0][i];
         this.WritePtr++;
         if (this.WritePtr >= bufferSize)
