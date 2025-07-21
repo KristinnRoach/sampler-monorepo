@@ -1,9 +1,31 @@
 class RandomNoiseProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.previousSample = 0;
+    this.hpfHz = 150; // Default // Test for optimal values
+    this.alpha = this.hpfHz / (this.hpfHz + sampleRate / (2 * Math.PI));
+
+    this.port.onmessage = (event) => {
+      if (event.data.type === 'setHpfHz') {
+        this.hpfHz = event.data.value;
+        this.alpha = this.calculateAlpha(this.hpfHz);
+      }
+    };
+  }
+
+  calculateAlpha(frequency) {
+    return frequency / (frequency + sampleRate / (2 * Math.PI));
+  }
+
   process(inputs, outputs, parameters) {
     const output = outputs[0];
     output.forEach((channel) => {
       for (let i = 0; i < channel.length; i++) {
-        channel[i] = Math.random() * 2 - 1;
+        const noise = Math.random() * 2 - 1;
+        const filtered =
+          this.alpha * (this.previousSample + noise - this.previousSample);
+        this.previousSample = noise;
+        channel[i] = filtered;
       }
     });
     return true;
@@ -11,3 +33,17 @@ class RandomNoiseProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('random-noise-processor', RandomNoiseProcessor);
+
+// class RandomNoiseProcessor extends AudioWorkletProcessor {
+//   process(inputs, outputs, parameters) {
+//     const output = outputs[0];
+//     output.forEach((channel) => {
+//       for (let i = 0; i < channel.length; i++) {
+//         channel[i] = Math.random() * 2 - 1;
+//       }
+//     });
+//     return true;
+//   }
+// }
+
+// registerProcessor('random-noise-processor', RandomNoiseProcessor);

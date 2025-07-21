@@ -269,7 +269,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
       if (envType === 'pitch-env' && !env.hasVariation()) return;
 
-      const baseValue = envType === 'pitch-env' ? playbackRate : 1;
+      const baseValue = envType === 'pitch-env' ? playbackRate : 0.8;
 
       env.triggerEnvelope(param, timestamp, {
         baseValue,

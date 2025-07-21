@@ -28,9 +28,9 @@ const KarplusSynthElement = (attributes: ElementProps) => {
 
   // Audio parameters
   const volume = van.state(0.5);
-  const attack = van.state(0.001);
-  const decay = van.state(0.9);
-  const noiseTime = van.state(10);
+  const attack = van.state(0.001); // todo: get stored state or defaults
+  const decay = van.state(0.75);
+  const noiseTime = van.state(0.02);
   const lpfFreq = van.state(18000);
   const hpfFreq = van.state(20);
 
@@ -126,7 +126,7 @@ const KarplusSynthElement = (attributes: ElementProps) => {
 
         createSlider('Attack', attack, 0, 1, 0.01),
         createSlider('Decay', decay, 0, 1, 0.01),
-        createSlider('Thickness', noiseTime, 1, 100, 1),
+        createSlider('Thickness', noiseTime, 0, 1, 0.01),
 
         FilterSliders(lpfFreq, hpfFreq),
 

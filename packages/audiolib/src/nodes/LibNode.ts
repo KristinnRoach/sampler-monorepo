@@ -50,11 +50,14 @@ export type Destination = Connectable | AudioNode | AudioParam;
 export interface Connectable {
   connect(
     destination: Destination,
-    output?: number | 'main' | 'alt' | 'all',
-    input?: number | 'main' | 'alt' | 'all'
+    output?: number | 'dry' | 'wet' | 'main' | 'alt',
+    input?: number | 'main' | 'dry' | 'wet' | 'alt'
   ): Destination;
 
-  disconnect(output?: 'main' | 'alt' | 'all', destination?: Destination): this;
+  disconnect(
+    output?: 'main' | 'dry' | 'wet' | 'alt',
+    destination?: Destination
+  ): this;
 }
 
 export interface Messenger {

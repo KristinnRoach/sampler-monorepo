@@ -37,7 +37,9 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   // Audio params
   const volume = van.state(0.75);
-  const reverbMix = van.state(0.0);
+
+  const reverbAmount = van.state(0.0);
+  const karplusAmount = van.state(0.0);
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -190,8 +192,13 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
-          // samplePlayer.setReverbMix(reverbMix.val);
-          samplePlayer.setReverbAmount(reverbMix.val);
+          // samplePlayer.setReverbSend(reverbAmount.val);
+          samplePlayer.setReverbAmount(reverbAmount.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setKarplusAmount(karplusAmount.val);
         });
 
         derive(() => {
@@ -525,24 +532,15 @@ export const SamplerElement = (attributes: ElementProps) => {
           style: () =>
             expanded.val === 'true'
               ? `
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-          gap: 1rem;
-          padding: 1rem;
-          max-width: 100%;
-          justify-items: center;
-          align-items: start;
-        `
-              : // `
-                //     display: grid;
-                //     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-                //     gap: 1rem;
-                //     padding: 1rem;
-                //     max-width: 100%;
-                //     justify-items: center;
-                //     align-items: start;
-                // `
-                'display: none; padding: 0.5rem;',
+                  display: grid;
+                  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                  gap: 1rem;
+                  padding: 1rem;
+                  max-width: 100%;
+                  justify-items: center;
+                  align-items: start;
+                `
+              : 'display: none; padding: 0.5rem;',
         },
 
         createLabeledKnob({
@@ -554,7 +552,13 @@ export const SamplerElement = (attributes: ElementProps) => {
         createLabeledKnob({
           label: 'Reverb',
           defaultValue: 0,
-          onChange: (value: number) => (reverbMix.val = value),
+          onChange: (value: number) => (reverbAmount.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'Feedback',
+          defaultValue: 0,
+          onChange: (value: number) => (karplusAmount.val = value),
         }),
 
         createLabeledKnob({

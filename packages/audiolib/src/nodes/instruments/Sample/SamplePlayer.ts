@@ -41,6 +41,8 @@ export class SamplePlayer extends LibInstrument {
   #holdEnabled = false;
   #holdLocked = false;
 
+  #masterOut: GainNode;
+
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
   #gainLFO: LFO | null = null;
@@ -71,15 +73,17 @@ export class SamplePlayer extends LibInstrument {
   ) {
     super('sample-player', context, polyphony, audioBuffer, midiController);
 
-    // Initialize voice pool
+    // Initialize voice pool and  connect audiochain
     this.voicePool = new SampleVoicePool(
       context,
       polyphony,
-      this.outBus.input, // todo: explicit connect (first create generic pool interface)
-      true // enable voice filters (lpf and hpf)
+      this.outBus.input, // destination for voices to connect to
+      true // enable filters
     );
 
-    this.#setupMessageHandling();
+    this.#masterOut = new GainNode(context, { gain: 0.5 });
+    this.outBus.connect(this.#masterOut);
+    this.#masterOut.connect(context.destination);
 
     // Setup params
     this.#macroLoopStart = new MacroParam(
@@ -96,35 +100,12 @@ export class SamplePlayer extends LibInstrument {
 
     this.#setupLFOs();
 
-    // const ampDefaults = CustomEnvelope.getDefaults('amp-env', 1);
-    // const pitchDefaults = CustomEnvelope.getDefaults('pitch-env', 1);
-    // const filterDefault = CustomEnvelope.getDefaults('filter-env', 1);
-
-    // this.#envelopes.set(
-    //   'amp-env',
-    //   new EnvelopeData(ampDefaults.points, ampDefaults.valueRange, 1)
-    // );
-    // this.#envelopes.set(
-    //   'pitch-env',
-    //   new EnvelopeData(pitchDefaults.points, pitchDefaults.valueRange, 1)
-    // );
-    // this.#envelopes.set(
-    //   'filter-env',
-    //   new EnvelopeData(filterDefault.points, filterDefault.valueRange, 1)
-    // );
-
-    // this.voicePool.applyToAllVoices((voice) => {
-    //   this.#envelopes.forEach((envData, envType) => {
-    //     voice.addEnvelope(envType, envData);
-    //   });
-    // });
-
-    // Connect audiochain -- todo after generalizing voice pool
-
     // Initialize the output bus methods
     this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
     this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
     this.mute = (...args) => this.outBus.mute(...args);
+
+    this.#setupMessageHandling();
 
     this.#isReady = true;
 
@@ -251,8 +232,13 @@ export class SamplePlayer extends LibInstrument {
     this.#pitchLFO.setFrequency(0.4);
     this.#pitchLFO.setDepth(0.005);
 
-    this.#connectLFOToAllVoices(this.#gainLFO, 'envGain');
-    this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
+    // TODO: Setup AFTER dry wet paths are ready
+    // const lfoGainNode = this.context.createGain();
+    // this.#preGain.dry.connect(lfoGainNode);
+    // this.#preGain.wet.connect(lfoGainNode);
+
+    // this.#connectLFOToAllVoices(this.#gainLFO, 'envGain');
+    // this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
   }
 
   #connectLFOToAllVoices(lfo: LFO, paramName: string) {
@@ -418,6 +404,8 @@ export class SamplePlayer extends LibInstrument {
       this.#gainLFO?.setMusicalNote(midiNote);
       this.#pitchLFO?.setMusicalNote(midiNote);
     }
+
+    this.outBus.noteOn(midiNote, safeVelocity, 0);
 
     return this.voicePool.noteOn(
       midiNote,
@@ -848,12 +836,18 @@ export class SamplePlayer extends LibInstrument {
 
   /* === FX === */
 
-  setReverbMix = (wetMix: number) => {
-    this.outBus.setReverbSendMix(wetMix);
+  setReverbSend = (amount: number) => {
+    this.outBus.setReverbSend(amount);
   };
 
+  /* Macro control for reverb send and various other params */
   setReverbAmount = (amount: number) => {
     this.outBus.setReverbAmount(amount);
+  };
+
+  /* Macro control for karplus send and various other params */
+  setKarplusAmount = (amount: number) => {
+    this.outBus.setKarplusAmount(amount);
   };
 
   /* === I/O === */
@@ -934,8 +928,8 @@ export class SamplePlayer extends LibInstrument {
 
   /* === PUBLIC GETTERS === */
 
-  get out() {
-    return this.outBus.output;
+  get mainOut() {
+    return this.#masterOut;
   }
 
   get outputBus() {
@@ -955,11 +949,11 @@ export class SamplePlayer extends LibInstrument {
   }
 
   get volume(): number {
-    return this.outBus.volume;
+    return this.#masterOut.gain.value;
   }
 
   set volume(value: number) {
-    this.outBus.volume = value;
+    this.#masterOut.gain.setValueAtTime(value, this.now);
   }
 
   get loopEnabled(): boolean {

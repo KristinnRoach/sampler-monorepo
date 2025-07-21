@@ -168,18 +168,23 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // Connection methods
-  public connect(destination: Destination): Destination {
+  public connect(
+    destination: Destination
+    // output?: 'dry' | 'wet' | 'alt'
+  ): Destination {
     assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+
     this.outBus.connect(destination);
     this.destination = destination;
     return destination;
   }
 
-  public disconnect(output?: 'main' | 'alt' | 'all'): this {
-    this.outBus.disconnect(output);
-    if (output === 'main' || output === 'all') {
-      this.destination = null;
-    }
+  public disconnect() {
+    // output?: 'dry' | 'wet' | 'alt'): this {
+    this.outBus.disconnect();
+
+    this.destination = null;
+
     return this;
   }
 
@@ -190,13 +195,13 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return this.audioContext.currentTime;
   }
 
-  get volume(): number {
-    return this.outBus.volume;
-  }
+  // get volume(): number {
+  //   return this.outBus.outVolume;
+  // }
 
-  set volume(value: number) {
-    this.outBus.volume = value;
-  }
+  // set volume(value: number) {
+  //   this.outBus.outVolume = value;
+  // }
 
   /**
    * Clean up all resources.

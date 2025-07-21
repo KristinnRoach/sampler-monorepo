@@ -28,7 +28,7 @@ export class SampleVoicePool {
   constructor(
     context: AudioContext,
     numVoices: number,
-    destination: AudioNode,
+    destination: AudioNode, // { dry: AudioNode; wet: AudioNode },
     enableFilters: boolean = true
   ) {
     this.nodeId = createNodeId(this.nodeType);
@@ -39,7 +39,9 @@ export class SampleVoicePool {
       const voice = new SampleVoice(context, destination, {
         enableFilters,
       });
+
       voice.connect(destination);
+
       return voice;
     });
 

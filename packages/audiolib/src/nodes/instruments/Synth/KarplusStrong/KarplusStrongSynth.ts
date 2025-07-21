@@ -8,12 +8,13 @@ import { MidiController, PressedModifiers } from '@/io';
 import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
 import { normalizeRange, cancelScheduledParamValues } from '@/utils';
+import { KARPLUS_DEFAULTS } from './defaults';
 
 type ActiveNoteId = number; // todo: update to use same system as sampler
 
 export class KarplusStrongSynth extends LibInstrument {
   // KarplusStrongSynth-specific private # fields
-  #auxInput: GainNode;
+  #masterOut: GainNode;
   #midiNoteToId = new Map<number, number>(); // Track active notes by midiNote
   #debouncer: Debouncer = new Debouncer();
   #isReady: boolean = false;
@@ -22,10 +23,10 @@ export class KarplusStrongSynth extends LibInstrument {
 
   constructor(
     polyphony: number = 8,
-    ctx?: AudioContext,
+    context: AudioContext = getAudioContext(),
     options: Record<string, number> = {}
   ) {
-    super('synth', ctx || getAudioContext(), polyphony);
+    super('synth', context || getAudioContext(), polyphony);
 
     // Initialize voice pool
     this.voicePool = new KarplusVoicePool(
@@ -34,17 +35,26 @@ export class KarplusStrongSynth extends LibInstrument {
       this.outBus.input
     );
 
-    // Create auxiliary input
-    this.#auxInput = new GainNode(this.audioContext);
-    this.voicePool.auxIn = this.#auxInput;
+    this.#masterOut = new GainNode(context, { gain: 0.5 });
+    this.outBus.connect(this.#masterOut);
+    this.#masterOut.connect(context.destination);
 
     // Load stored parameter values
-    this.setParameterValue('volume', this.getStoredParamValue('volume', 1));
-    this.setParameterValue('attack', this.getStoredParamValue('attack', 0.01));
-    this.setParameterValue('decay', this.getStoredParamValue('decay', 0.9));
+    this.setParameterValue(
+      'volume',
+      this.getStoredParamValue('volume', KARPLUS_DEFAULTS.volume)
+    );
+    this.setParameterValue(
+      'attack',
+      this.getStoredParamValue('attack', KARPLUS_DEFAULTS.attack)
+    );
+    this.setParameterValue(
+      'decay',
+      this.getStoredParamValue('decay', KARPLUS_DEFAULTS.decay)
+    );
     this.setParameterValue(
       'noiseTime',
-      this.getStoredParamValue('noiseTime', 0.1)
+      this.getStoredParamValue('noiseTime', KARPLUS_DEFAULTS.noiseTime)
     );
 
     this.#isReady = true;
@@ -128,27 +138,14 @@ export class KarplusStrongSynth extends LibInstrument {
           break;
 
         case 'decay':
-          this.voicePool.allVoices.forEach((voice) => {
-            const param = voice.getParam('decay');
-            if (param) {
-              const useableDecay = normalizeRange(value, 0, 1, 0.35, 0.995);
-              param.setValueAtTime(useableDecay, this.audioContext.currentTime);
-            }
-          });
+          this.voicePool.allVoices.forEach((voice) => voice.setFeedback(value));
           this.storeParamValue('decay', value);
           break;
 
         case 'noiseTime':
-          this.voicePool.allVoices.forEach((voice) => {
-            const param = voice.getParam('noiseTime');
-            if (param) {
-              const useableNoiseTime = normalizeRange(value, 0.0, 1, 0.1, 0.99);
-              param.setValueAtTime(
-                useableNoiseTime,
-                this.audioContext.currentTime
-              );
-            }
-          });
+          this.voicePool.allVoices.forEach((voice) =>
+            voice.setNoiseTime(value)
+          );
           this.storeParamValue('noiseTime', value);
           break;
 
@@ -175,11 +172,14 @@ export class KarplusStrongSynth extends LibInstrument {
       case 'volume':
         return this.volume;
       case 'attack':
-        return this.getStoredParamValue('attack', 0.01);
+        return this.getStoredParamValue('attack', KARPLUS_DEFAULTS.attack);
       case 'decay':
-        return this.getStoredParamValue('decay', 0.9);
+        return this.getStoredParamValue('decay', KARPLUS_DEFAULTS.decay);
       case 'noiseTime':
-        return this.getStoredParamValue('noiseTime', 0.1);
+        return this.getStoredParamValue(
+          'noiseTime',
+          KARPLUS_DEFAULTS.noiseTime
+        );
       default:
         console.warn(`Unknown parameter: ${name}`);
         return undefined;
@@ -197,7 +197,7 @@ export class KarplusStrongSynth extends LibInstrument {
         nodeId: `${this.nodeId}-volume`,
         name: 'Volume',
         dataType: 'number',
-        defaultValue: 0.5,
+        defaultValue: KARPLUS_DEFAULTS.volume,
         minValue: 0,
         maxValue: 2,
         group: 'output',
@@ -207,7 +207,7 @@ export class KarplusStrongSynth extends LibInstrument {
         nodeId: `${this.nodeId}-attack`,
         name: 'Attack',
         dataType: 'number',
-        defaultValue: 0.01,
+        defaultValue: KARPLUS_DEFAULTS.attack,
         minValue: 0,
         maxValue: 2,
         group: 'envelope',
@@ -217,7 +217,7 @@ export class KarplusStrongSynth extends LibInstrument {
         nodeId: `${this.nodeId}-decay`,
         name: 'Decay',
         dataType: 'number',
-        defaultValue: 0.9,
+        defaultValue: KARPLUS_DEFAULTS.decay,
         minValue: 0,
         maxValue: 5,
         group: 'envelope',
@@ -227,7 +227,7 @@ export class KarplusStrongSynth extends LibInstrument {
         nodeId: `${this.nodeId}-noiseTime`,
         name: 'Noise Time',
         dataType: 'number',
-        defaultValue: 0.1,
+        defaultValue: KARPLUS_DEFAULTS.noiseTime,
         minValue: 0,
         maxValue: 1,
         group: 'synthesis',
@@ -310,28 +310,20 @@ export class KarplusStrongSynth extends LibInstrument {
 
   /** SETTERS */
   set volume(value: number) {
-    this.outBus.volume = value;
-  }
-
-  get auxIn() {
-    return this.#auxInput;
-  }
-
-  // todo: align with samplePlayer's param getters / setters naming convention
-  get attackSeconds(): number {
-    return this.getStoredParamValue('attack', 0.3);
+    this.#masterOut.gain.setValueAtTime(value, this.now);
   }
 
   set attackTime(timeMs: number) {
     this.storeParamValue('attack', timeMs / 1000);
   }
 
-  get decaySeconds(): number {
-    return this.getStoredParamValue('decay', 0.3);
+  // todo: align with samplePlayer's param getters / setters naming convention // make default const in one place
+  get attackSeconds(): number {
+    return this.getStoredParamValue('attack', KARPLUS_DEFAULTS.attack);
   }
 
-  set decayTime(timeMs: number) {
-    this.storeParamValue('decay', timeMs / 1000);
+  get decaySeconds(): number {
+    return this.getStoredParamValue('decay', KARPLUS_DEFAULTS.decay);
   }
 
   // TODO: Standardize filters
@@ -427,7 +419,7 @@ export class KarplusStrongSynth extends LibInstrument {
   }
 
   get volume(): number {
-    return this.outBus.volume;
+    return this.#masterOut.gain.value;
   }
 
   get isPlaying(): boolean {

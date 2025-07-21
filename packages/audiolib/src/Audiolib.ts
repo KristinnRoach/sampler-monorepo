@@ -215,7 +215,7 @@ export class Audiolib implements AudioGraph {
       this.#midiController
     );
 
-    newSamplePlayer.connect(this.#masterGain);
+    // newSamplePlayer.connect(this.#masterGain);
     this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
 
     return newSamplePlayer;
@@ -237,7 +237,7 @@ export class Audiolib implements AudioGraph {
       `Instrument with id: ${newSynth.nodeId} already loaded`
     );
 
-    newSynth.connect(this.#masterGain);
+    // newSynth.connect(this.#masterGain);
     this.#instruments.set(newSynth.nodeId, newSynth);
     // newSynth.enableMIDI(this.#midiController);
 

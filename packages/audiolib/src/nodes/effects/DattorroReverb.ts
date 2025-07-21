@@ -1,3 +1,5 @@
+import { mapToRange, clamp } from '@/utils';
+
 type DattorroReverbPresetKey = keyof typeof DattorroReverb.PRESETS;
 
 export class DattorroReverb {
@@ -107,17 +109,6 @@ export class DattorroReverb {
       ?.setValueAtTime(value, this.#node.context.currentTime);
   }
 
-  mapToRange = (
-    value: number,
-    inMin: number,
-    inMax: number,
-    outMin: number,
-    outMax: number
-  ) => ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
-
-  clamp = (value: number, min: number, max: number) =>
-    Math.max(min, Math.min(max, value));
-
   setAmountMacro(amount: number) {
     if (amount < 0 || amount > 1) {
       console.warn('Reverb amount must be 0-1 range');
@@ -127,7 +118,7 @@ export class DattorroReverb {
     const presetValues = DattorroReverb.PRESETS[this.#currentPreset];
 
     // Map amount (0-1) to scale from preset value up to max
-    const decay = this.mapToRange(
+    const decay = mapToRange(
       amount, // Map amount directly
       0, // Input range: 0 to 1
       1,
@@ -135,25 +126,13 @@ export class DattorroReverb {
       0.9 // Output max
     );
 
-    const excRate = this.mapToRange(
-      amount,
-      0,
-      1,
-      presetValues.excursionRate,
-      2
-    );
+    const excRate = mapToRange(amount, 0, 1, presetValues.excursionRate, 2);
 
-    const excDepth = this.mapToRange(
-      amount,
-      0,
-      1,
-      presetValues.excursionDepth,
-      2
-    );
+    const excDepth = mapToRange(amount, 0, 1, presetValues.excursionDepth, 2);
 
-    const damping = this.mapToRange(amount, 0, 1, presetValues.damping, 0.8);
-    const preLPF = this.mapToRange(amount, 0, 1, presetValues.bandwidth, 0.3);
-    const diffusion = this.mapToRange(amount, 0, 1, 0, 0.7);
+    const damping = mapToRange(amount, 0, 1, presetValues.damping, 0.8);
+    const preLPF = mapToRange(amount, 0, 1, presetValues.bandwidth, 0.3);
+    const diffusion = mapToRange(amount, 0, 1, 0, 0.7);
 
     // console.table({ decay, excRate, excDepth, damping, preLPF, diffusion });
 
@@ -257,11 +236,11 @@ export class DattorroReverb {
     return result;
   }
 
-  get input(): AudioNode {
+  get in(): AudioNode {
     return this.#node;
   }
 
-  get output(): AudioNode {
+  get out(): AudioNode {
     return this.#node;
   }
 
