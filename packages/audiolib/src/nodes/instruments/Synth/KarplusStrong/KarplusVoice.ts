@@ -146,7 +146,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
   private configureProcessor(): void {
     this.setMaxOutput(1.0); // for proper pitch sustain
     this.setAutoGain(false);
-    this.setLimiting('soft-clipping');
+    this.setLimiting('soft-clipping'); // or hard
   }
 
   private setupAudioGraph(): void {

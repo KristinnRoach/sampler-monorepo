@@ -7,6 +7,7 @@ import {
 } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { clamp, mapToRange } from '@/utils';
 
 export class KarplusEffect implements Connectable {
   readonly nodeId: NodeID;
@@ -26,7 +27,7 @@ export class KarplusEffect implements Connectable {
   dryGain: GainNode;
   mixerOutput: GainNode;
 
-  playbackRateDivisor = 1; // enforce 1 | 2 | 4 | 8  ?
+  playbackRateDivisor = 8; // enforce 1 | 2 | 4 | 8  ?
 
   attack = 0.1;
   hold = 0.2;
@@ -111,13 +112,19 @@ export class KarplusEffect implements Connectable {
   }
 
   setAmountMacro(amount: number): this {
-    const safeAmount = Math.max(0, Math.min(1, amount));
-    return this.setMix({
+    const safeAmount = clamp(amount, 0, 1);
+    // const fb = mapToRange(safeAmount, 0, 1, 0.6, 0.98);
+    // this.setFeedback(fb);
+
+    this.setMix({
       dry: 1 - safeAmount,
       wet: safeAmount,
     });
+
+    return this;
   }
 
+  // TODO: add support for this (see ks-fx.html) // ! or just add playback rate param to fb processor ??
   setPlaybackRateDivisor(value: number) {
     this.playbackRateDivisor = value;
   }
@@ -140,8 +147,12 @@ export class KarplusEffect implements Connectable {
   }
 
   setFeedback(gain: number, timestamp = this.now) {
-    const clampedGain = Math.max(0, Math.min(0.95, gain));
+    console.debug(gain);
+    const clampedGain = mapToRange(gain, 0, 1, 0, 0.99); // Math.max(0, Math.min(0.99, gain));
     this.delay.parameters.get('gain')!.setValueAtTime(clampedGain, timestamp);
+
+    console.debug('MAPPED', gain);
+
     return this;
   }
 
