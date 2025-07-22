@@ -1,4 +1,4 @@
-import { Connectable, Destination, LibNode } from '@/nodes/LibNode';
+import { Connectable, Destination, FxType, LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import {
@@ -17,6 +17,8 @@ import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
 import { KarplusEffect } from '../effects/KarplusEffect';
 
+export type BusEffectName = 'karplus' | 'reverb' | 'compressor' | 'limiter';
+
 export class InstrumentMasterBus implements LibNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'InstrumentBus';
@@ -26,7 +28,11 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   #destination: AudioNode | null = null;
 
   #input: GainNode;
-  #output: GainNode;
+
+  #dryMix: GainNode;
+  #wetMix: GainNode;
+  #mainOutput: GainNode;
+  #altOut: GainNode | null = null;
   // #outputCompressor: DynamicsCompressorNode | null = null;
 
   #effects: Map<
@@ -48,10 +54,12 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#messages = createMessageBus(this.nodeId);
 
     this.#input = new GainNode(this.#context, { gain: 0.75 });
-    this.#output = new GainNode(this.#context, { gain: 1.0 });
+    this.#dryMix = new GainNode(this.#context, { gain: 1.0 });
+    this.#wetMix = new GainNode(this.#context, { gain: 1.0 });
+    this.#mainOutput = new GainNode(this.#context, { gain: 1.0 });
 
     // Start with direct connection (will be rewired when insert effects are added)
-    this.#input.connect(this.#output);
+    this.#input.connect(this.#mainOutput);
 
     // Add insert effect first (affects dry signal)
     this.addEffect('karplus', new KarplusEffect(this.#context), {
@@ -75,6 +83,17 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   /**
+   * Trigger effects
+   */
+  noteOn(midiNote: number, velocity: number = 100, secondsFromNow = 0): this {
+    const karplus = this.getEffect<KarplusEffect>('karplus');
+    if (karplus && karplus.trigger) {
+      karplus.trigger(midiNote, velocity, secondsFromNow);
+    }
+    return this;
+  }
+
+  /**
    * Add any effect with automatic send/return creation and optional routing
    */
   addEffect(
@@ -94,10 +113,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
         insert: true,
       });
 
-      // For insert effects, we need to rewire the main signal path
       this.#rewireInsertChain();
     } else {
-      // Send effect: parallel processing with send/return
       const send = new GainNode(this.#context, { gain: 0.0 });
       const ret = new GainNode(this.#context, { gain: 1.0 });
 
@@ -130,16 +147,13 @@ export class InstrumentMasterBus implements LibNode, Connectable {
           ret.connect(targetEffect.effect);
         }
       } else {
-        ret.connect(this.#output);
+        ret.connect(this.#wetMix); // ? Is this always correct, what about dry effects ?
       }
     }
 
     return this;
   }
 
-  /**
-   * Rebuild the insert effect chain
-   */
   #rewireInsertChain(): void {
     // Disconnect everything first
     this.#input.disconnect();
@@ -162,8 +176,9 @@ export class InstrumentMasterBus implements LibNode, Connectable {
       }
     }
 
-    // Connect final insert output to dry path and send effects
-    currentNode.connect(this.#output);
+    // CHANGE: Route through dry/wet mix instead of direct to main output
+    currentNode.connect(this.#dryMix);
+    this.#dryMix.connect(this.#mainOutput);
 
     // Reconnect all send effects to the end of insert chain
     for (const [_, fx] of this.#effects) {
@@ -171,6 +186,15 @@ export class InstrumentMasterBus implements LibNode, Connectable {
         currentNode.connect(fx.send);
       }
     }
+
+    // CHANGE: Route wet returns through wetMix
+    for (const [_, fx] of this.#effects) {
+      if (!fx.insert && fx.return) {
+        fx.return.disconnect();
+        fx.return.connect(this.#wetMix);
+      }
+    }
+    this.#wetMix.connect(this.#mainOutput);
   }
 
   /**
@@ -218,9 +242,38 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   /**
+   * Get the actual effect instance for direct control
+   */
+  getEffect<T = any>(effect: BusEffectName): T | null {
+    return this.#effects.get(effect)?.effect || null;
+  }
+
+  /**
+   * Get current send level
+   */
+  getSend(effect: BusEffectName): number {
+    return this.#effects.get(effect)?.send?.gain.value || 0;
+  }
+
+  /**
+   * Get current return level
+   */
+  getReturn(effect: BusEffectName): number {
+    return this.#effects.get(effect)?.return?.gain.value || 0;
+  }
+
+  // === SETTERS ===
+
+  setDryWetMix(mix: { dry: number; wet: number }): this {
+    this.#dryMix.gain.setValueAtTime(mix.dry, this.now);
+    this.#wetMix.gain.setValueAtTime(mix.wet, this.now);
+    return this;
+  }
+
+  /**
    * Set up a complete routing chain in order
    */
-  setRoutingChain(...effectNames: string[]): this {
+  setRoutingChain(...effectNames: BusEffectName[]): this {
     // Disconnect all effects first
     for (const name of effectNames) {
       this.setEffectRoute(name); // Routes to output
@@ -237,8 +290,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   /**
    * Change where an effect routes to after initialization
    */
-  setEffectRoute(effectName: string, routeTo?: string): this {
-    const fx = this.#effects.get(effectName);
+  setEffectRoute(effect: BusEffectName, routeTo?: string): this {
+    const fx = this.#effects.get(effect);
     if (!fx?.return) return this;
 
     // Disconnect current routing
@@ -253,8 +306,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
         fx.return.connect(targetEffect.effect);
       }
     } else {
-      // No routeTo or invalid target = connect to output
-      fx.return.connect(this.#output);
+      // No routeTo or invalid target = connect to output // ! or wetMix ?
+      fx.return.connect(this.#wetMix);
     }
 
     return this;
@@ -277,8 +330,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   /**
    * Set send amount for any effect (0.0 = none, 1.0 = full)
    */
-  setSend(effectName: string, amount: number): this {
-    const fx = this.#effects.get(effectName);
+  send(effect: BusEffectName, amount: number): this {
+    const fx = this.#effects.get(effect);
     if (fx?.send && fx.enabled) {
       const safeValue = Math.max(0, Math.min(1, amount));
       fx.send.gain.setValueAtTime(safeValue, this.now);
@@ -289,8 +342,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   /**
    * Set return level for any effect (0.0 = silent, 1.0 = full)
    */
-  setReturn(effectName: string, level: number): this {
-    const fx = this.#effects.get(effectName);
+  return(effect: BusEffectName, level: number): this {
+    const fx = this.#effects.get(effect);
     if (fx?.return) {
       const safeValue = Math.max(0, Math.min(1, level));
       fx.return.gain.setValueAtTime(safeValue, this.now);
@@ -301,8 +354,8 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   /**
    * Enable/disable an effect (bypasses send when disabled)
    */
-  setEffectEnabled(effectName: string, enabled: boolean): this {
-    const fx = this.#effects.get(effectName);
+  setEffectEnabled(effect: BusEffectName, enabled: boolean): this {
+    const fx = this.#effects.get(effect);
     if (fx) {
       fx.enabled = enabled;
       if (!enabled && fx.send) {
@@ -313,41 +366,10 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   /**
-   * Get the actual effect instance for direct control
-   */
-  getEffect<T = any>(effectName: string): T | null {
-    return this.#effects.get(effectName)?.effect || null;
-  }
-
-  /**
-   * Get current send level
-   */
-  getSend(effectName: string): number {
-    return this.#effects.get(effectName)?.send?.gain.value || 0;
-  }
-
-  /**
-   * Get current return level
-   */
-  getReturn(effectName: string): number {
-    return this.#effects.get(effectName)?.return?.gain.value || 0;
-  }
-
-  // === CONVENIENCE METHODS FOR SPECIFIC EFFECTS ===
-
-  setReverbSend(amount: number): this {
-    return this.setSend('reverb', amount);
-  }
-
-  setCompressorSend(amount: number): this {
-    return this.setSend('compressor', amount);
-  }
-
-  /**
    * Set's reverb send amount as well as adjusting internal params
    */
   setReverbAmount(amount: number): this {
-    this.setSend('reverb', amount);
+    this.send('reverb', amount);
 
     const reverb = this.getEffect<DattorroReverb>('reverb');
     if (reverb && reverb.setAmountMacro) {
@@ -366,27 +388,17 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     }
     return this;
   }
-  /**
-   * Trigger karplus note
-   */
-  noteOn(midiNote: number, velocity: number = 100, secondsFromNow = 0): this {
-    const karplus = this.getEffect<KarplusEffect>('karplus');
-    if (karplus && karplus.trigger) {
-      karplus.trigger(midiNote, velocity, secondsFromNow);
-    }
-    return this;
-  }
 
   // === CORE AUDIO GRAPH METHODS ===
 
   connect(destination: AudioNode): AudioNode {
     this.#destination = destination;
-    this.#output.connect(destination);
+    this.#mainOutput.connect(destination);
     return destination;
   }
 
   disconnect(): this {
-    this.#output.disconnect();
+    this.#mainOutput.disconnect();
     return this;
   }
 
@@ -407,7 +419,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   }
 
   get output(): GainNode {
-    return this.#output;
+    return this.#mainOutput;
   }
 
   get now(): number {
@@ -419,11 +431,11 @@ export class InstrumentMasterBus implements LibNode, Connectable {
    */
   set outputLevel(level: number) {
     const safeValue = Math.max(0, Math.min(1, level));
-    this.#output.gain.setValueAtTime(safeValue, this.now);
+    this.#mainOutput.gain.setValueAtTime(safeValue, this.now);
   }
 
   get outputLevel(): number {
-    return this.#output.gain.value;
+    return this.#mainOutput.gain.value;
   }
 
   #levelMonitor: LevelMonitor | null = null;
@@ -441,7 +453,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#levelMonitor = new LevelMonitor(
       this.#context,
       this.#input,
-      this.#output,
+      this.#mainOutput,
       fftSize
     );
 
@@ -468,7 +480,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
       const monitor = new LevelMonitor(
         this.#context,
         this.#input,
-        this.#output
+        this.#mainOutput
       );
       const levels = monitor.getLevels();
       console.log(
@@ -524,12 +536,10 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   /**
    * Alternative output support
    */
-  #altOut: GainNode | null = null;
-
   connectAltOut(destination: AudioNode): this {
     if (!this.#altOut) {
       this.#altOut = new GainNode(this.#context);
-      this.#output.connect(this.#altOut); // Alt out gets the same mixed signal
+      this.#mainOutput.connect(this.#altOut); // Alt out gets the same mixed signal
     }
     this.#altOut.connect(destination);
     return this;
@@ -553,7 +563,7 @@ export class InstrumentMasterBus implements LibNode, Connectable {
    */
   mute(output: 'main' | 'alt' | 'all' = 'all'): this {
     if (output === 'main' || output === 'all') {
-      this.#output.gain.linearRampToValueAtTime(0, this.now + 0.1);
+      this.#mainOutput.gain.linearRampToValueAtTime(0, this.now + 0.1);
     }
     if (output === 'alt' || output === 'all') {
       this.#altOut?.gain.linearRampToValueAtTime(0, this.now + 0.1);
@@ -618,13 +628,49 @@ export class InstrumentMasterBus implements LibNode, Connectable {
    * Legacy setters
    */
   setReverbReturn(level: number): this {
-    return this.setReturn('reverb', level);
+    return this.return('reverb', level);
   }
 
   setKarplusReturn(level: number): this {
-    return this.setReturn('karplus', level);
+    return this.return('karplus', level);
   }
 }
+
+// /**
+//  * Rebuild the insert effect chain
+//  */
+// #rewireInsertChain(): void {
+//   // Disconnect everything first
+//   this.#input.disconnect();
+
+//   // Get all insert effects
+//   const insertEffects = Array.from(this.#effects.entries())
+//     .filter(([_, fx]) => fx.insert)
+//     .map(([name, fx]) => ({ name, effect: fx.effect }));
+
+//   let currentNode: AudioNode = this.#input;
+
+//   // Chain insert effects in order they were added
+//   for (const { effect } of insertEffects) {
+//     if (effect.in && effect.out) {
+//       currentNode.connect(effect.in);
+//       currentNode = effect.out;
+//     } else {
+//       currentNode.connect(effect);
+//       currentNode = effect;
+//     }
+//   }
+
+//   // Connect final insert output to dry path and send effects
+//   currentNode.connect(this.#mainOutput);
+
+//   // Reconnect all send effects to the end of insert chain
+//   for (const [_, fx] of this.#effects) {
+//     if (!fx.insert && fx.send) {
+//       currentNode.connect(fx.send);
+//     }
+//   }
+// }
 
 // export class InstrumentMasterBus implements LibNode, Connectable {
 //   readonly nodeId: NodeID;

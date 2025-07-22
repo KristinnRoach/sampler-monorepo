@@ -38,6 +38,7 @@ export const SamplerElement = (attributes: ElementProps) => {
   // Audio params
   const volume = van.state(0.75);
 
+  const dryWetMix = van.state({ dry: 1, wet: 0 });
   const reverbAmount = van.state(0.0);
   const karplusAmount = van.state(0.0);
 
@@ -188,6 +189,11 @@ export const SamplerElement = (attributes: ElementProps) => {
           if (samplePlayer?.volume !== undefined) {
             samplePlayer.volume = volume.val;
           }
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setDryWetMix(dryWetMix.val);
         });
 
         derive(() => {
@@ -550,20 +556,30 @@ export const SamplerElement = (attributes: ElementProps) => {
         }),
 
         createLabeledKnob({
-          label: 'Reverb',
+          label: 'Dry/Wet',
           defaultValue: 0,
+          onChange: (value: number) => {
+            dryWetMix.val = { dry: 1 - value, wet: value };
+          },
+        }),
+
+        createLabeledKnob({
+          label: 'Reverb',
+          defaultValue: 0.1,
           onChange: (value: number) => (reverbAmount.val = value),
         }),
 
         createLabeledKnob({
           label: 'Feedback',
           defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
           onChange: (value: number) => (karplusAmount.val = value),
         }),
 
         createLabeledKnob({
           label: 'amp-lfo-rate',
-          defaultValue: 0.045,
+          defaultValue: 0.1,
           onChange: (value: number) => (gainLFORate.val = value),
           curve: 5,
           snapIncrement: 0,

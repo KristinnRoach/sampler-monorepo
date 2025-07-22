@@ -27,11 +27,13 @@ const KarplusSynthElement = (attributes: ElementProps) => {
   const expanded = attributes.attr('expanded', 'true');
 
   // Audio parameters
-  const volume = van.state(0.5);
-  const attack = van.state(0.001); // todo: get stored state or defaults
-  const decay = van.state(0.75);
-  const noiseTime = van.state(0.02);
-  const lpfFreq = van.state(18000);
+  const volume = van.state(0.5); // 0-1
+  const decayAmount = van.state(0.25); // normalized feedback gain amount (0-1)
+
+  const attackSec = van.state(0.001); // in seconds
+  const noiseSec = van.state(0.005); // in seconds
+
+  const lpfFreq = van.state(18000); // Hz
   const hpfFreq = van.state(20);
 
   // const envelopeController = createCustomEnvelope();
@@ -68,9 +70,9 @@ const KarplusSynthElement = (attributes: ElementProps) => {
         // Reactive parameter binding
         derive(() => (ksSynth.volume = volume.val));
         derive(() => {
-          ksSynth.setParameterValue('attack', attack.val);
-          ksSynth.setParameterValue('decay', decay.val);
-          ksSynth.setParameterValue('noiseTime', noiseTime.val);
+          ksSynth.setParameterValue('attack', attackSec.val);
+          ksSynth.setParameterValue('decay', decayAmount.val);
+          ksSynth.setParameterValue('noiseTime', noiseSec.val);
         });
         derive(() => {
           ksSynth.setLpfCutoff(lpfFreq.val);
@@ -124,11 +126,11 @@ const KarplusSynthElement = (attributes: ElementProps) => {
         },
         VolumeSlider(volume),
 
-        createSlider('Attack', attack, 0, 1, 0.01),
-        createSlider('Decay', decay, 0, 1, 0.01),
-        createSlider('Thickness', noiseTime, 0, 1, 0.01),
+        createSlider('Attack', attackSec, 0.001, 2, 0.001), // in seconds
+        createSlider('Thickness', noiseSec, 0.001, 0.5, 0.001), // seconds
+        createSlider('Decay', decayAmount, 0, 1, 0.01), // 0-1
 
-        FilterSliders(lpfFreq, hpfFreq),
+        FilterSliders(lpfFreq, hpfFreq), // Hz
 
         div(
           { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },

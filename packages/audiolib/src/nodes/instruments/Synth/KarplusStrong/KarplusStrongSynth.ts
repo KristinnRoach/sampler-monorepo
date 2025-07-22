@@ -7,7 +7,7 @@ import { Message, MessageHandler } from '@/events';
 import { MidiController, PressedModifiers } from '@/io';
 import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
-import { normalizeRange, cancelScheduledParamValues } from '@/utils';
+import { normalizeRange, cancelScheduledParamValues, clamp } from '@/utils';
 import { KARPLUS_DEFAULTS } from './defaults';
 
 type ActiveNoteId = number; // todo: update to use same system as sampler
@@ -105,10 +105,10 @@ export class KarplusStrongSynth extends LibInstrument {
   panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
 
   releaseAll(fadeOut_sec?: number): this {
-    // todo: use "fadeOut_sec"
+    // todo: implement fade out in seconds
     console.debug(
       `todo: implement fade out. 
-      Curr fadeout value is ${fadeOut_sec}`
+      Current fadeout value is ${fadeOut_sec} seconds`
     );
     this.stopAll();
     return this;
@@ -133,12 +133,12 @@ export class KarplusStrongSynth extends LibInstrument {
           this.voicePool.allVoices.forEach((voice) => {
             voice.attack = value;
           });
-          const useableAttack = normalizeRange(value, 0, 1, 0.1, 1);
-          this.storeParamValue('attack', useableAttack);
+          const clamped = clamp(value, 0.001, 2);
+          this.storeParamValue('attack', clamped);
           break;
 
         case 'decay':
-          this.voicePool.allVoices.forEach((voice) => voice.setFeedback(value));
+          this.voicePool.allVoices.forEach((voice) => voice.setDecay(value));
           this.storeParamValue('decay', value);
           break;
 
@@ -199,7 +199,7 @@ export class KarplusStrongSynth extends LibInstrument {
         dataType: 'number',
         defaultValue: KARPLUS_DEFAULTS.volume,
         minValue: 0,
-        maxValue: 2,
+        maxValue: 1,
         group: 'output',
         automationRate: 'k-rate',
       },
@@ -209,7 +209,7 @@ export class KarplusStrongSynth extends LibInstrument {
         dataType: 'number',
         defaultValue: KARPLUS_DEFAULTS.attack,
         minValue: 0,
-        maxValue: 2,
+        maxValue: 2, // 2 seconds max attack
         group: 'envelope',
         automationRate: 'k-rate',
       },
@@ -218,8 +218,8 @@ export class KarplusStrongSynth extends LibInstrument {
         name: 'Decay',
         dataType: 'number',
         defaultValue: KARPLUS_DEFAULTS.decay,
-        minValue: 0,
-        maxValue: 5,
+        minValue: 0.001,
+        maxValue: 1.5, // set's fb-gain
         group: 'envelope',
         automationRate: 'k-rate',
       },
@@ -228,8 +228,8 @@ export class KarplusStrongSynth extends LibInstrument {
         name: 'Noise Time',
         dataType: 'number',
         defaultValue: KARPLUS_DEFAULTS.noiseTime,
-        minValue: 0,
-        maxValue: 1,
+        minValue: 0.001,
+        maxValue: 1, // 1 second max noise time
         group: 'synthesis',
         automationRate: 'k-rate',
       },
@@ -313,8 +313,9 @@ export class KarplusStrongSynth extends LibInstrument {
     this.#masterOut.gain.setValueAtTime(value, this.now);
   }
 
-  set attackTime(timeMs: number) {
-    this.storeParamValue('attack', timeMs / 1000);
+  set attackTime(seconds: number) {
+    // Remove /1000 conversion
+    this.storeParamValue('attack', seconds);
   }
 
   // todo: align with samplePlayer's param getters / setters naming convention // make default const in one place
@@ -328,10 +329,10 @@ export class KarplusStrongSynth extends LibInstrument {
 
   // TODO: Standardize filters
   // todo: test optimal safe values and move to constants
-  SET_TARGET_TIMECONSTANT = 0.05; // 50ms
+  SET_TARGET_TIMECONSTANT = 0.05; // in seconds
   #lastHpfUpdateTime = 0;
   #lastLpfUpdateTime = 0;
-  #minFilterUpdateInterval = 0.05; // 50ms minimum between updates
+  #minFilterUpdateInterval = 0.05; // in seconds
 
   setHpfCutoff(hz: number): this {
     // if (!this.#pool.filtersEnabled) return this;

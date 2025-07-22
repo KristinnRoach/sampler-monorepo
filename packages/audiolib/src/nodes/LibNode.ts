@@ -17,6 +17,7 @@ export type VoiceType = 'sample' | 'karplus-strong' | 'osc';
 
 export type FxType =
   | 'feedback-delay'
+  | 'karplus-fx' // rename ?
   | 'reverb'
   | 'chorus'
   | 'filter'

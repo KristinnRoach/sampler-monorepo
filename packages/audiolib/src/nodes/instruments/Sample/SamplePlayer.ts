@@ -27,7 +27,10 @@ import {
 import { LFO } from '@/nodes/params/LFOs/LFO';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
-import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
+import {
+  InstrumentMasterBus,
+  BusEffectName,
+} from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
@@ -223,22 +226,16 @@ export class SamplePlayer extends LibInstrument {
   #setupLFOs() {
     this.#gainLFO = new LFO(this.context);
     this.#gainLFO.setWaveform('sine');
-    this.#gainLFO.setFrequency(8);
-    this.#gainLFO.setDepth(0.01);
 
     this.#pitchLFO = new LFO(this.context);
     const wobbleWave = this.#pitchLFO.getPitchWobbleWaveform();
     this.#pitchLFO.setWaveform(wobbleWave);
-    this.#pitchLFO.setFrequency(0.4);
-    this.#pitchLFO.setDepth(0.005);
 
-    // TODO: Setup AFTER dry wet paths are ready
-    // const lfoGainNode = this.context.createGain();
-    // this.#preGain.dry.connect(lfoGainNode);
-    // this.#preGain.wet.connect(lfoGainNode);
+    // Connections // Todo: use detune pitch separate param (possibly a macro)
+    this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
+    this.#gainLFO.connect(this.outBus.input.gain);
 
-    // this.#connectLFOToAllVoices(this.#gainLFO, 'envGain');
-    // this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
+    this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
   }
 
   #connectLFOToAllVoices(lfo: LFO, paramName: string) {
@@ -836,8 +833,16 @@ export class SamplePlayer extends LibInstrument {
 
   /* === FX === */
 
-  setReverbSend = (amount: number) => {
-    this.outBus.setReverbSend(amount);
+  setDryWetMix = (mix: { dry: number; wet: number }) => {
+    this.outBus.setDryWetMix(mix);
+  };
+
+  send = (effect: BusEffectName, amount: number) => {
+    this.outBus.send(effect, amount);
+  };
+
+  return = (effect: BusEffectName, level: number) => {
+    this.outBus.return(effect, level);
   };
 
   /* Macro control for reverb send and various other params */

@@ -35,7 +35,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   #VOICE_VOLUME: number = 0.1; // Default (volume changes handled in synth) // Todo: manage reasonable range
   #attackTime: number = KARPLUS_DEFAULTS.attack;
-  #holdTime: number = KARPLUS_DEFAULTS.noiseTime;
+  #noiseTime: number = KARPLUS_DEFAULTS.noiseTime; // time params are in seconds
   #startTime: number = 0;
   #noteId: number | null = null;
   #midiNote: number = 0;
@@ -72,7 +72,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
       'feedback-delay-processor',
       {
         parameterData: {
-          delayTime: 5,
+          delayTime: 0.005,
           gain: 0.95,
         },
       }
@@ -92,9 +92,9 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
       [
         'noiseTime',
         {
-          value: this.#holdTime,
+          value: this.#noiseTime,
           setValueAtTime: (value: number) => {
-            this.#holdTime = value;
+            this.#noiseTime = value;
             return value;
           },
         } as unknown as AudioParam,
@@ -144,9 +144,9 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
   // ==== CONFIG ====
 
   private configureProcessor(): void {
-    this.setMaxOutput(1.0); // for proper pitch sustain
-    this.setAutoGain(false);
-    this.setLimiting('soft-clipping'); // or hard
+    this.setMaxOutput(0.3);
+    this.setAutoGain(true, 0.13);
+    this.setLimiting('hard-clipping');
   }
 
   private setupAudioGraph(): void {
@@ -217,12 +217,11 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     this.#noteId = noteId ?? null;
 
     const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
-    const delayMs = 1000 / frequency;
-    // const bufferCompensation = (1000 * 128) / this.ctx.sampleRate;
-    // const totalDelay = delayMs + bufferCompensation;
-    const totalDelay = delayMs;
+    const delaySec = 1 / frequency;
+    // const bufferCompensation = 128 / this.ctx.sampleRate;
+    // const totalDelay = delaySec + bufferCompensation;
 
-    this.delay = { ms: totalDelay };
+    this.setDelay(delaySec);
 
     // Reset gain params
     cancelScheduledParamValues(this.outputGain.gain, this.now);
@@ -241,7 +240,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
     this.noiseGain.gain.linearRampToValueAtTime(
       0,
-      this.now + this.#holdTime / 1000 + this.#attackTime
+      this.now + this.#noiseTime + this.#attackTime
     );
 
     this.sendMessage('voice:started', { ...options });
@@ -296,25 +295,29 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     this.#VOICE_VOLUME = value;
   }
 
-  set attack(value: number) {
-    this.#attackTime = value;
+  set attack(seconds: number) {
+    const clamped = clamp(seconds, 0.001, 2);
+    this.#attackTime = clamped;
   }
 
-  set delay({ ms, rampTime = 0.0 }: { ms: number; rampTime?: number }) {
-    this.delayParam.linearRampToValueAtTime(ms, this.now + rampTime);
-  }
+  setDelay(seconds: number, timestamp = this.now, rampDuration = 0): this {
+    const clampedRamp = clamp(rampDuration, 0, 4);
+    const clampedSeconds = clamp(seconds, 0, 4);
 
-  setDelay(seconds: number, timestamp = this.now): this {
-    const delayMs = seconds * 1000;
-    this.delayParam.setValueAtTime(delayMs, timestamp);
+    if (clampedRamp === 0) {
+      this.delayParam.setValueAtTime(seconds, timestamp);
+    } else {
+      this.delayParam.linearRampToValueAtTime(
+        clampedSeconds,
+        this.now + clampedRamp
+      );
+    }
     return this;
   }
 
-  setFeedback(gain: number, timestamp = this.now): this {
-    // Map normalized 0-1 range to useable range
-    const mappedGain = mapToRange(gain, 0, 1, 0.94, 1); // todo: handle setting the range in processor
-    const clampedGain = clamp(mappedGain, 0.94, 1);
-    this.fbParamMap.get('gain')!.setValueAtTime(clampedGain, timestamp);
+  setDecay(normGain: number, timestamp = this.now): this {
+    const mappedGain = mapToRange(normGain, 0, 1, 0.9, 1.3);
+    this.fbParamMap.get('gain')!.setValueAtTime(mappedGain, timestamp);
     return this;
   }
 
@@ -326,10 +329,10 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return this;
   }
 
-  setNoiseTime(normalizedValue: number): this {
+  setNoiseTime(seconds: number): this {
     // todo: fix non responiveness at low values
-    const mapped = mapToRange(normalizedValue, 0, 1, 3, 10);
-    this.#holdTime = mapped;
+    const clamped = clamp(seconds, 0.003, 1);
+    this.#noiseTime = clamped;
     return this;
   }
 
@@ -341,10 +344,11 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return this;
   }
 
-  setAutoGain(enabled: boolean): this {
+  setAutoGain(enabled: boolean, amount = 0.1): this {
     this.feedbackDelay.port.postMessage({
       type: 'setAutoGain',
       enabled: enabled,
+      amount,
     });
     return this;
   }
@@ -362,9 +366,9 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     if (param) {
       if (name === 'noiseTime') {
         console.debug(value);
-        this.#holdTime = value;
+        this.#noiseTime = value;
       } else if (name === 'decay') {
-        this.setFeedback(value);
+        this.setDecay(value);
       } else {
         param.setValueAtTime(value, this.now + 0.0001);
       }

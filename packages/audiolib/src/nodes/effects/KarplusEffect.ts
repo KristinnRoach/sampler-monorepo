@@ -27,11 +27,13 @@ export class KarplusEffect implements Connectable {
   dryGain: GainNode;
   mixerOutput: GainNode;
 
-  playbackRateDivisor = 8; // enforce 1 | 2 | 4 | 8  ?
-
   attack = 0.1;
   hold = 0.2;
-  glide = 0;
+  glide = 0; // not working well yet
+
+  MIN_FB = 0.9; // Actual feedback gain param's
+  MAX_FB = 1.5; // range is 0.5-1.5
+  C6_SECONDS = 0.00095556;
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
@@ -71,9 +73,13 @@ export class KarplusEffect implements Connectable {
     // Output from mixer
     this.mixerOutput.connect(this.outputGain);
 
-    this.setDelay(0.1);
-    this.setFeedback(0.8);
-    // this.debugSetPitch()
+    this.setLimiting('soft-clipping');
+    this.setAutoGain(true, 0.3);
+
+    this.setMaxOutput(0.1);
+
+    this.setDelay(0.05);
+    this.setFeedback(this.MIN_FB);
   }
 
   connect(destination: Destination) {
@@ -113,20 +119,15 @@ export class KarplusEffect implements Connectable {
 
   setAmountMacro(amount: number): this {
     const safeAmount = clamp(amount, 0, 1);
-    // const fb = mapToRange(safeAmount, 0, 1, 0.6, 0.98);
-    // this.setFeedback(fb);
 
     this.setMix({
       dry: 1 - safeAmount,
       wet: safeAmount,
     });
 
-    return this;
-  }
+    this.setFeedback(safeAmount);
 
-  // TODO: add support for this (see ks-fx.html) // ! or just add playback rate param to fb processor ??
-  setPlaybackRateDivisor(value: number) {
-    this.playbackRateDivisor = value;
+    return this;
   }
 
   setPitch(midiNote: number, cents: number = 0, timestamp = this.now) {
@@ -134,31 +135,31 @@ export class KarplusEffect implements Connectable {
 
     const tunedFrequency =
       cents !== 0 ? frequency * Math.pow(2, cents / 1200) : frequency;
-    const totalDelay = 1 / tunedFrequency;
+
+    const delaySec = 1 / tunedFrequency;
+
+    const minDelay = this.C6_SECONDS;
+    const safeDelay = Math.max(minDelay, delaySec);
 
     if (this.glide === 0) {
-      this.setDelay(totalDelay, timestamp);
+      this.setDelay(safeDelay, timestamp);
     } else {
       this.delay.parameters
         .get('delayTime')!
-        .exponentialRampToValueAtTime(totalDelay, timestamp + this.glide);
+        .exponentialRampToValueAtTime(safeDelay, timestamp + this.glide);
     }
-    return totalDelay;
+    return delaySec;
   }
 
   setFeedback(gain: number, timestamp = this.now) {
-    console.debug(gain);
-    const clampedGain = mapToRange(gain, 0, 1, 0, 0.99); // Math.max(0, Math.min(0.99, gain));
-    this.delay.parameters.get('gain')!.setValueAtTime(clampedGain, timestamp);
-
-    console.debug('MAPPED', gain);
-
+    const mappedGain = mapToRange(gain, 0, 1, this.MIN_FB, this.MAX_FB);
+    this.delay.parameters.get('gain')!.setValueAtTime(mappedGain, timestamp);
     return this;
   }
 
   setDelay(seconds: number, timestamp = this.now) {
-    const delayMs = seconds * 1000;
-    this.delay.parameters.get('delayTime')!.setValueAtTime(delayMs, timestamp);
+    const clamped = clamp(seconds, 0.001, 4);
+    this.delay.parameters.get('delayTime')!.setValueAtTime(clamped, timestamp);
     return this;
   }
 
@@ -175,10 +176,11 @@ export class KarplusEffect implements Connectable {
     return this;
   }
 
-  setAutoGain(enabled: boolean): this {
+  setAutoGain(enabled: boolean, amount = 0.3): this {
     this.delay.port.postMessage({
       type: 'setAutoGain',
       enabled: enabled,
+      amount,
     });
     return this;
   }
