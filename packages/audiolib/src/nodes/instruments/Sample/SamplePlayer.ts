@@ -7,6 +7,7 @@ import { findClosestNote } from '@/utils';
 import {
   preProcessAudioBuffer,
   PreProcessOptions,
+  PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
 import {
@@ -261,10 +262,6 @@ export class SamplePlayer extends LibInstrument {
 
     assert(isValidAudioBuffer(buffer));
 
-    if (this.#preprocessAudio) {
-      buffer = preProcessAudioBuffer(this.context, buffer, preprocessOptions);
-    }
-
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
       (modSampleRate && this.audioContext.sampleRate !== modSampleRate)
@@ -283,36 +280,27 @@ export class SamplePlayer extends LibInstrument {
     this.#isLoaded = false;
     this.#audiobuffer = null;
 
-    let tuningOffset = 0; // in semitones (float)
-    let fundamentalFreq = undefined;
-    if (shoulDetectPitch) {
-      const detectedPitch = await this.detectPitch(buffer);
+    let processed: PreProcessResults | undefined;
 
-      if (detectedPitch.confidence > 0.35) {
-        fundamentalFreq = detectedPitch.frequency;
+    if (this.#preprocessAudio) {
+      processed = await preProcessAudioBuffer(
+        this.context,
+        buffer,
+        preprocessOptions
+      );
+      buffer = processed.audiobuffer;
 
-        if (autoTranspose && detectedPitch.confidence > 0.35) {
-          tuningOffset = this.detectedPitchToTransposition(
-            detectedPitch.midiFloat,
-            60 // Target midi note //  Todo: use setScale
-          );
-          this.setTransposition(tuningOffset);
-        } else {
-          console.info(
-            `Skipped auto transpose due to unreliable pitch detection results: `,
-            detectedPitch
-          );
-          this.sendUpstreamMessage('sample:auto-transpose:fail', {});
-        }
+      if (this.#useZeroCrossings && processed.zeroCrossings) {
+        this.#zeroCrossings = processed.zeroCrossings;
       }
     }
 
-    if (this.#useZeroCrossings) {
-      const zeroes = findZeroCrossings(buffer);
-      this.#zeroCrossings = zeroes;
-    }
+    this.voicePool.setBuffer(
+      buffer,
+      this.#zeroCrossings,
+      processed?.detectedPitch?.fundamentalHz
+    );
 
-    this.voicePool.setBuffer(buffer, this.#zeroCrossings, fundamentalFreq);
     this.#bufferDuration = buffer.duration;
 
     this.#resetMacros(buffer.duration);
@@ -322,7 +310,7 @@ export class SamplePlayer extends LibInstrument {
       scale: [0],
       lowestOctave: 0,
       highestOctave: 6,
-      tuningOffset,
+      tuningOffset: 0, // not needed since preprocessor handles re-pitching the samples?
       // All time params updated to seconds, normalizing logic can be removed
       normalize: false as NormalizeOptions | false,
     };
@@ -566,16 +554,25 @@ export class SamplePlayer extends LibInstrument {
     loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    if (
-      loopStartSeconds > loopEndSeconds ||
-      loopEndSeconds < loopStartSeconds ||
-      (this.isLoaded && loopEndSeconds > this.#bufferDuration)
-    ) {
-      console.error(
+    // TEMP hax to handle invalid loop points
+    if (loopStartSeconds >= loopEndSeconds) {
+      console.debug(
         `samplePlayer.setLoopPoint: Loop points out of bounds.
-        Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
+      Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
       );
-      return this;
+      if (loopPoint === 'start') {
+        loopStartSeconds = Math.max(0, loopEndSeconds - 0.001);
+      } else {
+        loopEndSeconds = Math.min(
+          this.#bufferDuration,
+          loopStartSeconds + 0.001
+        );
+      }
+    }
+
+    // Check buffer boundaries
+    if (this.isLoaded && loopEndSeconds >= this.#bufferDuration) {
+      loopEndSeconds = this.#bufferDuration - 0.001; // standardize sfae offset constant
     }
 
     const RAMP_SENSITIVITY = 1;

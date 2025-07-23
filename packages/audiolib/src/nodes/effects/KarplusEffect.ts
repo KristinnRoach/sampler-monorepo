@@ -1,17 +1,12 @@
-import {
-  LibNode,
-  Messenger,
-  Destination,
-  Connectable,
-  NodeType,
-} from '@/nodes/LibNode';
+import { LibNode, Destination, Connectable, NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { clamp, mapToRange } from '@/utils';
 
-export class KarplusEffect implements Connectable {
+export class KarplusEffect implements LibNode, Connectable {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType = 'karplus-effect';
+  #initialized = false;
 
   audioContext: AudioContext;
   delay: AudioWorkletNode;
@@ -27,12 +22,9 @@ export class KarplusEffect implements Connectable {
   dryGain: GainNode;
   mixerOutput: GainNode;
 
-  attack = 0.1;
-  hold = 0.2;
-  glide = 0; // not working well yet
-
   MIN_FB = 0.9; // Actual feedback gain param's
-  MAX_FB = 1.5; // range is 0.5-1.5
+  MAX_FB = 1.3; // full range is 0.5-1.5
+  MAX_LPF_HZ: number;
   C6_SECONDS = 0.00095556;
 
   constructor(context: AudioContext = getAudioContext()) {
@@ -49,21 +41,28 @@ export class KarplusEffect implements Connectable {
     this.dryGain = new GainNode(context, { gain: 1.0 });
     this.mixerOutput = new GainNode(context, { gain: 1.0 });
 
-    this.lpf = new BiquadFilterNode(context, {
-      type: 'lowpass',
-      frequency: context.sampleRate / 2 - 1000,
-      Q: 1,
-    });
+    this.MAX_LPF_HZ = context.sampleRate / 2 - 1000;
+
+    const DEFAULT_HPF_HZ = 100; // testing
+    const DEFAULT_LPF_HZ = 6000; // testing
 
     this.hpf = new BiquadFilterNode(context, {
       type: 'highpass',
-      frequency: 100,
-      Q: 1,
+      frequency: DEFAULT_HPF_HZ,
+      Q: 0.5,
     });
 
-    // Wet path: input -> delay -> wetGain -> mixer
+    this.lpf = new BiquadFilterNode(context, {
+      type: 'lowpass',
+      frequency: DEFAULT_LPF_HZ, // this.MAX_LPF_HZ,
+      Q: 0.707,
+    });
+
+    // Wet path: input -> delay -> hpf -> lpf -> wetGain -> mixer
     this.inputGain.connect(this.delay);
-    this.delay.connect(this.wetGain);
+    this.delay.connect(this.hpf);
+    this.hpf.connect(this.lpf);
+    this.lpf.connect(this.wetGain);
     this.wetGain.connect(this.mixerOutput);
 
     // Dry path: input -> dryGain -> mixer
@@ -74,12 +73,14 @@ export class KarplusEffect implements Connectable {
     this.mixerOutput.connect(this.outputGain);
 
     this.setLimiting('soft-clipping');
-    this.setAutoGain(true, 0.3);
+    this.setAutoGain(true, 0.2);
 
     this.setMaxOutput(0.1);
 
     this.setDelay(0.05);
     this.setFeedback(this.MIN_FB);
+
+    this.#initialized = true;
   }
 
   connect(destination: Destination) {
@@ -93,7 +94,7 @@ export class KarplusEffect implements Connectable {
 
   trigger(midiNote: number, velocity = 100, secondsFromNow = 0, cents = 0) {
     const timestamp = this.now + secondsFromNow + 0.0001;
-
+    // use velocity to adjust gain input to processor ?
     this.setPitch(midiNote, cents, timestamp);
 
     return this;
@@ -141,13 +142,8 @@ export class KarplusEffect implements Connectable {
     const minDelay = this.C6_SECONDS;
     const safeDelay = Math.max(minDelay, delaySec);
 
-    if (this.glide === 0) {
-      this.setDelay(safeDelay, timestamp);
-    } else {
-      this.delay.parameters
-        .get('delayTime')!
-        .exponentialRampToValueAtTime(safeDelay, timestamp + this.glide);
-    }
+    this.setDelay(safeDelay, timestamp);
+
     return delaySec;
   }
 
@@ -160,11 +156,6 @@ export class KarplusEffect implements Connectable {
   setDelay(seconds: number, timestamp = this.now) {
     const clamped = clamp(seconds, 0.001, 4);
     this.delay.parameters.get('delayTime')!.setValueAtTime(clamped, timestamp);
-    return this;
-  }
-
-  setGlide(seconds: number) {
-    this.glide = seconds;
     return this;
   }
 
@@ -213,16 +204,11 @@ export class KarplusEffect implements Connectable {
     };
   }
 
-  // === DEBUG ===
-
-  debugSetPitch() {
-    const totalDelay_69 = this.setPitch(69); // A4 = 440Hz should give ~2.27ms delay
-    console.debug('setPitch(69): ', totalDelay_69);
-    const totalDelay_57 = this.setPitch(57); // A3 = 220Hz should give ~4.54ms delay
-    console.debug('setPitch(57): ', totalDelay_57);
-    const totalDelay_81 = this.setPitch(81); // A5 = 880Hz should give ~1.14ms delay
-    console.debug('setPitch(81): ', totalDelay_81);
+  get initialized() {
+    return this.#initialized;
   }
+
+  // === CLEANUP ===
 
   dispose() {
     this.disconnect();

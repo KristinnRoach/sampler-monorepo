@@ -46,6 +46,12 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     }
   > = new Map();
 
+  // TODO: fit wetKarplusEffect into existing #effects system
+  // todo: check why wetKarplusEffect sounds different for left vs right channel (sounds kinda cool tho)
+
+  #wetKarplusEffect: KarplusEffect | null = null;
+  #enableWetKarplusEffect: boolean = true;
+
   #initialized = false;
 
   constructor(context?: AudioContext) {
@@ -79,7 +85,34 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     // Add send effects
     this.addEffect('reverb', new DattorroReverb(this.#context));
 
+    this.#wetKarplusEffect = new KarplusEffect(this.#context);
+    this.addWetKarplusEffect();
+
     this.#initialized = true;
+  }
+
+  /**
+   * Creates and connects the wet karplus effect after the reverb
+   */
+  addWetKarplusEffect(): this {
+    if (!this.#wetKarplusEffect) {
+      this.#wetKarplusEffect = new KarplusEffect(this.#context);
+    }
+
+    // Get the reverb effect to insert after it
+    const reverbEffect = this.getEffect<DattorroReverb>('reverb');
+    const reverbReturn = this.#effects.get('reverb')?.return;
+
+    if (reverbEffect && reverbReturn) {
+      // Disconnect reverb return from wet mix
+      reverbReturn.disconnect();
+
+      // Connect reverb return -> wet karplus -> wet mix
+      reverbReturn.connect(this.#wetKarplusEffect.in);
+      this.#wetKarplusEffect.out.connect(this.#wetMix);
+    }
+
+    return this;
   }
 
   /**
@@ -90,6 +123,12 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     if (karplus && karplus.trigger) {
       karplus.trigger(midiNote, velocity, secondsFromNow);
     }
+
+    // Also trigger the wet karplus if enabled
+    if (this.#enableWetKarplusEffect && this.#wetKarplusEffect?.trigger) {
+      this.#wetKarplusEffect.trigger(midiNote, velocity, secondsFromNow);
+    }
+
     return this;
   }
 
@@ -386,6 +425,12 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     if (effect && effect.setAmountMacro) {
       effect.setAmountMacro(amount);
     }
+
+    // Also set for wet karplus
+    if (this.#wetKarplusEffect && this.#wetKarplusEffect.setAmountMacro) {
+      this.#wetKarplusEffect.setAmountMacro(amount);
+    }
+
     return this;
   }
 
@@ -409,6 +454,11 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     // Clean up all effects
     for (const [name] of this.#effects) {
       this.removeEffect(name);
+    }
+
+    if (this.#wetKarplusEffect) {
+      this.#wetKarplusEffect.dispose();
+      this.#wetKarplusEffect = null;
     }
   }
 
@@ -634,585 +684,25 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   setKarplusReturn(level: number): this {
     return this.return('karplus', level);
   }
+
+  /**
+   * Enable/disable the wet karplus effect
+   */
+  setWetKarplusEnabled(enabled: boolean): this {
+    this.#enableWetKarplusEffect = enabled;
+
+    // Re-route signal if needed
+    if (enabled && !this.#wetKarplusEffect) {
+      this.addWetKarplusEffect();
+    } else if (!enabled && this.#wetKarplusEffect) {
+      // Reconnect reverb directly to wet mix
+      const reverbReturn = this.#effects.get('reverb')?.return;
+      if (reverbReturn) {
+        reverbReturn.disconnect();
+        reverbReturn.connect(this.#wetMix);
+      }
+    }
+
+    return this;
+  }
 }
-
-// /**
-//  * Rebuild the insert effect chain
-//  */
-// #rewireInsertChain(): void {
-//   // Disconnect everything first
-//   this.#input.disconnect();
-
-//   // Get all insert effects
-//   const insertEffects = Array.from(this.#effects.entries())
-//     .filter(([_, fx]) => fx.insert)
-//     .map(([name, fx]) => ({ name, effect: fx.effect }));
-
-//   let currentNode: AudioNode = this.#input;
-
-//   // Chain insert effects in order they were added
-//   for (const { effect } of insertEffects) {
-//     if (effect.in && effect.out) {
-//       currentNode.connect(effect.in);
-//       currentNode = effect.out;
-//     } else {
-//       currentNode.connect(effect);
-//       currentNode = effect;
-//     }
-//   }
-
-//   // Connect final insert output to dry path and send effects
-//   currentNode.connect(this.#mainOutput);
-
-//   // Reconnect all send effects to the end of insert chain
-//   for (const [_, fx] of this.#effects) {
-//     if (!fx.insert && fx.send) {
-//       currentNode.connect(fx.send);
-//     }
-//   }
-// }
-
-// export class InstrumentMasterBus implements LibNode, Connectable {
-//   readonly nodeId: NodeID;
-//   readonly nodeType = 'fx';
-//   #messages;
-
-//   #context: AudioContext;
-//   #destination: Destination | null = null;
-//   #levelMonitor: LevelMonitor | null = null;
-
-//   #input: GainNode;
-//   #output: GainNode;
-//   #altOut: GainNode | null = null;
-
-//   // SEND/RETURN NODES
-//   #sends: {
-//     reverb: GainNode;
-//     karplus: GainNode;
-//   };
-
-//   #returns: {
-//     reverb: GainNode;
-//     karplus: GainNode;
-//   };
-
-//   // EFFECTS
-//   #compressor: DynamicsCompressorNode | null = null;
-//   #reverb: DattorroReverb | null = null;
-//   #karplusEffect: KarplusEffect | null = null;
-//   #compressorEnabled: boolean = true;
-//   #reverbEnabled: boolean = true;
-//   #karplusFxEnabled: boolean = true;
-
-//   #isReady: boolean = false;
-
-//   get initialized() {
-//     return this.#isReady;
-//   }
-
-//   constructor(
-//     context?: AudioContext,
-//     options = { useCompressor: true, useReverb: true, useKarplus: true }
-//   ) {
-//     this.nodeId = createNodeId(this.nodeType);
-//     this.#context = context || getAudioContext();
-//     this.#messages = createMessageBus<Message>(this.nodeId);
-
-//     const {
-//       useCompressor = true,
-//       useReverb = true,
-//       useKarplus = true,
-//     } = options;
-
-//     this.#compressorEnabled = useCompressor;
-//     this.#reverbEnabled = useReverb;
-
-//     // Create audio nodes
-//     this.#input = new GainNode(this.#context, { gain: 1.0 });
-//     this.#output = new GainNode(this.#context, { gain: 1.0 });
-
-//     //     this.#wetInput = new GainNode(this.#context, { gain: 1.0 });
-//     // this.#wetOutput = new GainNode(this.#context, { gain: 1.0 });
-
-//     this.#sends = {
-//       reverb: new GainNode(this.#context, { gain: 0.0 }),
-//       karplus: new GainNode(this.#context, { gain: 0.0 }),
-//     };
-
-//     this.#returns = {
-//       reverb: new GainNode(this.#context, { gain: 1.0 }),
-//       karplus: new GainNode(this.#context, { gain: 1.0 }),
-//     };
-
-//     if (useCompressor) this.#compressor = this.#createCompressor();
-//     if (useReverb) {
-//       this.#reverb = this.#createReverb();
-//       this.setReverbReturn(1);
-//     }
-//     if (useKarplus) {
-//       this.#karplusEffect = this.#createKarplusEffect();
-//       this.setKarplusReturn(0.8); // default
-//     }
-
-//     // Connect nodes
-//     this.#setupRouting();
-
-//     this.#isReady = true;
-//   }
-
-//   /**
-//    * Creates a compressor with default settings
-//    */
-//   #createCompressor = (): DynamicsCompressorNode =>
-//     new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS);
-
-//   /**
-//    * Creates a reverb with default settings
-//    */
-//   #createReverb = () => {
-//     return new DattorroReverb(this.#context);
-//   };
-
-//   #createKarplusEffect = () => {
-//     const effect = new KarplusEffect(this.#context);
-
-//     // effect.setDelay(0.1);
-//     // effect.setFeedback(0.7);
-
-//     return effect;
-//   };
-
-//   noteOn(
-//     midiNote: MidiValue,
-//     velocity: MidiValue = 100,
-//     secondsFromNow = 0
-//   ): this {
-//     if (this.#karplusEffect && this.#karplusFxEnabled) {
-//       this.#karplusEffect.trigger(midiNote, velocity, secondsFromNow);
-//     }
-//     return this;
-//   }
-
-//   #setupRouting(): void {
-//     // Disconnect everything first
-//     this.#disconnectAll();
-
-//     /*
-//     ROUTING DIAGRAM:
-
-//     Input Signal
-//          |
-//     ┌─dryInput─┐
-//     │          │
-//     │    ┌─────┴─── dryOutput ──────┐
-//     │    │                          │
-//     │    ├─── reverbSend ──→ reverb ──→ reverbReturn ──┐
-//     │    │                                             │
-//     │    └─── karplusSend ──→ karplus ──→ karplusReturn ──┘
-//     │                                                  │
-//     └──────────────── DESTINATION ←───────────────────-┘
-//     */
-
-//     // Main dry path
-//     this.#input.connect(this.#output);
-
-//     // Reverb send path
-//     this.#input.connect(this.#sends.reverb);
-//     if (this.#reverbEnabled && this.#reverb) {
-//       this.#sends.reverb.connect(this.#reverb.input);
-//       this.#reverb.connect(this.#returns.reverb);
-//     }
-
-//     // Karplus send path
-//     this.#input.connect(this.#sends.karplus);
-//     if (this.#karplusFxEnabled && this.#karplusEffect) {
-//       this.#sends.karplus.connect(this.#karplusEffect.in);
-//       this.#karplusEffect.out.connect(this.#returns.karplus);
-//     }
-
-//     // Connect to final destination
-//     if (this.#destination instanceof AudioNode) {
-//       this.#output.connect(this.#destination);
-//       this.#returns.reverb.connect(this.#destination);
-//       this.#returns.karplus.connect(this.#destination);
-//     }
-//   }
-
-//   #disconnectAll(): void {
-//     this.#input.disconnect();
-//     this.#output.disconnect();
-
-//     // Disconnect all sends/returns
-//     Object.values(this.#sends).forEach((node) => node.disconnect());
-//     Object.values(this.#returns).forEach((node) => node.disconnect());
-
-//     // Disconnect effects
-//     this.#reverb?.disconnect();
-//     this.#karplusEffect?.disconnect();
-//   }
-
-//   /**
-//    * Start monitoring input and output levels
-//    * @param intervalMs How often to log levels (in milliseconds)
-//    * @param fftSize Size of FFT for analysis (larger = more precise but more CPU)
-//    */
-//   startLevelMonitoring(
-//     intervalMs: number = 1000,
-//     fftSize: number = 1024,
-//     logOutput: boolean = false
-//   ): void {
-//     // Stop any existing monitoring
-//     this.stopLevelMonitoring();
-
-//     // Create level monitor if it doesn't exist
-//     this.#levelMonitor = new LevelMonitor(
-//       this.#context,
-//       this.#input,
-//       this.#output,
-//       fftSize
-//     );
-
-//     // Start monitoring
-//     this.#levelMonitor.start(intervalMs), fftSize, logOutput;
-
-//     console.log('Level monitoring started');
-//   }
-
-//   /**
-//    * Stop monitoring levels
-//    */
-//   stopLevelMonitoring(): void {
-//     if (this.#levelMonitor) {
-//       this.#levelMonitor.stop();
-//       this.#levelMonitor = null;
-//       console.log('Level monitoring stopped');
-//     }
-//   }
-
-//   /**
-//    * Log current levels once (without starting continuous monitoring)
-//    */
-//   logLevels(): void {
-//     if (!this.#levelMonitor) {
-//       // Create temporary monitor
-//       const monitor = new LevelMonitor(
-//         this.#context,
-//         this.#input,
-//         this.#output
-//       );
-
-//       // Get and log levels
-//       const levels = monitor.getLevels();
-//       console.log(
-//         `InstrumentMasterBus Levels:
-//          Input:  RMS ${levels.input.rmsDB.toFixed(1)} dB | Peak ${levels.input.peakDB.toFixed(1)} dB
-//          Output: RMS ${levels.output.rmsDB.toFixed(1)} dB | Peak ${levels.output.peakDB.toFixed(1)} dB
-//          Gain Reduction: ${levels.gainChangeDB > 0 ? levels.gainChangeDB.toFixed(1) : '0.0'} dB`
-//       );
-//     } else {
-//       // Use existing monitor
-//       const levels = this.#levelMonitor.getLevels();
-//       console.log(
-//         `InstrumentMasterBus Levels:
-//          Input:  RMS ${levels.input.rmsDB.toFixed(1)} dB | Peak ${levels.input.peakDB.toFixed(1)} dB
-//          Output: RMS ${levels.output.rmsDB.toFixed(1)} dB | Peak ${levels.output.peakDB.toFixed(1)} dB
-//          Gain Reduction: ${levels.gainChangeDB > 0 ? levels.gainChangeDB.toFixed(1) : '0.0'} dB`
-//       );
-//     }
-//   }
-
-//   /**
-//    * Enable or disable the compressor
-//    */
-//   setCompressorEnabled(enabled: boolean): this {
-//     if (this.#compressorEnabled !== enabled) {
-//       this.#compressorEnabled = enabled;
-//       this.#setupRouting();
-
-//       this.#messages.sendMessage('compressor:state', { enabled });
-//     }
-//     return this;
-//   }
-
-//   /**
-//    * Enable or disable the reverb
-//    */
-//   setReverbEnabled(enabled: boolean): this {
-//     if (this.#reverbEnabled !== enabled) {
-//       this.#reverbEnabled = enabled;
-//       this.#setupRouting();
-
-//       this.#messages.sendMessage('reverb:state', { enabled });
-//     }
-//     return this;
-//   }
-
-//   /**
-//    * Enable or disable karplus effect
-//    */
-//   setKarplusFxEnabled(enabled: boolean): this {
-//     if (this.#karplusFxEnabled !== enabled) {
-//       this.#karplusFxEnabled = enabled;
-//       this.#setupRouting();
-
-//       this.#messages.sendMessage('karplus-fx:state', { enabled });
-//     }
-//     return this;
-//   }
-
-//   /**
-//    * Set compressor parameters
-//    */
-//   setCompressorParams(params: {
-//     threshold?: number;
-//     knee?: number;
-//     ratio?: number;
-//     attack?: number;
-//     release?: number;
-//   }): this {
-//     if (!this.#compressor) return this;
-
-//     if (params.threshold !== undefined) {
-//       this.#compressor.threshold.setValueAtTime(params.threshold, this.now);
-//     }
-//     if (params.knee !== undefined) {
-//       this.#compressor.knee.setValueAtTime(params.knee, this.now);
-//     }
-//     if (params.ratio !== undefined) {
-//       this.#compressor.ratio.setValueAtTime(params.ratio, this.now);
-//     }
-//     if (params.attack !== undefined) {
-//       this.#compressor.attack.setValueAtTime(params.attack, this.now);
-//     }
-//     if (params.release !== undefined) {
-//       this.#compressor.release.setValueAtTime(params.release, this.now);
-//     }
-
-//     return this;
-//   }
-
-//   onMessage(type: string, handler: MessageHandler<Message>): () => void {
-//     return this.#messages.onMessage(type, handler);
-//   }
-
-//   setAltOutVolume(gain: number) {
-//     this.#altOut?.gain.setValueAtTime(gain, this.now);
-//     return this;
-//   }
-
-//   mute(output: 'main' | 'alt' | 'all' = 'all') {
-//     if (output === 'main') {
-//       this.#output.gain.linearRampToValueAtTime(0, this.now + 0.1);
-//       // this.#wetOutput.gain.linearRampToValueAtTime(0, this.now + 0.1)
-//     } else if (output === 'alt')
-//       this.#altOut?.gain.linearRampToValueAtTime(0, this.now + 0.1);
-//     // else {
-//     //   this.outVolume = 0;
-//     //   this.altVolume = 0;
-//     // }
-//   }
-
-//   connect(
-//     destination: Destination,
-//     output: 'dry' | 'wet' | 'alt' = 'dry'
-//   ): Destination {
-//     assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
-//     this.#destination = destination;
-
-//     if (output === 'dry') this.#output.connect(destination);
-//     // else if (output === 'wet') this.#wetOutput.connect(destination);
-//     else if (output === 'alt' && this.#altOut) {
-//       this.#altOut.connect(destination);
-//     }
-
-//     return destination;
-//   }
-
-//   connectAltOut(destination: AudioNode) {
-//     if (!this.#altOut) this.#altOut = new GainNode(this.#context);
-//     this.#altOut.connect(destination);
-//     return this;
-//   }
-
-//   disconnect(output: 'dry' | 'wet' | 'alt' = 'dry') {
-//     switch (output) {
-//       case 'dry':
-//         this.#output.disconnect();
-//         break;
-
-//       case 'wet':
-//         // this.#wetOutput.disconnect();
-//         break;
-
-//       case 'alt':
-//         this.#altOut?.disconnect();
-
-//       default:
-//         this.#output.disconnect();
-//     }
-//     return this;
-//   }
-
-//   dispose(): void {
-//     this.stopLevelMonitoring();
-//     this.disconnect();
-//     this.#input.disconnect();
-//     this.#output.disconnect();
-//     // this.#wetInput.disconnect();
-//     // this.#wetOutput.disconnect();
-//     // this.#altOut?.disconnect();
-//     this.#compressor?.disconnect();
-//     this.#reverb?.disconnect();
-//     // this.#wetOutput?.disconnect();
-
-//     this.#input = null as unknown as GainNode;
-//     this.#output = null as unknown as GainNode;
-//     this.#output = null as unknown as GainNode;
-//     // this.#wetOutput = null as unknown as GainNode;
-//     // this.#altOut = null as unknown as GainNode;
-//     this.#compressor = null as unknown as DynamicsCompressorNode;
-//     this.#reverb = null as unknown as DattorroReverb;
-//     // this.#wetOutput = null as unknown as GainNode;
-//     this.#context = null as unknown as AudioContext;
-//   }
-
-//   // === GETTERS ===
-
-//   get now(): number {
-//     return this.#context.currentTime;
-//   }
-
-//   get dryInput() {
-//     return this.#input;
-//   }
-
-//   // get wetInput() {
-//   //   return this.#wetInput;
-//   // }
-
-//   get dryOutput() {
-//     return this.#output;
-//   }
-
-//   // get wetOutput() {
-//   //   return this.#wetOutput;
-//   // }
-
-//   get compressorEnabled(): boolean {
-//     return this.#compressorEnabled;
-//   }
-
-//   get reverbEnabled(): boolean {
-//     return this.#reverbEnabled;
-//   }
-
-//   get outVolume(): number {
-//     return this.#output.gain.value;
-//   }
-
-//   get altVolume(): number | null {
-//     return this.#altOut?.gain.value ?? null;
-//   }
-
-//   // === GETTERS FOR CURRENT VALUES ===
-
-//   get reverbSend(): number {
-//     return this.#sends.reverb.gain.value;
-//   }
-
-//   get karplusSend(): number {
-//     return this.#sends.karplus.gain.value;
-//   }
-
-//   get reverbReturn(): number {
-//     return this.#returns.reverb.gain.value;
-//   }
-
-//   get karplusReturn(): number {
-//     return this.#returns.karplus.gain.value;
-//   }
-
-//   get dryLevel(): number {
-//     return this.#output.gain.value;
-//   }
-
-//   // === INPUT/OUTPUT ACCESS ===
-
-//   get input() {
-//     return this.#input; // Main input point
-//   }
-
-//   get output() {
-//     return this.#destination; // Where everything goes
-//   }
-
-//   // === SETTERS ===
-
-//   /**
-//    * Set how much signal goes to reverb (0.0 = none, 1.0 = full)
-//    */
-//   setReverbSend(amount: number): this {
-//     const safeValue = Math.max(0, Math.min(1, amount));
-//     this.#sends.reverb.gain.setValueAtTime(safeValue, this.now);
-//     return this;
-//   }
-
-//   /**
-//    * Set how much signal goes to karplus effect (0.0 = none, 1.0 = full)
-//    */
-//   setKarplusSend(amount: number): this {
-//     const safeValue = Math.max(0, Math.min(1, amount));
-//     this.#sends.karplus.gain.setValueAtTime(safeValue, this.now);
-//     return this;
-//   }
-
-//   /**
-//    * Set reverb output level in final mix (0.0 = silent, 1.0 = full)
-//    */
-//   setReverbReturn(level: number): this {
-//     const safeValue = Math.max(0, Math.min(1, level));
-//     this.#returns.reverb.gain.setValueAtTime(safeValue, this.now);
-//     return this;
-//   }
-
-//   /**
-//    * Set karplus output level in final mix (0.0 = silent, 1.0 = full)
-//    */
-//   setKarplusReturn(level: number): this {
-//     const safeValue = Math.max(0, Math.min(1, level));
-//     this.#returns.karplus.gain.setValueAtTime(safeValue, this.now);
-//     return this;
-//   }
-
-//   setReverbAmount(amount: number): this {
-//     if (!this.#reverbEnabled || !this.#reverb) return this;
-
-//     this.setReverbSend(amount);
-//     this.#reverb.setAmountMacro(amount);
-
-//     return this;
-//   }
-
-//   /**
-//    * Set karplus amount (controls both send and return for typical use)
-//    */
-//   setKarplusAmount(amount: number): this {
-//     if (!this.#karplusFxEnabled || !this.#karplusEffect) return this;
-//     this.setKarplusSend(amount);
-//     return this;
-//   }
-
-//   set altVolume(value: number) {
-//     this.#altOut?.gain.setValueAtTime(value, this.now);
-//   }
-
-//   set outVolume(value: number) {
-//     const safeValue = Math.max(0, Math.min(1, value));
-//     this.#output.gain.setValueAtTime(safeValue, this.now);
-//   }
-
-//   // set wetOutVolume(value: number) {
-//   //   const safeValue = Math.max(0, Math.min(1, value));
-//   //   this.#wetOutput.gain.setValueAtTime(safeValue, this.now);
-//   // }
-// }

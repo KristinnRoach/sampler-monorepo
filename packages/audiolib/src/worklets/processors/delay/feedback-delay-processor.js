@@ -24,7 +24,7 @@ registerProcessor(
 
     constructor() {
       super();
-      this.Buffer = null; // init in process()
+      this.Buffers = []; // buffer per channel
       this.bufferInitialized = false;
 
       this.ReadPtr = 0;
@@ -70,67 +70,88 @@ registerProcessor(
     }
 
     process(inputs, outputs, parameters) {
+      const input = inputs[0];
+      const output = outputs[0];
+
+      // No input or output channels
+      if (!input || !output) return true;
+
+      // Initialize buffers if needed
       if (!this.bufferInitialized) {
-        this.Buffer = new Array(Math.floor(sampleRate)).fill(0);
+        for (let c = 0; c < input.length; c++) {
+          this.Buffers[c] = new Array(Math.floor(sampleRate)).fill(0);
+        }
         this.bufferInitialized = true;
       }
 
-      if (!inputs[0] || !outputs[0] || !inputs[0][0] || !outputs[0][0]) {
-        return true;
-      }
-
       const delaySamples = Math.floor(sampleRate * parameters.delayTime[0]);
-      const bufferSize = this.Buffer.length;
+      const bufferSize = this.Buffers[0].length;
       const gain = parameters.gain[0];
-      const outputChannel = outputs[0][0];
-      const inputChannel = inputs[0][0];
-      const blockLength = outputChannel.length;
 
-      // Calculate gain compensation: as feedback increases, reduce overall gain
+      // Calculate gain compensation
       const adjustedGain = this.autoGainEnabled
-        ? // ? gain * (1 - Math.sqrt(gain) * this.GAIN_COMPENSATION) // smoother reduction curve (just use if sounds better)
-          gain * (1 - gain * this.GAIN_COMPENSATION) // basic
+        ? gain * (1 - gain * this.GAIN_COMPENSATION)
         : gain;
 
-      // Choose limiting function once per block
-      switch (this.limitingMode) {
-        case 'soft-clipping':
-          for (let i = 0; i < outputChannel.length; ++i) {
-            let sample =
-              adjustedGain * this.Buffer[this.ReadPtr] + inputChannel[i];
-            sample = this.maxOutput * Math.tanh(sample / this.maxOutput);
+      // Process each available channel
+      for (let c = 0; c < Math.min(input.length, output.length); c++) {
+        const inputChannel = input[c];
+        const outputChannel = output[c];
+        const buffer = this.Buffers[c] || this.Buffers[0]; // Fallback if buffer missing
 
-            outputChannel[i] = sample;
-            this.Buffer[this.WritePtr] = sample;
-            this.updateBufferPointers(delaySamples, bufferSize);
-          }
-          break;
+        // Choose limiting function (existing switch/case logic for each channel)
+        switch (this.limitingMode) {
+          case 'soft-clipping':
+            for (let i = 0; i < outputChannel.length; ++i) {
+              let sample =
+                adjustedGain * buffer[this.ReadPtr] + inputChannel[i];
+              sample = this.maxOutput * Math.tanh(sample / this.maxOutput);
 
-        case 'hard-clipping':
-          for (let i = 0; i < outputChannel.length; ++i) {
-            let sample =
-              adjustedGain * this.Buffer[this.ReadPtr] + inputChannel[i];
-            sample = Math.max(
-              -this.maxOutput,
-              Math.min(this.maxOutput, sample)
-            );
-            outputChannel[i] = sample;
-            this.Buffer[this.WritePtr] = sample;
-            this.updateBufferPointers(delaySamples, bufferSize);
-          }
-          break;
+              outputChannel[i] = sample;
+              buffer[this.WritePtr] = sample;
 
-        case 'none':
-        default:
-          for (let i = 0; i < outputChannel.length; ++i) {
-            let sample =
-              adjustedGain * this.Buffer[this.ReadPtr] + inputChannel[i];
-            outputChannel[i] = sample;
-            this.Buffer[this.WritePtr] = sample;
-            this.updateBufferPointers(delaySamples, bufferSize);
-          }
-          break;
+              if (c === input.length - 1) {
+                // Update pointers only once per sample
+                this.updateBufferPointers(delaySamples, bufferSize);
+              }
+            }
+            break;
+
+          case 'hard-clipping':
+            for (let i = 0; i < outputChannel.length; ++i) {
+              let sample =
+                adjustedGain * buffer[this.ReadPtr] + inputChannel[i];
+              sample = Math.max(
+                -this.maxOutput,
+                Math.min(this.maxOutput, sample)
+              );
+              outputChannel[i] = sample;
+              buffer[this.WritePtr] = sample;
+
+              if (c === input.length - 1) {
+                // Update pointers only once per sample
+                this.updateBufferPointers(delaySamples, bufferSize);
+              }
+            }
+            break;
+
+          case 'none':
+          default:
+            for (let i = 0; i < outputChannel.length; ++i) {
+              let sample =
+                adjustedGain * buffer[this.ReadPtr] + inputChannel[i];
+              outputChannel[i] = sample;
+              buffer[this.WritePtr] = sample;
+
+              if (c === input.length - 1) {
+                // Update pointers only once per sample
+                this.updateBufferPointers(delaySamples, bufferSize);
+              }
+            }
+            break;
+        }
       }
+
       return true;
     }
   }

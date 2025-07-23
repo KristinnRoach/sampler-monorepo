@@ -1,6 +1,7 @@
 // SampleControls.ts
 import van, { State } from '@repo/vanjs-core';
 import { defineElement } from '../elementRegistry.ts';
+import { mapToRange, clamp } from '@/utils/math-utils.ts';
 import { createSliderGSAP } from '../primitives/createSliderGSAP.ts';
 import {
   KnobElement,
@@ -15,8 +16,10 @@ export const SampleControls = (
   endPointSeconds: State<number>,
   sampleDurationSeconds: State<number>
 ) => {
+  const SAFE_END_OFFSET = 0.001; // TODO: proper robust fix
+
   // Must use rawVal to avoid creating dependencies!
-  const initialLoopEnd = loopEndSeconds.rawVal;
+  const initialLoopEnd = loopEndSeconds.rawVal - SAFE_END_OFFSET;
   let initialThumbDistance = loopEndSeconds.rawVal - loopStartSeconds.rawVal;
 
   const { div } = van.tags;
@@ -32,7 +35,7 @@ export const SampleControls = (
       loopEndSliderThumb,
       {
         min: 0,
-        max: sampleDurationSeconds.rawVal,
+        max: sampleDurationSeconds.rawVal - SAFE_END_OFFSET,
       },
       loopRampSeconds
     );
@@ -71,11 +74,25 @@ export const SampleControls = (
   });
 
   // Update loopEnd when either loopPoint thumb or knob offset changes
+  // van.derive(() => {
+  //   loopEndSeconds.val = Math.max(
+  //     loopStartSeconds.rawVal + 0.001,
+  //     loopEndSliderThumb.val - loopEndKnobOffset.val
+  //   );
+  // });
+
   van.derive(() => {
-    loopEndSeconds.val = Math.max(
+    const newLoopEnd = Math.max(
       loopStartSeconds.rawVal + 0.001,
       loopEndSliderThumb.val - loopEndKnobOffset.val
     );
+
+    loopEndSeconds.val = newLoopEnd;
+
+    // If loop end is less than loop start, also update loop start
+    if (newLoopEnd < loopStartSeconds.val) {
+      loopStartSeconds.val = Math.max(0, newLoopEnd - 0.001);
+    }
   });
 
   // van.derive(() => (startPointSeconds.val = loopStartSeconds.val));
@@ -99,9 +116,9 @@ export const SampleControls = (
   return controls;
 };
 
+// Ignore comments below:
 // !? IDEA -> Cranker is OFF at min pos, subsequent positions correspond to allowed periods.
 // (maybe even gsap can animate smoothly to them and replace some of the macroparam logic)
-
 // const { container: trimSliderContainer, sliderElement: trimSliderEl } =
 //   createSliderGSAP('Trim', startPointSeconds, endPointSeconds, {
 //     min: 0,

@@ -17,6 +17,7 @@ import {
   LoopHoldControls,
   FilterSliders,
 } from '../controls/AudioControls';
+import { createLabeledKnob } from '../primitives/createKnob';
 
 const { div } = van.tags;
 
@@ -28,12 +29,12 @@ const KarplusSynthElement = (attributes: ElementProps) => {
 
   // Audio parameters
   const volume = van.state(0.5); // 0-1
-  const decayAmount = van.state(0.25); // normalized feedback gain amount (0-1)
+  const decayAmount = van.state(0.7); // normalized feedback gain amount (0-1)
 
   const attackSec = van.state(0.001); // in seconds
-  const noiseSec = van.state(0.005); // in seconds
+  const noiseSec = van.state(0.01); // in seconds
 
-  const lpfFreq = van.state(18000); // Hz
+  const lpfFreq = van.state(10000); // Hz
   const hpfFreq = van.state(20);
 
   // const envelopeController = createCustomEnvelope();
@@ -128,7 +129,15 @@ const KarplusSynthElement = (attributes: ElementProps) => {
 
         createSlider('Attack', attackSec, 0.001, 2, 0.001), // in seconds
         createSlider('Thickness', noiseSec, 0.001, 0.5, 0.001), // seconds
-        createSlider('Decay', decayAmount, 0, 1, 0.01), // 0-1
+
+        createLabeledKnob({
+          label: 'Decay',
+          defaultValue: 0.7,
+          minValue: 0.01,
+          maxValue: 1,
+          curve: 2,
+          onChange: (value: number) => (decayAmount.val = value),
+        }),
 
         FilterSliders(lpfFreq, hpfFreq), // Hz
 

@@ -1,7 +1,8 @@
 class RandomNoiseProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.previousSample = 0;
+    this.previousNoise = 0;
+    this.previousFiltered = 0;
     this.hpfHz = 150; // Default // Test for optimal values
     this.alpha = this.hpfHz / (this.hpfHz + sampleRate / (2 * Math.PI));
 
@@ -23,8 +24,9 @@ class RandomNoiseProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < channel.length; i++) {
         const noise = Math.random() * 2 - 1;
         const filtered =
-          this.alpha * (this.previousSample + noise - this.previousSample);
-        this.previousSample = noise;
+          this.alpha * (noise - this.previousNoise) + this.previousFiltered;
+        this.previousNoise = noise;
+        this.previousFiltered = filtered;
         channel[i] = filtered;
       }
     });

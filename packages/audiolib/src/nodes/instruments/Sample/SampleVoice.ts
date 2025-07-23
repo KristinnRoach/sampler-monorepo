@@ -187,9 +187,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       });
     }
 
-    if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
-      this.setParam('hpf', fundamentalFreq, this.now);
-    }
+    // if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
+    //   this.setParam('hpf', fundamentalFreq, this.now);
+    // }
 
     return true;
   }

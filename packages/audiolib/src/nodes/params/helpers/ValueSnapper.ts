@@ -186,6 +186,8 @@ export class ValueSnapper {
     // TODO: Test current direction based approach VS 'findClosest'
     const quantized = findClosest(allowedPeriods, targetPeriod, direction);
 
+    this.#prevIndex = this.#allowedPeriods.indexOf(quantized);
+
     // let quantized = targetPeriod;
     // let idx = this.#prevIndex;
     // if (direction === 'right') {

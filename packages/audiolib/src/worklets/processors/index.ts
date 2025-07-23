@@ -7,7 +7,6 @@
 import './play/sample-player-processor';
 import './noise/random-noise-processor';
 import './delay/feedback-delay-processor';
-import './delay/karplus-fb-delay-processor';
 import './reverb/dattorro-reverb-processor';
 
 // For dev de-bugging / testing:

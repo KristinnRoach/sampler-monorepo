@@ -45,11 +45,11 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   #hpf: BiquadFilterNode | null = null;
   #lpf: BiquadFilterNode | null = null;
-  #maxLpfhz: number;
-  #filtersEnabled: boolean;
+  #maxLpfhz: number = 18000;
+  #filtersEnabled = true;
 
   #hpfHz: number = 80; // default
-  #lpfHz: number; // set later using audio context sample rate
+  #lpfHz: number = 18000; // set later using audio context sample rate
   #lpfQ: number = 0.5;
   #hpfQ: number = 0.5;
 
@@ -103,38 +103,37 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
     this.delayParam = this.fbParamMap.get('delayTime')!;
 
-    // Set low-pass filter frequency based on context sample rate
-    this.#maxLpfhz = this.audioContext.sampleRate / 2 - 1000;
-    this.#lpfHz = this.#maxLpfhz;
-    this.#filtersEnabled = options.enableFilters ?? true;
-
-    // Create filters if enabled
-    if (this.#filtersEnabled) {
-      this.#hpf = new BiquadFilterNode(context, {
-        type: 'highpass',
-        frequency: this.#hpfHz,
-        Q: this.#hpfQ,
-      });
-      this.#lpf = new BiquadFilterNode(context, {
-        type: 'lowpass',
-        frequency: this.#lpfHz,
-        Q: this.#lpfQ,
-      });
-
-      // Connect with filters
-      this.noiseGenerator.connect(this.noiseGain);
-      this.noiseGain.connect(this.feedbackDelay);
-      this.noiseGain.connect(this.#hpf);
-      this.feedbackDelay.connect(this.#hpf);
-      this.#hpf.connect(this.#lpf);
-      this.#lpf.connect(this.outputGain);
-    } else {
-      // Connect without filters
-      this.noiseGenerator.connect(this.noiseGain);
-      this.noiseGain.connect(this.outputGain);
-      this.noiseGain.connect(this.feedbackDelay);
-      this.feedbackDelay.connect(this.outputGain);
+    if (options.enableFilters !== undefined) {
+      this.#filtersEnabled = options.enableFilters;
     }
+    // // Create filters if enabled
+    // if (this.#filtersEnabled) {
+    //   this.#hpf = new BiquadFilterNode(context, {
+    //     type: 'highpass',
+    //     frequency: this.#hpfHz,
+    //     Q: this.#hpfQ,
+    //   });
+    //   this.#lpf = new BiquadFilterNode(context, {
+    //     type: 'lowpass',
+    //     frequency: this.#lpfHz,
+    //     Q: this.#lpfQ,
+    //   });
+    // }
+
+    //   // Connect with filters
+    //   this.noiseGenerator.connect(this.noiseGain);
+    //   this.noiseGain.connect(this.feedbackDelay);
+    //   this.noiseGain.connect(this.#hpf);
+    //   this.feedbackDelay.connect(this.#hpf);
+    //   this.#hpf.connect(this.#lpf);
+    //   this.#lpf.connect(this.outputGain);
+    // } else {
+    //   // Connect without filters
+    //   this.noiseGenerator.connect(this.noiseGain);
+    //   this.noiseGain.connect(this.outputGain);
+    //   this.noiseGain.connect(this.feedbackDelay);
+    //   this.feedbackDelay.connect(this.outputGain);
+    // }
 
     this.setupAudioGraph();
 
@@ -150,6 +149,10 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
   }
 
   private setupAudioGraph(): void {
+    // Set low-pass filter frequency based on context sample rate
+    this.#maxLpfhz = this.audioContext.sampleRate / 2 - 1000;
+    this.#lpfHz = this.#maxLpfhz;
+
     if (this.#filtersEnabled) {
       this.#hpf = new BiquadFilterNode(this.audioContext, {
         type: 'highpass',
@@ -316,7 +319,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
   }
 
   setDecay(normGain: number, timestamp = this.now): this {
-    const mappedGain = mapToRange(normGain, 0, 1, 0.9, 1.3);
+    const mappedGain = mapToRange(normGain, 0, 1, 1.1, 1.2); // todo: fix ranges (probably best to create separate fb-dly processors for ks voice and ks effect)
     this.fbParamMap.get('gain')!.setValueAtTime(mappedGain, timestamp);
     return this;
   }
