@@ -553,7 +553,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   /** CONNECTIONS */
 
-  connect(
+  connectFromTo(
     destination: Destination,
     output?: number,
     input?: number
@@ -570,7 +570,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return destination;
   }
 
-  disconnect(output = 'main', destination?: Destination): this {
+  disconnectFromTo(output = 'main', destination?: Destination): this {
     if (output === 'alt') {
       console.warn(`SampleVoice has no "alt" output to disconnect`);
       return this;
@@ -838,7 +838,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   dispose(): void {
     this.stop();
-    this.disconnect();
+    this.disconnectFromTo();
     this.#envelopes.forEach((env) => env.dispose());
     this.#worklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);

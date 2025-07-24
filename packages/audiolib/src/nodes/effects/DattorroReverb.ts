@@ -236,6 +236,10 @@ export class DattorroReverb {
     return result;
   }
 
+  get worklet() {
+    return this.#node;
+  }
+
   get in(): AudioNode {
     return this.#node;
   }
@@ -256,6 +260,23 @@ export class DattorroReverb {
     // Return approximate macro value based on current inputDiffusion1
     const fi = this.getParam('inputDiffusion1')?.value ?? 0.75;
     return (fi - 0.1) / (0.75 - 0.1); // Reverse the mapping
+  }
+
+  get numberOfInputs() {
+    return this.in.numberOfInputs;
+  }
+
+  get numberOfOutputs() {
+    return this.out.numberOfOutputs;
+  }
+
+  get workletInfo() {
+    return {
+      numberOfInputs: this.#node.numberOfInputs,
+      numberOfOutputs: this.#node.numberOfOutputs,
+      channelCount: this.#node.channelCount,
+      channelCountMode: this.#node.channelCountMode,
+    };
   }
 }
 

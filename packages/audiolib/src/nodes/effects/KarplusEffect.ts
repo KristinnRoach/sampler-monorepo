@@ -11,20 +11,15 @@ export class KarplusEffect implements LibNode, Connectable {
   audioContext: AudioContext;
   delay: AudioWorkletNode;
 
-  lpf: BiquadFilterNode;
-  hpf: BiquadFilterNode;
-
   inputGain: GainNode;
   outputGain: GainNode;
-  feedback: GainNode;
 
   wetGain: GainNode;
   dryGain: GainNode;
   mixerOutput: GainNode;
 
-  MIN_FB = 0.9; // Actual feedback gain param's
-  MAX_FB = 1.3; // full range is 0.5-1.5
-  MAX_LPF_HZ: number;
+  MIN_FB = 0.7; // Actual feedback gain param's
+  MAX_FB = 1; // ? full range is 0.001 - 1
   C6_SECONDS = 0.00095556;
 
   constructor(context: AudioContext = getAudioContext()) {
@@ -35,34 +30,14 @@ export class KarplusEffect implements LibNode, Connectable {
 
     this.inputGain = new GainNode(context, { gain: 1 });
     this.outputGain = new GainNode(context, { gain: 1 });
-    this.feedback = new GainNode(context, { gain: 0.85 });
 
     this.wetGain = new GainNode(context, { gain: 0.0 });
     this.dryGain = new GainNode(context, { gain: 1.0 });
     this.mixerOutput = new GainNode(context, { gain: 1.0 });
 
-    this.MAX_LPF_HZ = context.sampleRate / 2 - 1000;
-
-    const DEFAULT_HPF_HZ = 100; // testing
-    const DEFAULT_LPF_HZ = 6000; // testing
-
-    this.hpf = new BiquadFilterNode(context, {
-      type: 'highpass',
-      frequency: DEFAULT_HPF_HZ,
-      Q: 0.5,
-    });
-
-    this.lpf = new BiquadFilterNode(context, {
-      type: 'lowpass',
-      frequency: DEFAULT_LPF_HZ, // this.MAX_LPF_HZ,
-      Q: 0.707,
-    });
-
-    // Wet path: input -> delay -> hpf -> lpf -> wetGain -> mixer
+    // Wet path: input -> delay ->  wetGain -> mixer
     this.inputGain.connect(this.delay);
-    this.delay.connect(this.hpf);
-    this.hpf.connect(this.lpf);
-    this.lpf.connect(this.wetGain);
+    this.delay.connect(this.wetGain);
     this.wetGain.connect(this.mixerOutput);
 
     // Dry path: input -> dryGain -> mixer
@@ -72,22 +47,21 @@ export class KarplusEffect implements LibNode, Connectable {
     // Output from mixer
     this.mixerOutput.connect(this.outputGain);
 
-    this.setLimiting('soft-clipping');
-    this.setAutoGain(true, 0.2);
-
-    this.setMaxOutput(0.1);
-
     this.setDelay(0.05);
-    this.setFeedback(this.MIN_FB);
+
+    // this.setLimiting('soft-clipping');
+    // this.setAutoGain(true, 0.2);
+    // this.setClippingThreshold(0.1);
+    // this.setFeedback(0.5);
 
     this.#initialized = true;
   }
 
-  connect(destination: Destination) {
+  connectFromTo(destination: Destination) {
     return this.outputGain.connect(destination as any);
   }
 
-  disconnect() {
+  disconnectFromTo() {
     this.outputGain.disconnect();
     return this;
   }
@@ -126,6 +100,7 @@ export class KarplusEffect implements LibNode, Connectable {
       wet: safeAmount,
     });
 
+    // this.setFeedback(0);
     this.setFeedback(safeAmount);
 
     return this;
@@ -149,7 +124,9 @@ export class KarplusEffect implements LibNode, Connectable {
 
   setFeedback(gain: number, timestamp = this.now) {
     const mappedGain = mapToRange(gain, 0, 1, this.MIN_FB, this.MAX_FB);
-    this.delay.parameters.get('gain')!.setValueAtTime(mappedGain, timestamp);
+    this.delay.parameters
+      .get('feedbackAmount')!
+      .setValueAtTime(mappedGain, timestamp);
     return this;
   }
 
@@ -176,15 +153,19 @@ export class KarplusEffect implements LibNode, Connectable {
     return this;
   }
 
-  setMaxOutput(level: number): this {
+  setClippingThreshold(level: number): this {
     this.delay.port.postMessage({
-      type: 'setMaxOutput',
+      type: 'setClippingThreshold',
       level: level,
     });
     return this;
   }
 
   // === GETTERS ===
+
+  get worklet() {
+    return this.delay;
+  }
 
   get in() {
     return this.inputGain;
@@ -208,10 +189,27 @@ export class KarplusEffect implements LibNode, Connectable {
     return this.#initialized;
   }
 
+  get numberOfInputs() {
+    return this.in.numberOfInputs;
+  }
+
+  get numberOfOutputs() {
+    return this.out.numberOfOutputs;
+  }
+
+  get workletInfo() {
+    return {
+      numberOfInputs: this.delay.numberOfInputs,
+      numberOfOutputs: this.delay.numberOfOutputs,
+      channelCount: this.delay.channelCount,
+      channelCountMode: this.delay.channelCountMode,
+    };
+  }
+
   // === CLEANUP ===
 
   dispose() {
-    this.disconnect();
+    this.disconnectFromTo();
     deleteNodeId(this.nodeId);
   }
 }

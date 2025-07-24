@@ -29,6 +29,7 @@ const KarplusSynthElement = (attributes: ElementProps) => {
 
   // Audio parameters
   const volume = van.state(0.5); // 0-1
+  const noiseGain = van.state(0); // constant source of input noise
   const decayAmount = van.state(0.7); // normalized feedback gain amount (0-1)
 
   const attackSec = van.state(0.001); // in seconds
@@ -70,17 +71,13 @@ const KarplusSynthElement = (attributes: ElementProps) => {
         });
         // Reactive parameter binding
         derive(() => (ksSynth.volume = volume.val));
-        derive(() => {
-          ksSynth.setParameterValue('attack', attackSec.val);
-          ksSynth.setParameterValue('decay', decayAmount.val);
-          ksSynth.setParameterValue('noiseTime', noiseSec.val);
-        });
-        derive(() => {
-          ksSynth.setLpfCutoff(lpfFreq.val);
-          ksSynth.setHpfCutoff(hpfFreq.val);
-        });
+        derive(() => ksSynth.setParameterValue('noiseGain', noiseGain.val));
+        derive(() => ksSynth.setParameterValue('attack', attackSec.val));
+        derive(() => ksSynth.setParameterValue('decay', decayAmount.val));
+        derive(() => ksSynth.setParameterValue('noiseTime', noiseSec.val));
+        derive(() => ksSynth.setLpfCutoff(lpfFreq.val));
+        derive(() => ksSynth.setHpfCutoff(hpfFreq.val));
 
-        // Control states
         derive(() =>
           keyboardEnabled.val
             ? ksSynth.enableKeyboard()
@@ -130,14 +127,39 @@ const KarplusSynthElement = (attributes: ElementProps) => {
         createSlider('Attack', attackSec, 0.001, 2, 0.001), // in seconds
         createSlider('Thickness', noiseSec, 0.001, 0.5, 0.001), // seconds
 
-        createLabeledKnob({
-          label: 'Decay',
-          defaultValue: 0.7,
-          minValue: 0.01,
-          maxValue: 1,
-          curve: 2,
-          onChange: (value: number) => (decayAmount.val = value),
-        }),
+        div(
+          {
+            class: 'knobs',
+            style: () =>
+              expanded.val === 'true'
+                ? `
+                  display: grid;
+                  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                  gap: 1rem;
+                  padding: 1rem;
+                  max-width: 100%;
+                  justify-items: center;
+                  align-items: start;
+                `
+                : 'display: none; padding: 0.5rem;',
+          },
+          createLabeledKnob({
+            label: 'Decay',
+            defaultValue: 0.7,
+            minValue: 0.01,
+            maxValue: 1,
+            curve: 2,
+            onChange: (value: number) => (decayAmount.val = value),
+          }),
+          createLabeledKnob({
+            label: 'Input Noise',
+            defaultValue: 0,
+            minValue: 0,
+            maxValue: 1,
+            curve: 1,
+            onChange: (value: number) => (decayAmount.val = value),
+          })
+        ),
 
         FilterSliders(lpfFreq, hpfFreq), // Hz
 

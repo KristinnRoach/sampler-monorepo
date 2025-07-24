@@ -34,6 +34,9 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
   outputGain: GainNode;
 
   #VOICE_VOLUME: number = 0.1; // Default (volume changes handled in synth) // Todo: manage reasonable range
+
+  #constantGain: number = 0;
+
   #attackTime: number = KARPLUS_DEFAULTS.attack;
   #noiseTime: number = KARPLUS_DEFAULTS.noiseTime; // time params are in seconds
   #startTime: number = 0;
@@ -88,7 +91,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
     // Create a combined parameter map for all parameters
     this.paramMap = new Map([
-      ['decay', this.fbParamMap.get('gain')!], // clarify naming!
+      ['decay', this.fbParamMap.get('feedbackAmount')!],
       [
         'noiseTime',
         {
@@ -106,34 +109,6 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     if (options.enableFilters !== undefined) {
       this.#filtersEnabled = options.enableFilters;
     }
-    // // Create filters if enabled
-    // if (this.#filtersEnabled) {
-    //   this.#hpf = new BiquadFilterNode(context, {
-    //     type: 'highpass',
-    //     frequency: this.#hpfHz,
-    //     Q: this.#hpfQ,
-    //   });
-    //   this.#lpf = new BiquadFilterNode(context, {
-    //     type: 'lowpass',
-    //     frequency: this.#lpfHz,
-    //     Q: this.#lpfQ,
-    //   });
-    // }
-
-    //   // Connect with filters
-    //   this.noiseGenerator.connect(this.noiseGain);
-    //   this.noiseGain.connect(this.feedbackDelay);
-    //   this.noiseGain.connect(this.#hpf);
-    //   this.feedbackDelay.connect(this.#hpf);
-    //   this.#hpf.connect(this.#lpf);
-    //   this.#lpf.connect(this.outputGain);
-    // } else {
-    //   // Connect without filters
-    //   this.noiseGenerator.connect(this.noiseGain);
-    //   this.noiseGain.connect(this.outputGain);
-    //   this.noiseGain.connect(this.feedbackDelay);
-    //   this.feedbackDelay.connect(this.outputGain);
-    // }
 
     this.setupAudioGraph();
 
@@ -183,7 +158,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   // ==== CONNECT ====
 
-  connect(
+  connectFromTo(
     destination: Destination,
     output?: number,
     input?: number
@@ -198,7 +173,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return destination;
   }
 
-  disconnect(): this {
+  disconnectFromTo(): this {
     this.outputGain.disconnect();
     return this;
   }
@@ -219,32 +194,37 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     this.#midiNote = midiNote;
     this.#noteId = noteId ?? null;
 
-    const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
+    const frequency = (440 * Math.pow(2, (midiNote - 69) / 12)) / 2; // ! TEMP
     const delaySec = 1 / frequency;
     // const bufferCompensation = 128 / this.ctx.sampleRate;
     // const totalDelay = delaySec + bufferCompensation;
 
     this.setDelay(delaySec);
 
-    // Reset gain params
-    cancelScheduledParamValues(this.outputGain.gain, this.now);
-    this.outputGain.gain.cancelScheduledValues(this.now);
-    this.outputGain.gain.setValueAtTime(this.#VOICE_VOLUME, this.now);
+    if (this.#constantGain === 0) {
+      console.debug('this.#constantGain === 0', this.#constantGain === 0);
+      // Reset gain params
+      cancelScheduledParamValues(this.outputGain.gain, this.now);
+      this.outputGain.gain.cancelScheduledValues(this.now);
+      this.outputGain.gain.setValueAtTime(this.#VOICE_VOLUME, this.now);
 
-    cancelScheduledParamValues(this.noiseGain.gain, this.now);
-    this.noiseGain.gain.cancelScheduledValues(this.now);
-    this.noiseGain.gain.setValueAtTime(0, this.now);
+      const currentNoiseGain = this.noiseGain.gain.value;
 
-    // Schedule noise burst to excite the string using current holdMs value
-    this.noiseGain.gain.linearRampToValueAtTime(
-      this.#VOICE_VOLUME * velocity,
-      this.now + this.#attackTime
-    );
+      cancelScheduledParamValues(this.noiseGain.gain, this.now);
+      this.noiseGain.gain.cancelScheduledValues(this.now);
+      this.noiseGain.gain.setValueAtTime(currentNoiseGain, this.now);
 
-    this.noiseGain.gain.linearRampToValueAtTime(
-      0,
-      this.now + this.#noiseTime + this.#attackTime
-    );
+      // Schedule noise burst to excite the string using current holdMs value
+      this.noiseGain.gain.linearRampToValueAtTime(
+        this.#VOICE_VOLUME * velocity,
+        this.now + this.#attackTime
+      );
+
+      this.noiseGain.gain.linearRampToValueAtTime(
+        0,
+        this.now + this.#noiseTime + this.#attackTime
+      );
+    }
 
     this.sendMessage('voice:started', { ...options });
     return this;
@@ -320,7 +300,9 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   setDecay(normGain: number, timestamp = this.now): this {
     const mappedGain = mapToRange(normGain, 0, 1, 1.1, 1.2); // todo: fix ranges (probably best to create separate fb-dly processors for ks voice and ks effect)
-    this.fbParamMap.get('gain')!.setValueAtTime(mappedGain, timestamp);
+    this.fbParamMap
+      .get('feedbackAmount')!
+      .setValueAtTime(mappedGain, timestamp);
     return this;
   }
 
@@ -337,6 +319,14 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     const clamped = clamp(seconds, 0.003, 1);
     this.#noiseTime = clamped;
     return this;
+  }
+
+  setNoiseGain(gain: number) {
+    const safeGain = mapToRange(gain, 0, 1, 0.01, this.#VOICE_VOLUME + 0.01);
+    this.noiseGain.gain.cancelScheduledValues(this.now);
+    this.noiseGain.gain.setValueAtTime(safeGain, this.now); // ? Check time constant
+
+    this.#constantGain = safeGain;
   }
 
   setLimiting(mode: 'soft-clipping' | 'hard-clipping' | 'none'): this {
@@ -480,7 +470,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   dispose(): void {
     this.stop();
-    this.disconnect();
+    this.disconnectFromTo();
     this.noiseGenerator.port.close();
     deleteNodeId(this.nodeId);
   }

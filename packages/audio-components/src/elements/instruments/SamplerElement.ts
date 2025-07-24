@@ -39,8 +39,14 @@ export const SamplerElement = (attributes: ElementProps) => {
   const volume = van.state(0.75);
 
   const dryWetMix = van.state({ dry: 1, wet: 0 });
+
+  const hpfHz = van.state(40);
+  const lpfHz = van.state(18000);
+
   const reverbAmount = van.state(0.0);
   const karplusAmount = van.state(0.0);
+  const distDrive = van.state(0.0);
+  const clipping = van.state(0.0);
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -198,6 +204,16 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
+          samplePlayer.setHpfCutoff(hpfHz.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setLpfCutoff(lpfHz.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
           // samplePlayer.setReverbSend(reverbAmount.val);
           samplePlayer.setReverbAmount(reverbAmount.val);
         });
@@ -205,6 +221,16 @@ export const SamplerElement = (attributes: ElementProps) => {
         derive(() => {
           if (!samplePlayer) return;
           samplePlayer.setKarplusAmount(karplusAmount.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.outputBus.setDistDrive(distDrive.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.outputBus.setClipping(clipping.val);
         });
 
         derive(() => {
@@ -564,6 +590,24 @@ export const SamplerElement = (attributes: ElementProps) => {
         }),
 
         createLabeledKnob({
+          label: 'HPF',
+          defaultValue: 50,
+          minValue: 30,
+          maxValue: 18000,
+          curve: 5,
+          onChange: (value: number) => (hpfHz.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'LPF',
+          defaultValue: 18000,
+          minValue: 20,
+          maxValue: 20000,
+          curve: 5,
+          onChange: (value: number) => (lpfHz.val = value),
+        }),
+
+        createLabeledKnob({
           label: 'Reverb',
           defaultValue: 0.1,
           onChange: (value: number) => (reverbAmount.val = value),
@@ -575,6 +619,22 @@ export const SamplerElement = (attributes: ElementProps) => {
           minValue: 0,
           maxValue: 1,
           onChange: (value: number) => (karplusAmount.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'DistDrive',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          onChange: (value: number) => (distDrive.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'Clipping',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          onChange: (value: number) => (clipping.val = value),
         }),
 
         createLabeledKnob({

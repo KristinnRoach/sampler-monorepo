@@ -168,7 +168,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // Connection methods
-  public connect(
+  public connectFromTo(
     destination: Destination
     // output?: 'dry' | 'wet' | 'alt'
   ): Destination {
@@ -179,7 +179,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return destination;
   }
 
-  public disconnect() {
+  public disconnectFromTo() {
     // output?: 'dry' | 'wet' | 'alt'): this {
     this.outBus.disconnect();
 
@@ -208,7 +208,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
    */
   dispose() {
     this.panic(0);
-    this.disconnect();
+    this.disconnectFromTo();
     this.disableKeyboard();
     this.disableMIDI();
 

@@ -40,7 +40,7 @@ export class SampleVoicePool {
         enableFilters,
       });
 
-      voice.connect(destination);
+      voice.connectFromTo(destination);
 
       return voice;
     });

@@ -65,10 +65,6 @@ export class SamplePlayer extends LibInstrument {
 
   voicePool: SampleVoicePool;
 
-  connectAltOut: InstrumentMasterBus['connectAltOut'];
-  setAltOutVolume: InstrumentMasterBus['setAltOutVolume'];
-  mute: InstrumentMasterBus['mute'];
-
   constructor(
     context: AudioContext,
     polyphony: number = 16,
@@ -89,6 +85,8 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(context.destination);
 
+    this.outBus.debugRouting();
+
     // Setup params
     this.#macroLoopStart = new MacroParam(
       context,
@@ -103,11 +101,6 @@ export class SamplePlayer extends LibInstrument {
     this.#connectVoicesToMacros();
 
     this.#setupLFOs();
-
-    // Initialize the output bus methods
-    this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
-    this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
-    this.mute = (...args) => this.outBus.mute(...args);
 
     this.#setupMessageHandling();
 
@@ -841,6 +834,9 @@ export class SamplePlayer extends LibInstrument {
   return = (effect: BusEffectName, level: number) => {
     this.outBus.return(effect, level);
   };
+
+  setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
+  setHpfCutoff = (hz: number) => this.outBus.setHpfCutoff(hz);
 
   /* Macro control for reverb send and various other params */
   setReverbAmount = (amount: number) => {

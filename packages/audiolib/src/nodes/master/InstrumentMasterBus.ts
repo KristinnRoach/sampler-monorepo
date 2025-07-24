@@ -19,7 +19,14 @@ import { KarplusEffect } from '../effects/KarplusEffect';
 
 export type BusEffectName = 'karplus' | 'reverb' | 'compressor' | 'limiter';
 
-export class InstrumentMasterBus implements LibNode, Connectable {
+interface BusNode {
+  node: AudioNode;
+  type: 'effect' | 'gain' | 'filter';
+  controllable?: boolean; // Can be bypassed/controlled
+}
+
+export class InstrumentMasterBus implements LibNode {
+  // Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'InstrumentBus';
   #messages: MessageBus<Message>;
@@ -27,30 +34,21 @@ export class InstrumentMasterBus implements LibNode, Connectable {
   #context: AudioContext;
   #destination: AudioNode | null = null;
 
-  #input: GainNode;
+  // Node registry - all audio nodes live here
+  #nodes = new Map<string, BusNode>();
 
-  #dryMix: GainNode;
-  #wetMix: GainNode;
-  #mainOutput: GainNode;
-  #altOut: GainNode | null = null;
-  // #outputCompressor: DynamicsCompressorNode | null = null;
+  // Connection map - tracks routing
+  #connections = new Map<string, string[]>();
 
-  #effects: Map<
+  // Effect controls - for send amounts, bypassing, etc.
+  #controls = new Map<
     string,
     {
-      effect: any;
-      send: GainNode | null;
-      return: GainNode | null;
+      send?: GainNode;
+      bypass?: GainNode;
       enabled: boolean;
-      insert: boolean;
     }
-  > = new Map();
-
-  // TODO: fit wetKarplusEffect into existing #effects system
-  // todo: check why wetKarplusEffect sounds different for left vs right channel (sounds kinda cool tho)
-
-  #wetKarplusEffect: KarplusEffect | null = null;
-  #enableWetKarplusEffect: boolean = true;
+  >();
 
   #initialized = false;
 
@@ -59,501 +57,377 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     this.#context = context || getAudioContext();
     this.#messages = createMessageBus(this.nodeId);
 
-    this.#input = new GainNode(this.#context, { gain: 0.75 });
-    this.#dryMix = new GainNode(this.#context, { gain: 1.0 });
-    this.#wetMix = new GainNode(this.#context, { gain: 1.0 });
-    this.#mainOutput = new GainNode(this.#context, { gain: 1.0 });
-
-    // Start with direct connection (will be rewired when insert effects are added)
-    this.#input.connect(this.#mainOutput);
-
-    // Add insert effect first (affects dry signal)
-    this.addEffect('karplus', new KarplusEffect(this.#context), {
-      insert: true,
-    });
-    this.addEffect(
-      'compressor',
-      new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS),
-      { insert: true }
-    );
-    this.addEffect(
-      'limiter',
-      new DynamicsCompressorNode(this.#context, DEFAULT_LIMITER_SETTINGS),
-      { insert: true }
-    );
-
-    // Add send effects
-    this.addEffect('reverb', new DattorroReverb(this.#context));
-
-    this.#wetKarplusEffect = new KarplusEffect(this.#context);
-    this.addWetKarplusEffect();
-
+    this.#setupDefaultRouting();
     this.#initialized = true;
   }
 
-  /**
-   * Creates and connects the wet karplus effect after the reverb
-   */
-  addWetKarplusEffect(): this {
-    if (!this.#wetKarplusEffect) {
-      this.#wetKarplusEffect = new KarplusEffect(this.#context);
-    }
+  #setupDefaultRouting(): void {
+    // Create core nodes
+    this.addNode('input', new GainNode(this.#context, { gain: 0.75 }), 'gain');
+    this.addNode(
+      'lpf',
+      new BiquadFilterNode(this.#context, { Q: 0.707 }),
+      'filter'
+    );
+    this.addNode(
+      'hpf',
+      new BiquadFilterNode(this.#context, { type: 'highpass', Q: 0.5 }),
+      'filter'
+    );
+    this.addNode('dryMix', new GainNode(this.#context, { gain: 1.0 }), 'gain');
+    this.addNode('wetMix', new GainNode(this.#context, { gain: 1.0 }), 'gain');
+    this.addNode('output', new GainNode(this.#context, { gain: 1.0 }), 'gain');
 
-    // Get the reverb effect to insert after it
-    const reverbEffect = this.getEffect<DattorroReverb>('reverb');
-    const reverbReturn = this.#effects.get('reverb')?.return;
-
-    if (reverbEffect && reverbReturn) {
-      // Disconnect reverb return from wet mix
-      reverbReturn.disconnect();
-
-      // Connect reverb return -> wet karplus -> wet mix
-      reverbReturn.connect(this.#wetKarplusEffect.in);
-      this.#wetKarplusEffect.out.connect(this.#wetMix);
-    }
-
-    return this;
-  }
-
-  /**
-   * Trigger effects
-   */
-  noteOn(midiNote: number, velocity: number = 100, secondsFromNow = 0): this {
-    const karplus = this.getEffect<KarplusEffect>('karplus');
-    if (karplus && karplus.trigger) {
-      karplus.trigger(midiNote, velocity, secondsFromNow);
-    }
-
-    // Also trigger the wet karplus if enabled
-    if (this.#enableWetKarplusEffect && this.#wetKarplusEffect?.trigger) {
-      this.#wetKarplusEffect.trigger(midiNote, velocity, secondsFromNow);
-    }
-
-    return this;
-  }
-
-  /**
-   * Add any effect with automatic send/return creation and optional routing
-   */
-  addEffect(
-    name: string,
-    effect: any,
-    options?: { routeTo?: string; insert?: boolean }
-  ): this {
-    const { routeTo, insert = false } = options || {};
-
-    if (insert) {
-      // Insert effect: goes directly in the signal chain
-      this.#effects.set(name, {
-        effect,
-        send: null, // No send/return for inserts
-        return: null,
-        enabled: true,
-        insert: true,
-      });
-
-      this.#rewireInsertChain();
-    } else {
-      const send = new GainNode(this.#context, { gain: 0.0 });
-      const ret = new GainNode(this.#context, { gain: 1.0 });
-
-      this.#effects.set(name, {
-        effect,
-        send,
-        return: ret,
-        enabled: true,
-        insert: false,
-      });
-
-      // Wire up send path
-      this.#getInsertChainOutput().connect(send);
-
-      // Handle different effect input/output patterns
-      if (effect.in && effect.out) {
-        send.connect(effect.in);
-        effect.out.connect(ret);
-      } else {
-        send.connect(effect);
-        effect.connect(ret);
-      }
-
-      // Connect to specified effect or output
-      if (routeTo && this.#effects.has(routeTo)) {
-        const targetEffect = this.#effects.get(routeTo)!;
-        if (targetEffect.effect.in) {
-          ret.connect(targetEffect.effect.in);
-        } else {
-          ret.connect(targetEffect.effect);
-        }
-      } else {
-        ret.connect(this.#wetMix); // ? Is this always correct, what about dry effects ?
-      }
-    }
-
-    return this;
-  }
-
-  #rewireInsertChain(): void {
-    // Disconnect everything first
-    this.#input.disconnect();
-
-    // Get all insert effects
-    const insertEffects = Array.from(this.#effects.entries())
-      .filter(([_, fx]) => fx.insert)
-      .map(([name, fx]) => ({ name, effect: fx.effect }));
-
-    let currentNode: AudioNode = this.#input;
-
-    // Chain insert effects in order they were added
-    for (const { effect } of insertEffects) {
-      if (effect.in && effect.out) {
-        currentNode.connect(effect.in);
-        currentNode = effect.out;
-      } else {
-        currentNode.connect(effect);
-        currentNode = effect;
-      }
-    }
-
-    // CHANGE: Route through dry/wet mix instead of direct to main output
-    currentNode.connect(this.#dryMix);
-    this.#dryMix.connect(this.#mainOutput);
-
-    // Reconnect all send effects to the end of insert chain
-    for (const [_, fx] of this.#effects) {
-      if (!fx.insert && fx.send) {
-        currentNode.connect(fx.send);
-      }
-    }
-
-    // CHANGE: Route wet returns through wetMix
-    for (const [_, fx] of this.#effects) {
-      if (!fx.insert && fx.return) {
-        fx.return.disconnect();
-        fx.return.connect(this.#wetMix);
-      }
-    }
-    this.#wetMix.connect(this.#mainOutput);
-  }
-
-  /**
-   * Get the output of the insert chain (for connecting sends)
-   */
-  #getInsertChainOutput(): AudioNode {
-    const insertEffects = Array.from(this.#effects.values()).filter(
-      (fx) => fx.insert
+    // Add effects with automatic send/bypass setup
+    this.addEffect(
+      'compressor',
+      new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS)
     );
 
-    if (insertEffects.length === 0) {
-      return this.#input;
-    }
+    this.addEffect(
+      'limiter',
+      new DynamicsCompressorNode(this.#context, DEFAULT_LIMITER_SETTINGS)
+    );
 
-    // Return the output of the last insert effect
-    const lastInsert = insertEffects[insertEffects.length - 1];
-    return lastInsert.effect.out || lastInsert.effect;
+    const dVerb = new DattorroReverb(this.#context);
+    this.addEffect('reverb', dVerb);
+
+    const karplus = new KarplusEffect(this.#context);
+    this.addEffect('karplus', karplus);
+
+    // Set up default routing - recreate current behavior
+    this.connectFromTo('input', 'hpf');
+    this.connectFromTo('hpf', 'lpf');
+    this.connectFromTo('lpf', 'compressor');
+
+    // Set up reverb as send effect
+    this.connectFromTo('compressor', 'dryMix');
+    this.connectSend('compressor', 'reverb', 'wetMix');
+
+    // Main output chain
+    this.connectFromTo('dryMix', 'limiter');
+    this.connectFromTo('wetMix', 'limiter');
+
+    this.connectFromTo('limiter', 'karplus');
+    this.connectFromTo('karplus', 'output');
+
+    // Enable effects by default
+    this.setEffectEnabled('karplus', true);
+    this.setEffectEnabled('compressor', true);
+    this.setEffectEnabled('limiter', true);
+    this.setEffectEnabled('reverb', true);
+
+    this.debugRouting();
+    this.debugChannelCounts();
   }
 
   /**
-   * Get current routing configuration
+   * Add any audio node to the bus
    */
-  getRoutingMap(): Record<string, string | 'output'> {
-    const routing: Record<string, string | 'output'> = {};
+  addNode(
+    name: string,
+    node: AudioNode,
+    type: 'effect' | 'gain' | 'filter' = 'effect'
+  ): this {
+    this.#nodes.set(name, { node, type });
+    this.#connections.set(name, []);
+    return this;
+  }
 
-    for (const [effectName, fx] of this.#effects) {
-      // Check what this effect's return is connected to
-      let routesTo = 'output';
+  /**
+   * Add an effect with automatic send/bypass controls
+   */
+  addEffect(name: string, effect: any): this {
+    // Add the effect node
+    this.addNode(name, effect, 'effect');
 
-      for (const [targetName, targetFx] of this.#effects) {
-        if (targetName === effectName) continue;
+    // Create send control (for parallel routing)
+    const send = new GainNode(this.#context, { gain: 0.0 });
+    this.addNode(`${name}_send`, send, 'gain');
 
-        // This is a simplified check - in practice you might want to track connections more explicitly
-        if (fx.return && fx.return.numberOfOutputs > 0) {
-          // Assume it routes to another effect if not directly to output
-          // You could make this more robust by tracking connections
-          routesTo = 'unknown'; // Placeholder - you'd implement proper connection tracking
+    // Create bypass control (for series routing)
+    const bypass = new GainNode(this.#context, { gain: 1.0 }); // 1.0 = bypassed
+    this.addNode(`${name}_bypass`, bypass, 'gain');
+
+    this.#controls.set(name, {
+      send,
+      bypass,
+      enabled: false,
+    });
+
+    return this;
+  }
+
+  /**
+   * Connect two nodes directly
+   */
+  connectFromTo(from: string, to: string): this {
+    const fromNode = this.#nodes.get(from)?.node;
+    const toNode = this.#nodes.get(to)?.node;
+
+    if (!fromNode || !toNode) {
+      console.warn(`Cannot connect ${from} -> ${to}: node not found`);
+      return this;
+    }
+
+    // Handle different effect interface patterns
+    const fromOutput = (fromNode as any).out || fromNode;
+    const toInput = (toNode as any).in || toNode;
+
+    fromOutput.connect(toInput);
+
+    // Track connection
+    const connections = this.#connections.get(from) || [];
+    if (!connections.includes(to)) {
+      connections.push(to);
+      this.#connections.set(from, connections);
+    }
+
+    return this;
+  }
+
+  /**
+   * Set up a send effect (parallel routing)
+   */
+  connectSend(
+    from: string,
+    effect: string,
+    to: string,
+    sendAmount: number = 0.0
+  ): this {
+    const fromNode = this.#nodes.get(from)?.node;
+    const effectNode = this.#nodes.get(effect)?.node;
+    const toNode = this.#nodes.get(to)?.node;
+    const sendNode = this.#nodes.get(`${effect}_send`)?.node as GainNode;
+
+    if (!fromNode || !effectNode || !toNode || !sendNode) {
+      console.warn(`Cannot setup send routing: missing nodes`);
+      return this;
+    }
+
+    // Route: from -> send -> effect -> to
+    const fromOutput = (fromNode as any).out || fromNode;
+    const effectInput = (effectNode as any).in || effectNode;
+    const effectOutput = (effectNode as any).out || effectNode;
+    const toInput = (toNode as any).in || toNode;
+
+    fromOutput.connect(sendNode);
+    sendNode.connect(effectInput);
+    effectOutput.connect(toInput);
+
+    sendNode.gain.setValueAtTime(sendAmount, this.now);
+
+    // Track the send connections
+    const fromConnections = this.#connections.get(from) || [];
+    if (!fromConnections.includes(`${effect}_send`)) {
+      fromConnections.push(`${effect}_send`);
+      this.#connections.set(from, fromConnections);
+    }
+
+    const sendConnections = this.#connections.get(`${effect}_send`) || [];
+    if (!sendConnections.includes(effect)) {
+      sendConnections.push(effect);
+      this.#connections.set(`${effect}_send`, sendConnections);
+    }
+
+    const effectConnections = this.#connections.get(effect) || [];
+    if (!effectConnections.includes(to)) {
+      effectConnections.push(to);
+      this.#connections.set(effect, effectConnections);
+    }
+
+    return this;
+  }
+
+  /**
+   * Disconnect a connection
+   */
+  disconnectFromTo(from: string, to?: string): this {
+    const fromNode = this.#nodes.get(from)?.node;
+    if (!fromNode) return this;
+
+    if (to) {
+      const toNode = this.#nodes.get(to)?.node;
+      if (toNode) {
+        const fromOutput = (fromNode as any).out || fromNode;
+        const toInput = (toNode as any).in || toNode;
+        fromOutput.disconnect(toInput);
+
+        // Update tracking
+        const connections = this.#connections.get(from) || [];
+        const index = connections.indexOf(to);
+        if (index > -1) {
+          connections.splice(index, 1);
+          this.#connections.set(from, connections);
+        }
+      }
+    } else {
+      // Disconnect all
+      const fromOutput = (fromNode as any).out || fromNode;
+      fromOutput.disconnect();
+      this.#connections.set(from, []);
+    }
+
+    return this;
+  }
+
+  /**
+   * Remove a node completely
+   */
+  removeNode(name: string): this {
+    const node = this.#nodes.get(name);
+    if (node) {
+      // Disconnect everything
+      this.disconnectFromTo(name);
+
+      // Remove from other connections
+      for (const [fromName, connections] of this.#connections) {
+        const index = connections.indexOf(name);
+        if (index > -1) {
+          connections.splice(index, 1);
+          this.#connections.set(fromName, connections);
         }
       }
 
-      routing[effectName] = routesTo;
-    }
-
-    return routing;
-  }
-
-  /**
-   * Get the actual effect instance for direct control
-   */
-  getEffect<T = any>(effect: BusEffectName): T | null {
-    return this.#effects.get(effect)?.effect || null;
-  }
-
-  /**
-   * Get current send level
-   */
-  getSend(effect: BusEffectName): number {
-    return this.#effects.get(effect)?.send?.gain.value || 0;
-  }
-
-  /**
-   * Get current return level
-   */
-  getReturn(effect: BusEffectName): number {
-    return this.#effects.get(effect)?.return?.gain.value || 0;
-  }
-
-  // === SETTERS ===
-
-  setDryWetMix(mix: { dry: number; wet: number }): this {
-    this.#dryMix.gain.setValueAtTime(mix.dry, this.now);
-    this.#wetMix.gain.setValueAtTime(mix.wet, this.now);
-    return this;
-  }
-
-  /**
-   * Set up a complete routing chain in order
-   */
-  setRoutingChain(...effectNames: BusEffectName[]): this {
-    // Disconnect all effects first
-    for (const name of effectNames) {
-      this.setEffectRoute(name); // Routes to output
-    }
-
-    // Chain them in order
-    for (let i = 0; i < effectNames.length - 1; i++) {
-      this.setEffectRoute(effectNames[i], effectNames[i + 1]);
-    }
-
-    return this;
-  }
-
-  /**
-   * Change where an effect routes to after initialization
-   */
-  setEffectRoute(effect: BusEffectName, routeTo?: string): this {
-    const fx = this.#effects.get(effect);
-    if (!fx?.return) return this;
-
-    // Disconnect current routing
-    fx.return.disconnect();
-
-    // Connect to new destination
-    if (routeTo && this.#effects.has(routeTo)) {
-      const targetEffect = this.#effects.get(routeTo)!;
-      if (targetEffect.effect.in) {
-        fx.return.connect(targetEffect.effect.in);
-      } else {
-        fx.return.connect(targetEffect.effect);
-      }
-    } else {
-      // No routeTo or invalid target = connect to output // ! or wetMix ?
-      fx.return.connect(this.#wetMix);
-    }
-
-    return this;
-  }
-
-  /**
-   * Remove an effect completely
-   */
-  removeEffect(name: string): this {
-    const fx = this.#effects.get(name);
-    if (fx) {
-      fx.send?.disconnect();
-      fx.return?.disconnect();
-      fx.effect.disconnect?.();
-      this.#effects.delete(name);
+      // Clean up
+      this.#nodes.delete(name);
+      this.#connections.delete(name);
+      this.#controls.delete(name);
     }
     return this;
   }
 
   /**
-   * Set send amount for any effect (0.0 = none, 1.0 = full)
+   * Get a node by name
+   */
+  getNode<T extends AudioNode = AudioNode>(name: string): T | null {
+    return (this.#nodes.get(name)?.node as T) || null;
+  }
+
+  /**
+   * Get an effect node (convenience method)
+   */
+  getEffect<T extends AudioNode = AudioNode>(effect: BusEffectName): T | null {
+    return this.getNode<T>(effect);
+  }
+
+  /**
+   * Set send amount for an effect
    */
   send(effect: BusEffectName, amount: number): this {
-    const fx = this.#effects.get(effect);
-    if (fx?.send && fx.enabled) {
+    const control = this.#controls.get(effect);
+    if (control?.send) {
       const safeValue = Math.max(0, Math.min(1, amount));
-      fx.send.gain.setValueAtTime(safeValue, this.now);
+      control.send.gain.setValueAtTime(safeValue, this.now);
     }
     return this;
   }
 
   /**
-   * Set return level for any effect (0.0 = silent, 1.0 = full)
-   */
-  return(effect: BusEffectName, level: number): this {
-    const fx = this.#effects.get(effect);
-    if (fx?.return) {
-      const safeValue = Math.max(0, Math.min(1, level));
-      fx.return.gain.setValueAtTime(safeValue, this.now);
-    }
-    return this;
-  }
-
-  /**
-   * Enable/disable an effect (bypasses send when disabled)
+   * Enable/disable an effect
    */
   setEffectEnabled(effect: BusEffectName, enabled: boolean): this {
-    const fx = this.#effects.get(effect);
-    if (fx) {
-      fx.enabled = enabled;
-      if (!enabled && fx.send) {
-        fx.send.gain.setValueAtTime(0, this.now);
+    const control = this.#controls.get(effect);
+    if (control) {
+      control.enabled = enabled;
+
+      // For send effects, control the send amount
+      if (control.send) {
+        const currentAmount = control.send.gain.value;
+        control.send.gain.setValueAtTime(enabled ? currentAmount : 0, this.now);
+      }
+
+      // For insert effects, use bypass (TODO: implement bypass routing)
+      if (control.bypass) {
+        control.bypass.gain.setValueAtTime(enabled ? 0 : 1, this.now);
       }
     }
     return this;
   }
 
   /**
-   * Set's reverb send amount as well as adjusting internal params
+   * Trigger effects that can be triggered
    */
+  noteOn(midiNote: number, velocity: number = 100, secondsFromNow = 0): this {
+    const karplus = this.getEffect<AudioNode>('karplus');
+    if (karplus && (karplus as any).trigger) {
+      (karplus as any).trigger(midiNote, velocity, secondsFromNow);
+    }
+    return this;
+  }
+
+  // === CONVENIENCE METHODS FOR COMPATIBILITY ===
+
+  setDryWetMix(mix: { dry: number; wet: number }): this {
+    const dryMix = this.getNode<GainNode>('dryMix');
+    const wetMix = this.getNode<GainNode>('wetMix');
+
+    if (dryMix && mix.dry !== undefined) {
+      const safeDry = Math.max(0, Math.min(1, mix.dry));
+      dryMix.gain.setValueAtTime(safeDry, this.now);
+    }
+
+    if (wetMix && mix.wet !== undefined) {
+      const safeWet = Math.max(0, Math.min(1, mix.wet));
+      wetMix.gain.setValueAtTime(safeWet, this.now);
+    }
+
+    return this;
+  }
+
   setReverbAmount(amount: number): this {
     this.send('reverb', amount);
-
-    const reverb = this.getEffect<DattorroReverb>('reverb');
-    if (reverb && reverb.setAmountMacro) {
-      reverb.setAmountMacro(amount);
+    const reverb = this.getEffect<AudioNode>('reverb');
+    if (reverb && (reverb as any).setAmountMacro) {
+      (reverb as any).setAmountMacro(amount);
     }
     return this;
   }
 
-  /**
-   * Set's effects wet/dry mix as well as adjusting internal params
-   */
+  setDistDrive(amount: number) {
+    const effect = this.getEffect<AudioNode>('karplus');
+    if (effect && (effect as any).worklet) {
+      (effect as any).worklet.parameters
+        .get('distortionDrive')!
+        .setValueAtTime(amount, this.now + 0.001);
+    }
+    return this;
+  }
+
+  setClipping(amount: number) {
+    const effect = this.getEffect<AudioNode>('karplus');
+    if (effect && (effect as any).worklet) {
+      (effect as any).worklet.parameters
+        .get('clippingAmount')!
+        .setValueAtTime(amount, this.now + 0.001);
+    }
+    return this;
+  }
+
   setKarplusAmount(amount: number): this {
-    const effect = this.getEffect<KarplusEffect>('karplus');
-    if (effect && effect.setAmountMacro) {
-      effect.setAmountMacro(amount);
+    const effect = this.getEffect<AudioNode>('karplus');
+    if (effect && (effect as any).setAmountMacro) {
+      (effect as any).setAmountMacro(amount);
     }
-
-    // Also set for wet karplus
-    if (this.#wetKarplusEffect && this.#wetKarplusEffect.setAmountMacro) {
-      this.#wetKarplusEffect.setAmountMacro(amount);
-    }
-
     return this;
   }
 
-  // === CORE AUDIO GRAPH METHODS ===
-
-  connect(destination: AudioNode): AudioNode {
-    this.#destination = destination;
-    this.#mainOutput.connect(destination);
-    return destination;
-  }
-
-  disconnect(): this {
-    this.#mainOutput.disconnect();
+  setHpfCutoff(hz: number): this {
+    const hpf = this.getNode<BiquadFilterNode>('hpf');
+    if (hpf) {
+      hpf.frequency.setValueAtTime(hz, this.now);
+    }
     return this;
   }
 
-  dispose(): void {
-    this.disconnect();
-    this.#input.disconnect();
-
-    // Clean up all effects
-    for (const [name] of this.#effects) {
-      this.removeEffect(name);
+  setLpfCutoff(hz: number): this {
+    const lpf = this.getNode<BiquadFilterNode>('lpf');
+    if (lpf) {
+      lpf.frequency.setValueAtTime(hz, this.now);
     }
-
-    if (this.#wetKarplusEffect) {
-      this.#wetKarplusEffect.dispose();
-      this.#wetKarplusEffect = null;
-    }
+    return this;
   }
 
-  // === SIMPLE ACCESSORS ===
-
-  get input(): GainNode {
-    return this.#input;
-  }
-
-  get output(): GainNode {
-    return this.#mainOutput;
-  }
-
-  get now(): number {
-    return this.#context.currentTime;
-  }
-
-  /**
-   * Set overall output level
-   */
-  set outputLevel(level: number) {
-    const safeValue = Math.max(0, Math.min(1, level));
-    this.#mainOutput.gain.setValueAtTime(safeValue, this.now);
-  }
-
-  get outputLevel(): number {
-    return this.#mainOutput.gain.value;
-  }
-
-  #levelMonitor: LevelMonitor | null = null;
-
-  /**
-   * Start monitoring input and output levels
-   */
-  startLevelMonitoring(
-    intervalMs: number = 1000,
-    fftSize: number = 1024,
-    logOutput: boolean = false
-  ): void {
-    this.stopLevelMonitoring();
-
-    this.#levelMonitor = new LevelMonitor(
-      this.#context,
-      this.#input,
-      this.#mainOutput,
-      fftSize
-    );
-
-    this.#levelMonitor.start(intervalMs, undefined, logOutput);
-    console.log('Level monitoring started');
-  }
-
-  /**
-   * Stop monitoring levels
-   */
-  stopLevelMonitoring(): void {
-    if (this.#levelMonitor) {
-      this.#levelMonitor.stop();
-      this.#levelMonitor = null;
-      console.log('Level monitoring stopped');
-    }
-  }
-
-  /**
-   * Log current levels once
-   */
-  logLevels(): void {
-    if (!this.#levelMonitor) {
-      const monitor = new LevelMonitor(
-        this.#context,
-        this.#input,
-        this.#mainOutput
-      );
-      const levels = monitor.getLevels();
-      console.log(
-        `Levels: Input RMS ${levels.input.rmsDB.toFixed(1)} dB | Output RMS ${levels.output.rmsDB.toFixed(1)} dB`
-      );
-    } else {
-      const levels = this.#levelMonitor.getLevels();
-      console.log(
-        `Levels: Input RMS ${levels.input.rmsDB.toFixed(1)} dB | Output RMS ${levels.output.rmsDB.toFixed(1)} dB`
-      );
-    }
-  }
-
-  /**
-   * Message handling
-   */
-  onMessage(type: string, handler: MessageHandler<Message>): () => void {
-    return this.#messages.onMessage(type, handler);
-  }
-
-  /**
-   * Set compressor parameters directly
-   */
   setCompressorParams(params: {
     threshold?: number;
     knee?: number;
@@ -583,126 +457,208 @@ export class InstrumentMasterBus implements LibNode, Connectable {
     return this;
   }
 
+  // === DEBUG AND INSPECTION ===
+
   /**
-   * Alternative output support
+   * Get current routing map
    */
-  connectAltOut(destination: AudioNode): this {
-    if (!this.#altOut) {
-      this.#altOut = new GainNode(this.#context);
-      this.#mainOutput.connect(this.#altOut); // Alt out gets the same mixed signal
+  getRoutingMap(): Record<string, string[]> {
+    const routing: Record<string, string[]> = {};
+    for (const [from, connections] of this.#connections) {
+      routing[from] = [...connections];
     }
-    this.#altOut.connect(destination);
-    return this;
-  }
-
-  setAltOutVolume(gain: number): this {
-    this.#altOut?.gain.setValueAtTime(gain, this.now);
-    return this;
-  }
-
-  get altVolume(): number | null {
-    return this.#altOut?.gain.value ?? null;
-  }
-
-  set altVolume(value: number) {
-    this.#altOut?.gain.setValueAtTime(value, this.now);
+    return routing;
   }
 
   /**
-   * Mute functionality
+   * Debug: Print current routing
    */
-  mute(output: 'main' | 'alt' | 'all' = 'all'): this {
-    if (output === 'main' || output === 'all') {
-      this.#mainOutput.gain.linearRampToValueAtTime(0, this.now + 0.1);
+  debugRouting(): void {
+    console.log('=== Bus Routing Map ===');
+    for (const [from, connections] of this.#connections) {
+      if (connections.length > 0) {
+        console.log(`${from} -> ${connections.join(', ')}`);
+      }
     }
-    if (output === 'alt' || output === 'all') {
-      this.#altOut?.gain.linearRampToValueAtTime(0, this.now + 0.1);
+    console.log('======================');
+  }
+
+  /**
+   * Debug: Check channel counts at each stage
+   */
+  debugChannelCounts(): void {
+    const nodes = ['reverb', 'wetMix', 'limiter', 'karplus'];
+
+    nodes.forEach((nodeName) => {
+      const node = this.getNode(nodeName);
+      if (node) {
+        console.log(`${nodeName}:`, {
+          numberOfInputs: (node as any).numberOfInputs || 'unknown',
+          numberOfOutputs: (node as any).numberOfOutputs || 'unknown',
+          channelCount: (node as any).channelCount || 'unknown',
+          channelCountMode: (node as any).channelCountMode || 'unknown',
+        });
+        if ((node as any).workletInfo !== undefined) {
+          console.log(
+            `processor info for ${nodeName}:`,
+            (node as any).workletInfo
+          );
+        }
+      }
+    });
+  }
+
+  /**
+   * List all available nodes
+   */
+  listNodes(): string[] {
+    return Array.from(this.#nodes.keys());
+  }
+
+  // === CORE AUDIO GRAPH METHODS ===
+
+  connect(destination: AudioNode): AudioNode {
+    this.#destination = destination;
+    const output = this.getNode('output');
+    if (output) {
+      output.connect(destination);
+    }
+    return destination;
+  }
+
+  disconnect(): this {
+    const output = this.getNode('output');
+    if (output) {
+      output.disconnect();
     }
     return this;
   }
 
-  /**
-   * Getters for compatibility with original interface
-   */
+  dispose(): void {
+    // Disconnect all nodes
+    for (const [name] of this.#nodes) {
+      this.disconnectFromTo(name);
+    }
+
+    // Clear all maps
+    this.#nodes.clear();
+    this.#connections.clear();
+    this.#controls.clear();
+  }
+
+  // === ACCESSORS ===
+
+  get input(): GainNode {
+    return this.getNode<GainNode>('input')!;
+  }
+
+  get output(): GainNode {
+    return this.getNode<GainNode>('output')!;
+  }
+
+  get now(): number {
+    return this.#context.currentTime;
+  }
+
+  set outputLevel(level: number) {
+    const output = this.getNode<GainNode>('output');
+    if (output) {
+      const safeValue = Math.max(0, Math.min(1, level));
+      output.gain.setValueAtTime(safeValue, this.now);
+    }
+  }
+
+  get outputLevel(): number {
+    const output = this.getNode<GainNode>('output');
+    return output?.gain.value || 0;
+  }
+
+  // === COMPATIBILITY GETTERS ===
+
   get compressorEnabled(): boolean {
-    return this.#effects.get('compressor')?.enabled ?? false;
+    return this.#controls.get('compressor')?.enabled ?? false;
   }
 
   get reverbEnabled(): boolean {
-    return this.#effects.get('reverb')?.enabled ?? false;
+    return this.#controls.get('reverb')?.enabled ?? false;
   }
 
   get karplusFxEnabled(): boolean {
-    return this.#effects.get('karplus')?.enabled ?? false;
+    return this.#controls.get('karplus')?.enabled ?? false;
   }
 
   get initialized(): boolean {
     return this.#initialized;
   }
 
-  /**
-   * Setters for compatibility
-   */
-  setCompressorEnabled(enabled: boolean): this {
-    return this.setEffectEnabled('compressor', enabled);
-  }
-
-  setReverbEnabled(enabled: boolean): this {
-    return this.setEffectEnabled('reverb', enabled);
-  }
-
-  setKarplusFxEnabled(enabled: boolean): this {
-    return this.setEffectEnabled('karplus', enabled);
-  }
-
-  /**
-   * Legacy getters for send/return values
-   */
   get reverbSend(): number {
-    return this.getSend('reverb');
+    return this.#controls.get('reverb')?.send?.gain.value || 0;
   }
 
-  get karplusSend(): number {
-    return this.getSend('karplus');
+  get dryWetMix(): { dry: number; wet: number } {
+    const dryMix = this.getNode<GainNode>('dryMix');
+    const wetMix = this.getNode<GainNode>('wetMix');
+    return {
+      dry: dryMix?.gain.value || 0,
+      wet: wetMix?.gain.value || 0,
+    };
   }
 
-  get reverbReturn(): number {
-    return this.getReturn('reverb');
-  }
+  // === LEVEL MONITORING ===
 
-  get karplusReturn(): number {
-    return this.getReturn('karplus');
-  }
+  #levelMonitor: LevelMonitor | null = null;
 
-  /**
-   * Legacy setters
-   */
-  setReverbReturn(level: number): this {
-    return this.return('reverb', level);
-  }
+  startLevelMonitoring(
+    intervalMs: number = 1000,
+    fftSize: number = 1024,
+    logOutput: boolean = false
+  ): void {
+    this.stopLevelMonitoring();
 
-  setKarplusReturn(level: number): this {
-    return this.return('karplus', level);
-  }
+    const input = this.getNode('input');
+    const output = this.getNode('output');
 
-  /**
-   * Enable/disable the wet karplus effect
-   */
-  setWetKarplusEnabled(enabled: boolean): this {
-    this.#enableWetKarplusEffect = enabled;
-
-    // Re-route signal if needed
-    if (enabled && !this.#wetKarplusEffect) {
-      this.addWetKarplusEffect();
-    } else if (!enabled && this.#wetKarplusEffect) {
-      // Reconnect reverb directly to wet mix
-      const reverbReturn = this.#effects.get('reverb')?.return;
-      if (reverbReturn) {
-        reverbReturn.disconnect();
-        reverbReturn.connect(this.#wetMix);
-      }
+    if (input && output) {
+      this.#levelMonitor = new LevelMonitor(
+        this.#context,
+        input,
+        output,
+        fftSize
+      );
+      this.#levelMonitor.start(intervalMs, undefined, logOutput);
+      console.log('Level monitoring started');
     }
+  }
 
-    return this;
+  stopLevelMonitoring(): void {
+    if (this.#levelMonitor) {
+      this.#levelMonitor.stop();
+      this.#levelMonitor = null;
+      console.log('Level monitoring stopped');
+    }
+  }
+
+  logLevels(): void {
+    const input = this.getNode('input');
+    const output = this.getNode('output');
+
+    if (!this.#levelMonitor && input && output) {
+      const monitor = new LevelMonitor(this.#context, input, output);
+      const levels = monitor.getLevels();
+      console.log(
+        `Levels: Input RMS ${levels.input.rmsDB.toFixed(1)} dB | Output RMS ${levels.output.rmsDB.toFixed(1)} dB`
+      );
+    } else if (this.#levelMonitor) {
+      const levels = this.#levelMonitor.getLevels();
+      console.log(
+        `Levels: Input RMS ${levels.input.rmsDB.toFixed(1)} dB | Output RMS ${levels.output.rmsDB.toFixed(1)} dB`
+      );
+    }
+  }
+
+  // === MESSAGE HANDLING ===
+
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
   }
 }

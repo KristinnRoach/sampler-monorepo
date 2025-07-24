@@ -149,6 +149,13 @@ export class KarplusStrongSynth extends LibInstrument {
           this.storeParamValue('noiseTime', value);
           break;
 
+        case 'noiseGain':
+          this.voicePool.allVoices.forEach((voice) =>
+            voice.setNoiseGain(value)
+          );
+          this.storeParamValue('noiseGain', value);
+          break;
+
         default:
           console.warn(`Unknown parameter: ${name}`);
       }
@@ -294,7 +301,7 @@ export class KarplusStrongSynth extends LibInstrument {
 
   dispose(): void {
     this.stopAll();
-    this.disconnect();
+    this.disconnectFromTo();
 
     if (this.keyboardHandler) {
       globalKeyboardInput.removeHandler(this.keyboardHandler);

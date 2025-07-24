@@ -49,13 +49,13 @@ export interface AudioGraph extends LibNode {
 export type Destination = Connectable | AudioNode | AudioParam;
 
 export interface Connectable {
-  connect(
+  connectFromTo(
     destination: Destination,
     output?: number | 'dry' | 'wet' | 'main' | 'alt',
     input?: number | 'main' | 'dry' | 'wet' | 'alt'
   ): Destination;
 
-  disconnect(
+  disconnectFromTo(
     output?: 'main' | 'dry' | 'wet' | 'alt',
     destination?: Destination
   ): this;
