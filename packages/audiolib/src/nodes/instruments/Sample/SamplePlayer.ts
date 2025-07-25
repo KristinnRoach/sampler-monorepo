@@ -831,9 +831,9 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.send(effect, amount);
   };
 
-  return = (effect: BusEffectName, level: number) => {
-    this.outBus.return(effect, level);
-  };
+  // return = (effect: BusEffectName, level: number) => {
+  //   this.outBus.return(effect, level);
+  // };
 
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
   setHpfCutoff = (hz: number) => this.outBus.setHpfCutoff(hz);

@@ -1,4 +1,4 @@
-import { Connectable, Destination, FxType, LibNode } from '@/nodes/LibNode';
+import { LibNode } from '@/nodes/LibNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import {
@@ -7,7 +7,7 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-import { assert } from '@/utils';
+import { clamp, mapToRange } from '@/utils';
 
 import {
   DEFAULT_COMPRESSOR_SETTINGS,
@@ -17,7 +17,23 @@ import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
 import { KarplusEffect } from '../effects/KarplusEffect';
 
-export type BusEffectName = 'karplus' | 'reverb' | 'compressor' | 'limiter';
+import {
+  createDistortion,
+  createDattorroReverb,
+} from '@/worklets/worklet-factory';
+import {
+  DistortionWorklet,
+  FbDelayWorklet,
+  DattorroReverbWorklet,
+} from '@/worklets/types';
+
+export type BusEffectName =
+  | 'distortion'
+  | 'feedbackDelay'
+  | 'karplus'
+  | 'reverb'
+  | 'compressor'
+  | 'limiter';
 
 interface BusNode {
   node: AudioNode;
@@ -25,8 +41,14 @@ interface BusNode {
   controllable?: boolean; // Can be bypassed/controlled
 }
 
+type EffectType =
+  | AudioNode
+  | DistortionWorklet
+  | FbDelayWorklet
+  | DattorroReverbWorklet
+  | KarplusEffect;
+
 export class InstrumentMasterBus implements LibNode {
-  // Connectable {
   readonly nodeId: NodeID;
   readonly nodeType = 'InstrumentBus';
   #messages: MessageBus<Message>;
@@ -89,11 +111,15 @@ export class InstrumentMasterBus implements LibNode {
       new DynamicsCompressorNode(this.#context, DEFAULT_LIMITER_SETTINGS)
     );
 
-    const dVerb = new DattorroReverb(this.#context);
-    this.addEffect('reverb', dVerb);
+    const reverb = createDattorroReverb(this.#context);
+    this.addEffect('reverb', reverb);
 
     const karplus = new KarplusEffect(this.#context);
     this.addEffect('karplus', karplus);
+
+    const distortion = createDistortion(this.#context);
+
+    this.addEffect('distortion', distortion);
 
     // Set up default routing - recreate current behavior
     this.connectFromTo('input', 'hpf');
@@ -109,7 +135,8 @@ export class InstrumentMasterBus implements LibNode {
     this.connectFromTo('wetMix', 'limiter');
 
     this.connectFromTo('limiter', 'karplus');
-    this.connectFromTo('karplus', 'output');
+    this.connectFromTo('karplus', 'distortion');
+    this.connectFromTo('distortion', 'output');
 
     // Enable effects by default
     this.setEffectEnabled('karplus', true);
@@ -137,9 +164,9 @@ export class InstrumentMasterBus implements LibNode {
   /**
    * Add an effect with automatic send/bypass controls
    */
-  addEffect(name: string, effect: any): this {
+  addEffect(name: string, effect: EffectType): this {
     // Add the effect node
-    this.addNode(name, effect, 'effect');
+    this.addNode(name, effect as AudioNode, 'effect'); //  TODO: replace as AudioNode with proper typing!
 
     // Create send control (for parallel routing)
     const send = new GainNode(this.#context, { gain: 0.0 });
@@ -300,14 +327,14 @@ export class InstrumentMasterBus implements LibNode {
   /**
    * Get a node by name
    */
-  getNode<T extends AudioNode = AudioNode>(name: string): T | null {
+  getNode<T extends EffectType = AudioNode>(name: string): T | null {
     return (this.#nodes.get(name)?.node as T) || null;
   }
 
   /**
    * Get an effect node (convenience method)
    */
-  getEffect<T extends AudioNode = AudioNode>(effect: BusEffectName): T | null {
+  getEffect<T extends EffectType = AudioNode>(effect: BusEffectName): T | null {
     return this.getNode<T>(effect);
   }
 
@@ -384,22 +411,38 @@ export class InstrumentMasterBus implements LibNode {
     return this;
   }
 
+  // setReverbDecay(decay: number) {
+  //   const effect = this.getEffect<DattorroReverbWorklet>('reverb');
+  //   if (effect) {
+  //     effect.setParam('decay', decay);
+  //   }
+  //   return this;
+  // }
+
   setDistDrive(amount: number) {
-    const effect = this.getEffect<AudioNode>('karplus');
-    if (effect && (effect as any).worklet) {
-      (effect as any).worklet.parameters
-        .get('distortionDrive')!
-        .setValueAtTime(amount, this.now + 0.001);
+    const effect = this.getEffect<DistortionWorklet>('distortion');
+    if (effect) {
+      effect.setParam('distortionDrive', amount);
     }
     return this;
   }
 
-  setClipping(amount: number) {
+  setClippingMacro(amount: number) {
+    const effect = this.getEffect<DistortionWorklet>('distortion');
+    if (effect) {
+      const safeAmount = clamp(amount, 0, 1);
+      effect.setParam('distortionDrive', safeAmount);
+
+      const clipThreshold = mapToRange(safeAmount, 0, 1, 0.5, 0.1);
+      effect.setParam('clippingThreshold', clipThreshold);
+    }
+    return this;
+  }
+
+  setPitchMultiplier(value: number) {
     const effect = this.getEffect<AudioNode>('karplus');
-    if (effect && (effect as any).worklet) {
-      (effect as any).worklet.parameters
-        .get('clippingAmount')!
-        .setValueAtTime(amount, this.now + 0.001);
+    if (effect && (effect as any).setPitchMultiplier) {
+      (effect as any).setPitchMultiplier(value);
     }
     return this;
   }

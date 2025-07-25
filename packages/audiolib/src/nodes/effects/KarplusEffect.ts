@@ -2,6 +2,8 @@ import { LibNode, Destination, Connectable, NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { clamp, mapToRange } from '@/utils';
+import { createDelay } from '@/worklets/worklet-factory';
+import { FbDelayWorklet } from '@/worklets/types';
 
 export class KarplusEffect implements LibNode, Connectable {
   readonly nodeId: NodeID;
@@ -9,7 +11,7 @@ export class KarplusEffect implements LibNode, Connectable {
   #initialized = false;
 
   audioContext: AudioContext;
-  delay: AudioWorkletNode;
+  delay: FbDelayWorklet;
 
   inputGain: GainNode;
   outputGain: GainNode;
@@ -18,15 +20,15 @@ export class KarplusEffect implements LibNode, Connectable {
   dryGain: GainNode;
   mixerOutput: GainNode;
 
-  MIN_FB = 0.7; // Actual feedback gain param's
-  MAX_FB = 1; // ? full range is 0.001 - 1
+  MIN_FB = 0.7; // ? make user friendly range in processor ?
+  MAX_FB = 0.998;
   C6_SECONDS = 0.00095556;
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
     this.audioContext = context;
 
-    this.delay = new AudioWorkletNode(context, 'feedback-delay-processor');
+    this.delay = createDelay(context);
 
     this.inputGain = new GainNode(context, { gain: 1 });
     this.outputGain = new GainNode(context, { gain: 1 });
@@ -51,7 +53,6 @@ export class KarplusEffect implements LibNode, Connectable {
 
     // this.setLimiting('soft-clipping');
     // this.setAutoGain(true, 0.2);
-    // this.setClippingThreshold(0.1);
     // this.setFeedback(0.5);
 
     this.#initialized = true;
@@ -67,7 +68,7 @@ export class KarplusEffect implements LibNode, Connectable {
   }
 
   trigger(midiNote: number, velocity = 100, secondsFromNow = 0, cents = 0) {
-    const timestamp = this.now + secondsFromNow + 0.0001;
+    const timestamp = this.now + secondsFromNow;
     // use velocity to adjust gain input to processor ?
     this.setPitch(midiNote, cents, timestamp);
 
@@ -122,41 +123,47 @@ export class KarplusEffect implements LibNode, Connectable {
     return delaySec;
   }
 
+  pitchMultiplier = 1;
+
+  setDelay(seconds: number, timestamp = this.now) {
+    const scaled = seconds * this.pitchMultiplier;
+    const clamped = clamp(scaled, 0.001, 4);
+    this.delay.parameters.get('delayTime')!.setValueAtTime(clamped, timestamp);
+    return this;
+  }
+
+  setPitchMultiplier(value: number, timestamp = this.now, glideTime: 0.5) {
+    if (!(typeof value === 'number') || !isFinite(value)) {
+      console.warn('setPitchMultiplier:Invalid multiplier:', value);
+      return;
+    }
+
+    const clamped = clamp(value, 0.5, 16);
+    this.pitchMultiplier = clamped;
+
+    const rampTime = timestamp + glideTime;
+    if (!isFinite(rampTime)) return;
+
+    this.delay.parameters
+      .get('delayTime')!
+      .linearRampToValueAtTime(clamped, timestamp + glideTime);
+  }
+
   setFeedback(gain: number, timestamp = this.now) {
-    const mappedGain = mapToRange(gain, 0, 1, this.MIN_FB, this.MAX_FB);
+    const mappedGain = mapToRange(gain, 0, 1, this.MIN_FB, this.MAX_FB, {
+      warn: true,
+    });
     this.delay.parameters
       .get('feedbackAmount')!
       .setValueAtTime(mappedGain, timestamp);
     return this;
   }
 
-  setDelay(seconds: number, timestamp = this.now) {
-    const clamped = clamp(seconds, 0.001, 4);
-    this.delay.parameters.get('delayTime')!.setValueAtTime(clamped, timestamp);
-    return this;
-  }
-
-  setLimiting(mode: 'soft-clipping' | 'hard-clipping' | 'none'): this {
-    this.delay.port.postMessage({
-      type: 'setLimiting',
-      mode: mode,
-    });
-    return this;
-  }
-
-  setAutoGain(enabled: boolean, amount = 0.3): this {
+  setAutoGain(enabled: boolean, amount = 0.965): this {
     this.delay.port.postMessage({
       type: 'setAutoGain',
       enabled: enabled,
       amount,
-    });
-    return this;
-  }
-
-  setClippingThreshold(level: number): this {
-    this.delay.port.postMessage({
-      type: 'setClippingThreshold',
-      level: level,
     });
     return this;
   }

@@ -1,5 +1,74 @@
 import { mapToRange, clamp } from '@/utils';
 
+/*
+TODO: Update the class to extend WorkletNode (or wrap it)
+export class DattorroReverb extends WorkletNode<DattorroReverbConfig> {
+  #currentPreset: DattorroReverbPresetKey = 'default';
+
+  static readonly PRESETS = {
+    // ... your existing presets
+  } as const;
+
+  constructor(context: AudioContext) {
+    super(context, 'dattorro-reverb-processor');
+    
+    this.setParam('dry', 0);
+    this.setPreset('default');
+    this.setAmountMacro(0);
+  }
+
+  // Convenience methods using the typed setParam
+  setAmountMacro(amount: number) {
+    if (amount < 0 || amount > 1) {
+      console.warn('Reverb amount must be 0-1 range');
+      return;
+    }
+
+    const presetValues = DattorroReverb.PRESETS[this.#currentPreset];
+    
+    // Use typed setParam instead of direct parameter access
+    const decay = mapToRange(amount, 0, 1, presetValues.decay, 0.9);
+    const excRate = mapToRange(amount, 0, 1, presetValues.excursionRate, 2);
+    const excDepth = mapToRange(amount, 0, 1, presetValues.excursionDepth, 2);
+    const damping = mapToRange(amount, 0, 1, presetValues.damping, 0.8);
+    const bandwidth = mapToRange(amount, 0, 1, presetValues.bandwidth, 0.3);
+
+    this.setParam('decay', decay);
+    this.setParam('excursionRate', excRate);
+    this.setParam('excursionDepth', excDepth);
+    this.setParam('damping', damping);
+    this.setParam('bandwidth', bandwidth);
+    
+    this.setDiffusionMacro(mapToRange(amount, 0, 1, 0, 0.7));
+  }
+
+  setPreset(preset: keyof typeof DattorroReverb.PRESETS = 'default', rampTime = 0.5) {
+    this.#currentPreset = preset;
+    
+    // Send message to processor for complex preset changes
+    this.send({
+      type: 'setPreset',
+      preset,
+      rampTime
+    });
+  }
+
+  setDiffusionMacro(value: number) {
+    // Send as message for complex calculations
+    this.send({
+      type: 'setDiffusionMacro',
+      value
+    });
+  }
+
+  // Legacy compatibility methods
+  get in(): AudioNode { return this; }
+  get out(): AudioNode { return this; }
+  get worklet() { return this; }
+  get now() { return this.context.currentTime; }
+}
+*/
+
 type DattorroReverbPresetKey = keyof typeof DattorroReverb.PRESETS;
 
 export class DattorroReverb {

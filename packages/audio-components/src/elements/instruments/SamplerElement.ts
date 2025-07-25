@@ -47,6 +47,7 @@ export const SamplerElement = (attributes: ElementProps) => {
   const karplusAmount = van.state(0.0);
   const distDrive = van.state(0.0);
   const clipping = van.state(0.0);
+  const pitchOct = van.state(1.0);
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -230,7 +231,12 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
-          samplePlayer.outputBus.setClipping(clipping.val);
+          samplePlayer.outputBus.setClippingMacro(clipping.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.outputBus.setPitchMultiplier(pitchOct.val);
         });
 
         derive(() => {
@@ -609,7 +615,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         createLabeledKnob({
           label: 'Reverb',
-          defaultValue: 0.1,
+          defaultValue: 0.5,
           onChange: (value: number) => (reverbAmount.val = value),
         }),
 
@@ -635,6 +641,15 @@ export const SamplerElement = (attributes: ElementProps) => {
           minValue: 0,
           maxValue: 1,
           onChange: (value: number) => (clipping.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'PitchOct',
+          defaultValue: 1,
+          minValue: 0.5,
+          maxValue: 4,
+          snapIncrement: 0.5,
+          onChange: (value: number) => (pitchOct.val = value),
         }),
 
         createLabeledKnob({
