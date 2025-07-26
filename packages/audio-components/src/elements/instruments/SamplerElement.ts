@@ -47,7 +47,7 @@ export const SamplerElement = (attributes: ElementProps) => {
   const karplusAmount = van.state(0.0);
   const drive = van.state(0.0);
   const clipping = van.state(0.0);
-  const pitchOct = van.state(1.0);
+  // const feedbackPitch = van.state(0.5);
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -234,10 +234,10 @@ export const SamplerElement = (attributes: ElementProps) => {
           samplePlayer.outputBus.setClippingMacro(clipping.val);
         });
 
-        derive(() => {
-          if (!samplePlayer) return;
-          samplePlayer.outputBus.setPitchMultiplier(pitchOct.val);
-        });
+        // derive(() => {
+        //   if (!samplePlayer) return;
+        //   samplePlayer.outputBus.setPitchMultiplier(feedbackPitch.val);
+        // });
 
         derive(() => {
           if (!samplePlayer) return;
@@ -643,14 +643,14 @@ export const SamplerElement = (attributes: ElementProps) => {
           onChange: (value: number) => (clipping.val = value),
         }),
 
-        createLabeledKnob({
-          label: 'PitchOct',
-          defaultValue: 1,
-          minValue: 0.5,
-          maxValue: 4,
-          snapIncrement: 0.5,
-          onChange: (value: number) => (pitchOct.val = value),
-        }),
+        // createLabeledKnob({
+        //   label: 'FB-Pitch',
+        //   defaultValue: 1,
+        //   minValue: 1,
+        //   maxValue: 4,
+        //   snapIncrement: 1,
+        //   onChange: (value: number) => (feedbackPitch.val = value),
+        // }),
 
         createLabeledKnob({
           label: 'amp-lfo-rate',

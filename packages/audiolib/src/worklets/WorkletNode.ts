@@ -1,4 +1,4 @@
-import { WorkletConfig, DefaultWorkletConfig } from './types';
+import { WorkletConfig, DefaultWorkletConfig } from './worklet-types';
 
 export class WorkletNode<
   TConfig extends WorkletConfig = DefaultWorkletConfig,

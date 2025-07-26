@@ -9,6 +9,7 @@ import './noise/random-noise-processor';
 import './delay/feedback-delay-processor';
 import './reverb/dattorro-reverb-processor';
 import './distortion/distortion-processor';
+import './follower/envelope-follower-processor';
 
 // For dev de-bugging / testing:
 // import './debug/js-test-processor.js';

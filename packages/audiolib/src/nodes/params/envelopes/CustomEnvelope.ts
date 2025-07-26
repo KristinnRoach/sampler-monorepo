@@ -664,6 +664,7 @@ export class CustomEnvelope {
   // ===== LOOP / TIME CONTROL =====
 
   setTimeScale = (timeScale: number) => {
+    console.log(timeScale);
     this.#timeScale = timeScale;
     if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
   };

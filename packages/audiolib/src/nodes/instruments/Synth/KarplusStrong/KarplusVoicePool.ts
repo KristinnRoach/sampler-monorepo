@@ -31,7 +31,7 @@ export class KarplusVoicePool {
 
     this.#allVoices = Array.from({ length: numVoices }, () => {
       const voice = new KarplusVoice(context);
-      voice.connectFromTo(destination);
+      voice.connect(destination);
       return voice;
     });
 
@@ -43,7 +43,7 @@ export class KarplusVoicePool {
 
   connect = (destination: AudioNode) => {
     // Destination
-    this.#allVoices.forEach((v) => v.connectFromTo(destination));
+    this.#allVoices.forEach((v) => v.connect(destination));
   };
 
   // Voice Allocation
@@ -145,7 +145,7 @@ export class KarplusVoicePool {
         if (stream instanceof AudioNode) {
           stream.connect(input as unknown as AudioNode);
         } else if ('connect' in stream) {
-          (stream as Connectable).connectFromTo(input);
+          (stream as Connectable).connect(input);
         }
       }
     });

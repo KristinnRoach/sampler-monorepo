@@ -158,7 +158,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   // ==== CONNECT ====
 
-  connectFromTo(
+  connect(
     destination: Destination,
     output?: number,
     input?: number
@@ -173,7 +173,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     return destination;
   }
 
-  disconnectFromTo(): this {
+  disconnect(): this {
     this.outputGain.disconnect();
     return this;
   }
@@ -470,7 +470,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
 
   dispose(): void {
     this.stop();
-    this.disconnectFromTo();
+    this.disconnect();
     this.noiseGenerator.port.close();
     deleteNodeId(this.nodeId);
   }

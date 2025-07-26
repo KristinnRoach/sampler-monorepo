@@ -35,7 +35,7 @@ export class FeedbackDelay {
 
     // Apply gain compensation only to the output (not the feedback)
     if (this.autoGainEnabled) {
-      const compensation = 1 - feedbackAmount * this.gainCompensation;
+      const compensation = 1 - feedbackAmount * this.gainCompensation; // 1 - Math.sqrt(feedbackAmount) * this.gainCompensation;
       outputSample = feedbackSample * compensation;
     }
 

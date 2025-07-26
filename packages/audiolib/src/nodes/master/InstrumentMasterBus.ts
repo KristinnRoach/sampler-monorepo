@@ -22,7 +22,7 @@ import {
   DistortionWorklet,
   FbDelayWorklet,
   DattorroReverbWorklet,
-} from '@/worklets/types';
+} from '@/worklets/worklet-types';
 
 export type BusEffectName =
   | 'distortion'

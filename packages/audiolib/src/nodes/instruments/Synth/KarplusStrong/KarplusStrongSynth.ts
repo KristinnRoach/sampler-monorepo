@@ -301,7 +301,7 @@ export class KarplusStrongSynth extends LibInstrument {
 
   dispose(): void {
     this.stopAll();
-    this.disconnectFromTo();
+    this.disconnect();
 
     if (this.keyboardHandler) {
       globalKeyboardInput.removeHandler(this.keyboardHandler);

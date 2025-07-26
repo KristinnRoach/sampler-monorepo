@@ -3,7 +3,7 @@ import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { clamp, mapToRange } from '@/utils';
 import { createFeedbackDelay } from '@/worklets/worklet-factory';
-import { FbDelayWorklet } from '@/worklets/types';
+import { FbDelayWorklet } from '@/worklets/worklet-types';
 
 export class KarplusEffect implements LibNode, Connectable {
   readonly nodeId: NodeID;
@@ -20,9 +20,10 @@ export class KarplusEffect implements LibNode, Connectable {
   dryGain: GainNode;
   mixerOutput: GainNode;
 
-  MIN_FB = 0.7; // ? make user friendly range in processor ?
-  MAX_FB = 0.998;
+  MIN_FB = 0.8; // ? make user friendly range in processor ?
+  MAX_FB = 0.999;
   C6_SECONDS = 0.00095556;
+  C7_SECONDS = 0.0004774632;
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = createNodeId(this.nodeType);
@@ -58,11 +59,11 @@ export class KarplusEffect implements LibNode, Connectable {
     this.#initialized = true;
   }
 
-  connectFromTo(destination: Destination) {
-    return this.outputGain.connect(destination as any);
+  connect(destination: AudioNode) {
+    return this.outputGain.connect(destination);
   }
 
-  disconnectFromTo() {
+  disconnect() {
     this.outputGain.disconnect();
     return this;
   }
@@ -101,7 +102,6 @@ export class KarplusEffect implements LibNode, Connectable {
       wet: safeAmount,
     });
 
-    // this.setFeedback(0);
     this.setFeedback(safeAmount);
 
     return this;
@@ -123,36 +123,45 @@ export class KarplusEffect implements LibNode, Connectable {
     return delaySec;
   }
 
-  pitchMultiplier = 1;
+  pitchMultiplier = 0.5;
 
   setDelay(seconds: number, timestamp = this.now) {
     const scaled = seconds * this.pitchMultiplier;
-    const clamped = clamp(scaled, 0.001, 4);
+    const clamped = clamp(scaled, this.C7_SECONDS, 4);
+
     this.delay.parameters.get('delayTime')!.setValueAtTime(clamped, timestamp);
     return this;
   }
 
-  setPitchMultiplier(value: number, timestamp = this.now, glideTime: 0.5) {
+  // This method needs testing, can result in silent output
+  setPitchMultiplier(value: number, timestamp = this.now, glideTime = 0.5) {
+    console.warn(
+      'Karplus: setPitchMultiplier: this method has not been tested and may result in broken audio'
+    );
+
     if (!(typeof value === 'number') || !isFinite(value)) {
       console.warn('setPitchMultiplier:Invalid multiplier:', value);
       return;
     }
 
-    const clamped = clamp(value, 0.5, 16);
-    this.pitchMultiplier = clamped;
+    // convert from UI range 1 - 4 to 0.5 - 2 param range
+    const mappedMultiplier = mapToRange(value, 1, 4, 0.5, 2);
+    this.pitchMultiplier = mappedMultiplier;
 
     const rampTime = timestamp + glideTime;
     if (!isFinite(rampTime)) return;
 
     this.delay.parameters
       .get('delayTime')!
-      .linearRampToValueAtTime(clamped, timestamp + glideTime);
+      .setValueAtTime(mappedMultiplier, timestamp);
+    // .linearRampToValueAtTime(mappedMultiplier, timestamp + glideTime); // glideTime not working
   }
 
   setFeedback(gain: number, timestamp = this.now) {
     const mappedGain = mapToRange(gain, 0, 1, this.MIN_FB, this.MAX_FB, {
       warn: true,
     });
+
     this.delay.parameters
       .get('feedbackAmount')!
       .setValueAtTime(mappedGain, timestamp);
@@ -216,7 +225,7 @@ export class KarplusEffect implements LibNode, Connectable {
   // === CLEANUP ===
 
   dispose() {
-    this.disconnectFromTo();
+    this.disconnect();
     deleteNodeId(this.nodeId);
   }
 }

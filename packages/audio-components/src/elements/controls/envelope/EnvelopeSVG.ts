@@ -272,7 +272,7 @@ export const EnvelopeSVG = (
   // Add time scale knob if callback provided
   const timeScaleKnob = LabeledTimeScaleKnob({
     label: 'Env Speed',
-    onTimeScaleChange: instrument.setEnvelopeTimeScale,
+    onChange: instrument.setEnvelopeTimeScale,
     envelopeType,
     height: 40,
     width: 40,

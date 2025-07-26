@@ -15,7 +15,7 @@ registerProcessor(
         {
           name: 'delayTime',
           defaultValue: 0.5,
-          minValue: 0.001,
+          minValue: 0.0004774632, // C7 in seconds
           maxValue: 4,
           automationRate: 'k-rate',
         },
