@@ -29,9 +29,8 @@ export type DistortionParams = {
 };
 
 export type DistortionMsg = {
-  type: 'setAutoGain';
-  enabled: boolean;
-  amount: number;
+  type: 'setLimitingMode';
+  mode: 'soft-clipping' | 'hard-clipping';
 };
 
 export type DistortionConfig = {
@@ -49,8 +48,8 @@ export type FbDelayParams = {
 };
 
 export type FbDelayMsg = {
-  type: 'setLimitingMode';
-  mode: string;
+  type: 'setAutoGain';
+  amount: number;
 };
 
 export type FbDelayConfig = {

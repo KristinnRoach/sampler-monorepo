@@ -17,10 +17,7 @@ import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
 import { KarplusEffect } from '../effects/KarplusEffect';
 
-import {
-  createDistortion,
-  createDattorroReverb,
-} from '@/worklets/worklet-factory';
+import { createDistortion } from '@/worklets/worklet-factory';
 import {
   DistortionWorklet,
   FbDelayWorklet,
@@ -45,7 +42,7 @@ type EffectType =
   | AudioNode
   | DistortionWorklet
   | FbDelayWorklet
-  | DattorroReverbWorklet
+  | DattorroReverb
   | KarplusEffect;
 
 export class InstrumentMasterBus implements LibNode {
@@ -111,7 +108,7 @@ export class InstrumentMasterBus implements LibNode {
       new DynamicsCompressorNode(this.#context, DEFAULT_LIMITER_SETTINGS)
     );
 
-    const reverb = createDattorroReverb(this.#context);
+    const reverb = new DattorroReverb(this.#context);
     this.addEffect('reverb', reverb);
 
     const karplus = new KarplusEffect(this.#context);
@@ -408,22 +405,26 @@ export class InstrumentMasterBus implements LibNode {
     if (reverb && (reverb as any).setAmountMacro) {
       (reverb as any).setAmountMacro(amount);
     }
+
     return this;
   }
 
-  // setReverbDecay(decay: number) {
-  //   const effect = this.getEffect<DattorroReverbWorklet>('reverb');
-  //   if (effect) {
-  //     effect.setParam('decay', decay);
-  //   }
-  //   return this;
-  // }
+  setReverbDecay(decay: number) {
+    const effect = this.getEffect<AudioNode>('reverb');
 
-  setDistDrive(amount: number) {
+    if (effect && (effect as any).setParam) {
+      (effect as any).setParam('decay', decay);
+    }
+
+    return this;
+  }
+
+  setDrive(amount: number) {
     const effect = this.getEffect<DistortionWorklet>('distortion');
     if (effect) {
       effect.setParam('distortionDrive', amount);
     }
+
     return this;
   }
 
@@ -431,12 +432,19 @@ export class InstrumentMasterBus implements LibNode {
     const effect = this.getEffect<DistortionWorklet>('distortion');
     if (effect) {
       const safeAmount = clamp(amount, 0, 1);
-      effect.setParam('distortionDrive', safeAmount);
+      effect.setParam('clippingAmount', safeAmount);
 
       const clipThreshold = mapToRange(safeAmount, 0, 1, 0.5, 0.1);
       effect.setParam('clippingThreshold', clipThreshold);
     }
     return this;
+  }
+
+  setClippingMode(mode: 'soft-clipping' | 'hard-clipping') {
+    const effect = this.getEffect<DistortionWorklet>('distortion');
+    if (effect) {
+      effect.send({ type: 'setLimitingMode', mode: mode });
+    }
   }
 
   setPitchMultiplier(value: number) {

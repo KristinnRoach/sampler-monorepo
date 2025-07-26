@@ -33,20 +33,6 @@ export class WorkletNode<
     return this;
   }
 
-  // Audio routing (overrides parent methods)
-  connect(destination: AudioNode): AudioNode;
-  connect(destination: AudioParam): AudioParam;
-  connect(destination: AudioNode | AudioParam): AudioNode | AudioParam {
-    super.connect(destination as any);
-    return destination;
-  }
-
-  disconnect(): this {
-    super.disconnect();
-    return this;
-  }
-
-  // Cleanup
   dispose(): void {
     this.disconnect();
   }

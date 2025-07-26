@@ -2,7 +2,7 @@ import { LibNode, Destination, Connectable, NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { clamp, mapToRange } from '@/utils';
-import { createDelay } from '@/worklets/worklet-factory';
+import { createFeedbackDelay } from '@/worklets/worklet-factory';
 import { FbDelayWorklet } from '@/worklets/types';
 
 export class KarplusEffect implements LibNode, Connectable {
@@ -28,7 +28,7 @@ export class KarplusEffect implements LibNode, Connectable {
     this.nodeId = createNodeId(this.nodeType);
     this.audioContext = context;
 
-    this.delay = createDelay(context);
+    this.delay = createFeedbackDelay(context);
 
     this.inputGain = new GainNode(context, { gain: 1 });
     this.outputGain = new GainNode(context, { gain: 1 });

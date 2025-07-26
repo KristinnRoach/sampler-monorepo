@@ -45,7 +45,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   const reverbAmount = van.state(0.0);
   const karplusAmount = van.state(0.0);
-  const distDrive = van.state(0.0);
+  const drive = van.state(0.0);
   const clipping = van.state(0.0);
   const pitchOct = van.state(1.0);
 
@@ -226,7 +226,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
-          samplePlayer.outputBus.setDistDrive(distDrive.val);
+          samplePlayer.outputBus.setDrive(drive.val);
         });
 
         derive(() => {
@@ -632,7 +632,7 @@ export const SamplerElement = (attributes: ElementProps) => {
           defaultValue: 0,
           minValue: 0,
           maxValue: 1,
-          onChange: (value: number) => (distDrive.val = value),
+          onChange: (value: number) => (drive.val = value),
         }),
 
         createLabeledKnob({

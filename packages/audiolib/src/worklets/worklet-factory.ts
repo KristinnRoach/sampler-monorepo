@@ -1,19 +1,15 @@
-import { FbDelayConfig, DistortionConfig, DattorroReverbConfig } from './types';
+import { FbDelayConfig, DistortionConfig, DistortionWorklet } from './types';
 import { WorkletNode } from './WorkletNode';
 
-function createDelay(context: AudioContext) {
+function createFeedbackDelay(context: AudioContext) {
   return new WorkletNode<FbDelayConfig>(context, 'feedback-delay-processor');
 }
 
 function createDistortion(context: AudioContext) {
-  return new WorkletNode<DistortionConfig>(context, 'distortion-processor');
-}
-
-export function createDattorroReverb(context: AudioContext) {
-  return new WorkletNode<DattorroReverbConfig>(
+  return new WorkletNode<DistortionConfig>(
     context,
-    'dattorro-reverb-processor'
-  );
+    'distortion-processor'
+  ) as DistortionWorklet;
 }
 
-export { createDelay, createDistortion };
+export { createFeedbackDelay, createDistortion };
