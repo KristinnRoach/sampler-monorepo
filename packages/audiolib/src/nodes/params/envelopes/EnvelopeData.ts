@@ -191,9 +191,13 @@ export class EnvelopeData {
       }
     }
 
-    // Scale value from 0-1 to target range (time remains absolute seconds)
+    let result = interpolatedValue;
+
     const [min, max] = this.#valueRange;
-    const result = min + interpolatedValue * (max - min);
+    if (min !== 0 || max !== 1) {
+      // Scale value from 0-1 to target range
+      result = min + interpolatedValue * (max - min);
+    }
 
     return result;
   }

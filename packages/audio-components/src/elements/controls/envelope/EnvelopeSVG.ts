@@ -57,16 +57,6 @@ export const EnvelopeSVG = (
   // Get envelope properties
   const envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
   const envelopeType = envType;
-  const [minValue, maxValue] = envelopeInfo.valueRange;
-
-  // Value conversion helpers
-  const normalizeValue = (displayValue: number): number => {
-    return (displayValue - minValue) / (maxValue - minValue);
-  };
-
-  const denormalizeValue = (normalizedValue: number): number => {
-    return minValue + normalizedValue * (maxValue - minValue);
-  };
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
