@@ -7,7 +7,7 @@ import {
 } from '../../primitives/createKnob';
 
 export interface TimeScaleKnobConfig extends KnobConfig {
-  onChange: (envType: EnvelopeType, timeScale: number) => void;
+  onChange: (data: { envelopeType: EnvelopeType; timeScale: number }) => void;
   envelopeType: EnvelopeType;
 }
 
@@ -57,7 +57,7 @@ export const LabeledTimeScaleKnob = (
     ...labeledKnobDefaults,
     ...knobConfig,
     label,
-    onChange: (value) => onTimeScaleChange(envelopeType, value),
+    onChange: (timeScale) => onTimeScaleChange({ envelopeType, timeScale }),
   });
 };
 
