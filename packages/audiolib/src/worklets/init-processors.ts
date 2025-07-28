@@ -1,5 +1,5 @@
 // main-thread.ts
-import { registry } from './worklet-registry';
+import { processorFileRegistry } from './processor-registry';
 
 let processorsInitialized = false;
 
@@ -81,10 +81,10 @@ export async function initProcessors(context: AudioContext) {
   let lastError = null;
 
   for (const path of staticPaths) {
-    if (!registry.has(path)) {
+    if (!processorFileRegistry.has(path)) {
       try {
         await context.audioWorklet.addModule(path);
-        registry.add(path);
+        processorFileRegistry.add(path);
         processorsInitialized = true;
 
         console.info('AudioWorklet module loaded successfully from:', path);
@@ -103,9 +103,9 @@ export async function initProcessors(context: AudioContext) {
   try {
     const blobUrl = await getBlobUrl();
 
-    if (!registry.has(blobUrl)) {
+    if (!processorFileRegistry.has(blobUrl)) {
       await context.audioWorklet.addModule(blobUrl);
-      registry.add(blobUrl);
+      processorFileRegistry.add(blobUrl);
 
       processorsInitialized = true;
       console.info('AudioWorklet module loaded from Blob URL');

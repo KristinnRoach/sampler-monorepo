@@ -1,44 +1,92 @@
+import { FeedbackDelay } from './FeedbackDelay';
+
 registerProcessor(
   'feedback-delay-processor',
   class extends AudioWorkletProcessor {
     static get parameterDescriptors() {
       return [
         {
-          name: 'gain',
+          name: 'feedbackAmount',
           defaultValue: 0.5,
           minValue: 0,
           maxValue: 1,
           automationRate: 'k-rate',
-        }, // ? minValue used to be -1, why ?
+        },
         {
           name: 'delayTime',
-          defaultValue: 10,
-          minValue: 0,
-          maxValue: 1000,
+          defaultValue: 0.5,
+          minValue: 0.0004774632, // C7 in seconds
+          maxValue: 4,
           automationRate: 'k-rate',
         },
       ];
     }
+
     constructor() {
       super();
-      this.Buffer = new Array(48000).fill(0);
-      (this.ReadPtr = 0), (this.WritePtr = 0);
+      this.feedbackDelay = new FeedbackDelay(sampleRate);
+      this.setupMessageHandling();
     }
+
+    setupMessageHandling() {
+      this.port.onmessage = (event) => {
+        switch (event.data.type) {
+          case 'setAutoGain':
+            this.feedbackDelay.setAutoGain(
+              event.data.enabled,
+              event.data.amount
+            );
+            break;
+        }
+      };
+    }
+
     process(inputs, outputs, parameters) {
-      let delaySamples = Math.round(
-          (sampleRate * parameters.delayTime[0]) / 1000
-        ),
-        bufferSize = this.Buffer.length;
-      for (let i = 0; i < outputs[0][0].length; ++i) {
-        outputs[0][0][i] =
-          parameters.gain[0] * this.Buffer[this.ReadPtr] + inputs[0][0][i];
-        this.Buffer[this.WritePtr] = outputs[0][0][i];
-        this.WritePtr++;
-        if (this.WritePtr >= bufferSize)
-          this.WritePtr = this.WritePtr - bufferSize;
-        this.ReadPtr = this.WritePtr - delaySamples;
-        if (this.ReadPtr < 0) this.ReadPtr = this.ReadPtr + bufferSize;
+      const input = inputs[0];
+      const output = outputs[0];
+
+      if (!input || !output) return true;
+
+      // Initialize delay buffers if needed
+      if (
+        !this.feedbackDelay.initialized ||
+        this.feedbackDelay.buffers.length !== input.length
+      ) {
+        this.feedbackDelay.initializeBuffers(input.length);
       }
+
+      const feedbackAmount = parameters.feedbackAmount[0];
+      const delayTime = parameters.delayTime[0];
+
+      // Process each sample
+      for (let i = 0; i < output[0].length; ++i) {
+        // Process each channel
+        for (let c = 0; c < Math.min(input.length, output.length); c++) {
+          // Process feedback delay
+          const delayResult = this.feedbackDelay.process(
+            input[c][i],
+            c,
+            feedbackAmount,
+            delayTime
+          );
+
+          const clamped = Math.max(
+            -0.999,
+            Math.min(0.999, delayResult.outputSample)
+          );
+
+          // Output with basic limiting to prevent clipping
+          output[c][i] = clamped;
+
+          // Update buffer with feedback signal
+          this.feedbackDelay.updateBuffer(
+            c,
+            delayResult.feedbackSample,
+            delayResult.delaySamples
+          );
+        }
+      }
+
       return true;
     }
   }

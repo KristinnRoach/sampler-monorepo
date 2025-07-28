@@ -76,57 +76,57 @@ describe('findClosest', () => {
         { id: 3, value: 30 },
         { id: 4, value: 40 },
       ];
-      const result = findClosest(items, 25, (item) => item.value);
+      const result = findClosest(items, 25, 'any', (item) => item.value);
       expect(result.id).toBe(2); // value: 20 is closest to 25
     });
   });
 
   describe('Edge Cases', () => {
     it('throws error for empty array', () => {
-      expect(() => findClosest([], 5, (x) => x)).toThrow(
+      expect(() => findClosest([], 5, 'any', (x) => x)).toThrow(
         'Array cannot be empty'
       );
     });
 
     it('returns single element for single-element array', () => {
       const array = [42];
-      const result = findClosest(array, 1000, (x) => x);
+      const result = findClosest(array, 1000, 'any', (x) => x);
       expect(result).toBe(42);
     });
 
     it('handles target below range', () => {
       const array = [10, 20, 30, 40];
-      const result = findClosest(array, 5, (x) => x);
+      const result = findClosest(array, 5, 'any', (x) => x);
       expect(result).toBe(10);
     });
 
     it('handles target above range', () => {
       const array = [10, 20, 30, 40];
-      const result = findClosest(array, 100, (x) => x);
+      const result = findClosest(array, 100, 'any', (x) => x);
       expect(result).toBe(40);
     });
 
     it('handles negative numbers correctly', () => {
       const array = [-50, -20, -10, 0, 10, 20, 50];
-      const result = findClosest(array, -15, (x) => x);
+      const result = findClosest(array, -15, 'any', (x) => x);
       expect(result).toBe(-20);
     });
 
     it('handles floating point precision', () => {
       const array = [0.1, 0.2, 0.3, 0.4, 0.5];
-      const result = findClosest(array, 0.25, (x) => x);
+      const result = findClosest(array, 0.25, 'any', (x) => x);
       expect(result).toBe(0.2);
     });
 
     it('handles very large numbers', () => {
       const array = [1e6, 1e7, 1e8, 1e9];
-      const result = findClosest(array, 5e7, (x) => x);
+      const result = findClosest(array, 5e7, 'any', (x) => x);
       expect(result).toBe(1e7);
     });
 
     it('handles duplicate values', () => {
       const array = [1, 2, 2, 2, 3];
-      const result = findClosest(array, 2.1, (x) => x);
+      const result = findClosest(array, 2.1, 'any', (x) => x);
       expect(result).toBe(2);
     });
   });
@@ -173,14 +173,14 @@ describe('findClosest', () => {
 
         // Warm up
         for (let i = 0; i < 10; i++) {
-          findClosest(array, target, (x) => x);
+          findClosest(array, target, 'any', (x) => x);
           findClosestNaive(array, target, (x) => x);
         }
 
         // Time binary search approach
         const binaryStart = performance.now();
         for (let i = 0; i < iterations; i++) {
-          findClosest(array, target + i * 0.1, (x) => x);
+          findClosest(array, target + i * 0.1, 'any', (x) => x);
         }
         const binaryTime = performance.now() - binaryStart;
 
@@ -200,7 +200,7 @@ describe('findClosest', () => {
         }
 
         // Both should return same results
-        const binaryResult = findClosest(array, target, (x) => x);
+        const binaryResult = findClosest(array, target, 'any', (x) => x);
         const naiveResult = findClosestNaive(array, target, (x) => x);
         expect(binaryResult).toBe(naiveResult);
       });
@@ -211,27 +211,46 @@ describe('findClosest', () => {
       const times: number[] = [];
       const naiveTimes: number[] = [];
 
+      // Warm up
+      const warmupArray = generateSortedNumbers(1000);
+      for (let i = 0; i < 1000; i++) {
+        findClosest(warmupArray, i, 'any', (x) => x);
+        findClosestNaive(warmupArray, i, (x) => x);
+      }
+
       sizes.forEach((size) => {
         const array = generateSortedNumbers(size);
-        const target = size; // Target in middle range
-        const iterations = 100;
+        const iterations = size <= 10000 ? 1000 : 100; // More iterations for smaller sizes
+        let totalBinaryTime = 0;
+        let totalNaiveTime = 0;
 
-        // Time binary search
-        const start = performance.now();
-        for (let i = 0; i < iterations; i++) {
-          findClosest(array, target, (x) => x);
-        }
-        times.push(performance.now() - start);
+        // Multiple runs to get average
+        for (let run = 0; run < 5; run++) {
+          const targets = Array.from(
+            { length: iterations },
+            () => Math.random() * size
+          );
 
-        // Time naive approach (fewer iterations for largest size to avoid timeout)
-        const naiveIterations = size > 50000 ? 10 : iterations;
-        const naiveStart = performance.now();
-        for (let i = 0; i < naiveIterations; i++) {
-          findClosestNaive(array, target, (x) => x);
+          // Time binary search
+          const start = performance.now();
+          for (const target of targets) {
+            findClosest(array, target, 'any', (x) => x);
+          }
+          totalBinaryTime += performance.now() - start;
+
+          // Time naive approach (fewer iterations for largest size)
+          const naiveIterations = size > 50000 ? iterations / 10 : iterations;
+          const naiveTargets = targets.slice(0, naiveIterations);
+          const naiveStart = performance.now();
+          for (const target of naiveTargets) {
+            findClosestNaive(array, target, (x) => x);
+          }
+          totalNaiveTime +=
+            (performance.now() - naiveStart) * (iterations / naiveIterations);
         }
-        naiveTimes.push(
-          (performance.now() - naiveStart) * (iterations / naiveIterations)
-        );
+
+        times.push(totalBinaryTime / 5);
+        naiveTimes.push(totalNaiveTime / 5);
       });
 
       // Binary search should scale logarithmically
@@ -342,11 +361,11 @@ describe('findClosest', () => {
       expect(result).toBe(10);
 
       // Test where Infinity would be closest - use Infinity as target
-      const result2 = findClosest(arrayWithSpecial, Infinity, (x) => x);
+      const result2 = findClosest(arrayWithSpecial, Infinity, 'any', (x) => x);
       expect(result2).toBe(Infinity);
 
       const arrayWithNaN = [1, 5, 10];
-      const resultNaN = findClosest(arrayWithNaN, NaN, (x) => x);
+      const resultNaN = findClosest(arrayWithNaN, NaN, 'any', (x) => x);
       // Should handle NaN gracefully (result might be unpredictable but shouldn't crash)
       expect(typeof resultNaN).toBe('number');
     });
@@ -367,7 +386,7 @@ describe('findClosest', () => {
       const target = 123456;
 
       const start = performance.now();
-      const result = findClosest(largeArray, target, (x) => x);
+      const result = findClosest(largeArray, target, 'any', (x) => x);
       const time = performance.now() - start;
 
       expect(result).toBeCloseTo(target, 0);
@@ -377,7 +396,7 @@ describe('findClosest', () => {
     it('works consistently with different data types', () => {
       // Test with strings representing numbers
       const stringNumbers = ['1', '10', '100', '1000'];
-      const result = findClosest(stringNumbers, 50, (s) => parseInt(s));
+      const result = findClosest(stringNumbers, 50, 'any', (s) => parseInt(s));
       expect(result).toBe('10');
 
       // Test with dates
@@ -387,7 +406,9 @@ describe('findClosest', () => {
         new Date('2023-12-01'),
       ];
       const targetDate = new Date('2023-08-01').getTime();
-      const dateResult = findClosest(dates, targetDate, (d) => d.getTime());
+      const dateResult = findClosest(dates, targetDate, 'any', (d) =>
+        d.getTime()
+      );
       expect(dateResult.getMonth()).toBe(5); // June (0-indexed)
     });
   });
@@ -399,7 +420,7 @@ describe('findClosest', () => {
 
       const start = performance.now();
       for (let i = 0; i < calls; i++) {
-        findClosest(array, Math.random() * 2000, (x) => x);
+        findClosest(array, Math.random() * 2000, 'any', (x) => x);
       }
       const time = performance.now() - start;
 
@@ -414,7 +435,7 @@ describe('findClosest', () => {
       );
       const target = Math.E; // Irrational number
 
-      const result = findClosest(preciseArray, target, (x) => x);
+      const result = findClosest(preciseArray, target, 'any', (x) => x);
       const binaryDistance = Math.abs(result - target);
 
       const naiveResult = findClosestNaive(preciseArray, target, (x) => x);
@@ -432,7 +453,7 @@ describe('findClosest', () => {
       const resultWithDefault = findClosest(numbers, 12);
 
       // Test with explicit parameter (should be identical)
-      const resultWithExplicit = findClosest(numbers, 12, (x) => x);
+      const resultWithExplicit = findClosest(numbers, 12, 'any', (x) => x);
 
       expect(resultWithDefault).toBe(10);
       expect(resultWithDefault).toBe(resultWithExplicit);
@@ -456,10 +477,11 @@ describe('findClosest', () => {
 
       // All these should produce the same result
       const defaultResult = findClosest(numbers, 4);
-      const explicitResult = findClosest(numbers, 4, (x) => x);
+      const explicitResult = findClosest(numbers, 4, 'any', (x) => x);
       const withDistanceResult = findClosest(
         numbers,
         4,
+        'any',
         (x) => x,
         (a, b) => Math.abs(a - b)
       );

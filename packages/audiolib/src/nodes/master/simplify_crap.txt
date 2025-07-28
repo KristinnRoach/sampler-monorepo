@@ -1,0 +1,267 @@
+import { LibNode } from '@/nodes/LibNode';
+import { createNodeId, NodeID } from '@/nodes/node-store';
+import { getAudioContext } from '@/context';
+import { Message, MessageBus, createMessageBus } from '@/events';
+import { clamp, mapToRange } from '@/utils';
+import {
+  DEFAULT_COMPRESSOR_SETTINGS,
+  DEFAULT_LIMITER_SETTINGS,
+} from './defaults';
+import { KarplusEffect } from '../effects/KarplusEffect';
+import {
+  createDistortion,
+  createDattorroReverb,
+} from '@/worklets/worklet-factory';
+import { DattorroReverb } from '../effects/DattorroReverb';
+import { DistortionWorklet } from '@/worklets/worklet-types';
+
+export type BusEffectName =
+  | 'distortion'
+  | 'karplus'
+  | 'reverb'
+  | 'compressor'
+  | 'limiter';
+
+export class InstrumentMasterBus implements LibNode {
+  readonly nodeId: NodeID;
+  readonly nodeType = 'InstrumentBus';
+  #initialized = false;
+  #messages: MessageBus<Message>;
+  #context: AudioContext;
+
+  // Core audio chain - just the nodes we need
+  #input: GainNode;
+  #hpf: BiquadFilterNode;
+  #lpf: BiquadFilterNode;
+  #compressor: DynamicsCompressorNode;
+  #limiter: DynamicsCompressorNode;
+  #reverb: DattorroReverb;
+  #reverbSend: GainNode;
+  #karplus: KarplusEffect;
+  #distortion: DistortionWorklet;
+  #output: GainNode;
+
+  constructor(context?: AudioContext) {
+    this.nodeId = createNodeId(this.nodeType);
+    this.#context = context || getAudioContext();
+    this.#messages = createMessageBus(this.nodeId);
+
+    // Create all nodes
+    this.#input = new GainNode(this.#context, { gain: 0.75 });
+    this.#hpf = new BiquadFilterNode(this.#context, {
+      type: 'highpass',
+      Q: 0.5,
+    });
+    this.#lpf = new BiquadFilterNode(this.#context, { Q: 0.707 });
+    this.#compressor = new DynamicsCompressorNode(
+      this.#context,
+      DEFAULT_COMPRESSOR_SETTINGS
+    );
+    this.#limiter = new DynamicsCompressorNode(
+      this.#context,
+      DEFAULT_LIMITER_SETTINGS
+    );
+    this.#reverb = new DattorroReverb(this.#context);
+    this.#reverbSend = new GainNode(this.#context, { gain: 0.0 });
+    this.#karplus = new KarplusEffect(this.#context);
+    this.#distortion = createDistortion(this.#context);
+    this.#output = new GainNode(this.#context, { gain: 1.0 });
+
+    this.#connectSignalChain();
+    this.#initialized = true;
+  }
+
+  #connectSignalChain(): void {
+    // Connect the chain: input -> filters -> compressor -> limiter -> karplus -> distortion -> output
+    this.#input.connect(this.#hpf);
+    this.#hpf.connect(this.#lpf);
+    this.#lpf.connect(this.#compressor);
+    this.#compressor.connect(this.#limiter);
+    this.#limiter.connect(this.#karplus.in);
+    this.#karplus.worklet.connect(this.#distortion);
+    this.#distortion.connect(this.#output);
+
+    // Setup reverb as send effect: compressor -> reverbSend -> reverb -> limiter
+    this.#compressor.connect(this.#reverbSend);
+    this.#reverbSend.connect(this.#reverb.worklet);
+    this.#reverb.worklet.connect(this.#limiter);
+  }
+
+  // === EFFECT CONTROLS ===
+
+  setReverbAmount(amount: number): this {
+    const safeAmount = clamp(amount, 0, 1);
+    this.#reverbSend.gain.setValueAtTime(safeAmount, this.now);
+    if (this.#reverb.setAmountMacro) {
+      this.#reverb.setAmountMacro(safeAmount);
+    }
+    return this;
+  }
+
+  setDistortionDrive(amount: number): this {
+    if (this.#distortion.setParam) {
+      this.#distortion.setParam('distortionDrive', clamp(amount, 0, 1));
+    }
+    return this;
+  }
+
+  setClippingMacro(amount: number): this {
+    const safeAmount = clamp(amount, 0, 1);
+    if (this.#distortion.setParam) {
+      this.#distortion.setParam('distortionDrive', safeAmount);
+      const clipThreshold = mapToRange(safeAmount, 0, 1, 0.5, 0.1);
+      this.#distortion.setParam('clippingThreshold', clipThreshold);
+    }
+    return this;
+  }
+
+  setKarplusAmount(amount: number): this {
+    if (this.#karplus.setAmountMacro) {
+      this.#karplus.setAmountMacro(clamp(amount, 0, 1));
+    }
+    return this;
+  }
+
+  setPitchMultiplier(value: number): this {
+    if (this.#karplus.setPitchMultiplier) {
+      this.#karplus.setPitchMultiplier(value);
+    }
+    return this;
+  }
+
+  // === FILTER CONTROLS ===
+
+  setHpfCutoff(hz: number): this {
+    this.#hpf.frequency.setValueAtTime(Math.max(20, hz), this.now);
+    return this;
+  }
+
+  setLpfCutoff(hz: number): this {
+    this.#lpf.frequency.setValueAtTime(
+      Math.max(20, Math.min(20000, hz)),
+      this.now
+    );
+    return this;
+  }
+
+  // === COMPRESSOR CONTROLS ===
+
+  setCompressorParams(params: {
+    threshold?: number;
+    knee?: number;
+    ratio?: number;
+    attack?: number;
+    release?: number;
+  }): this {
+    const comp = this.#compressor;
+    if (params.threshold !== undefined)
+      comp.threshold.setValueAtTime(params.threshold, this.now);
+    if (params.knee !== undefined)
+      comp.knee.setValueAtTime(params.knee, this.now);
+    if (params.ratio !== undefined)
+      comp.ratio.setValueAtTime(params.ratio, this.now);
+    if (params.attack !== undefined)
+      comp.attack.setValueAtTime(params.attack, this.now);
+    if (params.release !== undefined)
+      comp.release.setValueAtTime(params.release, this.now);
+    return this;
+  }
+
+  // === TRIGGERS ===
+
+  noteOn(midiNote: number, velocity: number = 100, secondsFromNow = 0): this {
+    if (this.#karplus.trigger) {
+      this.#karplus.trigger(midiNote, velocity, secondsFromNow);
+    }
+    return this;
+  }
+
+  // === CORE AUDIO GRAPH METHODS ===
+
+  connect(destination: AudioNode): AudioNode {
+    this.#output.connect(destination);
+    return destination;
+  }
+
+  disconnect(): this {
+    this.#output.disconnect();
+    return this;
+  }
+
+  dispose(): void {
+    this.disconnect();
+    // Could add cleanup for custom effects here if needed
+  }
+
+  // === ACCESSORS ===
+
+  get input(): GainNode {
+    return this.#input;
+  }
+  get output(): GainNode {
+    return this.#output;
+  }
+  get now(): number {
+    return this.#context.currentTime;
+  }
+  get initialized() {
+    return this.#initialized;
+  }
+  set outputLevel(level: number) {
+    this.#output.gain.setValueAtTime(clamp(level, 0, 1), this.now);
+  }
+
+  get outputLevel(): number {
+    return this.#output.gain.value;
+  }
+
+  get reverbSend(): number {
+    return this.#reverbSend.gain.value;
+  }
+
+  // === COMPATIBILITY METHODS ===
+
+  setDryWetMix(mix: { dry: number; wet: number }): this {
+    // In simplified version, we don't have separate dry/wet mix nodes
+    // This could control the reverb send amount instead
+    if (mix.wet !== undefined) {
+      this.setReverbAmount(clamp(mix.wet, 0, 1));
+    }
+    return this;
+  }
+
+  send(effect: BusEffectName, amount: number): this {
+    switch (effect) {
+      case 'reverb':
+        this.setReverbAmount(amount);
+        break;
+      // Add other send effects as needed
+      default:
+        console.warn(`Send not implemented for effect: ${effect}`);
+    }
+    return this;
+  }
+
+  startLevelMonitoring(intervalMs: number = 1000): void {
+    // Simplified level monitoring - just log periodically
+    setInterval(() => {
+      // Basic level monitoring without the complex LevelMonitor class
+      console.log(`Bus levels at ${this.now.toFixed(2)}s`);
+    }, intervalMs);
+  }
+
+  debugRouting(): void {
+    console.log('=== Simplified Bus Routing ===');
+    console.log(
+      'input -> hpf -> lpf -> compressor -> limiter -> karplus -> distortion -> output'
+    );
+    console.log('compressor -> reverbSend -> reverb -> limiter');
+    console.log('==============================');
+  }
+
+  // === MESSAGE HANDLING ===
+
+  onMessage(type: string, handler: any): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+}

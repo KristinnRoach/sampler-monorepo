@@ -37,7 +37,17 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   // Audio params
   const volume = van.state(0.75);
-  const reverbMix = van.state(0.0);
+
+  const dryWetMix = van.state({ dry: 1, wet: 0 });
+
+  const hpfHz = van.state(40);
+  const lpfHz = van.state(18000);
+
+  const reverbAmount = van.state(0.0);
+  const karplusAmount = van.state(0.0);
+  const drive = van.state(0.0);
+  const clipping = van.state(0.0);
+  // const feedbackPitch = van.state(0.5);
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -190,9 +200,44 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
-          // samplePlayer.setReverbMix(reverbMix.val);
-          samplePlayer.setReverbAmount(reverbMix.val);
+          samplePlayer.setDryWetMix(dryWetMix.val);
         });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setHpfCutoff(hpfHz.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setLpfCutoff(lpfHz.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          // samplePlayer.setReverbSend(reverbAmount.val);
+          samplePlayer.setReverbAmount(reverbAmount.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setKarplusAmount(karplusAmount.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.outputBus.setDrive(drive.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.outputBus.setClippingMacro(clipping.val);
+        });
+
+        // derive(() => {
+        //   if (!samplePlayer) return;
+        //   samplePlayer.outputBus.setPitchMultiplier(feedbackPitch.val);
+        // });
 
         derive(() => {
           if (!samplePlayer) return;
@@ -543,14 +588,73 @@ export const SamplerElement = (attributes: ElementProps) => {
         }),
 
         createLabeledKnob({
-          label: 'Reverb',
+          label: 'Dry/Wet',
           defaultValue: 0,
-          onChange: (value: number) => (reverbMix.val = value),
+          onChange: (value: number) => {
+            dryWetMix.val = { dry: 1 - value, wet: value };
+          },
         }),
 
         createLabeledKnob({
+          label: 'HPF',
+          defaultValue: 50,
+          minValue: 30,
+          maxValue: 18000,
+          curve: 5,
+          onChange: (value: number) => (hpfHz.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'LPF',
+          defaultValue: 18000,
+          minValue: 20,
+          maxValue: 20000,
+          curve: 5,
+          onChange: (value: number) => (lpfHz.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'Reverb',
+          defaultValue: 0.5,
+          onChange: (value: number) => (reverbAmount.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'Feedback',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          onChange: (value: number) => (karplusAmount.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'DistDrive',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          onChange: (value: number) => (drive.val = value),
+        }),
+
+        createLabeledKnob({
+          label: 'Clipping',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          onChange: (value: number) => (clipping.val = value),
+        }),
+
+        // createLabeledKnob({
+        //   label: 'FB-Pitch',
+        //   defaultValue: 1,
+        //   minValue: 1,
+        //   maxValue: 4,
+        //   snapIncrement: 1,
+        //   onChange: (value: number) => (feedbackPitch.val = value),
+        // }),
+
+        createLabeledKnob({
           label: 'amp-lfo-rate',
-          defaultValue: 0.01,
+          defaultValue: 0.1,
           onChange: (value: number) => (gainLFORate.val = value),
           curve: 5,
           snapIncrement: 0,

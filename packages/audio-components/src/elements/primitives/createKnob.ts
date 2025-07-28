@@ -3,7 +3,7 @@ import { defineElement } from '../elementRegistry.ts';
 import { KnobElement, type KnobChangeEventDetail } from './KnobElement.ts';
 
 export interface KnobConfig {
-  onChange: (value: number) => void;
+  onChange: (data: any) => void;
   minValue?: number;
   maxValue?: number;
   defaultValue?: number;

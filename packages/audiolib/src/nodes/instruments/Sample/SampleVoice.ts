@@ -135,9 +135,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.#envelopes.set('pitch-env', pitchEnv);
 
     if (this.#filtersEnabled) {
+      const MIN_HZ = 20;
+      const MAX_HZ = this.context.sampleRate / 2 - 1000;
+
       const filterEnv = createEnvelope(this.context, 'filter-env', {
         durationSeconds,
-        valueRange: [10, this.#lpfHz],
+        paramValueRange: [MIN_HZ, MAX_HZ],
         initEnable: false,
       });
 
@@ -187,9 +190,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       });
     }
 
-    if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
-      this.setParam('hpf', fundamentalFreq, this.now);
-    }
+    // if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
+    //   this.setParam('hpf', fundamentalFreq, this.now);
+    // }
 
     return true;
   }
@@ -261,15 +264,32 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     return this.#activeMidiNote;
   }
 
-  applyEnvelopes(timestamp: number, playbackRate: number, midiNote?: number) {
+  applyEnvelopes(
+    timestamp: number,
+    playbackRate: number,
+    velocity?: number,
+    midiNote?: number
+  ) {
+    // After the forEach loop, add:
+
     this.#envelopes.forEach((env, envType) => {
       if (!env.isEnabled) return;
       const param = this.getParam(env.param);
       if (!param) return;
-
       if (envType === 'pitch-env' && !env.hasVariation()) return;
 
-      const baseValue = envType === 'pitch-env' ? playbackRate : 1;
+      const baseValue = (() => {
+        switch (envType) {
+          case 'amp-env':
+            return velocity ? velocity / 127 : 1;
+          case 'pitch-env':
+            return playbackRate;
+          case 'filter-env':
+            return 1; // param.value; // this.#lpfHz;
+          default:
+            return 1;
+        }
+      })();
 
       env.triggerEnvelope(param, timestamp, {
         baseValue,
@@ -318,16 +338,13 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     const playbackRate = this.getParam('playbackRate')?.value ?? 1;
 
     // Release all enabled envelopes
-    this.#envelopes.forEach((env, envType) => {
+    this.#envelopes.forEach((env) => {
       if (!env.isEnabled) return;
       const param = this.getParam(env.param);
       if (!param) return;
 
-      const baseValue = envType === 'pitch-env' ? playbackRate : 1;
-
       env.releaseEnvelope(param, timestamp, {
         playbackRate,
-        baseValue,
         voiceId: this.nodeId,
         midiNote: this.#activeMidiNote ?? 60, // not used
       });

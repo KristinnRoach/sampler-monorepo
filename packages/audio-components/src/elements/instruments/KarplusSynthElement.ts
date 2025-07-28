@@ -17,6 +17,7 @@ import {
   LoopHoldControls,
   FilterSliders,
 } from '../controls/AudioControls';
+import { createLabeledKnob } from '../primitives/createKnob';
 
 const { div } = van.tags;
 
@@ -27,11 +28,14 @@ const KarplusSynthElement = (attributes: ElementProps) => {
   const expanded = attributes.attr('expanded', 'true');
 
   // Audio parameters
-  const volume = van.state(0.5);
-  const attack = van.state(0.001);
-  const decay = van.state(0.9);
-  const noiseTime = van.state(10);
-  const lpfFreq = van.state(18000);
+  const volume = van.state(0.5); // 0-1
+  const noiseGain = van.state(0); // constant source of input noise
+  const decayAmount = van.state(0.7); // normalized feedback gain amount (0-1)
+
+  const attackSec = van.state(0.001); // in seconds
+  const noiseSec = van.state(0.01); // in seconds
+
+  const lpfFreq = van.state(10000); // Hz
   const hpfFreq = van.state(20);
 
   // const envelopeController = createCustomEnvelope();
@@ -67,17 +71,13 @@ const KarplusSynthElement = (attributes: ElementProps) => {
         });
         // Reactive parameter binding
         derive(() => (ksSynth.volume = volume.val));
-        derive(() => {
-          ksSynth.setParameterValue('attack', attack.val);
-          ksSynth.setParameterValue('decay', decay.val);
-          ksSynth.setParameterValue('noiseTime', noiseTime.val);
-        });
-        derive(() => {
-          ksSynth.setLpfCutoff(lpfFreq.val);
-          ksSynth.setHpfCutoff(hpfFreq.val);
-        });
+        derive(() => ksSynth.setParameterValue('noiseGain', noiseGain.val));
+        derive(() => ksSynth.setParameterValue('attack', attackSec.val));
+        derive(() => ksSynth.setParameterValue('decay', decayAmount.val));
+        derive(() => ksSynth.setParameterValue('noiseTime', noiseSec.val));
+        derive(() => ksSynth.setLpfCutoff(lpfFreq.val));
+        derive(() => ksSynth.setHpfCutoff(hpfFreq.val));
 
-        // Control states
         derive(() =>
           keyboardEnabled.val
             ? ksSynth.enableKeyboard()
@@ -124,11 +124,44 @@ const KarplusSynthElement = (attributes: ElementProps) => {
         },
         VolumeSlider(volume),
 
-        createSlider('Attack', attack, 0, 1, 0.01),
-        createSlider('Decay', decay, 0, 1, 0.01),
-        createSlider('Thickness', noiseTime, 1, 100, 1),
+        createSlider('Attack', attackSec, 0.001, 2, 0.001), // in seconds
+        createSlider('Thickness', noiseSec, 0.001, 0.5, 0.001), // seconds
 
-        FilterSliders(lpfFreq, hpfFreq),
+        div(
+          {
+            class: 'knobs',
+            style: () =>
+              expanded.val === 'true'
+                ? `
+                  display: grid;
+                  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+                  gap: 1rem;
+                  padding: 1rem;
+                  max-width: 100%;
+                  justify-items: center;
+                  align-items: start;
+                `
+                : 'display: none; padding: 0.5rem;',
+          },
+          createLabeledKnob({
+            label: 'Decay',
+            defaultValue: 0.7,
+            minValue: 0.01,
+            maxValue: 1,
+            curve: 2,
+            onChange: (value: number) => (decayAmount.val = value),
+          }),
+          createLabeledKnob({
+            label: 'Input Noise',
+            defaultValue: 0,
+            minValue: 0,
+            maxValue: 1,
+            curve: 1,
+            onChange: (value: number) => (decayAmount.val = value),
+          })
+        ),
+
+        FilterSliders(lpfFreq, hpfFreq), // Hz
 
         div(
           { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },

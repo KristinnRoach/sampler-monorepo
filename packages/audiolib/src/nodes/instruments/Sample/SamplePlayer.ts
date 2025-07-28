@@ -7,6 +7,7 @@ import { findClosestNote } from '@/utils';
 import {
   preProcessAudioBuffer,
   PreProcessOptions,
+  PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
 import {
@@ -27,7 +28,10 @@ import {
 import { LFO } from '@/nodes/params/LFOs/LFO';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
-import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
+import {
+  InstrumentMasterBus,
+  BusEffectName,
+} from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
@@ -40,6 +44,8 @@ export class SamplePlayer extends LibInstrument {
   #loopLocked = false;
   #holdEnabled = false;
   #holdLocked = false;
+
+  #masterOut: GainNode;
 
   #macroLoopStart: MacroParam;
   #macroLoopEnd: MacroParam;
@@ -59,10 +65,6 @@ export class SamplePlayer extends LibInstrument {
 
   voicePool: SampleVoicePool;
 
-  connectAltOut: InstrumentMasterBus['connectAltOut'];
-  setAltOutVolume: InstrumentMasterBus['setAltOutVolume'];
-  mute: InstrumentMasterBus['mute'];
-
   constructor(
     context: AudioContext,
     polyphony: number = 16,
@@ -71,15 +73,19 @@ export class SamplePlayer extends LibInstrument {
   ) {
     super('sample-player', context, polyphony, audioBuffer, midiController);
 
-    // Initialize voice pool
+    // Initialize voice pool and  connect audiochain
     this.voicePool = new SampleVoicePool(
       context,
       polyphony,
-      this.outBus.input, // todo: explicit connect (first create generic pool interface)
-      true // enable voice filters (lpf and hpf)
+      this.outBus.input, // destination for voices to connect to
+      true // enable filters
     );
 
-    this.#setupMessageHandling();
+    this.#masterOut = new GainNode(context, { gain: 0.5 });
+    this.outBus.connect(this.#masterOut);
+    this.#masterOut.connect(context.destination);
+
+    this.outBus.debugRouting();
 
     // Setup params
     this.#macroLoopStart = new MacroParam(
@@ -96,35 +102,7 @@ export class SamplePlayer extends LibInstrument {
 
     this.#setupLFOs();
 
-    // const ampDefaults = CustomEnvelope.getDefaults('amp-env', 1);
-    // const pitchDefaults = CustomEnvelope.getDefaults('pitch-env', 1);
-    // const filterDefault = CustomEnvelope.getDefaults('filter-env', 1);
-
-    // this.#envelopes.set(
-    //   'amp-env',
-    //   new EnvelopeData(ampDefaults.points, ampDefaults.valueRange, 1)
-    // );
-    // this.#envelopes.set(
-    //   'pitch-env',
-    //   new EnvelopeData(pitchDefaults.points, pitchDefaults.valueRange, 1)
-    // );
-    // this.#envelopes.set(
-    //   'filter-env',
-    //   new EnvelopeData(filterDefault.points, filterDefault.valueRange, 1)
-    // );
-
-    // this.voicePool.applyToAllVoices((voice) => {
-    //   this.#envelopes.forEach((envData, envType) => {
-    //     voice.addEnvelope(envType, envData);
-    //   });
-    // });
-
-    // Connect audiochain -- todo after generalizing voice pool
-
-    // Initialize the output bus methods
-    this.setAltOutVolume = (...args) => this.outBus.setAltOutVolume(...args);
-    this.connectAltOut = (...args) => this.outBus.connectAltOut(...args);
-    this.mute = (...args) => this.outBus.mute(...args);
+    this.#setupMessageHandling();
 
     this.#isReady = true;
 
@@ -242,17 +220,16 @@ export class SamplePlayer extends LibInstrument {
   #setupLFOs() {
     this.#gainLFO = new LFO(this.context);
     this.#gainLFO.setWaveform('sine');
-    this.#gainLFO.setFrequency(8);
-    this.#gainLFO.setDepth(0.01);
 
     this.#pitchLFO = new LFO(this.context);
     const wobbleWave = this.#pitchLFO.getPitchWobbleWaveform();
     this.#pitchLFO.setWaveform(wobbleWave);
-    this.#pitchLFO.setFrequency(0.4);
-    this.#pitchLFO.setDepth(0.005);
 
-    this.#connectLFOToAllVoices(this.#gainLFO, 'envGain');
+    // Connections // Todo: use detune pitch separate param (possibly a macro)
     this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
+    this.#gainLFO.connect(this.outBus.input.gain);
+
+    this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
   }
 
   #connectLFOToAllVoices(lfo: LFO, paramName: string) {
@@ -278,10 +255,6 @@ export class SamplePlayer extends LibInstrument {
 
     assert(isValidAudioBuffer(buffer));
 
-    if (this.#preprocessAudio) {
-      buffer = preProcessAudioBuffer(this.context, buffer, preprocessOptions);
-    }
-
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
       (modSampleRate && this.audioContext.sampleRate !== modSampleRate)
@@ -300,36 +273,27 @@ export class SamplePlayer extends LibInstrument {
     this.#isLoaded = false;
     this.#audiobuffer = null;
 
-    let tuningOffset = 0; // in semitones (float)
-    let fundamentalFreq = undefined;
-    if (shoulDetectPitch) {
-      const detectedPitch = await this.detectPitch(buffer);
+    let processed: PreProcessResults | undefined;
 
-      if (detectedPitch.confidence > 0.35) {
-        fundamentalFreq = detectedPitch.frequency;
+    if (this.#preprocessAudio) {
+      processed = await preProcessAudioBuffer(
+        this.context,
+        buffer,
+        preprocessOptions
+      );
+      buffer = processed.audiobuffer;
 
-        if (autoTranspose && detectedPitch.confidence > 0.35) {
-          tuningOffset = this.detectedPitchToTransposition(
-            detectedPitch.midiFloat,
-            60 // Target midi note //  Todo: use setScale
-          );
-          this.setTransposition(tuningOffset);
-        } else {
-          console.info(
-            `Skipped auto transpose due to unreliable pitch detection results: `,
-            detectedPitch
-          );
-          this.sendUpstreamMessage('sample:auto-transpose:fail', {});
-        }
+      if (this.#useZeroCrossings && processed.zeroCrossings) {
+        this.#zeroCrossings = processed.zeroCrossings;
       }
     }
 
-    if (this.#useZeroCrossings) {
-      const zeroes = findZeroCrossings(buffer);
-      this.#zeroCrossings = zeroes;
-    }
+    this.voicePool.setBuffer(
+      buffer,
+      this.#zeroCrossings,
+      processed?.detectedPitch?.fundamentalHz
+    );
 
-    this.voicePool.setBuffer(buffer, this.#zeroCrossings, fundamentalFreq);
     this.#bufferDuration = buffer.duration;
 
     this.#resetMacros(buffer.duration);
@@ -339,7 +303,7 @@ export class SamplePlayer extends LibInstrument {
       scale: [0],
       lowestOctave: 0,
       highestOctave: 6,
-      tuningOffset,
+      tuningOffset: 0, // not needed since preprocessor handles re-pitching the samples?
       // All time params updated to seconds, normalizing logic can be removed
       normalize: false as NormalizeOptions | false,
     };
@@ -418,6 +382,8 @@ export class SamplePlayer extends LibInstrument {
       this.#gainLFO?.setMusicalNote(midiNote);
       this.#pitchLFO?.setMusicalNote(midiNote);
     }
+
+    this.outBus.noteOn(midiNote, safeVelocity, 0);
 
     return this.voicePool.noteOn(
       midiNote,
@@ -581,16 +547,25 @@ export class SamplePlayer extends LibInstrument {
     loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    if (
-      loopStartSeconds > loopEndSeconds ||
-      loopEndSeconds < loopStartSeconds ||
-      (this.isLoaded && loopEndSeconds > this.#bufferDuration)
-    ) {
-      console.error(
+    // TEMP hax to handle invalid loop points
+    if (loopStartSeconds >= loopEndSeconds) {
+      console.debug(
         `samplePlayer.setLoopPoint: Loop points out of bounds.
-        Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
+      Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
       );
-      return this;
+      if (loopPoint === 'start') {
+        loopStartSeconds = Math.max(0, loopEndSeconds - 0.001);
+      } else {
+        loopEndSeconds = Math.min(
+          this.#bufferDuration,
+          loopStartSeconds + 0.001
+        );
+      }
+    }
+
+    // Check buffer boundaries
+    if (this.isLoaded && loopEndSeconds >= this.#bufferDuration) {
+      loopEndSeconds = this.#bufferDuration - 0.001; // standardize sfae offset constant
     }
 
     const RAMP_SENSITIVITY = 1;
@@ -848,12 +823,29 @@ export class SamplePlayer extends LibInstrument {
 
   /* === FX === */
 
-  setReverbMix = (wetMix: number) => {
-    this.outBus.setReverbSendMix(wetMix);
+  setDryWetMix = (mix: { dry: number; wet: number }) => {
+    this.outBus.setDryWetMix(mix);
   };
 
+  send = (effect: BusEffectName, amount: number) => {
+    this.outBus.send(effect, amount);
+  };
+
+  // return = (effect: BusEffectName, level: number) => {
+  //   this.outBus.return(effect, level);
+  // };
+
+  setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
+  setHpfCutoff = (hz: number) => this.outBus.setHpfCutoff(hz);
+
+  /* Macro control for reverb send and various other params */
   setReverbAmount = (amount: number) => {
     this.outBus.setReverbAmount(amount);
+  };
+
+  /* Macro control for karplus send and various other params */
+  setKarplusAmount = (amount: number) => {
+    this.outBus.setKarplusAmount(amount);
   };
 
   /* === I/O === */
@@ -934,8 +926,8 @@ export class SamplePlayer extends LibInstrument {
 
   /* === PUBLIC GETTERS === */
 
-  get out() {
-    return this.outBus.output;
+  get mainOut() {
+    return this.#masterOut;
   }
 
   get outputBus() {
@@ -955,11 +947,11 @@ export class SamplePlayer extends LibInstrument {
   }
 
   get volume(): number {
-    return this.outBus.volume;
+    return this.#masterOut.gain.value;
   }
 
   set volume(value: number) {
-    this.outBus.volume = value;
+    this.#masterOut.gain.setValueAtTime(value, this.now);
   }
 
   get loopEnabled(): boolean {

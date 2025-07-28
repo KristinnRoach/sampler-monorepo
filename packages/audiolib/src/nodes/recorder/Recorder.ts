@@ -14,6 +14,7 @@ import { getMicrophone } from '@/io/devices/devices';
 import {
   preProcessAudioBuffer,
   PreProcessOptions,
+  PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
 export const AudioRecorderState = {
@@ -215,6 +216,7 @@ export class Recorder implements LibNode {
   }
 
   async stop(): Promise<AudioBuffer> {
+    // TODO: return PreProcessResults
     if (!this.#recorder) throw new Error('Recorder not initialized');
 
     if (this.#state === AudioRecorderState.ARMED) {
@@ -235,13 +237,16 @@ export class Recorder implements LibNode {
 
     const blob = await this.#stopRecording();
     let buffer = await this.#blobToAudioBuffer(blob);
+    let preprocessResults: PreProcessResults;
 
     if (this.#config?.preprocess) {
-      buffer = preProcessAudioBuffer(
+      preprocessResults = await preProcessAudioBuffer(
         this.#context,
         buffer,
         this.#config.preprocessOptions
       );
+
+      buffer = preprocessResults.audiobuffer;
     }
 
     if (this.#destination) {

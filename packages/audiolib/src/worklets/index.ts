@@ -1,3 +1,3 @@
 /**  Exports for the main thread **/
-export { initProcessors, getProcessorUrl } from './main-thread';
-export { registry } from './worklet-registry';
+export { initProcessors, getProcessorUrl } from './init-processors';
+export { processorFileRegistry } from './processor-registry';

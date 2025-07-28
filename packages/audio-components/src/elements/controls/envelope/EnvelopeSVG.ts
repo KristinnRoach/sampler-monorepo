@@ -3,7 +3,7 @@ import van from '@repo/vanjs-core';
 import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-import { TimeScaleKnob, LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
+import { LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
 
 import {
   applySnapping,
@@ -57,16 +57,6 @@ export const EnvelopeSVG = (
   // Get envelope properties
   const envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
   const envelopeType = envType;
-  const [minValue, maxValue] = envelopeInfo.valueRange;
-
-  // Value conversion helpers
-  const normalizeValue = (displayValue: number): number => {
-    return (displayValue - minValue) / (maxValue - minValue);
-  };
-
-  const denormalizeValue = (normalizedValue: number): number => {
-    return minValue + normalizedValue * (maxValue - minValue);
-  };
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
@@ -272,7 +262,8 @@ export const EnvelopeSVG = (
   // Add time scale knob if callback provided
   const timeScaleKnob = LabeledTimeScaleKnob({
     label: 'Env Speed',
-    onTimeScaleChange: instrument.setEnvelopeTimeScale,
+    onChange: ({ envelopeType, timeScale }) =>
+      instrument.setEnvelopeTimeScale(envelopeType, timeScale),
     envelopeType,
     height: 40,
     width: 40,

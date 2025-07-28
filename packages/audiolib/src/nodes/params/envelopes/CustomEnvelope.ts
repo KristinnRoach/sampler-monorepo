@@ -8,7 +8,7 @@ import {
   MessageBus,
 } from '@/events';
 
-import { EnvelopePoint, EnvelopeType } from './env-types';
+import { EnvelopePoint, EnvelopeType, EnvelopeScaling } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 
 // ===== CUSTOM ENVELOPE  =====
@@ -22,6 +22,7 @@ export class CustomEnvelope {
   #data: EnvelopeData;
   #paramName: string;
   envelopeType: EnvelopeType;
+  #scaling: EnvelopeScaling = 'none';
 
   #isEnabled: boolean;
   #loopEnabled = false;
@@ -29,9 +30,6 @@ export class CustomEnvelope {
   #currentPlaybackRate = 1;
 
   #timeScale = 1;
-  #logarithmic = false;
-
-  #MIN_CURVE_DURATION = 0.05; // test for optimal values
 
   constructor(
     context: AudioContext,
@@ -40,15 +38,16 @@ export class CustomEnvelope {
     sharedData?: EnvelopeData,
 
     initialPoints: EnvelopePoint[] = [],
-    valueRange: [number, number] = [0, 1],
+    paramValueRange: [number, number] = [0, 1],
     durationSeconds = 1,
 
-    logarithmic = false,
+    scaling: EnvelopeScaling = 'none',
     initEnable = true
   ) {
     this.envelopeType = envelopeType;
     this.nodeType = envelopeType;
     this.nodeId = createNodeId(this.envelopeType);
+    this.#context = context;
     this.#messages = createMessageBus<Message>(this.nodeId);
 
     switch (envelopeType) {
@@ -74,13 +73,12 @@ export class CustomEnvelope {
     }
 
     this.#isEnabled = initEnable;
-    this.#context = context;
-    this.#logarithmic = logarithmic;
+    this.#scaling = scaling;
 
     // Use shared data if provided, otherwise create new
     this.#data =
       sharedData ||
-      new EnvelopeData([...initialPoints], valueRange, durationSeconds);
+      new EnvelopeData([...initialPoints], paramValueRange, durationSeconds);
   }
 
   // Delegate data operations to EnvelopeData
@@ -151,6 +149,9 @@ export class CustomEnvelope {
     return this.#timeScale;
   }
 
+  /**
+   * The range of values applied to the audio param
+   **/
   get valueRange() {
     return this.#data.valueRange;
   }
@@ -199,8 +200,31 @@ export class CustomEnvelope {
     return duration / timeScale;
   }
 
+  #applyScaling(value: number, base: number): number {
+    switch (this.#scaling) {
+      case 'exponential':
+        return base * Math.pow(value, 2);
+
+      case 'logarithmic':
+        const [minFreq, maxFreq] = this.valueRange;
+
+        // Convert absolute value back to normalized (0-1)
+        const normalizedValue = (value - minFreq) / (maxFreq - minFreq);
+
+        // Apply logarithmic scaling to normalized value
+        const logMin = Math.log2(Math.max(0.1, minFreq));
+        const logMax = Math.log2(maxFreq);
+        return Math.pow(2, logMin + normalizedValue * (logMax - logMin));
+
+      // return value;
+      case 'none':
+      default:
+        return base * value;
+    }
+  }
+
   #getCurveSamplingRate(duration: number): number {
-    if (this.#logarithmic) {
+    if (this.#scaling === 'logarithmic') {
       return duration < 1 ? 1000 : 750;
     }
     if (this.#data.hasSharpTransitions) {
@@ -230,12 +254,8 @@ export class CustomEnvelope {
       const absoluteTime = normalizedProgress * endTime;
 
       let value = this.#data.interpolateValueAtTime(absoluteTime);
+      let finalValue = this.#applyScaling(value, base ?? 1);
 
-      if (this.#logarithmic) {
-        value = Math.pow(value, 2);
-      }
-
-      let finalValue = (base ?? 1) * value;
       if (min !== undefined) finalValue = Math.max(finalValue, min);
       if (max !== undefined) finalValue = Math.min(finalValue, max);
 
@@ -364,12 +384,6 @@ export class CustomEnvelope {
       options.playbackRate,
       this.#timeScale
     );
-
-    // if (cachedDuration < this.#MIN_CURVE_DURATION) {
-    //   TODO: consider using simple linear ramp instead of curve for super short durations
-    //   console.debug('Starting simpleLoopingEnv, duration:', cachedDuration);
-    //   return;
-    // }
 
     let cachedCurve = this.#generateCurve(
       cachedDuration,
@@ -528,18 +542,22 @@ export class CustomEnvelope {
   releaseEnvelope(
     audioParam: AudioParam,
     startTime: number,
-    options: {
-      baseValue: number;
-      playbackRate: number;
+    options?: {
+      baseValue?: number;
+      playbackRate?: number;
       voiceId?: string;
       midiNote?: number;
       minValue?: number;
       maxValue?: number;
-    } = { baseValue: 1, playbackRate: this.#currentPlaybackRate }
+    }
   ) {
     this.#isReleased = true;
     const releaseIndex = this.releasePointIndex;
-    this.#continueFromPoint(audioParam, startTime, releaseIndex, options);
+    this.#continueFromPoint(audioParam, startTime, releaseIndex, {
+      baseValue: audioParam.value,
+      playbackRate: this.#currentPlaybackRate,
+      ...options,
+    });
   }
 
   #continueFromPoint(
@@ -553,16 +571,12 @@ export class CustomEnvelope {
       midiNote?: number;
     }
   ) {
-    const { baseValue } = options;
-
-    const base = baseValue ?? 1;
-    const logarithmic = this.#logarithmic;
+    const { baseValue = 1 } = options;
 
     const fromPoint = this.points[fromPointIndex];
     const lastPoint = this.points[this.points.length - 1];
 
     const safeStart = Math.max(this.#context.currentTime, startTime);
-
     const rawRemainingDuration = lastPoint.time - fromPoint.time; // (before any scaling)
 
     const scaledRemainingDuration = this.#getScaledDuration(
@@ -579,9 +593,9 @@ export class CustomEnvelope {
 
     // Calculate final end value with log transform and clamping
     const targetEndValue = (() => {
-      let endVal = this.#data.interpolateValueAtTime(lastPoint.time);
-      if (logarithmic) endVal = Math.pow(endVal, 2);
-      return this.#clampToValueRange(base * endVal);
+      const endVal = this.#data.interpolateValueAtTime(lastPoint.time);
+      const scaledEndVal = this.#applyScaling(endVal, baseValue);
+      return this.#clampToValueRange(scaledEndVal);
     })();
 
     // Generate the release curve shape from sustain point to end
@@ -599,11 +613,8 @@ export class CustomEnvelope {
         fromPoint.time + normalizedProgress * rawRemainingDuration;
 
       // Get the envelope's original value at this time
-      let envelopeValue = this.#data.interpolateValueAtTime(absoluteTime);
-
-      if (logarithmic) envelopeValue = Math.pow(envelopeValue, 2);
-
-      curve[i] = this.#clampToValueRange(base * envelopeValue);
+      const value = this.#data.interpolateValueAtTime(absoluteTime);
+      curve[i] = this.#clampToValueRange(this.#applyScaling(value, baseValue));
     }
 
     const releasePoint = this.points[this.releasePointIndex];
@@ -779,11 +790,11 @@ export class CustomEnvelope {
               curve: 'exponential' as const,
             },
           ],
-          valueRange: [0, 1] as [number, number],
-          logarithmic: true,
+          paramValueRange: [0, 1] as [number, number],
+          scaling: 'exponential' as EnvelopeScaling,
           initEnable: true,
           sustainPointIndex: 2,
-          releasePointIndex: 3,
+          releasePointIndex: 3, // release from second last point
         };
 
       case 'pitch-env':
@@ -796,11 +807,11 @@ export class CustomEnvelope {
               curve: 'exponential' as const,
             },
           ],
-          valueRange: [0.5, 1.5] as [number, number],
-          logarithmic: false,
+          paramValueRange: [0.5, 1.5] as [number, number],
+          scaling: 'none' as EnvelopeScaling,
           initEnable: false,
-          sustainPointIndex: null, // No sustain for pitch
-          releasePointIndex: 1, // ? should be null ? or special handling for pitch
+          sustainPointIndex: null,
+          releasePointIndex: null,
         };
 
       case 'filter-env':
@@ -814,11 +825,11 @@ export class CustomEnvelope {
               curve: 'exponential' as const,
             },
           ],
-          valueRange: [30, 18000] as [number, number],
-          logarithmic: false,
+          paramValueRange: [200, 8000] as [number, number],
+          scaling: 'logarithmic' as EnvelopeScaling,
           initEnable: false,
-          sustainPointIndex: null, // No sustain for filter
-          releasePointIndex: 1, // Release from second point
+          sustainPointIndex: null,
+          releasePointIndex: null,
         };
 
       default:
@@ -827,8 +838,8 @@ export class CustomEnvelope {
             { time: 0, value: 0, curve: 'linear' as const },
             { time: durationSeconds, value: 1, curve: 'linear' as const },
           ],
-          valueRange: [0, 1] as [number, number],
-          logarithmic: false,
+          paramValueRange: [0, 1] as [number, number],
+          scaling: 'none' as EnvelopeScaling,
           initEnable: true,
           sustainPointIndex: null,
           releasePointIndex: 0, // ??
@@ -843,128 +854,3 @@ export class CustomEnvelope {
     deleteNodeId(this.nodeId);
   }
 }
-
-// Ignore.. A bit simplified looping version below, would need testing:
-// #startLoopingEnv(
-//   audioParam: AudioParam,
-//   startTime: number,
-//   options: {
-//     baseValue: number;
-//     playbackRate: number;
-//     voiceId?: string;
-//     midiNote?: number;
-//     minValue?: number;
-//     maxValue?: number;
-//   }
-// ) {
-//   let cachedDuration = this.#getScaledDuration(
-//     this.#data.startPointIndex,
-//     this.#data.endPointIndex,
-//     options.playbackRate,
-//     this.#timeScale
-//   );
-//   let cachedCurve = this.#generateCurve(
-//     cachedDuration,
-//     this.fullDuration,
-//     options
-//   );
-
-//   // Send initial trigger message
-//   if (options.voiceId !== undefined) {
-//     this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
-//       voiceId: options.voiceId,
-//       midiNote: options.midiNote || 60,
-//       duration: cachedDuration,
-//       sustainEnabled: false,
-//       loopEnabled: true,
-//       sustainPoint: this.sustainPoint,
-//       releasePoint: this.releasePoint,
-//     });
-//   }
-
-//   let phase = Math.max(this.#context.currentTime, startTime);
-//   const lookAhead = 0.01;
-//   const safetyBuffer = 0.002;
-//   let debugOverlapCount = 0;
-
-//   this.#isCurrentlyLooping = true;
-//   let isScheduling = false;
-//   let nextScheduleTimeout: number | null = null;
-
-//   const scheduleNext = () => {
-//     if (nextScheduleTimeout !== null) {
-//       clearTimeout(nextScheduleTimeout);
-//       nextScheduleTimeout = null;
-//     }
-
-//     if (isScheduling) return;
-//     isScheduling = true;
-
-//     try {
-//       if (!this.#shouldLoop()) {
-//         if (options.voiceId !== undefined) {
-//           this.sendUpstreamMessage(`${this.envelopeType}:release:loop`, {
-//             voiceId: options.voiceId,
-//             midiNote: options.midiNote || 60,
-//           });
-//         }
-//         this.#isCurrentlyLooping = false;
-//         return;
-//       }
-
-//       // Recalculate if envelope has changed
-//       if (this.#loopUpdateFlag) {
-//         cachedDuration = this.#getScaledDuration(
-//           this.#data.startPointIndex,
-//           this.#data.endPointIndex,
-//           options.playbackRate,
-//           this.#timeScale
-//         );
-
-//         cachedCurve = this.#generateCurve(
-//           cachedDuration,
-//           this.fullDuration,
-//           options
-//         );
-//       }
-
-//       // Schedule with lookahead
-//       while (phase < this.#context.currentTime + lookAhead) {
-//         const safeCurveDuration = cachedDuration - safetyBuffer;
-
-//         try {
-//           audioParam.setValueCurveAtTime(
-//             cachedCurve,
-//             phase,
-//             safeCurveDuration
-//           );
-
-//           // Simple UI message - send immediately
-//           if (options.voiceId !== undefined) {
-//             this.sendUpstreamMessage(`${this.envelopeType}:trigger:loop`, {
-//               voiceId: options.voiceId,
-//               midiNote: options.midiNote || 60,
-//               duration: cachedDuration,
-//             });
-//           }
-//         } catch (error) {
-//           debugOverlapCount++;
-//           if (debugOverlapCount >= 10) {
-//             console.debug(
-//               `Curve overlaps: ${debugOverlapCount} (duration: ${cachedDuration.toFixed(3)}s)`
-//             );
-//             debugOverlapCount = 0;
-//           }
-//         }
-
-//         phase += cachedDuration + safetyBuffer;
-//       }
-
-//       nextScheduleTimeout = setTimeout(scheduleNext, 100);
-//     } finally {
-//       isScheduling = false;
-//     }
-//   };
-
-//   scheduleNext();
-// }

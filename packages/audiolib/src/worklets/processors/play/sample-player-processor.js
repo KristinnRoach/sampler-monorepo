@@ -1,4 +1,4 @@
-import { ValueSnapper } from '../shared/ValueSnapper';
+import { ValueSnapper } from '../shared/helpers/ValueSnapper';
 import { findClosestIdx } from '../../../utils/search/findClosest';
 
 class SamplePlayerProcessor extends AudioWorkletProcessor {

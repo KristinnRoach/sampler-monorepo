@@ -7,6 +7,8 @@ export type EnvelopeType =
 
 export type EnvelopePoint = {
   time: number; // Absolute time in seconds
-  value: number; // 0-1 normalized
+  value: number; // value to be applied to audioparam
   curve?: 'linear' | 'exponential'; // Curve type to next point
 };
+
+export type EnvelopeScaling = 'logarithmic' | 'exponential' | 'none';

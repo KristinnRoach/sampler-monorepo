@@ -139,22 +139,39 @@ export class MacroParam {
       }
 
       if (this.#paramType === 'loopStart') {
-        result = constant - quantizedPeriod;
+        // Ensure we don't go beyond bounds when quantizing
+        result = Math.max(0, constant - quantizedPeriod);
+
+        // If this would make loopStart too close to loopEnd,
+        // use the next smaller quantized period instead
+        if (result >= constant - 0.001) {
+          // Find the next smaller period
+          const periods = this.#snapper.periods;
+          const smallerPeriods = periods.filter((p) => p < quantizedPeriod);
+
+          if (smallerPeriods.length > 0) {
+            const nextSmaller = Math.max(...smallerPeriods);
+            result = constant - nextSmaller;
+          } else {
+            // If no smaller period exists, maintain minimum distance
+            result = Math.max(0, constant - 0.001);
+          }
+        }
       }
 
-      // this.#debugProcessedValue(
-      //   targetValue,
-      //   constant,
-      //   targetPeriod,
-      //   quantizedPeriod,
-      //   result ?? -1
-      // );
-
-      if (result) return result;
+      if (result !== undefined) return result;
     } else if (this.#snapper.hasValueSnapping) {
       const snapped = this.#snapper.snapToValue(targetValue);
       return snapped;
     }
+
+    // this.#debugProcessedValue(
+    //   targetValue,
+    //   constant,
+    //   targetPeriod,
+    //   quantizedPeriod,
+    //   result ?? -1
+    // );
 
     return targetValue;
   }
