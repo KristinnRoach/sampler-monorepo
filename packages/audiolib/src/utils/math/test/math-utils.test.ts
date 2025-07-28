@@ -24,10 +24,12 @@ describe('mapToRange', () => {
   });
 
   test('should handle frequency-like exponential ranges', () => {
-    // Map 0-100 to typical filter frequency range 20-20000
+    // Map 0-100 to typical filter frequency range 20-20000 (linear mapping)
     const result = mapToRange(50, 0, 100, 20, 20000);
     expect(result).toBeGreaterThan(20);
     expect(result).toBeLessThan(20000);
+    // At 50% of input range, should map to 50% of output range
+    expect(result).toBeCloseTo(10010); // 20 + (20000-20)*0.5
   });
 
   test('should clamp out-of-range inputs', () => {

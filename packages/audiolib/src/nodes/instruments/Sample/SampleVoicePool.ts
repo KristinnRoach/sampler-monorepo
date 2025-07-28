@@ -1,6 +1,6 @@
 import { SampleVoice } from './SampleVoice';
 import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
-import { pop } from '@/utils';
+import { midiToPlaybackRate, pop } from '@/utils';
 import { VoiceState } from '../VoiceState';
 import {
   Message,
@@ -130,16 +130,10 @@ export class SampleVoicePool {
     );
   }
 
-  setBuffer(
-    buffer: AudioBuffer,
-    zeroCrossings?: number[],
-    fundamentalFreq?: number
-  ) {
+  setBuffer(buffer: AudioBuffer, zeroCrossings?: number[]) {
     // Reset loaded voices tracking for new buffer
     this.#loaded.clear();
-    this.#allVoices.forEach((voice) =>
-      voice.loadBuffer(buffer, zeroCrossings, fundamentalFreq)
-    );
+    this.#allVoices.forEach((voice) => voice.loadBuffer(buffer, zeroCrossings));
     return this;
   }
 
@@ -165,10 +159,13 @@ export class SampleVoicePool {
     return voice;
   }
 
+  prevPlayRate = 1;
+
   noteOn(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
     secondsFromNow = 0,
+    glideTime = 0,
     currentLoopEnd?: number
   ): MidiValue | null {
     const voice = this.allocate();
@@ -178,10 +175,12 @@ export class SampleVoicePool {
       velocity,
       secondsFromNow,
       currentLoopEnd,
+      glide: { fromPlaybackRate: this.prevPlayRate, glideTime },
     });
 
     if (success) {
       this.#playingMidiVoiceMap.set(midiNote, voice);
+      this.prevPlayRate = midiToPlaybackRate(midiNote);
       return midiNote;
     } else {
       return null;

@@ -23,12 +23,14 @@ export class WorkletNode<
   }
 
   // Message passing
-  send(message: TConfig['message']): this {
+  sendProcessorMessage(message: TConfig['message']): this {
     this.port.postMessage(message);
     return this;
   }
 
-  onMessage(callback: (event: MessageEvent<TConfig['message']>) => void): this {
+  onProcessorMessage(
+    callback: (event: MessageEvent<TConfig['message']>) => void
+  ): this {
     this.port.onmessage = callback;
     return this;
   }

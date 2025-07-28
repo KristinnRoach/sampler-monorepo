@@ -1,1 +1,0 @@
-export const MIN_ABS_AMPLITUDE = 0.0000001;

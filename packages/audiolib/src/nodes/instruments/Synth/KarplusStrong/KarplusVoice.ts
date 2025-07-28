@@ -194,7 +194,7 @@ export class KarplusVoice implements LibVoiceNode, Connectable {
     this.#midiNote = midiNote;
     this.#noteId = noteId ?? null;
 
-    const frequency = (440 * Math.pow(2, (midiNote - 69) / 12)) / 2; // ! TEMP
+    const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
     const delaySec = 1 / frequency;
     // const bufferCompensation = 128 / this.ctx.sampleRate;
     // const totalDelay = delaySec + bufferCompensation;

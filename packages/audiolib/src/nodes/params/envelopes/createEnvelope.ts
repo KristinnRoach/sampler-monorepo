@@ -51,12 +51,7 @@ export function createEnvelope(
       ? releasePointIndex
       : defaults.releasePointIndex;
 
-  // Force logarithmic=true for filter envelopes regardless of passed option
-  const isFilterEnv = type === 'filter-env';
-
-  const finalScaling = isFilterEnv
-    ? scaling || 'logarithmic'
-    : scaling || defaults.scaling;
+  const finalScaling = scaling || defaults.scaling;
 
   const envelope = new CustomEnvelope(
     context,

@@ -1,4 +1,10 @@
+/**
+ * RampController manages smooth value transitions over time using linear or exponential ramping.
+ * Useful for audio parameter automation in Web Audio API contexts.
+ */
 class RampController {
+  static #epsilon = 1e-10;
+
   #isRamping = false;
   #rampMethod = 'linear';
   #sampleRate = 48000;
@@ -14,6 +20,11 @@ class RampController {
   }
 
   linearRamp(targetValue, rampTimeSeconds) {
+    if (rampTimeSeconds < RampController.#epsilon) {
+      this.setValue(targetValue);
+      return;
+    }
+
     this.#rampMethod = 'linear';
     this.#isRamping = true;
 
@@ -24,10 +35,15 @@ class RampController {
   }
 
   exponentialRamp(targetValue, rampTimeSeconds) {
+    if (rampTimeSeconds < RampController.#epsilon) {
+      this.setValue(targetValue);
+      return;
+    }
+
     this.#rampMethod = 'exponential';
     this.#isRamping = true;
 
-    if (this.#currVal === 0) {
+    if (Math.abs(this.#currVal) < RampController.#epsilon) {
       this.linearRamp(targetValue, rampTimeSeconds);
       return; // fallback
     }

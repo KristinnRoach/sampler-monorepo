@@ -14,19 +14,13 @@ import { createIcons } from '../../utils/icons';
 import { SampleControls } from '../controls/SampleControls';
 import { ExpandableHeader } from '../primitives/ExpandableHeader';
 import { FileOperations } from '../controls/FileOperations';
-import {
-  InputControls,
-  LoopHoldControls,
-  VolumeSlider,
-  ReverbMixSlider,
-  LFORateSlider,
-  LFODepthSlider,
-} from '../controls/AudioControls';
+import { InputControls, LoopHoldControls } from '../controls/AudioControls';
 import { createLabeledKnob } from '../primitives/createKnob';
+import { Toggle } from '../primitives/VanToggle';
 
 import { EnvelopeSVG } from '../controls/envelope/EnvelopeSVG';
 
-const { div, button } = van.tags;
+const { div, button, label } = van.tags;
 
 export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
@@ -43,11 +37,13 @@ export const SamplerElement = (attributes: ElementProps) => {
   const hpfHz = van.state(40);
   const lpfHz = van.state(18000);
 
+  const glideTime = van.state(0);
   const reverbAmount = van.state(0.0);
   const karplusAmount = van.state(0.0);
   const drive = van.state(0.0);
   const clipping = van.state(0.0);
-  // const feedbackPitch = van.state(0.5);
+  const feedbackPitch = van.state(0.5);
+  const feedbackMode = van.state(true); // true = monophonic, false = polyphonic
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -199,6 +195,11 @@ export const SamplerElement = (attributes: ElementProps) => {
         });
 
         derive(() => {
+          if (!samplePlayer?.initialized) return;
+          samplePlayer.setGlideTime(glideTime.val);
+        });
+
+        derive(() => {
           if (!samplePlayer) return;
           samplePlayer.setDryWetMix(dryWetMix.val);
         });
@@ -234,10 +235,16 @@ export const SamplerElement = (attributes: ElementProps) => {
           samplePlayer.outputBus.setClippingMacro(clipping.val);
         });
 
-        // derive(() => {
-        //   if (!samplePlayer) return;
-        //   samplePlayer.outputBus.setPitchMultiplier(feedbackPitch.val);
-        // });
+        derive(() => {
+          if (!samplePlayer?.initialized) return;
+          samplePlayer.setFeedbackPitchScale(feedbackPitch.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer?.outputBus.getNode('karplus')?.initialized) return;
+          const mode = feedbackMode.val === true ? 'monophonic' : 'polyphonic';
+          samplePlayer.setFeedbackMode(mode);
+        });
 
         derive(() => {
           if (!samplePlayer) return;
@@ -643,14 +650,14 @@ export const SamplerElement = (attributes: ElementProps) => {
           onChange: (value: number) => (clipping.val = value),
         }),
 
-        // createLabeledKnob({
-        //   label: 'FB-Pitch',
-        //   defaultValue: 1,
-        //   minValue: 1,
-        //   maxValue: 4,
-        //   snapIncrement: 1,
-        //   onChange: (value: number) => (feedbackPitch.val = value),
-        // }),
+        createLabeledKnob({
+          label: 'FB-Pitch',
+          defaultValue: 1,
+          minValue: 1,
+          maxValue: 4,
+          snapIncrement: 1,
+          onChange: (value: number) => (feedbackPitch.val = value),
+        }),
 
         createLabeledKnob({
           label: 'amp-lfo-rate',
@@ -680,7 +687,26 @@ export const SamplerElement = (attributes: ElementProps) => {
           label: 'pitch-lfo-depth',
           onChange: (value: number) => (pitchLFODepth.val = value),
           curve: 1.5,
-        })
+        }),
+
+        createLabeledKnob({
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          label: 'Glide',
+          onChange: (value: number) => (glideTime.val = value),
+          curve: 2,
+        }),
+
+        div(
+          label({ textContent: 'Feedback Mode' }),
+          Toggle({
+            on: true,
+            size: 1,
+            onColor: '#4CAF50',
+            onChange: () => (feedbackMode.val = !feedbackMode.oldVal),
+          })
+        )
       ),
 
       () =>

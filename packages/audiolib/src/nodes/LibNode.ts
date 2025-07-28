@@ -13,25 +13,30 @@ export type BaseNodeType =
 
 export type ContainerType = 'pool' | 'chain' | 'audiolib';
 
-export type VoiceType = 'sample' | 'karplus-strong' | 'osc';
+export type VoiceType = 'sample' | 'karplus-strong' | 'osc' | 'noise';
 
-export type FxType =
+export type CustomFxType =
   | 'feedback-delay'
-  | 'karplus-fx' // rename ?
-  | 'reverb'
-  | 'chorus'
-  | 'filter'
-  | 'eq'
-  | 'compressor';
+  | 'karplus-effect'
+  | 'distortion'
+  | 'dattorro-reverb';
+
+type NativeAudioNode =
+  | 'AudioWorkletNode'
+  | 'GainNode'
+  | 'BiquadFilterNode'
+  | 'AudioBufferSourceNode'
+  | 'DynamicsCompressorNode';
 
 // Union of all types
 export type NodeType =
+  | NativeAudioNode
   | BaseNodeType
   | InstrumentType
   | VoiceType
   | ContainerType
   | string
-  | FxType;
+  | CustomFxType;
 // | ParamType
 
 // Base interface for all nodes

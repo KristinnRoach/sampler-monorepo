@@ -25,7 +25,8 @@ import {
   createEnvelope,
 } from '@/nodes/params/envelopes';
 
-import { DEFAULT_PARAM_DESCRIPTORS, getMaxFilterFreq } from './param-defaults';
+import { getMaxFilterFreq } from './param-defaults';
+import { KarplusEffect } from '@/nodes/effects/KarplusEffect';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   readonly nodeId: NodeID;
@@ -46,19 +47,22 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
 
+  feedback: KarplusEffect | null;
+
   // #loopEnabled = false;
   // #holdEnabled = false;
   // #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
 
-  #releaseSec: number = 0.1;
+  #releaseSec = 0.1;
+  #glideTime = 0;
 
   #filtersEnabled: boolean;
   #hpf: BiquadFilterNode | null = null;
   #lpf: BiquadFilterNode | null = null;
-  #hpfHz: number = 100;
-  #hpfQ: number = 1;
-  #lpfHz: number = 18000; // updated in constructor
-  #lpfQ: number = 1;
+  #hpfHz: number = 40;
+  #hpfQ: number = 0.707;
+  #lpfHz: number = 18000;
+  #lpfQ: number = 0.707;
 
   constructor(
     private context: AudioContext = getAudioContext(),
@@ -74,27 +78,38 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       processorOptions: options.processorOptions || {},
     });
 
+    this.feedback = new KarplusEffect(this.context);
+    this.feedback.input.gain.setValueAtTime(1.5, this.now);
+
     this.#filtersEnabled = options.enableFilters ?? true;
 
     // Create filters if enabled
     if (this.#filtersEnabled) {
-      this.#hpf = new BiquadFilterNode(context, {
-        type: 'highpass',
-        frequency: this.#hpfHz,
-        Q: this.#hpfQ,
-      });
-
-      this.#lpf = new BiquadFilterNode(context, {
-        type: 'lowpass',
-        frequency: this.#lpfHz,
-        Q: this.#lpfQ,
-      });
-
       this.#hpfHz = 50;
       this.#lpfHz = this.context.sampleRate / 2 - 1000;
 
+      if (!this.#hpf) {
+        this.#hpf = new BiquadFilterNode(context, {
+          type: 'highpass',
+          frequency: this.#hpfHz,
+          Q: this.#hpfQ,
+        });
+      }
+
+      if (!this.#lpf) {
+        this.#lpf = new BiquadFilterNode(context, {
+          type: 'lowpass',
+          frequency: this.#lpfHz,
+          Q: this.#lpfQ,
+        });
+      }
+
       // Connect chain: worklet → hpf → lpf -> destination
+      this.#worklet.connect(this.feedback.input);
       this.#worklet.connect(this.#hpf);
+
+      this.feedback.output.connect(this.#hpf);
+
       this.#hpf.connect(this.#lpf);
       this.#lpf.connect(destination);
 
@@ -159,8 +174,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   async loadBuffer(
     buffer: AudioBuffer,
-    zeroCrossings?: number[],
-    fundamentalFreq?: number
+    zeroCrossings?: number[]
   ): Promise<boolean> {
     this.#state = VoiceState.NOT_READY;
 
@@ -190,10 +204,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       });
     }
 
-    // if (fundamentalFreq && fundamentalFreq > 50 && fundamentalFreq < 1000) {
-    //   this.setParam('hpf', fundamentalFreq, this.now);
-    // }
-
     return true;
   }
 
@@ -209,11 +219,16 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     this.sendToProcessor({ type: 'transpose', semitones });
   }
 
+  setGlideTime(seconds: number) {
+    this.#glideTime = seconds;
+  }
+
   trigger(options: {
     midiNote: MidiValue;
     velocity: MidiValue;
     secondsFromNow?: number;
     currentLoopEnd?: number;
+    glide?: { fromPlaybackRate: number; glideTime?: number };
   }): MidiValue | null {
     const {
       midiNote = 60,
@@ -225,6 +240,13 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     // Using the same audio context current time for all ops
     const timestamp = this.now + secondsFromNow;
+    const glideTime = options.glide?.glideTime ?? this.#glideTime;
+
+    this.feedback?.trigger(midiNote, {
+      velocity,
+      secondsFromNow,
+      glideTime,
+    });
 
     this.#startedTimestamp = timestamp;
     this.#activeMidiNote = midiNote;
@@ -240,17 +262,18 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
     this.#state = VoiceState.PLAYING;
 
+    this.setParam('velocity', velocity, timestamp);
+
     const playbackRate = midiToPlaybackRate(midiNote);
 
-    // setParams ensures all params executed using exact same timestamp
-    this.setParams(
-      [
-        { name: 'playbackRate', value: playbackRate },
-        { name: 'velocity', value: velocity },
-        // todo: set all other params (e.g. startPoint & endPoint) via param handlers (not in trigger method)
-      ],
-      timestamp
-    );
+    if (options.glide && glideTime > 0) {
+      this.getParam('playbackRate')!.linearRampToValueAtTime(
+        playbackRate,
+        timestamp + glideTime
+      );
+    } else {
+      this.setParam('playbackRate', playbackRate, timestamp);
+    }
 
     // Start playback
     this.sendToProcessor({
@@ -270,8 +293,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     velocity?: number,
     midiNote?: number
   ) {
-    // After the forEach loop, add:
-
     this.#envelopes.forEach((env, envType) => {
       if (!env.isEnabled) return;
       const param = this.getParam(env.param);
@@ -285,7 +306,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           case 'pitch-env':
             return playbackRate;
           case 'filter-env':
-            return 1; // param.value; // this.#lpfHz;
+            return 1;
           default:
             return 1;
         }

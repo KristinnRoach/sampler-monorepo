@@ -8,8 +8,10 @@ import { LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
 import {
   applySnapping,
   screenXToSeconds,
-  screenYToValue,
   secondsToScreenX,
+  applySnappingAbsolute,
+  screenYToAbsoluteValue,
+  absoluteValueToNormalized,
 } from './env-utils.ts';
 
 import { EnvToggleButtons } from './env-buttons.ts';
@@ -104,7 +106,16 @@ export const EnvelopeSVG = (
           SVG_WIDTH
         ).toString()
       );
-      circle.setAttribute('cy', ((1 - point.value) * SVG_HEIGHT).toString());
+
+      const normalizedValue = absoluteValueToNormalized(
+        point.value,
+        envelopeInfo.valueRange
+      );
+      circle.setAttribute(
+        'cy',
+        ((1 - normalizedValue) * SVG_HEIGHT).toString()
+      );
+
       circle.setAttribute('r', '4');
 
       // Default color
@@ -375,8 +386,20 @@ export const EnvelopeSVG = (
         rect.width,
         envelopeInfo.fullDuration
       );
-      let value = screenYToValue(e.clientY - rect.top, rect.height);
-      value = applySnapping(value, snapToValues.y, snapThreshold);
+
+      let value = screenYToAbsoluteValue(
+        e.clientY - rect.top,
+        rect.height,
+        envelopeInfo.valueRange
+      );
+
+      // Apply snapping in normalized space
+      value = applySnappingAbsolute(
+        value,
+        snapToValues.y,
+        snapThreshold,
+        envelopeInfo.valueRange
+      );
 
       // Handle fixed start/end times
       if (isStartPoint) {
@@ -427,7 +450,12 @@ export const EnvelopeSVG = (
       rect.width,
       envelopeInfo.fullDuration
     );
-    const value = screenYToValue(e.clientY - rect.top, rect.height);
+
+    const value = screenYToAbsoluteValue(
+      e.clientY - rect.top,
+      rect.height,
+      envelopeInfo.valueRange
+    );
 
     instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
