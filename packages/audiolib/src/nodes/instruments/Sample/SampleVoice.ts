@@ -270,8 +270,6 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
     velocity?: number,
     midiNote?: number
   ) {
-    // After the forEach loop, add:
-
     this.#envelopes.forEach((env, envType) => {
       if (!env.isEnabled) return;
       const param = this.getParam(env.param);
@@ -285,7 +283,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
           case 'pitch-env':
             return playbackRate;
           case 'filter-env':
-            return 1; // param.value; // this.#lpfHz;
+            return 1;
           default:
             return 1;
         }

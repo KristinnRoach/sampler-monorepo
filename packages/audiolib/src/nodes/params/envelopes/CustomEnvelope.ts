@@ -115,7 +115,8 @@ export class CustomEnvelope {
     width: number | undefined,
     height: number | undefined,
     durationSeconds: number
-  ): string => this.#data.getSVGPath(width, height, durationSeconds);
+  ): string =>
+    this.#data.getSVGPath(width, height, durationSeconds, this.#scaling);
 
   setValueRange = (range: [number, number]): [number, number] =>
     this.#data.setValueRange(range);
@@ -200,29 +201,6 @@ export class CustomEnvelope {
     return duration / timeScale;
   }
 
-  #applyScaling(value: number, base: number): number {
-    switch (this.#scaling) {
-      case 'exponential':
-        return base * Math.pow(value, 2);
-
-      case 'logarithmic':
-        const [minFreq, maxFreq] = this.valueRange;
-
-        // Convert absolute value back to normalized (0-1)
-        const normalizedValue = (value - minFreq) / (maxFreq - minFreq);
-
-        // Apply logarithmic scaling to normalized value
-        const logMin = Math.log2(Math.max(0.1, minFreq));
-        const logMax = Math.log2(maxFreq);
-        return Math.pow(2, logMin + normalizedValue * (logMax - logMin));
-
-      // return value;
-      case 'none':
-      default:
-        return base * value;
-    }
-  }
-
   #getCurveSamplingRate(duration: number): number {
     if (this.#scaling === 'logarithmic') {
       return duration < 1 ? 1000 : 750;
@@ -249,17 +227,54 @@ export class CustomEnvelope {
 
     const { baseValue: base, minValue: min, maxValue: max } = options;
 
+    if (this.#scaling === 'logarithmic') {
+      console.log('=== Curve Generation Debug ===');
+      console.log('Value range:', this.valueRange);
+      console.log('Scaling:', this.#scaling);
+      console.log('Num samples:', numSamples);
+    }
+
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
       const absoluteTime = normalizedProgress * endTime;
 
-      let value = this.#data.interpolateValueAtTime(absoluteTime);
-      let finalValue = this.#applyScaling(value, base ?? 1);
+      let interpolatedValue = this.#data.interpolateValueAtTime(absoluteTime);
 
-      if (min !== undefined) finalValue = Math.max(finalValue, min);
-      if (max !== undefined) finalValue = Math.min(finalValue, max);
+      // Only log first 3 samples
+      if (i < 3 && this.#scaling === 'logarithmic') {
+        console.log(`Sample ${i}: interpolated=${interpolatedValue}`);
+      }
+      if (this.#scaling === 'logarithmic') {
+        const [minFreq, maxFreq] = this.valueRange;
+        const normalizedValue =
+          (interpolatedValue - minFreq) / (maxFreq - minFreq);
 
-      curve[i] = this.#clampToValueRange(finalValue);
+        if (i < 3) {
+          console.log(`  normalized=${normalizedValue}`);
+        }
+        const logMin = Math.log2(Math.max(0.1, minFreq));
+        const logMax = Math.log2(maxFreq);
+        interpolatedValue = Math.pow(
+          2,
+          logMin + normalizedValue * (logMax - logMin)
+        );
+
+        if (i < 3) {
+          console.log(`  logMin=${logMin}, logMax=${logMax}`);
+          console.log(`  final=${interpolatedValue}`);
+        }
+      }
+
+      if (options.baseValue !== 1) {
+        interpolatedValue = interpolatedValue * options.baseValue;
+      }
+
+      if (min !== undefined)
+        interpolatedValue = Math.max(interpolatedValue, min);
+      if (max !== undefined)
+        interpolatedValue = Math.min(interpolatedValue, max);
+
+      curve[i] = this.#clampToValueRange(interpolatedValue);
     }
 
     return curve;
@@ -279,6 +294,8 @@ export class CustomEnvelope {
   ) {
     this.#isReleased = false;
     this.#currentPlaybackRate = options.playbackRate;
+
+    // TODO: Check if double log scaling is happening.
 
     if (this.#loopEnabled) {
       this.#startLoopingEnv(audioParam, startTime, options);
@@ -335,6 +352,13 @@ export class CustomEnvelope {
 
     try {
       audioParam.cancelScheduledValues(safeStart);
+      audioParam.setValueAtTime(curve[0], safeStart);
+
+      if (this.envelopeType === 'filter-env') {
+        console.log('Current:', audioParam.value, 'First point:', curve[0]);
+        console.log('First point value:', this.points[0].value);
+        console.log('All points:', this.points);
+      }
       audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
@@ -591,12 +615,9 @@ export class CustomEnvelope {
 
     const currentValue = audioParam.value;
 
-    // Calculate final end value with log transform and clamping
-    const targetEndValue = (() => {
-      const endVal = this.#data.interpolateValueAtTime(lastPoint.time);
-      const scaledEndVal = this.#applyScaling(endVal, baseValue);
-      return this.#clampToValueRange(scaledEndVal);
-    })();
+    const targetEndValue = this.#clampToValueRange(
+      this.#data.interpolateValueAtTime(lastPoint.time)
+    );
 
     // Generate the release curve shape from sustain point to end
     const sampleRate = this.#getCurveSamplingRate(scaledRemainingDuration);
@@ -613,8 +634,9 @@ export class CustomEnvelope {
         fromPoint.time + normalizedProgress * rawRemainingDuration;
 
       // Get the envelope's original value at this time
-      const value = this.#data.interpolateValueAtTime(absoluteTime);
-      curve[i] = this.#clampToValueRange(this.#applyScaling(value, baseValue));
+      curve[i] = this.#clampToValueRange(
+        this.#data.interpolateValueAtTime(absoluteTime)
+      );
     }
 
     const releasePoint = this.points[this.releasePointIndex];
@@ -811,25 +833,25 @@ export class CustomEnvelope {
           scaling: 'none' as EnvelopeScaling,
           initEnable: false,
           sustainPointIndex: null,
-          releasePointIndex: null,
+          releasePointIndex: 1,
         };
 
       case 'filter-env':
         return {
           points: [
-            { time: 0, value: 0.3, curve: 'exponential' as const },
-            { time: 0.05, value: 1.0, curve: 'exponential' as const },
+            { time: 0, value: 2000, curve: 'exponential' as const },
+            { time: 0.05, value: 18000, curve: 'exponential' as const },
             {
               time: durationSeconds,
-              value: 0.5,
+              value: 500,
               curve: 'exponential' as const,
             },
           ],
-          paramValueRange: [200, 8000] as [number, number],
+          paramValueRange: [20, 20000] as [number, number],
           scaling: 'logarithmic' as EnvelopeScaling,
           initEnable: false,
           sustainPointIndex: null,
-          releasePointIndex: null,
+          releasePointIndex: 2,
         };
 
       default:
@@ -842,7 +864,7 @@ export class CustomEnvelope {
           scaling: 'none' as EnvelopeScaling,
           initEnable: true,
           sustainPointIndex: null,
-          releasePointIndex: 0, // ??
+          releasePointIndex: 1,
         };
     }
   }

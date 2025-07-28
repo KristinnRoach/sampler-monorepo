@@ -1,6 +1,6 @@
 // EnvelopeData.ts
 import { assert } from '@/utils';
-import { EnvelopePoint } from './env-types';
+import { EnvelopePoint, EnvelopeScaling } from './env-types';
 
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
@@ -8,7 +8,7 @@ export class EnvelopeData {
   #durationSeconds: number = 0;
   #hasSharpTransitions = false;
 
-  #startIdx: number; // todo: try out using start and end points for somthn fun
+  #startIdx: number;
   #sustainIdx: number | null = null;
   #releaseIdx: number;
   #endIdx: number;
@@ -148,10 +148,7 @@ export class EnvelopeData {
 
   interpolateValueAtTime(timeSeconds: number): number {
     if (this.points.length === 0) return this.#valueRange[0];
-    if (this.points.length === 1) {
-      const [min, max] = this.#valueRange;
-      return min + this.points[0].value * (max - min);
-    }
+    if (this.points.length === 1) return this.points[0].value;
 
     const sorted = [...this.points].sort((a, b) => a.time - b.time);
 
@@ -191,15 +188,7 @@ export class EnvelopeData {
       }
     }
 
-    let result = interpolatedValue;
-
-    const [min, max] = this.#valueRange;
-    if (min !== 0 || max !== 1) {
-      // Scale value from 0-1 to target range
-      result = min + interpolatedValue * (max - min);
-    }
-
-    return result;
+    return interpolatedValue;
   }
 
   #updateSharpTransitionsFlag() {
@@ -213,22 +202,39 @@ export class EnvelopeData {
   getSVGPath(
     width: number = 400,
     height: number = 200,
-    durationSeconds: number
+    durationSeconds: number,
+    scaling: EnvelopeScaling = 'none'
   ): string {
     if (this.points.length < 2) return `M0,${height} L${width},${height}`;
 
     const sorted = [...this.points].sort((a, b) => a.time - b.time);
-    let path = `M${(sorted[0].time / durationSeconds) * width},${(1 - sorted[0].value) * height}`;
+    const [minVal, maxVal] = this.#valueRange;
+
+    // Normalize values for SVG coordinates
+    const normalizeValue = (val: number) => {
+      if (scaling === 'logarithmic') {
+        // Logarithmic scaling for display
+        const logMin = Math.log2(Math.max(0.1, minVal));
+        const logMax = Math.log2(maxVal);
+        const logVal = Math.log2(Math.max(0.1, val));
+        return Math.max(0, Math.min(1, (logVal - logMin) / (logMax - logMin)));
+      } else {
+        // Linear scaling for display
+        return (val - minVal) / (maxVal - minVal);
+      }
+    };
+
+    let path = `M${(sorted[0].time / durationSeconds) * width},${(1 - normalizeValue(sorted[0].value)) * height}`;
 
     for (let i = 1; i < sorted.length; i++) {
       const point = sorted[i];
       const prevPoint = sorted[i - 1];
       const x = (point.time / durationSeconds) * width;
-      const y = (1 - point.value) * height;
+      const y = (1 - normalizeValue(point.value)) * height;
 
       if (prevPoint.curve === 'exponential') {
         const prevX = (prevPoint.time / durationSeconds) * width;
-        const prevY = (1 - prevPoint.value) * height;
+        const prevY = (1 - normalizeValue(prevPoint.value)) * height;
         const cp1X = prevX + (x - prevX) * 0.3;
         const cp1Y = prevY;
         const cp2X = prevX + (x - prevX) * 0.7;
