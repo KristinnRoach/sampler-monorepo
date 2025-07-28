@@ -11,7 +11,6 @@ export interface LibParamDescriptor extends AudioParamDescriptor {
   dataType: 'number' | 'boolean' | 'enum';
   defaultValue: any; // Override to make required and allow any type
 
-  // Additional properties
   step?: number;
   enumValues?: string[];
   group?: string;

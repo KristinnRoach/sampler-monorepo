@@ -5,6 +5,20 @@ registerProcessor(
     static get parameterDescriptors() {
       return [
         {
+          name: 'inputGain', // linear gain (1.0 = unity)
+          defaultValue: 1,
+          minValue: 0,
+          maxValue: 10,
+          automationRate: 'k-rate',
+        },
+        {
+          name: 'outputGain', // linear gain (1.0 = unity)
+          defaultValue: 1.0,
+          minValue: 0.0,
+          maxValue: 10.0,
+          automationRate: 'k-rate',
+        },
+        {
           name: 'attack', // seconds
           defaultValue: 0.003,
           minValue: 0.001,
@@ -49,6 +63,8 @@ registerProcessor(
 
       const attack = parameters.attack[0];
       const release = parameters.release[0];
+      const inputGain = parameters.inputGain[0];
+      const outputGain = parameters.outputGain[0];
 
       // Convert time constants to filter coefficients
       const attackCoeff = Math.exp(-1 / (attack * sampleRate));
@@ -56,7 +72,7 @@ registerProcessor(
 
       for (let sample = 0; sample < output[0].length; sample++) {
         // Get absolute value of input (rectify)
-        const inputLevel = Math.abs(input[0][sample] || 0);
+        const inputLevel = Math.abs((input[0][sample] || 0) * inputGain);
 
         // if (this.debugCounter++ % 4800 === 0) {
         //   console.log(
@@ -82,9 +98,11 @@ registerProcessor(
         // Clamp very small values to zero
         if (this.envelope < this.gateThreshold) this.envelope = 0;
 
-        // Output the envelope value to all channels
+        // Apply output gain and send to all channels
+        const finalOutput = this.envelope * outputGain;
+
         for (let channel = 0; channel < output.length; channel++) {
-          output[channel][sample] = this.envelope;
+          output[channel][sample] = finalOutput;
         }
       }
 

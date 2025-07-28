@@ -1,9 +1,22 @@
+import { ILibAudioNode } from '../wrapper';
+import { NodeType } from '@/nodes/LibNode';
+import { getAudioContext } from '@/context';
+import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+
 import { mapToRange, clamp } from '@/utils';
 
 type DattorroReverbPresetKey = keyof typeof DattorroReverb.PRESETS;
 
-export class DattorroReverb {
-  #node: AudioWorkletNode;
+export class DattorroReverb implements ILibAudioNode {
+  readonly nodeId: NodeID;
+  readonly nodeType: NodeType = 'dattorro-reverb';
+  #initialized = false;
+  #context: AudioContext;
+
+  #connections = new Set<ILibAudioNode | AudioNode | AudioWorkletNode>();
+  #incoming = new Set<ILibAudioNode>();
+
+  #reverb: AudioWorkletNode;
   #currentPreset: DattorroReverbPresetKey;
 
   static readonly PRESETS = {
@@ -76,8 +89,11 @@ export class DattorroReverb {
     // },
   } as const;
 
-  constructor(context: AudioContext) {
-    this.#node = new AudioWorkletNode(context, 'dattorro-reverb-processor', {
+  constructor(context: AudioContext = getAudioContext()) {
+    this.nodeId = createNodeId(this.nodeType);
+    this.#context = context;
+
+    this.#reverb = new AudioWorkletNode(context, 'dattorro-reverb-processor', {
       outputChannelCount: [2], // NOTE: Currently ONLY supports stereo output
     });
 
@@ -89,24 +105,78 @@ export class DattorroReverb {
     this.setAmountMacro(0);
   }
 
-  connect(destination: AudioNode): void {
-    this.#node.connect(destination);
+  connect(destination: ILibAudioNode | AudioNode): void {
+    const target = 'input' in destination ? destination.input : destination;
+    this.#reverb.connect(target as AudioNode);
+
+    // Track the connection
+    this.#connections.add(destination);
+
+    // If destination is also a LibAudioNode, let it track incoming
+    if ('nodeId' in destination) {
+      (destination as any).addIncoming?.(this);
+    }
   }
 
-  disconnect(): void {
-    this.#node.disconnect();
+  disconnect(destination?: ILibAudioNode | AudioNode): void {
+    if (destination) {
+      const target = 'input' in destination ? destination.input : destination;
+      this.#reverb.disconnect(target as AudioNode);
+      this.#connections.delete(destination);
+
+      if ('nodeId' in destination) {
+        (destination as any).removeIncoming?.(this);
+      }
+    } else {
+      // Disconnect all
+      this.#reverb.disconnect();
+      this.#connections.clear();
+    }
+  }
+
+  addIncoming(source: ILibAudioNode): void {
+    this.#incoming.add(source);
+  }
+
+  removeIncoming(source: ILibAudioNode): void {
+    this.#incoming.delete(source);
   }
 
   // === SETTERS ===
 
-  setParam(name: string, value: number): void {
+  setParam(name: string, value: number, time = this.now): void {
     if (!isFinite(value)) {
       console.warn(`Skipping non-finite value for ${name}:`, value);
       return;
     }
-    this.#node.parameters
-      .get(name)
-      ?.setValueAtTime(value, this.#node.context.currentTime);
+
+    // Handle macro parameters
+    if (name === 'amount') {
+      this.setAmountMacro(value);
+      return;
+    }
+
+    if (name === 'diffusion') {
+      this.setDiffusionMacro(value);
+      return;
+    }
+
+    // Direct worklet parameters
+    this.#reverb.parameters.get(name)?.setValueAtTime(value, time);
+  }
+
+  getParam(name: string): AudioParam | null {
+    // Handle macro parameters
+    if (name === 'diffusion') {
+      // Return a mock AudioParam-like object for consistency
+      return {
+        value: this.getDiffusionMacroValue(),
+        setValueAtTime: (value: number, time: number) =>
+          this.setDiffusionMacro(value),
+      } as any;
+    }
+
+    return this.#reverb.parameters.get(name) || null;
   }
 
   setAmountMacro(amount: number) {
@@ -130,7 +200,7 @@ export class DattorroReverb {
 
     // console.table({ decay, excRate, excDepth, damping, preLPF, diffusion });
 
-    this.diffusionMacro = diffusion;
+    this.setDiffusionMacro(diffusion);
     this.getParam('decay')?.setTargetAtTime(decay, this.now, 0.1);
     this.setParam('excursionRate', excRate);
     this.setParam('excursionDepth', excDepth);
@@ -144,10 +214,10 @@ export class DattorroReverb {
   ): void {
     this.#currentPreset = preset;
     const values = DattorroReverb.PRESETS[preset];
-    const currentTime = this.#node.context.currentTime;
+    const currentTime = this.#reverb.context.currentTime;
 
     Object.entries(values).forEach(([paramName, value]) => {
-      const param = this.#node.parameters.get(paramName);
+      const param = this.#reverb.parameters.get(paramName);
       if (param) {
         param.linearRampToValueAtTime(value, currentTime + rampTime);
       } else {
@@ -167,7 +237,7 @@ export class DattorroReverb {
     0.9 - Very dense, thick complex tail          | Dense mixes, sound design
     1.0 - Maximum density, can sound harsh        | Experimental/aggressive sounds
   **/
-  set diffusionMacro(value: number) {
+  setDiffusionMacro(value: number) {
     const fi = Math.max(0.1, value * 0.75);
     const si = Math.max(0.1, value * 0.625);
     const ft = Math.min(0.7, Math.max(0.1, value * 0.6));
@@ -179,62 +249,78 @@ export class DattorroReverb {
     this.setParam('decayDiffusion2', st);
   }
 
-  // === GETTERS ===
-
-  getParam(name: string) {
-    return this.#node.parameters.get(name);
+  getDiffusionMacroValue(): number {
+    // Return approximate macro value based on current inputDiffusion1
+    const fi = this.getParam('inputDiffusion1')?.value ?? 0.75;
+    return (fi - 0.1) / (0.75 - 0.1); // Reverse the mapping
   }
+
+  // === GETTERS ===
 
   getCurrentSettings(): Record<string, number> {
     const result: Record<string, number> = {};
 
-    Array.from(this.#node.parameters.keys()).forEach((paramName) => {
-      result[paramName] = this.#node.parameters.get(paramName)?.value ?? 0;
+    Array.from(this.#reverb.parameters.keys()).forEach((paramName) => {
+      result[paramName] = this.#reverb.parameters.get(paramName)?.value ?? 0;
     });
 
     return result;
   }
 
-  get worklet() {
-    return this.#node;
+  get audioNode() {
+    return this.#reverb;
   }
 
-  get in(): AudioNode {
-    return this.#node;
+  get context() {
+    return this.#context;
   }
 
-  get out(): AudioNode {
-    return this.#node;
+  get input(): AudioNode {
+    return this.#reverb;
+  }
+
+  get output(): AudioNode {
+    return this.#reverb;
   }
 
   get now() {
-    return this.#node.context.currentTime;
+    return this.#reverb.context.currentTime;
+  }
+
+  get initialized(): boolean {
+    return this.#initialized;
   }
 
   get currentPreset() {
     return this.#currentPreset;
   }
 
-  get diffusionMacro(): number {
-    // Return approximate macro value based on current inputDiffusion1
-    const fi = this.getParam('inputDiffusion1')?.value ?? 0.75;
-    return (fi - 0.1) / (0.75 - 0.1); // Reverse the mapping
+  get connections() {
+    return {
+      outgoing: Array.from(this.#connections),
+      incoming: Array.from(this.#incoming),
+    };
   }
 
   get numberOfInputs() {
-    return this.in.numberOfInputs;
+    return this.input.numberOfInputs;
   }
 
   get numberOfOutputs() {
-    return this.out.numberOfOutputs;
+    return this.output.numberOfOutputs;
   }
 
   get workletInfo() {
     return {
-      numberOfInputs: this.#node.numberOfInputs,
-      numberOfOutputs: this.#node.numberOfOutputs,
-      channelCount: this.#node.channelCount,
-      channelCountMode: this.#node.channelCountMode,
+      numberOfInputs: this.#reverb.numberOfInputs,
+      numberOfOutputs: this.#reverb.numberOfOutputs,
+      channelCount: this.#reverb.channelCount,
+      channelCountMode: this.#reverb.channelCountMode,
     };
+  }
+
+  dispose(): void {
+    this.disconnect();
+    deleteNodeId(this.nodeId);
   }
 }

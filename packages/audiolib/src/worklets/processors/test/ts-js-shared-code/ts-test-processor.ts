@@ -1,28 +1,22 @@
-// js-test-processor.js - Simple sine wave oscillator processor (JavaScript version)
-import {
-  midiToFreq,
-  softClip,
-  generateSineWave,
-  advancePhase,
-} from '../shared/processor-utils';
+// test-processor.ts - Simple sine wave oscillator processor
+import { midiToFreq, softClip, generateSineWave, advancePhase } from './utils';
+import { AudioProcessorMessage } from './types';
 
-class JsTestOscillatorProcessor extends AudioWorkletProcessor {
+class TestOscillatorProcessor extends AudioWorkletProcessor {
   // Default values
+  private frequency = 440; // A4 in Hz
+  private amplitude = 0; // 0-1 range
+  private phase = 0;
+  private midiNote = 69; // A4
+  private distortionAmount = 0;
+
   constructor() {
     super();
-
-    // Initialize properties
-    this.frequency = 440; // A4 in Hz
-    this.amplitude = 0; // 0-1 range
-    this.phase = 0;
-    this.midiNote = 69; // A4
-    this.distortionAmount = 0;
-
     // Set up message handling from main thread
     this.port.onmessage = this.handleMessage.bind(this);
   }
 
-  handleMessage(event) {
+  handleMessage(event: MessageEvent<AudioProcessorMessage>) {
     const { type, payload } = event.data;
 
     switch (type) {
@@ -45,7 +39,11 @@ class JsTestOscillatorProcessor extends AudioWorkletProcessor {
     });
   }
 
-  process(_inputs, outputs, _parameters) {
+  process(
+    _inputs: Float32Array[][],
+    outputs: Float32Array[][],
+    _parameters: Record<string, Float32Array>
+  ): boolean {
     // Get output channel data
     const output = outputs[0];
     // sampleRate is a global in AudioWorkletProcessor context
@@ -72,4 +70,4 @@ class JsTestOscillatorProcessor extends AudioWorkletProcessor {
 }
 
 // Register the processor
-registerProcessor('js-test-oscillator', JsTestOscillatorProcessor);
+registerProcessor('test-oscillator', TestOscillatorProcessor);

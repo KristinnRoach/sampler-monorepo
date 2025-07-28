@@ -56,6 +56,8 @@ export class SamplePlayer extends LibInstrument {
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
+  #glideTime = 0;
+
   #isReady = false;
   #isLoaded = false;
   #zeroCrossings: number[] = [];
@@ -288,11 +290,7 @@ export class SamplePlayer extends LibInstrument {
       }
     }
 
-    this.voicePool.setBuffer(
-      buffer,
-      this.#zeroCrossings,
-      processed?.detectedPitch?.fundamentalHz
-    );
+    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
 
     this.#bufferDuration = buffer.duration;
 
@@ -369,7 +367,8 @@ export class SamplePlayer extends LibInstrument {
   play(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
-    modifiers?: PressedModifiers
+    modifiers?: PressedModifiers,
+    glideTime = this.getGlideTime()
   ): MidiValue | null {
     if (modifiers) {
       this.#handleModifierKeys(modifiers);
@@ -383,12 +382,13 @@ export class SamplePlayer extends LibInstrument {
       this.#pitchLFO?.setMusicalNote(midiNote);
     }
 
-    this.outBus.noteOn(midiNote, safeVelocity, 0);
+    this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);
 
     return this.voicePool.noteOn(
       midiNote,
       safeVelocity,
       0, // zero delay
+      glideTime,
       this.#macroLoopEnd.getValue()
     );
   }
@@ -471,10 +471,9 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  setPlaybackRate(value: number): this {
-    this.storeParamValue('playbackRate', value);
-    this.voicePool.applyToAllVoices((voice) => voice.setPlaybackRate(value));
-    console.warn(`SamplePlayer: setPlaybackRate is not implemented yet.`);
+  setGlideTime(seconds: number): this {
+    this.storeParamValue('glideTime', seconds);
+    // this.#glideTime = seconds;
     return this;
   }
 
@@ -571,9 +570,7 @@ export class SamplePlayer extends LibInstrument {
     const RAMP_SENSITIVITY = 1;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-    if (loopPoint === 'start') {
-      // && normalizedLoopStart !== this.loopStart) {
-
+    if (loopPoint === 'start' && loopStartSeconds !== this.loopStart) {
       const storeLoopStart = () =>
         this.storeParamValue('loopStart', loopStartSeconds);
 
@@ -584,12 +581,10 @@ export class SamplePlayer extends LibInstrument {
         {
           onComplete: () => {
             storeLoopStart();
-            // this.setSampleStartPoint(loopStartSeconds);
           },
         }
       );
-    } else if (loopPoint === 'end') {
-      // && normalizedLoopEnd !== this.loopEnd) {
+    } else if (loopPoint === 'end' && loopEndSeconds !== this.loopEnd) {
       const storeLoopEnd = () =>
         this.storeParamValue('loopEnd', loopEndSeconds);
 
@@ -600,7 +595,6 @@ export class SamplePlayer extends LibInstrument {
         {
           onComplete: () => {
             storeLoopEnd();
-            // this.setSampleEndPoint(loopEndSeconds);
           },
         }
       );
@@ -630,8 +624,8 @@ export class SamplePlayer extends LibInstrument {
       case 'endPoint':
         this.setSampleEndPoint(value);
         break;
-      case 'playbackRate':
-        this.setPlaybackRate(value);
+      case 'glideTime':
+        this.setGlideTime(value);
         break;
       case 'loopStart':
         this.setLoopStart(value);
@@ -685,11 +679,8 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  getPlaybackRate(): number {
-    return this.getStoredParamValue(
-      'playbackRate',
-      DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE.defaultValue
-    );
+  getGlideTime(): number {
+    return this.getStoredParamValue('glideTime', 0);
   }
 
   getHpfCutoff = () => this.getStoredParamValue('hpfCutoff', NaN);
@@ -727,8 +718,8 @@ export class SamplePlayer extends LibInstrument {
         return this.getStartPoint();
       case 'endPoint':
         return this.getEndPoint();
-      case 'playbackRate':
-        return this.getPlaybackRate();
+      case 'glideTime':
+        return this.getGlideTime();
       case 'hpfCutoff':
         return this.getHpfCutoff();
       case 'lpfCutoff':
@@ -843,9 +834,57 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.setReverbAmount(amount);
   };
 
+  #feedbackMode: 'monophonic' | 'polyphonic' | 'double-trouble' = 'monophonic';
+
+  setFeedbackMode(mode: 'monophonic' | 'polyphonic' | 'double-trouble') {
+    console.log('feedbackMode set to ', mode);
+    this.#feedbackMode = mode;
+
+    if (mode === 'monophonic') {
+      this.voicePool.applyToAllVoices((voice) => {
+        voice.feedback?.setAmountMacro(0);
+      });
+    } else if (mode === 'polyphonic') {
+      this.outBus.setKarplusAmount(0);
+    } else {
+      console.info('Feedback mode set to double-trouble, experimental!');
+    }
+  }
+
+  setFeedbackPitchScale(value: number) {
+    if (
+      this.#feedbackMode === 'monophonic' ||
+      this.#feedbackMode === 'double-trouble'
+    ) {
+      this.outBus.setFeedbackPitchScale(value);
+    }
+
+    if (
+      this.#feedbackMode === 'polyphonic' ||
+      this.#feedbackMode === 'double-trouble'
+    ) {
+      this.voicePool.applyToAllVoices((voice) => {
+        voice.feedback?.setDelayMultiplier(value);
+      });
+    }
+  }
   /* Macro control for karplus send and various other params */
   setKarplusAmount = (amount: number) => {
-    this.outBus.setKarplusAmount(amount);
+    if (
+      this.#feedbackMode === 'monophonic' ||
+      this.#feedbackMode === 'double-trouble'
+    ) {
+      this.outBus.setKarplusAmount(amount);
+    }
+
+    if (
+      this.#feedbackMode === 'polyphonic' ||
+      this.#feedbackMode === 'double-trouble'
+    ) {
+      this.voicePool.applyToAllVoices((voice) => {
+        voice.feedback?.setAmountMacro(amount);
+      });
+    }
   };
 
   /* === I/O === */

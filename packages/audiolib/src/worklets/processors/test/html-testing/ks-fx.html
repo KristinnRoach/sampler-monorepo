@@ -62,7 +62,7 @@
           return this.audioContext.currentTime;
         }
 
-        trigger(midiNote, timestamp = this.now) {
+        trigger(midiNote, timestamp = this.now, delayMultiplier = 1) {
           const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
           const delayTime = (1 / frequency) * delayMultiplier;
           this.delay.delayTime.setValueAtTime(delayTime, timestamp);
@@ -76,7 +76,7 @@
       let audioContext,
         karplus,
         buffer,
-        mode = 'short',
+        mode = 'matched',
         delayMultiplier = 1;
 
       const workletCode = `

@@ -1,12 +1,3 @@
-// processor-utils.ts - Simple utility functions for audio processors
-
-/** MESSAGES  */
-
-export type AudioProcessorMessage = {
-  type: string;
-  payload?: any;
-};
-
 /**  UTILITY FUNCTIONS  */
 
 /**
