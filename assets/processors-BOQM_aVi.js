@@ -456,25 +456,80 @@ class RandomNoiseProcessor extends AudioWorkletProcessor {
   }
 }
 registerProcessor("random-noise-processor", RandomNoiseProcessor);
-const C6_SECONDS = 95556e-8;
+class DelayBuffer {
+  constructor(maxDelaySamples) {
+    this.buffer = new Array(maxDelaySamples).fill(0);
+    this.writePtr = 0;
+    this.readPtr = 0;
+  }
+  write(sample) {
+    this.buffer[this.writePtr] = sample;
+  }
+  read() {
+    return this.buffer[this.readPtr];
+  }
+  updatePointers(delaySamples) {
+    this.writePtr = (this.writePtr + 1) % this.buffer.length;
+    this.readPtr = (this.writePtr - delaySamples + this.buffer.length) % this.buffer.length;
+  }
+}
+const DEFAULT_GAIN_COMPENSATION = 0.954;
+class FeedbackDelay {
+  constructor(sampleRate2) {
+    this.sampleRate = sampleRate2;
+    this.buffers = [];
+    this.initialized = false;
+    this.autoGainEnabled = true;
+    this.gainCompensation = DEFAULT_GAIN_COMPENSATION;
+  }
+  initializeBuffers(channelCount) {
+    this.buffers = [];
+    const maxSamples = Math.floor(this.sampleRate);
+    for (let c = 0; c < channelCount; c++) {
+      this.buffers[c] = new DelayBuffer(maxSamples);
+    }
+    this.initialized = true;
+  }
+  process(inputSample, channelIndex, feedbackAmount, delayTime) {
+    if (!this.initialized) return inputSample;
+    const buffer = this.buffers[channelIndex] || this.buffers[0];
+    const delaySamples = Math.floor(this.sampleRate * delayTime);
+    const delayedSample = buffer.read();
+    const feedbackSample = feedbackAmount * delayedSample + inputSample;
+    let outputSample = feedbackSample;
+    if (this.autoGainEnabled) {
+      const compensation = 1 - feedbackAmount * this.gainCompensation;
+      outputSample = feedbackSample * compensation;
+    }
+    return { outputSample, feedbackSample, delaySamples };
+  }
+  updateBuffer(channelIndex, sample, delaySamples) {
+    const buffer = this.buffers[channelIndex] || this.buffers[0];
+    buffer.write(sample);
+    buffer.updatePointers(delaySamples);
+  }
+  setAutoGain(enabled, compensation = DEFAULT_GAIN_COMPENSATION) {
+    this.autoGainEnabled = enabled;
+    this.gainCompensation = compensation;
+  }
+}
 registerProcessor(
   "feedback-delay-processor",
   class extends AudioWorkletProcessor {
     static get parameterDescriptors() {
       return [
         {
-          name: "gain",
+          name: "feedbackAmount",
           defaultValue: 0.5,
-          minValue: 1e-3,
-          maxValue: 1.5,
-          // TODO: make 0-1 and update all mapping functions for ks effect and voices
+          minValue: 0,
+          maxValue: 1,
           automationRate: "k-rate"
         },
         {
           name: "delayTime",
-          defaultValue: 0.01,
-          // seconds
-          minValue: C6_SECONDS,
+          defaultValue: 0.5,
+          minValue: 4774632e-10,
+          // C7 in seconds
           maxValue: 4,
           automationRate: "k-rate"
         }
@@ -482,96 +537,48 @@ registerProcessor(
     }
     constructor() {
       super();
-      this.Buffers = [];
-      this.bufferInitialized = false;
-      this.ReadPtr = 0;
-      this.WritePtr = 0;
-      this.maxOutput = 0.1;
-      this.limitingMode = "hard-clipping";
-      this.autoGainEnabled = true;
-      this.GAIN_COMPENSATION = 0.3;
+      this.feedbackDelay = new FeedbackDelay(sampleRate);
       this.setupMessageHandling();
     }
     setupMessageHandling() {
       this.port.onmessage = (event) => {
         switch (event.data.type) {
-          case "setLimiting":
-            this.limitingMode = event.data.mode;
-            break;
-          case "setMaxOutput":
-            this.maxOutput = Math.max(0.1, Math.min(1, event.data.level));
-            break;
           case "setAutoGain":
-            this.autoGainEnabled = event.data.enabled;
-            if (event.data.amount > 0 && event.data.amount < 1) {
-              this.GAIN_COMPENSATION = event.data.amount;
-            }
+            this.feedbackDelay.setAutoGain(
+              event.data.enabled,
+              event.data.amount
+            );
             break;
         }
       };
-    }
-    updateBufferPointers(delaySamples, bufferSize) {
-      this.WritePtr++;
-      if (this.WritePtr >= bufferSize)
-        this.WritePtr = this.WritePtr - bufferSize;
-      this.ReadPtr = this.WritePtr - delaySamples;
-      if (this.ReadPtr < 0) this.ReadPtr = this.ReadPtr + bufferSize;
     }
     process(inputs, outputs, parameters) {
       const input = inputs[0];
       const output = outputs[0];
       if (!input || !output) return true;
-      if (!this.bufferInitialized) {
-        for (let c = 0; c < input.length; c++) {
-          this.Buffers[c] = new Array(Math.floor(sampleRate)).fill(0);
-        }
-        this.bufferInitialized = true;
+      if (!this.feedbackDelay.initialized || this.feedbackDelay.buffers.length !== input.length) {
+        this.feedbackDelay.initializeBuffers(input.length);
       }
-      const delaySamples = Math.floor(sampleRate * parameters.delayTime[0]);
-      const bufferSize = this.Buffers[0].length;
-      const gain = parameters.gain[0];
-      const adjustedGain = this.autoGainEnabled ? gain * (1 - gain * this.GAIN_COMPENSATION) : gain;
-      for (let c = 0; c < Math.min(input.length, output.length); c++) {
-        const inputChannel = input[c];
-        const outputChannel = output[c];
-        const buffer = this.Buffers[c] || this.Buffers[0];
-        switch (this.limitingMode) {
-          case "soft-clipping":
-            for (let i = 0; i < outputChannel.length; ++i) {
-              let sample = adjustedGain * buffer[this.ReadPtr] + inputChannel[i];
-              sample = this.maxOutput * Math.tanh(sample / this.maxOutput);
-              outputChannel[i] = sample;
-              buffer[this.WritePtr] = sample;
-              if (c === input.length - 1) {
-                this.updateBufferPointers(delaySamples, bufferSize);
-              }
-            }
-            break;
-          case "hard-clipping":
-            for (let i = 0; i < outputChannel.length; ++i) {
-              let sample = adjustedGain * buffer[this.ReadPtr] + inputChannel[i];
-              sample = Math.max(
-                -this.maxOutput,
-                Math.min(this.maxOutput, sample)
-              );
-              outputChannel[i] = sample;
-              buffer[this.WritePtr] = sample;
-              if (c === input.length - 1) {
-                this.updateBufferPointers(delaySamples, bufferSize);
-              }
-            }
-            break;
-          case "none":
-          default:
-            for (let i = 0; i < outputChannel.length; ++i) {
-              let sample = adjustedGain * buffer[this.ReadPtr] + inputChannel[i];
-              outputChannel[i] = sample;
-              buffer[this.WritePtr] = sample;
-              if (c === input.length - 1) {
-                this.updateBufferPointers(delaySamples, bufferSize);
-              }
-            }
-            break;
+      const feedbackAmount = parameters.feedbackAmount[0];
+      const delayTime = parameters.delayTime[0];
+      for (let i = 0; i < output[0].length; ++i) {
+        for (let c = 0; c < Math.min(input.length, output.length); c++) {
+          const delayResult = this.feedbackDelay.process(
+            input[c][i],
+            c,
+            feedbackAmount,
+            delayTime
+          );
+          const clamped = Math.max(
+            -0.999,
+            Math.min(0.999, delayResult.outputSample)
+          );
+          output[c][i] = clamped;
+          this.feedbackDelay.updateBuffer(
+            c,
+            delayResult.feedbackSample,
+            delayResult.delaySamples
+          );
         }
       }
       return true;
@@ -751,3 +758,189 @@ class DattorroReverb extends AudioWorkletProcessor {
   }
 }
 registerProcessor("dattorro-reverb-processor", DattorroReverb);
+class Distortion {
+  constructor() {
+    this.limitingMode = "hard-clipping";
+  }
+  applyDrive(sample, driveAmount) {
+    if (driveAmount <= 0) return sample;
+    const driveMultiplier = 1 + driveAmount * 3;
+    const tameGainScalar = 0.95;
+    const drivenSample = sample * driveMultiplier * tameGainScalar;
+    return drivenSample;
+  }
+  applyClipping(sample, clippingAmount, clipThreshold) {
+    if (clippingAmount <= 0) return sample;
+    let clippedSample;
+    switch (this.limitingMode) {
+      case "soft-clipping":
+        clippedSample = clipThreshold * Math.tanh(sample / clipThreshold);
+        break;
+      case "hard-clipping":
+        clippedSample = Math.max(
+          -clipThreshold,
+          Math.min(clipThreshold, sample)
+        );
+        break;
+      case "bypass":
+      default:
+        clippedSample = sample;
+        break;
+    }
+    const makeupGain = 1 / Math.max(clipThreshold, 0.1);
+    clippedSample *= makeupGain;
+    return sample * (1 - clippingAmount) + clippedSample * clippingAmount;
+  }
+  setLimitingMode(mode) {
+    this.limitingMode = mode;
+  }
+}
+registerProcessor(
+  "distortion-processor",
+  class extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+      return [
+        {
+          name: "distortionDrive",
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: "a-rate"
+        },
+        {
+          name: "clippingAmount",
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: "a-rate"
+        },
+        {
+          name: "clippingThreshold",
+          defaultValue: 0.5,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: "k-rate"
+        }
+      ];
+    }
+    constructor() {
+      super();
+      this.distortion = new Distortion();
+      this.setupMessageHandling();
+    }
+    setupMessageHandling() {
+      this.port.onmessage = (event) => {
+        switch (event.data.type) {
+          case "setLimitingMode":
+            this.distortion.setLimitingMode(event.data.mode);
+            break;
+          default:
+            console.warn("distortion-processor: Unsupported message");
+            break;
+        }
+      };
+    }
+    process(inputs, outputs, parameters) {
+      const input = inputs[0];
+      const output = outputs[0];
+      if (!input || !output) return true;
+      const clipThreshold = parameters.clippingThreshold[0];
+      for (let i = 0; i < output[0].length; ++i) {
+        const distortionDrive = parameters.distortionDrive[Math.min(i, parameters.distortionDrive.length - 1)];
+        const clippingAmount = parameters.clippingAmount[Math.min(i, parameters.clippingAmount.length - 1)];
+        for (let c = 0; c < Math.min(input.length, output.length); c++) {
+          let sample = input[c][i];
+          sample = this.distortion.applyDrive(sample, distortionDrive);
+          sample = this.distortion.applyClipping(
+            sample,
+            clippingAmount,
+            clipThreshold
+          );
+          output[c][i] = Math.max(-0.999, Math.min(0.999, sample));
+        }
+      }
+      return true;
+    }
+  }
+);
+registerProcessor(
+  "envelope-follower-processor",
+  class extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+      return [
+        {
+          name: "inputGain",
+          // linear gain (1.0 = unity)
+          defaultValue: 1,
+          minValue: 0,
+          maxValue: 10,
+          automationRate: "k-rate"
+        },
+        {
+          name: "outputGain",
+          // linear gain (1.0 = unity)
+          defaultValue: 1,
+          minValue: 0,
+          maxValue: 10,
+          automationRate: "k-rate"
+        },
+        {
+          name: "attack",
+          // seconds
+          defaultValue: 3e-3,
+          minValue: 1e-3,
+          maxValue: 1,
+          automationRate: "k-rate"
+        },
+        {
+          name: "release",
+          // seconds
+          defaultValue: 0.05,
+          minValue: 1e-3,
+          maxValue: 5,
+          automationRate: "k-rate"
+        }
+      ];
+    }
+    constructor() {
+      super();
+      this.envelope = 0;
+      this.gateThreshold = 5e-3;
+      this.debugCounter = 0;
+    }
+    process(inputs, outputs, parameters) {
+      const input = inputs[0];
+      const output = outputs[0];
+      const channel = inputs[0][0];
+      if (!input || !output || !channel || input.length === 0 || output.length === 0 || channel.length === 0) {
+        return true;
+      }
+      const inChannel = input[0];
+      if (!inChannel || inChannel.length === 0) return true;
+      const attack = parameters.attack[0];
+      const release = parameters.release[0];
+      const inputGain = parameters.inputGain[0];
+      const outputGain = parameters.outputGain[0];
+      const attackCoeff = Math.exp(-1 / (attack * sampleRate));
+      const releaseCoeff = Math.exp(-1 / (release * sampleRate));
+      for (let sample = 0; sample < output[0].length; sample++) {
+        const inputLevel = Math.abs((input[0][sample] || 0) * inputGain);
+        if (inputLevel > 1e-6) {
+          if (inputLevel > this.envelope) {
+            this.envelope = inputLevel + (this.envelope - inputLevel) * attackCoeff;
+          } else {
+            this.envelope = inputLevel + (this.envelope - inputLevel) * releaseCoeff;
+          }
+        } else {
+          this.envelope *= releaseCoeff;
+        }
+        if (this.envelope < this.gateThreshold) this.envelope = 0;
+        const finalOutput = this.envelope * outputGain;
+        for (let channel2 = 0; channel2 < output.length; channel2++) {
+          output[channel2][sample] = finalOutput;
+        }
+      }
+      return true;
+    }
+  }
+);
