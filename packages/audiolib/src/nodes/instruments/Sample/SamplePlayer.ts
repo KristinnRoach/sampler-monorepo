@@ -478,9 +478,11 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setLoopEnabled(enabled: boolean): this {
+    console.log('setLoopEnabled');
     if (this.#loopEnabled === enabled) return this;
 
     // if loop is locked (ON), turning it off is disabled but turning it on should work
+    // (so it continues to be on when lock is released)
     if (this.#loopLocked && !enabled) return this;
 
     const voices = this.voicePool.allVoices;
@@ -492,6 +494,18 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  setLoopLocked(locked: boolean): this {
+    console.log('setLoopLocked');
+
+    if (this.#loopLocked === locked) return this;
+
+    this.#loopLocked = locked;
+
+    this.setLoopEnabled(locked);
+    this.sendUpstreamMessage('loop:locked', { locked });
+    return this;
+  }
+
   setHoldEnabled(enabled: boolean) {
     if (this.#holdEnabled === enabled) return this;
     // if hold is locked (ON), turning it off is disabled but turning it on should work
@@ -500,16 +514,6 @@ export class SamplePlayer extends LibInstrument {
     if (!enabled) this.releaseAll(this.getReleaseTime());
     this.sendUpstreamMessage('hold:enabled', { enabled });
 
-    return this;
-  }
-
-  setLoopLocked(locked: boolean): this {
-    if (this.#loopLocked === locked) return this;
-
-    this.#loopLocked = locked;
-
-    this.setLoopEnabled(locked);
-    this.sendUpstreamMessage('loop:locked', { locked });
     return this;
   }
 

@@ -832,8 +832,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       value: enabled,
     });
 
-    // this.#loopEnabled = enabled;
-
+    if (!enabled && this.#activeMidiNote) this.release({});
     return this;
   }
 

@@ -16,7 +16,7 @@ import {
   InputControls,
   LoopHoldControls,
   FilterSliders,
-} from '../controls/AudioControls';
+} from '../controls/checboxes';
 import { createLabeledKnob } from '../primitives/createKnob';
 
 const { div } = van.tags;
