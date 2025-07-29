@@ -900,15 +900,16 @@ export class SamplePlayer extends LibInstrument {
   }
 
   enableKeyboard() {
-    if (!this.keyboardHandler) {
-      this.keyboardHandler = {
-        onNoteOn: this.play.bind(this),
-        onNoteOff: this.release.bind(this),
-        onBlur: () => this.panic(),
-        onModifierChange: this.#handleModifierKeys.bind(this),
-      };
-      globalKeyboardInput.addHandler(this.keyboardHandler);
-    }
+    // if (!this.keyboardHandler) {
+    //   this.keyboardHandler = {
+    //     onNoteOn: this.play.bind(this),
+    //     onNoteOff: this.release.bind(this),
+    //     onBlur: () => this.panic(),
+    //     onModifierChange: this.#handleModifierKeys.bind(this),
+    //   };
+    //   globalKeyboardInput.addHandler(this.keyboardHandler);
+    // }
+    console.debug('called empty enableKeyboard');
     return this;
   }
 

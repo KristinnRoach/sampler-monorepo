@@ -115,6 +115,8 @@ export class KeyboardInputManager {
     //   return;
     // }
 
+    console.info('e.code: ', keycode, 'e.key', e.key);
+
     if (this.#pressedNoteKeys.has(keycode)) return;
     this.#pressedNoteKeys.add(keycode);
 
