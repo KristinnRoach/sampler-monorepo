@@ -35,7 +35,7 @@ const KarplusStrongSynthComponent = ({
       synth = createKarplusStrongSynth(16);
     }
 
-    synth.enableKeyboard();
+    // synth.enableKeyboard();
 
     // Set init values
     if (synth) {

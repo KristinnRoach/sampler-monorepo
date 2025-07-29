@@ -13,6 +13,7 @@ import {
   screenYToAbsoluteValue,
   absoluteValueToNormalized,
   generateSVGPath,
+  linearToLogarithmic,
 } from './env-utils.ts';
 
 import { EnvToggleButtons } from './env-buttons.ts';
@@ -415,13 +416,9 @@ export const EnvelopeSVG = (
         time = applySnapping(time, snapToValues.x, snapThreshold);
       }
 
-      // Convert to logarithmic space only for filter envelopes, right before sending to instrument
+      // Convert to logarithmic space for filter envelopes
       if (envelopeType === 'filter-env') {
-        const [min, max] = envelopeInfo.valueRange;
-        const normalized = (value - min) / (max - min);
-        const logMin = Math.log2(Math.max(0.1, min));
-        const logMax = Math.log2(max);
-        value = Math.pow(2, logMin + normalized * (logMax - logMin));
+        value = linearToLogarithmic(value, envelopeInfo.valueRange);
       }
 
       instrument.updateEnvelopePoint(
@@ -471,13 +468,9 @@ export const EnvelopeSVG = (
       envelopeInfo.valueRange
     );
 
-    // Convert to logarithmic space for filter envelopes, same as in handleMouseMove
+    // Convert to logarithmic space for filter envelopes
     if (envelopeType === 'filter-env') {
-      const [min, max] = envelopeInfo.valueRange;
-      const normalized = (value - min) / (max - min);
-      const logMin = Math.log2(Math.max(0.1, min));
-      const logMax = Math.log2(max);
-      value = Math.pow(2, logMin + normalized * (logMax - logMin));
+      value = linearToLogarithmic(value, envelopeInfo.valueRange);
     }
 
     instrument.addEnvelopePoint(envelopeType, time, value);

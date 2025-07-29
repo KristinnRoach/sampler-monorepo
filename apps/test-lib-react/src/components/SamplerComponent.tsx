@@ -125,7 +125,7 @@ const SamplerComponent = ({ context: audiolib }: SamplerComponentProps) => {
         setActiveVoices((prev) => prev + 1);
       });
 
-      samplePlayerRef.current.enableKeyboard();
+      // samplePlayerRef.current.enableKeyboard();
 
       setInitialized(true);
       return true;

@@ -1,7 +1,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 
-import '../../controls/webaudio-controls/webaudio-controls';
+import '../../controls/webaudio-controls/webaudio-keyboard';
 import {
   keyboardEnabledInstruments,
   enableComputerKeyboard,
@@ -26,7 +26,7 @@ import { createLabeledKnob } from '../../primitives/createKnob';
 import { Toggle } from '../../primitives/VanToggle';
 
 import { EnvelopeSVG } from '../../controls/envelope/EnvelopeSVG';
-import { defaultKeymap } from '@/shared/keyboard/keyboard-default-keymap';
+import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button, label } = van.tags;
 
@@ -76,7 +76,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   // Control states
   const keyboardEnabled = van.state(true);
-  const currentKeymap = van.state(defaultKeymap);
+  const currentKeymap = van.state(KeyMaps.default); // major // minor // pentatonic // default
   const midiEnabled = van.state(false);
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
@@ -86,6 +86,8 @@ export const SamplerElement = (attributes: ElementProps) => {
   const icons = createIcons();
 
   // === KEYEVENT HANDLERS ===
+
+  // TODO: Time latency diff from handling this here versus inside audiolib!
 
   let spacePressed = false;
 
@@ -351,11 +353,10 @@ export const SamplerElement = (attributes: ElementProps) => {
         });
 
         // Control states
-        derive(
-          () =>
-            keyboardEnabled.val
-              ? samplePlayer && enableComputerKeyboard(samplePlayer.nodeId) // samplePlayer.enableKeyboard()
-              : samplePlayer && disableComputerKeyboard(samplePlayer.nodeId) // samplePlaye?.disableKeyboard()
+        derive(() =>
+          keyboardEnabled.val
+            ? samplePlayer && enableComputerKeyboard(samplePlayer.nodeId)
+            : samplePlayer && disableComputerKeyboard(samplePlayer.nodeId)
         );
         derive(() =>
           midiEnabled.val

@@ -1,5 +1,5 @@
 import { getAudioContext } from '@/context';
-import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
+import { MidiController } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
@@ -10,13 +10,7 @@ import {
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
-import {
-  assert,
-  tryCatch,
-  isValidAudioBuffer,
-  isMidiValue,
-  findZeroCrossings,
-} from '@/utils';
+import { assert, tryCatch, isValidAudioBuffer, isMidiValue } from '@/utils';
 
 import {
   MacroParam,
@@ -367,14 +361,8 @@ export class SamplePlayer extends LibInstrument {
   play(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
-    modifiers?: PressedModifiers,
     glideTime = this.getGlideTime()
   ): MidiValue | null {
-    if (modifiers) {
-      this.#handleModifierKeys(modifiers);
-      if (modifiers.alt) midiNote += 12;
-    }
-
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
     if (this.syncLFOsToMidiNote) {
@@ -393,9 +381,7 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  release(midiNote: MidiValue, modifiers?: PressedModifiers): this {
-    if (modifiers) this.#handleModifierKeys(modifiers);
-
+  release(midiNote: MidiValue): this {
     if (this.holdEnabled || this.#holdLocked) return this; // one-shot mode
 
     this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
@@ -893,38 +879,6 @@ export class SamplePlayer extends LibInstrument {
 
   /* === I/O === */
 
-  #handleModifierKeys(modifiers: PressedModifiers) {
-    if (modifiers.caps !== undefined) {
-      this.setLoopEnabled(modifiers.caps);
-    }
-    if (modifiers.shift !== undefined) {
-      this.setHoldEnabled(modifiers.shift);
-    }
-    return this;
-  }
-
-  enableKeyboard() {
-    // if (!this.keyboardHandler) {
-    //   this.keyboardHandler = {
-    //     onNoteOn: this.play.bind(this),
-    //     onNoteOff: this.release.bind(this),
-    //     onBlur: () => this.panic(),
-    //     onModifierChange: this.#handleModifierKeys.bind(this),
-    //   };
-    //   globalKeyboardInput.addHandler(this.keyboardHandler);
-    // }
-    console.debug('called empty enableKeyboard');
-    return this;
-  }
-
-  disableKeyboard() {
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
-    return this;
-  }
-
   async initMidiController(): Promise<boolean> {
     if (this.midiController?.isInitialized) {
       return true;
@@ -1068,12 +1022,6 @@ export class SamplePlayer extends LibInstrument {
 
       this.audioContext = null as unknown as AudioContext;
       this.messages = null as unknown as MessageBus<Message>;
-
-      // Detach keyboard handler
-      if (this.keyboardHandler) {
-        globalKeyboardInput.removeHandler(this.keyboardHandler);
-        this.keyboardHandler = null;
-      }
 
       // todo: disableMIDI
     } catch (error) {

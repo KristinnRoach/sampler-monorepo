@@ -14,6 +14,8 @@ export class SampleVoicePool {
   readonly nodeType = 'pool';
   #messages: MessageBus<Message>;
 
+  #voiceGainReduction = 1;
+
   #allVoices: SampleVoice[];
   #loaded = new Set<NodeID>();
 
@@ -72,6 +74,8 @@ export class SampleVoicePool {
       this.#releasing.delete(msg.voice);
 
       this.#playing.add(msg.voice);
+      this.#onVoiceStateChange();
+
       this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
     });
 
@@ -92,6 +96,8 @@ export class SampleVoicePool {
       // Ensure mutual exlusion
       this.#playing.delete(msg.voice);
       this.#releasing.delete(msg.voice);
+
+      this.#onVoiceStateChange();
 
       this.#available.add(msg.voice);
     });
@@ -226,6 +232,28 @@ export class SampleVoicePool {
     } else {
       console.warn(`No active voice found for midiNote: ${midiNote}`);
     }
+  }
+
+  #updateVoiceGains() {
+    const activeCount = this.#playing.size + this.#releasing.size;
+
+    if (activeCount === 0) {
+      this.#voiceGainReduction = 1;
+      return;
+    }
+
+    this.#voiceGainReduction = 1 / (1 + Math.log10(activeCount) * 0.3);
+
+    // Apply to all active voices
+    [...this.#playing].forEach((voice) => {
+      // skip ...this.#releasing since they are fading out
+      voice.setMasterGain(this.#voiceGainReduction);
+    });
+  }
+
+  // Call this whenever voice state changes
+  #onVoiceStateChange() {
+    this.#updateVoiceGains();
   }
 
   debug() {
