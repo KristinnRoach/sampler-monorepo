@@ -34,7 +34,8 @@
     "test:all": "npm run test && npm run test:browser"
   },
   "dependencies": {
-    "dexie": "^4.0.11"
+    "dexie": "^4.0.11",
+    "standardized-audio-context": "^25.3.77"
   },
   "devDependencies": {
     "@types/audioworklet": "^0.0.72",

@@ -12,6 +12,7 @@ import {
   applySnappingAbsolute,
   screenYToAbsoluteValue,
   absoluteValueToNormalized,
+  generateSVGPath,
 } from './env-utils.ts';
 
 import { EnvToggleButtons } from './env-buttons.ts';
@@ -37,7 +38,7 @@ export const EnvelopeSVG = (
   envType: EnvelopeType,
   width: string = '100%',
   height: string = '120px',
-  snapToValues: { y?: number[]; x?: number[] } = { y: [0] },
+  snapToValues: { y?: number[]; x?: number[] } = {},
   snapThreshold = 0.025,
   multiColorPlayheads = true
 ): EnvelopeSVG => {
@@ -109,7 +110,8 @@ export const EnvelopeSVG = (
 
       const normalizedValue = absoluteValueToNormalized(
         point.value,
-        envelopeInfo.valueRange
+        envelopeInfo.valueRange,
+        envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
       );
       circle.setAttribute(
         'cy',
@@ -301,10 +303,13 @@ export const EnvelopeSVG = (
   const updateEnvelopePath = () => {
     envelopePath.setAttribute(
       'd',
-      envelopeInfo.data.getSVGPath(
+      generateSVGPath(
+        envelopeInfo.points,
+        envelopeInfo.fullDuration,
         SVG_WIDTH,
         SVG_HEIGHT,
-        envelopeInfo.fullDuration
+        envelopeInfo.valueRange,
+        envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
       )
     );
   };
@@ -410,6 +415,15 @@ export const EnvelopeSVG = (
         time = applySnapping(time, snapToValues.x, snapThreshold);
       }
 
+      // Convert to logarithmic space only for filter envelopes, right before sending to instrument
+      if (envelopeType === 'filter-env') {
+        const [min, max] = envelopeInfo.valueRange;
+        const normalized = (value - min) / (max - min);
+        const logMin = Math.log2(Math.max(0.1, min));
+        const logMax = Math.log2(max);
+        value = Math.pow(2, logMin + normalized * (logMax - logMin));
+      }
+
       instrument.updateEnvelopePoint(
         envelopeType,
         selectedPoint.val,
@@ -451,11 +465,20 @@ export const EnvelopeSVG = (
       envelopeInfo.fullDuration
     );
 
-    const value = screenYToAbsoluteValue(
+    let value = screenYToAbsoluteValue(
       e.clientY - rect.top,
       rect.height,
       envelopeInfo.valueRange
     );
+
+    // Convert to logarithmic space for filter envelopes, same as in handleMouseMove
+    if (envelopeType === 'filter-env') {
+      const [min, max] = envelopeInfo.valueRange;
+      const normalized = (value - min) / (max - min);
+      const logMin = Math.log2(Math.max(0.1, min));
+      const logMax = Math.log2(max);
+      value = Math.pow(2, logMin + normalized * (logMax - logMin));
+    }
 
     instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
