@@ -235,9 +235,6 @@ export class CustomEnvelope {
       curve[i] = this.#clampToValueRange(interpolatedValue);
     }
 
-    // Ensure the first value exactly matches the starting point value
-    curve[0] = this.points[0].value;
-
     return curve;
   }
 
