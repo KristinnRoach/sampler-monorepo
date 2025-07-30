@@ -1,6 +1,10 @@
-// AudioControls.ts
+// checkboxes.ts
 import van, { type State } from '@repo/vanjs-core';
-import { createCheckbox } from '../primitives/createInputEl';
+import {
+  createCheckbox,
+  LabelContent,
+  StaticLabelContent,
+} from '../primitives/createInputEl';
 import { UNICODES } from '../../utils/unicodes';
 
 const { div } = van.tags;
@@ -8,8 +12,8 @@ const { div } = van.tags;
 export const InputControls = (
   keyboardEnabled: State<boolean>,
   midiEnabled: State<boolean>,
-  keysSvg: any,
-  midiSvg: any
+  keysSvg: LabelContent,
+  midiSvg: LabelContent
 ) =>
   div(
     { style: 'display: flex; gap: 10px;' },
@@ -21,7 +25,7 @@ export const LoopHoldControls = (
   loopEnabled: State<boolean>,
   loopLocked: State<boolean>,
   holdLocked: State<boolean>,
-  icons: any
+  icons: { loopOn: StaticLabelContent; loopOff: StaticLabelContent }
 ) =>
   div(
     { style: 'display: flex; gap: 10px;' },

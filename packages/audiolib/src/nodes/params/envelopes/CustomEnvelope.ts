@@ -209,19 +209,25 @@ export class CustomEnvelope {
       minValue?: number;
       maxValue?: number;
       playbackRate: number;
+      startFromValue?: number;
     }
   ): Float32Array {
     const sampleRate = this.#getCurveSamplingRate(scaledDuration);
     const numSamples = Math.max(2, Math.floor(scaledDuration * sampleRate));
     const curve = new Float32Array(numSamples);
 
-    const { baseValue, minValue, maxValue } = options;
+    const { baseValue, minValue, maxValue, startFromValue } = options;
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
       const absoluteTime = normalizedProgress * endTime;
 
       let interpolatedValue = this.#data.interpolateValueAtTime(absoluteTime);
+
+      // Blend from startFromValue to envelope trajectory if specified
+      if (startFromValue !== undefined && i === 0) {
+        interpolatedValue = startFromValue;
+      }
 
       if (baseValue !== 1) {
         interpolatedValue = interpolatedValue * baseValue;
@@ -288,7 +294,10 @@ export class CustomEnvelope {
       this.sustainEnabled
         ? (this.sustainPoint?.time ?? this.fullDuration)
         : this.fullDuration,
-      options
+      {
+        ...options,
+        startFromValue: audioParam.value,
+      }
     );
 
     if (options.voiceId !== undefined) {
@@ -359,11 +368,10 @@ export class CustomEnvelope {
       this.#timeScale
     );
 
-    let cachedCurve = this.#generateCurve(
-      cachedDuration,
-      this.fullDuration,
-      options
-    );
+    let cachedCurve = this.#generateCurve(cachedDuration, this.fullDuration, {
+      ...options,
+      startFromValue: audioParam.value,
+    });
 
     // Send initial trigger message
     if (options.voiceId !== undefined) {
@@ -413,11 +421,10 @@ export class CustomEnvelope {
             this.#timeScale
           );
 
-          cachedCurve = this.#generateCurve(
-            cachedDuration,
-            this.fullDuration,
-            options
-          );
+          cachedCurve = this.#generateCurve(cachedDuration, this.fullDuration, {
+            ...options,
+            startFromValue: audioParam.value,
+          });
         }
 
         // Schedule with lookahead

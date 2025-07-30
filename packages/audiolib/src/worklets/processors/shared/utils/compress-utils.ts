@@ -1,0 +1,73 @@
+// compress-utils.ts
+
+/**
+ *  Hard clipping / limiting to output range
+ *  Default ±1.0 outputRange
+ *
+ *  Note: No validation since optimized for real time use
+ *        We assume that input.length === output.length
+ */
+export const hardLimit = (
+  input: Float32Array,
+  output: Float32Array,
+  outputRange = { min: -1, max: 1 }
+) => {
+  const { min, max } = outputRange;
+
+  for (let i = 0; i < input.length; i++) {
+    const x = input[i];
+    output[i] = Math.max(min, Math.min(max, x));
+  }
+};
+
+/**
+ *  Basic attenuation compressor for arrays
+ *
+ *  Note: No validation since optimized for real time use
+ *        We assume that input.length === output.length
+ */
+export const compress = (
+  input: Float32Array,
+  output: Float32Array,
+  threshold = 0.75,
+  ratio = 4.0,
+  limiter = { enabled: true, outputRange: { min: -1, max: 1 } }
+) => {
+  const { min, max } = limiter.outputRange;
+
+  for (let i = 0; i < input.length; i++) {
+    let x = input[i];
+    if (Math.abs(x) > threshold) {
+      x = Math.sign(x) * (threshold + (Math.abs(x) - threshold) / ratio);
+    }
+
+    if (limiter.enabled) {
+      x = Math.max(min, Math.min(max, x));
+    }
+    output[i] = x;
+  }
+};
+
+/**
+ *  Basic attenuation compressor for single sample
+ *  Note: No validation since optimized for real time use
+ */
+export const compressSingleSample = (
+  input: number,
+  threshold = 0.75,
+  ratio = 4.0,
+  limiter = { enabled: true, outputRange: { min: -1, max: 1 } }
+): number => {
+  const { min, max } = limiter.outputRange;
+
+  let x = input;
+  if (Math.abs(x) > threshold) {
+    x = Math.sign(x) * (threshold + (Math.abs(x) - threshold) / ratio);
+  }
+
+  if (limiter.enabled) {
+    x = Math.max(min, Math.min(max, x));
+  }
+
+  return x;
+};

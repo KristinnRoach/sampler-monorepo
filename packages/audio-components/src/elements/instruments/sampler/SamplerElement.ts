@@ -213,11 +213,8 @@ export const SamplerElement = (attributes: ElementProps) => {
         samplePlayer = await createSamplePlayer(undefined, polyphony);
 
         samplePlayer.connect(samplePlayer.context.destination);
-
-        console.log('SamplePlayer created and connected:', samplePlayer);
-
         // connects automatically to audio destination
-        console.log('polyphony', polyphony);
+
         if (!samplePlayer.initialized) {
           console.warn('Failed to create sample player');
           status.val = 'Failed to initialize';
@@ -702,7 +699,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         }),
 
         createLabeledKnob({
-          label: 'DistDrive',
+          label: 'Drive',
           defaultValue: 0,
           minValue: 0,
           maxValue: 1,
@@ -719,10 +716,11 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         createLabeledKnob({
           label: 'FB-Pitch',
-          defaultValue: 1,
-          minValue: 1,
+          defaultValue: 0.5, // 0.5 is unison
+          minValue: 0.25,
           maxValue: 4,
-          snapIncrement: 1,
+          allowedValues: [0.25, 0.5, 1.0, 2.0, 3.0, 4.0],
+          curve: 2,
           onChange: (value: number) => (feedbackPitch.val = value),
         }),
 

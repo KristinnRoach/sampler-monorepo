@@ -22,11 +22,9 @@ export async function ensureInitSample(): Promise<void> {
 
     // Check if the init sample already exists in IndexedDB
     const existingSample = await idb.samples.get(sampleId);
-    if (existingSample) {
-      console.info('Init sample from idb: ', { sample: existingSample.id });
-      return;
-    }
+    if (existingSample) return;
 
+    console.info(`Init sample not in idb, fetching from source url..`);
     // Fetch and decode the init sample
     const audioBuffer = await fetchInitSampleAsAudioBuffer();
 
@@ -34,7 +32,6 @@ export async function ensureInitSample(): Promise<void> {
       console.warn('Failed to decode init sample');
       return;
     }
-    console.debug({ audioBuffer });
 
     // Store the decoded AudioBuffer in IndexedDB
     const storedID = await sampleLib.storeAudioSample(
@@ -45,7 +42,7 @@ export async function ensureInitSample(): Promise<void> {
       1 // is from audiolib's samplelib
     );
 
-    console.info(`storing init sample in idb, stored sample ID: ${storedID}`);
+    console.info(`Storing init sample in idb, stored sample ID: ${storedID}`);
   } catch (error) {
     console.warn('Error ensuring init sample in IndexedDB:', error);
   }

@@ -194,26 +194,24 @@ describe('CustomEnvelope', () => {
       const curveCall = mockAudioParam.setValueCurveAtTime.mock.calls[0];
       const curve = curveCall[0] as Float32Array;
 
-      // The problematic line: curve[0] = this.points[0].value;
-      // This overrides any interpolation and forces the first value to be the envelope's first point
-      expect(curve[0]).toBe(1000); // This will always be true due to the override
+      // Fixed: curve now starts from current AudioParam value instead of envelope's first point
+      expect(curve[0]).toBe(5000); // Now starts from current AudioParam value
 
       // Check if there's a sudden jump from current AudioParam value to first curve value
       const currentParamValue = mockAudioParam.value; // 5000
-      const firstCurveValue = curve[0]; // 1000 (forced by the override)
+      const firstCurveValue = curve[0]; // 5000 (now matches current value)
       const valueDifference = Math.abs(firstCurveValue - currentParamValue);
       const percentageDifference = (valueDifference / currentParamValue) * 100;
 
       console.log('=== Edge Case Analysis ===');
       console.log('Current AudioParam value:', currentParamValue);
       console.log('First envelope point value:', envelope.points[0].value);
-      console.log('First curve value (after override):', firstCurveValue);
+      console.log('First curve value (smooth start):', firstCurveValue);
       console.log('Value jump:', valueDifference);
       console.log('Percentage jump:', percentageDifference.toFixed(2) + '%');
 
-      // This test reveals the problem: there's a 4000Hz jump (80% change)
-      // which could cause audible pops/clicks
-      expect(percentageDifference).toBeGreaterThan(50); // This will pass, showing the problem exists
+      // Fixed: No more large jump - curve starts smoothly from current value
+      expect(percentageDifference).toBe(0); // Perfect - no jump at all
     });
 
     it('should demonstrate what curve would look like without the override', () => {

@@ -11,6 +11,7 @@ export interface KnobConfig {
   minRotation: number;
   maxRotation: number;
   snapIncrement: number;
+  allowedValues?: number[];
   curve?: number;
   snapThresholds?: Array<{ maxValue: number; increment: number }>;
   disabled?: boolean;
@@ -64,6 +65,7 @@ export class KnobElement extends HTMLElement {
       'min-rotation',
       'max-rotation',
       'snap-increment',
+      'allowed-values',
       'value',
       'disabled',
       'width',
@@ -256,9 +258,41 @@ export class KnobElement extends HTMLElement {
       }
     };
 
+    // Get allowedValues first to potentially override min/max
+    const allowedValues = getJsonValue<number[]>('allowed-values');
+    let minValue = getNumericValue('min-value', 0);
+    let maxValue = getNumericValue('max-value', 100);
+
+    // If allowedValues are provided, sort them and set min/max automatically
+    if (allowedValues && allowedValues.length > 0) {
+      const sortedValues = [...allowedValues].sort((a, b) => a - b);
+      const autoMinValue = sortedValues[0];
+      const autoMaxValue = sortedValues[sortedValues.length - 1];
+
+      // Log if manually set min/max/snap don't match allowedValues
+      if (this.hasAttribute('min-value') && minValue !== autoMinValue) {
+        console.debug(
+          `KnobElement: min-value (${minValue}) doesn't match first allowedValue (${autoMinValue}). Using ${autoMinValue}.`
+        );
+      }
+      if (this.hasAttribute('max-value') && maxValue !== autoMaxValue) {
+        console.debug(
+          `KnobElement: max-value (${maxValue}) doesn't match last allowedValue (${autoMaxValue}). Using ${autoMaxValue}.`
+        );
+      }
+      if (this.hasAttribute('snap-thresholds')) {
+        console.debug(
+          'KnobElement: allowedValues overrides snap-increment and snap-thresholds.'
+        );
+      }
+
+      minValue = autoMinValue;
+      maxValue = autoMaxValue;
+    }
+
     this.config = {
-      minValue: getNumericValue('min-value', 0),
-      maxValue: getNumericValue('max-value', 100),
+      minValue,
+      maxValue,
       defaultValue: getNumericValue('default-value', 0),
       minRotation: getNumericValue('min-rotation', -150),
       maxRotation: getNumericValue('max-rotation', 150),
@@ -269,6 +303,10 @@ export class KnobElement extends HTMLElement {
         'border-style',
         'currentState'
       ),
+
+      allowedValues: allowedValues
+        ? [...allowedValues].sort((a, b) => a - b)
+        : undefined,
 
       snapThresholds:
         getJsonValue<Array<{ maxValue: number; increment: number }>>(
@@ -381,6 +419,15 @@ export class KnobElement extends HTMLElement {
     };
 
     this.applySnapping = (value: number): number => {
+      // If allowedValues is specified, snap to the nearest allowed value
+      if (this.config.allowedValues && this.config.allowedValues.length > 0) {
+        return this.config.allowedValues.reduce((closest, current) => {
+          return Math.abs(current - value) < Math.abs(closest - value)
+            ? current
+            : closest;
+        });
+      }
+
       if (this.config.snapIncrement <= 0) return value;
 
       let snapIncrement = this.config.snapIncrement;

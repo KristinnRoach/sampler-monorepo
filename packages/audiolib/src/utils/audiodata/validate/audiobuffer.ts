@@ -1,5 +1,6 @@
 export function isValidAudioBuffer(
-  buffer: AudioBuffer | null | undefined
+  buffer: AudioBuffer | null | undefined,
+  logInfo = false
 ): boolean {
   if (buffer === null || buffer === undefined) {
     return false;
@@ -71,13 +72,17 @@ export function isValidAudioBuffer(
 
   // Log amplitude information
   if (hasNonZeroData) {
-    const peakDB = 20 * Math.log10(peakAmplitude);
-    const rmsDB = 20 * Math.log10(rmsAmplitude);
-    console.log(`AudioBuffer Analysis:
+    if (logInfo) {
+      const peakDB = 20 * Math.log10(peakAmplitude);
+      const rmsDB = 20 * Math.log10(rmsAmplitude);
+      console.log(`AudioBuffer Analysis:
       Duration: ${buffer.duration} seconds
       Peak amplitude: ${peakAmplitude.toFixed(4)} (${peakDB.toFixed(1)} dB)
       RMS amplitude: ${rmsAmplitude.toFixed(4)} (${rmsDB.toFixed(1)} dB)
     `);
+    }
+  } else {
+    console.warn('Invalid Buffer: No non-zero data.');
   }
 
   return hasNonZeroData;

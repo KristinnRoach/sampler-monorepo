@@ -501,6 +501,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         const finalSample =
           interpolatedSample * velocityGain * envelopeGain * masterGain;
 
+        // Basic hard limiting
         output[c][i] = Math.max(
           -1,
           Math.min(1, isFinite(finalSample) ? finalSample : 0)

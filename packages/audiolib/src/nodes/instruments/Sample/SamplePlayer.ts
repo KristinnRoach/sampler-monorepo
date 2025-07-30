@@ -33,6 +33,7 @@ import {
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
+import { KarplusEffect } from '@/nodes/effects/KarplusEffect';
 
 export class SamplePlayer extends LibInstrument {
   // Explicitly declare inherited public properties for TypeScript visibility
@@ -86,7 +87,7 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(context.destination);
 
-    this.outBus.debugRouting();
+    // this.outBus.debugRouting(); // uncomment for debugging
 
     // Setup params
     this.#macroLoopStart = new MacroParam(
@@ -469,7 +470,6 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setLoopEnabled(enabled: boolean): this {
-    console.log('setLoopEnabled');
     if (this.#loopEnabled === enabled) return this;
 
     // if loop is locked (ON), turning it off is disabled but turning it on should work
@@ -486,8 +486,6 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setLoopLocked(locked: boolean): this {
-    console.log('setLoopLocked');
-
     if (this.#loopLocked === locked) return this;
 
     this.#loopLocked = locked;
@@ -832,17 +830,24 @@ export class SamplePlayer extends LibInstrument {
   #feedbackMode: 'monophonic' | 'polyphonic' | 'double-trouble' = 'monophonic';
 
   setFeedbackMode(mode: 'monophonic' | 'polyphonic' | 'double-trouble') {
-    console.log('feedbackMode set to ', mode);
     this.#feedbackMode = mode;
 
     if (mode === 'monophonic') {
+      let currAmount = this.voicePool.allVoices[0].feedback?.currAmount ?? 0;
       this.voicePool.applyToAllVoices((voice) => {
         voice.feedback?.setAmountMacro(0);
       });
+      this.outBus.setKarplusAmount(currAmount);
     } else if (mode === 'polyphonic') {
+      const monoKarplus = this.outBus.getEffect('karplus') as KarplusEffect;
+      const currAmount = monoKarplus.currAmount;
       this.outBus.setKarplusAmount(0);
+
+      this.voicePool.applyToAllVoices((voice) => {
+        voice.feedback?.setAmountMacro(currAmount);
+      });
     } else {
-      console.info('Feedback mode set to double-trouble, experimental!');
+      console.info('Feedback mode set to double-trouble, radical!');
     }
   }
 
