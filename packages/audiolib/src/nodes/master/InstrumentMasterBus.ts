@@ -1,6 +1,6 @@
 // InstrumentMasterBus.ts
 
-import { ILibAudioNode, LibAudioNode } from '@/nodes/wrapper';
+import { ILibAudioNode, LibAudioNode } from '@/nodes/LibAudioNode';
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { getAudioContext } from '@/context';
 import {

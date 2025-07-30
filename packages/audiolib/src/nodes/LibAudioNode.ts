@@ -1,6 +1,8 @@
 import { LibNode, NodeType } from './LibNode';
 import { createNodeId, NodeID, deleteNodeId } from './node-store';
 
+/** Adapter interface for web native and Audiolib's custom audio nodes */
+
 export interface ILibAudioNode extends LibNode {
   // Connection interface
   connect(destination: ILibAudioNode | AudioNode): void;

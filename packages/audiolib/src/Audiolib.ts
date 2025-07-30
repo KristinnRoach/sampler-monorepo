@@ -22,12 +22,12 @@ import { AudioGraph, LibNode, NodeType, SampleLoader } from '@/nodes/LibNode';
 
 import { LibInstrument } from '@/nodes/instruments';
 
-import {
-  SamplePlayer,
-  createSamplePlayer as createSamplePlayerFactory,
-  KarplusStrongSynth,
-  createKarplusStrongSynth as createKarplusStrongSynthFactory,
-} from './nodes/instruments';
+// import {
+//   SamplePlayer,
+//   createSamplePlayer as createSamplePlayerFactory,
+//   KarplusStrongSynth,
+//   createKarplusStrongSynth as createKarplusStrongSynthFactory,
+// } from './nodes/instruments';
 
 import { createAudioRecorder, Recorder } from '@/nodes/recorder';
 
@@ -221,55 +221,55 @@ export class Audiolib implements AudioGraph {
   //   return newSamplePlayer;
   // }
 
-  createKarplusStrongSynth(
-    polyphony = 8,
-    ctx = this.#audioContext
-  ): KarplusStrongSynth {
-    assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
+  // createKarplusStrongSynth(
+  //   polyphony = 8,
+  //   ctx = this.#audioContext
+  // ): KarplusStrongSynth {
+  //   assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    // Use the factory function instead of direct instantiation
-    const newSynth = createKarplusStrongSynthFactory(polyphony, ctx);
-    assert(newSynth, `Failed to create Karplus Strong synth`);
+  //   // Use the factory function instead of direct instantiation
+  //   const newSynth = createKarplusStrongSynthFactory(polyphony, ctx);
+  //   assert(newSynth, `Failed to create Karplus Strong synth`);
 
-    const alreadyLoaded = this.#instruments.has(newSynth.nodeId);
-    assert(
-      !alreadyLoaded,
-      `Instrument with id: ${newSynth.nodeId} already loaded`
-    );
+  //   const alreadyLoaded = this.#instruments.has(newSynth.nodeId);
+  //   assert(
+  //     !alreadyLoaded,
+  //     `Instrument with id: ${newSynth.nodeId} already loaded`
+  //   );
 
-    // newSynth.connect(this.#masterGain);
-    this.#instruments.set(newSynth.nodeId, newSynth);
-    // newSynth.enableMIDI(this.#midiController);
+  //   // newSynth.connect(this.#masterGain);
+  //   this.#instruments.set(newSynth.nodeId, newSynth);
+  //   // newSynth.enableMIDI(this.#midiController);
 
-    return newSynth;
-  }
+  //   return newSynth;
+  // }
 
   /** Recorder  **/
 
-  async recordAudioSample(
-    destination?: LibNode & SampleLoader
-  ): Promise<AudioBuffer> {
-    assert(this.#globalAudioRecorder, 'Audio recorder not initialized');
+  // async recordAudioSample(
+  //   destination?: LibNode & SampleLoader
+  // ): Promise<AudioBuffer> {
+  //   assert(this.#globalAudioRecorder, 'Audio recorder not initialized');
 
-    const targetDestination = destination || this.getCurrentSamplePlayer();
-    if (targetDestination && this.#globalAudioRecorder) {
-      this.#globalAudioRecorder.connect(targetDestination);
-    }
+  //   const targetDestination = destination || this.getCurrentSamplePlayer();
+  //   if (targetDestination && this.#globalAudioRecorder) {
+  //     this.#globalAudioRecorder.connect(targetDestination);
+  //   }
 
-    await this.#globalAudioRecorder.start();
-    return this.#globalAudioRecorder.stop();
-  }
+  //   await this.#globalAudioRecorder.start();
+  //   return this.#globalAudioRecorder.stop();
+  // }
 
-  // ? this is currently needed to connect Recorder, refactor later for flexibility
-  getCurrentSamplePlayer(): SamplePlayer | null {
-    // Find the first SamplePlayer instance in the instruments map
-    for (const instrument of this.#instruments.values()) {
-      if (instrument instanceof SamplePlayer) {
-        return instrument;
-      }
-    }
-    return null;
-  }
+  // // ? this is currently needed to connect Recorder, refactor later for flexibility
+  // getCurrentSamplePlayer(): SamplePlayer | null {
+  //   // Find the first SamplePlayer instance in the instruments map
+  //   for (const instrument of this.#instruments.values()) {
+  //     if (instrument instanceof SamplePlayer) {
+  //       return instrument;
+  //     }
+  //   }
+  //   return null;
+  // }
 
   get globalAudioRecorder() {
     return this.#globalAudioRecorder;

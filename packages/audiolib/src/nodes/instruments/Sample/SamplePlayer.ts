@@ -908,24 +908,24 @@ export class SamplePlayer extends LibInstrument {
     return result.data;
   }
 
-  async enableMIDI(
-    midiController?: MidiController,
-    channel: number = 0
-  ): Promise<this> {
-    const controller = midiController || this.midiController;
-    const midiSuccess = await this.initMidiController(); // move ?
+  // async enableMIDI(
+  //   midiController?: MidiController,
+  //   channel: number = 0
+  // ): Promise<this> {
+  //   const controller = midiController || this.midiController;
+  //   const midiSuccess = await this.initMidiController(); // move ?
 
-    if (midiSuccess && controller?.isInitialized) {
-      controller.connectInstrument(this, channel);
-    }
-    return this;
-  }
+  //   if (midiSuccess && controller?.isInitialized) {
+  //     controller.connectInstrument(this, channel);
+  //   }
+  //   return this;
+  // }
 
-  disableMIDI(midiController?: MidiController, channel: number = 0): this {
-    const controller = midiController || this.midiController;
-    if (controller) controller.disconnectInstrument(channel);
-    return this;
-  }
+  // disableMIDI(midiController?: MidiController, channel: number = 0): this {
+  //   const controller = midiController || this.midiController;
+  //   if (controller) controller.disconnectInstrument(channel);
+  //   return this;
+  // }
 
   setMidiController(midiController: MidiController): this {
     this.midiController = midiController;

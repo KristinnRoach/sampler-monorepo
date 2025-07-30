@@ -357,11 +357,31 @@ export const SamplerElement = (attributes: ElementProps) => {
             ? samplePlayer && enableComputerKeyboard(samplePlayer.nodeId)
             : samplePlayer && disableComputerKeyboard(samplePlayer.nodeId)
         );
-        derive(() =>
-          midiEnabled.val
-            ? samplePlayer?.enableMIDI()
-            : samplePlayer?.disableMIDI()
-        );
+        // derive(() =>
+        //   midiEnabled.val
+        //     ? samplePlayer?.enableMIDI()
+        //     : samplePlayer?.disableMIDI()
+        // );
+        derive(() => {
+          if (midiEnabled.val) {
+            // Check if method exists before calling
+            if (
+              samplePlayer &&
+              'enableMIDI' in samplePlayer &&
+              typeof samplePlayer.enableMIDI === 'function'
+            ) {
+              samplePlayer.enableMIDI();
+            }
+          } else {
+            if (
+              samplePlayer &&
+              'disableMIDI' in samplePlayer &&
+              typeof samplePlayer.disableMIDI === 'function'
+            ) {
+              samplePlayer.disableMIDI();
+            }
+          }
+        });
         derive(() => {
           samplePlayer?.setHoldLocked(holdLocked.val);
         });

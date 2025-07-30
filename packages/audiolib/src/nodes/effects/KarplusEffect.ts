@@ -1,4 +1,4 @@
-import { ILibAudioNode } from '../wrapper';
+import { ILibAudioNode } from '../LibAudioNode';
 import { NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';

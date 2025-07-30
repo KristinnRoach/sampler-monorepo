@@ -12,9 +12,12 @@ export class WorkletNode<
     name: K,
     value: TConfig['params'][K]
   ): this {
-    this.parameters
-      .get(name as string)
-      ?.setValueAtTime(value, this.context.currentTime);
+    const param = this.parameters.get(name as string);
+    if (!param) {
+      console.warn(`Parameter '${String(name)}' not found on worklet node`);
+      return this;
+    }
+    param.setValueAtTime(value, this.context.currentTime);
     return this;
   }
 
@@ -37,5 +40,7 @@ export class WorkletNode<
 
   dispose(): void {
     this.disconnect();
+    this.port.onmessage = null;
+    this.port.close();
   }
 }
