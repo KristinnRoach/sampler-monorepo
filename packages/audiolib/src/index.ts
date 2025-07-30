@@ -9,9 +9,11 @@ export { createKarplusStrongSynth } from './nodes/instruments/Synth/KarplusStron
 export { createAudioRecorder } from './nodes/recorder';
 // export { createCustomEnvelope } from './nodes/params/envelopes/Envelope';
 
+// =*=*= Classes =*=*= \\
+export { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
+
 // =*=*=  Types =*=*= \\
 export type { AudiolibOptions } from './createAudiolib';
-export type { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
 export type { KarplusStrongSynth } from './nodes/instruments/Synth/KarplusStrong/KarplusStrongSynth';
 export type { Recorder } from './nodes/recorder';
 export type { LibNode as LibNode, SampleLoader } from './nodes/LibNode';

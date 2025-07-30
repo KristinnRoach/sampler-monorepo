@@ -1,4 +1,3 @@
-// TODO: Improve this and add error handling
 export function isValidAudioBuffer(
   buffer: AudioBuffer | null | undefined
 ): boolean {
@@ -6,16 +5,22 @@ export function isValidAudioBuffer(
     return false;
   }
 
-  const minDuration = 0.01; // Minimum duration in seconds
-  const maxDuration = 60; // Maximum duration in seconds
+  const minDuration = 0.001; // Minimum duration in seconds
+  const maxDuration = 240; // Maximum duration in seconds
   const minChannels = 1;
-  const maxChannels = 32; // Arbitrary upper limit
+  const maxChannels = 2; // Limited to stereo until tested with more channels
 
   if (buffer.duration < minDuration) {
+    console.warn(
+      `Audio duration is too short: ${buffer.duration} seconds. Must be longer than ${minDuration} seconds`
+    );
     return false;
   }
 
   if (buffer.duration > maxDuration) {
+    console.warn(
+      `Audio duration is too long: ${buffer.duration} seconds. Must be shorter than ${maxDuration} seconds`
+    );
     return false;
   }
 
@@ -23,6 +28,7 @@ export function isValidAudioBuffer(
     buffer.numberOfChannels < minChannels ||
     buffer.numberOfChannels > maxChannels
   ) {
+    console.warn('Invalid number of audio channels.');
     return false;
   }
 

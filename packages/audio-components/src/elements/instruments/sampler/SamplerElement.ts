@@ -10,7 +10,7 @@ import {
 } from '../../../shared/keyboard/keyboard-state';
 
 import {
-  type SamplePlayer,
+  SamplePlayer,
   type CustomEnvelope,
   type EnvelopeType,
   type Recorder,
@@ -444,11 +444,11 @@ export const SamplerElement = (attributes: ElementProps) => {
             }
 
             const audiobuffer = await samplePlayer.loadSample(arrayBuffer);
-            const durationSeconds = audiobuffer.duration;
+            const durationSeconds = audiobuffer?.duration;
 
             await new Promise((resolve) => setTimeout(resolve, 0));
 
-            if (durationSeconds > 0) {
+            if (durationSeconds && durationSeconds > 0) {
               sampleDurationSeconds.val = durationSeconds;
               status.val = `Loaded: ${file.name}`;
             }

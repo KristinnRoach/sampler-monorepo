@@ -24,6 +24,8 @@ import {
 import { LFO } from '@/nodes/params/LFOs/LFO';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
+import { Destination } from '@/nodes/LibNode';
+import { NodeID } from '@/nodes/node-store';
 import {
   InstrumentMasterBus,
   BusEffectName,
@@ -33,6 +35,9 @@ import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
 
 export class SamplePlayer extends LibInstrument {
+  // Explicitly declare inherited public properties for TypeScript visibility
+  declare readonly nodeId: NodeID;
+
   #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
 
@@ -51,8 +56,6 @@ export class SamplePlayer extends LibInstrument {
   syncLFOsToMidiNote = false; // todo setter
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
-
-  #glideTime = 0;
 
   #isReady = false;
   #isLoaded = false;
@@ -242,16 +245,16 @@ export class SamplePlayer extends LibInstrument {
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
-    shoulDetectPitch = true,
-    autoTranspose = true,
     preprocessOptions?: PreProcessOptions
-  ): Promise<AudioBuffer> {
+  ): Promise<AudioBuffer | null> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
       buffer = await ctx.decodeAudioData(buffer);
     }
 
-    assert(isValidAudioBuffer(buffer));
+    if (!isValidAudioBuffer(buffer)) {
+      return null;
+    }
 
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
@@ -988,6 +991,11 @@ export class SamplePlayer extends LibInstrument {
 
   get audiobuffer() {
     return this.#audiobuffer;
+  }
+
+  // Expose inherited connect method from LibInstrument
+  connect(destination: Destination) {
+    return super.connect(destination);
   }
 
   /* === CLEANUP === */
