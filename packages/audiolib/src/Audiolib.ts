@@ -194,32 +194,32 @@ export class Audiolib implements AudioGraph {
     return recorder;
   }
 
-  createSamplePlayer(
-    ctx = this.#audioContext,
-    polyphony = 16,
-    audioBuffer?: AudioBuffer
-  ): SamplePlayer {
-    assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
+  // createSamplePlayer(
+  //   ctx = this.#audioContext,
+  //   polyphony = 16,
+  //   audioBuffer?: AudioBuffer
+  // ): SamplePlayer {
+  //   assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    let buffer = audioBuffer || this.#currentAudioBuffer;
-    assert(buffer, 'No audio buffer available for SamplePlayer', {
-      providedSample: !!audioBuffer,
-      initSampleAvailable: !!this.#currentAudioBuffer,
-    });
+  //   let buffer = audioBuffer || this.#currentAudioBuffer;
+  //   assert(buffer, 'No audio buffer available for SamplePlayer', {
+  //     providedSample: !!audioBuffer,
+  //     initSampleAvailable: !!this.#currentAudioBuffer,
+  //   });
 
-    // Use the factory function instead of direct instantiation
-    const newSamplePlayer = createSamplePlayerFactory(
-      buffer,
-      polyphony,
-      ctx,
-      this.#midiController
-    );
+  //   // Use the factory function instead of direct instantiation
+  //   const newSamplePlayer = createSamplePlayerFactory(
+  //     buffer,
+  //     polyphony,
+  //     ctx,
+  //     this.#midiController
+  //   );
 
-    // newSamplePlayer.connect(this.#masterGain);
-    this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
+  //   // newSamplePlayer.connect(this.#masterGain);
+  //   this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
 
-    return newSamplePlayer;
-  }
+  //   return newSamplePlayer;
+  // }
 
   createKarplusStrongSynth(
     polyphony = 8,

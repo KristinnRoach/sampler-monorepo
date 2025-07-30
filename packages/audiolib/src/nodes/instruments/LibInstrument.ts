@@ -126,7 +126,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     destination: Destination
     // output?: 'dry' | 'wet' | 'alt'
   ): Destination {
-    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+    assert(destination instanceof AudioNode, 'remember to fix this');
 
     this.outBus.connect(destination);
     this.destination = destination;

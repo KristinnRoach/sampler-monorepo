@@ -14,7 +14,8 @@ import {
   type CustomEnvelope,
   type EnvelopeType,
   type Recorder,
-  getInstance,
+  createSamplePlayer,
+  createAudioRecorder,
 } from '@repo/audiolib';
 
 import { createIcons } from '../../../utils/icons';
@@ -208,12 +209,13 @@ export const SamplerElement = (attributes: ElementProps) => {
   attributes.mount(() => {
     const initializeAudio = async () => {
       try {
-        const audiolib = getInstance();
-        if (!audiolib.initialized) await audiolib.init();
-
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
-        // Todo: remove dep on audiolib class, add destination master handling
-        samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
+        samplePlayer = await createSamplePlayer(undefined, polyphony);
+
+        samplePlayer.connect(samplePlayer.context.destination);
+
+        console.log('SamplePlayer created and connected:', samplePlayer);
+
         // connects automatically to audio destination
         console.log('polyphony', polyphony);
         if (!samplePlayer.initialized) {
@@ -479,7 +481,7 @@ export const SamplerElement = (attributes: ElementProps) => {
     if (!samplePlayer || recordBtnState.val === 'Recording') return;
 
     try {
-      const recorderResult = await getInstance().createRecorder();
+      const recorderResult = await createAudioRecorder(samplePlayer.context);
       if (!recorderResult) {
         status.val = 'Failed to create recorder';
         return;

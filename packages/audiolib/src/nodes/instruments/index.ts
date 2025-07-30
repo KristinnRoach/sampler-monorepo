@@ -3,7 +3,7 @@ export { SamplePlayer } from './Sample/SamplePlayer';
 export { KarplusStrongSynth } from './Synth/KarplusStrong/KarplusStrongSynth';
 
 /** FACTORIES */
-export { createSamplePlayer } from './Sample/factory';
+export { createSamplePlayer } from './Sample/createSamplePlayer';
 export { createKarplusStrongSynth } from './Synth/KarplusStrong/factory';
 
 /** VOICES */
