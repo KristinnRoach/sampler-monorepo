@@ -76,12 +76,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       {
-        name: "playbackPosition",
-        defaultValue: 0,
+        name: "masterGain",
+        defaultValue: 1,
         minValue: 0,
-        maxValue: 99999,
+        maxValue: 2,
         automationRate: "k-rate"
-        // a or k ?
       },
       {
         name: "envGain",
@@ -103,9 +102,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         minValue: 0.1,
         maxValue: 8,
         automationRate: "a-rate"
-        // a or k ?
       },
-      // NOTE: Time based params always use seconds
+      // NOTE: Time based params use seconds
       {
         name: "loopStart",
         defaultValue: 0,
@@ -137,6 +135,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         minValue: 0,
         maxValue: 9999,
         automationRate: "k-rate"
+      },
+      {
+        name: "playbackPosition",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 99999,
+        automationRate: "k-rate"
       }
     ];
   }
@@ -154,9 +159,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     if (this.playbackPosition === 0 || this.playbackPosition < playbackRange.startSamples) {
       this.playbackPosition = playbackRange.startSamples;
     }
-    const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]);
-    const velocitySensitivity = 0.9;
-    const finalVelocityGain = velocityGain * velocitySensitivity;
+    const masterGain = parameters.masterGain[0];
+    const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]) * this.velocitySensitivity;
     const numChannels = Math.min(output.length, this.buffer.length);
     const isConstant = __privateMethod(this, _SamplePlayerProcessor_instances, getConstantFlags_fn).call(this, parameters);
     for (let i = 0; i < output[0].length; i++) {
@@ -188,7 +192,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           interpolatedSample += this.loopClickCompensation;
           this.applyClickCompensation = false;
         }
-        const finalSample = interpolatedSample * finalVelocityGain * envelopeGain;
+        const finalSample = interpolatedSample * velocityGain * envelopeGain * masterGain;
         output[c][i] = Math.max(
           -1,
           Math.min(1, isFinite(finalSample) ? finalSample : 0)
@@ -305,6 +309,7 @@ resetState_fn = function() {
   this.playbackPosition = 0;
   this.loopCount = 0;
   this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+  this.velocitySensitivity = 0.5;
   this.applyClickCompensation = false;
   this.loopClickCompensation = 0;
   this.lockTrimToloop = false;
