@@ -1,13 +1,12 @@
 // createEnvelope.ts
 import { CustomEnvelope } from './CustomEnvelope';
-import type { EnvelopeType, EnvelopePoint, EnvelopeScaling } from './env-types';
+import type { EnvelopeType, EnvelopePoint } from './env-types';
 import type { EnvelopeData } from './EnvelopeData';
 
 interface EnvelopeOptions {
   durationSeconds?: number;
   points?: EnvelopePoint[];
   paramValueRange?: [number, number];
-  scaling?: EnvelopeScaling;
   initEnable?: boolean;
   sharedData?: EnvelopeData;
   sustainPointIndex?: number | null;
@@ -25,7 +24,6 @@ export function createEnvelope(
     sustainPointIndex,
     releasePointIndex,
     paramValueRange,
-    scaling,
     initEnable,
     sharedData,
   } = options;
@@ -51,8 +49,6 @@ export function createEnvelope(
       ? releasePointIndex
       : defaults.releasePointIndex;
 
-  const finalScaling = scaling || defaults.scaling;
-
   const envelope = new CustomEnvelope(
     context,
     type,
@@ -60,11 +56,8 @@ export function createEnvelope(
     finalPoints,
     finalValueRange,
     durationSeconds,
-    finalScaling,
     finalInitEnable
-  );
-
-  // Set sustain and release points
+  ); // Set sustain and release points
   envelope.setSustainPoint(finalSustainIndex);
   finalReleaseIndex && envelope.setReleasePoint(finalReleaseIndex);
 

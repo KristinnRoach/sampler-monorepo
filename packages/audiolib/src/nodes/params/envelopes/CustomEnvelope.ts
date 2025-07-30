@@ -8,7 +8,7 @@ import {
   MessageBus,
 } from '@/events';
 
-import { EnvelopePoint, EnvelopeType, EnvelopeScaling } from './env-types';
+import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 
 // ===== CUSTOM ENVELOPE  =====
@@ -22,7 +22,6 @@ export class CustomEnvelope {
   #data: EnvelopeData;
   #paramName: string;
   envelopeType: EnvelopeType;
-  #scaling: EnvelopeScaling = 'none';
 
   #isEnabled: boolean;
   #loopEnabled = false;
@@ -40,8 +39,6 @@ export class CustomEnvelope {
     initialPoints: EnvelopePoint[] = [],
     paramValueRange: [number, number] = [0, 1],
     durationSeconds = 1,
-
-    scaling: EnvelopeScaling = 'none',
     initEnable = true
   ) {
     this.envelopeType = envelopeType;
@@ -73,7 +70,6 @@ export class CustomEnvelope {
     }
 
     this.#isEnabled = initEnable;
-    this.#scaling = scaling;
 
     // Use shared data if provided, otherwise create new
     this.#data =
@@ -111,12 +107,10 @@ export class CustomEnvelope {
     if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
   };
 
-  getSVGPath = (
-    width: number | undefined,
-    height: number | undefined,
-    durationSeconds: number
-  ): string =>
-    this.#data.getSVGPath(width, height, durationSeconds, this.#scaling);
+  setSampleDuration(seconds: number) {
+    this.#data.setDurationSeconds(seconds);
+    return this;
+  }
 
   setValueRange = (range: [number, number]): [number, number] =>
     this.#data.setValueRange(range);
@@ -169,11 +163,6 @@ export class CustomEnvelope {
     return this.#data.points.length;
   }
 
-  setSampleDuration(seconds: number) {
-    this.#data.setDurationSeconds(seconds);
-    return this;
-  }
-
   // ===== AUDIO OPERATIONS =====
 
   #getScaledDuration(
@@ -202,7 +191,8 @@ export class CustomEnvelope {
   }
 
   #getCurveSamplingRate(duration: number): number {
-    if (this.#scaling === 'logarithmic') {
+    // Higher sample rate for filter envelopes (logarithmic) for smoother curves
+    if (this.envelopeType === 'filter-env') {
       return duration < 1 ? 1000 : 750;
     }
     if (this.#data.hasSharpTransitions) {
@@ -225,14 +215,7 @@ export class CustomEnvelope {
     const numSamples = Math.max(2, Math.floor(scaledDuration * sampleRate));
     const curve = new Float32Array(numSamples);
 
-    const { baseValue: base, minValue: min, maxValue: max } = options;
-
-    if (this.#scaling === 'logarithmic') {
-      console.log('=== Curve Generation Debug ===');
-      console.log('Value range:', this.valueRange);
-      console.log('Scaling:', this.#scaling);
-      console.log('Num samples:', numSamples);
-    }
+    const { baseValue, minValue, maxValue } = options;
 
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
@@ -240,42 +223,20 @@ export class CustomEnvelope {
 
       let interpolatedValue = this.#data.interpolateValueAtTime(absoluteTime);
 
-      // Only log first 3 samples
-      if (i < 3 && this.#scaling === 'logarithmic') {
-        console.log(`Sample ${i}: interpolated=${interpolatedValue}`);
-      }
-      if (this.#scaling === 'logarithmic') {
-        const [minFreq, maxFreq] = this.valueRange;
-        const normalizedValue =
-          (interpolatedValue - minFreq) / (maxFreq - minFreq);
-
-        if (i < 3) {
-          console.log(`  normalized=${normalizedValue}`);
-        }
-        const logMin = Math.log2(Math.max(0.1, minFreq));
-        const logMax = Math.log2(maxFreq);
-        interpolatedValue = Math.pow(
-          2,
-          logMin + normalizedValue * (logMax - logMin)
-        );
-
-        if (i < 3) {
-          console.log(`  logMin=${logMin}, logMax=${logMax}`);
-          console.log(`  final=${interpolatedValue}`);
-        }
+      if (baseValue !== 1) {
+        interpolatedValue = interpolatedValue * baseValue;
       }
 
-      if (options.baseValue !== 1) {
-        interpolatedValue = interpolatedValue * options.baseValue;
-      }
-
-      if (min !== undefined)
-        interpolatedValue = Math.max(interpolatedValue, min);
-      if (max !== undefined)
-        interpolatedValue = Math.min(interpolatedValue, max);
+      if (minValue !== undefined)
+        interpolatedValue = Math.max(interpolatedValue, minValue);
+      if (maxValue !== undefined)
+        interpolatedValue = Math.min(interpolatedValue, maxValue);
 
       curve[i] = this.#clampToValueRange(interpolatedValue);
     }
+
+    // Ensure the first value exactly matches the starting point value
+    curve[0] = this.points[0].value;
 
     return curve;
   }
@@ -294,8 +255,6 @@ export class CustomEnvelope {
   ) {
     this.#isReleased = false;
     this.#currentPlaybackRate = options.playbackRate;
-
-    // TODO: Check if double log scaling is happening.
 
     if (this.#loopEnabled) {
       this.#startLoopingEnv(audioParam, startTime, options);
@@ -353,12 +312,6 @@ export class CustomEnvelope {
     try {
       audioParam.cancelScheduledValues(safeStart);
       audioParam.setValueAtTime(curve[0], safeStart);
-
-      if (this.envelopeType === 'filter-env') {
-        console.log('Current:', audioParam.value, 'First point:', curve[0]);
-        console.log('First point value:', this.points[0].value);
-        console.log('All points:', this.points);
-      }
       audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
@@ -813,7 +766,6 @@ export class CustomEnvelope {
             },
           ],
           paramValueRange: [0, 1] as [number, number],
-          scaling: 'exponential' as EnvelopeScaling,
           initEnable: true,
           sustainPointIndex: 2,
           releasePointIndex: 3, // release from second last point
@@ -830,7 +782,6 @@ export class CustomEnvelope {
             },
           ],
           paramValueRange: [0.5, 1.5] as [number, number],
-          scaling: 'none' as EnvelopeScaling,
           initEnable: false,
           sustainPointIndex: null,
           releasePointIndex: 1,
@@ -839,7 +790,7 @@ export class CustomEnvelope {
       case 'filter-env':
         return {
           points: [
-            { time: 0, value: 2000, curve: 'exponential' as const },
+            { time: 0, value: 250, curve: 'exponential' as const },
             { time: 0.05, value: 18000, curve: 'exponential' as const },
             {
               time: durationSeconds,
@@ -848,7 +799,6 @@ export class CustomEnvelope {
             },
           ],
           paramValueRange: [20, 20000] as [number, number],
-          scaling: 'logarithmic' as EnvelopeScaling,
           initEnable: false,
           sustainPointIndex: null,
           releasePointIndex: 2,
@@ -861,7 +811,6 @@ export class CustomEnvelope {
             { time: durationSeconds, value: 1, curve: 'linear' as const },
           ],
           paramValueRange: [0, 1] as [number, number],
-          scaling: 'none' as EnvelopeScaling,
           initEnable: true,
           sustainPointIndex: null,
           releasePointIndex: 1,

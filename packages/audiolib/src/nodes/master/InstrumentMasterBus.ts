@@ -140,11 +140,11 @@ export class InstrumentMasterBus implements ILibAudioNode {
       'distortion'
     );
 
-    // Custom nodes (already implement ILibAudioNode)
+    // Custom nodes (implement ILibAudioNode)
     const reverb = new DattorroReverb(this.#context);
     const karplus = new KarplusEffect(this.#context);
 
-    // Store all nodes with unified interface
+    // Store all nodes with ILibAudioNode interface
     this.addNode('input', inputAdapter, 'gain');
     this.addNode('lpf', lpfAdapter, 'filter');
     this.addNode('hpf', hpfAdapter, 'filter');
@@ -158,20 +158,20 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.addEffect('reverb', reverb);
     this.addEffect('karplus', karplus);
 
-    // Now all connections use the same interface!
-    this.connectFromTo('input', 'hpf');
+    // Connections
+    this.connectFromTo('input', 'karplus');
+    this.connectFromTo('karplus', 'distortion');
+    this.connectFromTo('distortion', 'compressor');
+    this.connectFromTo('compressor', 'hpf');
     this.connectFromTo('hpf', 'lpf');
-    this.connectFromTo('lpf', 'compressor');
-    this.connectFromTo('compressor', 'karplus');
 
     // Set up reverb as send effect
-    this.connectFromTo('karplus', 'dryMix');
-    this.connectSend('karplus', 'reverb', 'wetMix');
+    this.connectFromTo('lpf', 'dryMix');
+    this.connectSend('lpf', 'reverb', 'wetMix');
 
     // Main output chain
-    this.connectFromTo('dryMix', 'distortion');
-    this.connectFromTo('wetMix', 'distortion');
-    this.connectFromTo('distortion', 'limiter');
+    this.connectFromTo('dryMix', 'limiter');
+    this.connectFromTo('wetMix', 'limiter');
     this.connectFromTo('limiter', 'output');
 
     // Enable effects by default
@@ -354,18 +354,6 @@ export class InstrumentMasterBus implements ILibAudioNode {
   getEffect(effect: BusEffectName): ILibAudioNode | null {
     return this.getNode(effect);
   }
-
-  // /**
-  //  * Set send amount for an effect
-  //  */
-  // send(effect: BusEffectName, amount: number): this {
-  //   const control = this.#controls.get(effect);
-  //   if (control?.send) {
-  //     const safeValue = Math.max(0, Math.min(1, amount));
-  //     control.send.gain.setValueAtTime(safeValue, this.now);
-  //   }
-  //   return this;
-  // }
 
   /**
    * Set send amount for an effect - now using unified interface
@@ -1031,5 +1019,17 @@ export class InstrumentMasterBus implements ILibAudioNode {
 //     this.#internalRouting.set(from, []);
 //   }
 
+//   return this;
+// }
+
+// /**
+//  * Set send amount for an effect
+//  */
+// send(effect: BusEffectName, amount: number): this {
+//   const control = this.#controls.get(effect);
+//   if (control?.send) {
+//     const safeValue = Math.max(0, Math.min(1, amount));
+//     control.send.gain.setValueAtTime(safeValue, this.now);
+//   }
 //   return this;
 // }

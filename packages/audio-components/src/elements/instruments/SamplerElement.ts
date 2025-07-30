@@ -690,12 +690,14 @@ export const SamplerElement = (attributes: ElementProps) => {
         }),
 
         createLabeledKnob({
+          valueFormatter: (v) => v.toFixed(3),
           defaultValue: 0,
           minValue: 0,
           maxValue: 1,
           label: 'Glide',
+          snapIncrement: 0.0001,
           onChange: (value: number) => (glideTime.val = value),
-          curve: 2,
+          curve: 2.75,
         }),
 
         div(

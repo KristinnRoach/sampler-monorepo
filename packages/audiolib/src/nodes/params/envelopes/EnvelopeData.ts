@@ -1,6 +1,6 @@
 // EnvelopeData.ts
 import { assert } from '@/utils';
-import { EnvelopePoint, EnvelopeScaling } from './env-types';
+import { EnvelopePoint } from './env-types';
 
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
@@ -32,10 +32,10 @@ export class EnvelopeData {
     this.#endIdx = points.length - 1;
 
     this.#sustainIdx =
-      sustainIdx && points[sustainIdx] ? sustainIdx : this.#endIdx - 1;
+      sustainIdx !== undefined && points[sustainIdx] ? sustainIdx : null;
 
     this.#releaseIdx =
-      releaseIdx && points[releaseIdx]
+      releaseIdx !== undefined && points[releaseIdx]
         ? releaseIdx
         : Math.max(0, this.#endIdx - 1);
   }
@@ -183,6 +183,7 @@ export class EnvelopeData {
           } else {
             interpolatedValue = left.value + (right.value - left.value) * t;
           }
+
           break;
         }
       }
@@ -197,55 +198,6 @@ export class EnvelopeData {
       (point, i) =>
         i > 0 && Math.abs(point.time - this.points[i - 1].time) < threshold
     );
-  }
-
-  getSVGPath(
-    width: number = 400,
-    height: number = 200,
-    durationSeconds: number,
-    scaling: EnvelopeScaling = 'none'
-  ): string {
-    if (this.points.length < 2) return `M0,${height} L${width},${height}`;
-
-    const sorted = [...this.points].sort((a, b) => a.time - b.time);
-    const [minVal, maxVal] = this.#valueRange;
-
-    // Normalize values for SVG coordinates
-    const normalizeValue = (val: number) => {
-      if (scaling === 'logarithmic') {
-        // Logarithmic scaling for display
-        const logMin = Math.log2(Math.max(0.1, minVal));
-        const logMax = Math.log2(maxVal);
-        const logVal = Math.log2(Math.max(0.1, val));
-        return Math.max(0, Math.min(1, (logVal - logMin) / (logMax - logMin)));
-      } else {
-        // Linear scaling for display
-        return (val - minVal) / (maxVal - minVal);
-      }
-    };
-
-    let path = `M${(sorted[0].time / durationSeconds) * width},${(1 - normalizeValue(sorted[0].value)) * height}`;
-
-    for (let i = 1; i < sorted.length; i++) {
-      const point = sorted[i];
-      const prevPoint = sorted[i - 1];
-      const x = (point.time / durationSeconds) * width;
-      const y = (1 - normalizeValue(point.value)) * height;
-
-      if (prevPoint.curve === 'exponential') {
-        const prevX = (prevPoint.time / durationSeconds) * width;
-        const prevY = (1 - normalizeValue(prevPoint.value)) * height;
-        const cp1X = prevX + (x - prevX) * 0.3;
-        const cp1Y = prevY;
-        const cp2X = prevX + (x - prevX) * 0.7;
-        const cp2Y = y;
-        path += ` C${cp1X},${cp1Y} ${cp2X},${cp2Y} ${x},${y}`;
-      } else {
-        path += ` L${x},${y}`;
-      }
-    }
-
-    return path;
   }
 
   setSustainPoint(index: number | null) {
