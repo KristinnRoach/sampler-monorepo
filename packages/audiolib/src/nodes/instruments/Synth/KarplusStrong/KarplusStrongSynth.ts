@@ -5,7 +5,6 @@ import { KarplusVoicePool } from './KarplusVoicePool';
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler } from '@/events';
 import { MidiController, PressedModifiers } from '@/io';
-import { globalKeyboardInput } from '@/io';
 import { Debouncer } from '@/utils/Debouncer';
 import { normalizeRange, cancelScheduledParamValues, clamp } from '@/utils';
 import { KARPLUS_DEFAULTS } from './defaults';

@@ -48,9 +48,10 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   const glideTime = van.state(0);
   const reverbAmount = van.state(0.0);
-  const karplusAmount = van.state(0.0);
   const drive = van.state(0.0);
   const clipping = van.state(0.0);
+  const feedbackAmount = van.state(0.0);
+  const feedbackDecayTime = van.state(10);
   const feedbackPitch = van.state(0.5);
   const feedbackMode = van.state(true); // true = monophonic, false = polyphonic
 
@@ -76,9 +77,9 @@ export const SamplerElement = (attributes: ElementProps) => {
   const sampleDurationSeconds = van.state(0);
 
   // Control states
-  const keyboardEnabled = van.state(true);
   const currentKeymap = van.state(KeyMaps.default); // major // minor // pentatonic // default
-  const midiEnabled = van.state(false);
+  const keyboardEnabled = van.state(true);
+  const midiEnabled = van.state(true);
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
   const loopLocked = van.state(false);
@@ -301,7 +302,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer) return;
-          samplePlayer.setKarplusAmount(karplusAmount.val);
+          samplePlayer.setFeedbackAmount(feedbackAmount.val);
         });
 
         derive(() => {
@@ -316,11 +317,19 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         derive(() => {
           if (!samplePlayer?.initialized) return;
+          samplePlayer.setFeedbackDecay(feedbackDecayTime.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer?.initialized) return;
           samplePlayer.setFeedbackPitchScale(feedbackPitch.val);
         });
 
         derive(() => {
-          if (!samplePlayer?.outputBus.getNode('karplus')?.initialized) return;
+          if (
+            !samplePlayer?.outputBus.getNode('harmonic-feedback')?.initialized
+          )
+            return;
           const mode = feedbackMode.val === true ? 'monophonic' : 'polyphonic';
           samplePlayer.setFeedbackMode(mode);
         });
@@ -357,11 +366,33 @@ export const SamplerElement = (attributes: ElementProps) => {
             ? samplePlayer && enableComputerKeyboard(samplePlayer.nodeId)
             : samplePlayer && disableComputerKeyboard(samplePlayer.nodeId)
         );
-        derive(() =>
-          midiEnabled.val
-            ? samplePlayer?.enableMIDI()
-            : samplePlayer?.disableMIDI()
-        );
+        // derive(() =>
+        // todo: fix LibInstrument to allow this, temp solution below
+        //   midiEnabled.val
+        //     ? samplePlayer?.enableMIDI()
+        //     : samplePlayer?.disableMIDI()
+        // );
+
+        derive(() => {
+          if (midiEnabled.val) {
+            // Check if method exists before calling
+            if (
+              samplePlayer &&
+              'enableMIDI' in samplePlayer &&
+              typeof samplePlayer.enableMIDI === 'function'
+            ) {
+              samplePlayer.enableMIDI();
+            }
+          } else {
+            if (
+              samplePlayer &&
+              'disableMIDI' in samplePlayer &&
+              typeof samplePlayer.disableMIDI === 'function'
+            ) {
+              samplePlayer.disableMIDI();
+            }
+          }
+        });
         derive(() => {
           samplePlayer?.setHoldLocked(holdLocked.val);
         });
@@ -695,7 +726,7 @@ export const SamplerElement = (attributes: ElementProps) => {
           defaultValue: 0,
           minValue: 0,
           maxValue: 1,
-          onChange: (value: number) => (karplusAmount.val = value),
+          onChange: (value: number) => (feedbackAmount.val = value),
         }),
 
         createLabeledKnob({
@@ -716,7 +747,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         createLabeledKnob({
           label: 'FB-Pitch',
-          defaultValue: 0.5, // 0.5 is unison
+          defaultValue: 1,
           minValue: 0.25,
           maxValue: 4,
           allowedValues: [0.25, 0.5, 1.0, 2.0, 3.0, 4.0],
@@ -737,6 +768,15 @@ export const SamplerElement = (attributes: ElementProps) => {
           defaultValue: 0,
           onChange: (value: number) => (gainLFODepth.val = value),
           curve: 1.5,
+        }),
+
+        createLabeledKnob({
+          label: 'FB-Decay',
+          defaultValue: 1,
+          minValue: 0.001,
+          maxValue: 1,
+          curve: 1,
+          onChange: (value: number) => (feedbackDecayTime.val = value),
         }),
 
         createLabeledKnob({

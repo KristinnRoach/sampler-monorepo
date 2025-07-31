@@ -227,9 +227,7 @@ export class CustomEnvelope {
       // Blend from startFromValue to envelope trajectory if specified
       if (startFromValue !== undefined && i === 0) {
         interpolatedValue = startFromValue;
-      }
-
-      if (baseValue !== 1) {
+      } else if (baseValue !== 1) {
         interpolatedValue = interpolatedValue * baseValue;
       }
 

@@ -11,7 +11,7 @@ const mockAudioContext = {
     start: () => {},
     stop: () => {},
   }),
-  // Add other necessary mock methods if needed
+  // add mocks here if needed
 } as unknown as AudioContext;
 
 const mockEnvelopeData = new EnvelopeData(
@@ -289,8 +289,7 @@ describe('CustomEnvelope', () => {
       );
       console.log('Actual curve first value:', curve[0]);
 
-      // With the override line removed, baseValue multiplication now works correctly
-      expect(curve[0]).toBe(1.0); // Correctly applies 0.5 * 2 = 1.0
+      expect(curve[0]).toBeCloseTo(0.8, 5); // Starts from current AudioParam value
     });
   });
 });

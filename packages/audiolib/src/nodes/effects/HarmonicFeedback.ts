@@ -1,4 +1,4 @@
-import { ILibAudioNode } from '../wrapper';
+import { ILibAudioNode } from '../LibAudioNode';
 import { NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
@@ -6,9 +6,9 @@ import { clamp, mapToRange } from '@/utils';
 import { createFeedbackDelay } from '@/worklets/worklet-factory';
 import { FbDelayWorklet } from '@/worklets/worklet-types';
 
-export class KarplusEffect implements ILibAudioNode {
+export class HarmonicFeedback implements ILibAudioNode {
   readonly nodeId: NodeID;
-  readonly nodeType: NodeType = 'karplus-effect';
+  readonly nodeType: NodeType = 'harmonic-feedback';
   #initialized = false;
   #context: AudioContext;
 
@@ -23,9 +23,10 @@ export class KarplusEffect implements ILibAudioNode {
   #incoming = new Set<ILibAudioNode>();
 
   #baseDelayTime: number;
-  #pitchMultiplier = 0.5;
+  #pitchMultiplier = 1;
+  #decayActive = false;
 
-  #MIN_FB = 0.95; // ? make user friendly range in processor ?
+  #MIN_FB = 0.92; // ? make user friendly range in processor ?
   #MAX_FB = 0.999;
   #C6_SECONDS = 0.00095556;
   #C7_SECONDS = 0.0004774632;
@@ -54,6 +55,9 @@ export class KarplusEffect implements ILibAudioNode {
     const initDelayTime = this.setPitch(60);
     this.#baseDelayTime = initDelayTime;
 
+    // Initialize decay amount to 0 (no decay effect)
+    this.setDecay(0);
+
     this.#initialized = true;
   }
 
@@ -64,6 +68,7 @@ export class KarplusEffect implements ILibAudioNode {
       velocity?: number;
       secondsFromNow?: number;
       cents?: number;
+      triggerDecay?: boolean;
     } = {}
   ) {
     const {
@@ -71,10 +76,16 @@ export class KarplusEffect implements ILibAudioNode {
       cents = 0,
       velocity = 100,
       glideTime = 0,
+      triggerDecay = true,
     } = options;
     const timestamp = this.now + secondsFromNow;
 
     this.setPitch(midiNote, cents, timestamp, glideTime);
+
+    if (triggerDecay) {
+      // Trigger decay slightly after the pitch change to ensure feedback is established
+      setTimeout(() => this.triggerDecay(), (secondsFromNow + 0.01) * 1000);
+    }
 
     return this;
   }
@@ -203,6 +214,37 @@ export class KarplusEffect implements ILibAudioNode {
     return this;
   }
 
+  setDecay(amount: number, timestamp = this.now): this {
+    const clampedAmount = clamp(amount, 0, 1);
+    this.getParam('decay')!.setValueAtTime(clampedAmount, timestamp);
+    return this;
+  }
+
+  triggerDecay(): this {
+    if (this.#decayActive) {
+      // If decay is already active, restart it
+      this.stopDecay();
+    }
+
+    this.#decayActive = true;
+    const currentFeedbackAmount = this.getParam('feedbackAmount')!.value;
+
+    this.#delay.port.postMessage({
+      type: 'triggerDecay',
+      baseFeedbackAmount: currentFeedbackAmount,
+    });
+
+    return this;
+  }
+
+  stopDecay(): this {
+    this.#decayActive = false;
+    this.#delay.port.postMessage({
+      type: 'stopDecay',
+    });
+    return this;
+  }
+
   // === CONNECTIONS ===
 
   connect(destination: ILibAudioNode | AudioNode): void {
@@ -257,6 +299,9 @@ export class KarplusEffect implements ILibAudioNode {
         break;
       case 'amount':
         this.setAmountMacro(value);
+        break;
+      case 'decay':
+        this.setDecay(value, time);
         break;
       default:
         // Try setting on delay worklet
@@ -313,6 +358,10 @@ export class KarplusEffect implements ILibAudioNode {
 
   get initialized() {
     return this.#initialized;
+  }
+
+  get decayActive() {
+    return this.#decayActive;
   }
 
   get numberOfInputs() {

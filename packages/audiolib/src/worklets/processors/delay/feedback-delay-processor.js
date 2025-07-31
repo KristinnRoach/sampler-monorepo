@@ -9,7 +9,7 @@ registerProcessor(
       return [
         {
           name: 'feedbackAmount',
-          defaultValue: 0.5,
+          defaultValue: 0.8,
           minValue: 0,
           maxValue: 1,
           automationRate: 'k-rate',
@@ -21,12 +21,22 @@ registerProcessor(
           maxValue: 4,
           automationRate: 'k-rate',
         },
+        {
+          name: 'decay',
+          defaultValue: 0.0,
+          minValue: 0,
+          maxValue: 1,
+          automationRate: 'k-rate',
+        },
       ];
     }
 
     constructor() {
       super();
       this.feedbackDelay = new FeedbackDelay(sampleRate);
+      this.decayStartTime = null;
+      this.decayActive = false;
+      this.baseFeedbackAmount = 0.5;
       this.setupMessageHandling();
     }
 
@@ -38,6 +48,15 @@ registerProcessor(
               event.data.enabled,
               event.data.amount
             );
+            break;
+          case 'triggerDecay':
+            this.decayStartTime = currentTime;
+            this.decayActive = true;
+            this.baseFeedbackAmount = event.data.baseFeedbackAmount || 0.5;
+            break;
+          case 'stopDecay':
+            this.decayActive = false;
+            this.decayStartTime = null;
             break;
         }
       };
@@ -57,24 +76,46 @@ registerProcessor(
         this.feedbackDelay.initializeBuffers(input.length);
       }
 
-      const feedbackAmount = parameters.feedbackAmount[0];
+      const baseFeedbackAmount = parameters.feedbackAmount[0];
       const delayTime = parameters.delayTime[0];
+      const decay = parameters.decay[0];
       const channelCount = Math.min(input.length, output.length);
       const frameCount = output[0].length;
 
       // Process each sample
       for (let i = 0; i < frameCount; ++i) {
+        let effectiveFeedbackAmount = baseFeedbackAmount;
+
+        // Apply decay if active
+        if (this.decayActive && this.decayStartTime !== null) {
+          const elapsedTime =
+            currentTime - this.decayStartTime + i / sampleRate;
+
+          // Extremely gradual curve
+          const delayCompensation = Math.min(5, 0.5 / delayTime); // Boost for short delays
+          const timeConstant =
+            Math.pow(decay, 5) * 1000 * delayCompensation + 0.5;
+          const decayFactor = Math.exp(-elapsedTime / timeConstant);
+          effectiveFeedbackAmount = baseFeedbackAmount * decayFactor;
+
+          // Stop decay when feedback becomes negligible
+          if (effectiveFeedbackAmount < 0.001) {
+            this.decayActive = false;
+            effectiveFeedbackAmount = 0;
+          }
+        }
+
         // Process each channel
         for (let c = 0; c < channelCount; c++) {
-          // Process feedback delay
+          // Main processing happens in FeedbackDelay's process method
           const processed = this.feedbackDelay.process(
             input[c][i],
             c,
-            feedbackAmount,
+            effectiveFeedbackAmount,
             delayTime
           );
 
-          // Direct assignment (processing handled in FeedbackDelay)
+          // Direct output assignment (already processed)
           output[c][i] = processed.outputSample;
 
           // Update buffer with feedback signal

@@ -3,7 +3,7 @@ import { DelayBuffer } from './DelayBuffer';
 
 // Minimal safety compensation - just enough to prevent sub-threshold buildup
 const SAFETY_GAIN_COMPENSATION = 0.05;
-
+const AUTO_GAIN_THRESHOLD = 0.8;
 export class FeedbackDelay {
   constructor(sampleRate) {
     this.sampleRate = sampleRate;
@@ -36,11 +36,11 @@ export class FeedbackDelay {
     });
     let outputSample = compressedFeedback;
 
-    if (this.autoGainEnabled && feedbackAmount > 0.8) {
+    if (this.autoGainEnabled && feedbackAmount > AUTO_GAIN_THRESHOLD) {
       // Safety net only for output sample:
       // minimal gain reduction to prevent sub-threshold feedback buildup
       const safetyReduction =
-        1 - (feedbackAmount - 0.8) * this.gainCompensation;
+        1 - (feedbackAmount - AUTO_GAIN_THRESHOLD) * this.gainCompensation;
       outputSample = compressedFeedback * safetyReduction;
     }
 
@@ -58,12 +58,3 @@ export class FeedbackDelay {
     this.gainCompensation = compensation;
   }
 }
-
-// const DEFAULT_GAIN_COMPENSATION = 0.954;
-// this.gainCompensation = DEFAULT_GAIN_COMPENSATION;
-
-// // Apply gain compensation only to the output (not the feedback)
-// if (this.autoGainEnabled) {
-//   const compensation = 1 - feedbackAmount * this.gainCompensation; // 1 - Math.sqrt(feedbackAmount) * this.gainCompensation;
-//   outputSample = compressedFeedback * compensation;
-// }

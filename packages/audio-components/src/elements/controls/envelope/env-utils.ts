@@ -1,6 +1,8 @@
 // env-utils.ts
 import type { EnvelopePoint } from '@repo/audiolib';
 
+const LOG_SAFETY_MIN = 0.1;
+
 /**
  * Convert linear value to logarithmic space
  */
@@ -10,7 +12,7 @@ export const linearToLogarithmic = (
 ): number => {
   const [min, max] = valueRange;
   const normalized = (linearValue - min) / (max - min);
-  const logMin = Math.log2(Math.max(0.1, min));
+  const logMin = Math.log2(Math.max(LOG_SAFETY_MIN, min));
   const logMax = Math.log2(max);
   return Math.pow(2, logMin + normalized * (logMax - logMin));
 };
@@ -62,7 +64,7 @@ export const screenYToAbsoluteValue = (
 
   if (scaling === 'logarithmic') {
     // Convert from linear UI space to logarithmic frequency space
-    const logMin = Math.log2(Math.max(0.1, min));
+    const logMin = Math.log2(Math.max(LOG_SAFETY_MIN, min));
     const logMax = Math.log2(max);
     return Math.pow(2, logMin + normalized * (logMax - logMin));
   } else {
@@ -83,9 +85,9 @@ export const absoluteValueToNormalized = (
 
   if (scaling === 'logarithmic') {
     // Convert from logarithmic frequency space to linear UI space
-    const logMin = Math.log2(Math.max(0.1, min));
+    const logMin = Math.log2(Math.max(LOG_SAFETY_MIN, min));
     const logMax = Math.log2(max);
-    const logVal = Math.log2(Math.max(0.1, value));
+    const logVal = Math.log2(Math.max(LOG_SAFETY_MIN, value));
     return Math.max(0, Math.min(1, (logVal - logMin) / (logMax - logMin)));
   } else {
     // Linear scaling (original behavior)

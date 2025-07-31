@@ -52,6 +52,8 @@ export async function preProcessAudioBuffer(
   let processed = buffer;
   let results: Partial<PreProcessResults> = {};
 
+  const PITCH_CONFIDENCE_THRESHOLD = 0.35;
+
   if (normalize?.enabled)
     processed = normalizeAudioBuffer(ctx, buffer, normalize.maxAmplitudePeak);
 
@@ -86,7 +88,7 @@ export async function preProcessAudioBuffer(
   if (tune?.autotune) {
     if (
       !results.detectedPitch?.transpositionSemitones ||
-      results.detectedPitch.confidence < 0.35
+      results.detectedPitch.confidence < PITCH_CONFIDENCE_THRESHOLD
     ) {
       console.info('Skipped autotune due to unreliable pitch detection');
     } else {
@@ -108,7 +110,7 @@ export async function preProcessAudioBuffer(
       processed = await applyHighPassFilter(processed, hpf.cutoff ?? 80); // 80Hz fallback
     } else if (
       results.detectedPitch &&
-      results.detectedPitch.confidence < 0.35
+      results.detectedPitch.confidence < PITCH_CONFIDENCE_THRESHOLD
     ) {
       const fundamental = results.detectedPitch?.fundamentalHz;
       const cutoffFreq = fundamental > 30 ? fundamental : 80; // 80Hz fallback

@@ -26,7 +26,7 @@ import {
 } from '@/nodes/params/envelopes';
 
 import { getMaxFilterFreq } from './param-defaults';
-import { KarplusEffect } from '@/nodes/effects/KarplusEffect';
+import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
 export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   readonly nodeId: NodeID;
@@ -47,7 +47,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
 
-  feedback: KarplusEffect | null;
+  feedback: HarmonicFeedback | null;
 
   // #loopEnabled = false;
   // #holdEnabled = false;
@@ -78,7 +78,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       processorOptions: options.processorOptions || {},
     });
 
-    this.feedback = new KarplusEffect(this.context);
+    this.feedback = new HarmonicFeedback(this.context);
     this.feedback.input.gain.setValueAtTime(1.5, this.now);
 
     this.#filtersEnabled = options.enableFilters ?? true;
@@ -246,6 +246,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       velocity,
       secondsFromNow,
       glideTime,
+      triggerDecay: true,
     });
 
     this.#startedTimestamp = timestamp;

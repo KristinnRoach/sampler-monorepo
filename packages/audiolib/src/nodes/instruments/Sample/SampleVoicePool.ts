@@ -14,7 +14,7 @@ export class SampleVoicePool {
   readonly nodeType = 'pool';
   #messages: MessageBus<Message>;
 
-  #voiceGainReduction = 1;
+  #gainReductionScalar = 1; // Reduces gain based on number of playing voices
 
   #allVoices: SampleVoice[];
   #loaded = new Set<NodeID>();
@@ -234,20 +234,23 @@ export class SampleVoicePool {
     }
   }
 
+  #GAIN_REDUCTION_SENSITIVITY = 0.3;
+
   #updateVoiceGains() {
     const activeCount = this.#playing.size + this.#releasing.size;
 
     if (activeCount === 0) {
-      this.#voiceGainReduction = 1;
+      this.#gainReductionScalar = 1;
       return;
     }
 
-    this.#voiceGainReduction = 1 / (1 + Math.log10(activeCount) * 0.3);
+    this.#gainReductionScalar =
+      1 / (1 + Math.log10(activeCount) * this.#GAIN_REDUCTION_SENSITIVITY);
 
     // Apply to all active voices
     [...this.#playing].forEach((voice) => {
       // skip ...this.#releasing since they are fading out
-      voice.setMasterGain(this.#voiceGainReduction);
+      voice.setMasterGain(this.#gainReductionScalar);
     });
   }
 

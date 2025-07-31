@@ -1899,7 +1899,7 @@ ${this.basestyle}
               let val = (this.value = this.elem.value);
               if (this.rconv) {
                 let x = +this.elem.value;
-                val = new Function('x', `return ${this.conv}`)(x);
+                val = new Function('x', `return ${this.rconv}`)(x);
               }
               if (this.currentLink) {
                 this.currentLink.target.setValue(val, true);
