@@ -1,10 +1,10 @@
-// SamplePlayer.ts - Cleaned Version (Step 1)
+// SamplePlayer.ts - Refactored with Composition Pattern
 
 import { getAudioContext } from '@/context';
 import { MidiController } from '@/io';
-import { Message } from '@/events';
+import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
-import { findClosestNote } from '@/utils';
+import { findClosestNote, mapToRange } from '@/utils';
 
 import {
   preProcessAudioBuffer,
@@ -22,16 +22,27 @@ import {
 } from '@/nodes/params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
-import { LibInstrument } from '@/nodes/instruments/LibInstrument';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 import { BusEffectName } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
+import { localStore } from '@/storage/local';
+import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
+import { createNodeId, NodeID } from '@/nodes/node-store';
+import { createMessageBus, MessageBus } from '@/events';
 
-export class SamplePlayer extends LibInstrument {
-  // REMOVED: Redundant nodeId declaration - inherited from LibInstrument
+export class SamplePlayer implements ILibInstrumentNode {
+  public readonly nodeId: NodeID;
+  readonly nodeType = 'sample-player' as const;
+  readonly context: AudioContext;
+
+  #messages: MessageBus<Message>;
+  #midiController: MidiController | null = null;
+
+  #connections = new Set<ILibInstrumentNode | AudioNode>();
+  #incoming = new Set<ILibInstrumentNode>();
 
   #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
@@ -60,6 +71,7 @@ export class SamplePlayer extends LibInstrument {
   randomizeVelocity = false;
 
   voicePool: SampleVoicePool;
+  public outBus: InstrumentMasterBus;
 
   constructor(
     context: AudioContext,
@@ -67,7 +79,14 @@ export class SamplePlayer extends LibInstrument {
     audioBuffer?: AudioBuffer,
     midiController?: MidiController
   ) {
-    super('sample-player', context, polyphony, audioBuffer, midiController);
+    this.nodeId = createNodeId('sample-player');
+    this.context = context;
+    this.#messages = createMessageBus<Message>(this.nodeId);
+
+    // Initialize MIDI controller if provided
+    this.#midiController = midiController || null;
+
+    this.outBus = new InstrumentMasterBus();
 
     // Initialize voice pool and connect audiochain
     this.voicePool = new SampleVoicePool(
@@ -103,8 +122,135 @@ export class SamplePlayer extends LibInstrument {
     }
   }
 
+  // === MESSAGING ===
+
+  public onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  public sendUpstreamMessage(type: string, data: any): this {
+    this.#messages.sendMessage(type, data);
+    return this;
+  }
+
+  // === CONNECTIONS ===
+
+  public connect(destination: ILibInstrumentNode | AudioNode): void {
+    const target = 'input' in destination ? destination.input : destination;
+    this.#masterOut.connect(target as AudioNode);
+
+    // Track the connection
+    this.#connections.add(destination);
+
+    // If destination is also a LibAudioNode, let it track incoming
+    if ('nodeId' in destination) {
+      (destination as any).addIncoming?.(this);
+    }
+  }
+
+  public disconnect(destination?: ILibInstrumentNode | AudioNode): void {
+    if (destination) {
+      const target = 'input' in destination ? destination.input : destination;
+      this.#masterOut.disconnect(target as AudioNode);
+      this.#connections.delete(destination);
+
+      if ('nodeId' in destination) {
+        (destination as any).removeIncoming?.(this);
+      }
+    } else {
+      // Disconnect all
+      this.#masterOut.disconnect();
+      this.#connections.clear();
+    }
+  }
+
+  addIncoming(source: ILibInstrumentNode): void {
+    this.#incoming.add(source);
+  }
+
+  removeIncoming(source: ILibInstrumentNode): void {
+    this.#incoming.delete(source);
+  }
+
+  get connections() {
+    return {
+      outgoing: Array.from(this.#connections) as (
+        | ILibAudioNode
+        | AudioNode
+        | AudioWorkletNode
+      )[],
+      incoming: Array.from(this.#incoming) as ILibAudioNode[],
+    };
+  }
+
+  // === PARAMS ===
+
+  setParam(name: string, value: number, timestamp = this.now): void {
+    // Delegate to existing parameter methods
+    this.setParameterValue(name, value);
+  }
+
+  getParam(name: string): AudioParam | null {
+    switch (name) {
+      case 'loopStart':
+        return this.#macroLoopStart.audioParam;
+      case 'loopEnd':
+        return this.#macroLoopEnd.audioParam;
+      default:
+        console.warn(`Parameter '${name}' not found on SamplePlayer`);
+        return null;
+    }
+  }
+
+  // === CONVENIENCE GETTERS ===
+
+  get audioNode() {
+    return this.#masterOut;
+  }
+
+  get input() {
+    return this.outBus.input;
+  }
+
+  get output() {
+    return this.#masterOut;
+  }
+
+  get now(): number {
+    return this.context.currentTime;
+  }
+
+  get initialized() {
+    return this.#isReady;
+  }
+
+  /**
+   * Helper method to store parameter values in local storage
+   */
+  protected storeParamValue(paramId: string, value: any): void {
+    const key = this.getLocalStorageKey(paramId);
+    localStore.saveValue(key, value);
+  }
+
+  /**
+   * Helper method to retrieve parameter values from local storage
+   */
+  protected getStoredParamValue<T extends number | string>(
+    paramId: string,
+    defaultValue: T
+  ): T {
+    const key = this.getLocalStorageKey(paramId);
+    return localStore.getValue(key, defaultValue);
+  }
+
+  /**
+   * Creates a consistent local storage key for parameters
+   */
+  protected getLocalStorageKey(paramName: string): string {
+    return `${paramName}-${this.nodeId}`;
+  }
+
   /* === MESSAGES === */
-  // REMOVED: Redundant onMessage and sendUpstreamMessage - inherited from LibInstrument
 
   #setupMessageHandling(): this {
     this.voicePool.onMessage('sample:loaded', (msg: Message) => {
@@ -115,7 +261,7 @@ export class SamplePlayer extends LibInstrument {
     });
 
     // Forward voice pool messages upstream
-    this.messages.forwardFrom(this.voicePool, [
+    this.#messages.forwardFrom(this.voicePool, [
       'voice:started',
       'voice:stopped',
       'voice:releasing',
@@ -162,13 +308,10 @@ export class SamplePlayer extends LibInstrument {
   #connectVoicesToMacros(): this {
     const voices = this.voicePool.allVoices;
 
-    this.#macroLoopStart.audioParam.setValueAtTime(
-      0,
-      this.audioContext.currentTime
-    );
+    this.#macroLoopStart.audioParam.setValueAtTime(0, this.context.currentTime);
     this.#macroLoopEnd.audioParam.setValueAtTime(
       this.#bufferDuration,
-      this.audioContext.currentTime
+      this.context.currentTime
     );
 
     voices.forEach((voice, index) => {
@@ -192,13 +335,10 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    this.#macroLoopStart.audioParam.setValueAtTime(
-      0,
-      this.audioContext.currentTime
-    );
+    this.#macroLoopStart.audioParam.setValueAtTime(0, this.context.currentTime);
     this.#macroLoopEnd.audioParam.setValueAtTime(
       bufferDuration,
-      this.audioContext.currentTime
+      this.context.currentTime
     );
     return this;
   }
@@ -206,10 +346,10 @@ export class SamplePlayer extends LibInstrument {
   /* === LFOs === */
 
   #setupLFOs() {
-    this.#gainLFO = new LFO(this.audioContext);
+    this.#gainLFO = new LFO(this.context);
     this.#gainLFO.setWaveform('sine');
 
-    this.#pitchLFO = new LFO(this.audioContext);
+    this.#pitchLFO = new LFO(this.context);
     const wobbleWave = this.#pitchLFO.getPitchWobbleWaveform();
     this.#pitchLFO.setWaveform(wobbleWave);
 
@@ -243,13 +383,13 @@ export class SamplePlayer extends LibInstrument {
     }
 
     if (
-      buffer.sampleRate !== this.audioContext.sampleRate ||
-      (modSampleRate && this.audioContext.sampleRate !== modSampleRate)
+      buffer.sampleRate !== this.context.sampleRate ||
+      (modSampleRate && this.context.sampleRate !== modSampleRate)
     ) {
       console.warn(
         `sample rate mismatch, 
         buffer rate: ${buffer.sampleRate}, 
-        context rate: ${this.audioContext.sampleRate}
+        context rate: ${this.context.sampleRate}
         requested rate: ${modSampleRate}`
       );
     }
@@ -263,7 +403,7 @@ export class SamplePlayer extends LibInstrument {
 
     if (this.#preprocessAudio) {
       processed = await preProcessAudioBuffer(
-        this.audioContext,
+        this.context,
         buffer,
         preprocessOptions
       );
@@ -377,7 +517,8 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  // REMOVED: Redundant panic method - inherited from LibInstrument
+  // Common functionality for all instruments
+  panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
 
   /* === SCALE SETTINGS === */
 
@@ -560,7 +701,7 @@ export class SamplePlayer extends LibInstrument {
   }
 
   scrollLoopPoints(loopStart: number, loopEnd: number) {
-    const timestamp = this.audioContext.currentTime;
+    const timestamp = this.context.currentTime;
     this.#macroLoopStart.setValue(loopStart, timestamp);
     this.#macroLoopEnd.setValue(loopEnd, timestamp);
     return this;
@@ -786,8 +927,11 @@ export class SamplePlayer extends LibInstrument {
 
   setFeedbackDecay(value: number) {
     this.outBus.setFeedbackDecay(value);
+
+    // Useable range for polyphonic feedback is smaller, mapping:
+    const reducedForPoly = mapToRange(value, 0, 1, 0, 0.75);
     this.voicePool.applyToAllVoices((voice) => {
-      voice.feedback?.setDecay(value);
+      voice.feedback?.setDecay(reducedForPoly);
     });
   }
 
@@ -851,26 +995,52 @@ export class SamplePlayer extends LibInstrument {
   /* === I/O === */
 
   async initMidiController(): Promise<boolean> {
-    if (this.midiController?.isInitialized) {
+    if (this.#midiController?.isInitialized) {
       return true;
     }
 
-    if (!this.midiController) {
-      this.midiController = new MidiController();
+    if (!this.#midiController) {
+      this.#midiController = new MidiController();
     }
 
     assert(
-      this.midiController,
+      this.#midiController,
       `SamplePlayer: Failed to create MIDI controller`
     );
 
-    const result = await tryCatch(() => this.midiController!.initialize());
+    const result = await tryCatch(() => this.#midiController!.initialize());
     assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
     return result.data;
   }
 
   setMidiController(midiController: MidiController): this {
-    this.midiController = midiController;
+    this.#midiController = midiController;
+    return this;
+  }
+
+  // MIDI input
+  async enableMIDI(
+    midiController?: MidiController,
+    channel: number = 0
+  ): Promise<this> {
+    if (!midiController) {
+      midiController = new MidiController();
+      await midiController.initialize();
+    }
+
+    if (midiController.isInitialized) {
+      this.#midiController = midiController;
+      midiController.connectInstrument(this, channel);
+    }
+    return this;
+  }
+
+  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+    const controller = midiController || this.#midiController;
+    controller?.disconnectInstrument(channel);
+    if (controller === this.#midiController) {
+      this.#midiController = null;
+    }
     return this;
   }
 
@@ -884,12 +1054,6 @@ export class SamplePlayer extends LibInstrument {
     return this.outBus;
   }
 
-  get context() {
-    return this.audioContext;
-  }
-
-  // REMOVED: Redundant now getter - inherited from LibInstrument
-
   get sampleDuration(): number {
     return this.#bufferDuration;
   }
@@ -899,7 +1063,7 @@ export class SamplePlayer extends LibInstrument {
   }
 
   set volume(value: number) {
-    this.#masterOut.gain.setValueAtTime(value, this.audioContext.currentTime);
+    this.#masterOut.gain.setValueAtTime(value, this.context.currentTime);
   }
 
   get loopEnabled(): boolean {
@@ -926,10 +1090,6 @@ export class SamplePlayer extends LibInstrument {
     return this.#macroLoopEnd.getValue();
   }
 
-  get initialized() {
-    return this.#isReady;
-  }
-
   get isLoaded() {
     return this.#isLoaded;
   }
@@ -937,8 +1097,6 @@ export class SamplePlayer extends LibInstrument {
   get audiobuffer() {
     return this.#audiobuffer;
   }
-
-  // REMOVED: Redundant connect method - inherited from LibInstrument
 
   /* === CLEANUP === */
 
@@ -964,6 +1122,9 @@ export class SamplePlayer extends LibInstrument {
       this.#gainLFO?.dispose();
       this.#pitchLFO?.dispose();
 
+      this.disconnect();
+      this.disableMIDI();
+
       // Reset state variables
       this.#bufferDuration = 0;
       this.#isReady = false;
@@ -971,9 +1132,6 @@ export class SamplePlayer extends LibInstrument {
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
       this.#loopEnabled = false;
-
-      // Call parent dispose
-      super.dispose();
     } catch (error) {
       console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }

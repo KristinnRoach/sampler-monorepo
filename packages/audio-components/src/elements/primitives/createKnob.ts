@@ -1,4 +1,4 @@
-// knobCreator.ts
+// createKnob.ts
 import { defineElement } from '../elementRegistry.ts';
 import { KnobElement, type KnobChangeEventDetail } from './KnobElement.ts';
 

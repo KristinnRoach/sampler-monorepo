@@ -23,7 +23,7 @@ registerProcessor(
         },
         {
           name: 'decay',
-          defaultValue: 0.0,
+          defaultValue: 1,
           minValue: 0,
           maxValue: 1,
           automationRate: 'k-rate',

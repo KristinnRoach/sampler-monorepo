@@ -1,8 +1,15 @@
 import { LibNode, NodeType } from './LibNode';
 import { createNodeId, NodeID, deleteNodeId } from './node-store';
+import { MidiController } from '@/io';
+import {
+  MessageBus,
+  MessageHandler,
+  Message,
+  createMessageBus,
+} from '@/events';
+import { InstrumentMasterBus } from './master/InstrumentMasterBus';
 
 /** Adapter interface for web native and Audiolib's custom audio nodes */
-
 export interface ILibAudioNode extends LibNode {
   // Connection interface
   connect(destination: ILibAudioNode | AudioNode): void;
@@ -11,6 +18,9 @@ export interface ILibAudioNode extends LibNode {
   // Parameter interface
   setParam(name: string, value: number, time?: number): void;
   getParam(name: string): AudioParam | null;
+
+  // Messaging
+  onMessage?(type: string, handler: MessageHandler<Message>): () => void;
 
   // Convenience getters
   readonly now: number;
@@ -22,8 +32,20 @@ export interface ILibAudioNode extends LibNode {
   };
 
   // Input/output access
-  readonly input: AudioNode;
+  readonly input?: AudioNode;
   readonly output: AudioNode;
+}
+
+/** Extends ILibAudioNode with core Instrument features */
+export interface ILibInstrumentNode extends ILibAudioNode {
+  // Core instrument capabilities
+  play(midiNote: MidiValue, velocity?: number): MidiValue | null;
+  release(note: MidiValue): this;
+  releaseAll(fadeOut_sec?: number): this;
+
+  enableMIDI(controller: MidiController): Promise<this>;
+
+  outBus?: InstrumentMasterBus;
 }
 
 export interface AdapterOptions {
@@ -33,6 +55,7 @@ export interface AdapterOptions {
 export class LibAudioNode implements ILibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
+  #messages: MessageBus<Message>;
   #initialized = false;
 
   #audioNode: AudioNode | AudioWorkletNode;
@@ -51,6 +74,8 @@ export class LibAudioNode implements ILibAudioNode {
   ) {
     this.nodeType = nodeType;
     this.nodeId = createNodeId(nodeType);
+    this.#messages = createMessageBus<Message>(this.nodeId);
+
     this.#audioNode = node;
 
     if (options.createIOGains) {
@@ -64,6 +89,17 @@ export class LibAudioNode implements ILibAudioNode {
     }
 
     this.#initialized = true;
+  }
+
+  // === MESSAGING ===
+
+  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+    return this.#messages.onMessage(type, handler);
+  }
+
+  sendUpstreamMessage(type: string, data: any): this {
+    this.#messages.sendMessage(type, data);
+    return this;
   }
 
   // === CONNECTIONS ===

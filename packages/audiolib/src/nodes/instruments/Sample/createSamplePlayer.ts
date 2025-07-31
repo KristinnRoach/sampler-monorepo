@@ -5,9 +5,9 @@ import { SamplePlayer } from './SamplePlayer';
 import { assert } from '@/utils';
 import { MidiController } from '@/io';
 
-import { initProcessors } from '../../../worklets';
-import { initIdb } from '../../../storage/idb';
-import { fetchInitSampleAsAudioBuffer } from '../../../storage/assets/asset-utils';
+import { initProcessors } from '@/worklets';
+import { initIdb } from '@/storage/idb';
+import { fetchInitSampleAsAudioBuffer } from '@/storage/assets/asset-utils';
 
 /**
  * Creates a new SamplePlayer instance
@@ -25,22 +25,24 @@ export async function createSamplePlayer(
 ): Promise<SamplePlayer> {
   assert(context, 'Audio context is not available');
 
-  // Initialize required worklets
-  await initProcessors(context);
+  await initProcessors(context); // Ensure worklets are registered
+  
+  // Get buffer - only initialize IndexedDB if no buffer is provided
+  let buffer: AudioBuffer;
+  if (audioBuffer) {
+    buffer = audioBuffer;
+  } else {
+    await initIdb(); // Only initialize IndexedDB when needed
+    buffer = await fetchInitSampleAsAudioBuffer();
+  }
 
-  // Initialize IndexedDB
-  await initIdb();
-
-  // Get default buffer if none provided
-  const buffer = audioBuffer || (await fetchInitSampleAsAudioBuffer());
-
-  // Create the sample player
   const samplePlayer = new SamplePlayer(
     context,
     polyphony,
     buffer,
     midiController
   );
+
   assert(samplePlayer, 'Failed to create SamplePlayer');
 
   return samplePlayer;

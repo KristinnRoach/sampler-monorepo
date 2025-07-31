@@ -19,7 +19,9 @@
     },
     "declaration": true,
     "declarationDir": "./dist",
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "composite": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [{ "path": "../audiolib" }]
 }
