@@ -864,8 +864,13 @@ export class SamplePlayer extends LibInstrument {
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
-      const monoFx = this.outBus.getEffect('feedback') as HarmonicFeedback;
+      const monoFx = this.outBus.getEffect('feedback');
+      if (!(monoFx instanceof HarmonicFeedback)) {
+        console.error('Expected feedback to be HarmonicFeedback instance');
+        return;
+      }
       const currAmount = monoFx.currAmount;
+
       this.outBus.setFeedbackAmount(0);
 
       this.voicePool.applyToAllVoices((voice) => {
@@ -976,7 +981,7 @@ export class SamplePlayer extends LibInstrument {
     return this.#audiobuffer;
   }
 
-  // Expose inherited connect method from LibInstrument
+  // Expose inherited connect method from LibInstrument // ?! Redundant?
   connect(destination: Destination) {
     return super.connect(destination);
   }

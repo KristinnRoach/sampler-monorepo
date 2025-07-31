@@ -1,6 +1,6 @@
 import van from '@repo/vanjs-core';
 import type { State } from '@repo/vanjs-core';
-import { when } from '@/utils/vanjs-utils';
+import { when } from '@/shared/utils/vanjs-utils';
 
 const { div, span, input, label } = van.tags;
 
