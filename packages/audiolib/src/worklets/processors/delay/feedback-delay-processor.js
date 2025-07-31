@@ -9,7 +9,7 @@ registerProcessor(
       return [
         {
           name: 'feedbackAmount',
-          defaultValue: 0.8,
+          defaultValue: 0.5,
           minValue: 0,
           maxValue: 1,
           automationRate: 'k-rate',
