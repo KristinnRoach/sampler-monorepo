@@ -461,6 +461,17 @@ class RandomNoiseProcessor extends AudioWorkletProcessor {
   }
 }
 registerProcessor("random-noise-processor", RandomNoiseProcessor);
+const compressSingleSample = (input, threshold = 0.75, ratio = 4, limiter = { enabled: true, outputRange: { min: -1, max: 1 } }) => {
+  const { min, max } = limiter.outputRange;
+  let x = input;
+  if (Math.abs(x) > threshold) {
+    x = Math.sign(x) * (threshold + (Math.abs(x) - threshold) / ratio);
+  }
+  if (limiter.enabled) {
+    x = Math.max(min, Math.min(max, x));
+  }
+  return x;
+};
 class DelayBuffer {
   constructor(maxDelaySamples) {
     this.buffer = new Array(maxDelaySamples).fill(0);
@@ -478,14 +489,15 @@ class DelayBuffer {
     this.readPtr = (this.writePtr - delaySamples + this.buffer.length) % this.buffer.length;
   }
 }
-const DEFAULT_GAIN_COMPENSATION = 0.954;
+const SAFETY_GAIN_COMPENSATION = 0.05;
+const AUTO_GAIN_THRESHOLD = 0.8;
 class FeedbackDelay {
   constructor(sampleRate2) {
     this.sampleRate = sampleRate2;
     this.buffers = [];
     this.initialized = false;
     this.autoGainEnabled = true;
-    this.gainCompensation = DEFAULT_GAIN_COMPENSATION;
+    this.gainCompensation = SAFETY_GAIN_COMPENSATION;
   }
   initializeBuffers(channelCount) {
     this.buffers = [];
@@ -501,19 +513,24 @@ class FeedbackDelay {
     const delaySamples = Math.floor(this.sampleRate * delayTime);
     const delayedSample = buffer.read();
     const feedbackSample = feedbackAmount * delayedSample + inputSample;
-    let outputSample = feedbackSample;
-    if (this.autoGainEnabled) {
-      const compensation = 1 - feedbackAmount * this.gainCompensation;
-      outputSample = feedbackSample * compensation;
+    const compressedFeedback = compressSingleSample(feedbackSample, 0.75, 3, {
+      enabled: true,
+      // Hard limiter enabled
+      outputRange: { min: -0.999, max: 0.999 }
+    });
+    let outputSample = compressedFeedback;
+    if (this.autoGainEnabled && feedbackAmount > AUTO_GAIN_THRESHOLD) {
+      const safetyReduction = 1 - (feedbackAmount - AUTO_GAIN_THRESHOLD) * this.gainCompensation;
+      outputSample = compressedFeedback * safetyReduction;
     }
-    return { outputSample, feedbackSample, delaySamples };
+    return { outputSample, feedbackSample: compressedFeedback, delaySamples };
   }
   updateBuffer(channelIndex, sample, delaySamples) {
     const buffer = this.buffers[channelIndex] || this.buffers[0];
     buffer.write(sample);
     buffer.updatePointers(delaySamples);
   }
-  setAutoGain(enabled, compensation = DEFAULT_GAIN_COMPENSATION) {
+  setAutoGain(enabled, compensation = SAFETY_GAIN_COMPENSATION) {
     this.autoGainEnabled = enabled;
     this.gainCompensation = compensation;
   }
@@ -533,9 +550,16 @@ registerProcessor(
         {
           name: "delayTime",
           defaultValue: 0.5,
-          minValue: 4774632e-10,
-          // C7 in seconds
+          minValue: 12656238799684143e-20,
+          // <- B natural in seconds (highest note period that works)
           maxValue: 4,
+          automationRate: "k-rate"
+        },
+        {
+          name: "decay",
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
           automationRate: "k-rate"
         }
       ];
@@ -543,6 +567,9 @@ registerProcessor(
     constructor() {
       super();
       this.feedbackDelay = new FeedbackDelay(sampleRate);
+      this.decayStartTime = null;
+      this.decayActive = false;
+      this.baseFeedbackAmount = 0.5;
       this.setupMessageHandling();
     }
     setupMessageHandling() {
@@ -554,6 +581,15 @@ registerProcessor(
               event.data.amount
             );
             break;
+          case "triggerDecay":
+            this.decayStartTime = currentTime;
+            this.decayActive = true;
+            this.baseFeedbackAmount = event.data.baseFeedbackAmount || 0.5;
+            break;
+          case "stopDecay":
+            this.decayActive = false;
+            this.decayStartTime = null;
+            break;
         }
       };
     }
@@ -564,25 +600,36 @@ registerProcessor(
       if (!this.feedbackDelay.initialized || this.feedbackDelay.buffers.length !== input.length) {
         this.feedbackDelay.initializeBuffers(input.length);
       }
-      const feedbackAmount = parameters.feedbackAmount[0];
+      const baseFeedbackAmount = parameters.feedbackAmount[0];
       const delayTime = parameters.delayTime[0];
-      for (let i = 0; i < output[0].length; ++i) {
-        for (let c = 0; c < Math.min(input.length, output.length); c++) {
-          const delayResult = this.feedbackDelay.process(
+      const decay = parameters.decay[0];
+      const channelCount = Math.min(input.length, output.length);
+      const frameCount = output[0].length;
+      for (let i = 0; i < frameCount; ++i) {
+        let effectiveFeedbackAmount = baseFeedbackAmount;
+        if (this.decayActive && this.decayStartTime !== null) {
+          const elapsedTime = currentTime - this.decayStartTime + i / sampleRate;
+          const delayCompensation = Math.min(5, 0.5 / delayTime);
+          const timeConstant = Math.pow(decay, 5) * 1e3 * delayCompensation + 0.5;
+          const decayFactor = Math.exp(-elapsedTime / timeConstant);
+          effectiveFeedbackAmount = baseFeedbackAmount * decayFactor;
+          if (effectiveFeedbackAmount < 1e-3) {
+            this.decayActive = false;
+            effectiveFeedbackAmount = 0;
+          }
+        }
+        for (let c = 0; c < channelCount; c++) {
+          const processed = this.feedbackDelay.process(
             input[c][i],
             c,
-            feedbackAmount,
+            effectiveFeedbackAmount,
             delayTime
           );
-          const clamped = Math.max(
-            -0.999,
-            Math.min(0.999, delayResult.outputSample)
-          );
-          output[c][i] = clamped;
+          output[c][i] = processed.outputSample;
           this.feedbackDelay.updateBuffer(
             c,
-            delayResult.feedbackSample,
-            delayResult.delaySamples
+            processed.feedbackSample,
+            processed.delaySamples
           );
         }
       }
