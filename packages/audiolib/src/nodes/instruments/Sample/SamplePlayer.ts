@@ -1,8 +1,8 @@
-// SamplePlayer.ts
+// SamplePlayer.ts - Cleaned Version (Step 1)
 
 import { getAudioContext } from '@/context';
 import { MidiController } from '@/io';
-import { Message, MessageHandler, MessageBus } from '@/events';
+import { Message } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
 
@@ -22,22 +22,16 @@ import {
 } from '@/nodes/params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
-
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
-import { Destination } from '@/nodes/LibNode';
-import { NodeID } from '@/nodes/node-store';
-import {
-  InstrumentMasterBus,
-  BusEffectName,
-} from '@/nodes/master/InstrumentMasterBus';
+import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
+import { BusEffectName } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
 export class SamplePlayer extends LibInstrument {
-  // Explicitly declare inherited public properties for TypeScript visibility
-  declare readonly nodeId: NodeID;
+  // REMOVED: Redundant nodeId declaration - inherited from LibInstrument
 
   #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
@@ -75,7 +69,7 @@ export class SamplePlayer extends LibInstrument {
   ) {
     super('sample-player', context, polyphony, audioBuffer, midiController);
 
-    // Initialize voice pool and  connect audiochain
+    // Initialize voice pool and connect audiochain
     this.voicePool = new SampleVoicePool(
       context,
       polyphony,
@@ -86,8 +80,6 @@ export class SamplePlayer extends LibInstrument {
     this.#masterOut = new GainNode(context, { gain: 0.5 });
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(context.destination);
-
-    // this.outBus.debugRouting(); // uncomment for debugging
 
     // Setup params
     this.#macroLoopStart = new MacroParam(
@@ -101,9 +93,7 @@ export class SamplePlayer extends LibInstrument {
     );
 
     this.#connectVoicesToMacros();
-
     this.#setupLFOs();
-
     this.#setupMessageHandling();
 
     this.#isReady = true;
@@ -114,22 +104,13 @@ export class SamplePlayer extends LibInstrument {
   }
 
   /* === MESSAGES === */
-
-  onMessage(type: string, handler: MessageHandler<Message>): () => void {
-    return this.messages.onMessage(type, handler);
-  }
-
-  protected sendUpstreamMessage(type: string, data: any) {
-    this.messages.sendMessage(type, data);
-    return this;
-  }
+  // REMOVED: Redundant onMessage and sendUpstreamMessage - inherited from LibInstrument
 
   #setupMessageHandling(): this {
     this.voicePool.onMessage('sample:loaded', (msg: Message) => {
       this.#envelopes.forEach((env) => {
         env.setDurationSeconds(msg.durationSeconds);
       });
-
       this.#isLoaded = true;
     });
 
@@ -139,7 +120,6 @@ export class SamplePlayer extends LibInstrument {
       'voice:stopped',
       'voice:releasing',
       'sample:loaded',
-
       'amp-env:trigger',
       'amp-env:trigger:loop',
       'amp-env:release',
@@ -161,7 +141,6 @@ export class SamplePlayer extends LibInstrument {
         return this.#macroLoopStart.audioParam;
       case 'loopEnd':
         return this.#macroLoopEnd.audioParam;
-
       default:
         const unreachable: never = paramName;
         throw new Error(`Unknown macro parameter: ${unreachable}`);
@@ -174,7 +153,6 @@ export class SamplePlayer extends LibInstrument {
         return this.#macroLoopStart;
       case 'loopEnd':
         return this.#macroLoopEnd;
-
       default:
         const unreachable: never = paramName;
         throw new Error(`Unknown macro parameter: ${unreachable}`);
@@ -184,10 +162,13 @@ export class SamplePlayer extends LibInstrument {
   #connectVoicesToMacros(): this {
     const voices = this.voicePool.allVoices;
 
-    this.#macroLoopStart.audioParam.setValueAtTime(0, this.now);
+    this.#macroLoopStart.audioParam.setValueAtTime(
+      0,
+      this.audioContext.currentTime
+    );
     this.#macroLoopEnd.audioParam.setValueAtTime(
       this.#bufferDuration,
-      this.now
+      this.audioContext.currentTime
     );
 
     voices.forEach((voice, index) => {
@@ -211,26 +192,30 @@ export class SamplePlayer extends LibInstrument {
   }
 
   #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    this.#macroLoopStart.audioParam.setValueAtTime(0, this.now);
-    this.#macroLoopEnd.audioParam.setValueAtTime(bufferDuration, this.now);
-    // ? macroLoopStart.setScale(this.#scale)
+    this.#macroLoopStart.audioParam.setValueAtTime(
+      0,
+      this.audioContext.currentTime
+    );
+    this.#macroLoopEnd.audioParam.setValueAtTime(
+      bufferDuration,
+      this.audioContext.currentTime
+    );
     return this;
   }
 
   /* === LFOs === */
 
   #setupLFOs() {
-    this.#gainLFO = new LFO(this.context);
+    this.#gainLFO = new LFO(this.audioContext);
     this.#gainLFO.setWaveform('sine');
 
-    this.#pitchLFO = new LFO(this.context);
+    this.#pitchLFO = new LFO(this.audioContext);
     const wobbleWave = this.#pitchLFO.getPitchWobbleWaveform();
     this.#pitchLFO.setWaveform(wobbleWave);
 
-    // Connections // Todo: use detune pitch separate param (possibly a macro)
+    // Connections
     this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
     this.#gainLFO.connect(this.outBus.input.gain);
-
     this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
   }
 
@@ -265,13 +250,12 @@ export class SamplePlayer extends LibInstrument {
         `sample rate mismatch, 
         buffer rate: ${buffer.sampleRate}, 
         context rate: ${this.audioContext.sampleRate}
-        requested rate: ${modSampleRate}
-        `
+        requested rate: ${modSampleRate}`
       );
     }
 
     this.releaseAll(0);
-    this.voicePool.transposeSemitones = 0; // or stored val
+    this.voicePool.transposeSemitones = 0;
     this.#isLoaded = false;
     this.#audiobuffer = null;
 
@@ -279,7 +263,7 @@ export class SamplePlayer extends LibInstrument {
 
     if (this.#preprocessAudio) {
       processed = await preProcessAudioBuffer(
-        this.context,
+        this.audioContext,
         buffer,
         preprocessOptions
       );
@@ -291,9 +275,7 @@ export class SamplePlayer extends LibInstrument {
     }
 
     this.voicePool.setBuffer(buffer, this.#zeroCrossings);
-
     this.#bufferDuration = buffer.duration;
-
     this.#resetMacros(buffer.duration);
 
     const defaultScaleOptions = {
@@ -301,13 +283,11 @@ export class SamplePlayer extends LibInstrument {
       scale: [0],
       lowestOctave: 0,
       highestOctave: 6,
-      tuningOffset: 0, // not needed since preprocessor handles re-pitching the samples?
-      // All time params updated to seconds, normalizing logic can be removed
+      tuningOffset: 0,
       normalize: false as NormalizeOptions | false,
     };
 
     this.setScale(defaultScaleOptions);
-
     this.#audiobuffer = buffer;
 
     return buffer;
@@ -315,7 +295,6 @@ export class SamplePlayer extends LibInstrument {
 
   setTransposition = (semitones: number) => {
     this.voicePool.transposeSemitones = semitones;
-
     console.info(`transposing by ${semitones} semitones`);
     this.sendUpstreamMessage('sample:auto-transpose:success', {
       transposedBy: semitones,
@@ -325,7 +304,6 @@ export class SamplePlayer extends LibInstrument {
   async detectPitch(buffer: AudioBuffer) {
     const pitchSource = await detectSinglePitchAC(buffer);
     const targetNoteInfo = findClosestNote(pitchSource.frequency);
-
     const midiFloat = 69 + 12 * Math.log2(pitchSource.frequency / 440);
     const playbackRateMultiplier =
       targetNoteInfo.frequency / pitchSource.frequency;
@@ -358,7 +336,6 @@ export class SamplePlayer extends LibInstrument {
     // Wrap to nearest octave (-6 to +6 semitones)
     while (transposeSemitones > 6) transposeSemitones -= 12;
     while (transposeSemitones < -6) transposeSemitones += 12;
-
     return transposeSemitones;
   }
 
@@ -388,10 +365,9 @@ export class SamplePlayer extends LibInstrument {
   }
 
   release(midiNote: MidiValue): this {
-    if (this.holdEnabled || this.#holdLocked) return this; // one-shot mode
+    if (this.holdEnabled || this.#holdLocked) return this;
 
     this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
-
     this.sendUpstreamMessage('note:off', { midiNote });
     return this;
   }
@@ -401,10 +377,7 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
-  panic = (fadeOut_sec?: number) => {
-    this.releaseAll(fadeOut_sec);
-    return this;
-  };
+  // REMOVED: Redundant panic method - inherited from LibInstrument
 
   /* === SCALE SETTINGS === */
 
@@ -416,7 +389,6 @@ export class SamplePlayer extends LibInstrument {
     lowestOctave: number;
     normalize: NormalizeOptions | false;
   }) {
-    // Todo: rethink zero-snapping, since the absolute zero-crossings depend on BOTH loopStart and loopEnd
     this.#macroLoopStart.setScale({
       snapToZeroCrossings: this.#zeroCrossings,
       ...options,
@@ -425,9 +397,6 @@ export class SamplePlayer extends LibInstrument {
       snapToZeroCrossings: this.#zeroCrossings,
       ...options,
     });
-
-    // Note: MacroParam's setScale returns the periods,
-    // in case it is helpful to cache them here later
     return this;
   }
 
@@ -459,13 +428,11 @@ export class SamplePlayer extends LibInstrument {
 
   setLoopRampDuration(seconds: number): this {
     this.storeParamValue('loopRampDuration', seconds);
-    // ? todo: is this enough ?
     return this;
   }
 
   setGlideTime(seconds: number): this {
     this.storeParamValue('glideTime', seconds);
-    // this.#glideTime = seconds;
     return this;
   }
 
@@ -473,7 +440,6 @@ export class SamplePlayer extends LibInstrument {
     if (this.#loopEnabled === enabled) return this;
 
     // if loop is locked (ON), turning it off is disabled but turning it on should work
-    // (so it continues to be on when lock is released)
     if (this.#loopLocked && !enabled) return this;
 
     const voices = this.voicePool.allVoices;
@@ -481,7 +447,6 @@ export class SamplePlayer extends LibInstrument {
     this.#loopEnabled = enabled;
 
     this.sendUpstreamMessage('loop:enabled', { enabled });
-
     return this;
   }
 
@@ -489,7 +454,6 @@ export class SamplePlayer extends LibInstrument {
     if (this.#loopLocked === locked) return this;
 
     this.#loopLocked = locked;
-
     this.setLoopEnabled(locked);
     this.sendUpstreamMessage('loop:locked', { locked });
     return this;
@@ -497,12 +461,11 @@ export class SamplePlayer extends LibInstrument {
 
   setHoldEnabled(enabled: boolean) {
     if (this.#holdEnabled === enabled) return this;
-    // if hold is locked (ON), turning it off is disabled but turning it on should work
     if (this.#holdLocked && !enabled) return this;
+
     this.#holdEnabled = enabled;
     if (!enabled) this.releaseAll(this.getReleaseTime());
     this.sendUpstreamMessage('hold:enabled', { enabled });
-
     return this;
   }
 
@@ -557,7 +520,7 @@ export class SamplePlayer extends LibInstrument {
 
     // Check buffer boundaries
     if (this.isLoaded && loopEndSeconds >= this.#bufferDuration) {
-      loopEndSeconds = this.#bufferDuration - 0.001; // standardize sfae offset constant
+      loopEndSeconds = this.#bufferDuration - 0.001;
     }
 
     const RAMP_SENSITIVITY = 1;
@@ -597,7 +560,7 @@ export class SamplePlayer extends LibInstrument {
   }
 
   scrollLoopPoints(loopStart: number, loopEnd: number) {
-    const timestamp = this.now;
+    const timestamp = this.audioContext.currentTime;
     this.#macroLoopStart.setValue(loopStart, timestamp);
     this.#macroLoopEnd.setValue(loopEnd, timestamp);
     return this;
@@ -734,7 +697,6 @@ export class SamplePlayer extends LibInstrument {
   };
 
   getEnvelope(envType: EnvelopeType): CustomEnvelope {
-    // Return the first voice's envelope as the "master" envelope
     const firstVoice = this.voicePool.allVoices[0];
     if (!firstVoice) throw new Error('No voices available in voice pool');
 
@@ -818,14 +780,12 @@ export class SamplePlayer extends LibInstrument {
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
   setHpfCutoff = (hz: number) => this.outBus.setHpfCutoff(hz);
 
-  /* Macro control for reverb send and various other params */
   setReverbAmount = (amount: number) => {
     this.outBus.setReverbAmount(amount);
   };
 
   setFeedbackDecay(value: number) {
     this.outBus.setFeedbackDecay(value);
-
     this.voicePool.applyToAllVoices((voice) => {
       voice.feedback?.setDecay(value);
     });
@@ -833,7 +793,6 @@ export class SamplePlayer extends LibInstrument {
 
   // === FEEDBACK ===
 
-  /**  Macro control for HarmonicFeedback send and various other params */
   setFeedbackAmount = (amount: number) => {
     if (
       this.#feedbackMode === 'monophonic' ||
@@ -864,8 +823,13 @@ export class SamplePlayer extends LibInstrument {
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
-      const monoFx = this.outBus.getEffect('feedback') as HarmonicFeedback;
+      const monoFx = this.outBus.getEffect('feedback');
+      if (!(monoFx instanceof HarmonicFeedback)) {
+        console.error('Expected feedback to be HarmonicFeedback instance');
+        return;
+      }
       const currAmount = monoFx.currAmount;
+
       this.outBus.setFeedbackAmount(0);
 
       this.voicePool.applyToAllVoices((voice) => {
@@ -924,9 +888,7 @@ export class SamplePlayer extends LibInstrument {
     return this.audioContext;
   }
 
-  get now() {
-    return this.audioContext.currentTime;
-  }
+  // REMOVED: Redundant now getter - inherited from LibInstrument
 
   get sampleDuration(): number {
     return this.#bufferDuration;
@@ -937,7 +899,7 @@ export class SamplePlayer extends LibInstrument {
   }
 
   set volume(value: number) {
-    this.#masterOut.gain.setValueAtTime(value, this.now);
+    this.#masterOut.gain.setValueAtTime(value, this.audioContext.currentTime);
   }
 
   get loopEnabled(): boolean {
@@ -976,10 +938,7 @@ export class SamplePlayer extends LibInstrument {
     return this.#audiobuffer;
   }
 
-  // Expose inherited connect method from LibInstrument
-  connect(destination: Destination) {
-    return super.connect(destination);
-  }
+  // REMOVED: Redundant connect method - inherited from LibInstrument
 
   /* === CLEANUP === */
 
@@ -1013,10 +972,8 @@ export class SamplePlayer extends LibInstrument {
       this.#useZeroCrossings = false;
       this.#loopEnabled = false;
 
-      this.audioContext = null as unknown as AudioContext;
-      this.messages = null as unknown as MessageBus<Message>;
-
-      // todo: disableMIDI
+      // Call parent dispose
+      super.dispose();
     } catch (error) {
       console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }

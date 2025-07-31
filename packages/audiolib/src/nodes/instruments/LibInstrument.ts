@@ -1,3 +1,5 @@
+// LibInstrument.ts - Cleaned Version (Step 1)
+
 import { createNodeId, NodeID } from '@/nodes/node-store';
 import { assert, tryCatch } from '@/utils';
 import { LibNode, Connectable, Messenger, Destination } from '@/nodes/LibNode';
@@ -22,13 +24,13 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   readonly nodeId: NodeID;
   readonly nodeType: InstrumentType;
 
-  protected messages: MessageBus<Message>;
+  public messages: MessageBus<Message>;
   protected midiController: MidiController | null = null;
 
   protected voicePool: SampleVoicePool | KarplusVoicePool | null = null;
 
-  protected audioContext: AudioContext;
-  protected outBus: InstrumentMasterBus;
+  public audioContext: AudioContext;
+  public outBus: InstrumentMasterBus;
   protected destination: Destination | null = null;
 
   constructor(
@@ -74,25 +76,22 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return `${paramName}-${this.nodeId}`;
   }
 
-  // Messaging
+  // Messaging - Shared implementation
   onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
   }
 
-  protected sendUpstreamMessage(type: string, data: any): this {
+  public sendUpstreamMessage(type: string, data: any): this {
     this.messages.sendMessage(type, data);
     return this;
   }
 
   // Abstract methods that must be implemented by subclasses
   abstract play(midiNote: MidiValue, velocity?: number): MidiValue | null;
-
   abstract release(note: MidiValue): this;
-
   abstract releaseAll(fadeOut_sec?: number): this;
 
   // Common functionality for all instruments
-
   panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
 
   // MIDI input
@@ -122,10 +121,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // Connection methods
-  public connect(
-    destination: Destination
-    // output?: 'dry' | 'wet' | 'alt'
-  ): Destination {
+  public connect(destination: Destination): Destination {
     assert(destination instanceof AudioNode, 'remember to fix this');
 
     this.outBus.connect(destination);
@@ -134,11 +130,8 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   public disconnect() {
-    // output?: 'dry' | 'wet' | 'alt'): this {
     this.outBus.disconnect();
-
     this.destination = null;
-
     return this;
   }
 
@@ -157,7 +150,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     this.disconnect();
     this.disableMIDI();
 
-    this.audioContext = null as unknown as AudioContext;
-    this.messages = null as unknown as MessageBus<Message>;
+    // REMOVED: Setting properties to null - let subclasses handle their own cleanup
+    // audioContext and messages should be cleaned up by subclasses if needed
   }
 }

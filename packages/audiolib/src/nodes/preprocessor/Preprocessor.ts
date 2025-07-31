@@ -110,7 +110,7 @@ export async function preProcessAudioBuffer(
       processed = await applyHighPassFilter(processed, hpf.cutoff ?? 80); // 80Hz fallback
     } else if (
       results.detectedPitch &&
-      results.detectedPitch.confidence < PITCH_CONFIDENCE_THRESHOLD
+      results.detectedPitch.confidence >= PITCH_CONFIDENCE_THRESHOLD
     ) {
       const fundamental = results.detectedPitch?.fundamentalHz;
       const cutoffFreq = fundamental > 30 ? fundamental : 80; // 80Hz fallback
