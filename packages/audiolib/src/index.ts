@@ -10,12 +10,11 @@ export { createAudioRecorder } from './nodes/recorder';
 
 // =*=*= Classes =*=*= \\
 export { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
-export { LibInstrument } from '@/nodes/instruments';
 
 // =*=*=  Types =*=*= \\
 export type { Recorder } from './nodes/recorder';
-export type { LibNode, SampleLoader } from './nodes/LibNode';
-export type { LibParamDescriptor } from './nodes/params';
+export type { LibNode, LibAudioNode, SampleLoader } from './nodes';
+// export type { LibParamDescriptor } from './nodes/params';
 export type {
   CustomEnvelope,
   EnvelopePoint,
@@ -27,4 +26,4 @@ export type {
 export { getAudioContext, ensureAudioCtx } from './context';
 
 // =*=*= Storage =*=*= \\
-export * as samplelib from './storage/idb';
+// export * as samplelib from './storage/idb'; // Removed to reduce bundle size

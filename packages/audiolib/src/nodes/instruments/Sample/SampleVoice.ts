@@ -1,10 +1,4 @@
-import {
-  LibVoiceNode,
-  VoiceType,
-  Messenger,
-  Destination,
-  Connectable,
-} from '@/nodes/LibNode';
+import { LibAudioNode, LibVoiceNode, VoiceType, Destination } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { VoiceState } from '../VoiceState';
@@ -28,7 +22,7 @@ import {
 import { getMaxFilterFreq } from './param-defaults';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
-export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
+export class SampleVoice implements LibVoiceNode {
   readonly nodeId: NodeID;
   readonly nodeType: VoiceType = 'sample';
 
@@ -599,7 +593,9 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
   ): Destination {
     if (destination === this.#destination) return this.#destination;
 
-    if (destination instanceof AudioParam) {
+    if (destination instanceof LibAudioNode) {
+      this.out.connect(destination.input, output);
+    } else if (destination instanceof AudioParam) {
       this.out.connect(destination, output);
     } else if (destination instanceof AudioNode) {
       this.out.connect(destination, output, input);

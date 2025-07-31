@@ -116,7 +116,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     //   wet: safeAmount,
     // });
 
-    this.setFeedback(safeAmount);
+    this.setFeedbackAmount(safeAmount);
 
     this.currAmount = safeAmount;
     return this;
@@ -190,7 +190,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     return this;
   }
 
-  setFeedback(gain: number, timestamp = this.now) {
+  setFeedbackAmount(gain: number, timestamp = this.now) {
     const mappedGain = mapToRange(gain, 0, 1, this.#MIN_FB, this.#MAX_FB, {
       warn: true,
     });
@@ -282,7 +282,7 @@ export class HarmonicFeedback implements ILibAudioNode {
   setParam(name: string, value: number, time = this.now): void {
     switch (name) {
       case 'feedback':
-        this.setFeedback(value, time);
+        this.setFeedbackAmount(value, time);
         break;
       case 'delayTime':
         this.setDelay(value, time);

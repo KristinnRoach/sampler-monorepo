@@ -51,7 +51,7 @@ export const SamplerElement = (attributes: ElementProps) => {
   const drive = van.state(0.0);
   const clipping = van.state(0.0);
   const feedbackAmount = van.state(0.0);
-  const feedbackDecayTime = van.state(10);
+  const feedbackDecayTime = van.state(1);
   const feedbackPitch = van.state(0.5);
   const feedbackMode = van.state<'monophonic' | 'polyphonic'>('monophonic');
 

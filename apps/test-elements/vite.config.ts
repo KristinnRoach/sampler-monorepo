@@ -20,6 +20,19 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('gsap')) return 'vendor-gsap';
+            if (id.includes('dexie')) return 'vendor-dexie';
+            return 'vendor';
+          }
+          if (id.includes('packages/audiolib')) return 'audiolib';
+          if (id.includes('packages/audio-components')) return 'audio-components';
+        }
+      }
+    }
   },
 
   // Resolve workspace dependencies

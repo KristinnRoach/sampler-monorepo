@@ -781,8 +781,10 @@ export class InstrumentMasterBus implements ILibAudioNode {
 
     const input = this.getNode('input');
     const output = this.getNode('output');
+    const inputNode = input?.input;
+    const outputNode = output?.output;
 
-    if (input && output) {
+    if (inputNode && outputNode) {
       this.#levelMonitor = new LevelMonitor(
         this.#context,
         input.input,
@@ -791,6 +793,8 @@ export class InstrumentMasterBus implements ILibAudioNode {
       );
       this.#levelMonitor.start(intervalMs, undefined, logOutput);
       console.log('Level monitoring started');
+    } else {
+      console.warn('LevelMonitor not started: input or output node missing');
     }
   }
 
@@ -805,8 +809,10 @@ export class InstrumentMasterBus implements ILibAudioNode {
   logLevels(): void {
     const input = this.getNode('input');
     const output = this.getNode('output');
+    const inputNode = input?.input;
+    const outputNode = output?.output;
 
-    if (!this.#levelMonitor && input && output) {
+    if (!this.#levelMonitor && inputNode && outputNode) {
       const monitor = new LevelMonitor(
         this.#context,
         input.input,
@@ -821,6 +827,8 @@ export class InstrumentMasterBus implements ILibAudioNode {
       console.log(
         `Levels: Input RMS ${levels.input.rmsDB.toFixed(1)} dB | Output RMS ${levels.output.rmsDB.toFixed(1)} dB`
       );
+    } else {
+      console.warn('Could not log levels, input or output node missing.');
     }
   }
 
@@ -830,214 +838,3 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this.#messages.onMessage(type, handler);
   }
 }
-
-// #setupDefaultRouting(): void {
-//   // Create core nodes
-//   this.addNode('input', new GainNode(this.#context, { gain: 0.75 }), 'gain');
-//   this.addNode(
-//     'lpf',
-//     new BiquadFilterNode(this.#context, { Q: 0.707 }),
-//     'filter'
-//   );
-//   this.addNode(
-//     'hpf',
-//     new BiquadFilterNode(this.#context, { type: 'highpass', Q: 0.5 }),
-//     'filter'
-//   );
-//   this.addNode('dryMix', new GainNode(this.#context, { gain: 1.0 }), 'gain');
-//   this.addNode('wetMix', new GainNode(this.#context, { gain: 1.0 }), 'gain');
-//   this.addNode('output', new GainNode(this.#context, { gain: 1.0 }), 'gain');
-
-//   // Add effects with automatic send/bypass setup
-//   this.addEffect(
-//     'compressor',
-//     new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS)
-//   );
-
-//   this.addEffect(
-//     'limiter',
-//     new DynamicsCompressorNode(this.#context, DEFAULT_LIMITER_SETTINGS)
-//   );
-
-//   const reverb = new DattorroReverb(this.#context);
-//   this.addEffect('reverb', reverb);
-
-//   const feedback = new feedbackEffect(this.#context);
-//   this.addEffect('feedback', feedback);
-
-//   const distortion = createDistortion(this.#context);
-//   this.addEffect('distortion', distortion);
-
-//   // Set up default routing - recreate current behavior
-//   this.connectFromTo('input', 'hpf');
-//   this.connectFromTo('hpf', 'lpf');
-//   this.connectFromTo('lpf', 'compressor');
-//   this.connectFromTo('compressor', 'feedback');
-
-//   // Set up reverb as send effect
-//   this.connectFromTo('feedback', 'dryMix');
-//   this.connectSend('feedback', 'reverb', 'wetMix');
-
-//   // Main output chain
-//   this.connectFromTo('dryMix', 'distortion');
-//   this.connectFromTo('wetMix', 'distortion');
-//   this.connectFromTo('distortion', 'limiter');
-//   this.connectFromTo('limiter', 'output');
-
-//   // Enable effects by default
-//   this.setEffectEnabled('feedback', true);
-//   this.setEffectEnabled('compressor', true);
-//   this.setEffectEnabled('limiter', true);
-//   this.setEffectEnabled('reverb', true);
-
-//   this.debugRouting();
-//   this.debugChannelCounts();
-// }
-
-// /**
-//  * Add any audio node to the bus
-//  */
-// addNode(
-//   name: string,
-//   node: AudioNode,
-//   type: 'effect' | 'gain' | 'filter' = 'effect'
-// ): this {
-//   this.#nodes.set(name, { node, type });
-//   this.#internalRouting.set(name, []);
-//   return this;
-// }
-
-// /**
-//  * Add an effect with automatic send/bypass controls
-//  */
-// addEffect(name: string, effect: EffectType): this {
-//   // Add the effect node
-//   this.addNode(name, effect as AudioNode, 'effect'); //  TODO: replace as AudioNode with proper typing!
-
-//   // Create send control (for parallel routing)
-//   const send = new GainNode(this.#context, { gain: 0.0 });
-//   this.addNode(`${name}_send`, send, 'gain');
-
-//   // Create bypass control (for series routing)
-//   const bypass = new GainNode(this.#context, { gain: 1.0 }); // 1.0 = bypassed
-//   this.addNode(`${name}_bypass`, bypass, 'gain');
-
-//   this.#controls.set(name, {
-//     send,
-//     bypass,
-//     enabled: false,
-//   });
-
-//   return this;
-// }
-
-// /**
-//  * Get a node by name
-//  */
-// getNode<T extends EffectType = AudioNode>(name: string): T | null {
-//   return (this.#nodes.get(name)?.node as T) || null;
-// }
-
-// /**
-//  * Get an effect node (convenience method)
-//  */
-// getEffect<T extends EffectType = AudioNode>(effect: BusEffectName): T | null {
-//   return this.getNode<T>(effect);
-// }
-
-// /**
-//  * Set up a send effect (parallel routing)
-//  */
-// connectSend(
-//   from: string,
-//   effect: string,
-//   to: string,
-//   sendAmount: number = 0.0
-// ): this {
-//   const fromNode = this.#nodes.get(from)?.node;
-//   const effectNode = this.#nodes.get(effect)?.node;
-//   const toNode = this.#nodes.get(to)?.node;
-//   const sendNode = this.#nodes.get(`${effect}_send`)?.node as GainNode;
-
-//   if (!fromNode || !effectNode || !toNode || !sendNode) {
-//     console.warn(`Cannot setup send routing: missing nodes`);
-//     return this;
-//   }
-
-//   // Route: from -> send -> effect -> to
-//   const fromOutput = (fromNode as any).out || fromNode;
-//   const effectInput = (effectNode as any).in || effectNode;
-//   const effectOutput = (effectNode as any).out || effectNode;
-//   const toInput = (toNode as any).in || toNode;
-
-//   fromOutput.connect(sendNode);
-//   sendNode.connect(effectInput);
-//   effectOutput.connect(toInput);
-
-//   sendNode.gain.setValueAtTime(sendAmount, this.now);
-
-//   // Track the send connections
-//   const fromConnections = this.#internalRouting.get(from) || [];
-//   if (!fromConnections.includes(`${effect}_send`)) {
-//     fromConnections.push(`${effect}_send`);
-//     this.#internalRouting.set(from, fromConnections);
-//   }
-
-//   const sendConnections = this.#internalRouting.get(`${effect}_send`) || [];
-//   if (!sendConnections.includes(effect)) {
-//     sendConnections.push(effect);
-//     this.#internalRouting.set(`${effect}_send`, sendConnections);
-//   }
-
-//   const effectConnections = this.#internalRouting.get(effect) || [];
-//   if (!effectConnections.includes(to)) {
-//     effectConnections.push(to);
-//     this.#internalRouting.set(effect, effectConnections);
-//   }
-
-//   return this;
-// }
-
-// /**
-//  * Disconnect a connection
-//  */
-// disconnectFromTo(from: string, to?: string): this {
-//   const fromNode = this.#nodes.get(from)?.node;
-//   if (!fromNode) return this;
-
-//   if (to) {
-//     const toNode = this.#nodes.get(to)?.node;
-//     if (toNode) {
-//       const fromOutput = (fromNode as any).out || fromNode;
-//       const toInput = (toNode as any).in || toNode;
-//       fromOutput.disconnect(toInput);
-
-//       // Update tracking
-//       const connections = this.#internalRouting.get(from) || [];
-//       const index = connections.indexOf(to);
-//       if (index > -1) {
-//         connections.splice(index, 1);
-//         this.#internalRouting.set(from, connections);
-//       }
-//     }
-//   } else {
-//     // Disconnect all
-//     const fromOutput = (fromNode as any).out || fromNode;
-//     fromOutput.disconnect();
-//     this.#internalRouting.set(from, []);
-//   }
-
-//   return this;
-// }
-
-// /**
-//  * Set send amount for an effect
-//  */
-// send(effect: BusEffectName, amount: number): this {
-//   const control = this.#controls.get(effect);
-//   if (control?.send) {
-//     const safeValue = Math.max(0, Math.min(1, amount));
-//     control.send.gain.setValueAtTime(safeValue, this.now);
-//   }
-//   return this;
-// }
