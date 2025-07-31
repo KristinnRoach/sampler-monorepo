@@ -193,20 +193,24 @@ export class SampleVoicePool {
     }
   }
 
-  noteOff(midiNote: MidiValue, release_sec = 0.2, secondsFromNow: number = 0) {
+  noteOff(
+    midiNote: MidiValue,
+    secondsFromNow: number = 0,
+    releaseTime?: number
+  ) {
     const voice = this.#playingMidiVoiceMap.get(midiNote);
     if (!voice) return;
 
     if (voice?.state === VoiceState.PLAYING) {
-      voice.release({ release: release_sec, secondsFromNow });
+      voice.release({ secondsFromNow, releaseTime });
     }
 
     return this;
   }
 
-  allNotesOff(release_sec = 0) {
+  allNotesOff(releaseTime = 0) {
     this.#playingMidiVoiceMap.forEach((voice) => {
-      voice.release({ release: release_sec });
+      voice.release({ releaseTime });
     });
 
     this.#playingMidiVoiceMap.clear();

@@ -14,7 +14,11 @@ export type InstrumentType = 'sample-player' | 'synth';
 
 export type ContainerType = 'pool' | 'chain' | 'audiolib';
 
-export type VoiceType = 'sample' | 'karplus-strong' | 'osc' | 'noise';
+export type VoiceType =
+  | 'sample-voice'
+  | 'karplus-strong-voice'
+  | 'osc-voice'
+  | 'noise-voice';
 
 export type CustomFxType =
   | 'feedback-delay'

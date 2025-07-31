@@ -1,4 +1,4 @@
-import { LibAudioNode, LibVoiceNode, VoiceType, Destination } from '@/nodes';
+import { LibAudioNode, VoiceType, Destination, NodeType } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
 import { VoiceState } from '../VoiceState';
@@ -22,9 +22,9 @@ import {
 import { getMaxFilterFreq } from './param-defaults';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
-export class SampleVoice implements LibVoiceNode {
+export class SampleVoice {
   readonly nodeId: NodeID;
-  readonly nodeType: VoiceType = 'sample';
+  readonly nodeType: NodeType = 'sample-voice';
 
   #destination: Destination | null = null;
   #outputNode: AudioNode;
@@ -43,12 +43,7 @@ export class SampleVoice implements LibVoiceNode {
 
   feedback: HarmonicFeedback | null;
 
-  // #loopEnabled = false;
-  // #holdEnabled = false;
-  // #attackSec: number = 0.1; // replaced with envelope (keep for non-env scenarios ?)
-
-  #releaseSec = 0.1;
-  #glideTime = 0;
+  #pitchGlideTime = 0; // in seconds
 
   #filtersEnabled: boolean;
   #hpf: BiquadFilterNode | null = null;
@@ -120,13 +115,6 @@ export class SampleVoice implements LibVoiceNode {
     this.sendToProcessor({ type: 'voice:init' });
 
     this.#worklet.port.start();
-  }
-
-  addEnvelope(envType: EnvelopeType, data: EnvelopeData) {
-    console.warn('Currently using createEnvelopes instead.');
-    return;
-    // const env = new CustomEnvelope(this.context, envType, data);
-    // this.#envelopes.set(envType, env);
   }
 
   #createEnvelopes() {
@@ -214,7 +202,7 @@ export class SampleVoice implements LibVoiceNode {
   }
 
   setGlideTime(seconds: number) {
-    this.#glideTime = seconds;
+    this.#pitchGlideTime = seconds;
   }
 
   trigger(options: {
@@ -234,7 +222,7 @@ export class SampleVoice implements LibVoiceNode {
 
     // Using the same audio context current time for all ops
     const timestamp = this.now + secondsFromNow;
-    const glideTime = options.glide?.glideTime ?? this.#glideTime;
+    const glideTime = options.glide?.glideTime ?? this.#pitchGlideTime;
 
     this.feedback?.trigger(midiNote, {
       velocity,
@@ -343,7 +331,7 @@ export class SampleVoice implements LibVoiceNode {
 
   #releaseTimeout: number | null = null;
 
-  release({ release = this.#releaseSec, secondsFromNow = 0 }): this {
+  release({ releaseTime = this.releaseTime, secondsFromNow = 0 }): this {
     if (this.#state === VoiceState.RELEASING) return this;
 
     const envGain = this.getParam('envGain');
@@ -367,7 +355,7 @@ export class SampleVoice implements LibVoiceNode {
     });
 
     // Immediate stop for zero release time
-    if (release <= 0) return this.stop(timestamp);
+    if (releaseTime <= 0) return this.stop(timestamp);
 
     this.sendToProcessor({ type: 'voice:release', timestamp });
 
@@ -376,10 +364,10 @@ export class SampleVoice implements LibVoiceNode {
       (env) => env.isEnabled
     );
 
-    const releaseTime =
+    const effectiveReleaseTime =
       enabledEnvelopes.length > 0
         ? Math.max(...enabledEnvelopes.map((env) => env.releaseTime))
-        : release; // Fallback passed in release time
+        : releaseTime; // Fallback passed in release time
 
     // Stop after release duration // todo: check for redundancy
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
@@ -391,7 +379,7 @@ export class SampleVoice implements LibVoiceNode {
           this.#releaseTimeout = null;
         }
       },
-      releaseTime * 1000 + 50
+      effectiveReleaseTime * 1000 + 50
     ); // 50ms buffer
 
     return this;
@@ -540,16 +528,6 @@ export class SampleVoice implements LibVoiceNode {
     });
     return this;
   }
-
-  setAttack = (attack_sec: number) => {
-    // this.#attackSec = attack_sec;
-    console.info(`setAttack called, to be replaced with envelope`);
-  };
-
-  setRelease = (release_sec: number) => {
-    this.#releaseSec = release_sec;
-    console.info(`setRelease called, to be replaced with envelope`);
-  };
 
   setLoopPoints(
     start: number,
@@ -812,6 +790,10 @@ export class SampleVoice implements LibVoiceNode {
     return this.getParam('endPoint')!.value;
   }
 
+  get releaseTime() {
+    return this.#envelopes.get('amp-env')!.releaseTime;
+  }
+
   // Setters
 
   setMasterGain(gain: number) {
@@ -908,104 +890,3 @@ export class SampleVoice implements LibVoiceNode {
     return null;
   }
 }
-
-// // !!! TESTING direct ramping from 1 to current value
-
-// const doIt = false;
-// if (doIt && this.#loopEnabled && options.currentLoopEnd) {
-//   const loopEndParam = this.getParam('loopEnd')!;
-//   // const currLoopEnd = loopEndParam.value;
-//   // console.log('currLoopEnd', currLoopEnd); // !! WRONG.. passing currentLoopEnd from SamplePlayer for testing, but still need to figure this out
-//   console.log('macroLoopEnd: ', options.currentLoopEnd);
-//   const startVal = Math.min(1, options.currentLoopEnd + 0.001); // Math.max(0, Math.min(1, 1 - options.currentLoopEnd * 3));
-//   console.log('startVal', startVal);
-
-//   loopEndParam.cancelScheduledValues(timestamp);
-//   loopEndParam.setValueAtTime(startVal, timestamp);
-
-//   loopEndParam.exponentialRampToValueAtTime(
-//     options.currentLoopEnd,
-//     timestamp + 0.3 //  + Math.random() * 0.3
-//   );
-
-//   // loopEndParam.setTargetAtTime(
-//   //   options.currentLoopEnd,
-//   //   timestamp + 0.3 + Math.random() * 0.3,
-//   //   playbackRate / 23
-//   // );
-// }
-
-// addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
-//   this.envelopes.addEnvelopePoint(envType, time, value);
-// }
-
-// updateEnvelopePoint(
-//   envType: EnvelopeType,
-//   index: number,
-//   time?: number,
-//   value?: number
-// ) {
-//   this.envelopes.updateEnvelopePoint(envType, index, time, value);
-// }
-
-// deleteEnvelopePoint(envType: EnvelopeType, index: number) {
-//   this.envelopes.deleteEnvelopePoint(envType, index);
-// }
-
-// getEnvelope(envType: EnvelopeType) {
-//   return this.envelopes.getEnvelope(envType);
-// }
-
-// addEnvelopePoint(envType: EnvelopeType, time: number, value: number) {
-//   this.#envelopes.get(envType)?.addPoint(time, value);
-// }
-
-// updateEnvelopePoint(
-//   envType: EnvelopeType,
-//   index: number,
-//   time?: number,
-//   value?: number
-// ) {
-//   this.#envelopes.get(envType)?.updatePoint(index, time, value);
-// }
-
-// deleteEnvelopePoint(envType: EnvelopeType, index: number) {
-//   this.#envelopes.get(envType)?.deletePoint(index);
-// }
-
-// getEnvelope(envType: EnvelopeType) {
-//   return this.#envelopes.get(envType);
-// }
-
-// setEnvelopeLoop = (
-//   envType: EnvelopeType,
-//   loop: boolean,
-//   mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
-// ) => this.getEnvelope(envType)?.setLoopEnabled(loop, mode);
-
-// this.#messages.forwardFrom(
-//   this.envelopes,
-//   ['sample-envelopes:trigger', 'sample-envelopes:duration'],
-//   (msg) => ({
-//     ...msg,
-//     voiceId: this.nodeId,
-//     midiNote: this.#activeMidiNote,
-//   })
-// );
-
-// #envelopes: Map<EnvelopeType, CustomEnvelope>;
-
-// this.#envelopes = createDefaultEnvelopes(context, ['amp-env', 'pitch-env']);
-
-// this.envelopes.triggerEnvelopes(timestamp, playbackRate);
-// this.envelopes.releaseEnvelopes(timestamp, release);
-
-// #normalizedToAbsolute(normalizedTime: number): number {
-//   return normalizedTime * this.#sampleDurationSeconds;
-// }
-
-// #absoluteToNormalized(absoluteTime: number): number {
-//   return absoluteTime / this.#sampleDurationSeconds;
-// }
-// #clamp = (value: number, min: number, max: number) =>
-//   Math.max(min, Math.min(max, value));

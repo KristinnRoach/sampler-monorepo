@@ -136,7 +136,11 @@ export class SamplePlayer implements ILibInstrumentNode {
   // === CONNECTIONS ===
 
   public connect(destination: ILibInstrumentNode | AudioNode): void {
-    const target = 'input' in destination ? destination.input : destination;
+    const target =
+      'input' in destination && destination.input
+        ? destination.input
+        : destination;
+
     this.#masterOut.connect(target as AudioNode);
 
     // Track the connection
@@ -507,18 +511,18 @@ export class SamplePlayer implements ILibInstrumentNode {
   release(midiNote: MidiValue): this {
     if (this.holdEnabled || this.#holdLocked) return this;
 
-    this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
+    this.voicePool.noteOff(midiNote);
     this.sendUpstreamMessage('note:off', { midiNote });
     return this;
   }
 
-  releaseAll(fadeOut_sec: number = this.getReleaseTime()): this {
-    this.voicePool.allNotesOff(fadeOut_sec);
+  releaseAll(releaseTime?: number): this {
+    this.voicePool.allNotesOff(releaseTime);
     return this;
   }
 
   // Common functionality for all instruments
-  panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
+  panic = (releaseTime?: number) => this.releaseAll(releaseTime);
 
   /* === SCALE SETTINGS === */
 
@@ -542,18 +546,6 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   /** PARAM SETTERS  */
-
-  setAttackTime(seconds: number): this {
-    this.storeParamValue('attack', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setAttack(seconds));
-    return this;
-  }
-
-  setReleaseTime(seconds: number): this {
-    this.storeParamValue('release', seconds);
-    this.voicePool.applyToAllVoices((voice) => voice.setRelease(seconds));
-    return this;
-  }
 
   setSampleStartPoint(seconds: number): this {
     this.storeParamValue('startPoint', seconds);
@@ -709,12 +701,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setParameterValue(name: string, value: number): this {
     switch (name) {
-      case 'attack':
-        this.setAttackTime(value);
-        break;
-      case 'release':
-        this.setReleaseTime(value);
-        break;
       case 'startPoint':
         this.setSampleStartPoint(value);
         break;
