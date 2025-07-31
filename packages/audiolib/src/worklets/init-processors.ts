@@ -87,7 +87,7 @@ export async function initProcessors(context: AudioContext) {
         processorFileRegistry.add(path);
         processorsInitialized = true;
 
-        console.info('AudioWorklet module loaded successfully from:', path);
+        console.info('Audiolib: AudioWorklet module loaded.');
         return {
           success: true,
           loadedPath: path,

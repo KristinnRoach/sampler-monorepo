@@ -1,24 +1,33 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
-import '../controls/webaudio-controls/webaudio-controls';
+
+import '../../controls/webaudio-controls/webaudio-keyboard';
+import {
+  keyboardEnabledInstruments,
+  enableComputerKeyboard,
+  disableComputerKeyboard,
+  pressedKeys,
+} from '../../../shared/keyboard/keyboard-state';
 
 import {
-  type SamplePlayer,
+  SamplePlayer,
   type CustomEnvelope,
   type EnvelopeType,
   type Recorder,
-  getInstance,
+  createSamplePlayer,
+  createAudioRecorder,
 } from '@repo/audiolib';
 
-import { createIcons } from '../../utils/icons';
-import { SampleControls } from '../controls/SampleControls';
-import { ExpandableHeader } from '../primitives/ExpandableHeader';
-import { FileOperations } from '../controls/FileOperations';
-import { InputControls, LoopHoldControls } from '../controls/AudioControls';
-import { createLabeledKnob } from '../primitives/createKnob';
-import { Toggle } from '../primitives/VanToggle';
+import { createIcons } from '../../../utils/icons';
+import { SampleControls } from '../../controls/SampleControls';
+import { ExpandableHeader } from '../../primitives/ExpandableHeader';
+import { FileOperations } from '../../controls/FileOperations';
+import { InputControls, LoopHoldControls } from '../../controls/checkboxes';
+import { createLabeledKnob } from '../../primitives/createKnob';
+import { Toggle } from '../../primitives/VanToggle';
 
-import { EnvelopeSVG } from '../controls/envelope/EnvelopeSVG';
+import { EnvelopeSVG } from '../../controls/envelope/EnvelopeSVG';
+import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button, label } = van.tags;
 
@@ -68,6 +77,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   // Control states
   const keyboardEnabled = van.state(true);
+  const currentKeymap = van.state(KeyMaps.default); // major // minor // pentatonic // default
   const midiEnabled = van.state(false);
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
@@ -75,6 +85,67 @@ export const SamplerElement = (attributes: ElementProps) => {
   const holdLocked = van.state(false);
 
   const icons = createIcons();
+
+  // === KEYEVENT HANDLERS ===
+
+  // TODO: Time latency diff from handling this here versus inside audiolib!
+
+  let spacePressed = false;
+
+  const keyDown = (e: KeyboardEvent) => {
+    if (e.repeat) return;
+
+    // Always update base states
+    const baseLoopEnabled = e.getModifierState('CapsLock');
+    const baseHoldEnabled = e.shiftKey;
+
+    // Track Space key specifically
+    if (e.code === 'Space') {
+      spacePressed = true;
+    }
+
+    // Calculate final state: base XOR space override
+    loopEnabled.val = baseLoopEnabled !== spacePressed;
+    holdEnabled.val = baseHoldEnabled !== spacePressed;
+
+    const midiNote = currentKeymap.val[e.code];
+
+    if (
+      e.repeat ||
+      !midiNote ||
+      !keyboardEnabled.val ||
+      !samplePlayer ||
+      !keyboardEnabledInstruments.has(samplePlayer.nodeId)
+    ) {
+      return;
+    }
+
+    pressedKeys.add(e.code);
+    samplePlayer?.play(midiNote);
+  };
+
+  const keyUp = (e: KeyboardEvent) => {
+    if (e.code === 'Space') {
+      spacePressed = false;
+      // Recalculate state when Space is released
+      loopEnabled.val = e.getModifierState('CapsLock');
+      holdEnabled.val = e.shiftKey;
+    }
+
+    const midiNote = currentKeymap.val[e.code];
+
+    if (
+      !midiNote ||
+      !keyboardEnabled.val ||
+      !samplePlayer ||
+      !keyboardEnabledInstruments.has(samplePlayer.nodeId)
+    ) {
+      return;
+    }
+
+    samplePlayer!.release(midiNote);
+    pressedKeys.delete(e.code);
+  };
 
   // === Envelopes ===
 
@@ -138,14 +209,12 @@ export const SamplerElement = (attributes: ElementProps) => {
   attributes.mount(() => {
     const initializeAudio = async () => {
       try {
-        const audiolib = getInstance();
-        if (!audiolib.initialized) await audiolib.init();
-
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
-        // Todo: remove dep on audiolib class, add destination master handling
-        samplePlayer = audiolib.createSamplePlayer(undefined, polyphony);
+        samplePlayer = await createSamplePlayer(undefined, polyphony);
+
+        samplePlayer.connect(samplePlayer.context.destination);
         // connects automatically to audio destination
-        console.log('polyphony', polyphony);
+
         if (!samplePlayer.initialized) {
           console.warn('Failed to create sample player');
           status.val = 'Failed to initialize';
@@ -197,6 +266,16 @@ export const SamplerElement = (attributes: ElementProps) => {
         derive(() => {
           if (!samplePlayer?.initialized) return;
           samplePlayer.setGlideTime(glideTime.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer?.initialized) return;
+          samplePlayer.setLoopEnabled(loopEnabled.val);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setHoldEnabled(holdEnabled.val);
         });
 
         derive(() => {
@@ -275,8 +354,8 @@ export const SamplerElement = (attributes: ElementProps) => {
         // Control states
         derive(() =>
           keyboardEnabled.val
-            ? samplePlayer?.enableKeyboard()
-            : samplePlayer?.disableKeyboard()
+            ? samplePlayer && enableComputerKeyboard(samplePlayer.nodeId)
+            : samplePlayer && disableComputerKeyboard(samplePlayer.nodeId)
         );
         derive(() =>
           midiEnabled.val
@@ -296,36 +375,19 @@ export const SamplerElement = (attributes: ElementProps) => {
           onSampleLoaded(msg.durationSeconds)
         );
 
-        samplePlayer.onMessage('voice:stopped', (msg: any) => {
-          // todo: ampEnvInstance?.stopAnimation(msg);
-        });
-
         samplePlayer.onMessage('sample:pitch-detected', (msg: any) => {
           status.val = `Sample Pitch Detected -> ${msg.pitch}`;
         });
 
-        // === Other listeners (to be removed) === //
-        document.addEventListener('keydown', (e) => {
-          if (e.code === 'CapsLock') {
-            const capsState = e.getModifierState('CapsLock');
-            if (capsState !== loopEnabled.val && !loopLocked.val) {
-              loopEnabled.val = capsState;
-              status.val = capsState ? 'Loop Enabled' : 'Loop disabled';
-            }
-          }
-        });
+        // Enable computer keyboard
 
-        document.addEventListener('keyup', (e) => {
-          if (e.code === 'CapsLock') {
-            const capsState = e.getModifierState('CapsLock');
-            if (capsState !== loopEnabled.val && !loopLocked.val) {
-              loopEnabled.val = capsState;
-              status.val = capsState ? 'Loop Enabled' : 'Loop disabled';
-            }
-          }
-        });
+        document.addEventListener('keydown', keyDown);
+        document.addEventListener('keyup', keyUp);
 
-        // === END: Other listeners (to be removed) === //
+        addEventListener(
+          'click',
+          () => samplePlayer && enableComputerKeyboard(samplePlayer.nodeId)
+        );
 
         status.val = 'Ready';
       } catch (error) {
@@ -343,6 +405,8 @@ export const SamplerElement = (attributes: ElementProps) => {
 
     return () => {
       samplePlayer?.dispose();
+      document.removeEventListener('keydown', keyDown);
+      document.removeEventListener('keyup', keyUp);
     };
   });
 
@@ -377,11 +441,11 @@ export const SamplerElement = (attributes: ElementProps) => {
             }
 
             const audiobuffer = await samplePlayer.loadSample(arrayBuffer);
-            const durationSeconds = audiobuffer.duration;
+            const durationSeconds = audiobuffer?.duration;
 
             await new Promise((resolve) => setTimeout(resolve, 0));
 
-            if (durationSeconds > 0) {
+            if (durationSeconds && durationSeconds > 0) {
               sampleDurationSeconds.val = durationSeconds;
               status.val = `Loaded: ${file.name}`;
             }
@@ -414,7 +478,7 @@ export const SamplerElement = (attributes: ElementProps) => {
     if (!samplePlayer || recordBtnState.val === 'Recording') return;
 
     try {
-      const recorderResult = await getInstance().createRecorder();
+      const recorderResult = await createAudioRecorder(samplePlayer.context);
       if (!recorderResult) {
         status.val = 'Failed to create recorder';
         return;
@@ -635,7 +699,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         }),
 
         createLabeledKnob({
-          label: 'DistDrive',
+          label: 'Drive',
           defaultValue: 0,
           minValue: 0,
           maxValue: 1,
@@ -652,10 +716,11 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         createLabeledKnob({
           label: 'FB-Pitch',
-          defaultValue: 1,
-          minValue: 1,
+          defaultValue: 0.5, // 0.5 is unison
+          minValue: 0.25,
           maxValue: 4,
-          snapIncrement: 1,
+          allowedValues: [0.25, 0.5, 1.0, 2.0, 3.0, 4.0],
+          curve: 2,
           onChange: (value: number) => (feedbackPitch.val = value),
         }),
 
@@ -859,10 +924,3 @@ export const SamplerElement = (attributes: ElementProps) => {
 export const defineSampler = (elementName: string = 'sampler-element') => {
   define(elementName, SamplerElement, false);
 };
-
-// VolumeSlider(volume),
-// ReverbMixSlider(reverbMix),
-// LFORateSlider(gainLFORate, 'amp-lfo-rate'),
-// LFODepthSlider(gainLFODepth, 'amp-lfo-depth'),
-// LFORateSlider(pitchLFORate, 'p-lfo-rate'),
-// LFODepthSlider(pitchLFODepth, 'p-lfo-depth'),

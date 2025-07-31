@@ -243,28 +243,28 @@ export class KarplusStrongSynth extends LibInstrument {
     };
   }
 
-  enableKeyboard(): this {
-    if (!this.keyboardHandler) {
-      this.keyboardHandler = {
-        onNoteOn: this.play.bind(this),
-        onNoteOff: this.release.bind(this),
-        onBlur: this.#onBlur.bind(this),
-        onModifierChange: this.#handleModifierKeys.bind(this),
-      };
-      globalKeyboardInput.addHandler(this.keyboardHandler);
-    }
-    console.info(`Karplus-strong synth: keyboard enabled`);
-    return this;
-  }
+  // enableKeyboard(): this {
+  //   if (!this.keyboardHandler) {
+  //     this.keyboardHandler = {
+  //       onNoteOn: this.play.bind(this),
+  //       onNoteOff: this.release.bind(this),
+  //       onBlur: this.#onBlur.bind(this),
+  //       onModifierChange: this.#handleModifierKeys.bind(this),
+  //     };
+  //     globalKeyboardInput.addHandler(this.keyboardHandler);
+  //   }
+  //   console.info(`Karplus-strong synth: keyboard enabled`);
+  //   return this;
+  // }
 
-  disableKeyboard(): this {
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
-    console.info(`Karplus-strong synth: keyboard disabled`);
-    return this;
-  }
+  // disableKeyboard(): this {
+  //   if (this.keyboardHandler) {
+  //     globalKeyboardInput.removeHandler(this.keyboardHandler);
+  //     this.keyboardHandler = null;
+  //   }
+  //   console.info(`Karplus-strong synth: keyboard disabled`);
+  //   return this;
+  // }
 
   async enableMIDI(
     midiController = this.midiController,
@@ -303,10 +303,10 @@ export class KarplusStrongSynth extends LibInstrument {
     this.stopAll();
     this.disconnect();
 
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
+    // if (this.keyboardHandler) {
+    //   globalKeyboardInput.removeHandler(this.keyboardHandler);
+    //   this.keyboardHandler = null;
+    // }
 
     this.voicePool.dispose();
     this.#midiNoteToId.clear();

@@ -817,6 +817,12 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
 
   // Setters
 
+  setMasterGain(gain: number) {
+    const param = this.#worklet.parameters.get('masterGain')!;
+    param.cancelScheduledValues(this.context.currentTime);
+    param.setTargetAtTime(gain, this.context.currentTime, 0.006);
+  }
+
   enablePositionTracking(enabled: boolean) {
     this.sendToProcessor({
       type: 'voice:usePlaybackPosition',
@@ -832,8 +838,7 @@ export class SampleVoice implements LibVoiceNode, Connectable, Messenger {
       value: enabled,
     });
 
-    // this.#loopEnabled = enabled;
-
+    if (!enabled && this.#activeMidiNote) this.release({});
     return this;
   }
 

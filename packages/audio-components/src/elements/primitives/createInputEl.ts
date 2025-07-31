@@ -4,17 +4,16 @@ import { when } from '@/utils/vanjs-utils';
 
 const { div, span, input, label } = van.tags;
 
-type StaticLabelContent =
+export type StaticLabelContent =
   | string
   | HTMLElement
   | SVGElement
   | (string | HTMLElement | SVGElement)[];
 
-type DynamicLabelContent = () => StaticLabelContent;
+export type DynamicLabelContent = () => StaticLabelContent;
+export type LabelContent = StaticLabelContent | DynamicLabelContent;
 
-type LabelContent = StaticLabelContent | DynamicLabelContent;
-
-type CustomCheckbox = {
+export type CustomCheckbox = {
   unchecked: string | HTMLElement | SVGElement;
   checked: string | HTMLElement | SVGElement;
 };

@@ -157,4 +157,140 @@ describe('CustomEnvelope', () => {
       -1
     );
   });
+
+  describe('Curve Generation Edge Cases', () => {
+    it('should handle smooth transitions when AudioParam current value differs from first envelope point', () => {
+      // Test scenario where AudioParam has a different current value than the first envelope point
+      const mockAudioParam = {
+        value: 5000, // Current AudioParam value (different from first envelope point)
+        setValueAtTime: vi.fn(),
+        setValueCurveAtTime: vi.fn(),
+        cancelScheduledValues: vi.fn(),
+        linearRampToValueAtTime: vi.fn(),
+      };
+
+      const envelope = new CustomEnvelope(
+        mockAudioContext,
+        'filter-env',
+        undefined, // No shared data
+        [
+          { time: 0, value: 1000, curve: 'exponential' }, // Different from AudioParam current value
+          { time: 0.1, value: 8000, curve: 'exponential' },
+          { time: 1, value: 2000, curve: 'exponential' },
+        ],
+        [20, 20000],
+        1
+      );
+
+      // Trigger envelope
+      envelope.triggerEnvelope(mockAudioParam as any, 0, {
+        baseValue: 1,
+        playbackRate: 1,
+      });
+
+      // Verify curve was applied
+      expect(mockAudioParam.setValueCurveAtTime).toHaveBeenCalled();
+
+      const curveCall = mockAudioParam.setValueCurveAtTime.mock.calls[0];
+      const curve = curveCall[0] as Float32Array;
+
+      // Fixed: curve now starts from current AudioParam value instead of envelope's first point
+      expect(curve[0]).toBe(5000); // Now starts from current AudioParam value
+
+      // Check if there's a sudden jump from current AudioParam value to first curve value
+      const currentParamValue = mockAudioParam.value; // 5000
+      const firstCurveValue = curve[0]; // 5000 (now matches current value)
+      const valueDifference = Math.abs(firstCurveValue - currentParamValue);
+      const percentageDifference = (valueDifference / currentParamValue) * 100;
+
+      console.log('=== Edge Case Analysis ===');
+      console.log('Current AudioParam value:', currentParamValue);
+      console.log('First envelope point value:', envelope.points[0].value);
+      console.log('First curve value (smooth start):', firstCurveValue);
+      console.log('Value jump:', valueDifference);
+      console.log('Percentage jump:', percentageDifference.toFixed(2) + '%');
+
+      // Fixed: No more large jump - curve starts smoothly from current value
+      expect(percentageDifference).toBe(0); // Perfect - no jump at all
+    });
+
+    it('should demonstrate what curve would look like without the override', () => {
+      // Create a test envelope to examine natural curve generation
+      const envelope = new CustomEnvelope(
+        mockAudioContext,
+        'filter-env',
+        undefined,
+        [
+          { time: 0, value: 1000, curve: 'exponential' },
+          { time: 0.1, value: 8000, curve: 'exponential' },
+          { time: 1, value: 2000, curve: 'exponential' },
+        ],
+        [20, 20000],
+        1
+      );
+
+      // Access the private method via reflection to test curve generation without override
+      const generateCurveMethod = (envelope as any)['#generateCurve'];
+
+      if (generateCurveMethod) {
+        const options = { baseValue: 1, playbackRate: 1 };
+        const curve = generateCurveMethod.call(envelope, 1, 1, options);
+
+        // Before the override line executes, check what the natural interpolated value would be
+        const naturalFirstValue = curve[0];
+
+        console.log('=== Natural Curve vs Override ===');
+        console.log('Natural interpolated first value:', naturalFirstValue);
+        console.log(
+          'Override forces first value to:',
+          envelope.points[0].value
+        );
+
+        // The override might be causing discontinuities
+        expect(naturalFirstValue).toBe(envelope.points[0].value); // This might fail if interpolation differs
+      }
+    });
+
+    it('should validate curve continuity when baseValue is applied', () => {
+      const envelope = new CustomEnvelope(
+        mockAudioContext,
+        'amp-env', // Use amp-env for baseValue multiplication test
+        undefined,
+        [
+          { time: 0, value: 0.5, curve: 'exponential' },
+          { time: 1, value: 1.0, curve: 'exponential' },
+        ],
+        [0, 1],
+        1
+      );
+
+      // Test with baseValue that would affect the curve
+      const mockAudioParam = {
+        value: 0.8, // Current value
+        setValueAtTime: vi.fn(),
+        setValueCurveAtTime: vi.fn(),
+        cancelScheduledValues: vi.fn(),
+        linearRampToValueAtTime: vi.fn(),
+      };
+
+      envelope.triggerEnvelope(mockAudioParam as any, 0, {
+        baseValue: 2, // This should multiply all values
+        playbackRate: 1,
+      });
+
+      const curveCall = mockAudioParam.setValueCurveAtTime.mock.calls[0];
+      const curve = curveCall[0] as Float32Array;
+
+      console.log('=== BaseValue Impact Analysis ===');
+      console.log('Original first point value:', envelope.points[0].value);
+      console.log(
+        'Expected with baseValue (0.5 * 2):',
+        envelope.points[0].value * 2
+      );
+      console.log('Actual curve first value:', curve[0]);
+
+      // With the override line removed, baseValue multiplication now works correctly
+      expect(curve[0]).toBe(1.0); // Correctly applies 0.5 * 2 = 1.0
+    });
+  });
 });

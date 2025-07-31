@@ -32,7 +32,7 @@ export type BusEffectName =
   | 'limiter';
 
 interface BusNode {
-  node: ILibAudioNode; // Always ILibAudioNode now
+  node: ILibAudioNode;
   type: 'effect' | 'gain' | 'filter';
   controllable?: boolean;
 }
@@ -92,15 +92,15 @@ export class InstrumentMasterBus implements ILibAudioNode {
     );
 
     const lpfAdapter = new LibAudioNode(
-      new BiquadFilterNode(this.#context, { Q: 0.707 }),
+      new BiquadFilterNode(this.#context, { type: 'lowpass', Q: 0.5 }),
       this.#context,
-      'filter'
+      'lpf'
     );
 
     const hpfAdapter = new LibAudioNode(
-      new BiquadFilterNode(this.#context, { type: 'highpass', Q: 0.5 }),
+      new BiquadFilterNode(this.#context, { type: 'highpass', Q: 0.707 }),
       this.#context,
-      'filter'
+      'hpf'
     );
 
     const dryMixAdapter = new LibAudioNode(
@@ -121,7 +121,6 @@ export class InstrumentMasterBus implements ILibAudioNode {
       'gain'
     );
 
-    // Adapt worklet nodes
     const compressorAdapter = new LibAudioNode(
       new DynamicsCompressorNode(this.#context, DEFAULT_COMPRESSOR_SETTINGS),
       this.#context,
@@ -140,7 +139,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
       'distortion'
     );
 
-    // Custom nodes (implement ILibAudioNode)
+    // Nodes that already implement ILibAudioNode
     const reverb = new DattorroReverb(this.#context);
     const karplus = new KarplusEffect(this.#context);
 
@@ -194,7 +193,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   addEffect(name: string, effect: ILibAudioNode): this {
     this.addNode(name, effect, 'effect');
 
-    // Create send control (for parallel routing) - also adapted
+    // Create send control (for parallel routing)
     const send = new LibAudioNode(
       new GainNode(this.#context, { gain: 0.0 }),
       this.#context,
@@ -202,7 +201,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
     );
     this.addNode(`${name}_send`, send, 'gain');
 
-    // Create bypass control (for series routing) - also adapted
+    // Create bypass control (for series routing)
     const bypass = new LibAudioNode(
       new GainNode(this.#context, { gain: 1.0 }),
       this.#context,
@@ -211,7 +210,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.addNode(`${name}_bypass`, bypass, 'gain');
 
     this.#controls.set(name, {
-      send: send.audioNode as GainNode, // Store the underlying GainNode for direct access
+      send: send.audioNode as GainNode,
       bypass: bypass.audioNode as GainNode,
       enabled: false,
     });
@@ -244,7 +243,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   }
 
   /**
-   * Set up a send effect (parallel routing) - now using unified interface
+   * Set up a send effect (parallel routing)
    */
   connectSend(
     from: string,
@@ -292,7 +291,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   }
 
   /**
-   * Simplified disconnect - also using unified interface
+   * Disconnect
    */
   disconnectFromTo(from: string, to?: string): this {
     const fromNode = this.#nodes.get(from)?.node;
@@ -301,7 +300,6 @@ export class InstrumentMasterBus implements ILibAudioNode {
     if (to) {
       const toNode = this.#nodes.get(to)?.node;
       if (toNode) {
-        // Simple unified disconnect!
         fromNode.disconnect(toNode);
 
         // Update tracking
@@ -356,7 +354,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   }
 
   /**
-   * Set send amount for an effect - now using unified interface
+   * Set send amount for an effect
    */
   send(effect: BusEffectName, amount: number): this {
     const sendNode = this.#nodes.get(`${effect}_send`)?.node;
@@ -381,7 +379,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
         control.send.gain.setValueAtTime(enabled ? currentAmount : 0, this.now);
       }
 
-      // For insert effects, use bypass (TODO: implement bypass routing)
+      // For insert effects, use bypass
       if (control.bypass) {
         control.bypass.gain.setValueAtTime(enabled ? 0 : 1, this.now);
       }
@@ -440,7 +438,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   setReverbDecay(decay: number) {
     const effect = this.getEffect('reverb');
     if (effect) {
-      effect.setParam('decay', decay); // Use unified interface
+      effect.setParam('decay', decay);
     }
     return this;
   }
@@ -448,7 +446,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   setDrive(amount: number) {
     const effect = this.getEffect('distortion');
     if (effect) {
-      effect.setParam('distortionDrive', amount); // Use unified interface
+      effect.setParam('distortionDrive', amount);
     }
     return this;
   }
@@ -514,7 +512,6 @@ export class InstrumentMasterBus implements ILibAudioNode {
     const compressor = this.getEffect('compressor');
     if (!compressor) return this;
 
-    // Use unified interface
     if (params.threshold !== undefined) {
       compressor.setParam('threshold', params.threshold);
     }
@@ -551,13 +548,13 @@ export class InstrumentMasterBus implements ILibAudioNode {
    * Debug: Print current routing
    */
   debugRouting(): void {
-    console.log('=== Bus Routing Map ===');
+    console.debug('=== Bus Routing Map ===');
     for (const [from, connections] of this.#internalRouting) {
       if (connections.length > 0) {
-        console.log(`${from} -> ${connections.join(', ')}`);
+        console.debug(`${from} -> ${connections.join(', ')}`);
       }
     }
-    console.log('======================');
+    console.debug('======================');
   }
 
   /**

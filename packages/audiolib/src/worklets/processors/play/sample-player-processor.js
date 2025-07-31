@@ -6,11 +6,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
       {
-        name: 'playbackPosition',
-        defaultValue: 0,
+        name: 'masterGain',
+        defaultValue: 1,
         minValue: 0,
-        maxValue: 99999,
-        automationRate: 'k-rate', // a or k ?
+        maxValue: 2,
+        automationRate: 'k-rate',
       },
       {
         name: 'envGain',
@@ -31,9 +31,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 1,
         minValue: 0.1,
         maxValue: 8,
-        automationRate: 'a-rate', // a or k ?
+        automationRate: 'a-rate',
       },
-      // NOTE: Time based params always use seconds
+      // NOTE: Time based params use seconds
       {
         name: 'loopStart',
         defaultValue: 0,
@@ -60,6 +60,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         defaultValue: 9999, // Will be set to actual buffer duration when loaded
         minValue: 0,
         maxValue: 9999,
+        automationRate: 'k-rate',
+      },
+      {
+        name: 'playbackPosition',
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 99999,
         automationRate: 'k-rate',
       },
     ];
@@ -238,6 +245,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.playbackPosition = 0;
     this.loopCount = 0;
     this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+    this.velocitySensitivity = 0.5;
 
     this.applyClickCompensation = false;
     this.loopClickCompensation = 0;
@@ -422,9 +430,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     }
 
     // ===== AUDIO PROCESSING =====
-    const velocityGain = this.#midiVelocityToGain(parameters.velocity[0]);
-    const velocitySensitivity = 0.9;
-    const finalVelocityGain = velocityGain * velocitySensitivity;
+    const masterGain = parameters.masterGain[0];
+
+    const velocityGain =
+      this.#midiVelocityToGain(parameters.velocity[0]) *
+      this.velocitySensitivity;
 
     const numChannels = Math.min(output.length, this.buffer.length);
 
@@ -489,8 +499,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         }
 
         const finalSample =
-          interpolatedSample * finalVelocityGain * envelopeGain;
+          interpolatedSample * velocityGain * envelopeGain * masterGain;
 
+        // Basic hard limiting
         output[c][i] = Math.max(
           -1,
           Math.min(1, isFinite(finalSample) ? finalSample : 0)
@@ -516,59 +527,3 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
-
-// if (this.debugCounter % 1000 === 0) {
-//   this.port.postMessage({
-//     type: 'debug:loop',
-//     loopEnabled: this.loopEnabled,
-//     playbackPosition: this.playbackPosition,
-//     loopStartSamples: loopRange.loopStartSamples,
-//     loopEndSamples: loopRange.loopEndSamples,
-//     playbackStartSamples: playbackRange.startSamples,
-//     playbackEndSamples: playbackRange.endSamples,
-//     rawLoopStart: parameters.loopStart[0],
-//     rawLoopEnd: parameters.loopEnd[0],
-//   });
-// }
-
-// === DEBUGGING REMOVE ===
-//if (this.loopEnabled && this.debugCounter % 1000 === 0) {
-// console.log('Raw parameter values received:', {
-//   loopStart: parameters.loopStart[0],
-//   loopEnd: parameters.loopEnd[0],
-//   currentTime: currentTime,
-// });
-// console.log('Loop logic debug:', {
-//   playbackPosition: this.playbackPosition,
-//   loopRangeStart: loopRange.startSamples,
-//   loopRangeEnd: loopRange.endSamples,
-//   playbackRangeEnd: playbackRange.endSamples,
-//   parametersLoopStart: parameters.loopStart[0],
-//   parametersLoopEnd: parameters.loopEnd[0],
-//   willLoop: this.playbackPosition >= loopRange.endSamples,
-// });
-// console.log('DEBUG parameter arrays:', {
-//   loopEndArray: parameters.loopEndPoint,
-//   loopEndLength: parameters.loopEndPoint?.length,
-//   loopStartArray: parameters.loopStart,
-//   loopStartLength: parameters.loopStart?.length,
-// });
-// this.port.postMessage({
-//   type: 'debug:params',
-//   loopStartRaw: parameters.loopStart[0],
-//   loopStartSamples: this.#normalizedToSamples(parameters.loopStart[0]),
-//   loopEndRaw: parameters.loopEnd[0],
-//   loopEndSamples: this.#normalizedToSamples(parameters.loopEnd[0]),
-// });
-//}
-// === DEBUGGING REMOVE END ===
-
-// // Log when loop occurs
-// this.port.postMessage({
-//   type: 'voice:looped',
-//   count: this.loopCount,
-//   timestamp: currentTime,
-//   playbackPosition: this.playbackPosition,
-//   loopEndSamples: loopRange.loopEndSamples,
-//   loopStartSamples: loopRange.loopStartSamples,
-// });

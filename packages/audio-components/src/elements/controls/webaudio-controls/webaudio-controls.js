@@ -516,7 +516,7 @@ ${this.basestyle}
           this.conv = this.getAttr('conv', null);
           if (this.conv) {
             const x = this._value;
-            this.convValue = eval(this.conv);
+            this.convValue = new Function('x', `return ${this.conv}`)(x);
             if (typeof this.convValue == 'function')
               this.convValue = this.convValue(x);
           } else this.convValue = this._value;
@@ -664,7 +664,7 @@ ${this.basestyle}
             this.oldvalue = this._value;
             if (this.conv) {
               const x = this._value;
-              this.convValue = eval(this.conv);
+              this.convValue = new Function('x', `return ${this.conv}`)(x);
               if (typeof this.convValue == 'function')
                 this.convValue = this.convValue(x);
             } else this.convValue = this._value;
@@ -1041,7 +1041,7 @@ ${this.basestyle}
           this.conv = this.getAttr('conv', null);
           if (this.conv) {
             const x = this._value;
-            this.convValue = eval(this.conv);
+            this.convValue = new Function('x', `return ${this.conv}`)(x);
             if (typeof this.convValue == 'function')
               this.convValue = this.convValue(x);
           } else this.convValue = this._value;
@@ -1236,7 +1236,7 @@ ${this.basestyle}
             this.fireflag = true;
             if (this.conv) {
               const x = this._value;
-              this.convValue = eval(this.conv);
+              this.convValue = new Function('x', `return ${this.conv}`)(x);
               if (typeof this.convValue == 'function')
                 this.convValue = this.convValue(x);
             } else this.convValue = this._value;
@@ -1899,7 +1899,7 @@ ${this.basestyle}
               let val = (this.value = this.elem.value);
               if (this.rconv) {
                 let x = +this.elem.value;
-                val = eval(this.rconv);
+                val = new Function('x', `return ${this.conv}`)(x);
               }
               if (this.currentLink) {
                 this.currentLink.target.setValue(val, true);

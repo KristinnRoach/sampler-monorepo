@@ -1,19 +1,19 @@
-// Todo: remove singleton once full implementation is tree shake-able
-
 // =*=*= Audiolib =*=*= \\
 export { Audiolib } from './Audiolib';
 export { getInstance } from './createAudiolib';
 
 // =*=*= Factories =*=*= \\
 export { createAudiolib } from './createAudiolib';
-export { createSamplePlayer } from './nodes/instruments/Sample/factory';
+export { createSamplePlayer } from './nodes/instruments/Sample/createSamplePlayer';
 export { createKarplusStrongSynth } from './nodes/instruments/Synth/KarplusStrong/factory';
 export { createAudioRecorder } from './nodes/recorder';
 // export { createCustomEnvelope } from './nodes/params/envelopes/Envelope';
 
+// =*=*= Classes =*=*= \\
+export { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
+
 // =*=*=  Types =*=*= \\
 export type { AudiolibOptions } from './createAudiolib';
-export type { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
 export type { KarplusStrongSynth } from './nodes/instruments/Synth/KarplusStrong/KarplusStrongSynth';
 export type { Recorder } from './nodes/recorder';
 export type { LibNode as LibNode, SampleLoader } from './nodes/LibNode';

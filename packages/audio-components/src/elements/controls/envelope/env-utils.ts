@@ -2,6 +2,20 @@
 import type { EnvelopePoint } from '@repo/audiolib';
 
 /**
+ * Convert linear value to logarithmic space
+ */
+export const linearToLogarithmic = (
+  linearValue: number,
+  valueRange: [number, number]
+): number => {
+  const [min, max] = valueRange;
+  const normalized = (linearValue - min) / (max - min);
+  const logMin = Math.log2(Math.max(0.1, min));
+  const logMax = Math.log2(max);
+  return Math.pow(2, logMin + normalized * (logMax - logMin));
+};
+
+/**
  * Convert time in seconds to SVG X coordinate
  */
 export const secondsToScreenX = (

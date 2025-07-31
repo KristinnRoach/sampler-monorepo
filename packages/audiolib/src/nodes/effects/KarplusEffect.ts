@@ -97,6 +97,8 @@ export class KarplusEffect implements ILibAudioNode {
     return this;
   }
 
+  currAmount = 0;
+
   setAmountMacro(amount: number): this {
     const safeAmount = clamp(amount, 0, 1);
 
@@ -109,6 +111,7 @@ export class KarplusEffect implements ILibAudioNode {
 
     this.setFeedback(safeAmount);
 
+    this.currAmount = safeAmount;
     return this;
   }
 
@@ -157,8 +160,8 @@ export class KarplusEffect implements ILibAudioNode {
       return;
     }
 
-    // convert from UI range 1 - 4 to 0.5 - 2 param range
-    const mappedMultiplier = mapToRange(value, 1, 4, 0.5, 2);
+    // convert from UI range 1 - 5
+    const mappedMultiplier = value; // ??? mapToRange(value, 1, 4, 0.5, 4);
     const delayParam = this.getParam('delayTime')!;
 
     this.#pitchMultiplier = mappedMultiplier;

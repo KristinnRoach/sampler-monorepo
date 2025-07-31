@@ -194,32 +194,32 @@ export class Audiolib implements AudioGraph {
     return recorder;
   }
 
-  createSamplePlayer(
-    ctx = this.#audioContext,
-    polyphony = 16,
-    audioBuffer?: AudioBuffer
-  ): SamplePlayer {
-    assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
+  // createSamplePlayer(
+  //   ctx = this.#audioContext,
+  //   polyphony = 16,
+  //   audioBuffer?: AudioBuffer
+  // ): SamplePlayer {
+  //   assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
 
-    let buffer = audioBuffer || this.#currentAudioBuffer;
-    assert(buffer, 'No audio buffer available for SamplePlayer', {
-      providedSample: !!audioBuffer,
-      initSampleAvailable: !!this.#currentAudioBuffer,
-    });
+  //   let buffer = audioBuffer || this.#currentAudioBuffer;
+  //   assert(buffer, 'No audio buffer available for SamplePlayer', {
+  //     providedSample: !!audioBuffer,
+  //     initSampleAvailable: !!this.#currentAudioBuffer,
+  //   });
 
-    // Use the factory function instead of direct instantiation
-    const newSamplePlayer = createSamplePlayerFactory(
-      buffer,
-      polyphony,
-      ctx,
-      this.#midiController
-    );
+  //   // Use the factory function instead of direct instantiation
+  //   const newSamplePlayer = createSamplePlayerFactory(
+  //     buffer,
+  //     polyphony,
+  //     ctx,
+  //     this.#midiController
+  //   );
 
-    // newSamplePlayer.connect(this.#masterGain);
-    this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
+  //   // newSamplePlayer.connect(this.#masterGain);
+  //   this.#instruments.set(newSamplePlayer.nodeId, newSamplePlayer);
 
-    return newSamplePlayer;
-  }
+  //   return newSamplePlayer;
+  // }
 
   createKarplusStrongSynth(
     polyphony = 8,
@@ -399,84 +399,3 @@ export class Audiolib implements AudioGraph {
     }
   }
 }
-
-// Old global keyboard input for reffernce - clean up soon:
-// enableKeyboard() {
-// unnecessary or should just call enable for all instruments ?
-//   if (!this.#keyboardHandler) {
-//     this.#keyboardHandler = {
-//       onNoteOn: this.#onNoteOn.bind(this),
-//       onNoteOff: this.#onNoteOff.bind(this),
-//       onBlur: this.#onBlur.bind(this),
-//       // onCapsToggled: this.#onCapsToggled.bind(this),
-//     };
-//     globalKeyboardInput.addHandler(this.#keyboardHandler);
-//   } else {
-//     console.debug(`keyboard already enabled`);
-//   }
-// }
-
-// disableKeyboard() {
-//   if (this.#keyboardHandler) {
-//     globalKeyboardInput.removeHandler(this.#keyboardHandler);
-//     this.#keyboardHandler = null;
-//   } else {
-//     console.debug(`keyboard already disabled`);
-//   }
-// }
-
-// #onNoteOn(
-//   midiNote: number,
-//   velocity: number = 100, // DEFAULT
-//   modifiers: PressedModifiers
-// ) {
-//   this.#instruments.forEach((s) => s.play(midiNote, velocity, modifiers));
-// }
-
-// #onNoteOff(midiNote: number, modifiers: PressedModifiers) {
-//   this.#instruments.forEach((s) => s.release(midiNote, modifiers));
-// }
-
-// #onBlur() {
-//   console.debug('Blur occured');
-//   this.#instruments.forEach((s) => s.releaseAll());
-// }
-
-// in dispose:
-// // Detach keyboard handler
-// if (this.#keyboardHandler) {
-//   globalKeyboardInput.removeHandler(this.#keyboardHandler);
-//   this.#keyboardHandler = null;
-// }
-
-// Old SampleInstrument test - remove:
-// createSampleInstrument(
-//   audioSample?: AudioBuffer,
-//   polyphony = 16,
-//   ctx = this.#audioContext
-// ): SampleInstrument | null {
-//   assert(ctx, 'Audio context is not available', { nodeId: this.nodeId });
-
-//   let audioBuffer = audioSample || this.#currentAudioBuffer;
-//   assert(audioBuffer, 'No audio buffer available for sampler', {
-//     providedSample: !!audioSample,
-//     initSampleAvailable: !!this.#currentAudioBuffer,
-//   });
-
-//   const options = { polyphony, output: this.#masterGain };
-
-//   const newSampleInstrument = new SampleInstrument(ctx, options);
-//   assert(newSampleInstrument, `Failed to create SampleInstrument`);
-
-//   newSampleInstrument.loadSample(audioBuffer);
-//   const alreadyLoaded = this.#instruments.has(newSampleInstrument.nodeId);
-//   assert(
-//     !alreadyLoaded,
-//     `Sampler with id: ${newSampleInstrument.nodeId} already loaded`
-//   );
-
-//   // newSampleInstrument.connect(this.#masterGain);
-//   this.#instruments.set(newSampleInstrument.nodeId, newSampleInstrument);
-
-//   return newSampleInstrument;
-// }

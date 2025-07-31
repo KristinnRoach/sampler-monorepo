@@ -37,8 +37,8 @@ export const createAddNodeButton = () => {
     button({ class: 'add-el-btn' }, '+'),
     select(
       { id: 'node-select', class: 'node-select' },
-      option({ value: 'sampler' }, 'Sampler'),
-      option({ value: 'karplus-synth' }, 'Karplus Synth')
+      option({ value: 'sampler' }, 'Sampler')
+      // option({ value: 'karplus-synth' }, 'Karplus Synth')
     )
   );
 };

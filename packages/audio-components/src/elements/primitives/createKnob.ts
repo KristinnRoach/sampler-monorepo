@@ -7,6 +7,7 @@ export interface KnobConfig {
   minValue?: number;
   maxValue?: number;
   defaultValue?: number;
+  allowedValues?: number[];
   snapIncrement?: number;
   width?: number;
   height?: number;
@@ -30,6 +31,7 @@ export const createKnob = (config: KnobConfig): HTMLElement => {
     height = 45,
     curve = 1,
     snapThresholds,
+    allowedValues = undefined,
     className = 'generic-knob',
     title,
   } = config;
@@ -51,6 +53,10 @@ export const createKnob = (config: KnobConfig): HTMLElement => {
 
   if (snapThresholds) {
     knobElement.setAttribute('snap-thresholds', JSON.stringify(snapThresholds));
+  }
+
+  if (allowedValues) {
+    knobElement.setAttribute('allowed-values', JSON.stringify(allowedValues));
   }
 
   knobElement.className = className;

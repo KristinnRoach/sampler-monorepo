@@ -15,7 +15,7 @@ export type PreProcessOptions = {
   normalize?: { enabled: boolean; maxAmplitudePeak?: number }; // amplitude range [-1, 1]
   trimSilence?: { enabled: boolean; threshold?: number }; // [-1, 1]
   fadeInOutMs?: number; // milliseconds
-  tune?: { detectPitch?: boolean; autotune: boolean; targetMidiNote?: number }; // TODO: Move autotune feature here
+  tune?: { detectPitch?: boolean; autotune: boolean; targetMidiNote?: number };
   hpf?: { auto?: boolean } | { cutoff?: number }; // auto starts filtering at detected fundamental
   getZeroCrossings?: boolean;
 };
@@ -104,9 +104,16 @@ export async function preProcessAudioBuffer(
   }
 
   if (hpf) {
-    const fundamental = results.detectedPitch?.fundamentalHz;
-    const cutoffFreq = 'cutoff' in hpf ? hpf.cutoff : fundamental;
-    processed = await applyHighPassFilter(processed, cutoffFreq ?? 80); // 80Hz fallback
+    if ('cutoff' in hpf) {
+      processed = await applyHighPassFilter(processed, hpf.cutoff ?? 80); // 80Hz fallback
+    } else if (
+      results.detectedPitch &&
+      results.detectedPitch.confidence < 0.35
+    ) {
+      const fundamental = results.detectedPitch?.fundamentalHz;
+      const cutoffFreq = fundamental > 30 ? fundamental : 80; // 80Hz fallback
+      processed = await applyHighPassFilter(processed, cutoffFreq);
+    }
   }
 
   const finalResults: PreProcessResults = {

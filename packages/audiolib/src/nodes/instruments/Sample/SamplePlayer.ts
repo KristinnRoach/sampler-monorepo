@@ -1,5 +1,7 @@
+// SamplePlayer.ts
+
 import { getAudioContext } from '@/context';
-import { MidiController, globalKeyboardInput, PressedModifiers } from '@/io';
+import { MidiController } from '@/io';
 import { Message, MessageHandler, MessageBus } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
@@ -10,13 +12,7 @@ import {
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
-import {
-  assert,
-  tryCatch,
-  isValidAudioBuffer,
-  isMidiValue,
-  findZeroCrossings,
-} from '@/utils';
+import { assert, tryCatch, isValidAudioBuffer, isMidiValue } from '@/utils';
 
 import {
   MacroParam,
@@ -28,6 +24,8 @@ import {
 import { LFO } from '@/nodes/params/LFOs/LFO';
 
 import { LibInstrument } from '@/nodes/instruments/LibInstrument';
+import { Destination } from '@/nodes/LibNode';
+import { NodeID } from '@/nodes/node-store';
 import {
   InstrumentMasterBus,
   BusEffectName,
@@ -35,8 +33,12 @@ import {
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
+import { KarplusEffect } from '@/nodes/effects/KarplusEffect';
 
 export class SamplePlayer extends LibInstrument {
+  // Explicitly declare inherited public properties for TypeScript visibility
+  declare readonly nodeId: NodeID;
+
   #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
 
@@ -55,8 +57,6 @@ export class SamplePlayer extends LibInstrument {
   syncLFOsToMidiNote = false; // todo setter
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
-
-  #glideTime = 0;
 
   #isReady = false;
   #isLoaded = false;
@@ -87,7 +87,7 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(context.destination);
 
-    this.outBus.debugRouting();
+    // this.outBus.debugRouting(); // uncomment for debugging
 
     // Setup params
     this.#macroLoopStart = new MacroParam(
@@ -246,16 +246,16 @@ export class SamplePlayer extends LibInstrument {
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
-    shoulDetectPitch = true,
-    autoTranspose = true,
     preprocessOptions?: PreProcessOptions
-  ): Promise<AudioBuffer> {
+  ): Promise<AudioBuffer | null> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
       buffer = await ctx.decodeAudioData(buffer);
     }
 
-    assert(isValidAudioBuffer(buffer));
+    if (!isValidAudioBuffer(buffer)) {
+      return null;
+    }
 
     if (
       buffer.sampleRate !== this.audioContext.sampleRate ||
@@ -367,14 +367,8 @@ export class SamplePlayer extends LibInstrument {
   play(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
-    modifiers?: PressedModifiers,
     glideTime = this.getGlideTime()
   ): MidiValue | null {
-    if (modifiers) {
-      this.#handleModifierKeys(modifiers);
-      if (modifiers.alt) midiNote += 12;
-    }
-
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
     if (this.syncLFOsToMidiNote) {
@@ -393,9 +387,7 @@ export class SamplePlayer extends LibInstrument {
     );
   }
 
-  release(midiNote: MidiValue, modifiers?: PressedModifiers): this {
-    if (modifiers) this.#handleModifierKeys(modifiers);
-
+  release(midiNote: MidiValue): this {
     if (this.holdEnabled || this.#holdLocked) return this; // one-shot mode
 
     this.voicePool.noteOff(midiNote, this.getReleaseTime(), 0);
@@ -481,6 +473,7 @@ export class SamplePlayer extends LibInstrument {
     if (this.#loopEnabled === enabled) return this;
 
     // if loop is locked (ON), turning it off is disabled but turning it on should work
+    // (so it continues to be on when lock is released)
     if (this.#loopLocked && !enabled) return this;
 
     const voices = this.voicePool.allVoices;
@@ -492,6 +485,16 @@ export class SamplePlayer extends LibInstrument {
     return this;
   }
 
+  setLoopLocked(locked: boolean): this {
+    if (this.#loopLocked === locked) return this;
+
+    this.#loopLocked = locked;
+
+    this.setLoopEnabled(locked);
+    this.sendUpstreamMessage('loop:locked', { locked });
+    return this;
+  }
+
   setHoldEnabled(enabled: boolean) {
     if (this.#holdEnabled === enabled) return this;
     // if hold is locked (ON), turning it off is disabled but turning it on should work
@@ -500,16 +503,6 @@ export class SamplePlayer extends LibInstrument {
     if (!enabled) this.releaseAll(this.getReleaseTime());
     this.sendUpstreamMessage('hold:enabled', { enabled });
 
-    return this;
-  }
-
-  setLoopLocked(locked: boolean): this {
-    if (this.#loopLocked === locked) return this;
-
-    this.#loopLocked = locked;
-
-    this.setLoopEnabled(locked);
-    this.sendUpstreamMessage('loop:locked', { locked });
     return this;
   }
 
@@ -837,17 +830,24 @@ export class SamplePlayer extends LibInstrument {
   #feedbackMode: 'monophonic' | 'polyphonic' | 'double-trouble' = 'monophonic';
 
   setFeedbackMode(mode: 'monophonic' | 'polyphonic' | 'double-trouble') {
-    console.log('feedbackMode set to ', mode);
     this.#feedbackMode = mode;
 
     if (mode === 'monophonic') {
+      let currAmount = this.voicePool.allVoices[0].feedback?.currAmount ?? 0;
       this.voicePool.applyToAllVoices((voice) => {
         voice.feedback?.setAmountMacro(0);
       });
+      this.outBus.setKarplusAmount(currAmount);
     } else if (mode === 'polyphonic') {
+      const monoKarplus = this.outBus.getEffect('karplus') as KarplusEffect;
+      const currAmount = monoKarplus.currAmount;
       this.outBus.setKarplusAmount(0);
+
+      this.voicePool.applyToAllVoices((voice) => {
+        voice.feedback?.setAmountMacro(currAmount);
+      });
     } else {
-      console.info('Feedback mode set to double-trouble, experimental!');
+      console.info('Feedback mode set to double-trouble, radical!');
     }
   }
 
@@ -888,37 +888,6 @@ export class SamplePlayer extends LibInstrument {
   };
 
   /* === I/O === */
-
-  #handleModifierKeys(modifiers: PressedModifiers) {
-    if (modifiers.caps !== undefined) {
-      this.setLoopEnabled(modifiers.caps);
-    }
-    if (modifiers.shift !== undefined) {
-      this.setHoldEnabled(modifiers.shift);
-    }
-    return this;
-  }
-
-  enableKeyboard() {
-    if (!this.keyboardHandler) {
-      this.keyboardHandler = {
-        onNoteOn: this.play.bind(this),
-        onNoteOff: this.release.bind(this),
-        onBlur: () => this.panic(),
-        onModifierChange: this.#handleModifierKeys.bind(this),
-      };
-      globalKeyboardInput.addHandler(this.keyboardHandler);
-    }
-    return this;
-  }
-
-  disableKeyboard() {
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
-    return this;
-  }
 
   async initMidiController(): Promise<boolean> {
     if (this.midiController?.isInitialized) {
@@ -1029,6 +998,11 @@ export class SamplePlayer extends LibInstrument {
     return this.#audiobuffer;
   }
 
+  // Expose inherited connect method from LibInstrument
+  connect(destination: Destination) {
+    return super.connect(destination);
+  }
+
   /* === CLEANUP === */
 
   dispose(): void {
@@ -1063,12 +1037,6 @@ export class SamplePlayer extends LibInstrument {
 
       this.audioContext = null as unknown as AudioContext;
       this.messages = null as unknown as MessageBus<Message>;
-
-      // Detach keyboard handler
-      if (this.keyboardHandler) {
-        globalKeyboardInput.removeHandler(this.keyboardHandler);
-        this.keyboardHandler = null;
-      }
 
       // todo: disableMIDI
     } catch (error) {

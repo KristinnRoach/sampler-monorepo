@@ -1,3 +1,5 @@
+// feedback-delay-processor.js
+
 import { FeedbackDelay } from './FeedbackDelay';
 
 registerProcessor(
@@ -15,7 +17,7 @@ registerProcessor(
         {
           name: 'delayTime',
           defaultValue: 0.5,
-          minValue: 0.0004774632, // C7 in seconds
+          minValue: 0.00012656238799684144, // <- B natural in seconds (highest note period that works)
           maxValue: 4,
           automationRate: 'k-rate',
         },
@@ -57,32 +59,29 @@ registerProcessor(
 
       const feedbackAmount = parameters.feedbackAmount[0];
       const delayTime = parameters.delayTime[0];
+      const channelCount = Math.min(input.length, output.length);
+      const frameCount = output[0].length;
 
       // Process each sample
-      for (let i = 0; i < output[0].length; ++i) {
+      for (let i = 0; i < frameCount; ++i) {
         // Process each channel
-        for (let c = 0; c < Math.min(input.length, output.length); c++) {
+        for (let c = 0; c < channelCount; c++) {
           // Process feedback delay
-          const delayResult = this.feedbackDelay.process(
+          const processed = this.feedbackDelay.process(
             input[c][i],
             c,
             feedbackAmount,
             delayTime
           );
 
-          const clamped = Math.max(
-            -0.999,
-            Math.min(0.999, delayResult.outputSample)
-          );
-
-          // Output with basic limiting to prevent clipping
-          output[c][i] = clamped;
+          // Direct assignment (processing handled in FeedbackDelay)
+          output[c][i] = processed.outputSample;
 
           // Update buffer with feedback signal
           this.feedbackDelay.updateBuffer(
             c,
-            delayResult.feedbackSample,
-            delayResult.delaySamples
+            processed.feedbackSample,
+            processed.delaySamples
           );
         }
       }

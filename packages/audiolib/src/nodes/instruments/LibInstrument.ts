@@ -3,12 +3,7 @@ import { assert, tryCatch } from '@/utils';
 import { LibNode, Connectable, Messenger, Destination } from '@/nodes/LibNode';
 import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
 
-import {
-  MidiController,
-  globalKeyboardInput,
-  InputHandler,
-  PressedModifiers,
-} from '@/io';
+import { MidiController } from '@/io';
 
 import {
   Message,
@@ -28,7 +23,6 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   readonly nodeType: InstrumentType;
 
   protected messages: MessageBus<Message>;
-  protected keyboardHandler: InputHandler | null = null;
   protected midiController: MidiController | null = null;
 
   protected voicePool: SampleVoicePool | KarplusVoicePool | null = null;
@@ -91,44 +85,15 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // Abstract methods that must be implemented by subclasses
-  abstract play(
-    midiNote: MidiValue,
-    velocity?: number,
-    modifiers?: Partial<PressedModifiers>
-  ): MidiValue | null;
+  abstract play(midiNote: MidiValue, velocity?: number): MidiValue | null;
 
-  abstract release(
-    note: MidiValue,
-    modifiers?: Partial<PressedModifiers>
-  ): this;
+  abstract release(note: MidiValue): this;
 
   abstract releaseAll(fadeOut_sec?: number): this;
 
   // Common functionality for all instruments
 
   panic = (fadeOut_sec?: number) => this.releaseAll(fadeOut_sec);
-
-  // Keyboard input
-  enableKeyboard(): this {
-    if (!this.keyboardHandler) {
-      this.keyboardHandler = {
-        onNoteOn: this.play.bind(this),
-        onNoteOff: this.release.bind(this),
-        onBlur: this.handleBlur.bind(this),
-        onModifierChange: this.handleModifierKeys.bind(this),
-      };
-      globalKeyboardInput.addHandler(this.keyboardHandler);
-    }
-    return this;
-  }
-
-  disableKeyboard(): this {
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
-    return this;
-  }
 
   // MIDI input
   async enableMIDI(
@@ -156,23 +121,12 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return this;
   }
 
-  // Event handlers (can be overridden)
-  protected handleBlur(): this {
-    this.panic();
-    return this;
-  }
-
-  protected handleModifierKeys(modifiers: PressedModifiers): this {
-    // todo: Default implementation - subclasses can override for custom behavior
-    return this;
-  }
-
   // Connection methods
   public connect(
     destination: Destination
     // output?: 'dry' | 'wet' | 'alt'
   ): Destination {
-    assert(destination instanceof AudioNode, 'remember to fix this'); // TODO
+    assert(destination instanceof AudioNode, 'remember to fix this');
 
     this.outBus.connect(destination);
     this.destination = destination;
@@ -195,30 +149,15 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     return this.audioContext.currentTime;
   }
 
-  // get volume(): number {
-  //   return this.outBus.outVolume;
-  // }
-
-  // set volume(value: number) {
-  //   this.outBus.outVolume = value;
-  // }
-
   /**
    * Clean up all resources.
    */
   dispose() {
     this.panic(0);
     this.disconnect();
-    this.disableKeyboard();
     this.disableMIDI();
 
     this.audioContext = null as unknown as AudioContext;
     this.messages = null as unknown as MessageBus<Message>;
-
-    // Detach keyboard handler
-    if (this.keyboardHandler) {
-      globalKeyboardInput.removeHandler(this.keyboardHandler);
-      this.keyboardHandler = null;
-    }
   }
 }
