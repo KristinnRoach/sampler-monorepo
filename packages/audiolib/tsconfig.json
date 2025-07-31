@@ -30,7 +30,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "composite": true
   },
   "include": ["src"], // , "src/types/worklet.d.ts"
   "exclude": ["node_modules", "dist", "src/test/*", "src/**/*.test*"]

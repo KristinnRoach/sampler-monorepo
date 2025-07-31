@@ -81,11 +81,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     const timestamp = this.now + secondsFromNow;
 
     this.setPitch(midiNote, cents, timestamp, glideTime);
-
-    if (triggerDecay) {
-      // Trigger decay slightly after the pitch change to ensure feedback is established
-      setTimeout(() => this.triggerDecay(), (secondsFromNow + 0.01) * 1000);
-    }
+    if (triggerDecay) this.triggerDecay();
 
     return this;
   }

@@ -53,7 +53,7 @@ export const SamplerElement = (attributes: ElementProps) => {
   const feedbackAmount = van.state(0.0);
   const feedbackDecayTime = van.state(10);
   const feedbackPitch = van.state(0.5);
-  const feedbackMode = van.state(true); // true = monophonic, false = polyphonic
+  const feedbackMode = van.state<'monophonic' | 'polyphonic'>('monophonic');
 
   const ampEnvelope = van.state<CustomEnvelope | null>(null);
   const pitchEnvelope = van.state<CustomEnvelope | null>(null);
@@ -326,12 +326,8 @@ export const SamplerElement = (attributes: ElementProps) => {
         });
 
         derive(() => {
-          if (
-            !samplePlayer?.outputBus.getNode('harmonic-feedback')?.initialized
-          )
-            return;
-          const mode = feedbackMode.val === true ? 'monophonic' : 'polyphonic';
-          samplePlayer.setFeedbackMode(mode);
+          if (!samplePlayer?.initialized) return;
+          samplePlayer.setFeedbackMode(feedbackMode.val);
         });
 
         derive(() => {
@@ -811,7 +807,13 @@ export const SamplerElement = (attributes: ElementProps) => {
             on: true,
             size: 1,
             onColor: '#4CAF50',
-            onChange: () => (feedbackMode.val = !feedbackMode.oldVal),
+            onChange: () => {
+              if (feedbackMode.val === 'monophonic') {
+                feedbackMode.val = 'polyphonic';
+              } else {
+                feedbackMode.val = 'monophonic';
+              }
+            },
           })
         )
       ),

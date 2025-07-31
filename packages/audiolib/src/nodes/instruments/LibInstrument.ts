@@ -18,10 +18,10 @@ import { SampleVoicePool } from '@/nodes/instruments/Sample/SampleVoicePool';
 import { KarplusVoicePool } from '@/nodes/instruments/Synth/KarplusStrong/KarplusVoicePool';
 import { localStore } from '@/storage/local';
 
-export type InstrumentType = 'sample-player' | 'synth';
+export type InstrumentType = 'sample-player'; // | 'synth';
 
 export abstract class LibInstrument implements LibNode, Connectable, Messenger {
-  readonly nodeId: NodeID;
+  public readonly nodeId: NodeID;
   readonly nodeType: InstrumentType;
 
   public messages: MessageBus<Message>;
@@ -77,7 +77,7 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
   }
 
   // Messaging - Shared implementation
-  onMessage(type: string, handler: MessageHandler<Message>): () => void {
+  public onMessage(type: string, handler: MessageHandler<Message>): () => void {
     return this.messages.onMessage(type, handler);
   }
 
