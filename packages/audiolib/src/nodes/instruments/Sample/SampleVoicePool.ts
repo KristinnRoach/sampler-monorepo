@@ -234,7 +234,7 @@ export class SampleVoicePool {
     }
   }
 
-  #GAIN_REDUCTION_SENSITIVITY = 0.3;
+  #GAIN_REDUCTION_SENSITIVITY = 0.4;
 
   #updateVoiceGains() {
     const activeCount = this.#playing.size + this.#releasing.size;
@@ -247,9 +247,8 @@ export class SampleVoicePool {
     this.#gainReductionScalar =
       1 / (1 + Math.log10(activeCount) * this.#GAIN_REDUCTION_SENSITIVITY);
 
-    // Apply to all active voices
+    // Apply to all playing voices (skip 'releasing' since they are fading out)
     [...this.#playing].forEach((voice) => {
-      // skip ...this.#releasing since they are fading out
       voice.setMasterGain(this.#gainReductionScalar);
     });
   }

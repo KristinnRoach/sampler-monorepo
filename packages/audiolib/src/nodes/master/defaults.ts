@@ -7,7 +7,7 @@ export const DEFAULT_COMPRESSOR_SETTINGS = {
 } as const;
 
 export const DEFAULT_LIMITER_SETTINGS = {
-  threshold: -1,
+  threshold: -1, // ? causes ugly clipping ?
   ratio: 20, // Hard limiting
   attack: 0.001, // Very fast attack
   release: 0.01, // Quick release
