@@ -45,13 +45,22 @@ export type DistortionWorklet = WorkletNode<DistortionConfig>;
 export type FbDelayParams = {
   delayTime: number;
   feedbackAmount: number;
+  decayAmount: number;
 };
 
-export type FbDelayMsg = {
-  type: 'setAutoGain';
-  amount: number;
-};
-
+export type FbDelayMsg =
+  | {
+      type: 'setAutoGain';
+      enabled: boolean;
+      amount: number;
+    }
+  | {
+      type: 'triggerDecay';
+      baseFeedbackAmount: number;
+    }
+  | {
+      type: 'stopDecay';
+    };
 export type FbDelayConfig = {
   params: FbDelayParams;
   message: FbDelayMsg;

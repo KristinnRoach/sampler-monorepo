@@ -17,7 +17,7 @@ export type VoiceType = 'sample' | 'karplus-strong' | 'osc' | 'noise';
 
 export type CustomFxType =
   | 'feedback-delay'
-  | 'karplus-effect'
+  | 'harmonic-feedback'
   | 'distortion'
   | 'dattorro-reverb';
 

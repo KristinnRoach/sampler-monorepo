@@ -100,7 +100,6 @@ export abstract class LibInstrument implements LibNode, Connectable, Messenger {
     midiController?: MidiController,
     channel: number = 0
   ): Promise<this> {
-    console.warn('EnableMIDI CALLED');
     if (!midiController) {
       midiController = new MidiController();
       await midiController.initialize();

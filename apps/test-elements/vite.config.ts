@@ -26,6 +26,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
+      '@repo/audio-components': resolve(
+        __dirname,
+        '../../packages/audio-components/dist/index.js'
+      ),
     },
   },
 });

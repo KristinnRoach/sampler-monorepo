@@ -33,7 +33,7 @@ import {
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
-import { KarplusEffect } from '@/nodes/effects/KarplusEffect';
+import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
 export class SamplePlayer extends LibInstrument {
   // Explicitly declare inherited public properties for TypeScript visibility
@@ -815,16 +815,41 @@ export class SamplePlayer extends LibInstrument {
     this.outBus.send(effect, amount);
   };
 
-  // return = (effect: BusEffectName, level: number) => {
-  //   this.outBus.return(effect, level);
-  // };
-
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
   setHpfCutoff = (hz: number) => this.outBus.setHpfCutoff(hz);
 
   /* Macro control for reverb send and various other params */
   setReverbAmount = (amount: number) => {
     this.outBus.setReverbAmount(amount);
+  };
+
+  setFeedbackDecay(value: number) {
+    this.outBus.setFeedbackDecay(value);
+
+    this.voicePool.applyToAllVoices((voice) => {
+      voice.feedback?.setDecay(value);
+    });
+  }
+
+  // === FEEDBACK ===
+
+  /**  Macro control for HarmonicFeedback send and various other params */
+  setFeedbackAmount = (amount: number) => {
+    if (
+      this.#feedbackMode === 'monophonic' ||
+      this.#feedbackMode === 'double-trouble'
+    ) {
+      this.outBus.setFeedbackAmount(amount);
+    }
+
+    if (
+      this.#feedbackMode === 'polyphonic' ||
+      this.#feedbackMode === 'double-trouble'
+    ) {
+      this.voicePool.applyToAllVoices((voice) => {
+        voice.feedback?.setAmountMacro(amount);
+      });
+    }
   };
 
   #feedbackMode: 'monophonic' | 'polyphonic' | 'double-trouble' = 'monophonic';
@@ -837,11 +862,11 @@ export class SamplePlayer extends LibInstrument {
       this.voicePool.applyToAllVoices((voice) => {
         voice.feedback?.setAmountMacro(0);
       });
-      this.outBus.setKarplusAmount(currAmount);
+      this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
-      const monoKarplus = this.outBus.getEffect('karplus') as KarplusEffect;
-      const currAmount = monoKarplus.currAmount;
-      this.outBus.setKarplusAmount(0);
+      const monoFx = this.outBus.getEffect('feedback') as HarmonicFeedback;
+      const currAmount = monoFx.currAmount;
+      this.outBus.setFeedbackAmount(0);
 
       this.voicePool.applyToAllVoices((voice) => {
         voice.feedback?.setAmountMacro(currAmount);
@@ -852,40 +877,12 @@ export class SamplePlayer extends LibInstrument {
   }
 
   setFeedbackPitchScale(value: number) {
-    if (
-      this.#feedbackMode === 'monophonic' ||
-      this.#feedbackMode === 'double-trouble'
-    ) {
-      this.outBus.setFeedbackPitchScale(value);
-    }
+    this.outBus.setFeedbackPitchScale(value);
 
-    if (
-      this.#feedbackMode === 'polyphonic' ||
-      this.#feedbackMode === 'double-trouble'
-    ) {
-      this.voicePool.applyToAllVoices((voice) => {
-        voice.feedback?.setDelayMultiplier(value);
-      });
-    }
+    this.voicePool.applyToAllVoices((voice) => {
+      voice.feedback?.setDelayMultiplier(value);
+    });
   }
-  /* Macro control for karplus send and various other params */
-  setKarplusAmount = (amount: number) => {
-    if (
-      this.#feedbackMode === 'monophonic' ||
-      this.#feedbackMode === 'double-trouble'
-    ) {
-      this.outBus.setKarplusAmount(amount);
-    }
-
-    if (
-      this.#feedbackMode === 'polyphonic' ||
-      this.#feedbackMode === 'double-trouble'
-    ) {
-      this.voicePool.applyToAllVoices((voice) => {
-        voice.feedback?.setAmountMacro(amount);
-      });
-    }
-  };
 
   /* === I/O === */
 
@@ -907,25 +904,6 @@ export class SamplePlayer extends LibInstrument {
     assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
     return result.data;
   }
-
-  // async enableMIDI(
-  //   midiController?: MidiController,
-  //   channel: number = 0
-  // ): Promise<this> {
-  //   const controller = midiController || this.midiController;
-  //   const midiSuccess = await this.initMidiController(); // move ?
-
-  //   if (midiSuccess && controller?.isInitialized) {
-  //     controller.connectInstrument(this, channel);
-  //   }
-  //   return this;
-  // }
-
-  // disableMIDI(midiController?: MidiController, channel: number = 0): this {
-  //   const controller = midiController || this.midiController;
-  //   if (controller) controller.disconnectInstrument(channel);
-  //   return this;
-  // }
 
   setMidiController(midiController: MidiController): this {
     this.midiController = midiController;

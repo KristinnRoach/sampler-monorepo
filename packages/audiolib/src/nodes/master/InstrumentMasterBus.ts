@@ -17,7 +17,7 @@ import {
 } from './defaults';
 import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
-import { KarplusEffect } from '../effects/KarplusEffect';
+import { HarmonicFeedback } from '../effects/HarmonicFeedback';
 
 import { createDistortion } from '@/worklets/worklet-factory';
 import { DistortionWorklet, FbDelayWorklet } from '@/worklets/worklet-types';
@@ -26,7 +26,7 @@ import { WorkletNode } from '@/worklets/WorkletNode';
 export type BusEffectName =
   | 'distortion'
   | 'feedbackDelay'
-  | 'karplus'
+  | 'feedback'
   | 'reverb'
   | 'compressor'
   | 'limiter';
@@ -43,7 +43,7 @@ type EffectType =
   | DistortionWorklet
   | FbDelayWorklet
   | DattorroReverb
-  | KarplusEffect;
+  | HarmonicFeedback;
 
 export class InstrumentMasterBus implements ILibAudioNode {
   readonly nodeId: NodeID;
@@ -141,7 +141,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
 
     // Nodes that already implement ILibAudioNode
     const reverb = new DattorroReverb(this.#context);
-    const karplus = new KarplusEffect(this.#context);
+    const feedback = new HarmonicFeedback(this.#context);
 
     // Store all nodes with ILibAudioNode interface
     this.addNode('input', inputAdapter, 'gain');
@@ -155,11 +155,11 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.addEffect('limiter', limiterAdapter);
     this.addEffect('distortion', distortionAdapter);
     this.addEffect('reverb', reverb);
-    this.addEffect('karplus', karplus);
+    this.addEffect('feedback', feedback);
 
     // Connections
-    this.connectFromTo('input', 'karplus');
-    this.connectFromTo('karplus', 'distortion');
+    this.connectFromTo('input', 'feedback');
+    this.connectFromTo('feedback', 'distortion');
     this.connectFromTo('distortion', 'compressor');
     this.connectFromTo('compressor', 'hpf');
     this.connectFromTo('hpf', 'lpf');
@@ -174,7 +174,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.connectFromTo('limiter', 'output');
 
     // Enable effects by default
-    this.setEffectEnabled('karplus', true);
+    this.setEffectEnabled('feedback', true);
     this.setEffectEnabled('compressor', true);
     this.setEffectEnabled('limiter', true);
     this.setEffectEnabled('reverb', true);
@@ -396,9 +396,9 @@ export class InstrumentMasterBus implements ILibAudioNode {
     secondsFromNow = 0,
     glideTime = 0
   ): this {
-    const karplus = this.getEffect('karplus');
-    if (karplus && (karplus as KarplusEffect).trigger) {
-      (karplus as KarplusEffect).trigger(midiNote, {
+    const feedback = this.getEffect('feedback');
+    if (feedback && (feedback as HarmonicFeedback).trigger) {
+      (feedback as HarmonicFeedback).trigger(midiNote, {
         velocity,
         secondsFromNow,
         glideTime,
@@ -471,17 +471,25 @@ export class InstrumentMasterBus implements ILibAudioNode {
   }
 
   setFeedbackPitchScale(value: number) {
-    const effect = this.getEffect('karplus');
-    if (effect && (effect as KarplusEffect).setDelayMultiplier) {
-      (effect as KarplusEffect).setDelayMultiplier(value);
+    const effect = this.getEffect('feedback');
+    if (effect && (effect as HarmonicFeedback).setDelayMultiplier) {
+      (effect as HarmonicFeedback).setDelayMultiplier(value);
     }
     return this;
   }
 
-  setKarplusAmount(amount: number): this {
-    const effect = this.getEffect('karplus');
+  setFeedbackAmount(amount: number) {
+    const effect = this.getEffect('feedback');
     if (effect && (effect as any).setAmountMacro) {
       (effect as any).setAmountMacro(amount);
+    }
+    return this;
+  }
+
+  setFeedbackDecay(amount: number) {
+    const effect = this.getEffect('feedback') as HarmonicFeedback;
+    if (effect && effect instanceof HarmonicFeedback) {
+      effect.setDecay(amount);
     }
     return this;
   }
@@ -561,7 +569,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
    * Debug: Check channel counts at each stage
    */
   debugChannelCounts(): void {
-    const nodes = ['reverb', 'wetMix', 'limiter', 'karplus'];
+    const nodes = ['reverb', 'wetMix', 'limiter', 'feedback'];
 
     nodes.forEach((nodeName) => {
       const node = this.getNode(nodeName);
@@ -638,8 +646,11 @@ export class InstrumentMasterBus implements ILibAudioNode {
       case 'reverbAmount':
         this.setReverbAmount(value);
         break;
-      case 'karplusAmount':
-        this.setKarplusAmount(value);
+      case 'feedbackAmount':
+        this.setFeedbackAmount(value);
+        break;
+      case 'feedbackDecay':
+        this.setFeedbackDecay(value);
         break;
       case 'drive':
         this.setDrive(value);
@@ -736,8 +747,8 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this.#controls.get('reverb')?.enabled ?? false;
   }
 
-  get karplusFxEnabled(): boolean {
-    return this.#controls.get('karplus')?.enabled ?? false;
+  get feedbackFxEnabled(): boolean {
+    return this.#controls.get('feedback')?.enabled ?? false;
   }
 
   get initialized(): boolean {
@@ -851,8 +862,8 @@ export class InstrumentMasterBus implements ILibAudioNode {
 //   const reverb = new DattorroReverb(this.#context);
 //   this.addEffect('reverb', reverb);
 
-//   const karplus = new KarplusEffect(this.#context);
-//   this.addEffect('karplus', karplus);
+//   const feedback = new feedbackEffect(this.#context);
+//   this.addEffect('feedback', feedback);
 
 //   const distortion = createDistortion(this.#context);
 //   this.addEffect('distortion', distortion);
@@ -861,11 +872,11 @@ export class InstrumentMasterBus implements ILibAudioNode {
 //   this.connectFromTo('input', 'hpf');
 //   this.connectFromTo('hpf', 'lpf');
 //   this.connectFromTo('lpf', 'compressor');
-//   this.connectFromTo('compressor', 'karplus');
+//   this.connectFromTo('compressor', 'feedback');
 
 //   // Set up reverb as send effect
-//   this.connectFromTo('karplus', 'dryMix');
-//   this.connectSend('karplus', 'reverb', 'wetMix');
+//   this.connectFromTo('feedback', 'dryMix');
+//   this.connectSend('feedback', 'reverb', 'wetMix');
 
 //   // Main output chain
 //   this.connectFromTo('dryMix', 'distortion');
@@ -874,7 +885,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
 //   this.connectFromTo('limiter', 'output');
 
 //   // Enable effects by default
-//   this.setEffectEnabled('karplus', true);
+//   this.setEffectEnabled('feedback', true);
 //   this.setEffectEnabled('compressor', true);
 //   this.setEffectEnabled('limiter', true);
 //   this.setEffectEnabled('reverb', true);
