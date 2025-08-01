@@ -1,6 +1,6 @@
 import { LibAudioNode, VoiceType, Destination, NodeType } from '@/nodes';
 import { getAudioContext } from '@/context';
-import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { registerNode, NodeID, unregisterNode } from '@/nodes/node-store';
 import { VoiceState } from '../VoiceState';
 
 import {
@@ -58,7 +58,7 @@ export class SampleVoice {
     destination: AudioNode,
     options: { processorOptions?: any; enableFilters?: boolean } = {}
   ) {
-    this.nodeId = createNodeId(this.nodeType);
+    this.nodeId = registerNode(this.nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
@@ -864,7 +864,7 @@ export class SampleVoice {
     this.#envelopes.forEach((env) => env.dispose());
     this.#worklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 
   getParam(name: string): AudioParam | null {

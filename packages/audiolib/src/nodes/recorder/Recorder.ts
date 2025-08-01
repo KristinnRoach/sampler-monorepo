@@ -1,5 +1,5 @@
 import { LibNode, SampleLoader } from '@/nodes/LibNode';
-import { NodeID, createNodeId, deleteNodeId } from '@/nodes/node-store';
+import { NodeID, registerNode, unregisterNode } from '@/nodes/node-store';
 import { tryCatch, assert } from '@/utils';
 
 import {
@@ -63,7 +63,7 @@ export class Recorder implements LibNode {
   #config: RecorderOptions | null = null;
 
   constructor(context: AudioContext) {
-    this.nodeId = createNodeId(this.nodeType);
+    this.nodeId = registerNode(this.nodeType, this);
     this.#context = context;
     this.#messages = createMessageBus<Message>(this.nodeId);
   }
@@ -313,7 +313,7 @@ export class Recorder implements LibNode {
     this.#recorder = null;
     this.#state = AudioRecorderState.IDLE;
     this.#config = null;
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 
   // Getters

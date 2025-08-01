@@ -30,7 +30,7 @@ import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 import { localStore } from '@/storage/local';
 import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
-import { createNodeId, NodeID } from '@/nodes/node-store';
+import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
 import { createMessageBus, MessageBus } from '@/events';
 
 export class SamplePlayer implements ILibInstrumentNode {
@@ -41,8 +41,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   #messages: MessageBus<Message>;
   #midiController: MidiController | null = null;
 
-  #connections = new Set<ILibInstrumentNode | AudioNode>();
-  #incoming = new Set<ILibInstrumentNode>();
+  #connections = new Set<NodeID>();
+  #incoming = new Set<NodeID>();
 
   #audiobuffer: AudioBuffer | null = null;
   #bufferDuration: number = 0;
@@ -79,7 +79,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     audioBuffer?: AudioBuffer,
     midiController?: MidiController
   ) {
-    this.nodeId = createNodeId('sample-player');
+    this.nodeId = registerNode('sample-player', this);
     this.context = context;
     this.#messages = createMessageBus<Message>(this.nodeId);
 
@@ -143,12 +143,10 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.#masterOut.connect(target as AudioNode);
 
-    // Track the connection
-    this.#connections.add(destination);
-
-    // If destination is also a LibAudioNode, let it track incoming
+    // Track the connection by NodeID if possible
     if ('nodeId' in destination) {
-      (destination as any).addIncoming?.(this);
+      this.#connections.add(destination.nodeId);
+      (destination as any).addIncoming?.(this.nodeId);
     }
   }
 
@@ -156,10 +154,9 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (destination) {
       const target = 'input' in destination ? destination.input : destination;
       this.#masterOut.disconnect(target as AudioNode);
-      this.#connections.delete(destination);
-
       if ('nodeId' in destination) {
-        (destination as any).removeIncoming?.(this);
+        this.#connections.delete(destination.nodeId);
+        (destination as any).removeIncoming?.(this.nodeId);
       }
     } else {
       // Disconnect all
@@ -169,21 +166,17 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   addIncoming(source: ILibInstrumentNode): void {
-    this.#incoming.add(source);
+    this.#incoming.add(source.nodeId);
   }
 
   removeIncoming(source: ILibInstrumentNode): void {
-    this.#incoming.delete(source);
+    this.#incoming.delete(source.nodeId);
   }
 
   get connections() {
     return {
-      outgoing: Array.from(this.#connections) as (
-        | ILibAudioNode
-        | AudioNode
-        | AudioWorkletNode
-      )[],
-      incoming: Array.from(this.#incoming) as ILibAudioNode[],
+      outgoing: Array.from(this.#connections),
+      incoming: Array.from(this.#incoming),
     };
   }
 
@@ -953,7 +946,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
-      const monoFx = this.outBus.getEffect('feedback');
+      const monoFx = this.outBus.getNode('feedback');
       if (!(monoFx instanceof HarmonicFeedback)) {
         console.error('Expected feedback to be HarmonicFeedback instance');
         return;
@@ -1118,6 +1111,8 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
       this.#loopEnabled = false;
+
+      unregisterNode(this.nodeId);
     } catch (error) {
       console.error(`Error disposing Sampler ${this.nodeId}:`, error);
     }

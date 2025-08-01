@@ -1,7 +1,7 @@
 import { ILibAudioNode } from '../LibAudioNode';
 import { NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { registerNode, unregisterNode } from '@/nodes/node-store';
 import { clamp, mapToRange } from '@/utils';
 import { createFeedbackDelay } from '@/worklets/worklet-factory';
 import { FbDelayWorklet } from '@/worklets/worklet-types';
@@ -19,8 +19,8 @@ export class HarmonicFeedback implements ILibAudioNode {
   #wetGain: GainNode;
   #dryGain: GainNode;
 
-  #connections = new Set<ILibAudioNode | AudioNode | AudioWorkletNode>();
-  #incoming = new Set<ILibAudioNode>();
+  #connections = new Set<NodeID>();
+  #incoming = new Set<NodeID>();
 
   #baseDelayTime: number;
   #pitchMultiplier = 1;
@@ -32,7 +32,7 @@ export class HarmonicFeedback implements ILibAudioNode {
   #C7_SECONDS = 0.0004774632;
 
   constructor(context: AudioContext = getAudioContext()) {
-    this.nodeId = createNodeId(this.nodeType);
+    this.nodeId = registerNode(this.nodeType, this);
     this.#context = context;
 
     this.#delay = createFeedbackDelay(context);
@@ -247,10 +247,9 @@ export class HarmonicFeedback implements ILibAudioNode {
     const target = 'input' in destination ? destination.input : destination;
     this.#outputGain.connect(target as AudioNode);
 
-    this.#connections.add(destination);
-
     if ('nodeId' in destination) {
-      (destination as any).addIncoming?.(this);
+      this.#connections.add(destination.nodeId);
+      (destination as any).addIncoming?.(this.nodeId);
     }
   }
 
@@ -258,10 +257,9 @@ export class HarmonicFeedback implements ILibAudioNode {
     if (destination) {
       const target = 'input' in destination ? destination.input : destination;
       this.#outputGain.disconnect(target as AudioNode);
-      this.#connections.delete(destination);
-
       if ('nodeId' in destination) {
-        (destination as any).removeIncoming?.(this);
+        this.#connections.delete(destination.nodeId);
+        (destination as any).removeIncoming?.(this.nodeId);
       }
     } else {
       this.#outputGain.disconnect();
@@ -270,11 +268,11 @@ export class HarmonicFeedback implements ILibAudioNode {
   }
 
   addIncoming(source: ILibAudioNode): void {
-    this.#incoming.add(source);
+    this.#incoming.add(source.nodeId);
   }
 
   removeIncoming(source: ILibAudioNode): void {
-    this.#incoming.delete(source);
+    this.#incoming.delete(source.nodeId);
   }
 
   // === ILibAudioNode interface ===
@@ -381,6 +379,6 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   dispose() {
     this.disconnect();
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 }

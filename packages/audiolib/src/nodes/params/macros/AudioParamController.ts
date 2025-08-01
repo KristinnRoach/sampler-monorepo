@@ -1,12 +1,14 @@
-import { createNodeId, deleteNodeId } from '@/nodes/node-store';
+import { LibNode } from '@/nodes/LibNode';
+import { unregisterNode, registerNode } from '@/nodes/node-store';
 import { cancelScheduledParamValues } from '@/utils';
 
-export class AudioParamController {
+export class AudioParamController implements LibNode {
   readonly nodeId: NodeID;
+  readonly nodeType = 'audio-param-controller';
   #context: BaseAudioContext;
   #constantSignal: ConstantSourceNode;
   #targets: Array<{ param: AudioParam; scaler?: GainNode }> = [];
-  #isReady: boolean = false;
+  #initialized: boolean = false;
 
   static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
@@ -15,7 +17,7 @@ export class AudioParamController {
     initialValue: number = AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
   ) {
     this.#context = context;
-    this.nodeId = createNodeId('audio-param-controller');
+    this.nodeId = registerNode(this.nodeType, this);
 
     this.#constantSignal = context.createConstantSource();
     this.#constantSignal.start();
@@ -26,7 +28,7 @@ export class AudioParamController {
       context.currentTime
     );
 
-    this.#isReady = true;
+    this.#initialized = true;
   }
 
   addTarget(targetParam: AudioParam, scaleFactor: number = 1): this {
@@ -96,14 +98,14 @@ export class AudioParamController {
     return this.param.value;
   }
 
-  get isReady() {
-    return this.#isReady;
+  get initialized() {
+    return this.#initialized;
   }
 
   dispose(): void {
     this.#constantSignal.stop();
     this.#constantSignal.disconnect();
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 }
 

@@ -44,6 +44,12 @@ export type NodeType =
   | CustomFxType;
 // | ParamType
 
+export type Destination = ILibAudioNode | AudioNode | AudioParam;
+
+export interface SampleLoader {
+  loadSample(...args: TODO[]): Promise<TODO>;
+}
+
 // Base interface for all nodes
 export interface LibNode {
   readonly nodeId: NodeID;
@@ -64,12 +70,6 @@ export interface LibVoiceNode extends LibNode {
   stop(): TODO;
   sendToProcessor(data: TODO): void;
 }
-
-export interface SampleLoader {
-  loadSample(...args: TODO[]): Promise<TODO>;
-}
-
-export type Destination = ILibAudioNode | AudioNode | AudioParam;
 
 // export interface Messenger {
 //   onMessage(type: string, handler: MessageHandler<Message>): () => TODO;
