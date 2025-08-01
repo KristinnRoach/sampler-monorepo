@@ -15,20 +15,55 @@ import {
   BUTTON_ACTIVE_STYLE,
 } from './ComponentStyles';
 
-const { div, button } = van.tags;
+const { div, button, select, option } = van.tags;
 
 export const ComputerKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const enabled = van.state(true);
   const currentKeymap = van.state(KeyMaps.default);
+  const octaveOffset = van.state(0); // Add octave offset state
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
 
   let spacePressed = false;
   let keyHandlersAttached = false;
 
+  // Broadcast keymap changes
+  const broadcastKeymapChange = () => {
+    document.dispatchEvent(
+      new CustomEvent('keymap-changed', {
+        detail: {
+          keymap: currentKeymap.val,
+          octaveOffset: octaveOffset.val, // Include octave offset
+          targetNodeId: targetNodeId.val,
+        },
+      })
+    );
+  };
+
+  // Broadcast initial keymap and when it changes
+  van.derive(() => {
+    broadcastKeymapChange();
+  });
+
+  // Handle octave controls for computer keyboard too
+  const handleOctaveChange = (direction: number) => {
+    octaveOffset.val += direction;
+  };
+
   const keyDown = (e: KeyboardEvent) => {
     if (e.repeat) return;
+
+    // Handle octave controls first
+    if (e.key === '<' || e.key === ',') {
+      e.preventDefault();
+      handleOctaveChange(-1);
+      return;
+    } else if (e.key === '>' || e.key === '.') {
+      e.preventDefault();
+      handleOctaveChange(1);
+      return;
+    }
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || !enabled.val) return;
@@ -50,8 +85,11 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const midiNote = currentKeymap.val[e.code];
     if (!midiNote) return;
 
+    // Apply octave offset to the MIDI note
+    const adjustedMidiNote = midiNote + octaveOffset.val * 12;
+
     pressedKeys.add(e.code);
-    sampler.play(midiNote);
+    sampler.play(adjustedMidiNote);
   };
 
   const keyUp = (e: KeyboardEvent) => {
@@ -69,7 +107,10 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const midiNote = currentKeymap.val[e.code];
     if (!midiNote) return;
 
-    sampler.release(midiNote);
+    // Apply octave offset to the MIDI note
+    const adjustedMidiNote = midiNote + octaveOffset.val * 12;
+
+    sampler.release(adjustedMidiNote);
     pressedKeys.delete(e.code);
   };
 
@@ -112,24 +153,83 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     };
   });
 
+  // Available keymaps
+  const keymapOptions = [
+    { value: 'default', label: 'Default' },
+    { value: 'major', label: 'Major Scale' },
+    { value: 'minor', label: 'Minor Scale' },
+    { value: 'pentatonic', label: 'Pentatonic' },
+  ];
+
   return div(
     {
       class: 'computer-keyboard-control',
       style: COMPONENT_STYLE,
     },
-    div('Computer Keyboard'),
-    button(
+    div(
       {
-        onclick: () => (enabled.val = !enabled.val),
-        style: () =>
-          `${BUTTON_STYLE} ${enabled.val ? BUTTON_ACTIVE_STYLE : ''}`,
+        style:
+          'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;',
       },
-      () => (enabled.val ? 'ON' : 'OFF')
+      div('Computer Keyboard'),
+      button(
+        {
+          onclick: () => (enabled.val = !enabled.val),
+          style: () =>
+            `${BUTTON_STYLE} ${enabled.val ? BUTTON_ACTIVE_STYLE : ''}`,
+        },
+        () => (enabled.val ? 'ON' : 'OFF')
+      )
     ),
+
+    div(
+      { style: 'margin: 0.5rem 0;' },
+      'Keymap: ',
+      select(
+        {
+          onchange: (e: Event) => {
+            const target = e.target as HTMLSelectElement;
+            const selectedKeymap = target.value as keyof typeof KeyMaps;
+            currentKeymap.val = KeyMaps[selectedKeymap] || KeyMaps.default;
+          },
+          style: 'margin-left: 0.5rem; padding: 0.25rem;',
+        },
+        ...keymapOptions.map((opt) => option({ value: opt.value }, opt.label))
+      )
+    ),
+
+    div(
+      {
+        style:
+          'display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;',
+      },
+      div('Octave:'),
+      button(
+        {
+          onclick: () => handleOctaveChange(-1),
+          style: 'padding: 0.25rem 0.5rem; font-size: 0.8rem;',
+        },
+        '< Oct'
+      ),
+      div(() => `${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
+      button(
+        {
+          onclick: () => handleOctaveChange(1),
+          style: 'padding: 0.25rem 0.5rem; font-size: 0.8rem;',
+        },
+        'Oct >'
+      )
+    ),
+
     div(
       () => `Loop: ${loopEnabled.val ? 'ON' : 'OFF'}`,
       ' | ',
       () => `Hold: ${holdEnabled.val ? 'ON' : 'OFF'}`
+    ),
+
+    div(
+      { style: 'font-size: 0.7rem; color: #666; margin-top: 0.25rem;' },
+      'CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave'
     )
   );
 };
