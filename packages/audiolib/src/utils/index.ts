@@ -21,6 +21,7 @@ export * from './search';
 
 // Math utils
 export * from './math/math-utils';
+export * from './math/interpolate';
 export * from './math/normalize';
 export * from './math/zero-crossing';
 export * from './math/second-diff';

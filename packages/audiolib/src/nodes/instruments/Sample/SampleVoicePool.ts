@@ -68,6 +68,7 @@ export class SampleVoicePool implements LibNode {
     return this;
   }
 
+  #initializedVoices = new Set<SampleVoice>();
   #setupMessageHandling(voice: SampleVoice) {
     voice.onMessage('voice:started', (msg: Message) => {
       // Ensure mutual exlusion (idempotent delete)
@@ -103,9 +104,21 @@ export class SampleVoicePool implements LibNode {
       this.#available.add(msg.voice);
     });
 
+    voice.onMessage('voice:initialized', (msg: Message) => {
+      this.#initializedVoices.add(msg.voice);
+
+      if (this.#initializedVoices.size === this.#allVoices.length) {
+        // All voices initialized message
+        this.sendUpstreamMessage('voice-pool:initialized', {
+          voiceCount: this.#allVoices.length,
+        });
+      }
+    });
+
     this.#messages.forwardFrom(
       voice,
       [
+        'voice:initialized',
         'voice:started',
         'voice:stopped',
         'voice:releasing',

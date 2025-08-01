@@ -257,8 +257,13 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.#isLoaded = true;
     });
 
+    this.voicePool.onMessage('voice-pool:initialized', () => {
+      this.sendUpstreamMessage('sample-player:ready', {});
+    });
+
     // Forward voice pool messages upstream
     this.#messages.forwardFrom(this.voicePool, [
+      'voice-pool:initialized',
       'voice:started',
       'voice:stopped',
       'voice:releasing',
@@ -894,7 +899,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   };
 
   send = (effect: BusEffectName, amount: number) => {
-    this.outBus.send(effect, amount);
+    this.outBus.setSend(effect, amount);
   };
 
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);

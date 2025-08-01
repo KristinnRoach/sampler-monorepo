@@ -29,7 +29,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackRate',
         defaultValue: 1,
-        minValue: 0.1,
+        minValue: 0.001,
         maxValue: 8,
         automationRate: 'a-rate',
       },

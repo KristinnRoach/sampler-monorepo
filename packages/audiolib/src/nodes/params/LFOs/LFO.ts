@@ -9,6 +9,9 @@ export class LFO {
     this.#oscillator = context.createOscillator();
     this.#gain = context.createGain();
 
+    this.#oscillator.frequency.value = 0.5; // 0.5 Hz default
+    this.#gain.gain.value = 0; // No modulation by default
+
     this.#oscillator.connect(this.#gain);
     this.#oscillator.start();
   }

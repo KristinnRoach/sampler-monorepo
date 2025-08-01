@@ -706,11 +706,11 @@ export const SamplerElement = (attributes: ElementProps) => {
               : 'display: none; padding: 0.5rem;',
         },
 
-        // createLabeledKnob({
-        //   label: 'Volume',
-        //   defaultValue: 0.5,
-        //   onChange: (value: number) => (volume.val = value),
-        // }),
+        createLabeledKnob({
+          label: 'Volume',
+          defaultValue: 0.5,
+          onChange: (value: number) => (volume.val = value),
+        }),
 
         createLabeledKnob({
           label: 'Dry/Wet',
@@ -990,14 +990,9 @@ export const SamplerElement = (attributes: ElementProps) => {
   );
 };
 
-// export const defineSampler = (elementName: string = 'sampler-element') => {
-//   define(elementName, SamplerElement, false);
-// };
-
 // ===== DEFINE ELEMENTS =====
 export const defineSampler = (elementName: string = 'sampler-element') => {
   define(elementName, SamplerElement, false);
-  define('volume-knob', VolumeKnob, false); // NEW: Also define the volume knob
 };
 
 // ===== EXPORT HELPER FOR EXTERNAL USE =====
