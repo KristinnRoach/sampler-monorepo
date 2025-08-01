@@ -1,10 +1,4 @@
-// =*=*= Audiolib =*=*= \\
-// export { Audiolib } from './Audiolib';
-// export { getInstance } from './createAudiolib';
-
 // =*=*= Factories =*=*= \\
-// export { createAudiolib } from './createAudiolib';
-
 export { createSamplePlayer } from './nodes/instruments/Sample/createSamplePlayer';
 export { createAudioRecorder } from './nodes/recorder';
 
@@ -14,7 +8,6 @@ export { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
 // =*=*=  Types =*=*= \\
 export type { Recorder } from './nodes/recorder';
 export type { LibNode, LibAudioNode, SampleLoader } from './nodes';
-// export type { LibParamDescriptor } from './nodes/params';
 export type {
   CustomEnvelope,
   EnvelopePoint,

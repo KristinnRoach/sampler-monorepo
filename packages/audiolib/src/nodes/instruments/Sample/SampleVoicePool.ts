@@ -1,5 +1,5 @@
 import { SampleVoice } from './SampleVoice';
-import { createNodeId, deleteNodeId, NodeID } from '@/nodes/node-store';
+import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
 import { midiToPlaybackRate, pop } from '@/utils';
 import { VoiceState } from '../VoiceState';
 import {
@@ -8,8 +8,9 @@ import {
   MessageBus,
   createMessageBus,
 } from '@/events';
+import { LibNode } from '@/nodes/LibNode';
 
-export class SampleVoicePool {
+export class SampleVoicePool implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'pool';
   #messages: MessageBus<Message>;
@@ -25,7 +26,7 @@ export class SampleVoicePool {
   #playing = new Set<SampleVoice>();
   #releasing = new Set<SampleVoice>();
 
-  #isReady: boolean = false;
+  #initialized = false;
 
   constructor(
     context: AudioContext,
@@ -33,7 +34,7 @@ export class SampleVoicePool {
     destination: AudioNode, // { dry: AudioNode; wet: AudioNode },
     enableFilters: boolean = true
   ) {
-    this.nodeId = createNodeId(this.nodeType);
+    this.nodeId = registerNode(this.nodeType, this);
 
     this.#messages = createMessageBus<Message>(this.nodeId);
 
@@ -53,7 +54,7 @@ export class SampleVoicePool {
       this.#setupMessageHandling(voice);
     });
 
-    this.#isReady = true;
+    this.#initialized = true;
   }
 
   /* === MESSAGES === */
@@ -193,20 +194,24 @@ export class SampleVoicePool {
     }
   }
 
-  noteOff(midiNote: MidiValue, release_sec = 0.2, secondsFromNow: number = 0) {
+  noteOff(
+    midiNote: MidiValue,
+    secondsFromNow: number = 0,
+    releaseTime?: number
+  ) {
     const voice = this.#playingMidiVoiceMap.get(midiNote);
     if (!voice) return;
 
     if (voice?.state === VoiceState.PLAYING) {
-      voice.release({ release: release_sec, secondsFromNow });
+      voice.release({ secondsFromNow, releaseTime });
     }
 
     return this;
   }
 
-  allNotesOff(release_sec = 0) {
+  allNotesOff(releaseTime = 0) {
     this.#playingMidiVoiceMap.forEach((voice) => {
-      voice.release({ release: release_sec });
+      voice.release({ releaseTime });
     });
 
     this.#playingMidiVoiceMap.clear();
@@ -279,12 +284,12 @@ export class SampleVoicePool {
     this.#releasing.clear();
     this.#playing.clear();
     this.#loaded.clear();
-    this.#isReady = false;
-    deleteNodeId(this.nodeId);
+    this.#initialized = false;
+    unregisterNode(this.nodeId);
   }
 
-  get isReady() {
-    return this.#isReady;
+  get initialized() {
+    return this.#initialized;
   }
 
   get availableVoices() {

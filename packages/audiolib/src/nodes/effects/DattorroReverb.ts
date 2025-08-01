@@ -1,7 +1,7 @@
 import { ILibAudioNode } from '../LibAudioNode';
 import { NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
-import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { registerNode, NodeID, unregisterNode } from '@/nodes/node-store';
 
 import { mapToRange, clamp } from '@/utils';
 
@@ -13,8 +13,8 @@ export class DattorroReverb implements ILibAudioNode {
   #initialized = false;
   #context: AudioContext;
 
-  #connections = new Set<ILibAudioNode | AudioNode | AudioWorkletNode>();
-  #incoming = new Set<ILibAudioNode>();
+  #connections = new Set<NodeID>();
+  #incoming = new Set<NodeID>();
 
   #reverb: AudioWorkletNode;
   #currentPreset: DattorroReverbPresetKey;
@@ -90,7 +90,7 @@ export class DattorroReverb implements ILibAudioNode {
   } as const;
 
   constructor(context: AudioContext = getAudioContext()) {
-    this.nodeId = createNodeId(this.nodeType);
+    this.nodeId = registerNode(this.nodeType, this);
     this.#context = context;
 
     this.#reverb = new AudioWorkletNode(context, 'dattorro-reverb-processor', {
@@ -109,12 +109,9 @@ export class DattorroReverb implements ILibAudioNode {
     const target = 'input' in destination ? destination.input : destination;
     this.#reverb.connect(target as AudioNode);
 
-    // Track the connection
-    this.#connections.add(destination);
-
-    // If destination is also a LibAudioNode, let it track incoming
     if ('nodeId' in destination) {
-      (destination as any).addIncoming?.(this);
+      this.#connections.add(destination.nodeId);
+      (destination as any).addIncoming?.(this.nodeId);
     }
   }
 
@@ -122,10 +119,9 @@ export class DattorroReverb implements ILibAudioNode {
     if (destination) {
       const target = 'input' in destination ? destination.input : destination;
       this.#reverb.disconnect(target as AudioNode);
-      this.#connections.delete(destination);
-
       if ('nodeId' in destination) {
-        (destination as any).removeIncoming?.(this);
+        this.#connections.delete(destination.nodeId);
+        (destination as any).removeIncoming?.(this.nodeId);
       }
     } else {
       // Disconnect all
@@ -135,11 +131,11 @@ export class DattorroReverb implements ILibAudioNode {
   }
 
   addIncoming(source: ILibAudioNode): void {
-    this.#incoming.add(source);
+    this.#incoming.add(source.nodeId);
   }
 
   removeIncoming(source: ILibAudioNode): void {
-    this.#incoming.delete(source);
+    this.#incoming.delete(source.nodeId);
   }
 
   // === SETTERS ===
@@ -321,6 +317,6 @@ export class DattorroReverb implements ILibAudioNode {
 
   dispose(): void {
     this.disconnect();
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 }

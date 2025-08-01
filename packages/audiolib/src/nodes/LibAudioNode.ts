@@ -1,5 +1,5 @@
 import { LibNode, NodeType } from './LibNode';
-import { createNodeId, NodeID, deleteNodeId } from './node-store';
+import { registerNode, unregisterNode, NodeID } from './node-store';
 import { MidiController } from '@/io';
 import {
   MessageBus,
@@ -10,7 +10,9 @@ import {
 import { InstrumentMasterBus } from './master/InstrumentMasterBus';
 
 /** Adapter interface for web native and Audiolib's custom audio nodes */
-export interface ILibAudioNode extends LibNode {
+export interface ILibAudioNode<
+  T extends AudioNode | AudioWorkletNode = AudioNode,
+> extends LibNode {
   // Connection interface
   connect(destination: ILibAudioNode | AudioNode): void;
   disconnect(destination?: ILibAudioNode | AudioNode): void;
@@ -24,15 +26,16 @@ export interface ILibAudioNode extends LibNode {
 
   // Convenience getters
   readonly now: number;
-  readonly audioNode: AudioNode | AudioWorkletNode | ILibAudioNode;
+  readonly audioNode: T;
   readonly context: AudioContext | BaseAudioContext;
+
   readonly connections: {
-    outgoing: (AudioNode | AudioWorkletNode | ILibAudioNode)[];
-    incoming?: ILibAudioNode[];
+    outgoing: NodeID[];
+    incoming: NodeID[];
   };
 
   // Input/output access
-  readonly input?: AudioNode;
+  readonly input: AudioNode;
   readonly output: AudioNode;
 }
 
@@ -48,32 +51,34 @@ export interface ILibInstrumentNode extends ILibAudioNode {
   outBus?: InstrumentMasterBus;
 }
 
-export interface AdapterOptions {
+export interface LibAudioNodeOptions {
   createIOGains?: boolean;
 }
 
-export class LibAudioNode implements ILibAudioNode {
+export class LibAudioNode<T extends AudioNode | AudioWorkletNode = AudioNode>
+  implements ILibAudioNode<T>
+{
   readonly nodeId: NodeID;
   readonly nodeType: NodeType;
   #messages: MessageBus<Message>;
   #initialized = false;
 
-  #audioNode: AudioNode | AudioWorkletNode;
+  #audioNode: T;
 
   #inputNode: AudioNode | AudioWorkletNode;
   #outputNode: AudioNode | AudioWorkletNode;
 
-  #connections = new Set<ILibAudioNode | AudioNode | AudioWorkletNode>();
-  #incoming = new Set<ILibAudioNode>();
+  #connections = new Set<NodeID>();
+  #incoming = new Set<NodeID>();
 
   constructor(
-    node: AudioNode | AudioWorkletNode,
+    node: T,
     context: AudioContext,
     nodeType: NodeType,
-    options: AdapterOptions = {}
+    options: LibAudioNodeOptions = {}
   ) {
     this.nodeType = nodeType;
-    this.nodeId = createNodeId(nodeType);
+    this.nodeId = registerNode(nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
     this.#audioNode = node;
@@ -106,14 +111,12 @@ export class LibAudioNode implements ILibAudioNode {
 
   connect(destination: ILibAudioNode | AudioNode): void {
     const target = 'input' in destination ? destination.input : destination;
-    this.#outputNode.connect(target as AudioNode); // Use outputNode, not #node
+    this.#outputNode.connect(target as AudioNode);
 
-    // Track the connection
-    this.#connections.add(destination);
-
-    // If destination is also a LibAudioNode, let it track incoming
+    // Track by NodeID if it's a LibAudioNode
     if ('nodeId' in destination) {
-      (destination as any).addIncoming?.(this);
+      this.#connections.add(destination.nodeId);
+      (destination as any).addIncoming?.(this.nodeId);
     }
   }
 
@@ -121,10 +124,10 @@ export class LibAudioNode implements ILibAudioNode {
     if (destination) {
       const target = 'input' in destination ? destination.input : destination;
       this.#outputNode.disconnect(target as AudioNode);
-      this.#connections.delete(destination);
 
       if ('nodeId' in destination) {
-        (destination as any).removeIncoming?.(this);
+        this.#connections.delete(destination.nodeId);
+        (destination as any).removeIncoming?.(this.nodeId);
       }
     } else {
       // Disconnect all
@@ -133,12 +136,12 @@ export class LibAudioNode implements ILibAudioNode {
     }
   }
 
-  addIncoming(source: ILibAudioNode): void {
-    this.#incoming.add(source);
+  addIncoming(sourceNodeId: NodeID): void {
+    this.#incoming.add(sourceNodeId);
   }
 
-  removeIncoming(source: ILibAudioNode): void {
-    this.#incoming.delete(source);
+  removeIncoming(sourceNodeId: NodeID): void {
+    this.#incoming.delete(sourceNodeId);
   }
 
   get connections() {
@@ -176,7 +179,7 @@ export class LibAudioNode implements ILibAudioNode {
 
   // === CONVENIANCE GETTERS ===
 
-  get audioNode() {
+  get audioNode(): T {
     return this.#audioNode;
   }
   get input() {
@@ -197,6 +200,6 @@ export class LibAudioNode implements ILibAudioNode {
 
   dispose() {
     this.disconnect();
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 }

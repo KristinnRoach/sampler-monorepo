@@ -1,5 +1,5 @@
 // CustomEnvelope.ts
-import { createNodeId, NodeID, deleteNodeId } from '@/nodes/node-store';
+import { registerNode, NodeID, unregisterNode } from '@/nodes/node-store';
 
 import {
   Message,
@@ -10,11 +10,13 @@ import {
 
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
+import { LibNode } from '@/nodes/LibNode';
 
 // ===== CUSTOM ENVELOPE  =====
-export class CustomEnvelope {
+export class CustomEnvelope implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType: EnvelopeType = 'default-env';
+  #initialized = false;
 
   #context: AudioContext;
   #messages: MessageBus<Message>;
@@ -43,7 +45,7 @@ export class CustomEnvelope {
   ) {
     this.envelopeType = envelopeType;
     this.nodeType = envelopeType;
-    this.nodeId = createNodeId(this.envelopeType);
+    this.nodeId = registerNode(this.envelopeType, this);
     this.#context = context;
     this.#messages = createMessageBus<Message>(this.nodeId);
 
@@ -75,6 +77,8 @@ export class CustomEnvelope {
     this.#data =
       sharedData ||
       new EnvelopeData([...initialPoints], paramValueRange, durationSeconds);
+
+    this.#initialized = true;
   }
 
   // Delegate data operations to EnvelopeData
@@ -120,6 +124,10 @@ export class CustomEnvelope {
   disable = () => (this.#isEnabled = false);
 
   // Property getters
+  get initialized() {
+    return this.#initialized;
+  }
+
   get data() {
     return this.#data;
   }
@@ -824,6 +832,6 @@ export class CustomEnvelope {
 
   dispose() {
     this.#loopEnabled = false;
-    deleteNodeId(this.nodeId);
+    unregisterNode(this.nodeId);
   }
 }

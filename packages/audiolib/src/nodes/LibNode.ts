@@ -14,7 +14,11 @@ export type InstrumentType = 'sample-player' | 'synth';
 
 export type ContainerType = 'pool' | 'chain' | 'audiolib';
 
-export type VoiceType = 'sample' | 'karplus-strong' | 'osc' | 'noise';
+export type VoiceType =
+  | 'sample-voice'
+  | 'karplus-strong-voice'
+  | 'osc-voice'
+  | 'noise-voice';
 
 export type CustomFxType =
   | 'feedback-delay'
@@ -40,6 +44,12 @@ export type NodeType =
   | CustomFxType;
 // | ParamType
 
+export type Destination = ILibAudioNode | AudioNode | AudioParam;
+
+export interface SampleLoader {
+  loadSample(...args: TODO[]): Promise<TODO>;
+}
+
 // Base interface for all nodes
 export interface LibNode {
   readonly nodeId: NodeID;
@@ -60,12 +70,6 @@ export interface LibVoiceNode extends LibNode {
   stop(): TODO;
   sendToProcessor(data: TODO): void;
 }
-
-export interface SampleLoader {
-  loadSample(...args: TODO[]): Promise<TODO>;
-}
-
-export type Destination = ILibAudioNode | AudioNode | AudioParam;
 
 // export interface Messenger {
 //   onMessage(type: string, handler: MessageHandler<Message>): () => TODO;
