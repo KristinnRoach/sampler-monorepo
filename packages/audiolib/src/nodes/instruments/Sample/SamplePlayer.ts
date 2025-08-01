@@ -946,11 +946,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
-      const monoFx = this.outBus.getNode('feedback');
-      if (!(monoFx instanceof HarmonicFeedback)) {
-        console.error('Expected feedback to be HarmonicFeedback instance');
-        return;
-      }
+      const monoFx = this.outBus.getFeedback();
       const currAmount = monoFx.currAmount;
 
       this.outBus.setFeedbackAmount(0);

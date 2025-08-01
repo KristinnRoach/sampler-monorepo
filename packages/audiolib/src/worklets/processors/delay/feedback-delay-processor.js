@@ -22,7 +22,7 @@ registerProcessor(
           automationRate: 'k-rate',
         },
         {
-          name: 'decay',
+          name: 'decay', // feedback decay time factor
           defaultValue: 1,
           minValue: 0,
           maxValue: 1,

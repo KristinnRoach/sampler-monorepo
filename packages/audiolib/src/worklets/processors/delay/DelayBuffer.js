@@ -1,6 +1,6 @@
 export class DelayBuffer {
   constructor(maxDelaySamples) {
-    this.buffer = new Array(maxDelaySamples).fill(0);
+    this.buffer = new Float32Array(maxDelaySamples);
     this.writePtr = 0;
     this.readPtr = 0;
   }
