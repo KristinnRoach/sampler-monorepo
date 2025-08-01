@@ -1,19 +1,21 @@
+// addNode.ts
 import van from '@repo/vanjs-core';
 import { qs } from './dom-utils';
 
 const { div, select, option, button } = van.tags;
 
-let nodeId = 0;
+let elementCounter = 0;
 export const addNode = (
-  nodeType: 'sampler' | 'karplus-synth',
-  parent?: Element
+  nodeType: 'sampler' | 'karplus-synth' | 'volume-knob',
+  parent?: Element,
+  nodeId?: string
 ) => {
-  const currId = nodeId++;
+  const currElCount = elementCounter++;
 
   const nodeElFn = van.tags[`${nodeType}-element`];
 
   const handleEl = div({
-    id: `handle-for-${nodeType}-${currId}`,
+    id: `handle-for-${nodeType}-${currElCount}`,
     class: 'drag-handle',
   });
   const parentEl = parent ?? qs('.nodes-playground') ?? document.body;
@@ -38,7 +40,6 @@ export const createAddNodeButton = () => {
     select(
       { id: 'node-select', class: 'node-select' },
       option({ value: 'sampler' }, 'Sampler')
-      // option({ value: 'karplus-synth' }, 'Karplus Synth')
     )
   );
 };

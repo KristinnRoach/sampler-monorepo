@@ -1,12 +1,12 @@
 // SampleControls.ts
 import van, { State } from '@repo/vanjs-core';
-import { defineElement } from '../elementRegistry.ts';
-import { mapToRange, clamp } from '@/shared/utils/math-utils.ts';
-import { createSliderGSAP } from '../primitives/createSliderGSAP.ts';
+import { defineElement } from '../elementRegistry';
+import { mapToRange, clamp } from '@/shared/utils/math-utils';
+import { createSliderGSAP } from '../primitives/createSliderGSAP';
 import {
   KnobElement,
   type KnobChangeEventDetail,
-} from '../primitives/KnobElement.ts';
+} from '../primitives/KnobElement';
 
 export const SampleControls = (
   loopStartSeconds: State<number>,

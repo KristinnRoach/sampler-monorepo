@@ -3,7 +3,7 @@ import van from '@repo/vanjs-core';
 import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-import { LabeledTimeScaleKnob } from './TimeScaleKnob.ts';
+import { LabeledTimeScaleKnob } from './TimeScaleKnob';
 
 import {
   applySnapping,
@@ -14,13 +14,13 @@ import {
   absoluteValueToNormalized,
   generateSVGPath,
   linearToLogarithmic,
-} from './env-utils.ts';
+} from './env-utils';
 
-import { EnvToggleButtons } from './env-buttons.ts';
-import { createEnvelopeGrid } from './env-grid.ts';
-import { getWaveformSVGData } from '../../../shared/utils/waveform-utils.ts';
+import { EnvToggleButtons } from './env-buttons';
+import { createEnvelopeGrid } from './env-grid';
+import { getWaveformSVGData } from '../../../shared/utils/waveform-utils';
 
-import { createPlayheads, type PlayheadManager } from './env-playheads.ts';
+import { createPlayheads, type PlayheadManager } from './env-playheads';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
