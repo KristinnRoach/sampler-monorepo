@@ -89,7 +89,7 @@ export class EnvelopeData {
 
       // Guard from passing the first and last points
       if (index === 1 && newTime <= this.points[this.#startIdx].time) {
-        console.warn('Second point cannot go before first point');
+        // console.debug('Second point cannot go before first point');
         return;
       }
 

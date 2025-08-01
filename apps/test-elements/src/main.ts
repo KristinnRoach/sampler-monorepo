@@ -14,23 +14,47 @@ const init = async () => {
 
   van.add(nodesContainer, createAddNodeButton());
 
-  const addElBtn = qs('.add-el-btn');
-  const selectEl = qs('.node-select') as HTMLSelectElement;
+  // Example: Add a sampler and immediately create a volume knob for it
+  const { nodeEl: samplerNode, wrapperEl: samplerWrapper } = addNode('sampler');
 
-  addElBtn?.addEventListener('click', () => {
-    const nodeName = selectEl.value as 'sampler' | 'karplus-synth';
-    const instrumentEls = addNode(nodeName, nodesContainer);
+  // Wait a tiny bit for the sampler to initialize and get its nodeId
+  setTimeout(() => {
+    const samplerElement = samplerWrapper.querySelector('sampler-element');
+    const nodeId = samplerElement?.getAttribute('data-node-id');
 
-    samplerEl = qs('sampler-element');
+    if (nodeId && nodeId !== 'initializing') {
+      // Add a volume knob that targets this sampler
+      const { wrapperEl: volumeWrapper } = addNode(
+        'volume-knob',
+        undefined,
+        nodeId
+      );
 
-    const draggable = makeDraggable({
-      element: instrumentEls.wrapperEl,
-      handleElement: instrumentEls.handleEl,
-    });
-  });
-
-  console.log('Web Audio Elements app initialized');
+      // Position the volume knob next to the sampler
+      volumeWrapper.style.position = 'absolute';
+      volumeWrapper.style.left = '600px';
+      volumeWrapper.style.top = '100px';
+    }
+  }, 100);
 };
+
+//   const addElBtn = qs('.add-el-btn');
+//   const selectEl = qs('.node-select') as HTMLSelectElement;
+
+//   addElBtn?.addEventListener('click', () => {
+//     const nodeName = selectEl.value as 'sampler' | 'karplus-synth';
+//     const instrumentEls = addNode(nodeName, nodesContainer);
+
+//     samplerEl = qs('sampler-element');
+
+//     const draggable = makeDraggable({
+//       element: instrumentEls.wrapperEl,
+//       handleElement: instrumentEls.handleEl,
+//     });
+//   });
+
+//   console.log('Web Audio Elements app initialized');
+// };
 
 document.addEventListener('DOMContentLoaded', () => init());
 

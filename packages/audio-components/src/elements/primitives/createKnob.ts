@@ -1,6 +1,6 @@
 // createKnob.ts
-import { defineElement } from '../elementRegistry.ts';
-import { KnobElement, type KnobChangeEventDetail } from './KnobElement.ts';
+import { defineElement } from '../elementRegistry';
+import { KnobElement, type KnobChangeEventDetail } from './KnobElement';
 
 export interface KnobConfig {
   onChange: (data: any) => void;

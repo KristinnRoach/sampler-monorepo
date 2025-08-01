@@ -6,6 +6,7 @@ import { EnvelopeData } from '../EnvelopeData';
 vi.mock('@/nodes/node-store', () => ({
   createNodeId: vi.fn(() => 'test-node-id'),
   deleteNodeId: vi.fn(),
+  registerNode: vi.fn(() => 'test-node-id'),
 }));
 
 vi.mock('@/events', () => ({
