@@ -6,14 +6,14 @@ import {
   enableComputerKeyboard,
   disableComputerKeyboard,
   pressedKeys,
-} from '../shared/keyboard/keyboard-state';
+} from '../../../shared/keyboard/keyboard-state';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
-import { getSampler } from '../SamplerRegistry';
+import { getSampler } from '../../../SamplerRegistry';
 import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
-} from '../shared/styles/component-styles';
+} from '../../../shared/styles/component-styles';
 
 const { div, button, select, option } = van.tags;
 

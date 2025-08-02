@@ -29,7 +29,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackRate',
         defaultValue: 1,
-        minValue: 0.1, // TODO: Support reverse playback
+        minValue: 0.1,
         maxValue: 24,
         automationRate: 'a-rate',
       },
@@ -77,43 +77,17 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
 
+    // Only set properties that should persist across resets
     this.buffer = null;
     this.snapper = new ValueSnapper();
-
-    this.playbackPosition = 0;
-    this.transpositionPlaybackrate = 1;
-    this.loopCount = 0;
-    this.maxLoopCount = Number.MAX_SAFE_INTEGER;
-
-    // Timing state
-    this.isPlaying = false;
-    this.startTime = 0; // When playback started
-    this.startPoint = 0; // Starting position in seconds
-    this.scheduledEndTime = null; // When playback should end (if duration specified)
-
-    // Zero crossing constraints
     this.minZeroCrossing = 0;
     this.maxZeroCrossing = 0;
-
-    // Loop click compensation
-    this.applyClickCompensation = false;
-    this.loopClickCompensation = 0;
-
-    // Other flags
-    this.isReleasing = false;
-    this.loopEnabled = false;
-    this.lockTrimToloop = false;
     this.usePlaybackPosition = false;
-
-    // Cache quantized values per process block
-    this.blockQuantizedLoopStart = 0;
-    this.blockQuantizedLoopEnd = 0;
-    this.lastProcessedLoopStart = -1;
-    this.lastProcessedLoopEnd = -1;
 
     this.port.onmessage = this.#handleMessage.bind(this);
 
-    this.debugCounter = 0;
+    // Initialize all playback state
+    this.#resetState();
   }
 
   // ===== MESSAGE HANDLING =====
@@ -220,6 +194,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         });
         break;
 
+      case 'voice:setReverse':
+        this.reversePlayback = value; // true/false
+        this.port.postMessage({
+          type: 'voice:reverse_set',
+          reverse: this.reversePlayback,
+        });
+        break;
+
       case 'voice:usePlaybackPosition':
         this.usePlaybackPosition = value;
         break;
@@ -239,13 +221,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   #resetState() {
     this.isPlaying = false;
     this.isReleasing = false;
+    this.loopEnabled = false;
+    this.transpositionPlaybackrate = 1;
+    this.velocitySensitivity = 0.5;
+
     this.startTime = 0;
     this.startPoint = 0;
+    this.reversePlayback = false;
     this.scheduledEndTime = null;
     this.playbackPosition = 0;
+
+    this.debugCounter = 0;
     this.loopCount = 0;
     this.maxLoopCount = Number.MAX_SAFE_INTEGER;
-    this.velocitySensitivity = 0.5;
 
     this.applyClickCompensation = false;
     this.loopClickCompensation = 0;
@@ -412,25 +400,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    // ===== USE EXPLICIT CONVERSION UTILITIES =====
+    // ===== GET PARAM VALUES =====
+
+    const masterGain = parameters.masterGain[0];
+
     const positionParams = this.#extractPositionParams(parameters);
+
     const playbackRange = this.#calculatePlaybackRange(positionParams);
+
     const loopRange = this.#calculateLoopRange(
       positionParams,
       playbackRange,
       parameters
     );
-
-    // // Initialize playback position Only forward
-    // if (
-    //   this.playbackPosition === 0 ||
-    //   this.playbackPosition < playbackRange.startSamples
-    // ) {
-    //   this.playbackPosition = playbackRange.startSamples;
-    // }
-
-    // ===== AUDIO PROCESSING =====
-    const masterGain = parameters.masterGain[0];
 
     const velocityGain =
       this.#midiVelocityToGain(parameters.velocity[0]) *
@@ -440,62 +422,57 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const isConstant = this.#getConstantFlags(parameters);
 
-    // Initialize playback position
+    // ===== Init playback position =====
+
     if (this.playbackPosition === 0) {
-      const firstPlaybackRate = this.#getSafeParam(
-        parameters.playbackRate,
-        0,
-        isConstant.playbackRate
-      );
-      this.playbackPosition =
-        firstPlaybackRate >= 0
-          ? playbackRange.startSamples
-          : playbackRange.endSamples;
-    } else if (this.playbackPosition < playbackRange.startSamples) {
-      this.playbackPosition = playbackRange.startSamples;
+      this.playbackPosition = this.reversePlayback
+        ? playbackRange.endSamples - 1
+        : playbackRange.startSamples;
     }
 
-    // Process each sample
-    for (let i = 0; i < output[0].length; i++) {
+    // ===== AUDIO PROCESSING =====
+
+    for (let sample = 0; sample < output[0].length; sample++) {
+      // Use getSafeParam for a-rate params
       const envelopeGain = this.#getSafeParam(
         parameters.envGain,
-        i,
+        sample,
         isConstant.envGain
       );
 
-      const playbackRate = this.#getSafeParam(
+      const baseRate = this.#getSafeParam(
         parameters.playbackRate,
-        i,
+        sample,
         isConstant.playbackRate
       );
-      // ... etc for params that should support a-rate
+
+      const effectiveRate = this.reversePlayback
+        ? -Math.abs(baseRate)
+        : Math.abs(baseRate);
 
       // Handle looping
       if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
         // Forward playback
         if (
-          playbackRate >= 0 &&
+          !this.reversePlayback &&
           this.playbackPosition >= loopRange.loopEndSamples
         ) {
-          if (this.playbackPosition >= loopRange.loopEndSamples) {
-            // Get the actual samples we're transitioning between
-            const lastLoopSample =
-              this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
-            const newFirstSample =
-              this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
+          // Get the actual samples we're transitioning between
+          const lastLoopSample =
+            this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
+          const newFirstSample =
+            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
 
-            // Store the difference for ONE sample compensation
-            this.loopClickCompensation =
-              (lastLoopSample - newFirstSample) * 0.5;
-            this.applyClickCompensation = true;
+          // Store the difference for ONE sample compensation
+          this.loopClickCompensation = (lastLoopSample - newFirstSample) * 0.5;
+          this.applyClickCompensation = true;
 
-            this.playbackPosition = loopRange.loopStartSamples;
-            this.loopCount++;
-          }
+          this.playbackPosition = loopRange.loopStartSamples;
+          this.loopCount++;
         }
         // Reverse playback
         else if (
-          playbackRate < 0 &&
+          this.reversePlayback &&
           this.playbackPosition <= loopRange.loopStartSamples
         ) {
           this.playbackPosition = loopRange.loopEndSamples;
@@ -506,7 +483,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       // Check for end of playback range (forward & reversed)
       if (
         this.playbackPosition >= playbackRange.endSamples ||
-        (playbackRate < 0 &&
+        (this.reversePlayback &&
           this.playbackPosition <= playbackRange.startSamples)
       ) {
         this.#stop();
@@ -516,17 +493,31 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       // Sample interpolation
       const position = Math.floor(this.playbackPosition);
       const fraction = this.playbackPosition - position;
-      const nextPosition = Math.min(position + 1, playbackRange.endSamples - 1);
 
       // Generate output for each channel
-      for (let c = 0; c < numChannels; c++) {
-        const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
-        const current = bufferChannel[position] || 0;
-        const next = bufferChannel[nextPosition] || 0;
+      for (let channel = 0; channel < numChannels; channel++) {
+        const bufferChannel =
+          this.buffer[Math.min(channel, this.buffer.length - 1)];
 
-        let interpolatedSample = current + fraction * (next - current);
+        let interpolatedSample;
+        if (this.reversePlayback) {
+          const prevPosition = Math.max(
+            position - 1,
+            playbackRange.startSamples
+          );
+          const current = bufferChannel[position] || 0;
+          const prev = bufferChannel[prevPosition] || 0;
+          interpolatedSample = current + (1 - fraction) * (prev - current);
+        } else {
+          const nextPosition = Math.min(
+            position + 1,
+            playbackRange.endSamples - 1
+          );
+          const current = bufferChannel[position] || 0;
+          const next = bufferChannel[nextPosition] || 0;
+          interpolatedSample = current + fraction * (next - current);
+        }
 
-        // Apply ONE-SAMPLE click compensation
         if (this.applyClickCompensation) {
           interpolatedSample += this.loopClickCompensation;
           this.applyClickCompensation = false; // Only apply to the very first sample
@@ -536,13 +527,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           interpolatedSample * velocityGain * envelopeGain * masterGain;
 
         // Basic hard limiting
-        output[c][i] = Math.max(
+        output[channel][sample] = Math.max(
           -1,
           Math.min(1, isFinite(finalSample) ? finalSample : 0)
         );
       }
 
-      this.playbackPosition += playbackRate * this.transpositionPlaybackrate;
+      this.playbackPosition += effectiveRate * this.transpositionPlaybackrate;
     }
 
     // Send position updates if requested
@@ -561,49 +552,3 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('sample-player-processor', SamplePlayerProcessor);
-
-/* TODO: Test reverse playback rate! 
-/ Sample interpolation
-const position = Math.floor(this.playbackPosition);
-const fraction = this.playbackPosition - position;
-
-// For reverse playback, interpolate with previous sample instead of next
-let nextPosition, interpolatedSample;
-if (playbackRate >= 0) {
-  nextPosition = Math.min(position + 1, playbackRange.endSamples - 1);
-  const current = bufferChannel[position] || 0;
-  const next = bufferChannel[nextPosition] || 0;
-  interpolatedSample = current + fraction * (next - current);
-} else {
-  nextPosition = Math.max(position - 1, playbackRange.startSamples);
-  const current = bufferChannel[position] || 0;
-  const prev = bufferChannel[nextPosition] || 0;
-  interpolatedSample = current + (1 - fraction) * (prev - current);
-}
-
-// Generate output for each channel
-for (let c = 0; c < numChannels; c++) {
-  const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
-  
-  // Calculate interpolation per channel
-  let sample;
-  if (playbackRate >= 0) {
-    const current = bufferChannel[position] || 0;
-    const next = bufferChannel[nextPosition] || 0;
-    sample = current + fraction * (next - current);
-  } else {
-    const current = bufferChannel[position] || 0;
-    const prev = bufferChannel[nextPosition] || 0;
-    sample = current + (1 - fraction) * (prev - current);
-  }
-
-  // Apply ONE-SAMPLE click compensation
-  if (this.applyClickCompensation) {
-    sample += this.loopClickCompensation;
-    this.applyClickCompensation = false;
-  }
-
-  const finalSample = sample * velocityGain * envelopeGain * masterGain;
-  output[c][i] = Math.max(-1, Math.min(1, isFinite(finalSample) ? finalSample : 0));
-}
-  */

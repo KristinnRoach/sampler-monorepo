@@ -1,8 +1,8 @@
 // KnobFactory.ts
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../SamplerRegistry';
-import { createLabeledKnob } from './primitives/createKnob';
+import { getSampler } from '../../../SamplerRegistry';
+import { createLabeledKnob } from '../../primitives/createKnob';
 import { createFindNodeId } from '@/shared/utils/component-utils';
 
 // ===== DRY/WET MIX KNOB =====
@@ -208,7 +208,7 @@ export const GlideKnob = (attributes: ElementProps) => {
     maxValue: 1,
     snapIncrement: 0.0001,
     curve: 2.75,
-    valueFormatter: (v) => v.toFixed(3),
+    valueFormatter: (v: number) => v.toFixed(3),
     onChange: (v: number) => (value.val = v),
   });
 };

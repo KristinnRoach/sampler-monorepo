@@ -5,6 +5,8 @@ export class LFO {
   #targets: Set<AudioParam> = new Set();
   #initialized = false;
 
+  #storedValues: { rate: number; depth?: number } | null = null;
+
   constructor(context: AudioContext) {
     this.#context = context;
     this.#oscillator = context.createOscillator();
@@ -76,6 +78,15 @@ export class LFO {
     const hz = 440 * Math.pow(2, (midiNote - 69) / 12);
     this.setFrequency(hz / divisor);
   }
+
+  storeCurrentValues = () => {
+    this.#storedValues = {
+      rate: this.#oscillator.frequency.value,
+      depth: this.#gain.gain.value,
+    };
+  };
+
+  getStoredValues = () => this.#storedValues;
 
   getPitchWobbleWaveform() {
     // Number of harmonics for complexity

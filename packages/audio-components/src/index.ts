@@ -11,11 +11,11 @@ export {
 } from './SamplerRegistry';
 
 // Core sampler
-export { defineSampler, SamplerElement } from './elements/Sampler';
+export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
 
 // Basic controls
-export { LoadButton } from './elements/Sampler';
-export { RecordButton } from './elements/RecordButton';
+export { LoadButton } from './elements/Sampler/Sampler';
+export { RecordButton } from './elements/Sampler/components/RecordButton';
 
 // Knob components
 export {
@@ -33,7 +33,7 @@ export {
   VolumeKnob,
   ReverbKnob,
   FilterKnob,
-} from './elements/KnobFactory';
+} from './elements/Sampler/components/KnobFactory';
 
 // Toggle components
 export {
@@ -41,11 +41,13 @@ export {
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
-} from './elements/ToggleComponents';
+  GainLFOSyncNoteToggle,
+  PitchLFOSyncNoteToggle,
+} from './elements/Sampler/components/ToggleComponents';
 
 // Input controls
-export { ComputerKeyboard } from './elements/ComputerKeyboard';
-export { PianoKeyboard } from './elements/PianoKeyboard';
+export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard';
+export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
 
 // Utilities
 export { createFindNodeId } from './shared/utils/component-utils';

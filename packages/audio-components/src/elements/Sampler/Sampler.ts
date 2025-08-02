@@ -2,17 +2,17 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 import { SamplePlayer, createSamplePlayer } from '@repo/audiolib';
-import { createLabeledKnob } from './primitives/createKnob';
+import { createLabeledKnob } from '../primitives/createKnob';
 import {
   registerSampler,
   unregisterSampler,
   getSampler,
-} from '../SamplerRegistry';
-import { createFindNodeId } from '../shared/utils/component-utils';
+} from '../../SamplerRegistry';
+import { createFindNodeId } from '../../shared/utils/component-utils';
 import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
-} from '../shared/styles/component-styles';
+} from '../../shared/styles/component-styles';
 
 import {
   DryWetKnob,
@@ -29,18 +29,20 @@ import {
   VolumeKnob,
   ReverbKnob,
   FilterKnob,
-} from './KnobFactory';
+} from './components/KnobFactory';
 
 import {
   FeedbackModeToggle,
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
-} from './ToggleComponents';
+  GainLFOSyncNoteToggle,
+  PitchLFOSyncNoteToggle,
+} from './components/ToggleComponents';
 
-import { ComputerKeyboard } from './ComputerKeyboard';
-import { PianoKeyboard } from './PianoKeyboard';
-import { RecordButton } from './RecordButton';
+import { ComputerKeyboard } from './components/ComputerKeyboard';
+import { PianoKeyboard } from './components/PianoKeyboard';
+import { RecordButton } from './components/RecordButton';
 
 const { div, button } = van.tags;
 
@@ -175,6 +177,8 @@ export {
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
+  GainLFOSyncNoteToggle,
+  PitchLFOSyncNoteToggle,
 
   // Control components
   ComputerKeyboard,
@@ -218,6 +222,8 @@ export const defineSampler = () => {
   defineIfNotExists('midi-toggle', MidiToggle, false);
   defineIfNotExists('loop-lock-toggle', LoopLockToggle, false);
   defineIfNotExists('hold-lock-toggle', HoldLockToggle, false);
+  defineIfNotExists('gain-lfo-sync-toggle', GainLFOSyncNoteToggle, false);
+  defineIfNotExists('pitch-lfo-sync-toggle', PitchLFOSyncNoteToggle, false);
 
   // Input controls
   defineIfNotExists('computer-keyboard', ComputerKeyboard, false);

@@ -2,11 +2,11 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
-import { getSampler, onRegistryChange } from '../SamplerRegistry';
+import { getSampler, onRegistryChange } from '../../../SamplerRegistry';
 import {
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
-} from '../shared/styles/component-styles';
+} from '../../../shared/styles/component-styles';
 
 const { div, button } = van.tags;
 
