@@ -84,9 +84,18 @@ if (window.customElements) {
     class WebAudioKeyboard extends WebAudioControlsWidget {
       constructor() {
         super();
-        // Add keyboard event listeners to document
-        document.addEventListener('keydown', this.keydown.bind(this));
-        document.addEventListener('keyup', this.keyup.bind(this));
+        // Optional keyboard event listeners - disabled by default
+        // Can be enabled by setting the 'keyboard' attribute to 'true'
+        if (this.getAttribute('keyboard') === 'true') {
+          // Store bound references for proper cleanup
+          this._boundKeydown = this.keydown.bind(this);
+          this._boundKeyup = this.keyup.bind(this);
+          document.addEventListener('keydown', this._boundKeydown);
+          document.addEventListener('keyup', this._boundKeyup);
+          this._keyboardEnabled = true;
+        } else {
+          this._keyboardEnabled = false;
+        }
       }
 
       connectedCallback() {
@@ -224,8 +233,11 @@ ${this.basestyle}
       }
 
       disconnectedCallback() {
-        document.removeEventListener('keydown', this.keydown);
-        document.removeEventListener('keyup', this.keyup);
+        // Only remove listeners if they were added
+        if (this._keyboardEnabled) {
+          document.removeEventListener('keydown', this._boundKeydown);
+          document.removeEventListener('keyup', this._boundKeyup);
+        }
       }
 
       setupImage() {

@@ -1,21 +1,12 @@
 // ToggleComponents.ts - Toggle and control components
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../SamplerRegistry';
-import { Toggle } from './primitives/VanToggle';
-import { INLINE_COMPONENT_STYLE } from './ComponentStyles';
+import { getSampler } from '../../../SamplerRegistry';
+import { Toggle } from '../../primitives/VanToggle';
+import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
+import { createFindNodeId } from '@/shared/utils/component-utils';
 
 const { div, label } = van.tags;
-
-// Utility function - should be extracted to shared utils
-const createFindNodeId =
-  (attributes: ElementProps, targetNodeId: State<string>) => () => {
-    if (targetNodeId.val) return targetNodeId.val;
-    const parent = attributes.$this.closest('sampler-element');
-    if (parent) return parent.getAttribute('data-node-id');
-    const nearest = document.querySelector('sampler-element');
-    return nearest?.getAttribute('data-node-id') || '';
-  };
 
 // ===== FEEDBACK MODE TOGGLE =====
 export const FeedbackModeToggle = (attributes: ElementProps) => {
@@ -214,5 +205,95 @@ export const HoldLockToggle = (attributes: ElementProps) => {
       onChange: () => (locked.val = !locked.val),
     }),
     div(() => (locked.val ? 'LOCKED' : 'FREE'))
+  );
+};
+
+// ===== LFO TOGGLES =====
+
+export const GainLFOSyncNoteToggle = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const synced = van.state(false);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', synced.val));
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return div(
+    { style: INLINE_COMPONENT_STYLE },
+    label({ textContent: 'Gain LFO Sync' }),
+    Toggle({
+      on: synced.val,
+      size: 1,
+      onColor: '#ff9800',
+      onChange: () => (synced.val = !synced.val),
+    }),
+    div(() => (synced.val ? 'SYNCED' : 'FREE'))
+  );
+};
+
+export const PitchLFOSyncNoteToggle = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const synced = van.state(false);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', synced.val));
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return div(
+    { style: INLINE_COMPONENT_STYLE },
+    label({ textContent: 'Pitch LFO Sync' }),
+    Toggle({
+      on: synced.val,
+      size: 1,
+      onColor: '#ff9800',
+      onChange: () => (synced.val = !synced.val),
+    }),
+    div(() => (synced.val ? 'SYNCED' : 'FREE'))
   );
 };

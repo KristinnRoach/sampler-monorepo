@@ -6,14 +6,14 @@ import {
   enableComputerKeyboard,
   disableComputerKeyboard,
   pressedKeys,
-} from '../shared/keyboard/keyboard-state';
+} from '../../../shared/keyboard/keyboard-state';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
-import { getSampler } from '../SamplerRegistry';
+import { getSampler } from '../../../SamplerRegistry';
 import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
-} from './ComponentStyles';
+} from '../../../shared/styles/component-styles';
 
 const { div, button, select, option } = van.tags;
 
@@ -84,7 +84,6 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const midiNote = currentKeymap.val[e.code];
     if (!midiNote) return;
 
-    // Apply octave offset to the MIDI note
     const adjustedMidiNote = midiNote + octaveOffset.val * 12;
 
     pressedKeys.add(e.code);

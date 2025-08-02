@@ -1,9 +1,8 @@
-// WebAudioKeyboard.ts
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import './controls/webaudio-controls/webaudio-keyboard';
-import { getSampler } from '../SamplerRegistry';
-import { COMPONENT_STYLE } from './ComponentStyles';
+import '../../controls/webaudio-controls/webaudio-keyboard';
+import { getSampler } from '../../../SamplerRegistry';
+import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button } = van.tags;
@@ -14,51 +13,57 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   const height = attributes.attr('height', '60');
   const enabled = van.state(true);
 
-  // Sync with current keymap from ComputerKeyboard
+  // Sync with computer keyboard keymap and octave
   const currentKeymap = van.state(KeyMaps.default);
-  const octaveOffset = van.state(0); // -1, 0, +1, etc.
+  const octaveOffset = van.state(0);
   const MAX_OCT_SHIFT = 3;
   const MIN_OCT_SHIFT = -3;
 
   const keyboard = document.createElement('webaudio-keyboard') as any;
 
-  // Calculate keyboard range from keymap
-  const getKeymapRange = () => {
+  // Keep keyboard attribute disabled (default) so we handle keyboard events ourselves
+
+  const getDisplayRange = () => {
+    // Get the actual note range from the current keymap
     const notes = Object.values(currentKeymap.val).filter(Boolean) as number[];
-    if (notes.length === 0) return { min: 60, max: 72 }; // Default C4-C5
+    if (notes.length === 0) {
+      // Fallback to default range if no keymap
+      const displayMin = 48 + octaveOffset.val * 12; // C3 base
+      return { min: displayMin, keys: 25 }; // 2 octaves
+    }
 
-    const min = Math.min(...notes) + octaveOffset.val * 12;
-    const max = Math.max(...notes) + octaveOffset.val * 12;
-    const span = max - min + 1;
+    // Use keymap range + octave offset
+    const keymapMin = Math.min(...notes);
+    const keymapMax = Math.max(...notes);
+    const displayMin = keymapMin + octaveOffset.val * 12;
+    const keymapSpan = keymapMax - keymapMin + 1;
 
-    return { min, span };
+    return { min: displayMin, keys: Math.max(keymapSpan, 25) };
   };
 
-  // Update keyboard attributes reactively
+  // Reactive updates
   van.derive(() => {
-    const { min, span } = getKeymapRange();
-
+    const { min, keys } = getDisplayRange();
     keyboard.setAttribute('width', width.val);
     keyboard.setAttribute('height', height.val);
     keyboard.setAttribute('min', min.toString());
-    keyboard.setAttribute('keys', span?.toString());
+    keyboard.setAttribute('keys', keys.toString());
   });
 
-  // Handle keyboard events
-  const handleKeyboardEvent = (event: any) => {
+  // Handle mouse/touch events only
+  const handlePianoClick = (event: any) => {
     if (!enabled.val) return;
-
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) return;
 
     const [noteState, noteNumber] = event.note;
-    // Apply octave offset to the actual MIDI note
-    const adjustedNoteNumber = noteNumber + octaveOffset.val * 12;
+
+    const midiNote = noteNumber + 12 * octaveOffset.val;
 
     if (noteState === 1) {
-      sampler.play(adjustedNoteNumber);
+      sampler.play(midiNote);
     } else {
-      sampler.release(adjustedNoteNumber);
+      sampler.release(midiNote);
     }
   };
 
@@ -69,48 +74,59 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     }
   };
 
-  // Keyboard event listener for < and > keys
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.code === 'Backquote') {
-      e.preventDefault();
-      if (e.shiftKey) handleOctaveChange(1);
-      else handleOctaveChange(-1);
-    }
-  };
+  keyboard.addEventListener('pointer', handlePianoClick);
 
-  keyboard.addEventListener('pointer', handleKeyboardEvent);
-
-  // Enable/disable interaction
   van.derive(() => {
     keyboard.style.opacity = enabled.val ? '1' : '0.5';
     keyboard.style.pointerEvents = enabled.val ? 'auto' : 'none';
   });
 
   attributes.mount(() => {
-    // Listen for keymap changes from ComputerKeyboard
+    // Sync octave changes from ComputerKeyboard
     const handleKeymapChange = (e: CustomEvent) => {
       if (
         e.detail.targetNodeId === targetNodeId.val ||
         !e.detail.targetNodeId
       ) {
-        currentKeymap.val = e.detail.keymap;
-        // Sync octave offset from computer keyboard
+        // Sync keymap and octave offset
+        if (e.detail.keymap) {
+          currentKeymap.val = e.detail.keymap;
+        }
         if (e.detail.octaveOffset !== undefined) {
           octaveOffset.val = e.detail.octaveOffset;
         }
       }
     };
 
-    // Listen for octave key presses (as backup)
-    document.addEventListener('keydown', handleKeyDown);
+    // Listen for computer keyboard events to sync visual feedback
+    const handleKeyboardEvents = (e: KeyboardEvent) => {
+      if (!enabled.val) return;
+      if (e.repeat) return;
+
+      const midiNote = currentKeymap.val[e.code];
+      if (!midiNote) return;
+
+      const adjustedMidiNote = midiNote + octaveOffset.val * 12;
+
+      // Check if this note is within the piano keyboard's visible range
+      const { min, keys } = getDisplayRange();
+      if (adjustedMidiNote >= min && adjustedMidiNote < min + keys) {
+        // Sync visual feedback with computer keyboard
+        const isKeyDown = e.type === 'keydown';
+        keyboard.setNote(isKeyDown ? 1 : 0, adjustedMidiNote);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboardEvents);
+    document.addEventListener('keyup', handleKeyboardEvents);
     document.addEventListener(
       'keymap-changed',
       handleKeymapChange as EventListener
     );
-
     return () => {
-      keyboard.removeEventListener('pointer', handleKeyboardEvent);
-      document.removeEventListener('keydown', handleKeyDown);
+      keyboard.removeEventListener('pointer', handlePianoClick);
+      document.removeEventListener('keydown', handleKeyboardEvents);
+      document.removeEventListener('keyup', handleKeyboardEvents);
       document.removeEventListener(
         'keymap-changed',
         handleKeymapChange as EventListener
@@ -148,7 +164,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     keyboard,
     div(
       { style: 'font-size: 0.7rem; color: #666; margin-top: 0.25rem;' },
-      'Use < and > keys for octave control'
+      'Mouse/touch input • Keyboard handled by ComputerKeyboard component'
     )
   );
 };

@@ -59,7 +59,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
-  syncLFOsToMidiNote = true; // todo setter
+  #syncGainLFOToMidiNote = false;
+  #syncPitchLFOToMidiNote = false;
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
@@ -347,6 +348,29 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === LFOs === */
 
+  syncLFOsToNoteFreq(lfoId: 'gain-lfo' | 'pitch-lfo', enabled: boolean) {
+    if (lfoId === 'gain-lfo') {
+      if (enabled === true) {
+        this.#gainLFO?.storeCurrentValues();
+      } else {
+        const storedVals = this.#gainLFO?.getStoredValues();
+        storedVals && this.#gainLFO?.setFrequency(storedVals.rate);
+      }
+
+      this.#syncGainLFOToMidiNote = enabled;
+    }
+    if (lfoId === 'pitch-lfo') {
+      if (enabled === true) {
+        this.#pitchLFO?.storeCurrentValues();
+      } else {
+        const storedVals = this.#pitchLFO?.getStoredValues();
+        storedVals && this.#pitchLFO?.setFrequency(storedVals.rate);
+      }
+
+      this.#syncPitchLFOToMidiNote = enabled;
+    }
+  }
+
   #setupLFOs() {
     this.#gainLFO = new LFO(this.context);
     this.#gainLFO.setWaveform('sine');
@@ -490,10 +514,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   ): MidiValue | null {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
-    if (this.syncLFOsToMidiNote) {
-      this.#gainLFO?.setMusicalNote(midiNote);
-      this.#pitchLFO?.setMusicalNote(midiNote, 2);
-    }
+    this.#syncGainLFOToMidiNote && this.#gainLFO?.setMusicalNote(midiNote);
+    this.#syncPitchLFOToMidiNote && this.#pitchLFO?.setMusicalNote(midiNote, 4);
 
     this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);
 

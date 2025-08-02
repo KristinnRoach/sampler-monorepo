@@ -178,7 +178,7 @@ export const minorKeymap = generateKeymap({
 });
 
 export const pentatonicKeymap = generateKeymap({
-  baseNote: 32,
+  baseNote: 24,
   scale: [0, 2, 4, 7, 9], // Major pentatonic
 });
 

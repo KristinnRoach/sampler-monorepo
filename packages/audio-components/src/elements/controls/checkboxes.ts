@@ -5,7 +5,7 @@ import {
   LabelContent,
   StaticLabelContent,
 } from '../primitives/createInputEl';
-import { UNICODES } from '../../shared/utils/unicodes';
+import { UNICODES } from '../../shared/utils/icons/unicodes';
 
 const { div } = van.tags;
 

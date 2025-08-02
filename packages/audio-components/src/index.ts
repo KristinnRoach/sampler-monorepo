@@ -11,16 +11,14 @@ export {
 } from './SamplerRegistry';
 
 // Core sampler
-export { defineSampler, SamplerElement } from './elements/Sampler';
+export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
 
 // Basic controls
-export { LoadButton, RecordButton } from './elements/Sampler';
+export { LoadButton } from './elements/Sampler/Sampler';
+export { RecordButton } from './elements/Sampler/components/RecordButton';
 
 // Knob components
 export {
-  VolumeKnob,
-  ReverbKnob,
-  FilterKnob,
   DryWetKnob,
   FeedbackKnob,
   DriveKnob,
@@ -32,7 +30,10 @@ export {
   GainLFODepthKnob,
   PitchLFORateKnob,
   PitchLFODepthKnob,
-} from './elements/Sampler';
+  VolumeKnob,
+  ReverbKnob,
+  FilterKnob,
+} from './elements/Sampler/components/KnobFactory';
 
 // Toggle components
 export {
@@ -40,14 +41,16 @@ export {
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
-} from './elements/Sampler';
+  GainLFOSyncNoteToggle,
+  PitchLFOSyncNoteToggle,
+} from './elements/Sampler/components/ToggleComponents';
 
 // Input controls
-export { ComputerKeyboard } from './elements/ComputerKeyboard';
-export { PianoKeyboard } from './elements/PianoKeyboard';
+export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard';
+export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
 
 // Utilities
-export { createFindNodeId } from './elements/ComponentUtils';
+export { createFindNodeId } from './shared/utils/component-utils';
 
-// Old all-in-one version (deprecated):
+// Old all-in-one version (for reference):
 export { defineSamplerMonolith } from './elements/instruments/sampler/SamplerMonolith';

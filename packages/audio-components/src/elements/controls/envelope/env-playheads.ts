@@ -1,5 +1,5 @@
 import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
-import { generateMidiNoteColors } from '../../../shared/utils/generateColors';
+import { generateMidiNoteColors } from '../../../shared/utils/visual/generateColors';
 import { gsap, MotionPathPlugin, CustomEase } from 'gsap/all';
 
 gsap.registerPlugin(MotionPathPlugin, CustomEase);
