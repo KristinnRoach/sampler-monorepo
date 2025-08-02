@@ -38,12 +38,12 @@ import { RecordButton } from './RecordButton';
 
 const { div, button } = van.tags;
 
-// ===== SAMPLER ENGINE (unchanged) =====
+// ===== SAMPLER ENGINE =====
 export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
   let initialized = false;
 
-  const nodeId: State<string> = attributes.attr('node-id', crypto.randomUUID());
+  const nodeId: State<string> = attributes.attr('node-id', 'no-id');
   const polyphony = attributes.attr('polyphony', '16');
   const status = van.state('Initializing...');
 
@@ -55,7 +55,8 @@ export const SamplerElement = (attributes: ElementProps) => {
           parseInt(polyphony.val)
         );
 
-        if (nodeId.val.length === 36) {
+        // Use attribute id if passed in, otherwise use the audiolib's nodeId
+        if (nodeId.val === 'no-id') {
           nodeId.val = samplePlayer.nodeId;
         }
 
