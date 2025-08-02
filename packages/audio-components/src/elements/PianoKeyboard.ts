@@ -101,12 +101,11 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     // Listen for computer keyboard events to sync visual feedback
     const handleKeyboardEvents = (e: KeyboardEvent) => {
       if (!enabled.val) return;
+      if (e.repeat) return;
 
-      // Check if this key is mapped in current keymap
       const midiNote = currentKeymap.val[e.code];
       if (!midiNote) return;
 
-      // Apply octave offset
       const adjustedMidiNote = midiNote + octaveOffset.val * 12;
 
       // Check if this note is within the piano keyboard's visible range
