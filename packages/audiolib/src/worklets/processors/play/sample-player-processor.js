@@ -29,7 +29,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       {
         name: 'playbackRate',
         defaultValue: 1,
-        minValue: 0.001, // TODO: Support reverse playback
+        minValue: 0.1, // TODO: Support reverse playback
         maxValue: 24,
         automationRate: 'a-rate',
       },
