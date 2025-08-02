@@ -491,32 +491,35 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       }
 
       // Sample interpolation
-      const position = Math.floor(this.playbackPosition);
-      const fraction = this.playbackPosition - position;
+      const currentPosition = Math.floor(this.playbackPosition);
+      const positionOffset = this.playbackPosition - currentPosition;
+
+      // Pre-calculate interpolation positions outside channel loop
+      let nextPosition, interpWeight;
+      if (this.reversePlayback) {
+        nextPosition = Math.max(
+          currentPosition - 1,
+          playbackRange.startSamples
+        );
+        interpWeight = 1 - positionOffset; // Reverse: weight toward previous sample
+      } else {
+        nextPosition = Math.min(
+          currentPosition + 1,
+          playbackRange.endSamples - 1
+        );
+        interpWeight = positionOffset; // Forward: weight toward next sample
+      }
 
       // Generate output for each channel
       for (let channel = 0; channel < numChannels; channel++) {
         const bufferChannel =
           this.buffer[Math.min(channel, this.buffer.length - 1)];
 
-        let interpolatedSample;
-        if (this.reversePlayback) {
-          const prevPosition = Math.max(
-            position - 1,
-            playbackRange.startSamples
-          );
-          const current = bufferChannel[position] || 0;
-          const prev = bufferChannel[prevPosition] || 0;
-          interpolatedSample = current + (1 - fraction) * (prev - current);
-        } else {
-          const nextPosition = Math.min(
-            position + 1,
-            playbackRange.endSamples - 1
-          );
-          const current = bufferChannel[position] || 0;
-          const next = bufferChannel[nextPosition] || 0;
-          interpolatedSample = current + fraction * (next - current);
-        }
+        // Linear interpolation between current and next positions
+        const currentSample = bufferChannel[currentPosition] || 0;
+        const nextSample = bufferChannel[nextPosition] || 0;
+        const interpolatedSample =
+          currentSample + interpWeight * (nextSample - currentSample);
 
         if (this.applyClickCompensation) {
           interpolatedSample += this.loopClickCompensation;
