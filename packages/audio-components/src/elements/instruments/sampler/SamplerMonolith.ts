@@ -18,7 +18,7 @@ import {
   createAudioRecorder,
 } from '@repo/audiolib';
 
-import { createIcons } from '../../../shared/utils/icons';
+import { createIcons } from '../../../shared/utils/icons/icons';
 import { SampleControls } from '../../controls/SampleControls';
 import { ExpandableHeader } from '../../primitives/ExpandableHeader';
 import { FileOperations } from '../../controls/FileOperations';

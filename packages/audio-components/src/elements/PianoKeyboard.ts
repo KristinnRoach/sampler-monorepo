@@ -2,7 +2,7 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import './controls/webaudio-controls/webaudio-keyboard';
 import { getSampler } from '../SamplerRegistry';
-import { COMPONENT_STYLE } from './ComponentStyles';
+import { COMPONENT_STYLE } from '../shared/styles/component-styles';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button } = van.tags;

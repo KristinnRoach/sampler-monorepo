@@ -1,11 +1,11 @@
 // utils/icons.ts
-import midiSvgRaw from '../assets/icons/svg/svgrepo/midi-logo.svg?raw';
-import keysSvgRaw from '../assets/icons/svg/svgrepo/computer-keyboard-2.svg?raw';
-import loopOnSvgRaw from '../assets/icons/svg/svgrepo/loop-on.svg?raw';
-import loopOffSvgRaw from '../assets/icons/svg/svgrepo/loop-off.svg?raw';
-import listeningSvgRaw from '../assets/icons/svg/svgrepo/listening.svg?raw';
-import recordSvgRaw from '../assets/icons/svg/phosphore/record.svg?raw';
-import stopSvgRaw from '../assets/icons/svg/phosphore/stop.svg?raw';
+import midiSvgRaw from '../../assets/icons/svg/svgrepo/midi-logo.svg?raw';
+import keysSvgRaw from '../../assets/icons/svg/svgrepo/computer-keyboard-2.svg?raw';
+import loopOnSvgRaw from '../../assets/icons/svg/svgrepo/loop-on.svg?raw';
+import loopOffSvgRaw from '../../assets/icons/svg/svgrepo/loop-off.svg?raw';
+import listeningSvgRaw from '../../assets/icons/svg/svgrepo/listening.svg?raw';
+import recordSvgRaw from '../../assets/icons/svg/phosphore/record.svg?raw';
+import stopSvgRaw from '../../assets/icons/svg/phosphore/stop.svg?raw';
 
 export const createIcons = () => {
   const iconSize = { width: '2rem', height: '2rem' };

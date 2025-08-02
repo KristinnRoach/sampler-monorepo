@@ -14,13 +14,11 @@ export {
 export { defineSampler, SamplerElement } from './elements/Sampler';
 
 // Basic controls
-export { LoadButton, RecordButton } from './elements/Sampler';
+export { LoadButton } from './elements/Sampler';
+export { RecordButton } from './elements/RecordButton';
 
 // Knob components
 export {
-  VolumeKnob,
-  ReverbKnob,
-  FilterKnob,
   DryWetKnob,
   FeedbackKnob,
   DriveKnob,
@@ -32,7 +30,10 @@ export {
   GainLFODepthKnob,
   PitchLFORateKnob,
   PitchLFODepthKnob,
-} from './elements/Sampler';
+  VolumeKnob,
+  ReverbKnob,
+  FilterKnob,
+} from './elements/KnobFactory';
 
 // Toggle components
 export {
@@ -40,14 +41,14 @@ export {
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
-} from './elements/Sampler';
+} from './elements/ToggleComponents';
 
 // Input controls
 export { ComputerKeyboard } from './elements/ComputerKeyboard';
 export { PianoKeyboard } from './elements/PianoKeyboard';
 
 // Utilities
-export { createFindNodeId } from './elements/ComponentUtils';
+export { createFindNodeId } from './shared/utils/component-utils';
 
-// Old all-in-one version (deprecated):
+// Old all-in-one version (for reference):
 export { defineSamplerMonolith } from './elements/instruments/sampler/SamplerMonolith';

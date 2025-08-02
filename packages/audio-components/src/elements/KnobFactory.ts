@@ -1,18 +1,9 @@
-// MissingKnobs.ts - Additional knob components following the established pattern
+// KnobFactory.ts
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
 import { createLabeledKnob } from './primitives/createKnob';
-
-// Utility function from Sampler.ts - should be extracted to shared utils
-const createFindNodeId =
-  (attributes: ElementProps, targetNodeId: State<string>) => () => {
-    if (targetNodeId.val) return targetNodeId.val;
-    const parent = attributes.$this.closest('sampler-element');
-    if (parent) return parent.getAttribute('data-node-id');
-    const nearest = document.querySelector('sampler-element');
-    return nearest?.getAttribute('data-node-id') || '';
-  };
+import { createFindNodeId } from '@/shared/utils/component-utils';
 
 // ===== DRY/WET MIX KNOB =====
 export const DryWetKnob = (attributes: ElementProps) => {
@@ -471,6 +462,138 @@ export const PitchLFODepthKnob = (attributes: ElementProps) => {
     label: 'Pitch LFO Depth',
     defaultValue: 0.0,
     curve: 1.5,
+    onChange: (v: number) => (value.val = v),
+  });
+};
+
+// ===== VOLUME KNOB =====
+export const VolumeKnob = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const value = van.state(0.75);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connectToSampler = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => {
+        if (sampler) sampler.volume = value.val;
+      });
+    }
+  };
+
+  attributes.mount(() => {
+    connectToSampler();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) {
+        connectToSampler();
+      }
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return createLabeledKnob({
+    label: 'Volume',
+    defaultValue: 0.75,
+    onChange: (v: number) => (value.val = v),
+  });
+};
+
+// ===== REVERB KNOB =====
+export const ReverbKnob = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const value = van.state(0.0);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => sampler.setReverbAmount(value.val));
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return createLabeledKnob({
+    label: 'Reverb',
+    defaultValue: 0.0,
+    onChange: (v: number) => (value.val = v),
+  });
+};
+
+// ===== FILTER KNOB =====
+export const FilterKnob = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const filterType: State<string> = attributes.attr('filter-type', 'lpf');
+  const value = van.state(filterType.val === 'lpf' ? 18000 : 40);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => {
+        if (filterType.val === 'lpf') {
+          sampler.setLpfCutoff(value.val);
+        } else {
+          sampler.setHpfCutoff(value.val);
+        }
+      });
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  const isLpf = filterType.val === 'lpf';
+  return createLabeledKnob({
+    label: isLpf ? 'LPF' : 'HPF',
+    defaultValue: isLpf ? 18000 : 40,
+    minValue: 20,
+    maxValue: 20000,
+    curve: 5,
     onChange: (v: number) => (value.val = v),
   });
 };

@@ -1,4 +1,4 @@
-// ComponentUtils.ts - Shared utilities for components
+// component-util.ts - Shared utilities for components
 import { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 

@@ -8,8 +8,11 @@ import {
   unregisterSampler,
   getSampler,
 } from '../SamplerRegistry';
-import { createFindNodeId } from './ComponentUtils';
-import { COMPONENT_STYLE, BUTTON_STYLE } from './ComponentStyles';
+import { createFindNodeId } from '../shared/utils/component-utils';
+import {
+  COMPONENT_STYLE,
+  BUTTON_STYLE,
+} from '../shared/styles/component-styles';
 
 import {
   DryWetKnob,
@@ -23,7 +26,10 @@ import {
   GainLFODepthKnob,
   PitchLFORateKnob,
   PitchLFODepthKnob,
-} from './MissingKnobs';
+  VolumeKnob,
+  ReverbKnob,
+  FilterKnob,
+} from './KnobFactory';
 
 import {
   FeedbackModeToggle,
@@ -97,136 +103,6 @@ export const SamplerElement = (attributes: ElementProps) => {
     div(() => `Sampler: ${nodeId.val}`),
     div(() => status.val)
   );
-};
-
-// ===== EXISTING CONTROL COMPONENTS (unchanged) =====
-export const VolumeKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.75);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connectToSampler = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        if (sampler) sampler.volume = value.val;
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connectToSampler();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) {
-        connectToSampler();
-      }
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Volume',
-    defaultValue: 0.75,
-    onChange: (v: number) => (value.val = v),
-  });
-};
-
-export const ReverbKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setReverbAmount(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Reverb',
-    defaultValue: 0.0,
-    onChange: (v: number) => (value.val = v),
-  });
-};
-
-export const FilterKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const filterType: State<string> = attributes.attr('filter-type', 'lpf');
-  const value = van.state(filterType.val === 'lpf' ? 18000 : 40);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        if (filterType.val === 'lpf') {
-          sampler.setLpfCutoff(value.val);
-        } else {
-          sampler.setHpfCutoff(value.val);
-        }
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  const isLpf = filterType.val === 'lpf';
-  return createLabeledKnob({
-    label: isLpf ? 'LPF' : 'HPF',
-    defaultValue: isLpf ? 18000 : 40,
-    minValue: 20,
-    maxValue: 20000,
-    curve: 5,
-    onChange: (v: number) => (value.val = v),
-  });
 };
 
 export const LoadButton = (attributes: ElementProps) => {

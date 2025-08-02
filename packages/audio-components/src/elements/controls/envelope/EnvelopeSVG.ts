@@ -18,7 +18,7 @@ import {
 
 import { EnvToggleButtons } from './env-buttons';
 import { createEnvelopeGrid } from './env-grid';
-import { getWaveformSVGData } from '../../../shared/utils/waveform-utils';
+import { getWaveformSVGData } from '../../../shared/utils/visual/waveform-utils';
 
 import { createPlayheads, type PlayheadManager } from './env-playheads';
 

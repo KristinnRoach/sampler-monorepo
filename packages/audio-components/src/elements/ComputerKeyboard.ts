@@ -13,7 +13,7 @@ import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
-} from './ComponentStyles';
+} from '../shared/styles/component-styles';
 
 const { div, button, select, option } = van.tags;
 

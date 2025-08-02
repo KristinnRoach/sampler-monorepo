@@ -1,4 +1,4 @@
-// ComponentStyles.ts - Minimal safety styles for visibility
+// component-styles.ts - Minimal safety styles for visibility
 
 export const COMPONENT_STYLE = `
   display: flex;
