@@ -2,7 +2,7 @@ import { ILibAudioNode } from '../LibAudioNode';
 import { NodeType } from '@/nodes/LibNode';
 import { getAudioContext } from '@/context';
 import { registerNode, unregisterNode } from '@/nodes/node-store';
-import { clamp, mapToRange } from '@/utils';
+import { clamp, interpolate, mapToRange } from '@/utils';
 import { createFeedbackDelay } from '@/worklets/worklet-factory';
 import { FbDelayWorklet } from '@/worklets/worklet-types';
 
@@ -14,10 +14,10 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   #delay: FbDelayWorklet;
 
-  #inputGain: GainNode;
-  #outputGain: GainNode;
-  #wetGain: GainNode;
-  #dryGain: GainNode;
+  #preGain: GainNode;
+  #postGain: GainNode;
+  // #wetGain: GainNode;
+  // #dryGain: GainNode;
 
   #connections = new Set<NodeID>();
   #incoming = new Set<NodeID>();
@@ -26,7 +26,7 @@ export class HarmonicFeedback implements ILibAudioNode {
   #pitchMultiplier = 1;
   #decayActive = false;
 
-  #MIN_FB = 0.92; // ? make user friendly range in processor ?
+  #MIN_FB = 0; // 0.92; // ? make user friendly range in processor ?
   #MAX_FB = 0.999;
   #C6_SECONDS = 0.00095556;
   #C7_SECONDS = 0.0004774632;
@@ -37,20 +37,23 @@ export class HarmonicFeedback implements ILibAudioNode {
 
     this.#delay = createFeedbackDelay(context);
 
-    this.#inputGain = new GainNode(context, { gain: 1 });
-    this.#outputGain = new GainNode(context, { gain: 1 });
+    this.#preGain = new GainNode(context, { gain: 1 });
+    this.#postGain = new GainNode(context, { gain: 1 });
 
-    this.#wetGain = new GainNode(context, { gain: 0.0 });
-    this.#dryGain = new GainNode(context, { gain: 1.0 });
+    // this.#wetGain = new GainNode(context, { gain: 0.0 });
+    // this.#dryGain = new GainNode(context, { gain: 1.0 });
 
-    // Wet path: input -> wetGain ->  delay -> output
-    this.#inputGain.connect(this.#wetGain);
-    this.#wetGain.connect(this.#delay);
-    this.#delay.connect(this.#outputGain);
+    // // Wet path: input -> wetGain ->  delay -> output
+    // this.#preGain.connect(this.#wetGain);
+    // this.#wetGain.connect(this.#delay);
+    // this.#delay.connect(this.#postGain);
 
-    // Dry path: input -> dryGain -> output
-    this.#inputGain.connect(this.#dryGain);
-    this.#dryGain.connect(this.#outputGain);
+    // // Dry path: input -> dryGain -> output
+    // this.#preGain.connect(this.#dryGain);
+    // this.#dryGain.connect(this.#postGain);
+
+    // Signal path: preGain -> delay ->  postGain
+    this.#preGain.connect(this.#delay).connect(this.#postGain);
 
     const initDelayTime = this.setPitch(60);
     this.#baseDelayTime = initDelayTime;
@@ -88,33 +91,27 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   // === SETTERS ===
 
-  setMix(mix: { dry?: number; wet?: number }): this {
-    const timestamp = this.now;
+  // setMix(mix: { dry?: number; wet?: number }): this {
+  //   const timestamp = this.now;
 
-    if (mix.dry !== undefined) {
-      const safeDry = Math.max(0, Math.min(1, mix.dry));
-      this.#dryGain.gain.setValueAtTime(safeDry, timestamp);
-    }
+  //   if (mix.dry !== undefined) {
+  //     const safeDry = Math.max(0, Math.min(1, mix.dry));
+  //     this.#dryGain.gain.setValueAtTime(safeDry, timestamp);
+  //   }
 
-    if (mix.wet !== undefined) {
-      const safeWet = Math.max(0, Math.min(1, mix.wet));
-      this.#wetGain.gain.setValueAtTime(safeWet, timestamp);
-    }
+  //   if (mix.wet !== undefined) {
+  //     const safeWet = Math.max(0, Math.min(1, mix.wet));
+  //     this.#wetGain.gain.setValueAtTime(safeWet, timestamp);
+  //   }
 
-    return this;
-  }
+  //   return this;
+  // }
 
   currAmount = 0;
 
   setAmountMacro(amount: number): this {
     const safeAmount = clamp(amount, 0, 1);
-
-    this.#wetGain.gain.setValueAtTime(amount, this.now);
-
-    // this.setMix({
-    //   dry: 1 - safeAmount,
-    //   wet: safeAmount,
-    // });
+    // this.#wetGain.gain.setValueAtTime(amount, this.now);
 
     this.setFeedbackAmount(safeAmount);
 
@@ -190,14 +187,16 @@ export class HarmonicFeedback implements ILibAudioNode {
     return this;
   }
 
-  setFeedbackAmount(gain: number, timestamp = this.now) {
-    const mappedGain = mapToRange(gain, 0, 1, this.#MIN_FB, this.#MAX_FB, {
-      warn: true,
+  setFeedbackAmount(amount: number, timestamp = this.now) {
+    const interpolated = interpolate(amount, {
+      inputRange: { min: 0, max: 1 },
+      outputRange: { min: Math.max(0.001, this.#MIN_FB), max: this.#MAX_FB },
+      curve: 'power4',
     });
 
     this.#delay.parameters
       .get('feedbackAmount')!
-      .setValueAtTime(mappedGain, timestamp);
+      .setValueAtTime(interpolated, timestamp);
     return this;
   }
 
@@ -245,7 +244,7 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   connect(destination: ILibAudioNode | AudioNode): void {
     const target = 'input' in destination ? destination.input : destination;
-    this.#outputGain.connect(target as AudioNode);
+    this.#postGain.connect(target as AudioNode);
 
     if ('nodeId' in destination) {
       this.#connections.add(destination.nodeId);
@@ -256,13 +255,13 @@ export class HarmonicFeedback implements ILibAudioNode {
   disconnect(destination?: ILibAudioNode | AudioNode): void {
     if (destination) {
       const target = 'input' in destination ? destination.input : destination;
-      this.#outputGain.disconnect(target as AudioNode);
+      this.#postGain.disconnect(target as AudioNode);
       if ('nodeId' in destination) {
         this.#connections.delete(destination.nodeId);
         (destination as any).removeIncoming?.(this.nodeId);
       }
     } else {
-      this.#outputGain.disconnect();
+      this.#postGain.disconnect();
       this.#connections.clear();
     }
   }
@@ -285,12 +284,12 @@ export class HarmonicFeedback implements ILibAudioNode {
       case 'delayTime':
         this.setDelay(value, time);
         break;
-      case 'wetAmount':
-        this.#wetGain.gain.setValueAtTime(clamp(value, 0, 1), time);
-        break;
-      case 'dryAmount':
-        this.#dryGain.gain.setValueAtTime(clamp(value, 0, 1), time);
-        break;
+      // case 'wetAmount':
+      //   this.#wetGain.gain.setValueAtTime(clamp(value, 0, 1), time);
+      //   break;
+      // case 'dryAmount':
+      //   this.#dryGain.gain.setValueAtTime(clamp(value, 0, 1), time);
+      //   break;
       case 'amount':
         this.setAmountMacro(value);
         break;
@@ -306,10 +305,10 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   getParam(name: string): AudioParam | null {
     switch (name) {
-      case 'wetAmount':
-        return this.#wetGain.gain;
-      case 'dryAmount':
-        return this.#dryGain.gain;
+      // case 'wetAmount':
+      //   return this.#wetGain.gain;
+      // case 'dryAmount':
+      //   return this.#dryGain.gain;
       default:
         return this.#delay.parameters.get(name) || null;
     }
@@ -330,10 +329,10 @@ export class HarmonicFeedback implements ILibAudioNode {
   }
 
   get input() {
-    return this.#inputGain;
+    return this.#preGain;
   }
   get output() {
-    return this.#outputGain;
+    return this.#postGain;
   }
 
   get connections() {
@@ -343,12 +342,12 @@ export class HarmonicFeedback implements ILibAudioNode {
     };
   }
 
-  get mix(): { dry: number; wet: number } {
-    return {
-      dry: this.#dryGain.gain.value,
-      wet: this.#wetGain.gain.value,
-    };
-  }
+  // get mix(): { dry: number; wet: number } {
+  //   return {
+  //     dry: this.#dryGain.gain.value,
+  //     wet: this.#wetGain.gain.value,
+  //   };
+  // }
 
   get initialized() {
     return this.#initialized;

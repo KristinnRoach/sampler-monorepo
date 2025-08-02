@@ -5,7 +5,7 @@ import { cancelScheduledParamValues } from '@/utils';
 export class AudioParamController implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'audio-param-controller';
-  #context: BaseAudioContext;
+  #context: AudioContext;
   #constantSignal: ConstantSourceNode;
   #targets: Array<{ param: AudioParam; scaler?: GainNode }> = [];
   #initialized: boolean = false;
@@ -16,18 +16,33 @@ export class AudioParamController implements LibNode {
     context: BaseAudioContext,
     initialValue: number = AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
   ) {
-    this.#context = context;
+    // Cast to AudioContext to access .resume()
+    this.#context = context as AudioContext;
     this.nodeId = registerNode(this.nodeType, this);
 
     this.#constantSignal = context.createConstantSource();
-    this.#constantSignal.start();
 
-    // Use the ConstantSourceNode's offset directly instead of a GainNode
     this.#constantSignal.offset.setValueAtTime(
       initialValue,
       context.currentTime
     );
 
+    // Hook into user gesture to avoid audio context warnings
+    document.addEventListener('click', this.initOnUserGesture.bind(this), {
+      once: true,
+    });
+  }
+
+  initOnUserGesture() {
+    if (this.#initialized) return;
+
+    if (this.#context.state === 'suspended') {
+      this.#context.resume().then(() => {
+        this.#constantSignal.start();
+      });
+    } else {
+      this.#constantSignal.start();
+    }
     this.#initialized = true;
   }
 

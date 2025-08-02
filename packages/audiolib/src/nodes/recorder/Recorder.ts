@@ -295,6 +295,15 @@ export class Recorder implements LibNode {
 
   protected sendMessage(type: string, data: any) {
     this.#messages.sendMessage(type, data);
+
+    // Send unified state-change message for recorder events
+    if (type.startsWith('record:')) {
+      this.#messages.sendMessage('state-change', {
+        state: this.#state,
+        event: type,
+        ...data,
+      });
+    }
   }
 
   connect(destination: LibNode & SampleLoader): this {

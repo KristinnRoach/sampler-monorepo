@@ -1,7 +1,6 @@
 import { compressSingleSample } from '../shared/utils/compress-utils';
 import { DelayBuffer } from './DelayBuffer';
 
-// Minimal safety compensation - just enough to prevent sub-threshold buildup
 const SAFETY_GAIN_COMPENSATION = 0.05;
 const AUTO_GAIN_THRESHOLD = 0.8;
 export class FeedbackDelay {

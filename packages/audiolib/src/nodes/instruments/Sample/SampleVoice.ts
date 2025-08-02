@@ -1,4 +1,4 @@
-import { LibAudioNode, VoiceType, Destination, NodeType } from '@/nodes';
+import { LibAudioNode, Destination, NodeType } from '@/nodes';
 import { getAudioContext } from '@/context';
 import { registerNode, NodeID, unregisterNode } from '@/nodes/node-store';
 import { VoiceState } from '../VoiceState';
@@ -14,7 +14,6 @@ import { midiToPlaybackRate } from '@/utils';
 
 import {
   CustomEnvelope,
-  EnvelopeData,
   type EnvelopeType,
   createEnvelope,
 } from '@/nodes/params/envelopes';
@@ -23,6 +22,7 @@ import { getMaxFilterFreq } from './param-defaults';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
 export class SampleVoice {
+  // TODO: implements ILibAudioNode
   readonly nodeId: NodeID;
   readonly nodeType: NodeType = 'sample-voice';
 
@@ -41,7 +41,7 @@ export class SampleVoice {
 
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
 
-  feedback: HarmonicFeedback | null;
+  feedback: HarmonicFeedback | null = null;
 
   #pitchGlideTime = 0; // in seconds
 
@@ -93,12 +93,10 @@ export class SampleVoice {
         });
       }
 
-      // Connect chain: worklet → hpf → lpf -> destination
+      // Connect: worklet -> feedback -> hpf -> lpf -> destination
       this.#worklet.connect(this.feedback.input);
       this.#worklet.connect(this.#hpf);
-
       this.feedback.output.connect(this.#hpf);
-
       this.#hpf.connect(this.#lpf);
       this.#lpf.connect(destination);
 
@@ -636,7 +634,11 @@ export class SampleVoice {
         case 'initialized':
           this.#isInitialized = true;
           this.#state = VoiceState.NOT_READY; // not loaded
-          // this.logAvailableParams(); // as needed for debugging
+
+          this.sendUpstreamMessage('voice:initialized', {
+            voice: this,
+            voiceId: this.nodeId,
+          });
           break;
 
         case 'voice:loaded':

@@ -31,34 +31,7 @@ import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button, label } = van.tags;
 
-// ===== GLOBAL REGISTRY SYSTEM =====
-const samplerRegistry = new Map<string, SamplePlayer>();
-
-// Helper function to get sampler by nodeId
-const getSampler = (nodeId: string): SamplePlayer | null => {
-  return samplerRegistry.get(nodeId) || null;
-};
-
-// ===== VOLUME KNOB COMPONENT =====
-export const VolumeKnob = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-  const value = van.state(0.75);
-
-  van.derive(() => {
-    const sampler = getSampler(targetNodeId.val);
-    if (sampler && sampler.volume !== undefined) {
-      sampler.volume = value.val;
-    }
-  });
-
-  return createLabeledKnob({
-    label: 'Volume',
-    defaultValue: 0.75,
-    onChange: (v: number) => (value.val = v),
-  });
-};
-
-export const SamplerElement = (attributes: ElementProps) => {
+export const SamplerMonolith = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
   let currentRecorder: Recorder | null = null;
 
@@ -239,8 +212,6 @@ export const SamplerElement = (attributes: ElementProps) => {
       try {
         const polyphony = parseInt(attributes.attr('polyphony', '16').val);
         samplePlayer = await createSamplePlayer(undefined, polyphony);
-
-        samplePlayer.connect(samplePlayer.context.destination);
         // connects automatically to audio destination
 
         if (!samplePlayer.initialized) {
@@ -551,7 +522,6 @@ export const SamplerElement = (attributes: ElementProps) => {
         silenceTimeoutMs: 1000,
       });
 
-      // ! onMessage('record:armed' is not working, temp fix:
       recordBtnState.val = 'Armed';
       status.val = 'Listening...';
 
@@ -706,11 +676,11 @@ export const SamplerElement = (attributes: ElementProps) => {
               : 'display: none; padding: 0.5rem;',
         },
 
-        // createLabeledKnob({
-        //   label: 'Volume',
-        //   defaultValue: 0.5,
-        //   onChange: (value: number) => (volume.val = value),
-        // }),
+        createLabeledKnob({
+          label: 'Volume',
+          defaultValue: 0.75,
+          onChange: (value: number) => (volume.val = value),
+        }),
 
         createLabeledKnob({
           label: 'Dry/Wet',
@@ -977,7 +947,6 @@ export const SamplerElement = (attributes: ElementProps) => {
       ),
 
       div({
-        // dataset: {'data-instrument-id': `${samplePlayer?.nodeId}`},
         class: 'keyboard-section',
         style: 'width: 30vw; height: 10vh; margin: 1rem 0;',
       }),
@@ -990,15 +959,9 @@ export const SamplerElement = (attributes: ElementProps) => {
   );
 };
 
-// export const defineSampler = (elementName: string = 'sampler-element') => {
-//   define(elementName, SamplerElement, false);
-// };
-
 // ===== DEFINE ELEMENTS =====
-export const defineSampler = (elementName: string = 'sampler-element') => {
-  define(elementName, SamplerElement, false);
-  define('volume-knob', VolumeKnob, false); // NEW: Also define the volume knob
+export const defineSamplerMonolith = (
+  elementName: string = 'sampler-monolith'
+) => {
+  define(elementName, SamplerMonolith, false);
 };
-
-// ===== EXPORT HELPER FOR EXTERNAL USE =====
-export { getSampler };

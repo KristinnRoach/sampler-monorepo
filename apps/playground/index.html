@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sampler Demo</title>
+
+    <meta
+      name="description"
+      content="Playground for prototyping a sampler instrument "
+    />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="mask-icon" href="/mask-icon.svg" color="#000000" />
+    <meta name="theme-color" content="#000000" />
+
+    <link rel="stylesheet" href="./src/style.css" />
+
+    <script type="module" src="./src/main.ts" defer></script>
+  </head>
+  <body>
+    <div id="page-wrapper" class="page-wrapper">
+      <div style="padding: 2rem">
+        <h1>Sampler Test</h1>
+
+        <sampler-element node-id="test-sampler"></sampler-element>
+
+        <div style="margin: 1rem 0; padding: 1rem; border: 1px solid #ccc">
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap">
+            <!-- Basic controls -->
+            <record-button target-node-id="test-sampler"></record-button>
+            <load-button target-node-id="test-sampler"></load-button>
+
+            <!-- Volume and mixing -->
+            <volume-knob target-node-id="test-sampler"></volume-knob>
+            <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
+
+            <!-- Filters -->
+            <filter-knob
+              target-node-id="test-sampler"
+              filter-type="lpf"
+            ></filter-knob>
+            <filter-knob
+              target-node-id="test-sampler"
+              filter-type="hpf"
+            ></filter-knob>
+
+            <!-- Effects -->
+            <reverb-knob target-node-id="test-sampler"></reverb-knob>
+            <feedback-knob target-node-id="test-sampler"></feedback-knob>
+            <drive-knob target-node-id="test-sampler"></drive-knob>
+            <clipping-knob target-node-id="test-sampler"></clipping-knob>
+
+            <!-- Modulation -->
+            <glide-knob target-node-id="test-sampler"></glide-knob>
+
+            <!-- Feedback controls -->
+            <feedback-pitch-knob
+              target-node-id="test-sampler"
+            ></feedback-pitch-knob>
+            <feedback-decay-knob
+              target-node-id="test-sampler"
+            ></feedback-decay-knob>
+
+            <!-- Gain LFO -->
+            <gain-lfo-rate-knob
+              target-node-id="test-sampler"
+            ></gain-lfo-rate-knob>
+            <gain-lfo-depth-knob
+              target-node-id="test-sampler"
+            ></gain-lfo-depth-knob>
+
+            <!-- Pitch LFO -->
+            <pitch-lfo-rate-knob
+              target-node-id="test-sampler"
+            ></pitch-lfo-rate-knob>
+            <pitch-lfo-depth-knob
+              target-node-id="test-sampler"
+            ></pitch-lfo-depth-knob>
+
+            <!-- Toggles -->
+            <feedback-mode-toggle
+              target-node-id="test-sampler"
+            ></feedback-mode-toggle>
+            <midi-toggle target-node-id="test-sampler"></midi-toggle>
+            <loop-lock-toggle target-node-id="test-sampler"></loop-lock-toggle>
+            <hold-lock-toggle target-node-id="test-sampler"></hold-lock-toggle>
+          </div>
+
+          <!-- Computer keyboard with modifier keys -->
+          <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
+
+          <!-- Visual piano keyboard -->
+          <piano-keyboard
+            target-node-id="test-sampler"
+            width="800"
+            height="80"
+            min-note="12"
+            num-keys="60"
+          ></piano-keyboard>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

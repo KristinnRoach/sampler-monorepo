@@ -1,60 +1,35 @@
 import van from '@repo/vanjs-core';
 import { qs } from './utils';
-
 import { makeDraggable } from './utils/makeDraggable';
 import { addNode, createAddNodeButton } from './utils/addNode';
-import { defineSampler } from '@repo/audio-components';
+import { defineSamplerMonolith } from '@repo/audio-components';
 
 let samplerEl: any;
 
 const init = async () => {
-  defineSampler();
+  defineSamplerMonolith();
 
   const nodesContainer = qs('.nodes-playground')!;
 
   van.add(nodesContainer, createAddNodeButton());
 
-  // Example: Add a sampler and immediately create a volume knob for it
-  const { nodeEl: samplerNode, wrapperEl: samplerWrapper } = addNode('sampler');
+  const addElBtn = qs('.add-el-btn');
+  const selectEl = qs('.node-select') as HTMLSelectElement;
 
-  // Wait a tiny bit for the sampler to initialize and get its nodeId
-  setTimeout(() => {
-    const samplerElement = samplerWrapper.querySelector('sampler-element');
-    const nodeId = samplerElement?.getAttribute('data-node-id');
+  addElBtn?.addEventListener('click', () => {
+    const nodeName = selectEl.value as 'sampler-monolith'; // | 'karplus-synth';
+    const instrumentEls = addNode(nodeName, nodesContainer);
 
-    if (nodeId && nodeId !== 'initializing') {
-      // Add a volume knob that targets this sampler
-      const { wrapperEl: volumeWrapper } = addNode(
-        'volume-knob',
-        undefined,
-        nodeId
-      );
+    samplerEl = qs('sampler-monolith');
 
-      // Position the volume knob next to the sampler
-      volumeWrapper.style.position = 'absolute';
-      volumeWrapper.style.left = '600px';
-      volumeWrapper.style.top = '100px';
-    }
-  }, 100);
+    const draggable = makeDraggable({
+      element: instrumentEls.wrapperEl,
+      handleElement: instrumentEls.handleEl,
+    });
+  });
+
+  console.log('Web Audio Elements app initialized');
 };
-
-//   const addElBtn = qs('.add-el-btn');
-//   const selectEl = qs('.node-select') as HTMLSelectElement;
-
-//   addElBtn?.addEventListener('click', () => {
-//     const nodeName = selectEl.value as 'sampler' | 'karplus-synth';
-//     const instrumentEls = addNode(nodeName, nodesContainer);
-
-//     samplerEl = qs('sampler-element');
-
-//     const draggable = makeDraggable({
-//       element: instrumentEls.wrapperEl,
-//       handleElement: instrumentEls.handleEl,
-//     });
-//   });
-
-//   console.log('Web Audio Elements app initialized');
-// };
 
 document.addEventListener('DOMContentLoaded', () => init());
 

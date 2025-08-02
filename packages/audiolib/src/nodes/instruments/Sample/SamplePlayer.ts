@@ -59,7 +59,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
-  syncLFOsToMidiNote = false; // todo setter
+  syncLFOsToMidiNote = true; // todo setter
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
@@ -257,8 +257,13 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.#isLoaded = true;
     });
 
+    this.voicePool.onMessage('voice-pool:initialized', () => {
+      this.sendUpstreamMessage('sample-player:ready', {});
+    });
+
     // Forward voice pool messages upstream
     this.#messages.forwardFrom(this.voicePool, [
+      'voice-pool:initialized',
       'voice:started',
       'voice:stopped',
       'voice:releasing',
@@ -487,7 +492,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     if (this.syncLFOsToMidiNote) {
       this.#gainLFO?.setMusicalNote(midiNote);
-      this.#pitchLFO?.setMusicalNote(midiNote);
+      this.#pitchLFO?.setMusicalNote(midiNote, 2);
     }
 
     this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);
@@ -894,7 +899,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   };
 
   send = (effect: BusEffectName, amount: number) => {
-    this.outBus.send(effect, amount);
+    this.outBus.setSend(effect, amount);
   };
 
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
@@ -946,11 +951,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
-      const monoFx = this.outBus.getNode('feedback');
-      if (!(monoFx instanceof HarmonicFeedback)) {
-        console.error('Expected feedback to be HarmonicFeedback instance');
-        return;
-      }
+      const monoFx = this.outBus.getFeedback();
       const currAmount = monoFx.currAmount;
 
       this.outBus.setFeedbackAmount(0);
