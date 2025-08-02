@@ -3,6 +3,7 @@ export class LFO {
   #oscillator: OscillatorNode;
   #gain: GainNode;
   #targets: Set<AudioParam> = new Set();
+  #initialized = false;
 
   constructor(context: AudioContext) {
     this.#context = context;
@@ -13,7 +14,24 @@ export class LFO {
     this.#gain.gain.value = 0; // No modulation by default
 
     this.#oscillator.connect(this.#gain);
-    this.#oscillator.start();
+
+    // Hook into user gesture to avoid audio context warnings
+    document.addEventListener('click', this.initOnUserGesture.bind(this), {
+      once: true,
+    });
+  }
+
+  initOnUserGesture() {
+    if (this.#initialized) return;
+
+    if (this.#context.state === 'suspended') {
+      this.#context.resume().then(() => {
+        this.#oscillator.start();
+      });
+    } else {
+      this.#oscillator.start();
+    }
+    this.#initialized = true;
   }
 
   setFrequency(hz: number) {
@@ -54,9 +72,9 @@ export class LFO {
   }
 
   // Musical pitch helpers
-  setMusicalNote(midiNote: number) {
+  setMusicalNote(midiNote: number, divisor = 1) {
     const hz = 440 * Math.pow(2, (midiNote - 69) / 12);
-    this.setFrequency(hz);
+    this.setFrequency(hz / divisor);
   }
 
   getPitchWobbleWaveform() {

@@ -48,24 +48,6 @@ export { PianoKeyboard } from './elements/PianoKeyboard';
 
 // Utilities
 export { createFindNodeId } from './elements/ComponentUtils';
-// // index.ts - audio-components package entry point
 
-// // Registry utilities
-// export {
-//   getSampler,
-//   registerSampler,
-//   unregisterSampler,
-// } from './SamplerRegistry';
-
-// // Components
-// export {
-//   defineSampler,
-//   SamplerElement,
-//   VolumeKnob,
-//   ReverbKnob,
-//   FilterKnob,
-//   LoadButton,
-// } from './elements/Sampler';
-
-// export { ComputerKeyboard } from './elements/ComputerKeyboard';
-// export { PianoKeyboard } from './elements/PianoKeyboard';
+// Old all-in-one version (deprecated):
+export { defineSamplerMonolith } from './elements/instruments/sampler/SamplerMonolith';

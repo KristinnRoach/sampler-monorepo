@@ -17,6 +17,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Sync with current keymap from ComputerKeyboard
   const currentKeymap = van.state(KeyMaps.default);
   const octaveOffset = van.state(0); // -1, 0, +1, etc.
+  const MAX_OCT_SHIFT = 3;
+  const MIN_OCT_SHIFT = -3;
 
   const keyboard = document.createElement('webaudio-keyboard') as any;
 
@@ -39,7 +41,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     keyboard.setAttribute('width', width.val);
     keyboard.setAttribute('height', height.val);
     keyboard.setAttribute('min', min.toString());
-    keyboard.setAttribute('keys', span.toString());
+    keyboard.setAttribute('keys', span?.toString());
   });
 
   // Handle keyboard events
@@ -60,19 +62,19 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     }
   };
 
-  // Handle octave controls
   const handleOctaveChange = (direction: number) => {
-    octaveOffset.val += direction;
+    const newOct = octaveOffset.val + direction;
+    if (newOct >= MIN_OCT_SHIFT && newOct <= MAX_OCT_SHIFT) {
+      octaveOffset.val += direction;
+    }
   };
 
   // Keyboard event listener for < and > keys
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.code === 'Comma') {
+    if (e.code === 'Backquote') {
       e.preventDefault();
-      handleOctaveChange(-1);
-    } else if (e.code === 'Period') {
-      e.preventDefault();
-      handleOctaveChange(1);
+      if (e.shiftKey) handleOctaveChange(1);
+      else handleOctaveChange(-1);
     }
   };
 

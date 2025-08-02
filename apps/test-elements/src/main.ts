@@ -2,12 +2,12 @@ import van from '@repo/vanjs-core';
 import { qs } from './utils';
 import { makeDraggable } from './utils/makeDraggable';
 import { addNode, createAddNodeButton } from './utils/addNode';
-import { defineSampler } from '@repo/audio-components';
+import { defineSamplerMonolith } from '@repo/audio-components';
 
 let samplerEl: any;
 
 const init = async () => {
-  defineSampler();
+  defineSamplerMonolith();
 
   const nodesContainer = qs('.nodes-playground')!;
 
@@ -17,10 +17,10 @@ const init = async () => {
   const selectEl = qs('.node-select') as HTMLSelectElement;
 
   addElBtn?.addEventListener('click', () => {
-    const nodeName = selectEl.value as 'sampler' | 'karplus-synth';
+    const nodeName = selectEl.value as 'sampler-monolith'; // | 'karplus-synth';
     const instrumentEls = addNode(nodeName, nodesContainer);
 
-    samplerEl = qs('sampler-element');
+    samplerEl = qs('sampler-monolith');
 
     const draggable = makeDraggable({
       element: instrumentEls.wrapperEl,

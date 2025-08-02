@@ -59,7 +59,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
-  syncLFOsToMidiNote = false; // todo setter
+  syncLFOsToMidiNote = true; // todo setter
 
   #envelopes = new Map<EnvelopeType, EnvelopeData>();
 
@@ -492,7 +492,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     if (this.syncLFOsToMidiNote) {
       this.#gainLFO?.setMusicalNote(midiNote);
-      this.#pitchLFO?.setMusicalNote(midiNote);
+      this.#pitchLFO?.setMusicalNote(midiNote, 2);
     }
 
     this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);

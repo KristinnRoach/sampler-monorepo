@@ -6,22 +6,22 @@ const { div, select, option, button } = van.tags;
 
 let elementCounter = 0;
 export const addNode = (
-  nodeType: 'sampler' | 'karplus-synth' | 'volume-knob',
+  elementName: 'sampler-monolith' | 'sampler-element' | 'volume-knob', // karplus-synth
   parent?: Element,
   nodeId?: string
 ) => {
   const currElCount = elementCounter++;
 
-  const nodeElFn = van.tags[`${nodeType}-element`];
+  const nodeElFn = van.tags[elementName];
 
   const handleEl = div({
-    id: `handle-for-${nodeType}-${currElCount}`,
+    id: `handle-for-${elementName}-${currElCount}`,
     class: 'drag-handle',
   });
   const parentEl = parent ?? qs('.nodes-playground') ?? document.body;
 
   const wrapperEl = div(
-    { class: `${nodeType}-wrapper node-draggable` },
+    { class: `${elementName}-wrapper node-draggable` },
     handleEl,
     nodeElFn({
       expanded: false,
@@ -39,7 +39,9 @@ export const createAddNodeButton = () => {
     button({ class: 'add-el-btn' }, '+'),
     select(
       { id: 'node-select', class: 'node-select' },
-      option({ value: 'sampler' }, 'Sampler')
+      option({ value: 'sampler-monolith' }, 'Sampler Monolith'),
+      option({ value: 'sampler-element' }, 'Sampler'),
+      option({ value: 'volume-knob' }, 'Volume Knob')
     )
   );
 };

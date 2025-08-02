@@ -24,6 +24,8 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   const octaveOffset = van.state(0); // Add octave offset state
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
+  const MAX_OCT_SHIFT = 3;
+  const MIN_OCT_SHIFT = -3;
 
   let spacePressed = false;
   let keyHandlersAttached = false;
@@ -34,7 +36,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
       new CustomEvent('keymap-changed', {
         detail: {
           keymap: currentKeymap.val,
-          octaveOffset: octaveOffset.val, // Include octave offset
+          octaveOffset: octaveOffset.val,
           targetNodeId: targetNodeId.val,
         },
       })
@@ -46,23 +48,20 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     broadcastKeymapChange();
   });
 
-  // Handle octave controls for computer keyboard too
   const handleOctaveChange = (direction: number) => {
-    octaveOffset.val += direction;
+    const newOct = octaveOffset.val + direction;
+    if (newOct >= MIN_OCT_SHIFT && newOct <= MAX_OCT_SHIFT) {
+      octaveOffset.val += direction;
+    }
   };
 
   const keyDown = (e: KeyboardEvent) => {
     if (e.repeat) return;
 
-    // Handle octave controls first
-    if (e.key === '<' || e.key === ',') {
+    if (e.code === 'Backquote') {
       e.preventDefault();
-      handleOctaveChange(-1);
-      return;
-    } else if (e.key === '>' || e.key === '.') {
-      e.preventDefault();
-      handleOctaveChange(1);
-      return;
+      if (e.shiftKey) handleOctaveChange(1);
+      else handleOctaveChange(-1);
     }
 
     const sampler = getSampler(targetNodeId.val);
