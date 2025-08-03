@@ -65,9 +65,12 @@ export class SampleVoice {
     this.nodeId = registerNode(this.nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
 
+    console.table(options);
+
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
+      outputChannelCount: [2], // Force stereo output
       processorOptions: options.processorOptions || {},
     });
 
@@ -98,6 +101,7 @@ export class SampleVoice {
       }
 
       // Connect: worklet -> feedback -> hpf -> lpf -> destination
+
       this.#worklet.connect(this.feedback.input);
       this.#worklet.connect(this.#hpf);
       this.feedback.output.connect(this.#hpf);
@@ -867,7 +871,12 @@ export class SampleVoice {
   }
 
   setLoopDurationDriftAmount(amount: number): this {
-    const NEAR_ZERO_FOR_LOG = 0.001;
+    if (amount === 0) {
+      this.setParam('loopDurationDriftAmount', 0, this.now);
+      return this;
+    }
+
+    const NEAR_ZERO_FOR_LOG = 0.0001;
     const MAX_LOOP_DRIFT = 0.5; // without enableAdaptiveDrift, 0.05 works. todo: make audioparam range 0-1 optimal
 
     const interpolated = interpolateLinearToExp(amount, {

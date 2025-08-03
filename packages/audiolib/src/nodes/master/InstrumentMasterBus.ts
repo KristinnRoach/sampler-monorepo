@@ -159,6 +159,9 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.#setupDefaultRouting();
 
     this.#initialized = true;
+
+    // this.debugRouting();
+    // this.debugSendReturn();
   }
 
   #createSendNode = () =>
@@ -182,6 +185,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.#connectFromTo('input', 'feedback');
     this.#connectFromTo('feedback', 'distortion');
     this.#connectFromTo('distortion', 'compressor');
+
     this.#connectFromTo('compressor', 'hpf');
     this.#connectFromTo('hpf', 'lpf');
 

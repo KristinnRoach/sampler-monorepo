@@ -27,6 +27,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         automationRate: 'k-rate',
       },
       {
+        name: 'pan',
+        defaultValue: 0,
+        minValue: -1, // -1 hard left
+        maxValue: 1, // 1 hard right
+        automationRate: 'k-rate',
+      },
+      {
         name: 'playbackRate',
         defaultValue: 1,
         minValue: 0.1,
@@ -91,20 +98,12 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.maxZeroCrossing = 0;
     this.usePlaybackPosition = false;
 
-    this.crossfadeLength = 64; // samples (adjust for smoothness vs latency)
-    this.crossfadeBuffer = null;
-    this.crossfadePosition = 0;
-    this.inCrossfade = false;
-
-    // EXPERIMENTAL: Adaptive loop crossfade for drift compensation
-    this.enableAdaptiveCrossfade = true; // Easy toggle to disable
-    this.adaptiveCrossfadeLength = 0;
-    this.adaptiveCrossfadePosition = 0;
-    this.adaptiveCrossfadeActive = false;
     this.preLoopSamples = new Float32Array(16); // Store samples before loop point
 
+    this.enableLoopSmoothing = true;
+
     // EXPERIMENTAL: Adaptive drift scaling based on loop duration
-    this.enableAdaptiveDrift = true; // Easy toggle to enable/disable adaptive scaling
+    this.enableAdaptiveDrift = true; // toggle to test enabled vs disabled
 
     this.port.onmessage = this.#handleMessage.bind(this);
 
@@ -196,7 +195,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       case 'voice:release':
         this.isReleasing = true;
-        // const startReleaseTime = timestamp || currentTime; // Test timestamp handling
 
         this.port.postMessage({
           type: 'voice:releasing',
@@ -262,7 +260,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.loopClickCompensation = 0;
     this.lockTrimToloop = false;
 
-    // EXPERIMENTAL: Reset adaptive crossfade state
+    // EXPERIMENTAL: Reset pan drift &  adaptive crossfade state
+    this.panDriftEnabled = true;
+
     this.adaptiveCrossfadeActive = false;
     this.adaptiveCrossfadePosition = 0;
     this.adaptiveCrossfadeLength = 0;
@@ -270,6 +270,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Loop drift state
     this.currentLoopDrift = 0;
     this.nextDriftGenerated = false;
+
+    // Pan drift state (reuses loop drift calculations)
+    this.currentPanDrift = 0;
   }
 
   #stop() {
@@ -412,6 +415,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           driftAmount,
           baseDuration
         );
+
+        // EXPERIMENTAL: Generate pan drift using same calculations
+        // Only apply pan drift after the first loop (loopCount > 0)
+        if (this.panDriftEnabled && driftAmount > 0 && this.loopCount > 0) {
+          this.currentPanDrift = this.currentLoopDrift * 0.001;
+        } else {
+          this.currentPanDrift = 0;
+        }
+
         this.nextDriftGenerated = true;
       }
 
@@ -424,6 +436,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         calcLoopStart + minLoopDuration,
         Math.min(playbackRange.endSamples, driftedLoopEnd)
       );
+    } else {
+      // Ensure pan drift is set to zero if no loopDrift applied
+      this.currentPanDrift = 0;
     }
 
     const loopDuration = calcLoopEnd - calcLoopStart;
@@ -561,7 +576,34 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       this.#midiVelocityToGain(parameters.velocity[0]) *
       this.velocitySensitivity;
 
-    const numChannels = Math.min(output.length, this.buffer.length);
+    // EXPERIMENTAL: Apply pan drift if enabled
+    const basePan = parameters.pan[0];
+    const effectivePan = this.panDriftEnabled
+      ? Math.max(-1, Math.min(1, basePan + this.currentPanDrift))
+      : basePan;
+
+    // Handle different output structures
+    let outputChannels;
+    if (output instanceof Float32Array) {
+      // Case 1: output is a single Float32Array (mono output - legacy)
+      outputChannels = [output];
+    } else if (
+      Array.isArray(output) &&
+      output.every((ch) => ch instanceof Float32Array)
+    ) {
+      // Case 2: output is array of Float32Arrays (stereo/multi-channel output)
+      outputChannels = output;
+    } else {
+      console.error('Unexpected output structure:', {
+        outputType: typeof output,
+        isArray: Array.isArray(output),
+        constructor: output?.constructor?.name,
+        length: output?.length,
+      });
+      return true;
+    }
+
+    const numChannels = outputChannels.length; // Always process all output channels
 
     const isConstant = this.#getConstantFlags(parameters);
 
@@ -575,7 +617,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // ===== AUDIO PROCESSING =====
 
-    for (let sample = 0; sample < output[0].length; sample++) {
+    for (let sample = 0; sample < outputChannels[0].length; sample++) {
       // Use getSafeParam for a-rate params
       const envelopeGain = this.#getSafeParam(
         parameters.envGain,
@@ -595,7 +637,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       // Handle looping
       if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
-        // Forward playback
         if (
           !this.reversePlayback &&
           this.playbackPosition >= loopRange.loopEndSamples
@@ -606,32 +647,12 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           const newFirstSample =
             this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
 
-          // Store the difference for enhanced compensation
           const discontinuity = lastLoopSample - newFirstSample;
 
-          // EXPERIMENTAL: Adaptive crossfade for smoother transitions
-          if (this.enableAdaptiveCrossfade && Math.abs(discontinuity) > 0.05) {
-            this.adaptiveCrossfadeLength =
-              this.#calculateAdaptiveCrossfadeLength(
-                discontinuity,
-                parameters.loopDurationDriftAmount[0]
-              );
-
-            if (this.adaptiveCrossfadeLength > 0) {
-              this.#prepareAdaptiveCrossfade(
-                this.playbackPosition,
-                this.adaptiveCrossfadeLength
-              );
-              this.adaptiveCrossfadeActive = true;
-              this.adaptiveCrossfadePosition = 0;
-            }
-          }
-
-          // Original compensation method (still active)
-          if (Math.abs(discontinuity) > 0.1) {
-            // Only if significant
-            this.loopClickCompensation = discontinuity * 0.3; // Reduced impact
-            this.compensationDecay = 0.8; // Fade out over multiple samples
+          if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
+            // Simple exponential smoothing
+            this.loopClickCompensation = discontinuity * 0.5;
+            this.compensationDecay = 0.9; // Smooth over ~32 samples
             this.applyClickCompensation = true;
           }
 
@@ -698,8 +719,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       // Generate output for each channel
       for (let channel = 0; channel < numChannels; channel++) {
-        const bufferChannel =
-          this.buffer[Math.min(channel, this.buffer.length - 1)];
+        // Safety check: ensure output channel exists
+        if (!outputChannels[channel]) {
+          console.warn(
+            `Output channel ${channel} does not exist. Available channels:`,
+            outputChannels.length
+          );
+          continue;
+        }
+
+        // For mono buffers, use channel 0 for both left and right
+        // For stereo buffers, use the appropriate channel
+        const bufferChannelIndex = Math.min(channel, this.buffer.length - 1);
+        const bufferChannel = this.buffer[bufferChannelIndex];
 
         // Linear interpolation between current and next positions
         const currentSample = bufferChannel[currentPosition] || 0;
@@ -748,10 +780,22 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         const finalSample =
           interpolatedSample * velocityGain * envelopeGain * masterGain;
 
+        // Apply pan (only affects stereo output)
+        let panAdjustedSample = finalSample;
+        if (outputChannels.length === 2) {
+          if (channel === 0) {
+            // Left channel: reduce gain when panned right (positive pan)
+            panAdjustedSample = finalSample * (1 - Math.max(0, effectivePan));
+          } else if (channel === 1) {
+            // Right channel: reduce gain when panned left (negative pan)
+            panAdjustedSample = finalSample * (1 - Math.max(0, -effectivePan));
+          }
+        }
+
         // Basic hard limiting
-        output[channel][sample] = Math.max(
+        outputChannels[channel][sample] = Math.max(
           -1,
-          Math.min(1, isFinite(finalSample) ? finalSample : 0)
+          Math.min(1, isFinite(panAdjustedSample) ? panAdjustedSample : 0)
         );
       }
 
