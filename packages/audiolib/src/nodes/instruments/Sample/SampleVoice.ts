@@ -868,7 +868,7 @@ export class SampleVoice {
 
   setLoopDurationDriftAmount(amount: number): this {
     const NEAR_ZERO_FOR_LOG = 0.001;
-    const MAX_LOOP_DRIFT = 0.05;
+    const MAX_LOOP_DRIFT = 0.5; // without enableAdaptiveDrift, 0.05 works. todo: make audioparam range 0-1 optimal
 
     const interpolated = interpolateLinearToExp(amount, {
       inputRange: { min: 0, max: 1 },

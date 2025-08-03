@@ -103,6 +103,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.adaptiveCrossfadeActive = false;
     this.preLoopSamples = new Float32Array(16); // Store samples before loop point
 
+    // EXPERIMENTAL: Adaptive drift scaling based on loop duration
+    this.enableAdaptiveDrift = true; // Easy toggle to enable/disable adaptive scaling
+
     this.port.onmessage = this.#handleMessage.bind(this);
 
     // Initialize all playback state
@@ -500,9 +503,32 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Generate random value between -1 and 1
     const randomFactor = (Math.random() - 0.5) * 2;
 
-    // Scale by drift amount and base duration
-    // Maximum drift is driftAmount * baseDuration
-    const maxDriftSamples = driftAmount * baseDuration;
+    // EXPERIMENTAL: Adaptive scaling based on loop duration
+    let effectiveDriftAmount = driftAmount;
+
+    if (this.enableAdaptiveDrift) {
+      // Scale drift based on loop duration
+      // Short loops (< 1024 samples ~= 23ms @ 44.1kHz) get much less drift
+      // Long loops (> 8192 samples ~= 186ms @ 44.1kHz) get full drift
+      const shortThreshold = 1024;
+      const longThreshold = 8192;
+
+      if (baseDuration < shortThreshold) {
+        // Very short loops: reduce drift to 10% to preserve pitch
+        effectiveDriftAmount *= 0.1;
+      } else if (baseDuration < longThreshold) {
+        // Medium loops: linear scaling from 10% to 100%
+        const scaleFactor =
+          0.1 +
+          (0.9 * (baseDuration - shortThreshold)) /
+            (longThreshold - shortThreshold);
+        effectiveDriftAmount *= scaleFactor;
+      }
+      // Long loops: use full drift amount (no scaling)
+    }
+
+    // Scale by effective drift amount and base duration
+    const maxDriftSamples = effectiveDriftAmount * baseDuration;
 
     return Math.floor(randomFactor * maxDriftSamples);
   }
