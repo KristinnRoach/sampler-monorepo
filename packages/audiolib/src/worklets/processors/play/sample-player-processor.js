@@ -69,6 +69,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         maxValue: 99999,
         automationRate: 'k-rate',
       },
+      {
+        name: 'loopDurationDriftAmount',
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 1, // 0 = no drift, 1 = max drift (up to 100% of loop duration)
+        automationRate: 'k-rate',
+      },
     ];
   }
 
@@ -83,6 +90,18 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.minZeroCrossing = 0;
     this.maxZeroCrossing = 0;
     this.usePlaybackPosition = false;
+
+    this.crossfadeLength = 64; // samples (adjust for smoothness vs latency)
+    this.crossfadeBuffer = null;
+    this.crossfadePosition = 0;
+    this.inCrossfade = false;
+
+    // EXPERIMENTAL: Adaptive loop crossfade for drift compensation
+    this.enableAdaptiveCrossfade = true; // Easy toggle to disable
+    this.adaptiveCrossfadeLength = 0;
+    this.adaptiveCrossfadePosition = 0;
+    this.adaptiveCrossfadeActive = false;
+    this.preLoopSamples = new Float32Array(16); // Store samples before loop point
 
     this.port.onmessage = this.#handleMessage.bind(this);
 
@@ -102,6 +121,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       zeroCrossings,
       semitones,
       allowedPeriods,
+      playbackDirection,
     } = event.data;
 
     switch (type) {
@@ -111,7 +131,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.port.postMessage({ type: 'initialized' });
         break;
 
-      case 'voice:set_buffer':
+      case 'voice:setBuffer':
         this.#resetState();
         this.buffer = null;
         this.buffer = buffer;
@@ -134,7 +154,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         });
         break;
 
-      case 'voice:set_zero_crossings':
+      case 'voice:setZeroCrossings':
         this.zeroCrossings = (zeroCrossings || []).map(
           (timeSec) => timeSec * sampleRate
         );
@@ -182,7 +202,6 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         break;
 
       case 'voice:stop':
-        // const stopTime = timestamp || currentTime; // Test timestamp handling
         this.#stop();
         break;
 
@@ -194,11 +213,12 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         });
         break;
 
-      case 'voice:setReverse':
-        this.reversePlayback = value; // true/false
+      case 'voice:setPlaybackDirection':
+        this.reversePlayback = playbackDirection === 'reverse' ? true : false;
+
         this.port.postMessage({
-          type: 'voice:reverse_set',
-          reverse: this.reversePlayback,
+          type: 'voice:playbackDirectionChange',
+          playbackDirection,
         });
         break;
 
@@ -238,6 +258,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.applyClickCompensation = false;
     this.loopClickCompensation = 0;
     this.lockTrimToloop = false;
+
+    // EXPERIMENTAL: Reset adaptive crossfade state
+    this.adaptiveCrossfadeActive = false;
+    this.adaptiveCrossfadePosition = 0;
+    this.adaptiveCrossfadeLength = 0;
+
+    // Loop drift state
+    this.currentLoopDrift = 0;
+    this.nextDriftGenerated = false;
   }
 
   #stop() {
@@ -351,12 +380,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Calculate effective loop range in samples
+   * Calculate effective loop range in samples with optional drift
    * @param {Object} params - Position parameters from #extractPositionParams
    * @param {Object} playbackRange - Range from #calculatePlaybackRange
-   * @returns {Object} - Effective loop start and end positions
+   * @param {number} driftAmount - Loop duration drift amount (0-1)
+   * @returns {Object} - Effective loop start and end positions with drift applied
    */
-  #calculateLoopRange(params, playbackRange, originalParams) {
+  #calculateLoopRange(params, playbackRange, driftAmount = 0) {
     const lpStart = params.loopStartSamples;
     const lpEnd = params.loopEndSamples;
 
@@ -368,6 +398,30 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       lpEnd > lpStart && lpEnd <= playbackRange.endSamples
         ? lpEnd
         : playbackRange.endSamples;
+
+    // Apply drift to loop end position
+    if (driftAmount > 0 && this.loopEnabled) {
+      const baseDuration = calcLoopEnd - calcLoopStart;
+
+      // Generate new drift only at the start of each loop iteration
+      if (!this.nextDriftGenerated || this.loopCount === 0) {
+        this.currentLoopDrift = this.#generateLoopDrift(
+          driftAmount,
+          baseDuration
+        );
+        this.nextDriftGenerated = true;
+      }
+
+      // Apply drift to loop end, ensuring it stays within bounds
+      const driftedLoopEnd = calcLoopEnd + this.currentLoopDrift;
+
+      // Clamp to stay within playback range and ensure minimum loop duration
+      const minLoopDuration = Math.max(1, Math.floor(baseDuration * 0.1)); // At least 10% of original duration
+      calcLoopEnd = Math.max(
+        calcLoopStart + minLoopDuration,
+        Math.min(playbackRange.endSamples, driftedLoopEnd)
+      );
+    }
 
     const loopDuration = calcLoopEnd - calcLoopStart;
 
@@ -388,6 +442,69 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return Object.fromEntries(
       Object.keys(parameters).map((key) => [key, parameters[key].length === 1])
     );
+  }
+
+  /**
+   * EXPERIMENTAL: Calculate adaptive crossfade length based on discontinuity severity
+   * Can be easily disabled by setting this.enableAdaptiveCrossfade = false
+   * @param {number} discontinuity - The amplitude difference between loop points
+   * @param {number} driftAmount - Current drift amount (0-1)
+   * @returns {number} - Crossfade length in samples
+   */
+  #calculateAdaptiveCrossfadeLength(discontinuity, driftAmount) {
+    if (!this.enableAdaptiveCrossfade) return 0;
+
+    const minCrossfade = 4;
+    const maxCrossfade = 16;
+
+    // Scale crossfade based on discontinuity severity and drift amount
+    const discontinuityFactor = Math.min(1, Math.abs(discontinuity) * 2);
+    const driftFactor = Math.min(1, driftAmount * 1.5);
+
+    const scaleFactor = Math.max(discontinuityFactor, driftFactor);
+
+    return Math.floor(
+      minCrossfade + (maxCrossfade - minCrossfade) * scaleFactor
+    );
+  }
+
+  /**
+   * EXPERIMENTAL: Prepare samples for adaptive crossfade at loop boundary
+   * @param {number} loopEndPosition - Position where loop ends
+   * @param {number} crossfadeLength - Length of crossfade in samples
+   */
+  #prepareAdaptiveCrossfade(loopEndPosition, crossfadeLength) {
+    if (!this.enableAdaptiveCrossfade || crossfadeLength <= 0) return;
+
+    // Capture samples before the loop point for crossfading
+    const startCapture = Math.max(0, loopEndPosition - crossfadeLength);
+    for (
+      let i = 0;
+      i < Math.min(crossfadeLength, this.preLoopSamples.length);
+      i++
+    ) {
+      const samplePos = Math.floor(startCapture + i);
+      this.preLoopSamples[i] = this.buffer[0][samplePos] || 0;
+    }
+  }
+
+  /**
+   * Generate a new drift amount for the current loop iteration
+   * @param {number} driftAmount - Maximum drift amount (0-1)
+   * @param {number} baseDuration - Base loop duration in samples
+   * @returns {number} - Drift amount in samples
+   */
+  #generateLoopDrift(driftAmount, baseDuration) {
+    if (driftAmount <= 0) return 0;
+
+    // Generate random value between -1 and 1
+    const randomFactor = (Math.random() - 0.5) * 2;
+
+    // Scale by drift amount and base duration
+    // Maximum drift is driftAmount * baseDuration
+    const maxDriftSamples = driftAmount * baseDuration;
+
+    return Math.floor(randomFactor * maxDriftSamples);
   }
 
   // ===== MAIN PROCESS METHOD =====
@@ -411,7 +528,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const loopRange = this.#calculateLoopRange(
       positionParams,
       playbackRange,
-      parameters
+      parameters.loopDurationDriftAmount[0]
     );
 
     const velocityGain =
@@ -463,28 +580,71 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           const newFirstSample =
             this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
 
-          // Store the difference for ONE sample compensation
-          this.loopClickCompensation = (lastLoopSample - newFirstSample) * 0.5;
-          this.applyClickCompensation = true;
+          // Store the difference for enhanced compensation
+          const discontinuity = lastLoopSample - newFirstSample;
+
+          // EXPERIMENTAL: Adaptive crossfade for smoother transitions
+          if (this.enableAdaptiveCrossfade && Math.abs(discontinuity) > 0.05) {
+            this.adaptiveCrossfadeLength =
+              this.#calculateAdaptiveCrossfadeLength(
+                discontinuity,
+                parameters.loopDurationDriftAmount[0]
+              );
+
+            if (this.adaptiveCrossfadeLength > 0) {
+              this.#prepareAdaptiveCrossfade(
+                this.playbackPosition,
+                this.adaptiveCrossfadeLength
+              );
+              this.adaptiveCrossfadeActive = true;
+              this.adaptiveCrossfadePosition = 0;
+            }
+          }
+
+          // Original compensation method (still active)
+          if (Math.abs(discontinuity) > 0.1) {
+            // Only if significant
+            this.loopClickCompensation = discontinuity * 0.3; // Reduced impact
+            this.compensationDecay = 0.8; // Fade out over multiple samples
+            this.applyClickCompensation = true;
+          }
 
           this.playbackPosition = loopRange.loopStartSamples;
           this.loopCount++;
+
+          // Reset drift flag to generate new drift for next loop iteration
+          this.nextDriftGenerated = false;
         }
         // Reverse playback
         else if (
           this.reversePlayback &&
           this.playbackPosition <= loopRange.loopStartSamples
         ) {
-          this.playbackPosition = loopRange.loopEndSamples;
+          // Set to one sample before end to avoid immediate boundary trigger
+          this.playbackPosition = loopRange.loopEndSamples - 1;
           this.loopCount++;
+
+          // Reset drift flag to generate new drift for next loop iteration
+          this.nextDriftGenerated = false;
         }
       }
 
       // Check for end of playback range (forward & reversed)
+      // Don't stop if we're looping and within the playback range
+      const shouldStopForward =
+        !this.reversePlayback &&
+        this.playbackPosition >= playbackRange.endSamples;
+      const shouldStopReverse =
+        this.reversePlayback &&
+        this.playbackPosition <= playbackRange.startSamples;
+      const isWithinLoop =
+        this.loopEnabled &&
+        this.playbackPosition >= loopRange.loopStartSamples &&
+        this.playbackPosition <= loopRange.loopEndSamples;
+
       if (
-        this.playbackPosition >= playbackRange.endSamples ||
-        (this.reversePlayback &&
-          this.playbackPosition <= playbackRange.startSamples)
+        (shouldStopForward || shouldStopReverse) &&
+        !(this.loopEnabled && isWithinLoop)
       ) {
         this.#stop();
         return true;
@@ -518,12 +678,45 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         // Linear interpolation between current and next positions
         const currentSample = bufferChannel[currentPosition] || 0;
         const nextSample = bufferChannel[nextPosition] || 0;
-        const interpolatedSample =
+        let interpolatedSample =
           currentSample + interpWeight * (nextSample - currentSample);
 
+        // EXPERIMENTAL: Apply adaptive crossfade if active
+        if (this.adaptiveCrossfadeActive && this.enableAdaptiveCrossfade) {
+          const crossfadeProgress =
+            this.adaptiveCrossfadePosition / this.adaptiveCrossfadeLength;
+
+          if (crossfadeProgress < 1.0) {
+            // Get corresponding sample from pre-loop buffer
+            const preLoopIndex = Math.floor(this.adaptiveCrossfadePosition);
+            const preLoopSample = this.preLoopSamples[preLoopIndex] || 0;
+
+            // Smooth cosine crossfade curve
+            const fadeWeight =
+              0.5 * (1 - Math.cos(Math.PI * crossfadeProgress));
+            interpolatedSample =
+              preLoopSample * (1 - fadeWeight) +
+              interpolatedSample * fadeWeight;
+
+            this.adaptiveCrossfadePosition++;
+          } else {
+            this.adaptiveCrossfadeActive = false;
+          }
+        }
+
+        // Original click compensation (still active)
         if (this.applyClickCompensation) {
           interpolatedSample += this.loopClickCompensation;
-          this.applyClickCompensation = false; // Only apply to the very first sample
+
+          // Apply decay for multi-sample smoothing
+          if (this.compensationDecay) {
+            this.loopClickCompensation *= this.compensationDecay;
+            if (Math.abs(this.loopClickCompensation) < 0.001) {
+              this.applyClickCompensation = false;
+            }
+          } else {
+            this.applyClickCompensation = false; // Single sample mode
+          }
         }
 
         const finalSample =

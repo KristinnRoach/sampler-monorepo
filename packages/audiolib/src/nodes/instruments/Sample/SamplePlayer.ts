@@ -633,6 +633,20 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
+  setPlaybackDirection(direction: 'forward' | 'reverse'): this {
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.setPlaybackDirection(direction)
+    );
+    return this;
+  }
+
+  setLoopDurationDriftAmount(amount: number): this {
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.setLoopDurationDriftAmount(amount)
+    );
+    return this;
+  }
+
   isNormalized(value: number, range = [0, 1]): boolean {
     return value >= range[0] && value <= range[1];
   }

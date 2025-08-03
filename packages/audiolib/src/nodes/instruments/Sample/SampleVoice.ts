@@ -10,7 +10,11 @@ import {
   MessageBus,
 } from '@/events';
 
-import { midiToPlaybackRate } from '@/utils';
+import {
+  interpolate,
+  interpolateLinearToExp,
+  midiToPlaybackRate,
+} from '@/utils';
 
 import {
   CustomEnvelope,
@@ -170,7 +174,7 @@ export class SampleVoice {
     );
 
     this.sendToProcessor({
-      type: 'voice:set_buffer',
+      type: 'voice:setBuffer',
       buffer: bufferData,
       durationSeconds: buffer.duration,
     });
@@ -179,7 +183,7 @@ export class SampleVoice {
       this.#setZeroCrossings(zeroCrossings);
 
       this.sendToProcessor({
-        type: 'voice:set_zero_crossings',
+        type: 'voice:setZeroCrossings',
         zeroCrossings,
       });
     }
@@ -692,10 +696,12 @@ export class SampleVoice {
           break;
 
         case 'loop:enabled':
-          // this.#loopEnabled = true;
           break;
 
         case 'voice:looped':
+          break;
+
+        case 'voice:playbackDirectionChange':
           break;
 
         case 'voice:position':
@@ -848,6 +854,33 @@ export class SampleVoice {
     }
   ): this {
     this.setParam('playbackRate', rate, atTime, options);
+    return this;
+  }
+
+  setPlaybackDirection(direction: 'forward' | 'reverse'): this {
+    this.sendToProcessor({
+      type: 'voice:setPlaybackDirection',
+      playbackDirection: direction,
+    });
+
+    return this;
+  }
+
+  setLoopDurationDriftAmount(amount: number): this {
+    const NEAR_ZERO_FOR_LOG = 0.001;
+    const MAX_LOOP_DRIFT = 0.05;
+
+    const interpolated = interpolateLinearToExp(amount, {
+      inputRange: { min: 0, max: 1 },
+      outputRange: {
+        min: NEAR_ZERO_FOR_LOG,
+        max: MAX_LOOP_DRIFT,
+      },
+      blend: 0.7, // blend: 0.7 = 70% exponential, 30% linear
+      logBase: 'dB',
+      curve: 'linear',
+    });
+    this.setParam('loopDurationDriftAmount', interpolated, this.now);
     return this;
   }
 

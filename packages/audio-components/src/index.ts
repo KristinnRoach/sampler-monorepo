@@ -33,7 +33,8 @@ export {
   VolumeKnob,
   ReverbKnob,
   FilterKnob,
-} from './elements/Sampler/components/KnobFactory';
+  LoopDurationDriftKnob,
+} from './elements/Sampler/components/SamplerKnobFactory';
 
 // Toggle components
 export {
@@ -43,7 +44,8 @@ export {
   HoldLockToggle,
   GainLFOSyncNoteToggle,
   PitchLFOSyncNoteToggle,
-} from './elements/Sampler/components/ToggleComponents';
+  PlaybackDirectionToggle,
+} from './elements/Sampler/components/SamplerToggleFactory';
 
 // Input controls
 export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard';

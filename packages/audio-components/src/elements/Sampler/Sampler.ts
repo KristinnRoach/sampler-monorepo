@@ -2,7 +2,6 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 import { SamplePlayer, createSamplePlayer } from '@repo/audiolib';
-import { createLabeledKnob } from '../primitives/createKnob';
 import {
   registerSampler,
   unregisterSampler,
@@ -29,7 +28,8 @@ import {
   VolumeKnob,
   ReverbKnob,
   FilterKnob,
-} from './components/KnobFactory';
+  LoopDurationDriftKnob,
+} from './components/SamplerKnobFactory';
 
 import {
   FeedbackModeToggle,
@@ -38,7 +38,8 @@ import {
   HoldLockToggle,
   GainLFOSyncNoteToggle,
   PitchLFOSyncNoteToggle,
-} from './components/ToggleComponents';
+  PlaybackDirectionToggle,
+} from './components/SamplerToggleFactory';
 
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
@@ -51,7 +52,7 @@ export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
   let initialized = false;
 
-  const nodeId: State<string> = attributes.attr('node-id', 'no-id');
+  const nodeId: State<string> = attributes.attr('node-id', '');
   const polyphony = attributes.attr('polyphony', '16');
   const status = van.state('Initializing...');
 
@@ -64,12 +65,12 @@ export const SamplerElement = (attributes: ElementProps) => {
         );
 
         // Use attribute id if passed in, otherwise use the audiolib's nodeId
-        if (nodeId.val === 'no-id') {
+        if (!nodeId.val) {
           nodeId.val = samplePlayer.nodeId;
         }
 
         samplePlayer.onMessage('sample-player:ready', () => {
-          if (!samplePlayer) throw new Error('WTF');
+          if (!samplePlayer) throw new Error('SamplerEl: no samplerPlayer!');
           registerSampler(nodeId.val, samplePlayer);
           initialized = true;
           status.val = 'Ready';
@@ -171,6 +172,7 @@ export {
   GainLFODepthKnob,
   PitchLFORateKnob,
   PitchLFODepthKnob,
+  LoopDurationDriftKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -179,6 +181,7 @@ export {
   HoldLockToggle,
   GainLFOSyncNoteToggle,
   PitchLFOSyncNoteToggle,
+  PlaybackDirectionToggle,
 
   // Control components
   ComputerKeyboard,
@@ -216,6 +219,7 @@ export const defineSampler = () => {
   defineIfNotExists('gain-lfo-depth-knob', GainLFODepthKnob, false);
   defineIfNotExists('pitch-lfo-rate-knob', PitchLFORateKnob, false);
   defineIfNotExists('pitch-lfo-depth-knob', PitchLFODepthKnob, false);
+  defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);
@@ -224,6 +228,11 @@ export const defineSampler = () => {
   defineIfNotExists('hold-lock-toggle', HoldLockToggle, false);
   defineIfNotExists('gain-lfo-sync-toggle', GainLFOSyncNoteToggle, false);
   defineIfNotExists('pitch-lfo-sync-toggle', PitchLFOSyncNoteToggle, false);
+  defineIfNotExists(
+    'playback-direction-toggle',
+    PlaybackDirectionToggle,
+    false
+  );
 
   // Input controls
   defineIfNotExists('computer-keyboard', ComputerKeyboard, false);
