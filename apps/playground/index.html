@@ -35,11 +35,18 @@
             <volume-knob target-node-id="test-sampler"></volume-knob>
             <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
 
+            <!-- Loop -->
+
+            <loop-duration-drift-knob
+              target-node-id="test-sampler"
+            ></loop-duration-drift-knob>
+
             <!-- Filters -->
             <filter-knob
               target-node-id="test-sampler"
               filter-type="lpf"
             ></filter-knob>
+
             <filter-knob
               target-node-id="test-sampler"
               filter-type="hpf"
@@ -58,6 +65,7 @@
             <feedback-pitch-knob
               target-node-id="test-sampler"
             ></feedback-pitch-knob>
+
             <feedback-decay-knob
               target-node-id="test-sampler"
             ></feedback-decay-knob>
@@ -66,6 +74,7 @@
             <gain-lfo-rate-knob
               target-node-id="test-sampler"
             ></gain-lfo-rate-knob>
+
             <gain-lfo-depth-knob
               target-node-id="test-sampler"
             ></gain-lfo-depth-knob>
@@ -74,6 +83,7 @@
             <pitch-lfo-rate-knob
               target-node-id="test-sampler"
             ></pitch-lfo-rate-knob>
+
             <pitch-lfo-depth-knob
               target-node-id="test-sampler"
             ></pitch-lfo-depth-knob>
@@ -82,12 +92,21 @@
             <feedback-mode-toggle
               target-node-id="test-sampler"
             ></feedback-mode-toggle>
+
             <midi-toggle target-node-id="test-sampler"></midi-toggle>
+
             <loop-lock-toggle target-node-id="test-sampler"></loop-lock-toggle>
+
             <hold-lock-toggle target-node-id="test-sampler"></hold-lock-toggle>
+
+            <playback-direction-toggle
+              target-node-id="test-sampler"
+            ></playback-direction-toggle>
+
             <gain-lfo-sync-toggle
               target-node-id="test-sampler"
             ></gain-lfo-sync-toggle>
+
             <pitch-lfo-sync-toggle
               target-node-id="test-sampler"
             ></pitch-lfo-sync-toggle>

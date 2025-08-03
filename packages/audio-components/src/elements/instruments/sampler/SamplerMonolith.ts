@@ -68,6 +68,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
   const loopStartSeconds = van.state(0);
   const loopEndSeconds = van.state(0);
   const loopRampSeconds = van.state(0.5);
+  const loopDurationDriftAmount = van.state(0);
 
   // Trim sample params
   const startPointSeconds = van.state(0);
@@ -352,6 +353,11 @@ export const SamplerMonolith = (attributes: ElementProps) => {
 
           const scaledDepth = pitchLFODepth.val / 10;
           samplePlayer.pitchLFO?.setDepth(scaledDepth);
+        });
+
+        derive(() => {
+          if (!samplePlayer) return;
+          samplePlayer.setLoopDurationDriftAmount(loopDurationDriftAmount.val);
         });
 
         // Control states
@@ -796,6 +802,15 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           snapIncrement: 0.0001,
           onChange: (value: number) => (glideTime.val = value),
           curve: 2.75,
+        }),
+
+        createLabeledKnob({
+          label: 'Loop Drift',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 1,
+          valueFormatter: (v: number) => `${Math.round(v * 100)}%`,
+          onChange: (value: number) => (loopDurationDriftAmount.val = value),
         }),
 
         div(

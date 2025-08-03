@@ -100,7 +100,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     // Listen for computer keyboard events to sync visual feedback
     const handleKeyboardEvents = (e: KeyboardEvent) => {
-      if (!enabled.val) return;
+      // Early exit if component is disabled or targetNodeId is empty
+      if (!enabled.val || !targetNodeId.val) return;
       if (e.repeat) return;
 
       const midiNote = currentKeymap.val[e.code];
@@ -113,7 +114,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       if (adjustedMidiNote >= min && adjustedMidiNote < min + keys) {
         // Sync visual feedback with computer keyboard
         const isKeyDown = e.type === 'keydown';
-        keyboard.setNote(isKeyDown ? 1 : 0, adjustedMidiNote);
+        // Add safety check for keyboard element
+        if (keyboard && typeof keyboard.setNote === 'function') {
+          keyboard.setNote(isKeyDown ? 1 : 0, adjustedMidiNote);
+        }
       }
     };
 

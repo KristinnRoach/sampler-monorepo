@@ -597,3 +597,47 @@ export const FilterKnob = (attributes: ElementProps) => {
     onChange: (v: number) => (value.val = v),
   });
 };
+
+// ===== LOOP DURATION DRIFT KNOB =====
+export const LoopDurationDriftKnob = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const value = van.state(0.0);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => sampler.setLoopDurationDriftAmount(value.val));
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return createLabeledKnob({
+    label: 'Loop Drift',
+    defaultValue: 0.0,
+    minValue: 0,
+    maxValue: 1,
+    curve: 1.5,
+    snapIncrement: 0.001,
+    valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
+    onChange: (v: number) => (value.val = v),
+  });
+};

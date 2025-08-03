@@ -297,3 +297,50 @@ export const PitchLFOSyncNoteToggle = (attributes: ElementProps) => {
     div(() => (synced.val ? 'SYNCED' : 'FREE'))
   );
 };
+
+export const PlaybackDirectionToggle = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const reversed = van.state(false);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => {
+        const direction = reversed.val === true ? 'reverse' : 'forward';
+        sampler.setPlaybackDirection(direction);
+      });
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return div(
+    { style: INLINE_COMPONENT_STYLE },
+    label({ textContent: 'Direction' }),
+    Toggle({
+      on: reversed.val,
+      size: 1,
+      onColor: '#ff9800',
+      onChange: () => (reversed.val = !reversed.val),
+    }),
+    div(() => (reversed.val ? 'REVERSE' : 'FORWARD'))
+  );
+};
