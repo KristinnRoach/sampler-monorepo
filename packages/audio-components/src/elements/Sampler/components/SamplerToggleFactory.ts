@@ -344,3 +344,49 @@ export const PlaybackDirectionToggle = (attributes: ElementProps) => {
     div(() => (reversed.val ? 'REVERSE' : 'FORWARD'))
   );
 };
+
+export const PanDriftToggle = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const enabled = van.state(true);
+  let connected = false;
+
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const connect = () => {
+    if (connected) return;
+    const nodeId = findNodeId();
+    if (!nodeId) return;
+    const sampler = getSampler(nodeId);
+    if (sampler) {
+      connected = true;
+      van.derive(() => {
+        sampler.setPanDriftEnabled(enabled.val);
+      });
+    }
+  };
+
+  attributes.mount(() => {
+    connect();
+    const handleReady = (e: CustomEvent) => {
+      if (e.detail.nodeId === findNodeId()) connect();
+    };
+    document.addEventListener('sampler-ready', handleReady as EventListener);
+    return () =>
+      document.removeEventListener(
+        'sampler-ready',
+        handleReady as EventListener
+      );
+  });
+
+  return div(
+    { style: INLINE_COMPONENT_STYLE },
+    label({ textContent: 'Pan Drift' }),
+    Toggle({
+      on: enabled.val,
+      size: 1,
+      onColor: '#ff9800',
+      onChange: () => (enabled.val = !enabled.val),
+    }),
+    div(() => (enabled.val ? 'ENABLED' : 'DISABLED'))
+  );
+};

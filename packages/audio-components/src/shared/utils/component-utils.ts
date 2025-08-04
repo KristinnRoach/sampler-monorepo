@@ -1,4 +1,4 @@
-// component-util.ts - Shared utilities for components
+// component-utils.ts - Shared utilities for components
 import { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 
@@ -11,12 +11,15 @@ export const createFindNodeId =
     if (targetNodeId.val) return targetNodeId.val;
 
     // Find parent sampler-element
-    const parent = attributes.$this.closest('sampler-element');
-    if (parent) return parent.getAttribute('data-node-id');
+    const parent = attributes.$this.closest('sampler-element') as any;
+    if (parent?.nodeId) return parent.nodeId;
 
-    // Find nearest sampler-element
-    const nearest = document.querySelector('sampler-element');
-    return nearest?.getAttribute('data-node-id') || '';
+    // Find nearest sampler-element and check both nodeId property and node-id attribute
+    const nearest = document.querySelector('sampler-element') as any;
+    if (nearest?.nodeId) return nearest.nodeId;
+
+    // Fallback to node-id attribute
+    return nearest?.getAttribute('node-id') || '';
   };
 
 /**
@@ -42,16 +45,27 @@ export const createSamplerConnection = (
 
   const createMountHandler = (attributes: ElementProps) => {
     return () => {
+      // Try to connect immediately
       connect();
+
+      // Listen for sampler-ready events
       const handleReady = (e: CustomEvent) => {
         if (e.detail.nodeId === findNodeId()) connect();
       };
       document.addEventListener('sampler-ready', handleReady as EventListener);
-      return () =>
+
+      // Also try connecting periodically for timing issues
+      const interval = setInterval(() => {
+        if (!connected) connect();
+      }, 100);
+
+      return () => {
         document.removeEventListener(
           'sampler-ready',
           handleReady as EventListener
         );
+        clearInterval(interval);
+      };
     };
   };
 

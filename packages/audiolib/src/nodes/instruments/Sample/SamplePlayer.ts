@@ -647,9 +647,13 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
-  isNormalized(value: number, range = [0, 1]): boolean {
-    return value >= range[0] && value <= range[1];
-  }
+  setPanDriftEnabled = (enabled: boolean) =>
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.setPanDriftEnabled(enabled)
+    );
+
+  isNormalized = (value: number, range = [0, 1]) =>
+    value >= range[0] && value <= range[1];
 
   readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
 

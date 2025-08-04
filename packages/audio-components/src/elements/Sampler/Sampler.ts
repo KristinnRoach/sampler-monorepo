@@ -39,6 +39,7 @@ import {
   GainLFOSyncNoteToggle,
   PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
+  PanDriftToggle,
 } from './components/SamplerToggleFactory';
 
 import { ComputerKeyboard } from './components/ComputerKeyboard';
@@ -100,7 +101,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   return div(
     {
-      'data-node-id': () => nodeId.val,
+      'node-id': () => nodeId.val,
       style: COMPONENT_STYLE,
     },
     div(() => `Sampler: ${nodeId.val}`),
@@ -182,6 +183,7 @@ export {
   GainLFOSyncNoteToggle,
   PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
+  PanDriftToggle,
 
   // Control components
   ComputerKeyboard,
@@ -233,6 +235,7 @@ export const defineSampler = () => {
     PlaybackDirectionToggle,
     false
   );
+  defineIfNotExists('pan-drift-toggle', PanDriftToggle, false);
 
   // Input controls
   defineIfNotExists('computer-keyboard', ComputerKeyboard, false);
