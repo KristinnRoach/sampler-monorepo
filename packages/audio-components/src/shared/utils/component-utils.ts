@@ -180,7 +180,11 @@ export const createKnob = (
       const target = getTargetNode(nodeId);
       if (target) {
         connected = true;
-        config.onTargetConnect?.(target, value, van);
+        try {
+          config.onTargetConnect?.(target, value, van);
+        } catch (error) {
+          console.error(`Failed to connect knob "${config.label}":`, error);
+        }
       }
     };
 
