@@ -6,6 +6,8 @@ import { getSampler, onRegistryChange } from '../../../SamplerRegistry';
 import {
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
+  RECORD_BUTTON_RECORDING_STYLE,
+  RECORD_BUTTON_ARMED_STYLE,
 } from '../../../shared/styles/component-styles';
 
 const { div, button } = van.tags;
@@ -90,9 +92,9 @@ export const RecordButton = (attributes: ElementProps) => {
   const getButtonStyle = () => {
     const baseStyle = BUTTON_STYLE;
     if (recordBtnState.val === 'Recording') {
-      return `${baseStyle} ${BUTTON_ACTIVE_STYLE} background: #f44336;`; // Red for recording
+      return `${baseStyle} ${BUTTON_ACTIVE_STYLE} ${RECORD_BUTTON_RECORDING_STYLE}`;
     } else if (recordBtnState.val === 'Armed') {
-      return `${baseStyle} ${BUTTON_ACTIVE_STYLE} background: #ff9800;`; // Orange for armed
+      return `${baseStyle} ${BUTTON_ACTIVE_STYLE} ${RECORD_BUTTON_ARMED_STYLE}`;
     }
     return baseStyle;
   };

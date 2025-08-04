@@ -13,6 +13,11 @@ import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
+  CONTROL_ROW_STYLE,
+  CONTROL_GROUP_STYLE,
+  SMALL_BUTTON_STYLE,
+  SELECT_STYLE,
+  HELP_TEXT_STYLE,
 } from '../../../shared/styles/component-styles';
 
 const { div, button, select, option } = van.tags;
@@ -166,8 +171,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     },
     div(
       {
-        style:
-          'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;',
+        style: CONTROL_ROW_STYLE,
       },
       div('Computer Keyboard'),
       button(
@@ -181,7 +185,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     ),
 
     div(
-      { style: 'margin: 0.5rem 0;' },
+      { style: CONTROL_GROUP_STYLE },
       'Keymap: ',
       select(
         {
@@ -190,7 +194,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
             const selectedKeymap = target.value as keyof typeof KeyMaps;
             currentKeymap.val = KeyMaps[selectedKeymap] || KeyMaps.default;
           },
-          style: 'margin-left: 0.5rem; padding: 0.25rem;',
+          style: SELECT_STYLE,
         },
         ...keymapOptions.map((opt) => option({ value: opt.value }, opt.label))
       )
@@ -198,14 +202,13 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
     div(
       {
-        style:
-          'display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;',
+        style: CONTROL_GROUP_STYLE,
       },
       div('Octave:'),
       button(
         {
           onclick: () => handleOctaveChange(-1),
-          style: 'padding: 0.25rem 0.5rem; font-size: 0.8rem;',
+          style: SMALL_BUTTON_STYLE,
         },
         '< Oct'
       ),
@@ -213,7 +216,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
       button(
         {
           onclick: () => handleOctaveChange(1),
-          style: 'padding: 0.25rem 0.5rem; font-size: 0.8rem;',
+          style: SMALL_BUTTON_STYLE,
         },
         'Oct >'
       )
@@ -226,7 +229,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     ),
 
     div(
-      { style: 'font-size: 0.7rem; color: #666; margin-top: 0.25rem;' },
+      { style: HELP_TEXT_STYLE },
       'CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave'
     )
   );

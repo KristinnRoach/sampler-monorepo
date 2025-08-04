@@ -36,6 +36,8 @@
             <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
 
             <!-- Loop -->
+            <loop-start-knob target-node-id="test-sampler"></loop-start-knob>
+
             <loop-duration-drift-knob
               target-node-id="test-sampler"
             ></loop-duration-drift-knob>
@@ -43,15 +45,13 @@
             <pan-drift-toggle target-node-id="test-sampler"></pan-drift-toggle>
 
             <!-- Filters -->
-            <filter-knob
+            <lowpass-filter-knob
               target-node-id="test-sampler"
-              filter-type="lpf"
-            ></filter-knob>
+            ></lowpass-filter-knob>
 
-            <filter-knob
+            <highpass-filter-knob
               target-node-id="test-sampler"
-              filter-type="hpf"
-            ></filter-knob>
+            ></highpass-filter-knob>
 
             <!-- Effects -->
             <reverb-knob target-node-id="test-sampler"></reverb-knob>

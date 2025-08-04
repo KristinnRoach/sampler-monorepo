@@ -1,643 +1,341 @@
 // KnobFactory.ts
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../../../SamplerRegistry';
 import { createLabeledKnob } from '../../primitives/createKnob';
-import { createFindNodeId } from '@/shared/utils/component-utils';
+import { createKnob, KnobConfig } from '../../../shared/utils/component-utils';
+import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 
-// ===== DRY/WET MIX KNOB =====
-export const DryWetKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0); // 0 = fully dry, 1 = fully wet
-  let connected = false;
+// ===== KNOB CONFIGURATIONS =====
 
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        sampler.setDryWetMix({ dry: 1 - value.val, wet: value.val });
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Dry/Wet',
-    defaultValue: 0.0,
-    onChange: (v: number) => (value.val = v),
-  });
+const dryWetConfig: KnobConfig = {
+  label: 'Dry/Wet',
+  defaultValue: 0.0,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      sampler.setDryWetMix({ dry: 1 - state.val, wet: state.val });
+    });
+  },
 };
 
-// ===== FEEDBACK KNOB =====
-export const FeedbackKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setFeedbackAmount(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Feedback',
-    defaultValue: 0.0,
-    minValue: 0,
-    maxValue: 1,
-    onChange: (v: number) => (value.val = v),
-  });
+const feedbackConfig: KnobConfig = {
+  label: 'Feedback',
+  defaultValue: 0.0,
+  minValue: 0,
+  maxValue: 1,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setFeedbackAmount(state.val));
+  },
 };
 
-// ===== DRIVE KNOB =====
-export const DriveKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.outputBus?.setDrive(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Drive',
-    defaultValue: 0.0,
-    minValue: 0,
-    maxValue: 1,
-    onChange: (v: number) => (value.val = v),
-  });
+const driveConfig: KnobConfig = {
+  label: 'Drive',
+  defaultValue: 0.0,
+  minValue: 0,
+  maxValue: 1,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.outputBus.setDrive(state.val));
+  },
 };
 
-// ===== CLIPPING KNOB =====
-export const ClippingKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.outputBus?.setClippingMacro(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Clipping',
-    defaultValue: 0.0,
-    minValue: 0,
-    maxValue: 1,
-    onChange: (v: number) => (value.val = v),
-  });
+const clippingConfig: KnobConfig = {
+  label: 'Clipping',
+  defaultValue: 0.0,
+  minValue: 0,
+  maxValue: 1,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.outputBus.setClippingMacro(state.val));
+  },
 };
 
-// ===== GLIDE KNOB =====
-export const GlideKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setGlideTime(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Glide',
-    defaultValue: 0.0,
-    minValue: 0,
-    maxValue: 1,
-    snapIncrement: 0.0001,
-    curve: 2.75,
-    valueFormatter: (v: number) => v.toFixed(3),
-    onChange: (v: number) => (value.val = v),
-  });
+const glideConfig: KnobConfig = {
+  label: 'Glide',
+  defaultValue: 0.0,
+  minValue: 0,
+  maxValue: 1,
+  snapIncrement: 0.0001,
+  curve: 2.75,
+  valueFormatter: (v: number) => v.toFixed(3),
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setGlideTime(state.val));
+  },
 };
 
-// ===== FEEDBACK PITCH KNOB =====
-export const FeedbackPitchKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(1.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setFeedbackPitchScale(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'FB-Pitch',
-    defaultValue: 1.0,
-    minValue: 0.25,
-    maxValue: 4,
-    allowedValues: [0.25, 0.5, 1.0, 2.0, 3.0, 4.0],
-    curve: 2,
-    onChange: (v: number) => (value.val = v),
-  });
+const feedbackPitchConfig: KnobConfig = {
+  label: 'FB-Pitch',
+  defaultValue: 1.0,
+  minValue: 0.25,
+  maxValue: 4,
+  allowedValues: [0.25, 0.5, 1.0, 2.0, 3.0, 4.0],
+  curve: 2,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setFeedbackPitchScale(state.val));
+  },
 };
 
-// ===== FEEDBACK DECAY KNOB =====
-export const FeedbackDecayKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(1.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setFeedbackDecay(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'FB-Decay',
-    defaultValue: 1.0,
-    minValue: 0.001,
-    maxValue: 1,
-    curve: 1,
-    onChange: (v: number) => (value.val = v),
-  });
+const feedbackDecayConfig: KnobConfig = {
+  label: 'FB-Decay',
+  defaultValue: 1.0,
+  minValue: 0.001,
+  maxValue: 1,
+  curve: 1,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setFeedbackDecay(state.val));
+  },
 };
 
-// ===== LFO KNOBS =====
-export const GainLFORateKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.1);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        const freqHz = value.val * 100 + 0.1; // Scale 0-1 to 0.1-100 Hz
-        sampler.gainLFO?.setFrequency(freqHz);
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Amp LFO Rate',
-    defaultValue: 0.1,
-    curve: 5,
-    snapIncrement: 0,
-    onChange: (v: number) => (value.val = v),
-  });
+const gainLFORateConfig: KnobConfig = {
+  label: 'Amp LFO Rate',
+  defaultValue: 0.1,
+  curve: 5,
+  snapIncrement: 0,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      const freqHz = state.val * 100 + 0.1;
+      sampler.gainLFO?.setFrequency(freqHz);
+    });
+  },
 };
 
-export const GainLFODepthKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.gainLFO?.setDepth(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Amp LFO Depth',
-    defaultValue: 0.0,
-    curve: 1.5,
-    onChange: (v: number) => (value.val = v),
-  });
+const gainLFODepthConfig: KnobConfig = {
+  label: 'Amp LFO Depth',
+  defaultValue: 0.0,
+  curve: 1.5,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.gainLFO?.setDepth(state.val));
+  },
 };
 
-export const PitchLFORateKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.01);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        const freqHz = value.val * 100 + 0.1; // Scale 0-1 to 0.1-100 Hz
-        sampler.pitchLFO?.setFrequency(freqHz);
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Pitch LFO Rate',
-    defaultValue: 0.01,
-    curve: 5,
-    snapIncrement: 0,
-    onChange: (v: number) => (value.val = v),
-  });
+const pitchLFORateConfig: KnobConfig = {
+  label: 'Pitch LFO Rate',
+  defaultValue: 0.01,
+  curve: 5,
+  snapIncrement: 0,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      const freqHz = state.val * 100 + 0.1;
+      sampler.pitchLFO?.setFrequency(freqHz);
+    });
+  },
 };
 
-export const PitchLFODepthKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        const scaledDepth = value.val / 10;
-        sampler.pitchLFO?.setDepth(scaledDepth);
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Pitch LFO Depth',
-    defaultValue: 0.0,
-    curve: 1.5,
-    onChange: (v: number) => (value.val = v),
-  });
+const pitchLFODepthConfig: KnobConfig = {
+  label: 'Pitch LFO Depth',
+  defaultValue: 0.0,
+  curve: 1.5,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      const scaledDepth = state.val / 10;
+      sampler.pitchLFO?.setDepth(scaledDepth);
+    });
+  },
 };
 
-// ===== VOLUME KNOB =====
-export const VolumeKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.75);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connectToSampler = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        if (sampler) sampler.volume = value.val;
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connectToSampler();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) {
-        connectToSampler();
+const volumeConfig: KnobConfig = {
+  label: 'Volume',
+  defaultValue: 0.75,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      if (sampler?.volume !== undefined) {
+        sampler.volume = state.val;
       }
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Volume',
-    defaultValue: 0.75,
-    onChange: (v: number) => (value.val = v),
-  });
+    });
+  },
 };
 
-// ===== REVERB KNOB =====
-export const ReverbKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setReverbAmount(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Reverb',
-    defaultValue: 0.0,
-    onChange: (v: number) => (value.val = v),
-  });
+const reverbConfig: KnobConfig = {
+  label: 'Reverb',
+  defaultValue: 0.5,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setReverbAmount(state.val));
+  },
 };
 
-// ===== FILTER KNOB =====
-export const FilterKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const filterType: State<string> = attributes.attr('filter-type', 'lpf');
-  const value = van.state(filterType.val === 'lpf' ? 18000 : 40);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        if (filterType.val === 'lpf') {
-          sampler.setLpfCutoff(value.val);
-        } else {
-          sampler.setHpfCutoff(value.val);
-        }
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  const isLpf = filterType.val === 'lpf';
-  return createLabeledKnob({
-    label: isLpf ? 'LPF' : 'HPF',
-    defaultValue: isLpf ? 18000 : 40,
-    minValue: 20,
-    maxValue: 20000,
-    curve: 5,
-    onChange: (v: number) => (value.val = v),
-  });
+const loopDurationDriftConfig: KnobConfig = {
+  label: 'Loop Drift',
+  defaultValue: 0.0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1.5,
+  snapIncrement: 0.001,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setLoopDurationDriftAmount(state.val));
+  },
 };
 
-// ===== LOOP DURATION DRIFT KNOB =====
-export const LoopDurationDriftKnob = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const value = van.state(0.0);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setLoopDurationDriftAmount(value.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return createLabeledKnob({
-    label: 'Loop Drift',
-    defaultValue: 0.0,
-    minValue: 0,
-    maxValue: 1,
-    curve: 1.5,
-    snapIncrement: 0.001,
-    valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
-    onChange: (v: number) => (value.val = v),
-  });
+const lowpassFilterConfig: KnobConfig = {
+  label: 'LPF',
+  defaultValue: 18000,
+  minValue: 20,
+  maxValue: 20000,
+  curve: 5,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setLpfCutoff(state.val));
+  },
 };
+
+const highpassFilterConfig: KnobConfig = {
+  label: 'HPF',
+  defaultValue: 40,
+  minValue: 20,
+  maxValue: 20000,
+  curve: 5,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setHpfCutoff(state.val));
+  },
+};
+
+const loopStartConfig: KnobConfig = {
+  label: 'Loop Start',
+  defaultValue: 0,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setLoopStart(state.val));
+  },
+};
+
+// const loopDurationConfig: KnobConfig = {
+//   label: 'Loop Duration',
+//   defaultValue: 0.1,
+//   onTargetConnect: (sampler, state, van) => {
+//     van.derive(() => sampler.setLoopDuration(state.val));
+//   },
+// };
+
+// ===== EXPORTED KNOB COMPONENTS =====
+
+export const DryWetKnob = createKnob(
+  dryWetConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const FeedbackKnob = createKnob(
+  feedbackConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const DriveKnob = createKnob(
+  driveConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const ClippingKnob = createKnob(
+  clippingConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const GlideKnob = createKnob(
+  glideConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const FeedbackPitchKnob = createKnob(
+  feedbackPitchConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const FeedbackDecayKnob = createKnob(
+  feedbackDecayConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const GainLFORateKnob = createKnob(
+  gainLFORateConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const GainLFODepthKnob = createKnob(
+  gainLFODepthConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const PitchLFORateKnob = createKnob(
+  pitchLFORateConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const PitchLFODepthKnob = createKnob(
+  pitchLFODepthConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const VolumeKnob = createKnob(
+  volumeConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const ReverbKnob = createKnob(
+  reverbConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const LoopDurationDriftKnob = createKnob(
+  loopDurationDriftConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const LowpassFilterKnob = createKnob(
+  lowpassFilterConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const HighpassFilterKnob = createKnob(
+  highpassFilterConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const LoopStartKnob = createKnob(
+  loopStartConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
