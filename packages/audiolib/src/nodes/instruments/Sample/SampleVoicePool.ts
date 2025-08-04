@@ -179,7 +179,7 @@ export class SampleVoicePool implements LibNode {
     return voice;
   }
 
-  prevPlayRate = 1;
+  prevMidiNote = 60;
 
   noteOn(
     midiNote: MidiValue,
@@ -195,12 +195,12 @@ export class SampleVoicePool implements LibNode {
       velocity,
       secondsFromNow,
       currentLoopEnd,
-      glide: { fromPlaybackRate: this.prevPlayRate, glideTime },
+      glide: { prevMidiNote: this.prevMidiNote, glideTime },
     });
 
     if (success) {
       this.#playingMidiVoiceMap.set(midiNote, voice);
-      this.prevPlayRate = midiToPlaybackRate(midiNote);
+      this.prevMidiNote = midiNote;
       return midiNote;
     } else {
       return null;

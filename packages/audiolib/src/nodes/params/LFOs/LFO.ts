@@ -43,12 +43,12 @@ export class LFO {
     this.#initialized = true;
   }
 
-  setFrequency(hz: number) {
-    this.#oscillator.frequency.value = hz;
+  setFrequency(hz: number, timestamp = this.now) {
+    this.#oscillator.frequency.setValueAtTime(hz, timestamp);
   }
 
-  setDepth(amount: number) {
-    this.#gain.gain.value = amount;
+  setDepth(amount: number, timestamp = this.now) {
+    this.#gain.gain.setValueAtTime(amount, timestamp);
   }
 
   setWaveform(
@@ -93,9 +93,31 @@ export class LFO {
   }
 
   // Musical pitch helpers
-  setMusicalNote(midiNote: number, divisor = 1) {
+  setMusicalNote(
+    midiNote: number,
+    options: {
+      divisor?: number;
+      glideTime?: number;
+      timestamp?: number;
+      glideFromMidiNote?: number;
+    } = {}
+  ) {
+    const { divisor = 1, glideTime = 0, timestamp = this.now } = options;
     const hz = 440 * Math.pow(2, (midiNote - 69) / 12);
-    this.setFrequency(hz / divisor);
+    const scaledHz = hz / divisor;
+
+    if (glideTime <= 0.001) {
+      this.setFrequency(scaledHz, timestamp);
+      return this;
+    }
+
+    if (options.glideFromMidiNote) {
+      const fromHz = 440 * Math.pow(2, (midiNote - 69) / 12);
+      const fromScaledHz = fromHz / divisor;
+      this.setFrequency(fromScaledHz, timestamp);
+    }
+    // todo: test diff ramp methods
+    this.#oscillator.frequency.setTargetAtTime(scaledHz, timestamp, glideTime);
   }
 
   storeCurrentValues = () => {
@@ -128,6 +150,10 @@ export class LFO {
     });
 
     return wave;
+  }
+
+  get now() {
+    return this.#context.currentTime;
   }
 
   dispose() {

@@ -34,8 +34,9 @@ export {
   ReverbKnob,
   LowpassFilterKnob,
   HighpassFilterKnob,
-  LoopDurationDriftKnob,
   LoopStartKnob,
+  LoopDurationKnob,
+  LoopDurationDriftKnob,
   AMModKnob,
 } from './elements/Sampler/components/SamplerKnobFactory';
 

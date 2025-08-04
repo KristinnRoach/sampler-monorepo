@@ -219,7 +219,7 @@ export class SampleVoice {
     velocity: MidiValue;
     secondsFromNow?: number;
     currentLoopEnd?: number;
-    glide?: { fromPlaybackRate: number; glideTime?: number };
+    glide?: { prevMidiNote: number; glideTime?: number };
   }): MidiValue | null {
     const {
       midiNote = 60,
@@ -244,13 +244,21 @@ export class SampleVoice {
     this.#startedTimestamp = timestamp;
     this.#activeMidiNote = midiNote;
 
+    const GLIDE_TEMP_SCALAR = 8; // for easy fine-tuning while prototyping the glide feature
     const glideTime = options.glide?.glideTime ?? this.#pitchGlideTime;
+    const scaledGlideTime = glideTime / GLIDE_TEMP_SCALAR;
+
     const playbackRate = midiToPlaybackRate(midiNote);
 
-    if (options.glide && glideTime > 0) {
-      this.getParam('playbackRate')!.linearRampToValueAtTime(
+    if (options.glide && scaledGlideTime > 0) {
+      const rateParam = this.getParam('playbackRate')!;
+      const prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
+      prevRate > 0 && rateParam.setValueAtTime(prevRate, timestamp);
+
+      this.getParam('playbackRate')!.setTargetAtTime(
         playbackRate,
-        timestamp + glideTime
+        timestamp,
+        scaledGlideTime
       );
     } else {
       this.setParam('playbackRate', playbackRate, timestamp);
@@ -271,11 +279,16 @@ export class SampleVoice {
     this.#feedback?.trigger(midiNote, {
       velocity,
       secondsFromNow,
-      glideTime,
+      glideTime: scaledGlideTime,
       triggerDecay: true,
     });
 
-    this.#am_lfo?.setMusicalNote(midiNote, 0.5); // dividing hz by 0.5 sounds more like unison than 1
+    this.#am_lfo?.setMusicalNote(midiNote, {
+      divisor: 0.5, // dividing hz by 0.5 sounds more like unison than 1
+      glideTime: scaledGlideTime,
+      glideFromMidiNote: options?.glide?.prevMidiNote,
+      timestamp,
+    });
 
     return this.#activeMidiNote;
   }
@@ -458,7 +471,7 @@ export class SampleVoice {
     return this;
   }
 
-  setAmplitudeModWaveform(
+  setModulationWaveform(
     modType: 'AM' | 'FM' = 'AM',
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
     customWaveOptions: WaveformOptions = {}

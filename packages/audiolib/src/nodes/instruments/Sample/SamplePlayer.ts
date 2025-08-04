@@ -357,12 +357,13 @@ export class SamplePlayer implements ILibInstrumentNode {
       v.setModulationAmount(amount, modType)
     );
 
-  setAmplitudeModWaveform(
+  setModulationWaveform(
+    modType: 'AM' | 'FM' = 'AM',
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
     customWaveOptions: WaveformOptions = {}
   ) {
     this.voicePool.applyToAllVoices((v) =>
-      v.setAmplitudeModWaveform(waveform, customWaveOptions)
+      v.setModulationWaveform(modType, waveform, customWaveOptions)
     );
   }
 
@@ -533,7 +534,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
     this.#syncGainLFOToMidiNote && this.#gainLFO?.setMusicalNote(midiNote);
-    this.#syncPitchLFOToMidiNote && this.#pitchLFO?.setMusicalNote(midiNote, 4);
+    this.#syncPitchLFOToMidiNote &&
+      this.#pitchLFO?.setMusicalNote(midiNote, { divisor: 4 });
 
     this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);
 
@@ -684,6 +686,17 @@ export class SamplePlayer implements ILibInstrumentNode {
     seconds: number,
     rampTime: number = this.getLoopRampDuration()
   ) => this.setLoopPoint('end', this.loopStart, seconds, rampTime);
+
+  setLoopDuration = (
+    seconds: number,
+    rampTime: number = this.getLoopRampDuration()
+  ) =>
+    this.setLoopPoint(
+      'end',
+      this.loopStart,
+      this.loopStart + seconds,
+      rampTime
+    );
 
   setLoopPoint(
     loopPoint: 'start' | 'end',

@@ -6,6 +6,11 @@ import { createLabeledKnob } from '../../primitives/createKnob';
 import { createKnob, KnobConfig } from '../../../shared/utils/component-utils';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 
+// ===== SHARED KNOB STATE REGISTRY =====
+const knobStates = new Map<string, any>();
+const getKnobState = (key: string) => knobStates.get(key);
+const setKnobState = (key: string, state: any) => knobStates.set(key, state);
+
 // ===== KNOB CONFIGURATIONS =====
 
 const dryWetConfig: KnobConfig = {
@@ -53,8 +58,8 @@ const glideConfig: KnobConfig = {
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
-  snapIncrement: 0.0001,
-  curve: 2.75,
+  snapIncrement: 0.001,
+  curve: 1,
   valueFormatter: (v: number) => v.toFixed(3),
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => sampler.setGlideTime(state.val));
@@ -193,25 +198,44 @@ const amplitudeModConfig: KnobConfig = {
   maxValue: 1,
   curve: 1,
   onTargetConnect: (sampler, state, van) => {
-    van.derive(() => sampler.setAmplitudeModulation(state.val));
+    van.derive(() => sampler.setModulationAmount(state.val));
   },
 };
 
 const loopStartConfig: KnobConfig = {
   label: 'Loop Start',
   defaultValue: 0,
+  snapIncrement: 0.001,
   onTargetConnect: (sampler, state, van) => {
-    van.derive(() => sampler.setLoopStart(state.val));
+    // Register this state for other knobs to access
+    setKnobState('loopStart', state);
+    van.derive(() => {
+      sampler.setLoopStart(state.val);
+
+      const loopDurationState = getKnobState('loopDuration');
+      const loopDuration = loopDurationState?.val ?? 0.5;
+      sampler.setLoopEnd(state.val + loopDuration);
+    });
   },
 };
 
-// const loopDurationConfig: KnobConfig = {
-//   label: 'Loop Duration',
-//   defaultValue: 0.1,
-//   onTargetConnect: (sampler, state, van) => {
-//     van.derive(() => sampler.setLoopDuration(state.val));
-//   },
-// };
+const loopDurationConfig: KnobConfig = {
+  label: 'Loop Length',
+  defaultValue: 1,
+  minValue: 1,
+  maxValue: 0,
+  curve: 0.1,
+  snapIncrement: 0.0001,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      // Register this state for other knobs to access
+      setKnobState('loopDuration', state);
+      const loopStartState = getKnobState('loopStart');
+      const loopStart = loopStartState?.val ?? 0;
+      sampler.setLoopEnd(loopStart + state.val);
+    });
+  },
+};
 
 // ===== EXPORTED KNOB COMPONENTS =====
 
@@ -225,14 +249,6 @@ export const DryWetKnob = createKnob(
 
 export const FeedbackKnob = createKnob(
   feedbackConfig,
-  getSampler,
-  createLabeledKnob,
-  van,
-  INLINE_COMPONENT_STYLE
-);
-
-export const AMModKnob = createKnob(
-  amplitudeModConfig,
   getSampler,
   createLabeledKnob,
   van,
@@ -351,8 +367,24 @@ export const HighpassFilterKnob = createKnob(
   INLINE_COMPONENT_STYLE
 );
 
+export const AMModKnob = createKnob(
+  amplitudeModConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
 export const LoopStartKnob = createKnob(
   loopStartConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const LoopDurationKnob = createKnob(
+  loopDurationConfig,
   getSampler,
   createLabeledKnob,
   van,
