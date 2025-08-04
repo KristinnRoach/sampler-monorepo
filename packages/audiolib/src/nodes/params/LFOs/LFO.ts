@@ -1,3 +1,10 @@
+import {
+  CustomLibWaveform,
+  createWave,
+  WaveformOptions,
+  isCustomLibWaveform,
+} from '@/utils/audiodata/generate/generateWaveForm';
+
 export class LFO {
   #context: AudioContext;
   #oscillator: OscillatorNode;
@@ -12,8 +19,8 @@ export class LFO {
     this.#oscillator = context.createOscillator();
     this.#gain = context.createGain();
 
-    this.#oscillator.frequency.value = 0.5; // 0.5 Hz default
-    this.#gain.gain.value = 0; // No modulation by default
+    this.#oscillator.frequency.value = 1; // 1Hz
+    this.#gain.gain.value = 0; // No mod
 
     this.#oscillator.connect(this.#gain);
 
@@ -44,11 +51,23 @@ export class LFO {
     this.#gain.gain.value = amount;
   }
 
-  setWaveform(waveform: OscillatorType | PeriodicWave) {
+  setWaveform(
+    waveform: OscillatorType | PeriodicWave | CustomLibWaveform,
+    customWaveOptions?: WaveformOptions
+  ) {
     if (waveform instanceof PeriodicWave) {
       this.#oscillator.setPeriodicWave(waveform);
+    } else if (typeof waveform === 'string' && isCustomLibWaveform(waveform)) {
+      // It's a custom library waveform string
+      const periodicWave = createWave(
+        this.#context,
+        waveform,
+        customWaveOptions
+      );
+      this.#oscillator.setPeriodicWave(periodicWave);
     } else {
-      this.#oscillator.type = waveform;
+      // It's a built-in OscillatorType
+      this.#oscillator.type = waveform as OscillatorType;
     }
   }
 
@@ -112,6 +131,9 @@ export class LFO {
   }
 
   dispose() {
+    this.#initialized = false;
+    this.#targets.clear();
+    this.#storedValues = null;
     this.#oscillator.stop();
     this.disconnect();
   }

@@ -32,6 +32,10 @@ import { localStore } from '@/storage/local';
 import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
 import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
 import { createMessageBus, MessageBus } from '@/events';
+import {
+  CustomLibWaveform,
+  WaveformOptions,
+} from '@/utils/audiodata/generate/generateWaveForm';
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
@@ -348,6 +352,20 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === LFOs === */
 
+  setModulationAmount = (amount: number, modType: 'AM' | 'FM' = 'AM') =>
+    this.voicePool.applyToAllVoices((v) =>
+      v.setModulationAmount(amount, modType)
+    );
+
+  setAmplitudeModWaveform(
+    waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
+    customWaveOptions: WaveformOptions = {}
+  ) {
+    this.voicePool.applyToAllVoices((v) =>
+      v.setAmplitudeModWaveform(waveform, customWaveOptions)
+    );
+  }
+
   syncLFOsToNoteFreq(lfoId: 'gain-lfo' | 'pitch-lfo', enabled: boolean) {
     if (lfoId === 'gain-lfo') {
       if (enabled === true) {
@@ -382,7 +400,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     // Connections
     this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
     this.#gainLFO.connect(this.outBus.input.gain);
-    this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
+    // this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
   }
 
   #connectLFOToAllVoices(lfo: LFO, paramName: string) {

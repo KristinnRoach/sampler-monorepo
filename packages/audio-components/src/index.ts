@@ -36,6 +36,7 @@ export {
   HighpassFilterKnob,
   LoopDurationDriftKnob,
   LoopStartKnob,
+  AMModKnob,
 } from './elements/Sampler/components/SamplerKnobFactory';
 
 // Toggle components

@@ -10,11 +10,7 @@ import {
   MessageBus,
 } from '@/events';
 
-import {
-  interpolate,
-  interpolateLinearToExp,
-  midiToPlaybackRate,
-} from '@/utils';
+import { clamp, interpolateLinearToExp, midiToPlaybackRate } from '@/utils';
 
 import {
   CustomEnvelope,
@@ -25,15 +21,26 @@ import {
 import { getMaxFilterFreq } from './param-defaults';
 import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 
+import { LFO } from '@/nodes/params/LFOs/LFO';
+import {
+  CustomLibWaveform,
+  WaveformOptions,
+} from '@/utils/audiodata/generate/generateWaveForm';
+
 export class SampleVoice {
   // TODO: implements ILibAudioNode
   readonly nodeId: NodeID;
   readonly nodeType: NodeType = 'sample-voice';
+  #messages: MessageBus<Message>;
 
   #destination: Destination | null = null;
-  #outputNode: AudioNode;
+  #outputNode: GainNode;
   #worklet: AudioWorkletNode;
-  #messages: MessageBus<Message>;
+
+  #am_lfo: LFO | null = null;
+  #feedback: HarmonicFeedback | null = null;
+
+  #envelopes = new Map<EnvelopeType, CustomEnvelope>();
 
   #state: VoiceState = VoiceState.NOT_READY;
   #isInitialized: boolean = false;
@@ -42,10 +49,6 @@ export class SampleVoice {
   #startedTimestamp: number = -1;
 
   #sampleDurationSeconds = 0;
-
-  #envelopes = new Map<EnvelopeType, CustomEnvelope>();
-
-  feedback: HarmonicFeedback | null = null;
 
   #pitchGlideTime = 0; // in seconds
 
@@ -72,12 +75,14 @@ export class SampleVoice {
       processorOptions: options.processorOptions || {},
     });
 
-    this.feedback = new HarmonicFeedback(this.context);
-    this.feedback.input.gain.setValueAtTime(1.5, this.now);
+    this.#feedback = new HarmonicFeedback(this.context);
+    this.#feedback.input.gain.setValueAtTime(1.5, this.now);
+
+    this.#outputNode = new GainNode(context, { gain: 1 });
+    this.#destination = destination;
 
     this.#filtersEnabled = options.enableFilters ?? true;
 
-    // Create filters if enabled
     if (this.#filtersEnabled) {
       this.#hpfHz = 50;
       this.#lpfHz = this.context.sampleRate / 2 - 1000;
@@ -99,24 +104,25 @@ export class SampleVoice {
       }
 
       // Connect: worklet -> feedback -> hpf -> lpf -> destination
-      this.#worklet.connect(this.feedback.input);
+      this.#worklet.connect(this.#feedback.input);
       this.#worklet.connect(this.#hpf);
-      this.feedback.output.connect(this.#hpf);
+      this.#feedback.output.connect(this.#hpf);
       this.#hpf.connect(this.#lpf);
-      this.#lpf.connect(destination);
-
-      this.#outputNode = this.#lpf;
-      this.#destination = destination;
+      this.#lpf.connect(this.#outputNode);
     } else {
-      // No filters, worklet is the output node
-      this.#worklet.connect(destination);
-      this.#outputNode = this.#worklet;
-      this.#destination = destination;
+      // Without filters
+      this.#worklet.connect(this.#feedback.input);
+      this.#feedback.output.connect(this.#outputNode);
     }
 
+    this.#outputNode.connect(destination);
+
+    // Setup Modulation
+    this.#setupAmpModLFO();
+
+    // Setup message handling
     this.#setupWorkletMessageHandling();
     this.sendToProcessor({ type: 'voice:init' });
-
     this.#worklet.port.start();
   }
 
@@ -223,19 +229,7 @@ export class SampleVoice {
       ...options,
     };
 
-    // Using the same audio context current time for all ops
     const timestamp = this.now + secondsFromNow;
-    const glideTime = options.glide?.glideTime ?? this.#pitchGlideTime;
-
-    this.feedback?.trigger(midiNote, {
-      velocity,
-      secondsFromNow,
-      glideTime,
-      triggerDecay: true,
-    });
-
-    this.#startedTimestamp = timestamp;
-    this.#activeMidiNote = midiNote;
 
     if (
       this.#state === VoiceState.PLAYING ||
@@ -247,9 +241,10 @@ export class SampleVoice {
     }
 
     this.#state = VoiceState.PLAYING;
+    this.#startedTimestamp = timestamp;
+    this.#activeMidiNote = midiNote;
 
-    this.setParam('velocity', velocity, timestamp);
-
+    const glideTime = options.glide?.glideTime ?? this.#pitchGlideTime;
     const playbackRate = midiToPlaybackRate(midiNote);
 
     if (options.glide && glideTime > 0) {
@@ -261,6 +256,8 @@ export class SampleVoice {
       this.setParam('playbackRate', playbackRate, timestamp);
     }
 
+    this.setParam('velocity', velocity, timestamp);
+
     // Start playback
     this.sendToProcessor({
       type: 'voice:start',
@@ -269,6 +266,16 @@ export class SampleVoice {
 
     // Apply amp, filter and pitch envelopes if enabled
     this.applyEnvelopes(timestamp, playbackRate, midiNote);
+
+    // Trigger effects
+    this.#feedback?.trigger(midiNote, {
+      velocity,
+      secondsFromNow,
+      glideTime,
+      triggerDecay: true,
+    });
+
+    this.#am_lfo?.setMusicalNote(midiNote, 0.5); // dividing hz by 0.5 sounds more like unison than 1
 
     return this.#activeMidiNote;
   }
@@ -405,6 +412,63 @@ export class SampleVoice {
 
     this.sendToProcessor({ type: 'voice:stop', timestamp });
     this.#state = VoiceState.STOPPED;
+    return this;
+  }
+
+  // === LFOs ===
+
+  /** Setup amplitude modulation LFO (if not already setup) */
+  #setupAmpModLFO(
+    depth = 0,
+    waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'square',
+    customWaveOptions: WaveformOptions = {}
+  ) {
+    if (this.#am_lfo === null) {
+      this.#am_lfo = new LFO(this.context);
+      this.#am_lfo.setWaveform(waveform, customWaveOptions);
+      this.#am_lfo.setDepth(depth);
+      this.#am_lfo.setMusicalNote(this.#activeMidiNote ?? 60);
+      this.#am_lfo.connect(this.#outputNode.gain);
+    } else {
+      console.debug('setupAmpModLFO: LFO already setup: ', this.#am_lfo);
+    }
+    return this;
+  }
+
+  /** Cleanup amplitude modulation LFO */
+  #cleanupAmpModLFO() {
+    if (!this.#am_lfo) return;
+    this.#am_lfo.dispose();
+    this.#am_lfo = null;
+    return this;
+  }
+
+  setModulationAmount(amount: number, modType: 'AM' | 'FM' = 'AM') {
+    const safeAmount = clamp(amount, 0, 1, {
+      warn: true,
+      name: 'sampleVoice.setModulationAmount',
+    });
+
+    if (modType === 'AM') {
+      if (!this.#am_lfo) this.#setupAmpModLFO(safeAmount);
+      this.#am_lfo?.setDepth(safeAmount);
+    } else if (modType === 'FM') {
+      console.info('SampleVoice: FM modulation not implemented yet');
+    }
+    return this;
+  }
+
+  setAmplitudeModWaveform(
+    modType: 'AM' | 'FM' = 'AM',
+    waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
+    customWaveOptions: WaveformOptions = {}
+  ) {
+    if (modType === 'AM') {
+      if (!this.#am_lfo) this.#setupAmpModLFO();
+      this.#am_lfo?.setWaveform(waveform, customWaveOptions);
+    } else if (modType === 'FM') {
+      console.info('SampleVoice: FM modulation not implemented yet');
+    }
     return this;
   }
 
@@ -743,6 +807,10 @@ export class SampleVoice {
     return endPoint - startPoint;
   }
 
+  get feedback() {
+    return this.#feedback;
+  }
+
   get currMidiNote(): number | null {
     return this.#activeMidiNote;
   }
@@ -905,6 +973,7 @@ export class SampleVoice {
   dispose(): void {
     this.stop();
     this.disconnect();
+    this.#cleanupAmpModLFO();
     this.#envelopes.forEach((env) => env.dispose());
     this.#worklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);

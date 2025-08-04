@@ -186,6 +186,17 @@ const highpassFilterConfig: KnobConfig = {
   },
 };
 
+const amplitudeModConfig: KnobConfig = {
+  label: 'AM',
+  defaultValue: 0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setAmplitudeModulation(state.val));
+  },
+};
+
 const loopStartConfig: KnobConfig = {
   label: 'Loop Start',
   defaultValue: 0,
@@ -214,6 +225,14 @@ export const DryWetKnob = createKnob(
 
 export const FeedbackKnob = createKnob(
   feedbackConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const AMModKnob = createKnob(
+  amplitudeModConfig,
   getSampler,
   createLabeledKnob,
   van,
