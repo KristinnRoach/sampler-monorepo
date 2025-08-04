@@ -68,6 +68,7 @@ export class SampleVoice {
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
       numberOfOutputs: 1,
+      outputChannelCount: [2], // Force stereo output
       processorOptions: options.processorOptions || {},
     });
 
@@ -867,8 +868,13 @@ export class SampleVoice {
   }
 
   setLoopDurationDriftAmount(amount: number): this {
-    const NEAR_ZERO_FOR_LOG = 0.001;
-    const MAX_LOOP_DRIFT = 0.5; // without enableAdaptiveDrift, 0.05 works. todo: make audioparam range 0-1 optimal
+    if (amount === 0) {
+      this.setParam('loopDurationDriftAmount', 0, this.now);
+      return this;
+    }
+
+    const NEAR_ZERO_FOR_LOG = 0.0001;
+    const MAX_LOOP_DRIFT = 1; // todo: use audio param's maxValue
 
     const interpolated = interpolateLinearToExp(amount, {
       inputRange: { min: 0, max: 1 },
@@ -876,13 +882,16 @@ export class SampleVoice {
         min: NEAR_ZERO_FOR_LOG,
         max: MAX_LOOP_DRIFT,
       },
-      blend: 0.7, // blend: 0.7 = 70% exponential, 30% linear
+      blend: 1, // blend: 0.5 = 50% exponential, 50% linear
       logBase: 'dB',
       curve: 'linear',
     });
     this.setParam('loopDurationDriftAmount', interpolated, this.now);
     return this;
   }
+
+  setPanDriftEnabled = (enabled: boolean) =>
+    this.sendToProcessor({ type: 'setPanDriftEnabled', value: enabled });
 
   debugDuration() {
     console.info(`

@@ -45,6 +45,7 @@ export {
   GainLFOSyncNoteToggle,
   PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
+  PanDriftToggle,
 } from './elements/Sampler/components/SamplerToggleFactory';
 
 // Input controls
