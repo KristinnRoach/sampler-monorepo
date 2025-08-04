@@ -1,7 +1,7 @@
 // ToggleComponents.ts - Toggle and control components
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../../../SamplerRegistry';
+import { getSampler } from '../SamplerRegistry';
 import { Toggle } from '../../primitives/VanToggle';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import {

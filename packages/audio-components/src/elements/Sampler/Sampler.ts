@@ -2,12 +2,14 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 import { SamplePlayer, createSamplePlayer } from '@repo/audiolib';
+import { createFindNodeId } from '../../shared/utils/component-utils';
+
 import {
   registerSampler,
   unregisterSampler,
   getSampler,
-} from '../../SamplerRegistry';
-import { createFindNodeId } from '../../shared/utils/component-utils';
+} from './SamplerRegistry';
+
 import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
@@ -46,6 +48,8 @@ import {
   PanDriftToggle,
 } from './components/SamplerToggleFactory';
 
+import { EnvelopeDisplay } from './components/EnvelopeDisplay';
+import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { RecordButton } from './components/RecordButton';
@@ -74,6 +78,8 @@ export const SamplerElement = (attributes: ElementProps) => {
           nodeId.val = samplePlayer.nodeId;
         }
 
+        // ===== EVENT LISTENERS =====
+
         samplePlayer.onMessage('sample-player:ready', () => {
           if (!samplePlayer) throw new Error('SamplerEl: no samplerPlayer!');
           registerSampler(nodeId.val, samplePlayer);
@@ -82,6 +88,19 @@ export const SamplerElement = (attributes: ElementProps) => {
           document.dispatchEvent(
             new CustomEvent('sampler-ready', {
               detail: { nodeId: nodeId.val },
+            })
+          );
+        });
+
+        samplePlayer.onMessage('sample:loaded', (msg: any) => {
+          console.log('Sample loaded message received:', msg);
+          document.dispatchEvent(
+            new CustomEvent('sample-loaded', {
+              detail: {
+                nodeId: nodeId.val,
+                buffer: samplePlayer?.audiobuffer,
+                durationSeconds: msg.durationSeconds,
+              },
             })
           );
         });
@@ -158,7 +177,7 @@ export const LoadButton = (attributes: ElementProps) => {
 
   return div(
     { style: COMPONENT_STYLE },
-    button({ onclick: loadSample, style: BUTTON_STYLE }, 'Load Sample'),
+    button({ onclick: loadSample, style: () => BUTTON_STYLE }, 'Load Sample'),
     div(() => status.val)
   );
 };
@@ -200,6 +219,9 @@ export {
   ComputerKeyboard,
   PianoKeyboard,
   RecordButton,
+
+  // Envelopes
+  EnvelopeDisplay,
 };
 
 // ===== REGISTRATION =====
@@ -251,6 +273,10 @@ export const defineSampler = () => {
     false
   );
   defineIfNotExists('pan-drift-toggle', PanDriftToggle, false);
+
+  // Envelopes
+  defineIfNotExists('envelope-display', EnvelopeDisplay, false);
+  defineIfNotExists('envelope-switcher', EnvelopeSwitcher, false);
 
   // Input controls
   defineIfNotExists('computer-keyboard', ComputerKeyboard, false);
