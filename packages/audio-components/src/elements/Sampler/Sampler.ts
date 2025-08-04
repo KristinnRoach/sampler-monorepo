@@ -27,8 +27,10 @@ import {
   PitchLFODepthKnob,
   VolumeKnob,
   ReverbKnob,
-  FilterKnob,
+  LowpassFilterKnob,
+  HighpassFilterKnob,
   LoopDurationDriftKnob,
+  LoopStartKnob,
 } from './components/SamplerKnobFactory';
 
 import {
@@ -173,7 +175,12 @@ export {
   GainLFODepthKnob,
   PitchLFORateKnob,
   PitchLFODepthKnob,
+  VolumeKnob,
+  ReverbKnob,
+  LowpassFilterKnob,
+  HighpassFilterKnob,
   LoopDurationDriftKnob,
+  LoopStartKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -209,7 +216,8 @@ export const defineSampler = () => {
   // Knob controls
   defineIfNotExists('volume-knob', VolumeKnob, false);
   defineIfNotExists('reverb-knob', ReverbKnob, false);
-  defineIfNotExists('filter-knob', FilterKnob, false);
+  defineIfNotExists('lowpass-filter-knob', LowpassFilterKnob, false);
+  defineIfNotExists('highpass-filter-knob', HighpassFilterKnob, false);
   defineIfNotExists('dry-wet-knob', DryWetKnob, false);
   defineIfNotExists('feedback-knob', FeedbackKnob, false);
   defineIfNotExists('drive-knob', DriveKnob, false);
@@ -222,6 +230,7 @@ export const defineSampler = () => {
   defineIfNotExists('pitch-lfo-rate-knob', PitchLFORateKnob, false);
   defineIfNotExists('pitch-lfo-depth-knob', PitchLFODepthKnob, false);
   defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
+  defineIfNotExists('loop-start-knob', LoopStartKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);

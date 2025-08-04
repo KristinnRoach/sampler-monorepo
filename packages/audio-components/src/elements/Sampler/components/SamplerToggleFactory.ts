@@ -4,389 +4,189 @@ import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../../../SamplerRegistry';
 import { Toggle } from '../../primitives/VanToggle';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import { createFindNodeId } from '@/shared/utils/component-utils';
+import {
+  createToggle,
+  ToggleConfig,
+} from '../../../shared/utils/component-utils';
 
-const { div, label } = van.tags;
+// ===== TOGGLE CONFIGURATIONS =====
 
-// ===== FEEDBACK MODE TOGGLE =====
-export const FeedbackModeToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const isPolyphonic = van.state(false); // false = monophonic, true = polyphonic
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        const mode = isPolyphonic.val ? 'polyphonic' : 'monophonic';
-        sampler.setFeedbackMode(mode);
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Feedback Mode' }),
-    Toggle({
-      on: isPolyphonic.val,
-      size: 1,
-      onColor: '#4CAF50',
-      onChange: () => (isPolyphonic.val = !isPolyphonic.val),
-    }),
-    div(() => (isPolyphonic.val ? 'Polyphonic' : 'Monophonic'))
-  );
+const feedbackModeConfig: ToggleConfig = {
+  label: 'Feedback Mode',
+  defaultValue: false, // false = monophonic, true = polyphonic
+  onColor: '#4CAF50',
+  offText: 'Monophonic',
+  onText: 'Polyphonic',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => {
+      const mode = state.val ? 'polyphonic' : 'monophonic';
+      sampler.setFeedbackMode(mode);
+    });
+  },
 };
 
-// ===== MIDI ENABLE TOGGLE =====
-export const MidiToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const enabled = van.state(true);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        if (enabled.val) {
-          if (
-            sampler &&
-            'enableMIDI' in sampler &&
-            typeof sampler.enableMIDI === 'function'
-          ) {
-            sampler.enableMIDI();
-          }
-        } else {
-          if (
-            sampler &&
-            'disableMIDI' in sampler &&
-            typeof sampler.disableMIDI === 'function'
-          ) {
-            sampler.disableMIDI();
-          }
+const midiConfig: ToggleConfig = {
+  label: 'MIDI',
+  defaultValue: true,
+  onColor: '#4CAF50',
+  offText: 'OFF',
+  onText: 'ON',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => {
+      if (state.val) {
+        if (
+          sampler &&
+          'enableMIDI' in sampler &&
+          typeof sampler.enableMIDI === 'function'
+        ) {
+          sampler.enableMIDI();
         }
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'MIDI' }),
-    Toggle({
-      on: enabled.val,
-      size: 1,
-      onColor: '#4CAF50',
-      onChange: () => (enabled.val = !enabled.val),
-    }),
-    div(() => (enabled.val ? 'ON' : 'OFF'))
-  );
+      } else {
+        if (
+          sampler &&
+          'disableMIDI' in sampler &&
+          typeof sampler.disableMIDI === 'function'
+        ) {
+          sampler.disableMIDI();
+        }
+      }
+    });
+  },
 };
 
-// ===== LOOP/HOLD LOCK TOGGLES =====
-export const LoopLockToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const locked = van.state(false);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setLoopLocked(locked.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Loop Lock' }),
-    Toggle({
-      on: locked.val,
-      size: 1,
-      onColor: '#ff9800',
-      onChange: () => (locked.val = !locked.val),
-    }),
-    div(() => (locked.val ? 'LOCKED' : 'FREE'))
-  );
+const loopLockConfig: ToggleConfig = {
+  label: 'Loop Lock',
+  defaultValue: false,
+  onColor: '#ff9800',
+  offText: 'FREE',
+  onText: 'LOCKED',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setLoopLocked(state.val));
+  },
 };
 
-export const HoldLockToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const locked = van.state(false);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.setHoldLocked(locked.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Hold Lock' }),
-    Toggle({
-      on: locked.val,
-      size: 1,
-      onColor: '#ff9800',
-      onChange: () => (locked.val = !locked.val),
-    }),
-    div(() => (locked.val ? 'LOCKED' : 'FREE'))
-  );
+const holdLockConfig: ToggleConfig = {
+  label: 'Hold Lock',
+  defaultValue: false,
+  onColor: '#ff9800',
+  offText: 'FREE',
+  onText: 'LOCKED',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => sampler.setHoldLocked(state.val));
+  },
 };
 
-// ===== LFO TOGGLES =====
-
-export const GainLFOSyncNoteToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const synced = van.state(false);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', synced.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Gain LFO Sync' }),
-    Toggle({
-      on: synced.val,
-      size: 1,
-      onColor: '#ff9800',
-      onChange: () => (synced.val = !synced.val),
-    }),
-    div(() => (synced.val ? 'SYNCED' : 'FREE'))
-  );
+const gainLFOSyncConfig: ToggleConfig = {
+  label: 'Gain LFO Sync',
+  defaultValue: false,
+  onColor: '#ff9800',
+  offText: 'FREE',
+  onText: 'SYNCED',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', state.val));
+  },
 };
 
-export const PitchLFOSyncNoteToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const synced = van.state(false);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', synced.val));
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Pitch LFO Sync' }),
-    Toggle({
-      on: synced.val,
-      size: 1,
-      onColor: '#ff9800',
-      onChange: () => (synced.val = !synced.val),
-    }),
-    div(() => (synced.val ? 'SYNCED' : 'FREE'))
-  );
+const pitchLFOSyncConfig: ToggleConfig = {
+  label: 'Pitch LFO Sync',
+  defaultValue: false,
+  onColor: '#ff9800',
+  offText: 'FREE',
+  onText: 'SYNCED',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', state.val));
+  },
 };
 
-export const PlaybackDirectionToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const reversed = van.state(false);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        const direction = reversed.val === true ? 'reverse' : 'forward';
-        sampler.setPlaybackDirection(direction);
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Direction' }),
-    Toggle({
-      on: reversed.val,
-      size: 1,
-      onColor: '#ff9800',
-      onChange: () => (reversed.val = !reversed.val),
-    }),
-    div(() => (reversed.val ? 'REVERSE' : 'FORWARD'))
-  );
+const playbackDirectionConfig: ToggleConfig = {
+  label: 'Direction',
+  defaultValue: false,
+  onColor: '#ff9800',
+  offText: 'FORWARD',
+  onText: 'REVERSE',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => {
+      const direction = state.val === true ? 'reverse' : 'forward';
+      sampler.setPlaybackDirection(direction);
+    });
+  },
 };
 
-export const PanDriftToggle = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const enabled = van.state(true);
-  let connected = false;
-
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-  const connect = () => {
-    if (connected) return;
-    const nodeId = findNodeId();
-    if (!nodeId) return;
-    const sampler = getSampler(nodeId);
-    if (sampler) {
-      connected = true;
-      van.derive(() => {
-        sampler.setPanDriftEnabled(enabled.val);
-      });
-    }
-  };
-
-  attributes.mount(() => {
-    connect();
-    const handleReady = (e: CustomEvent) => {
-      if (e.detail.nodeId === findNodeId()) connect();
-    };
-    document.addEventListener('sampler-ready', handleReady as EventListener);
-    return () =>
-      document.removeEventListener(
-        'sampler-ready',
-        handleReady as EventListener
-      );
-  });
-
-  return div(
-    { style: INLINE_COMPONENT_STYLE },
-    label({ textContent: 'Pan Drift' }),
-    Toggle({
-      on: enabled.val,
-      size: 1,
-      onColor: '#ff9800',
-      onChange: () => (enabled.val = !enabled.val),
-    }),
-    div(() => (enabled.val ? 'ENABLED' : 'DISABLED'))
-  );
+const panDriftConfig: ToggleConfig = {
+  label: 'Pan Drift',
+  defaultValue: true,
+  onColor: '#ff9800',
+  offText: 'DISABLED',
+  onText: 'ENABLED',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => {
+      sampler.setPanDriftEnabled(state.val);
+    });
+  },
 };
+
+// ===== EXPORTED TOGGLE COMPONENTS =====
+
+export const FeedbackModeToggle = createToggle(
+  feedbackModeConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const MidiToggle = createToggle(
+  midiConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const LoopLockToggle = createToggle(
+  loopLockConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const HoldLockToggle = createToggle(
+  holdLockConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const GainLFOSyncNoteToggle = createToggle(
+  gainLFOSyncConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const PitchLFOSyncNoteToggle = createToggle(
+  pitchLFOSyncConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const PlaybackDirectionToggle = createToggle(
+  playbackDirectionConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const PanDriftToggle = createToggle(
+  panDriftConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
+);

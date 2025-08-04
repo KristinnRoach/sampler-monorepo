@@ -2,7 +2,13 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import '../../controls/webaudio-controls/webaudio-keyboard';
 import { getSampler } from '../../../SamplerRegistry';
-import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
+import {
+  COMPONENT_STYLE,
+  CONTROL_ROW_STYLE,
+  SMALL_BUTTON_STYLE,
+  HELP_TEXT_STYLE,
+  DISABLED_STYLE,
+} from '../../../shared/styles/component-styles';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button } = van.tags;
@@ -77,8 +83,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   keyboard.addEventListener('pointer', handlePianoClick);
 
   van.derive(() => {
-    keyboard.style.opacity = enabled.val ? '1' : '0.5';
-    keyboard.style.pointerEvents = enabled.val ? 'auto' : 'none';
+    const disabledStyles = enabled.val ? '' : DISABLED_STYLE;
+    keyboard.style.cssText = disabledStyles;
   });
 
   attributes.mount(() => {
@@ -145,14 +151,13 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     },
     div(
       {
-        style:
-          'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;',
+        style: CONTROL_ROW_STYLE,
       },
       div('Piano Keyboard'),
       button(
         {
           onclick: () => handleOctaveChange(-1),
-          style: 'padding: 0.25rem 0.5rem; font-size: 0.8rem;',
+          style: SMALL_BUTTON_STYLE,
         },
         '< Oct'
       ),
@@ -160,14 +165,14 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       button(
         {
           onclick: () => handleOctaveChange(1),
-          style: 'padding: 0.25rem 0.5rem; font-size: 0.8rem;',
+          style: SMALL_BUTTON_STYLE,
         },
         'Oct >'
       )
     ),
     keyboard,
     div(
-      { style: 'font-size: 0.7rem; color: #666; margin-top: 0.25rem;' },
+      { style: HELP_TEXT_STYLE },
       'Mouse/touch input • Keyboard handled by ComputerKeyboard component'
     )
   );

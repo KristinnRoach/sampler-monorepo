@@ -71,3 +71,152 @@ export const createSamplerConnection = (
 
   return { connect, createMountHandler };
 };
+
+/**
+ * Configuration for a toggle component
+ */
+export interface ToggleConfig {
+  label: string;
+  defaultValue: boolean;
+  onColor?: string;
+  offText: string;
+  onText: string;
+  onSamplerConnect?: (sampler: any, state: State<boolean>, van: any) => void;
+}
+
+/**
+ * Generic factory for creating toggle components
+ */
+export const createToggle = (
+  config: ToggleConfig,
+  getTargetNode: (nodeId: string) => any,
+  Toggle: any,
+  van: any,
+  INLINE_COMPONENT_STYLE: string
+) => {
+  const { div, label } = van.tags;
+
+  return (attributes: ElementProps) => {
+    const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+    const toggleState = van.state(config.defaultValue);
+    let connected = false;
+
+    const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+    const connect = () => {
+      if (connected) return;
+      const nodeId = findNodeId();
+      if (!nodeId) return;
+      const sampler = getTargetNode(nodeId);
+      if (sampler) {
+        connected = true;
+        config.onSamplerConnect?.(sampler, toggleState, van);
+      }
+    };
+
+    attributes.mount(() => {
+      connect();
+      const handleReady = (e: CustomEvent) => {
+        if (e.detail.nodeId === findNodeId()) connect();
+      };
+      document.addEventListener('sampler-ready', handleReady as EventListener);
+      return () =>
+        document.removeEventListener(
+          'sampler-ready',
+          handleReady as EventListener
+        );
+    });
+
+    return div(
+      { style: INLINE_COMPONENT_STYLE },
+      label({ textContent: config.label }),
+      Toggle({
+        on: toggleState.val,
+        size: 1,
+        onColor: config.onColor || '#4CAF50',
+        onChange: () => (toggleState.val = !toggleState.val),
+      }),
+      div(() => (toggleState.val ? config.onText : config.offText))
+    );
+  };
+};
+
+/**
+ * Configuration for a knob component
+ */
+export interface KnobConfig {
+  label: string;
+  defaultValue: number;
+  minValue?: number;
+  maxValue?: number;
+  allowedValues?: number[];
+  curve?: number;
+  snapIncrement?: number;
+  valueFormatter?: (value: number) => string;
+  onTargetConnect?: (target: any, state: State<number>, van: any) => void;
+}
+
+/**
+ * Generic factory for creating knob components
+ */
+export const createKnob = (
+  config: KnobConfig,
+  getTargetNode: (nodeId: string) => any,
+  createLabeledKnob: any,
+  van: any,
+  componentStyle?: string
+) => {
+  return (attributes: ElementProps) => {
+    const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+    const value = van.state(config.defaultValue);
+    let connected = false;
+
+    const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+    const connect = () => {
+      if (connected) return;
+      const nodeId = findNodeId();
+      if (!nodeId) return;
+      const target = getTargetNode(nodeId);
+      if (target) {
+        connected = true;
+        config.onTargetConnect?.(target, value, van);
+      }
+    };
+
+    attributes.mount(() => {
+      connect();
+      const handleReady = (e: CustomEvent) => {
+        if (e.detail.nodeId === findNodeId()) connect();
+      };
+      document.addEventListener('sampler-ready', handleReady as EventListener);
+      return () =>
+        document.removeEventListener(
+          'sampler-ready',
+          handleReady as EventListener
+        );
+    });
+
+    const knobElement = createLabeledKnob({
+      label: config.label,
+      defaultValue: config.defaultValue,
+      minValue: config.minValue,
+      maxValue: config.maxValue,
+      allowedValues: config.allowedValues,
+      curve: config.curve,
+      snapIncrement: config.snapIncrement,
+      valueFormatter: config.valueFormatter,
+      onChange: (v: number) => (value.val = v),
+    });
+
+    // Apply component style if provided
+    if (componentStyle) {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = componentStyle;
+      wrapper.appendChild(knobElement);
+      return wrapper;
+    }
+
+    return knobElement;
+  };
+};

@@ -32,8 +32,10 @@ export {
   PitchLFODepthKnob,
   VolumeKnob,
   ReverbKnob,
-  FilterKnob,
+  LowpassFilterKnob,
+  HighpassFilterKnob,
   LoopDurationDriftKnob,
+  LoopStartKnob,
 } from './elements/Sampler/components/SamplerKnobFactory';
 
 // Toggle components
@@ -53,7 +55,11 @@ export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard
 export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
 
 // Utilities
-export { createFindNodeId } from './shared/utils/component-utils';
+export {
+  createFindNodeId,
+  createToggle,
+  createKnob,
+} from './shared/utils/component-utils';
 
 // Old all-in-one version (for reference):
 export { defineSamplerMonolith } from './elements/instruments/sampler/SamplerMonolith';
