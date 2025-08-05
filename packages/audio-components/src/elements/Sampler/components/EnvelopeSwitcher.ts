@@ -101,7 +101,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   });
 
   return div(
-    { class: 'envelope-switcher' }, // , style: () => COMPONENT_STYLE },
+    { class: 'envelope-switcher', style: COMPONENT_STYLE },
 
     // Envelope type buttons
     div(

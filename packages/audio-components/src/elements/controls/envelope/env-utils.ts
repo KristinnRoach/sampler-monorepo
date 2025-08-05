@@ -139,9 +139,12 @@ export const generateSVGPath = (
   svgWidth: number,
   svgHeight: number,
   valueRange: [number, number],
-  scaling: 'linear' | 'logarithmic' = 'linear'
+  scaling: 'linear' | 'logarithmic' = 'linear',
+  offsetX: number = 0,
+  offsetY: number = 0
 ): string => {
-  if (points.length < 2) return `M0,${svgHeight} L${svgWidth},${svgHeight}`;
+  if (points.length < 2)
+    return `M${offsetX},${svgHeight + offsetY} L${svgWidth + offsetX},${svgHeight + offsetY}`;
 
   const sortedPoints = [...points].sort((a, b) => a.time - b.time);
 
@@ -151,32 +154,31 @@ export const generateSVGPath = (
     valueRange,
     scaling
   );
-  let path = `M${secondsToScreenX(sortedPoints[0].time, maxDurationSeconds, svgWidth)},${(1 - firstNormalized) * svgHeight}`;
+  let path = `M${secondsToScreenX(sortedPoints[0].time, maxDurationSeconds, svgWidth) + offsetX},${(1 - firstNormalized) * svgHeight + offsetY}`;
 
   for (let i = 1; i < sortedPoints.length; i++) {
     const point = sortedPoints[i];
     const prevPoint = sortedPoints[i - 1];
 
-    const x = secondsToScreenX(point.time, maxDurationSeconds, svgWidth);
+    const x =
+      secondsToScreenX(point.time, maxDurationSeconds, svgWidth) + offsetX;
     const normalizedY = absoluteValueToNormalized(
       point.value,
       valueRange,
       scaling
     );
-    const y = (1 - normalizedY) * svgHeight;
+    const y = (1 - normalizedY) * svgHeight + offsetY;
 
     if (prevPoint.curve === 'exponential') {
-      const prevX = secondsToScreenX(
-        prevPoint.time,
-        maxDurationSeconds,
-        svgWidth
-      );
+      const prevX =
+        secondsToScreenX(prevPoint.time, maxDurationSeconds, svgWidth) +
+        offsetX;
       const prevNormalizedY = absoluteValueToNormalized(
         prevPoint.value,
         valueRange,
         scaling
       );
-      const prevY = (1 - prevNormalizedY) * svgHeight;
+      const prevY = (1 - prevNormalizedY) * svgHeight + offsetY;
       const cp1X = prevX + (x - prevX) * 0.3;
       const cp1Y = prevY;
       const cp2X = prevX + (x - prevX) * 0.7;

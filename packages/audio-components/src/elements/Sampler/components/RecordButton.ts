@@ -79,10 +79,12 @@ export const RecordButton = (attributes: ElementProps) => {
 
     try {
       await currentRecorder.stop();
+      currentRecorder.dispose();
       currentRecorder = null;
       recordBtnState.val = 'Record';
       status.val = 'Recording stopped';
     } catch (error) {
+      currentRecorder = null;
       console.error('Failed to stop recording:', error);
       status.val = `Stop error: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -126,6 +128,7 @@ export const RecordButton = (attributes: ElementProps) => {
     return () => {
       if (currentRecorder) {
         currentRecorder.stop();
+        currentRecorder.dispose();
         currentRecorder = null;
       }
       cleanupSamplerCheck();

@@ -177,7 +177,7 @@ export const LoadButton = (attributes: ElementProps) => {
 
   return div(
     { style: COMPONENT_STYLE },
-    button({ onclick: loadSample, style: () => BUTTON_STYLE }, 'Load Sample'),
+    button({ onclick: loadSample, style: BUTTON_STYLE }, 'Load Sample'),
     div(() => status.val)
   );
 };
