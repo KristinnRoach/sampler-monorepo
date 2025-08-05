@@ -1,6 +1,6 @@
 // SampleControls.ts
 import van, { State } from '@repo/vanjs-core';
-import { defineElement } from '../elementRegistry';
+import { defineElement } from '../../elementRegistry';
 import { mapToRange, clamp } from '@/shared/utils/math-utils';
 import { createSliderGSAP } from '../primitives/createSliderGSAP';
 import {

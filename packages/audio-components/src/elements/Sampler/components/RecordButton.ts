@@ -2,8 +2,9 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
-import { getSampler, onRegistryChange } from '../../../SamplerRegistry';
+import { getSampler, onRegistryChange } from '../SamplerRegistry';
 import {
+  COMPONENT_STYLE,
   BUTTON_STYLE,
   BUTTON_ACTIVE_STYLE,
   RECORD_BUTTON_RECORDING_STYLE,
@@ -115,11 +116,11 @@ export const RecordButton = (attributes: ElementProps) => {
   });
 
   return div(
-    { class: 'record-button-control' },
+    { class: 'record-button-control', style: COMPONENT_STYLE },
     button(
       {
         onclick: handleClick,
-        style: getButtonStyle,
+        style: () => getButtonStyle(),
         disabled: () => !samplerAvailable.val,
       },
       getButtonText

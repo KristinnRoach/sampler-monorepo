@@ -8,7 +8,7 @@ export {
   onRegistryChange,
   getAllSamplerIds,
   hasSampler,
-} from './SamplerRegistry';
+} from './elements/Sampler/SamplerRegistry';
 
 // Core sampler
 export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
@@ -55,6 +55,10 @@ export {
 // Input controls
 export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard';
 export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
+
+// Envelopes
+export { EnvelopeDisplay } from './elements/Sampler/components/EnvelopeDisplay';
+export { EnvelopeSwitcher } from './elements/Sampler/components/EnvelopeSwitcher';
 
 // Utilities
 export {

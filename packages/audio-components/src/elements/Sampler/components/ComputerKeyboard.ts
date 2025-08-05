@@ -8,7 +8,7 @@ import {
   pressedKeys,
 } from '../../../shared/keyboard/keyboard-state';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
-import { getSampler } from '../../../SamplerRegistry';
+import { getSampler } from '../SamplerRegistry';
 import {
   COMPONENT_STYLE,
   CONTROL_GROUP_STYLE,

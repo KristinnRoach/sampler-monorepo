@@ -1,7 +1,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import '../../controls/webaudio-controls/webaudio-keyboard';
-import { getSampler } from '../../../SamplerRegistry';
+import { getSampler } from '../SamplerRegistry';
 import {
   COMPONENT_STYLE,
   CONTROL_ROW_STYLE,

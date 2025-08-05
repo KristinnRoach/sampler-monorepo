@@ -1,7 +1,7 @@
 // KnobFactory.ts
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../../../SamplerRegistry';
+import { getSampler } from '../SamplerRegistry';
 import { createLabeledKnob } from '../../primitives/createKnob';
 import { createKnob, KnobConfig } from '../../../shared/utils/component-utils';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';

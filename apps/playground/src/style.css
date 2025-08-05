@@ -20,7 +20,7 @@ body {
 
   background-color: #35883fd5; /* old yellow: #c0c44fd5; */
 }
-/* 
+
 .page-wrapper {
   height: 100vh;
   max-height: 100vh;
@@ -34,6 +34,7 @@ body {
   grid-template-areas: 'main';
 }
 
+/* 
 .nodes-playground {
   grid-area: main;
   display: grid;
