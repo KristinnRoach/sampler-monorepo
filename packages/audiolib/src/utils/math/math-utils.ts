@@ -1,5 +1,21 @@
-export const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
+export const clamp = (
+  value: number,
+  min: number,
+  max: number,
+  options: {
+    warn?: boolean;
+    name?: string;
+  } = { warn: false }
+) => {
+  if (options.warn && (value < min || value > max)) {
+    const paramName = options.name ? `(${options.name})` : '';
+    console.warn(
+      `Value${paramName} ${value} is outside range [${min}, ${max}], clamping to ${value < min ? min : max}`
+    );
+  }
+
+  return Math.max(min, Math.min(max, value));
+};
 
 export const mapToRange = (
   value: number,

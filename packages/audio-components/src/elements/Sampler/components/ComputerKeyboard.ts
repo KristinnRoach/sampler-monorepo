@@ -11,22 +11,18 @@ import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 import { getSampler } from '../../../SamplerRegistry';
 import {
   COMPONENT_STYLE,
-  BUTTON_STYLE,
-  BUTTON_ACTIVE_STYLE,
-  CONTROL_ROW_STYLE,
   CONTROL_GROUP_STYLE,
-  SMALL_BUTTON_STYLE,
   SELECT_STYLE,
   HELP_TEXT_STYLE,
 } from '../../../shared/styles/component-styles';
 
-const { div, button, select, option } = van.tags;
+const { div, select, option } = van.tags;
 
 export const ComputerKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const enabled = van.state(true);
-  const currentKeymap = van.state(KeyMaps.default);
-  const octaveOffset = van.state(0); // Add octave offset state
+  const currentKeymap = van.state(KeyMaps.major);
+  const octaveOffset = van.state(1); // todo: make 0 default work for major / minor
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
   const MAX_OCT_SHIFT = 3;
@@ -169,20 +165,6 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
       class: 'computer-keyboard-control',
       style: COMPONENT_STYLE,
     },
-    div(
-      {
-        style: CONTROL_ROW_STYLE,
-      },
-      div('Computer Keyboard'),
-      button(
-        {
-          onclick: () => (enabled.val = !enabled.val),
-          style: () =>
-            `${BUTTON_STYLE} ${enabled.val ? BUTTON_ACTIVE_STYLE : ''}`,
-        },
-        () => (enabled.val ? 'ON' : 'OFF')
-      )
-    ),
 
     div(
       { style: CONTROL_GROUP_STYLE },
@@ -197,28 +179,6 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
           style: SELECT_STYLE,
         },
         ...keymapOptions.map((opt) => option({ value: opt.value }, opt.label))
-      )
-    ),
-
-    div(
-      {
-        style: CONTROL_GROUP_STYLE,
-      },
-      div('Octave:'),
-      button(
-        {
-          onclick: () => handleOctaveChange(-1),
-          style: SMALL_BUTTON_STYLE,
-        },
-        '< Oct'
-      ),
-      div(() => `${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
-      button(
-        {
-          onclick: () => handleOctaveChange(1),
-          style: SMALL_BUTTON_STYLE,
-        },
-        'Oct >'
       )
     ),
 

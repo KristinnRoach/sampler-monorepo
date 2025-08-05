@@ -32,6 +32,10 @@ import { localStore } from '@/storage/local';
 import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
 import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
 import { createMessageBus, MessageBus } from '@/events';
+import {
+  CustomLibWaveform,
+  WaveformOptions,
+} from '@/utils/audiodata/generate/generateWaveForm';
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
@@ -348,6 +352,21 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === LFOs === */
 
+  setModulationAmount = (amount: number, modType: 'AM' | 'FM' = 'AM') =>
+    this.voicePool.applyToAllVoices((v) =>
+      v.setModulationAmount(amount, modType)
+    );
+
+  setModulationWaveform(
+    modType: 'AM' | 'FM' = 'AM',
+    waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
+    customWaveOptions: WaveformOptions = {}
+  ) {
+    this.voicePool.applyToAllVoices((v) =>
+      v.setModulationWaveform(modType, waveform, customWaveOptions)
+    );
+  }
+
   syncLFOsToNoteFreq(lfoId: 'gain-lfo' | 'pitch-lfo', enabled: boolean) {
     if (lfoId === 'gain-lfo') {
       if (enabled === true) {
@@ -382,7 +401,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     // Connections
     this.#connectLFOToAllVoices(this.#pitchLFO, 'playbackRate');
     this.#gainLFO.connect(this.outBus.input.gain);
-    this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
+    // this.#connectLFOToAllVoices(this.#gainLFO, 'playbackPosition');
   }
 
   #connectLFOToAllVoices(lfo: LFO, paramName: string) {
@@ -515,7 +534,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
 
     this.#syncGainLFOToMidiNote && this.#gainLFO?.setMusicalNote(midiNote);
-    this.#syncPitchLFOToMidiNote && this.#pitchLFO?.setMusicalNote(midiNote, 4);
+    this.#syncPitchLFOToMidiNote &&
+      this.#pitchLFO?.setMusicalNote(midiNote, { divisor: 4 });
 
     this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);
 
@@ -666,6 +686,17 @@ export class SamplePlayer implements ILibInstrumentNode {
     seconds: number,
     rampTime: number = this.getLoopRampDuration()
   ) => this.setLoopPoint('end', this.loopStart, seconds, rampTime);
+
+  setLoopDuration = (
+    seconds: number,
+    rampTime: number = this.getLoopRampDuration()
+  ) =>
+    this.setLoopPoint(
+      'end',
+      this.loopStart,
+      this.loopStart + seconds,
+      rampTime
+    );
 
   setLoopPoint(
     loopPoint: 'start' | 'end',

@@ -38,6 +38,10 @@
             <!-- Loop -->
             <loop-start-knob target-node-id="test-sampler"></loop-start-knob>
 
+            <loop-duration-knob
+              target-node-id="test-sampler"
+            ></loop-duration-knob>
+
             <loop-duration-drift-knob
               target-node-id="test-sampler"
             ></loop-duration-drift-knob>
@@ -59,7 +63,7 @@
             <drive-knob target-node-id="test-sampler"></drive-knob>
             <clipping-knob target-node-id="test-sampler"></clipping-knob>
 
-            <!-- Modulation -->
+            <!-- Pitch glide -->
             <glide-knob target-node-id="test-sampler"></glide-knob>
 
             <!-- Feedback controls -->
@@ -70,6 +74,11 @@
             <feedback-decay-knob
               target-node-id="test-sampler"
             ></feedback-decay-knob>
+
+            <!-- MODULATION -->
+
+            <!-- AM modulation -->
+            <am-mod-knob target-node-id="test-sampler"></am-mod-knob>
 
             <!-- Gain LFO -->
             <gain-lfo-rate-knob

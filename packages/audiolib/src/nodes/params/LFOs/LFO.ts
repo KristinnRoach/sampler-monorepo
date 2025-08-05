@@ -1,3 +1,10 @@
+import {
+  CustomLibWaveform,
+  createWave,
+  WaveformOptions,
+  isCustomLibWaveform,
+} from '@/utils/audiodata/generate/generateWaveForm';
+
 export class LFO {
   #context: AudioContext;
   #oscillator: OscillatorNode;
@@ -12,8 +19,8 @@ export class LFO {
     this.#oscillator = context.createOscillator();
     this.#gain = context.createGain();
 
-    this.#oscillator.frequency.value = 0.5; // 0.5 Hz default
-    this.#gain.gain.value = 0; // No modulation by default
+    this.#oscillator.frequency.value = 1; // 1Hz
+    this.#gain.gain.value = 0; // No mod
 
     this.#oscillator.connect(this.#gain);
 
@@ -36,19 +43,31 @@ export class LFO {
     this.#initialized = true;
   }
 
-  setFrequency(hz: number) {
-    this.#oscillator.frequency.value = hz;
+  setFrequency(hz: number, timestamp = this.now) {
+    this.#oscillator.frequency.setValueAtTime(hz, timestamp);
   }
 
-  setDepth(amount: number) {
-    this.#gain.gain.value = amount;
+  setDepth(amount: number, timestamp = this.now) {
+    this.#gain.gain.setValueAtTime(amount, timestamp);
   }
 
-  setWaveform(waveform: OscillatorType | PeriodicWave) {
+  setWaveform(
+    waveform: OscillatorType | PeriodicWave | CustomLibWaveform,
+    customWaveOptions?: WaveformOptions
+  ) {
     if (waveform instanceof PeriodicWave) {
       this.#oscillator.setPeriodicWave(waveform);
+    } else if (typeof waveform === 'string' && isCustomLibWaveform(waveform)) {
+      // It's a custom library waveform string
+      const periodicWave = createWave(
+        this.#context,
+        waveform,
+        customWaveOptions
+      );
+      this.#oscillator.setPeriodicWave(periodicWave);
     } else {
-      this.#oscillator.type = waveform;
+      // It's a built-in OscillatorType
+      this.#oscillator.type = waveform as OscillatorType;
     }
   }
 
@@ -74,9 +93,31 @@ export class LFO {
   }
 
   // Musical pitch helpers
-  setMusicalNote(midiNote: number, divisor = 1) {
+  setMusicalNote(
+    midiNote: number,
+    options: {
+      divisor?: number;
+      glideTime?: number;
+      timestamp?: number;
+      glideFromMidiNote?: number;
+    } = {}
+  ) {
+    const { divisor = 1, glideTime = 0, timestamp = this.now } = options;
     const hz = 440 * Math.pow(2, (midiNote - 69) / 12);
-    this.setFrequency(hz / divisor);
+    const scaledHz = hz / divisor;
+
+    if (glideTime <= 0.001) {
+      this.setFrequency(scaledHz, timestamp);
+      return this;
+    }
+
+    if (options.glideFromMidiNote) {
+      const fromHz = 440 * Math.pow(2, (midiNote - 69) / 12);
+      const fromScaledHz = fromHz / divisor;
+      this.setFrequency(fromScaledHz, timestamp);
+    }
+    // todo: test diff ramp methods
+    this.#oscillator.frequency.setTargetAtTime(scaledHz, timestamp, glideTime);
   }
 
   storeCurrentValues = () => {
@@ -111,7 +152,14 @@ export class LFO {
     return wave;
   }
 
+  get now() {
+    return this.#context.currentTime;
+  }
+
   dispose() {
+    this.#initialized = false;
+    this.#targets.clear();
+    this.#storedValues = null;
     this.#oscillator.stop();
     this.disconnect();
   }

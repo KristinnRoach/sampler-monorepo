@@ -6,7 +6,6 @@ import {
   COMPONENT_STYLE,
   CONTROL_ROW_STYLE,
   SMALL_BUTTON_STYLE,
-  HELP_TEXT_STYLE,
   DISABLED_STYLE,
 } from '../../../shared/styles/component-styles';
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
@@ -153,7 +152,6 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       {
         style: CONTROL_ROW_STYLE,
       },
-      div('Piano Keyboard'),
       button(
         {
           onclick: () => handleOctaveChange(-1),
@@ -170,10 +168,6 @@ export const PianoKeyboard = (attributes: ElementProps) => {
         'Oct >'
       )
     ),
-    keyboard,
-    div(
-      { style: HELP_TEXT_STYLE },
-      'Mouse/touch input • Keyboard handled by ComputerKeyboard component'
-    )
+    keyboard
   );
 };
