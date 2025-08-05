@@ -63,6 +63,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   const nodeId: State<string> = attributes.attr('node-id', '');
   const polyphony = attributes.attr('polyphony', '16');
+  const debugMode = attributes.attr('debug-mode', '');
   const status = van.state('Initializing...');
 
   attributes.mount(() => {
@@ -93,7 +94,6 @@ export const SamplerElement = (attributes: ElementProps) => {
         });
 
         samplePlayer.onMessage('sample:loaded', (msg: any) => {
-          console.log('Sample loaded message received:', msg);
           document.dispatchEvent(
             new CustomEvent('sample-loaded', {
               detail: {
@@ -122,14 +122,23 @@ export const SamplerElement = (attributes: ElementProps) => {
     };
   });
 
-  return div(
-    {
-      'node-id': () => nodeId.val,
-      style: COMPONENT_STYLE,
-    },
-    div(() => `Sampler: ${nodeId.val}`),
-    div(() => status.val)
-  );
+  // Only render debug information if debug-mode attribute is present
+  if (debugMode.val) {
+    return div(
+      {
+        'node-id': () => nodeId.val,
+        style: COMPONENT_STYLE,
+      },
+      div(() => `Sampler: ${nodeId.val}`),
+      div(() => status.val)
+    );
+  }
+
+  // Return invisible element that still maintains the nodeId attribute
+  return div({
+    'node-id': () => nodeId.val,
+    style: 'display: none;',
+  });
 };
 
 export const LoadButton = (attributes: ElementProps) => {

@@ -25,7 +25,7 @@ import { LFO } from '@/nodes/params/LFOs/LFO';
 import {
   CustomLibWaveform,
   WaveformOptions,
-} from '@/utils/audiodata/generate/generateWaveForm';
+} from '@/utils/audiodata/generate/generateWaveform';
 
 export class SampleVoice {
   // TODO: implements ILibAudioNode

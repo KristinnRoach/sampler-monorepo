@@ -1,14 +1,14 @@
-import van from '@repo/vanjs-core';
 import { qs } from './utils';
-import { makeDraggable } from './utils/makeDraggable';
 
 import { defineSampler } from '@repo/audio-components';
 
 defineSampler(); // Define all sampler components
 
-// setTimeout(() => { // Test auto-generated node ID
-//   const samplerEl = document.querySelector('sampler-element') as any;
-//   console.log('Auto-generated nodeId:', samplerEl?.nodeId);
-// }, 1000);
+document.addEventListener('DOMContentLoaded', () => {
+  console.debug('playground initialized');
+  const samplerEl = qs('sampler-element') as any;
 
-console.log('playground initialized');
+  setTimeout(() => {
+    console.debug(samplerEl.nodeId);
+  }, 10);
+});

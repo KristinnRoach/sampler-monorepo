@@ -101,16 +101,6 @@ export class CustomEnvelope implements LibNode {
     if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
   };
 
-  updateStartPoint = (time?: number, value?: number) => {
-    this.#data.updateStartPoint(time, value);
-    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
-  };
-
-  updateEndPoint = (time?: number, value?: number) => {
-    this.#data.updateEndPoint(time, value);
-    if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
-  };
-
   setSampleDuration(seconds: number) {
     this.#data.setDurationSeconds(seconds);
     return this;
@@ -777,7 +767,7 @@ export class CustomEnvelope implements LibNode {
           ],
           paramValueRange: [0, 1] as [number, number],
           initEnable: true,
-          sustainPointIndex: 2,
+          sustainPointIndex: null,
           releasePointIndex: 3, // release from second last point
         };
 
@@ -801,10 +791,10 @@ export class CustomEnvelope implements LibNode {
         return {
           points: [
             { time: 0, value: 250, curve: 'exponential' as const },
-            { time: 0.05, value: 18000, curve: 'exponential' as const },
+            { time: 0.1, value: 18000, curve: 'exponential' as const },
             {
               time: durationSeconds,
-              value: 500,
+              value: 0,
               curve: 'exponential' as const,
             },
           ],
@@ -818,7 +808,8 @@ export class CustomEnvelope implements LibNode {
         return {
           points: [
             { time: 0, value: 0, curve: 'linear' as const },
-            { time: durationSeconds, value: 1, curve: 'linear' as const },
+            { time: 0.1, value: 1, curve: 'linear' as const },
+            { time: durationSeconds, value: 0, curve: 'linear' as const },
           ],
           paramValueRange: [0, 1] as [number, number],
           initEnable: true,

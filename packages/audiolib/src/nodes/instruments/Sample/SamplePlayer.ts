@@ -27,7 +27,6 @@ import { BusEffectName } from '@/nodes/master/InstrumentMasterBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
-import { HarmonicFeedback } from '@/nodes/effects/HarmonicFeedback';
 import { localStore } from '@/storage/local';
 import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
 import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
@@ -35,7 +34,7 @@ import { createMessageBus, MessageBus } from '@/events';
 import {
   CustomLibWaveform,
   WaveformOptions,
-} from '@/utils/audiodata/generate/generateWaveForm';
+} from '@/utils/audiodata/generate/generateWaveform';
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
