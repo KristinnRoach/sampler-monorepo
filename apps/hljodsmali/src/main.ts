@@ -3,6 +3,7 @@ import gsap from 'gsap';
 import { makeDraggable } from './utils/makeDraggable';
 
 import { defineSampler } from '@repo/audio-components';
+import '@repo/audio-components/audio-components.css';
 
 defineSampler(); // Define all sampler components
 

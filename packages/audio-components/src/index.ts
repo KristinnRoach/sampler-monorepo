@@ -1,5 +1,8 @@
 // index.ts - audio-components package entry point
 
+// Import CSS for bundling
+import './shared/styles/audio-components.css';
+
 // Registry utilities
 export {
   getSampler,
@@ -14,7 +17,7 @@ export {
 export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
 
 // Basic controls
-export { LoadButton } from './elements/Sampler/Sampler';
+export { LoadButton as OptimizedLoadButton } from './elements/Sampler/components/LoadButton';
 export { RecordButton } from './elements/Sampler/components/RecordButton';
 
 // Knob components

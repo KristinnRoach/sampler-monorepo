@@ -53,8 +53,9 @@ import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { RecordButton } from './components/RecordButton';
+import { LoadButton } from './components/LoadButton';
 
-const { div, button } = van.tags;
+const { div } = van.tags;
 
 // ===== SAMPLER ENGINE =====
 export const SamplerElement = (attributes: ElementProps) => {
@@ -141,55 +142,55 @@ export const SamplerElement = (attributes: ElementProps) => {
   });
 };
 
-export const LoadButton = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const status = van.state('Ready');
+// export const LoadButton = (attributes: ElementProps) => {
+//   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+//   const status = van.state('Ready');
 
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
+//   const findNodeId = createFindNodeId(attributes, targetNodeId);
 
-  const loadSample = async () => {
-    const nodeId = findNodeId();
-    if (!nodeId) {
-      status.val = 'Sampler not found';
-      return;
-    }
-    const sampler = getSampler(nodeId);
-    if (!sampler) {
-      status.val = 'Sampler not found';
-      return;
-    }
+//   const loadSample = async () => {
+//     const nodeId = findNodeId();
+//     if (!nodeId) {
+//       status.val = 'Sampler not found';
+//       return;
+//     }
+//     const sampler = getSampler(nodeId);
+//     if (!sampler) {
+//       status.val = 'Sampler not found';
+//       return;
+//     }
 
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'audio/*';
+//     const fileInput = document.createElement('input');
+//     fileInput.type = 'file';
+//     fileInput.accept = 'audio/*';
 
-    fileInput.onchange = async (event) => {
-      const target = event.target as HTMLInputElement;
-      const files = target.files;
+//     fileInput.onchange = async (event) => {
+//       const target = event.target as HTMLInputElement;
+//       const files = target.files;
 
-      if (files && files.length > 0) {
-        const file = files[0];
-        status.val = `Loading: ${file.name}...`;
+//       if (files && files.length > 0) {
+//         const file = files[0];
+//         status.val = `Loading: ${file.name}...`;
 
-        try {
-          const arrayBuffer = await file.arrayBuffer();
-          await sampler.loadSample(arrayBuffer);
-          status.val = `Loaded: ${file.name}`;
-        } catch (error) {
-          status.val = `Error: ${error}`;
-        }
-      }
-    };
+//         try {
+//           const arrayBuffer = await file.arrayBuffer();
+//           await sampler.loadSample(arrayBuffer);
+//           status.val = `Loaded: ${file.name}`;
+//         } catch (error) {
+//           status.val = `Error: ${error}`;
+//         }
+//       }
+//     };
 
-    fileInput.click();
-  };
+//     fileInput.click();
+//   };
 
-  return div(
-    { style: COMPONENT_STYLE },
-    button({ onclick: loadSample, style: BUTTON_STYLE }, 'Load Sample'),
-    div(() => status.val)
-  );
-};
+//   return div(
+//     { style: COMPONENT_STYLE },
+//     button({ onclick: loadSample, style: BUTTON_STYLE }, 'Load Sample'),
+//     div(() => status.val)
+//   );
+// };
 
 // ===== EXPORT ALL COMPONENTS =====
 export {
@@ -228,6 +229,7 @@ export {
   ComputerKeyboard,
   PianoKeyboard,
   RecordButton,
+  LoadButton as OptimizedLoadButton,
 
   // Envelopes
   EnvelopeDisplay,

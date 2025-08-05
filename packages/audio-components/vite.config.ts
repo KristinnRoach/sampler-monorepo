@@ -16,8 +16,17 @@ export default defineConfig({
         globals: {
           '@repo/audiolib': 'audiolib',
         },
+        // Ensure CSS is extracted to a separate file
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith('.css')) {
+            return 'audio-components.css';
+          }
+          return assetInfo.name || 'assets/[name].[ext]';
+        },
       },
     },
+    // Ensure CSS is extracted
+    cssCodeSplit: false,
   },
   plugins: [
     dts({

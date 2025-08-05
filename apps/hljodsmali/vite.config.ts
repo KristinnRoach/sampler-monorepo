@@ -42,7 +42,7 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
       '@repo/audio-components': resolve(
         __dirname,
-        '../../packages/audio-components/dist/index.js'
+        '../../packages/audio-components/dist'
       ),
     },
   },
