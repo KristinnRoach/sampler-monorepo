@@ -27,29 +27,45 @@ export const RecordButton = (attributes: ElementProps) => {
     if (!sampler || recordBtnState.val === 'Recording') return;
 
     try {
-      if (!currentRecorder) {
-        const recorderResult = await createAudioRecorder(sampler.context);
+      // Create a new recorder for each recording session
+      const recorderResult = await createAudioRecorder(sampler.context);
 
-        if (!recorderResult) {
-          status.val = 'Failed to create recorder';
-          return;
-        }
-
-        currentRecorder = recorderResult;
-        currentRecorder.connect(sampler);
+      if (!recorderResult) {
+        status.val = 'Failed to create recorder';
+        return;
       }
 
+      currentRecorder = recorderResult;
+      currentRecorder.connect(sampler);
+
+      // Event listeners (must be set up before calling recorder.start)
+      currentRecorder.onMessage('state-change', (msg: any) => {
+        // Map Recorder states to button states
+        console.log('Received state-change:', msg);
+        switch (msg.state) {
+          case 'ARMED':
+            recordBtnState.val = 'Armed';
+            break;
+          case 'RECORDING':
+            recordBtnState.val = 'Recording';
+            break;
+          case 'IDLE':
+          case 'STOPPED':
+          default:
+            recordBtnState.val = 'Record';
+            break;
+        }
+
+        status.val = msg.state;
+      });
+
+      // Start recording
       await currentRecorder.start({
         useThreshold: true,
         startThreshold: -30,
         autoStop: true,
         stopThreshold: -40,
         silenceTimeoutMs: 1000,
-      });
-
-      currentRecorder.onMessage('state-change', (msg: any) => {
-        recordBtnState.val = msg.state;
-        status.val = msg.state;
       });
     } catch (error) {
       console.error('Failed to start recording:', error);
@@ -63,6 +79,7 @@ export const RecordButton = (attributes: ElementProps) => {
 
     try {
       await currentRecorder.stop();
+      currentRecorder = null;
       recordBtnState.val = 'Record';
       status.val = 'Recording stopped';
     } catch (error) {

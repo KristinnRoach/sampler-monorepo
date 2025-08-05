@@ -115,7 +115,6 @@ export class Recorder implements LibNode {
     this.#state = AudioRecorderState.ARMED;
     console.info('Recorder state: ARMED');
 
-    // ! record:armed doesnt seem to send a reliable message
     this.sendMessage('record:armed', {
       threshold: this.#config!.startThreshold,
       destination: this.#destination,
