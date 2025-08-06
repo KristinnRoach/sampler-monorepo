@@ -17,8 +17,10 @@ export {
 export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
 
 // Basic controls
-export { LoadButton as OptimizedLoadButton } from './elements/Sampler/components/LoadButton';
-export { RecordButton } from './elements/Sampler/components/RecordButton';
+export {
+  LoadButton as OptimizedLoadButton,
+  RecordButton,
+} from './elements/Sampler/components/SamplerButtonFactory';
 
 // Knob components
 export {
@@ -58,6 +60,9 @@ export {
 // Input controls
 export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard';
 export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
+
+// Select controls
+export { KeymapSelect } from './elements/Sampler/components/SamplerSelectFactory';
 
 // Envelopes
 export { EnvelopeDisplay } from './elements/Sampler/components/EnvelopeDisplay';

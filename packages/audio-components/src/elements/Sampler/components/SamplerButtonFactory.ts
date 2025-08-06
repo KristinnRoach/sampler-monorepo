@@ -1,8 +1,9 @@
-// RecordButton.ts
+// SamplerButtonFactory.ts - Button components for sampler controls
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
 import { getSampler, onRegistryChange } from '../SamplerRegistry';
+import { createFindNodeId } from '../../../shared/utils/component-utils';
 import {
   COMPONENT_STYLE,
   BUTTON_STYLE,
@@ -13,11 +14,72 @@ import {
 
 const { div, button } = van.tags;
 
-export const RecordButton = (attributes: ElementProps) => {
+// ===== LOAD BUTTON =====
+
+export const LoadButton = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const showStatus = attributes.attr('show-status', 'true');
   const status = van.state('Ready');
 
-  // Simple reactive approach: track the recorder and its state separately
+  const findNodeId = createFindNodeId(attributes, targetNodeId);
+
+  const loadSample = async () => {
+    const nodeId = findNodeId();
+    if (!nodeId) {
+      status.val = 'Sampler not found';
+      return;
+    }
+    const sampler = getSampler(nodeId);
+    if (!sampler) {
+      status.val = 'Sampler not found';
+      return;
+    }
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'audio/*';
+
+    fileInput.onchange = async (event) => {
+      const target = event.target as HTMLInputElement;
+      const files = target.files;
+
+      if (files && files.length > 0) {
+        const file = files[0];
+        status.val = `Loading: ${file.name}...`;
+
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          await sampler.loadSample(arrayBuffer);
+          status.val = `Loaded: ${file.name}`;
+        } catch (error) {
+          status.val = `Error: ${error}`;
+        }
+      }
+    };
+
+    fileInput.click();
+  };
+
+  return div(
+    { style: COMPONENT_STYLE },
+    button(
+      {
+        onclick: loadSample,
+        style: BUTTON_STYLE,
+      },
+      'Load Sample'
+    ),
+    ...(showStatus.val === 'true' ? [div(() => status.val)] : [])
+  );
+};
+
+// ===== RECORD BUTTON =====
+
+export const RecordButton = (attributes: ElementProps) => {
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const showStatus = attributes.attr('show-status', 'true');
+  const status = van.state('Ready');
+
   const currentRecorder: State<Recorder | null> = van.state(null);
   const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
     van.state('Record');
@@ -28,7 +90,6 @@ export const RecordButton = (attributes: ElementProps) => {
     if (!sampler || recordBtnState.val === 'Recording') return;
 
     try {
-      // Create a new recorder for each recording session
       const recorderResult = await createAudioRecorder(sampler.context);
 
       if (!recorderResult) {
@@ -39,11 +100,9 @@ export const RecordButton = (attributes: ElementProps) => {
       currentRecorder.val = recorderResult;
       currentRecorder.val.connect(sampler);
 
-      // Listen for state changes and update button state directly
       currentRecorder.val.onMessage('state-change', (msg: any) => {
         status.val = msg.state;
 
-        // Directly map recorder state to button state
         switch (msg.state) {
           case 'ARMED':
             recordBtnState.val = 'Armed';
@@ -59,7 +118,6 @@ export const RecordButton = (attributes: ElementProps) => {
         }
       });
 
-      // Start recording
       await currentRecorder.val.start({
         useThreshold: true,
         startThreshold: -30,
@@ -96,7 +154,6 @@ export const RecordButton = (attributes: ElementProps) => {
     if (recordBtnState.val === 'Record') {
       await startRecording();
     } else if (recordBtnState.val === 'Armed') {
-      // Force recording to start immediately when armed
       if (currentRecorder.val) {
         currentRecorder.val.forceStart();
       }
@@ -144,7 +201,7 @@ export const RecordButton = (attributes: ElementProps) => {
   });
 
   return div(
-    { class: 'record-button-control', style: COMPONENT_STYLE },
+    { style: COMPONENT_STYLE },
     button(
       {
         onclick: handleClick,
@@ -153,6 +210,6 @@ export const RecordButton = (attributes: ElementProps) => {
       },
       getButtonText
     ),
-    div(() => status.val)
+    ...(showStatus.val === 'true' ? [div(() => status.val)] : [])
   );
 };

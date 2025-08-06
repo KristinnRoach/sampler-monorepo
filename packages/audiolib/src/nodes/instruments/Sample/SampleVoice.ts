@@ -284,7 +284,7 @@ export class SampleVoice {
     });
 
     this.#am_lfo?.setMusicalNote(midiNote, {
-      divisor: 0.5, // dividing hz by 0.5 sounds more like unison than 1
+      divisor: 1,
       glideTime: scaledGlideTime,
       glideFromMidiNote: options?.glide?.prevMidiNote,
       timestamp,

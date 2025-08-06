@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Sampler Demo</title>
+    <title>Hljóðsmali</title>
 
     <meta
       name="description"
@@ -18,187 +18,150 @@
 
     <script type="module" src="./src/main.ts" defer></script>
   </head>
-  <body>
+
+  <body class="ac-theme--dark">
     <div id="page-wrapper" class="page-wrapper">
-      <div style="padding: 2rem">
+      <main class="sampler-demo">
+        <div class="top-bar">
+          <load-button
+            target-node-id="test-sampler"
+            show-status="false"
+          ></load-button>
+          <record-button
+            target-node-id="test-sampler"
+            show-status="false"
+          ></record-button>
+        </div>
+
+        <!-- Core sampler engine (invisible by default) -->
         <sampler-element node-id="test-sampler"></sampler-element>
 
-        <div style="margin: 1rem 0; padding: 1rem; border: 1px solid #ccc">
-          <div style="display: flex; gap: 1rem; flex-wrap: wrap">
-            <!-- Envelopes -->
-            <section class="envelope-section">
-              <div class="grid-section">
-                <envelope-switcher
-                  target-node-id="test-sampler"
-                  width="100%"
-                  height="200px"
-                ></envelope-switcher>
-              </div>
-            </section>
+        <!-- Controls organized by function -->
+        <section class="sampler-controls">
+          <!-- Main mix -->
+          <div class="control-group">
+            <h3>Main Controls</h3>
+            <div class="ac-layout--grid knob-grid">
+              <volume-knob target-node-id="test-sampler"></volume-knob>
+              <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
+              <reverb-knob target-node-id="test-sampler"></reverb-knob>
 
-            <!-- <envelope-display
-              target-node-id="test-sampler"
-              envelope-type="amp-env"
-            ></envelope-display>
+              <!-- Filters -->
+              <lowpass-filter-knob
+                target-node-id="test-sampler"
+              ></lowpass-filter-knob>
+              <highpass-filter-knob
+                target-node-id="test-sampler"
+              ></highpass-filter-knob>
 
-            <envelope-display
-              target-node-id="test-sampler"
-              envelope-type="pitch-env"
-            ></envelope-display>
-
-            <envelope-display
-              target-node-id="test-sampler"
-              envelope-type="filter-env"
-            ></envelope-display> -->
-
-            <!-- Record / load sample -->
-
-            <section class="rec-load-section">
-              <div class="grid-section">
-                <record-button target-node-id="test-sampler"></record-button>
-                <load-button target-node-id="test-sampler"></load-button>
-              </div>
-            </section>
-
-            <section class="knob-section">
-              <div class="grid-section">
-                <!-- Volume and mixing -->
-                <div>
-                  <volume-knob target-node-id="test-sampler"></volume-knob>
-                  <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
-                  <glide-knob target-node-id="test-sampler"></glide-knob>
-                </div>
-
-                <!-- Loop -->
-                <div>
-                  <loop-start-knob
-                    target-node-id="test-sampler"
-                  ></loop-start-knob>
-
-                  <loop-duration-knob
-                    target-node-id="test-sampler"
-                  ></loop-duration-knob>
-
-                  <loop-duration-drift-knob
-                    target-node-id="test-sampler"
-                  ></loop-duration-drift-knob>
-                </div>
-
-                <!-- Filters -->
-                <div>
-                  <lowpass-filter-knob
-                    target-node-id="test-sampler"
-                  ></lowpass-filter-knob>
-
-                  <highpass-filter-knob
-                    target-node-id="test-sampler"
-                  ></highpass-filter-knob>
-                </div>
-
-                <!-- Effects -->
-                <div>
-                  <reverb-knob target-node-id="test-sampler"></reverb-knob>
-                  <drive-knob target-node-id="test-sampler"></drive-knob>
-                  <clipping-knob target-node-id="test-sampler"></clipping-knob>
-                </div>
-
-                <!-- Feedback controls -->
-                <div>
-                  <feedback-knob target-node-id="test-sampler"></feedback-knob>
-
-                  <feedback-pitch-knob
-                    target-node-id="test-sampler"
-                  ></feedback-pitch-knob>
-
-                  <feedback-decay-knob
-                    target-node-id="test-sampler"
-                  ></feedback-decay-knob>
-                </div>
-
-                <!-- MODULATION -->
-
-                <!-- AM modulation -->
-                <div>
-                  <am-mod-knob target-node-id="test-sampler"></am-mod-knob>
-                </div>
-
-                <div>
-                  <!-- Gain LFO -->
-                  <gain-lfo-rate-knob
-                    target-node-id="test-sampler"
-                  ></gain-lfo-rate-knob>
-
-                  <gain-lfo-depth-knob
-                    target-node-id="test-sampler"
-                  ></gain-lfo-depth-knob>
-
-                  <!-- Pitch LFO -->
-                  <pitch-lfo-rate-knob
-                    target-node-id="test-sampler"
-                  ></pitch-lfo-rate-knob>
-
-                  <pitch-lfo-depth-knob
-                    target-node-id="test-sampler"
-                  ></pitch-lfo-depth-knob>
-                </div>
-              </div>
-            </section>
-
-            <!-- Toggles -->
-            <section class="toggle-section">
-              <div class="grid-section">
-                <midi-toggle target-node-id="test-sampler"></midi-toggle>
-
-                <feedback-mode-toggle
-                  target-node-id="test-sampler"
-                ></feedback-mode-toggle>
-
-                <loop-lock-toggle
-                  target-node-id="test-sampler"
-                ></loop-lock-toggle>
-
-                <hold-lock-toggle
-                  target-node-id="test-sampler"
-                ></hold-lock-toggle>
-
-                <playback-direction-toggle
-                  target-node-id="test-sampler"
-                ></playback-direction-toggle>
-
-                <gain-lfo-sync-toggle
-                  target-node-id="test-sampler"
-                ></gain-lfo-sync-toggle>
-
-                <pitch-lfo-sync-toggle
-                  target-node-id="test-sampler"
-                ></pitch-lfo-sync-toggle>
-
-                <pan-drift-toggle
-                  target-node-id="test-sampler"
-                ></pan-drift-toggle>
-              </div>
-            </section>
+              <!-- Loop controls -->
+              <loop-start-knob target-node-id="test-sampler"></loop-start-knob>
+              <loop-duration-knob
+                target-node-id="test-sampler"
+              ></loop-duration-knob>
+              <loop-duration-drift-knob
+                target-node-id="test-sampler"
+              ></loop-duration-drift-knob>
+            </div>
           </div>
 
-          <section class="keyboard-section">
-            <div class="grid-section">
-              <!-- Computer keyboard with modifier keys -->
+          <!-- Envelope display -->
+          <div class="control-group">
+            <h3>Envelopes</h3>
+            <envelope-switcher
+              target-node-id="test-sampler"
+              width="100%"
+              height="200px"
+            >
+            </envelope-switcher>
+          </div>
+
+          <!-- Effects knobs -->
+          <div class="control-group">
+            <h3>Effects</h3>
+            <div class="ac-layout--grid knob-grid">
+              <drive-knob target-node-id="test-sampler"></drive-knob>
+              <clipping-knob target-node-id="test-sampler"></clipping-knob>
+              <feedback-knob target-node-id="test-sampler"></feedback-knob>
+              <glide-knob target-node-id="test-sampler"></glide-knob>
+              <feedback-pitch-knob
+                target-node-id="test-sampler"
+              ></feedback-pitch-knob>
+              <feedback-decay-knob
+                target-node-id="test-sampler"
+              ></feedback-decay-knob>
+              <am-mod-knob target-node-id="test-sampler"></am-mod-knob>
+            </div>
+          </div>
+
+          <!-- Modulation -->
+          <div class="control-group">
+            <h3>LFO</h3>
+            <div class="ac-layout--grid knob-grid">
+              <gain-lfo-rate-knob
+                target-node-id="test-sampler"
+              ></gain-lfo-rate-knob>
+              <gain-lfo-depth-knob
+                target-node-id="test-sampler"
+              ></gain-lfo-depth-knob>
+              <pitch-lfo-rate-knob
+                target-node-id="test-sampler"
+              ></pitch-lfo-rate-knob>
+              <pitch-lfo-depth-knob
+                target-node-id="test-sampler"
+              ></pitch-lfo-depth-knob>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="control-group">
+            <h3>Mode</h3>
+            <div class="ac-layout--grid toggle-grid">
+              <midi-toggle target-node-id="test-sampler"></midi-toggle>
+
+              <loop-lock-toggle
+                target-node-id="test-sampler"
+              ></loop-lock-toggle>
+              <hold-lock-toggle
+                target-node-id="test-sampler"
+              ></hold-lock-toggle>
+
+              <feedback-mode-toggle
+                target-node-id="test-sampler"
+              ></feedback-mode-toggle>
+              <playback-direction-toggle
+                target-node-id="test-sampler"
+              ></playback-direction-toggle>
+              <gain-lfo-sync-toggle
+                target-node-id="test-sampler"
+              ></gain-lfo-sync-toggle>
+              <pitch-lfo-sync-toggle
+                target-node-id="test-sampler"
+              ></pitch-lfo-sync-toggle>
+              <pan-drift-toggle
+                target-node-id="test-sampler"
+              ></pan-drift-toggle>
+            </div>
+          </div>
+
+          <!-- Input controls -->
+          <div class="control-group control-group--wide">
+            <h3>Input</h3>
+            <div class="inline">
               <computer-keyboard
                 target-node-id="test-sampler"
               ></computer-keyboard>
-
-              <!-- Visual piano keyboard -->
+              <keymap-select target-node-id="test-sampler"></keymap-select>
               <piano-keyboard
                 target-node-id="test-sampler"
-                width="800"
-                height="80"
-                min-note="12"
-                num-keys="60"
-              ></piano-keyboard>
+                width="400"
+                height="60"
+              >
+              </piano-keyboard>
             </div>
-          </section>
-        </div>
-      </div>
+          </div>
+        </section>
+      </main>
     </div>
   </body>
 </html>

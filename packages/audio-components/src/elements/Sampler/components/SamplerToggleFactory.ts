@@ -3,7 +3,7 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
 import { Toggle } from '../../primitives/VanToggle';
-import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
+import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import {
   createToggle,
   ToggleConfig,
@@ -15,8 +15,8 @@ const feedbackModeConfig: ToggleConfig = {
   label: 'Feedback Mode',
   defaultValue: false, // false = monophonic, true = polyphonic
   onColor: '#4CAF50',
-  offText: 'Monophonic',
-  onText: 'Polyphonic',
+  offText: 'M',
+  onText: 'P',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       const mode = state.val ? 'polyphonic' : 'monophonic';
@@ -29,8 +29,8 @@ const midiConfig: ToggleConfig = {
   label: 'MIDI',
   defaultValue: true,
   onColor: '#4CAF50',
-  offText: 'OFF',
-  onText: 'ON',
+  offText: '○',
+  onText: '●',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       if (state.val) {
@@ -58,8 +58,8 @@ const loopLockConfig: ToggleConfig = {
   label: 'Loop Lock',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'FREE',
-  onText: 'LOCKED',
+  offText: '○',
+  onText: '🔒',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.setLoopLocked(state.val));
   },
@@ -69,8 +69,8 @@ const holdLockConfig: ToggleConfig = {
   label: 'Hold Lock',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'FREE',
-  onText: 'LOCKED',
+  offText: '○',
+  onText: '⏸',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.setHoldLocked(state.val));
   },
@@ -80,8 +80,8 @@ const gainLFOSyncConfig: ToggleConfig = {
   label: 'Gain LFO Sync',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'FREE',
-  onText: 'SYNCED',
+  offText: '○',
+  onText: '🔗',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', state.val));
   },
@@ -91,8 +91,8 @@ const pitchLFOSyncConfig: ToggleConfig = {
   label: 'Pitch LFO Sync',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'FREE',
-  onText: 'SYNCED',
+  offText: '○',
+  onText: '🔗',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', state.val));
   },
@@ -102,8 +102,8 @@ const playbackDirectionConfig: ToggleConfig = {
   label: 'Direction',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'FORWARD',
-  onText: 'REVERSE',
+  offText: '→',
+  onText: '←',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       const direction = state.val === true ? 'reverse' : 'forward';
@@ -116,8 +116,8 @@ const panDriftConfig: ToggleConfig = {
   label: 'Pan Drift',
   defaultValue: true,
   onColor: '#ff9800',
-  offText: 'DISABLED',
-  onText: 'ENABLED',
+  offText: '○',
+  onText: '◐',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       sampler.setPanDriftEnabled(state.val);
@@ -132,7 +132,7 @@ export const FeedbackModeToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const MidiToggle = createToggle(
@@ -140,7 +140,7 @@ export const MidiToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const LoopLockToggle = createToggle(
@@ -148,7 +148,7 @@ export const LoopLockToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const HoldLockToggle = createToggle(
@@ -156,7 +156,7 @@ export const HoldLockToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const GainLFOSyncNoteToggle = createToggle(
@@ -164,7 +164,7 @@ export const GainLFOSyncNoteToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const PitchLFOSyncNoteToggle = createToggle(
@@ -172,7 +172,7 @@ export const PitchLFOSyncNoteToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const PlaybackDirectionToggle = createToggle(
@@ -180,7 +180,7 @@ export const PlaybackDirectionToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
 
 export const PanDriftToggle = createToggle(
@@ -188,5 +188,5 @@ export const PanDriftToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
