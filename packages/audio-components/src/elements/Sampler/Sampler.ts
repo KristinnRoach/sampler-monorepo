@@ -52,8 +52,8 @@ import { EnvelopeDisplay } from './components/EnvelopeDisplay';
 import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
-import { RecordButton } from './components/RecordButton';
-import { LoadButton } from './components/LoadButton';
+import { RecordButton, LoadButton } from './components/SamplerButtonFactory';
+import { KeymapSelect } from './components/SamplerSelectFactory';
 
 const { div } = van.tags;
 
@@ -229,7 +229,10 @@ export {
   ComputerKeyboard,
   PianoKeyboard,
   RecordButton,
-  LoadButton as OptimizedLoadButton,
+  LoadButton,
+
+  // Select components
+  KeymapSelect,
 
   // Envelopes
   EnvelopeDisplay,
@@ -292,6 +295,9 @@ export const defineSampler = () => {
   // Input controls
   defineIfNotExists('computer-keyboard', ComputerKeyboard, false);
   defineIfNotExists('piano-keyboard', PianoKeyboard, false);
+
+  // Select controls
+  defineIfNotExists('keymap-select', KeymapSelect, false);
 };
 
 defineSampler();

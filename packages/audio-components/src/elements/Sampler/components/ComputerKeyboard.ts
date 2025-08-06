@@ -16,7 +16,7 @@ import {
   HELP_TEXT_STYLE,
 } from '../../../shared/styles/component-styles';
 
-const { div, select, option } = van.tags;
+const { div } = van.tags;
 
 export const ComputerKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
@@ -25,29 +25,19 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   const octaveOffset = van.state(1); // todo: make 0 default work for major / minor
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
+  const showUI = attributes.attr('show-ui', 'false'); // Hidden by default
   const MAX_OCT_SHIFT = 3;
   const MIN_OCT_SHIFT = -3;
 
   let spacePressed = false;
   let keyHandlersAttached = false;
 
-  // Broadcast keymap changes
-  const broadcastKeymapChange = () => {
-    document.dispatchEvent(
-      new CustomEvent('keymap-changed', {
-        detail: {
-          keymap: currentKeymap.val,
-          octaveOffset: octaveOffset.val,
-          targetNodeId: targetNodeId.val,
-        },
-      })
-    );
+  // Listen for keymap changes from the select component
+  const handleKeymapChange = (e: CustomEvent) => {
+    if (e.detail.targetNodeId === targetNodeId.val) {
+      currentKeymap.val = e.detail.keymap;
+    }
   };
-
-  // Broadcast initial keymap and when it changes
-  van.derive(() => {
-    broadcastKeymapChange();
-  });
 
   const handleOctaveChange = (direction: number) => {
     const newOct = octaveOffset.val + direction;
@@ -140,9 +130,19 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   }, 500);
 
   attributes.mount(() => {
+    // Listen for keymap changes from the select component
+    document.addEventListener(
+      'keymap-changed',
+      handleKeymapChange as EventListener
+    );
+
     setTimeout(updateKeyboardHandlers, 100);
     return () => {
       clearInterval(checkInterval);
+      document.removeEventListener(
+        'keymap-changed',
+        handleKeymapChange as EventListener
+      );
       if (keyHandlersAttached) {
         document.removeEventListener('keydown', keyDown);
         document.removeEventListener('keyup', keyUp);
@@ -152,45 +152,26 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     };
   });
 
-  // Available keymaps
-  const keymapOptions = [
-    { value: 'default', label: 'Default' },
-    { value: 'major', label: 'Major Scale' },
-    { value: 'minor', label: 'Minor Scale' },
-    { value: 'pentatonic', label: 'Pentatonic' },
-  ];
-
   return div(
     {
       class: 'computer-keyboard-control',
-      style: COMPONENT_STYLE,
+      style: showUI.val === 'true' ? COMPONENT_STYLE : 'display: none;',
     },
 
-    div(
-      { style: CONTROL_GROUP_STYLE },
-      'Keymap: ',
-      select(
-        {
-          onchange: (e: Event) => {
-            const target = e.target as HTMLSelectElement;
-            const selectedKeymap = target.value as keyof typeof KeyMaps;
-            currentKeymap.val = KeyMaps[selectedKeymap] || KeyMaps.default;
-          },
-          style: SELECT_STYLE,
-        },
-        ...keymapOptions.map((opt) => option({ value: opt.value }, opt.label))
-      )
-    ),
+    // Only show UI elements if showUI is true
+    ...(showUI.val === 'true'
+      ? [
+          div(
+            () => `Loop: ${loopEnabled.val ? 'ON' : 'OFF'}`,
+            ' | ',
+            () => `Hold: ${holdEnabled.val ? 'ON' : 'OFF'}`
+          ),
 
-    div(
-      () => `Loop: ${loopEnabled.val ? 'ON' : 'OFF'}`,
-      ' | ',
-      () => `Hold: ${holdEnabled.val ? 'ON' : 'OFF'}`
-    ),
-
-    div(
-      { style: HELP_TEXT_STYLE },
-      'CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave'
-    )
+          div(
+            { style: HELP_TEXT_STYLE },
+            'CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave'
+          ),
+        ]
+      : [])
   );
 };
