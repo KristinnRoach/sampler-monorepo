@@ -64,12 +64,12 @@ export const EnvelopeSVG = (
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
+  const CIRCLE_PADDING = 8; // Padding to prevent circles from being cut off
 
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
   let waveformPath: SVGPathElement | null = null;
-  //   let playheadManager: PlayheadManager;
 
   // UI states
   const enabled = van.state<boolean>(envelopeInfo.isEnabled);
@@ -102,10 +102,12 @@ export const EnvelopeSVG = (
 
       circle.setAttribute(
         'cx',
-        secondsToScreenX(
-          point.time,
-          envelopeInfo.fullDuration,
-          SVG_WIDTH
+        (
+          secondsToScreenX(
+            point.time,
+            envelopeInfo.fullDuration,
+            SVG_WIDTH - 2 * CIRCLE_PADDING
+          ) + CIRCLE_PADDING
         ).toString()
       );
 
@@ -116,7 +118,10 @@ export const EnvelopeSVG = (
       );
       circle.setAttribute(
         'cy',
-        ((1 - normalizedValue) * SVG_HEIGHT).toString()
+        (
+          (1 - normalizedValue) * (SVG_HEIGHT - 2 * CIRCLE_PADDING) +
+          CIRCLE_PADDING
+        ).toString()
       );
 
       circle.setAttribute('r', '4');
@@ -307,10 +312,12 @@ export const EnvelopeSVG = (
       generateSVGPath(
         envelopeInfo.points,
         envelopeInfo.fullDuration,
-        SVG_WIDTH,
-        SVG_HEIGHT,
+        SVG_WIDTH - 2 * CIRCLE_PADDING,
+        SVG_HEIGHT - 2 * CIRCLE_PADDING,
         envelopeInfo.valueRange,
-        envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
+        envelopeType === 'filter-env' ? 'logarithmic' : 'linear',
+        CIRCLE_PADDING,
+        CIRCLE_PADDING
       )
     );
   };
@@ -351,8 +358,8 @@ export const EnvelopeSVG = (
 
     const waveformSVGData = getWaveformSVGData(
       audiobuffer,
-      SVG_WIDTH,
-      SVG_HEIGHT
+      SVG_WIDTH - 2 * CIRCLE_PADDING,
+      SVG_HEIGHT - 2 * CIRCLE_PADDING
     );
 
     waveformPath = path({
@@ -363,6 +370,7 @@ export const EnvelopeSVG = (
       'stroke-width': 1,
       style: 'z-index: -999; pointer-events: none; ',
       'pointer-events': 'none', // SVG attribute, not CSS
+      transform: `translate(${CIRCLE_PADDING}, ${CIRCLE_PADDING})`,
     }) as SVGPathElement;
 
     // Insert waveform before points group
@@ -388,14 +396,14 @@ export const EnvelopeSVG = (
       const rect = svgElement.getBoundingClientRect();
 
       let time = screenXToSeconds(
-        e.clientX - rect.left,
-        rect.width,
+        e.clientX - rect.left - CIRCLE_PADDING,
+        rect.width - 2 * CIRCLE_PADDING,
         envelopeInfo.fullDuration
       );
 
       let value = screenYToAbsoluteValue(
-        e.clientY - rect.top,
-        rect.height,
+        e.clientY - rect.top - CIRCLE_PADDING,
+        rect.height - 2 * CIRCLE_PADDING,
         envelopeInfo.valueRange
       );
 
@@ -456,17 +464,27 @@ export const EnvelopeSVG = (
     if (isDragging.val) return;
     const rect = svgElement.getBoundingClientRect();
 
-    const time = screenXToSeconds(
-      e.clientX - rect.left,
-      rect.width,
+    let time = screenXToSeconds(
+      e.clientX - rect.left - CIRCLE_PADDING,
+      rect.width - 2 * CIRCLE_PADDING,
       envelopeInfo.fullDuration
     );
 
     let value = screenYToAbsoluteValue(
-      e.clientY - rect.top,
-      rect.height,
+      e.clientY - rect.top - CIRCLE_PADDING,
+      rect.height - 2 * CIRCLE_PADDING,
       envelopeInfo.valueRange
     );
+
+    // Apply snapping for consistency with drag behavior
+    value = applySnappingAbsolute(
+      value,
+      snapToValues.y,
+      snapThreshold,
+      envelopeInfo.valueRange
+    );
+
+    time = applySnapping(time, snapToValues.x, snapThreshold);
 
     // Convert to logarithmic space for filter envelopes
     if (envelopeType === 'filter-env') {

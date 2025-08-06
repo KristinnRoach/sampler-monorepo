@@ -1,0 +1,102 @@
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Open Sans',
+    'Helvetica Neue',
+    sans-serif;
+  line-height: 1.6;
+  color: white;
+
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+  background-color: #ebfa7bf0; /* #35883fd5; */ /* old yellow: #c0c44fd5; */
+}
+
+.page-wrapper {
+  height: 100vh;
+  max-height: 100vh;
+  height: clamp(100dvh, 100dvh, 100dvh);
+  max-width: 100vw;
+  width: clamp(100dvw, 100dvw, 100dvw);
+
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: 'main';
+}
+
+/* Animation-ready styles for sampler components */
+[target-node-id='test-sampler'] > div {
+  /* Ensure elements are positioned for animation */
+  transform-origin: center;
+  will-change: opacity, transform;
+
+  background: #474747;
+  border-radius: 22px;
+  padding: 1rem;
+}
+
+.grid-section {
+  display: grid;
+  /* grid-auto-flow: dense; */
+  grid-gap: 1rem;
+  padding: 1rem;
+
+  background: #474747;
+  border-radius: 22px;
+  padding: 1rem;
+}
+
+/* Prevent layout shifts during animation */
+.page-wrapper > div {
+  min-height: 100vh;
+}
+
+.draggable {
+  position: absolute;
+  background-color: #333;
+  border: 4px solid rgba(27, 122, 30, 0.894);
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.drag-handle {
+  width: 2rem;
+  height: 1rem;
+  background: rgb(0, 98, 105);
+  position: absolute;
+  right: 0;
+  top: 0;
+  margin: 0.5rem;
+  border: solid 2px rgb(0, 0, 0);
+  border-radius: 20px;
+}
+
+/* 
+.nodes-playground {
+  grid-area: main;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(45dvw, 1fr));
+  grid-template-rows: repeat(auto-fit, minmax(90dvh, 1fr));
+  grid-auto-flow: dense;
+  grid-gap: 1rem;
+  padding: 1rem;
+}
+
+.add-el-div {
+  border-radius: 8px;
+}
+
+.add-el-btn button {
+  border-radius: 8px;
+}
+  */

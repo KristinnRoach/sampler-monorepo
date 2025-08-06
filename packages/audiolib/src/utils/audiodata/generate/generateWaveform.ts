@@ -6,39 +6,28 @@
  */
 
 /** Custom Audiolib waveform */
-export type CustomLibWaveform =
-  | 'pulse'
-  | 'bandlimited-sawtooth'
-  | 'supersaw'
-  | 'warm-pad'
-  | 'metallic'
-  | 'formant'
-  | 'white-noise'
-  | 'pink-noise'
-  | 'brown-noise'
-  | 'colored-noise'
-  | 'random-harmonic'
-  | 'custom-function';
+const CUSTOM_WAVEFORMS = [
+  'pulse',
+  'bandlimited-sawtooth',
+  'supersaw',
+  'warm-pad',
+  'metallic',
+  'formant',
+  'white-noise',
+  'pink-noise',
+  'brown-noise',
+  'colored-noise',
+  'random-harmonic',
+  'custom-function',
+] as const;
+
+export type CustomLibWaveform = (typeof CUSTOM_WAVEFORMS)[number];
 
 /** Typeguard for Audiolib's custom waveforms */
 export function isCustomLibWaveform(
   waveform: string
 ): waveform is CustomLibWaveform {
-  const customWaveforms: CustomLibWaveform[] = [
-    'pulse',
-    'bandlimited-sawtooth',
-    'supersaw',
-    'warm-pad',
-    'metallic',
-    'formant',
-    'white-noise',
-    'pink-noise',
-    'brown-noise',
-    'colored-noise',
-    'random-harmonic',
-    'custom-function',
-  ];
-  return customWaveforms.includes(waveform as CustomLibWaveform);
+  return CUSTOM_WAVEFORMS.includes(waveform as any);
 }
 /**
  * Generic options interface that can be used with any CustomLibWaveform type
@@ -163,8 +152,7 @@ export function createWave(
         }
       );
     default:
-      // Fallback to pulse wave
-      return createPulseWave(audioContext, options);
+      throw new Error(`Invalid waveform type: ${type}`);
   }
 }
 

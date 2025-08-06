@@ -222,10 +222,10 @@ const loopStartConfig: KnobConfig = {
 const loopDurationConfig: KnobConfig = {
   label: 'Loop Length',
   defaultValue: 1,
-  minValue: 1,
-  maxValue: 0,
-  curve: 0.1,
-  snapIncrement: 0.0001,
+  minValue: 0,
+  maxValue: 1,
+  curve: 4,
+  snapIncrement: 0,
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => {
       // Register this state for other knobs to access

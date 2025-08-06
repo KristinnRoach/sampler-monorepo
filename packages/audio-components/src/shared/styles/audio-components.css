@@ -1,0 +1,412 @@
+/* audio-components.css - Default stylesheet for audio components */
+
+/* Import CSS custom properties */
+:root {
+  /* Component spacing */
+  --ac-spacing-xs: 0.25rem;
+  --ac-spacing-sm: 0.5rem;
+  --ac-spacing-md: 1rem;
+  --ac-spacing-lg: 1.5rem;
+  --ac-spacing-xl: 2rem;
+
+  /* Component sizing */
+  --ac-component-height-sm: 32px;
+  --ac-component-height-md: 40px;
+  --ac-component-height-lg: 48px;
+  --ac-component-min-width: 80px;
+
+  /* Typography */
+  --ac-font-family: system-ui, sans-serif;
+  --ac-font-size-sm: 0.75rem;
+  --ac-font-size-md: 0.875rem;
+  --ac-font-size-lg: 1rem;
+  --ac-line-height: 1.5;
+
+  /* Colors - semantic naming */
+  --ac-color-bg-primary: #ffffff;
+  --ac-color-bg-secondary: #f8f9fa;
+  --ac-color-bg-disabled: #e9ecef;
+
+  --ac-color-border-primary: #dee2e6;
+  --ac-color-border-focus: #80bdff;
+  --ac-color-border-error: #dc3545;
+
+  --ac-color-text-primary: #212529;
+  --ac-color-text-secondary: #6c757d;
+  --ac-color-text-disabled: #adb5bd;
+  --ac-color-text-inverse: #ffffff;
+
+  --ac-color-accent-primary: #007bff;
+  --ac-color-accent-success: #28a745;
+  --ac-color-accent-warning: #ffc107;
+  --ac-color-accent-danger: #dc3545;
+
+  /* State colors for audio components */
+  --ac-color-active: #4caf50;
+  --ac-color-armed: #ff9800;
+  --ac-color-recording: #f44336;
+  --ac-color-feedback: #9c27b0;
+
+  /* Shadows and effects */
+  --ac-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --ac-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --ac-border-radius: 4px;
+  --ac-transition: 0.15s ease-in-out;
+
+  /* Component-specific */
+  --ac-knob-size: 60px;
+  --ac-button-padding: 0.5rem 1rem;
+  --ac-toggle-height: 24px;
+  --ac-envelope-height: 200px;
+  --ac-keyboard-height: 60px;
+}
+
+/* Base component styles */
+.ac-component {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-spacing-sm);
+  padding: var(--ac-spacing-sm);
+  margin: var(--ac-spacing-xs);
+  border: 1px solid var(--ac-color-border-primary);
+  border-radius: var(--ac-border-radius);
+  min-height: var(--ac-component-height-md);
+  font-family: var(--ac-font-family);
+  font-size: var(--ac-font-size-md);
+  line-height: var(--ac-line-height);
+  background: var(--ac-color-bg-primary);
+  color: var(--ac-color-text-primary);
+  transition: var(--ac-transition);
+  box-sizing: border-box;
+}
+
+.ac-component--inline {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: var(--ac-component-height-sm);
+}
+
+.ac-component--block {
+  display: block;
+  width: 100%;
+}
+
+.ac-component--disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  background: var(--ac-color-bg-disabled);
+  color: var(--ac-color-text-disabled);
+}
+
+/* Button component styles */
+.ac-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ac-button-padding);
+  border: 1px solid var(--ac-color-border-primary);
+  border-radius: var(--ac-border-radius);
+  background: var(--ac-color-bg-primary);
+  color: var(--ac-color-text-primary);
+  font-family: var(--ac-font-family);
+  font-size: var(--ac-font-size-md);
+  line-height: var(--ac-line-height);
+  cursor: pointer;
+  transition: var(--ac-transition);
+  box-sizing: border-box;
+  min-width: var(--ac-component-min-width);
+}
+
+.ac-button:hover {
+  background: var(--ac-color-bg-secondary);
+  border-color: var(--ac-color-border-focus);
+}
+
+.ac-button:focus {
+  outline: 2px solid var(--ac-color-border-focus);
+  outline-offset: 2px;
+}
+
+.ac-button--primary {
+  background: var(--ac-color-accent-primary);
+  color: var(--ac-color-text-inverse);
+  border-color: var(--ac-color-accent-primary);
+}
+
+.ac-button--active {
+  background: var(--ac-color-active);
+  color: var(--ac-color-text-inverse);
+  border-color: var(--ac-color-active);
+}
+
+.ac-button--armed {
+  background: var(--ac-color-armed);
+  color: var(--ac-color-text-inverse);
+  border-color: var(--ac-color-armed);
+}
+
+.ac-button--recording {
+  background: var(--ac-color-recording);
+  color: var(--ac-color-text-inverse);
+  border-color: var(--ac-color-recording);
+}
+
+.ac-button--small {
+  padding: calc(var(--ac-spacing-sm) * 0.5) var(--ac-spacing-sm);
+  font-size: var(--ac-font-size-sm);
+  min-width: calc(var(--ac-component-min-width) * 0.75);
+}
+
+/* Knob component styles */
+.ac-knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ac-spacing-xs);
+  min-width: var(--ac-knob-size);
+}
+
+.ac-knob__container {
+  position: relative;
+  width: var(--ac-knob-size);
+  height: var(--ac-knob-size);
+}
+
+.ac-knob__label {
+  font-size: var(--ac-font-size-sm);
+  color: var(--ac-color-text-secondary);
+  text-align: center;
+  font-weight: 500;
+}
+
+.ac-knob__value {
+  font-size: var(--ac-font-size-sm);
+  color: var(--ac-color-text-primary);
+  text-align: center;
+  font-family: monospace;
+}
+
+/* Toggle component styles */
+.ac-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--ac-spacing-sm);
+}
+
+.ac-toggle__container {
+  position: relative;
+  display: inline-block;
+  width: calc(var(--ac-toggle-height) * 2);
+  height: var(--ac-toggle-height);
+}
+
+.ac-toggle__switch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--ac-color-bg-secondary);
+  border: 1px solid var(--ac-color-border-primary);
+  border-radius: calc(var(--ac-toggle-height) / 2);
+  cursor: pointer;
+  transition: var(--ac-transition);
+}
+
+.ac-toggle__switch::before {
+  content: '';
+  position: absolute;
+  height: calc(var(--ac-toggle-height) - 4px);
+  width: calc(var(--ac-toggle-height) - 4px);
+  left: 2px;
+  bottom: 2px;
+  background: var(--ac-color-bg-primary);
+  border-radius: 50%;
+  transition: var(--ac-transition);
+}
+
+.ac-toggle--on .ac-toggle__switch {
+  background: var(--ac-color-active);
+  border-color: var(--ac-color-active);
+}
+
+.ac-toggle--on .ac-toggle__switch::before {
+  transform: translateX(var(--ac-toggle-height));
+}
+
+.ac-toggle__label {
+  font-size: var(--ac-font-size-sm);
+  color: var(--ac-color-text-secondary);
+  font-weight: 500;
+}
+
+/* Envelope component styles */
+.ac-envelope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-spacing-sm);
+}
+
+.ac-envelope__container {
+  position: relative;
+  width: 100%;
+  height: var(--ac-envelope-height);
+  border: 1px solid var(--ac-color-border-primary);
+  border-radius: var(--ac-border-radius);
+  background: var(--ac-color-bg-primary);
+  overflow: hidden;
+}
+
+.ac-envelope__display {
+  width: 100%;
+  height: 100%;
+}
+
+.ac-envelope__controls {
+  display: flex;
+  gap: var(--ac-spacing-sm);
+  align-items: center;
+}
+
+.ac-envelope__switcher {
+  display: flex;
+  gap: var(--ac-spacing-xs);
+}
+
+/* Keyboard component styles */
+.ac-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-spacing-sm);
+}
+
+.ac-keyboard__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--ac-spacing-sm);
+}
+
+.ac-keyboard__status {
+  font-size: var(--ac-font-size-sm);
+  color: var(--ac-color-text-secondary);
+}
+
+/* Sampler component styles */
+.ac-sampler {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-spacing-md);
+}
+
+.ac-sampler__core {
+  /* Hidden by default, shows when debug-mode is enabled */
+  display: none;
+}
+
+.ac-sampler__core--debug {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ac-spacing-sm);
+  padding: var(--ac-spacing-sm);
+  border: 1px solid var(--ac-color-border-primary);
+  border-radius: var(--ac-border-radius);
+  background: var(--ac-color-bg-secondary);
+}
+
+.ac-sampler__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ac-spacing-md);
+}
+
+.ac-sampler__status {
+  font-size: var(--ac-font-size-sm);
+  color: var(--ac-color-text-secondary);
+}
+
+/* Layout utilities */
+.ac-layout--flex {
+  display: flex;
+  gap: var(--ac-spacing-sm);
+}
+
+.ac-layout--grid {
+  display: grid;
+  gap: var(--ac-spacing-sm);
+}
+
+.ac-layout--inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ac-spacing-sm);
+}
+
+/* Spacing utilities */
+.ac-spacing--xs {
+  gap: var(--ac-spacing-xs);
+}
+.ac-spacing--sm {
+  gap: var(--ac-spacing-sm);
+}
+.ac-spacing--md {
+  gap: var(--ac-spacing-md);
+}
+.ac-spacing--lg {
+  gap: var(--ac-spacing-lg);
+}
+.ac-spacing--xl {
+  gap: var(--ac-spacing-xl);
+}
+
+/* State utilities */
+.ac-state--loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.ac-state--error {
+  border-color: var(--ac-color-border-error);
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.ac-state--success {
+  border-color: var(--ac-color-accent-success);
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.ac-state--hidden {
+  display: none;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  .ac-component {
+    margin: var(--ac-spacing-xs) 0;
+  }
+
+  .ac-knob-size {
+    --ac-knob-size: 50px;
+  }
+
+  .ac-button {
+    padding: var(--ac-spacing-sm);
+    min-width: auto;
+  }
+}
+
+/* Dark theme support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ac-color-bg-primary: #1a1a1a;
+    --ac-color-bg-secondary: #2d2d2d;
+    --ac-color-bg-disabled: #3a3a3a;
+
+    --ac-color-border-primary: #444444;
+    --ac-color-border-focus: #0066cc;
+
+    --ac-color-text-primary: #ffffff;
+    --ac-color-text-secondary: #cccccc;
+    --ac-color-text-disabled: #888888;
+  }
+}

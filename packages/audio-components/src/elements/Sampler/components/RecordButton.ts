@@ -15,11 +15,12 @@ const { div, button } = van.tags;
 
 export const RecordButton = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
-    van.state('Record');
   const status = van.state('Ready');
 
-  let currentRecorder: Recorder | null = null;
+  // Simple reactive approach: track the recorder and its state separately
+  const currentRecorder: State<Recorder | null> = van.state(null);
+  const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
+    van.state('Record');
   const samplerAvailable = van.state(false);
 
   const startRecording = async () => {
@@ -35,13 +36,14 @@ export const RecordButton = (attributes: ElementProps) => {
         return;
       }
 
-      currentRecorder = recorderResult;
-      currentRecorder.connect(sampler);
+      currentRecorder.val = recorderResult;
+      currentRecorder.val.connect(sampler);
 
-      // Event listeners (must be set up before calling recorder.start)
-      currentRecorder.onMessage('state-change', (msg: any) => {
-        // Map Recorder states to button states
-        console.log('Received state-change:', msg);
+      // Listen for state changes and update button state directly
+      currentRecorder.val.onMessage('state-change', (msg: any) => {
+        status.val = msg.state;
+
+        // Directly map recorder state to button state
         switch (msg.state) {
           case 'ARMED':
             recordBtnState.val = 'Armed';
@@ -55,12 +57,10 @@ export const RecordButton = (attributes: ElementProps) => {
             recordBtnState.val = 'Record';
             break;
         }
-
-        status.val = msg.state;
       });
 
       // Start recording
-      await currentRecorder.start({
+      await currentRecorder.val.start({
         useThreshold: true,
         startThreshold: -30,
         autoStop: true,
@@ -70,19 +70,23 @@ export const RecordButton = (attributes: ElementProps) => {
     } catch (error) {
       console.error('Failed to start recording:', error);
       status.val = `Recording error: ${error instanceof Error ? error.message : String(error)}`;
+      currentRecorder.val = null;
       recordBtnState.val = 'Record';
     }
   };
 
   const stopRecording = async () => {
-    if (!currentRecorder) return;
+    if (!currentRecorder.val) return;
 
     try {
-      await currentRecorder.stop();
-      currentRecorder = null;
+      await currentRecorder.val.stop();
+      currentRecorder.val.dispose();
+      currentRecorder.val = null;
       recordBtnState.val = 'Record';
       status.val = 'Recording stopped';
     } catch (error) {
+      currentRecorder.val = null;
+      recordBtnState.val = 'Record';
       console.error('Failed to stop recording:', error);
       status.val = `Stop error: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -91,6 +95,11 @@ export const RecordButton = (attributes: ElementProps) => {
   const handleClick = async () => {
     if (recordBtnState.val === 'Record') {
       await startRecording();
+    } else if (recordBtnState.val === 'Armed') {
+      // Force recording to start immediately when armed
+      if (currentRecorder.val) {
+        currentRecorder.val.forceStart();
+      }
     } else {
       await stopRecording();
     }
@@ -124,9 +133,11 @@ export const RecordButton = (attributes: ElementProps) => {
     const cleanupSamplerCheck = onRegistryChange(checkSampler);
 
     return () => {
-      if (currentRecorder) {
-        currentRecorder.stop();
-        currentRecorder = null;
+      if (currentRecorder.val) {
+        currentRecorder.val.stop();
+        currentRecorder.val.dispose();
+        currentRecorder.val = null;
+        recordBtnState.val = 'Record';
       }
       cleanupSamplerCheck();
     };

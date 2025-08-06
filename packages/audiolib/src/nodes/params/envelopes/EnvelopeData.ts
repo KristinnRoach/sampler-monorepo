@@ -84,12 +84,15 @@ export class EnvelopeData {
 
   updatePoint(index: number, time?: number, value?: number) {
     if (index >= 0 && index < this.points.length) {
+      // Currently does not support modifying start / end points. Todo: enforce this where needed
+      if (index === this.startPointIndex || index === this.endPointIndex) {
+        return;
+      }
       const currentPoint = this.points[index];
       let newTime = time ?? currentPoint.time;
 
       // Guard from passing the first and last points
       if (index === 1 && newTime <= this.points[this.#startIdx].time) {
-        // console.debug('Second point cannot go before first point');
         return;
       }
 
@@ -97,7 +100,6 @@ export class EnvelopeData {
         index === this.#endIdx - 1 &&
         newTime >= this.points[this.#endIdx].time
       ) {
-        console.warn('Second-to-last point cannot go after last point');
         return;
       }
 

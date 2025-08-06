@@ -179,10 +179,11 @@ export const createKnob = (
       if (!nodeId) return;
       const target = getTargetNode(nodeId);
       if (target) {
-        connected = true;
         try {
+          connected = true;
           config.onTargetConnect?.(target, value, van);
         } catch (error) {
+          connected = false;
           console.error(`Failed to connect knob "${config.label}":`, error);
         }
       }

@@ -10,7 +10,9 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./style": "./dist/audio-components.css",
+    "./audio-components.css": "./dist/audio-components.css"
   },
   "files": [
     "dist"

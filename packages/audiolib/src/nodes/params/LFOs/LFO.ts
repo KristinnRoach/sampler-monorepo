@@ -3,7 +3,7 @@ import {
   createWave,
   WaveformOptions,
   isCustomLibWaveform,
-} from '@/utils/audiodata/generate/generateWaveForm';
+} from '@/utils/audiodata/generate/generateWaveform';
 
 export class LFO {
   #context: AudioContext;
@@ -112,12 +112,16 @@ export class LFO {
     }
 
     if (options.glideFromMidiNote) {
-      const fromHz = 440 * Math.pow(2, (midiNote - 69) / 12);
+      const fromHz = 440 * Math.pow(2, (options.glideFromMidiNote - 69) / 12);
       const fromScaledHz = fromHz / divisor;
       this.setFrequency(fromScaledHz, timestamp);
     }
     // todo: test diff ramp methods
-    this.#oscillator.frequency.setTargetAtTime(scaledHz, timestamp, glideTime);
+    this.#oscillator.frequency.setTargetAtTime(
+      scaledHz,
+      timestamp + 0.001,
+      glideTime
+    );
   }
 
   storeCurrentValues = () => {

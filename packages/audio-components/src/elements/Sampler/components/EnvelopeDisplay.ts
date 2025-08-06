@@ -109,7 +109,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   return div(
     {
       class: 'envelope-display',
-      // style: () => COMPONENT_STYLE,
+      style: COMPONENT_STYLE,
     },
     () => {
       if (!samplerReady.val) return div('Waiting for sampler...');
