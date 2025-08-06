@@ -66,6 +66,13 @@ const animateSamplerEntry = () => {
 
 // Function to add drag handles to control groups
 const addDragHandles = () => {
+  const topBar = qs('.top-bar');
+  if (topBar && !topBar.querySelector('.drag-handle')) {
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    handle.setAttribute('aria-label', 'Drag to move this control group');
+    topBar.appendChild(handle);
+  }
   const controlGroups = qsa('.control-group');
   controlGroups.forEach((group) => {
     // Only add if not already present
@@ -97,17 +104,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
       addDragHandles();
       const controlGroups = qsa('.control-group');
-      controlGroups.forEach((element, i) => {
-        // const col = i % numCols;
-        // const row = Math.floor(i / numCols);
+      const topBar = qs('.top-bar');
+      if (topBar) {
+        makeDraggable(
+          {
+            element: topBar,
+            handleClassName: '.drag-handle',
+          },
+          {
+            type: 'x,y',
+          }
+        );
+      }
 
+      controlGroups.forEach((element, i) => {
         gsap.to(element, {
           rotateX: 0,
           rotateY: 0,
           rotateZ: 0,
           ease: 'back.inOut',
-          // x: col * spacingX,
-          // y: row * spacingY,
         });
 
         // Make draggable with handle and callbacks

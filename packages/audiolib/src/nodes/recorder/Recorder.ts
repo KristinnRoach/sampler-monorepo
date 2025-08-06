@@ -104,19 +104,26 @@ export class Recorder implements LibNode {
     }
   }
 
-  forceStart = () => {
+  forceStart(): boolean {
     if (this.#state !== AudioRecorderState.ARMED || !this.initialized) {
       console.warn(
-        'Recorder must be initialized and armed before calling forceStart. Aborting.'
+        'Recorder must be initialized and armed before calling forceStart. Current state:',
+        this.#state
       );
-      return;
+      return false;
     }
 
-    // Override auto-stop when force starting - user must stop manually
-    if (this.#config) this.#config.autoStop = false;
+    if (!this.#config) {
+      console.error('Recorder config is null, cannot force start');
+      return false;
+    }
 
-    return this.#startRecordingImmediate();
-  };
+    // Override auto-stop when force starting - user must stop recording manually
+    this.#config.autoStop = false;
+
+    this.#startRecordingImmediate();
+    return true;
+  }
 
   #startArmedRecording(): void {
     if (!this.#isValidThreshold(this.#config!.startThreshold)) {

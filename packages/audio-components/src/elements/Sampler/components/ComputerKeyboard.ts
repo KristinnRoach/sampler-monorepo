@@ -11,8 +11,6 @@ import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
 import { getSampler } from '../SamplerRegistry';
 import {
   COMPONENT_STYLE,
-  CONTROL_GROUP_STYLE,
-  SELECT_STYLE,
   HELP_TEXT_STYLE,
 } from '../../../shared/styles/component-styles';
 
@@ -21,8 +19,8 @@ const { div } = van.tags;
 export const ComputerKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const enabled = van.state(true);
-  const currentKeymap = van.state(KeyMaps.major);
-  const octaveOffset = van.state(1); // todo: make 0 default work for major / minor
+  const currentKeymap = van.state(KeyMaps.default);
+  const octaveOffset = van.state(0); // todo: make 0 default work for major / minor
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
   const showUI = attributes.attr('show-ui', 'false'); // Hidden by default

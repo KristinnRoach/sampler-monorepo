@@ -23,14 +23,20 @@
     <div id="page-wrapper" class="page-wrapper">
       <main class="sampler-demo">
         <div class="top-bar">
-          <load-button
-            target-node-id="test-sampler"
-            show-status="false"
-          ></load-button>
-          <record-button
-            target-node-id="test-sampler"
-            show-status="false"
-          ></record-button>
+          <div class="inline load-record">
+            <load-button
+              target-node-id="test-sampler"
+              show-status="false"
+            ></load-button>
+            <record-button
+              target-node-id="test-sampler"
+              show-status="false"
+            ></record-button>
+          </div>
+
+          <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
+          <piano-keyboard target-node-id="test-sampler" width="400" height="60">
+          </piano-keyboard>
         </div>
 
         <!-- Core sampler engine (invisible by default) -->
@@ -95,7 +101,7 @@
           </div>
 
           <!-- Modulation -->
-          <div class="control-group">
+          <div class="control-group lfo-group">
             <h3>LFO</h3>
             <div class="ac-layout--grid knob-grid">
               <gain-lfo-rate-knob
@@ -144,14 +150,12 @@
             </div>
           </div>
 
-          <!-- Input controls -->
-          <div class="control-group control-group--wide">
+          <!-- <div class="control-group">
             <h3>Input</h3>
-            <div class="inline">
+            <div class="inline keyboard-section">
               <computer-keyboard
                 target-node-id="test-sampler"
               ></computer-keyboard>
-              <keymap-select target-node-id="test-sampler"></keymap-select>
               <piano-keyboard
                 target-node-id="test-sampler"
                 width="400"
@@ -159,7 +163,7 @@
               >
               </piano-keyboard>
             </div>
-          </div>
+          </div> -->
         </section>
       </main>
     </div>

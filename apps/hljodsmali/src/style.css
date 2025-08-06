@@ -44,8 +44,9 @@ html {
 }
 
 .top-bar {
+  position: relative;
   display: flex;
-  justify-content: start;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--ac-spacing-md);
@@ -69,14 +70,15 @@ html {
 
 /* Control groups within sections */
 .control-group {
+  position: relative;
   background: var(--ac-color-bg-secondary);
   border: 1px solid var(--ac-color-border);
   border-radius: var(--ac-border-radius);
   padding: var(--ac-spacing-md);
 }
 
-/* Drag handle for control groups */
-.control-group .drag-handle {
+/* Drag handle base styles (for all drag handles) */
+.drag-handle {
   position: absolute;
   top: var(--ac-spacing-xs);
   right: var(--ac-spacing-xs);
@@ -90,16 +92,16 @@ html {
   z-index: 10;
 }
 
-.control-group .drag-handle:hover {
+.drag-handle:hover {
   opacity: 1;
 }
 
-.control-group .drag-handle:active {
+.drag-handle:active {
   cursor: grabbing;
 }
 
 /* Add some visual indication that it's a drag handle */
-.control-group .drag-handle::before {
+.drag-handle::before {
   content: '';
   position: absolute;
   top: 2px;
@@ -167,15 +169,10 @@ html {
   gap: var(--ac-spacing-sm);
 }
 
-/* Wide control group that spans multiple columns */
-.control-group--wide {
-  grid-column: span 2;
-}
-
-@media (min-width: 1024px) {
-  .control-group--wide {
-    grid-column: span 3;
-  }
+.lfo-group {
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1fr;
+  grid-template-areas: '. . . .';
 }
 
 /* Override envelope width to fit better in the grid */
