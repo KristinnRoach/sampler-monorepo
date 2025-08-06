@@ -59,7 +59,11 @@ html {
 /* Control sections */
 .sampler-controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas:
+    '. . .'
+    '. . .';
+
   gap: var(--ac-spacing-md);
 }
 
@@ -69,6 +73,66 @@ html {
   border: 1px solid var(--ac-color-border);
   border-radius: var(--ac-border-radius);
   padding: var(--ac-spacing-md);
+}
+
+/* Drag handle for control groups */
+.control-group .drag-handle {
+  position: absolute;
+  top: var(--ac-spacing-xs);
+  right: var(--ac-spacing-xs);
+  width: 20px;
+  height: 12px;
+  background: var(--ac-color-accent);
+  border-radius: var(--ac-border-radius-sm);
+  cursor: grab;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.control-group .drag-handle:hover {
+  opacity: 1;
+}
+
+.control-group .drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Add some visual indication that it's a drag handle */
+.control-group .drag-handle::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  background-image: linear-gradient(
+      90deg,
+      transparent 2px,
+      var(--ac-color-bg-primary) 2px,
+      var(--ac-color-bg-primary) 4px,
+      transparent 4px
+    ),
+    linear-gradient(
+      90deg,
+      transparent 6px,
+      var(--ac-color-bg-primary) 6px,
+      var(--ac-color-bg-primary) 8px,
+      transparent 8px
+    ),
+    linear-gradient(
+      90deg,
+      transparent 10px,
+      var(--ac-color-bg-primary) 10px,
+      var(--ac-color-bg-primary) 12px,
+      transparent 12px
+    );
+  background-size: 16px 2px;
+  background-position:
+    0 2px,
+    0 5px,
+    0 8px;
+  background-repeat: no-repeat;
 }
 
 .inline {
@@ -92,15 +156,14 @@ html {
   letter-spacing: 0.05em;
 }
 
-/* Knob grid layout */
-.knob-grid {
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-  gap: var(--ac-spacing-sm);
-}
-
-/* Toggle grid layout */
+/* Grid layout */
+.knob-grid,
 .toggle-grid {
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  /* grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); */
+  grid-template-rows: 1fr 1fr;
+  grid-template-areas:
+    '. . . .'
+    '. . . .';
   gap: var(--ac-spacing-sm);
 }
 
