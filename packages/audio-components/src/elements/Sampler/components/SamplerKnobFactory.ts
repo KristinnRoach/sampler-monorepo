@@ -175,6 +175,7 @@ const lowpassFilterConfig: KnobConfig = {
   minValue: 20,
   maxValue: 20000,
   curve: 5,
+  valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => sampler.setLpfCutoff(state.val));
   },

@@ -64,6 +64,20 @@ const animateSamplerEntry = () => {
   );
 };
 
+// Function to add drag handles to control groups
+const addDragHandles = () => {
+  const controlGroups = qsa('.control-group');
+  controlGroups.forEach((group) => {
+    // Only add if not already present
+    if (!group.querySelector('.drag-handle')) {
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      handle.setAttribute('aria-label', 'Drag to move this control group');
+      group.appendChild(handle);
+    }
+  });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
 
@@ -73,17 +87,46 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Wait for sampler to be ready, then animate
   document.addEventListener('sampler-ready', () => {
-    console.debug('Sampler ready, starting animations');
     animateSamplerEntry();
+
+    setTimeout(() => {
+      // const numCols = 4; // number of columns in your grid
+      // const spacingX = 250; // horizontal distance between items
+      // const spacingY = 250; // vertical distance between items
+
+      addDragHandles();
+      const controlGroups = qsa('.control-group');
+      controlGroups.forEach((element, i) => {
+        // const col = i % numCols;
+        // const row = Math.floor(i / numCols);
+
+        gsap.to(element, {
+          rotateX: 0,
+          rotateY: 0,
+          rotateZ: 0,
+          ease: 'back.inOut',
+          // x: col * spacingX,
+          // y: row * spacingY,
+        });
+
+        // Make draggable with handle and callbacks
+        makeDraggable(
+          {
+            element,
+            handleClassName: '.drag-handle',
+          },
+          {
+            type: 'x,y',
+            onDragStart: () => {
+              element.classList.add('dragging');
+            },
+            onDragEnd: () => {
+              element.classList.remove('dragging');
+            },
+          }
+        );
+      });
+    }, 0);
   });
-
-  const sections = qsa('.grid-section');
-
-  sections.forEach((element) => makeDraggable(element));
-
-  // setTimeout(() => {
-  //   console.debug(samplerEl.nodeId);
-  // }, 10);
 });

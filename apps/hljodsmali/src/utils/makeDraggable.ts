@@ -36,5 +36,6 @@ export const makeDraggable = (
       handleElement ??
       el.querySelector(handleClassName || '.drag-handle') ??
       el,
+    ...gsapOptions,
   });
 };
