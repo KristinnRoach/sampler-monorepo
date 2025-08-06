@@ -66,7 +66,12 @@ const animateSamplerEntry = () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
-  const samplerEl = qs('sampler-element') as any;
+
+  const samplerEl = qs('sampler-element');
+  if (!samplerEl) {
+    console.error('Sampler element not found');
+    return;
+  }
 
   // Wait for sampler to be ready, then animate
   document.addEventListener('sampler-ready', () => {
@@ -78,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   sections.forEach((element) => makeDraggable(element));
 
-  setTimeout(() => {
-    console.debug(samplerEl.nodeId);
-  }, 10);
+  // setTimeout(() => {
+  //   console.debug(samplerEl.nodeId);
+  // }, 10);
 });
