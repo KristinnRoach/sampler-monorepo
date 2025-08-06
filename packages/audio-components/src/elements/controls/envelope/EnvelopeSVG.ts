@@ -64,7 +64,8 @@ export const EnvelopeSVG = (
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
-  const CIRCLE_PADDING = 8; // Padding to prevent circles from being cut off
+  const CIRCLE_RADIUS = 4; // Radius of the envelope point circles
+  const CIRCLE_PADDING = CIRCLE_RADIUS * 2; // Padding to prevent circles from being cut off
 
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;

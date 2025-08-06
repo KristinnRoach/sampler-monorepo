@@ -27,7 +27,7 @@ export type CustomLibWaveform = (typeof CUSTOM_WAVEFORMS)[number];
 export function isCustomLibWaveform(
   waveform: string
 ): waveform is CustomLibWaveform {
-  return CUSTOM_WAVEFORMS.includes(waveform as any);
+  return CUSTOM_WAVEFORMS.includes(waveform);
 }
 /**
  * Generic options interface that can be used with any CustomLibWaveform type
