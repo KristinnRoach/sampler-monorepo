@@ -64,26 +64,18 @@ const animateSamplerEntry = () => {
   );
 };
 
-// Function to add drag handles to control groups
-const addDragHandles = () => {
-  const topBar = qs('.top-bar');
-  if (topBar && !topBar.querySelector('.drag-handle')) {
-    const handle = document.createElement('div');
-    handle.className = 'drag-handle';
-    handle.setAttribute('aria-label', 'Drag to move this control group');
-    topBar.appendChild(handle);
-  }
-  const controlGroups = qsa('.control-group');
-  controlGroups.forEach((group) => {
-    // Only add if not already present
-    if (!group.querySelector('.drag-handle')) {
-      const handle = document.createElement('div');
-      handle.className = 'drag-handle';
-      handle.setAttribute('aria-label', 'Drag to move this control group');
-      group.appendChild(handle);
-    }
-  });
-};
+function createAndAppendHandle(element: Element | null) {
+  if (!element || element.querySelector('.drag-handle')) return;
+  const handle = document.createElement('div');
+  handle.className = 'drag-handle';
+  handle.setAttribute('aria-label', 'Drag to move this control group');
+  element.appendChild(handle);
+}
+
+function addDragHandles() {
+  createAndAppendHandle(qs('.top-bar'));
+  qsa('.control-group').forEach(createAndAppendHandle);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
@@ -96,52 +88,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('sampler-ready', () => {
     animateSamplerEntry();
+    addDragHandles();
+    const controlGroups = qsa('.control-group');
+    const topBar = qs('.top-bar');
+    if (topBar) {
+      makeDraggable(
+        {
+          element: topBar,
+          handleClassName: '.drag-handle',
+        },
+        {
+          type: 'x,y',
+        }
+      );
+    }
 
-    setTimeout(() => {
-      // const numCols = 4; // number of columns in your grid
-      // const spacingX = 250; // horizontal distance between items
-      // const spacingY = 250; // vertical distance between items
-
-      addDragHandles();
-      const controlGroups = qsa('.control-group');
-      const topBar = qs('.top-bar');
-      if (topBar) {
-        makeDraggable(
-          {
-            element: topBar,
-            handleClassName: '.drag-handle',
-          },
-          {
-            type: 'x,y',
-          }
-        );
-      }
-
-      controlGroups.forEach((element, i) => {
-        gsap.to(element, {
-          rotateX: 0,
-          rotateY: 0,
-          rotateZ: 0,
-          ease: 'back.inOut',
-        });
-
-        // Make draggable with handle and callbacks
-        makeDraggable(
-          {
-            element,
-            handleClassName: '.drag-handle',
-          },
-          {
-            type: 'x,y',
-            onDragStart: () => {
-              element.classList.add('dragging');
-            },
-            onDragEnd: () => {
-              element.classList.remove('dragging');
-            },
-          }
-        );
+    controlGroups.forEach((element, i) => {
+      gsap.to(element, {
+        rotateX: 0,
+        rotateY: 0,
+        rotateZ: 0,
+        ease: 'back.inOut',
       });
-    }, 0);
+
+      // Make draggable with handle and callbacks
+      makeDraggable(
+        {
+          element,
+          handleClassName: '.drag-handle',
+        },
+        {
+          type: 'x,y',
+          onDragStart: () => {
+            element.classList.add('dragging');
+          },
+          onDragEnd: () => {
+            element.classList.remove('dragging');
+          },
+        }
+      );
+    });
   });
 });

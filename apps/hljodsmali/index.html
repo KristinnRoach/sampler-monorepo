@@ -22,6 +22,11 @@
   <body class="ac-theme--dark">
     <div id="page-wrapper" class="page-wrapper">
       <main class="sampler-demo">
+        <!-- Core sampler engine (invisible by default) -->
+        <sampler-element node-id="test-sampler"></sampler-element>
+        <!-- Input handlers (invisible by default) -->
+        <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
+
         <div class="top-bar">
           <div class="inline load-record">
             <load-button
@@ -34,13 +39,10 @@
             ></record-button>
           </div>
 
-          <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
           <piano-keyboard target-node-id="test-sampler" width="400" height="60">
           </piano-keyboard>
+          <!-- <keymap-select target-node-id="test-sampler"></keymap-select> -->
         </div>
-
-        <!-- Core sampler engine (invisible by default) -->
-        <sampler-element node-id="test-sampler"></sampler-element>
 
         <!-- Controls organized by function -->
         <section class="sampler-controls">
