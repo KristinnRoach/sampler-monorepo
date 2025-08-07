@@ -80,8 +80,8 @@ html {
 /* Drag handle base styles (for all drag handles) */
 .drag-handle {
   position: absolute;
-  top: var(--ac-spacing-xs);
-  right: var(--ac-spacing-xs);
+  top: 7px;
+  right: 0;
   width: 28px;
   height: 20px;
   background: var(--ac-color-accent);

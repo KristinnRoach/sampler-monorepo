@@ -99,13 +99,53 @@ export const SamplerElement = (attributes: ElementProps) => {
         });
 
         Object.assign(attributes.$this, { nodeId: nodeId.val });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Sampler initialization error:', error);
-        status.val = `Error: ${error}`;
+        
+        // Check if it's an AudioWorklet support issue
+        if (error?.message?.includes('AudioWorklet')) {
+          status.val = 'Browser not supported';
+          
+          // Show a user-friendly message
+          document.dispatchEvent(
+            new CustomEvent('sampler-error', {
+              detail: {
+                nodeId: nodeId.val,
+                error: 'AudioWorklet not supported',
+                message: 'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.'
+              },
+            })
+          );
+        } else {
+          status.val = `Error: ${error}`;
+        }
       }
     };
 
-    initializeAudio();
+    // Check if we're on a mobile device or if AudioWorklet is not immediately available
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile || typeof AudioWorklet === 'undefined') {
+      // On mobile, wait for user interaction before initializing audio
+      status.val = 'Tap to start audio';
+      
+      const startAudio = async () => {
+        status.val = 'Initializing...';
+        await initializeAudio();
+        // Remove all listeners after initialization
+        document.removeEventListener('click', startAudio);
+        document.removeEventListener('touchstart', startAudio);
+        document.removeEventListener('keydown', startAudio);
+      };
+      
+      // Add listeners for user interaction
+      document.addEventListener('click', startAudio, { once: true });
+      document.addEventListener('touchstart', startAudio, { once: true });
+      document.addEventListener('keydown', startAudio, { once: true });
+    } else {
+      // On desktop, initialize immediately
+      initializeAudio();
+    }
 
     return () => {
       if (samplePlayer && nodeId.val) {

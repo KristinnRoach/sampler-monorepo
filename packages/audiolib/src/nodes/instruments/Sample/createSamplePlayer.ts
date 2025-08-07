@@ -1,6 +1,6 @@
 // createSamplePlayer.ts
 
-import { getAudioContext } from '@/context';
+import { getAudioContext, ensureAudioCtx } from '@/context';
 import { SamplePlayer } from './SamplePlayer';
 import { assert } from '@/utils';
 import { MidiController } from '@/io';
@@ -23,9 +23,18 @@ export async function createSamplePlayer(
   context: AudioContext = getAudioContext(),
   midiController?: MidiController
 ): Promise<SamplePlayer> {
+  await ensureAudioCtx();
   assert(context, 'Audio context is not available');
 
-  await initProcessors(context); // Ensure worklets are registered
+  const workletResult = await initProcessors(context); // Ensure worklets are registered
+  
+  if (!workletResult.success) {
+    // AudioWorklet is not supported on this browser
+    throw new Error(
+      'AudioWorklet is required but not supported on this browser. ' +
+      'Please use a modern desktop browser (Chrome, Firefox, Edge) or update your mobile browser.'
+    );
+  }
   
   // Get buffer - only initialize IndexedDB if no buffer is provided
   let buffer: AudioBuffer;

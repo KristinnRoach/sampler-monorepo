@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AudioWorklet Mobile Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background: #1a1a1a;
+        color: #0f0;
+      }
+      button {
+        padding: 20px;
+        font-size: 18px;
+        margin: 10px;
+        background: #333;
+        color: #0f0;
+        border: 2px solid #0f0;
+        cursor: pointer;
+      }
+      button:active {
+        background: #555;
+      }
+      .log {
+        background: #000;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #0f0;
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .error {
+        color: #f00;
+      }
+      .success {
+        color: #0f0;
+      }
+      .info {
+        color: #ff0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AudioWorklet Mobile Test</h1>
+
+    <div id="deviceInfo" class="log info"></div>
+
+    <button id="testButton">Test AudioContext Creation</button>
+    <button id="resumeButton">Test with Resume</button>
+    <button id="newContextButton">Create Fresh Context</button>
+
+    <div id="log" class="log"></div>
+
+    <script>
+      const log = document.getElementById('log');
+      const deviceInfo = document.getElementById('deviceInfo');
+
+      function addLog(message, type = '') {
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.className = type;
+        entry.textContent = `[${timestamp}] ${message}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+        console.log(message);
+      }
+
+      // Display device info
+      const ua = navigator.userAgent;
+      let browserInfo = 'Unknown';
+
+      if (
+        ua.indexOf('Chrome') > -1 &&
+        ua.indexOf('Edg') === -1 &&
+        ua.indexOf('OPR') === -1
+      ) {
+        const chromeVersion = ua.match(/Chrome\/(\d+)/);
+        browserInfo = `Chrome ${chromeVersion ? chromeVersion[1] : 'unknown version'}`;
+      } else if (ua.indexOf('Firefox') > -1) {
+        const firefoxVersion = ua.match(/Firefox\/(\d+)/);
+        browserInfo = `Firefox ${firefoxVersion ? firefoxVersion[1] : 'unknown version'}`;
+      } else if (ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') === -1) {
+        const safariVersion = ua.match(/Version\/(\d+)/);
+        browserInfo = `Safari ${safariVersion ? safariVersion[1] : 'unknown version'}`;
+      } else if (ua.indexOf('Edg') > -1) {
+        const edgeVersion = ua.match(/Edg\/(\d+)/);
+        browserInfo = `Edge ${edgeVersion ? edgeVersion[1] : 'unknown version'}`;
+      } else if (ua.indexOf('OPR') > -1 || ua.indexOf('Opera') > -1) {
+        browserInfo = 'Opera';
+      }
+
+      deviceInfo.textContent = `Browser: ${browserInfo}
+User Agent: ${navigator.userAgent}
+Platform: ${navigator.platform}
+Vendor: ${navigator.vendor}`;
+
+      // Test 1: Simple AudioContext creation
+      document
+        .getElementById('testButton')
+        .addEventListener('click', async () => {
+          addLog('=== Test 1: Simple AudioContext Creation ===', 'info');
+
+          try {
+            addLog('Device Info:');
+            addLog(`User Agent: ${navigator.userAgent}`);
+            addLog(`Platform: ${navigator.platform}`);
+            addLog(`Vendor: ${navigator.vendor}`);
+            addLog(`Browser: ${browserInfo}`);
+
+            const context = new AudioContext();
+            addLog(`AudioContext created successfully`, 'success');
+            addLog(`State: ${context.state}`);
+            addLog(`Sample Rate: ${context.sampleRate}`);
+            addLog(
+              `audioWorklet exists: ${!!context.audioWorklet}`,
+              context.audioWorklet ? 'success' : 'error'
+            );
+            addLog(`window.AudioWorklet: `, window.AudioWorklet);
+            addLog(`window.AudioWorkletNode: `, window.AudioWorklet);
+            addLog(
+              `window.AudioWorkletProcessor: `,
+              window.AudioWorkletProcessor
+            );
+
+            addLog(
+              `AudioWorkletNode: ${typeof AudioWorkletNode}`,
+              typeof AudioWorkletNode !== 'undefined' ? 'success' : 'error'
+            );
+            addLog(
+              `AudioWorkletProcessor: ${typeof AudioWorkletProcessor}`,
+              typeof AudioWorkletProcessor !== 'undefined' ? 'success' : 'error'
+            );
+
+            if (context.audioWorklet) {
+              addLog('AudioWorklet is available!', 'success');
+
+              // Try to add a simple module
+              try {
+                // Create a minimal processor as a blob
+                const processorCode = `
+                            class TestProcessor extends AudioWorkletProcessor {
+                                process() { return true; }
+                            }
+                            registerProcessor('test-processor', TestProcessor);
+                        `;
+                const blob = new Blob([processorCode], {
+                  type: 'application/javascript',
+                });
+                const blobUrl = URL.createObjectURL(blob);
+
+                await context.audioWorklet.addModule(blobUrl);
+                addLog(
+                  'Successfully loaded test AudioWorklet module!',
+                  'success'
+                );
+
+                URL.revokeObjectURL(blobUrl);
+              } catch (moduleError) {
+                addLog(`Failed to load module: ${moduleError}`, 'error');
+              }
+            } else {
+              addLog('AudioWorklet is NOT available', 'error');
+            }
+
+            context.close();
+          } catch (error) {
+            addLog(`Error: ${error}`, 'error');
+          }
+        });
+
+      // Test 2: With explicit resume
+      document
+        .getElementById('resumeButton')
+        .addEventListener('click', async () => {
+          addLog('=== Test 2: AudioContext with Resume ===', 'info');
+
+          try {
+            const context = new AudioContext();
+            addLog(`Initial state: ${context.state}`);
+            addLog(
+              `audioWorklet before resume: ${!!context.audioWorklet}`,
+              context.audioWorklet ? 'success' : 'error'
+            );
+
+            if (context.state === 'suspended') {
+              addLog('Context is suspended, resuming...', 'info');
+              await context.resume();
+              addLog(`State after resume: ${context.state}`, 'success');
+            }
+
+            addLog(
+              `audioWorklet after resume: ${!!context.audioWorklet}`,
+              context.audioWorklet ? 'success' : 'error'
+            );
+
+            context.close();
+          } catch (error) {
+            addLog(`Error: ${error}`, 'error');
+          }
+        });
+
+      // Test 3: Fresh context with different options
+      document
+        .getElementById('newContextButton')
+        .addEventListener('click', async () => {
+          addLog('=== Test 3: Fresh Context with Options ===', 'info');
+
+          try {
+            // Try with explicit sample rate
+            const context = new (window.AudioContext ||
+              window.webkitAudioContext)({
+              sampleRate: 48000,
+              latencyHint: 'interactive',
+            });
+
+            addLog(`Context created with sampleRate: ${context.sampleRate}`);
+            addLog(`State: ${context.state}`);
+
+            // Check for vendor prefixes
+            addLog(`Standard audioWorklet: ${!!context.audioWorklet}`);
+            addLog(`webkit audioWorklet: ${!!context.webkitAudioWorklet}`);
+
+            // Try to access audioWorklet properties
+            if (context.audioWorklet) {
+              addLog('Checking audioWorklet properties...', 'info');
+              addLog(
+                `audioWorklet.addModule: ${typeof context.audioWorklet.addModule}`
+              );
+              addLog(`audioWorklet.port: ${!!context.audioWorklet.port}`);
+            }
+
+            // Check if AudioWorkletNode is available
+            addLog(
+              `AudioWorkletNode available: ${typeof AudioWorkletNode !== 'undefined'}`,
+              typeof AudioWorkletNode !== 'undefined' ? 'success' : 'error'
+            );
+
+            context.close();
+          } catch (error) {
+            addLog(`Error: ${error}`, 'error');
+          }
+        });
+
+      // Initial check without user interaction
+      addLog('=== Initial Check (no user interaction) ===', 'info');
+      try {
+        addLog(
+          `AudioContext available: ${typeof AudioContext !== 'undefined'}`
+        );
+        addLog(
+          `AudioWorkletNode available: ${typeof AudioWorkletNode !== 'undefined'}`
+        );
+        addLog(
+          `AudioWorkletProcessor available: ${typeof AudioWorkletProcessor !== 'undefined'}`
+        );
+
+        // Check Android version
+        const androidMatch = ua.match(/Android ([\d.]+)/);
+        if (androidMatch) {
+          const androidVersion = parseFloat(androidMatch[1]);
+          addLog(
+            `Android version: ${androidVersion}`,
+            androidVersion >= 11 ? 'success' : 'info'
+          );
+
+          if (androidVersion < 11) {
+            addLog(
+              '⚠️ Android 10 and below may have limited AudioWorklet support',
+              'error'
+            );
+            addLog(
+              'Consider updating to Android 11+ or using a desktop browser',
+              'info'
+            );
+          }
+        }
+
+        // Browser recommendations
+        addLog('\n=== Browser Compatibility ===', 'info');
+        if (browserInfo.includes('Edge')) {
+          addLog('Edge on Android has known AudioWorklet issues', 'error');
+          addLog('Try Chrome or Firefox instead', 'info');
+        } else if (browserInfo.includes('Chrome')) {
+          const chromeVersion = parseInt(ua.match(/Chrome\/(\d+)/)?.[1] || '0');
+          if (chromeVersion < 66) {
+            addLog(
+              `Chrome ${chromeVersion} is too old. Need Chrome 66+`,
+              'error'
+            );
+          } else {
+            addLog(
+              `Chrome ${chromeVersion} should support AudioWorklet`,
+              'success'
+            );
+          }
+        }
+      } catch (e) {
+        addLog(`Initial check error: ${e}`, 'error');
+      }
+    </script>
+  </body>
+</html>
