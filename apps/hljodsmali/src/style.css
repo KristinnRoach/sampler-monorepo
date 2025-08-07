@@ -175,13 +175,16 @@ html {
   grid-template-areas: '. . . .';
 }
 
-/* Override envelope width to fit better in the grid */
 envelope-switcher {
   width: 100% !important;
   max-width: 100%;
 }
 
-/* Keyboard responsive sizing */
+piano-keyboard {
+  width: 100% !important;
+  max-width: 100%;
+}
+
 @media (max-width: 768px) {
   piano-keyboard {
     width: 100% !important;
@@ -196,7 +199,6 @@ envelope-switcher {
     padding: var(--ac-spacing-md);
   }
 
-  /* Scale down grids on mobile */
   .ac-layout--grid[style*='repeat(4'] {
     grid-template-columns: repeat(2, 1fr) !important;
   }

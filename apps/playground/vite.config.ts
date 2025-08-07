@@ -13,8 +13,9 @@ export default defineConfig({
   ],
 
   server: {
-    port: 3001,
+    port: 3002,
     open: true,
+    host: true, // Allow access from network
   },
 
   build: {

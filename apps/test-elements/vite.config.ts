@@ -13,8 +13,9 @@ export default defineConfig({
   ],
 
   server: {
-    port: 3000,
+    port: 3001,
     open: true,
+    host: true, // Allow access from network
   },
 
   build: {
@@ -29,10 +30,11 @@ export default defineConfig({
             return 'vendor';
           }
           if (id.includes('packages/audiolib')) return 'audiolib';
-          if (id.includes('packages/audio-components')) return 'audio-components';
-        }
-      }
-    }
+          if (id.includes('packages/audio-components'))
+            return 'audio-components';
+        },
+      },
+    },
   },
 
   // Resolve workspace dependencies

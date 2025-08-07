@@ -27,7 +27,7 @@
         <!-- Input handlers (invisible by default) -->
         <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
 
-        <div class="top-bar">
+        <!-- <div class="top-bar">
           <div class="inline load-record">
             <load-button
               target-node-id="test-sampler"
@@ -38,11 +38,7 @@
               show-status="false"
             ></record-button>
           </div>
-
-          <piano-keyboard target-node-id="test-sampler" width="400" height="60">
-          </piano-keyboard>
-          <!-- <keymap-select target-node-id="test-sampler"></keymap-select> -->
-        </div>
+        </div> -->
 
         <!-- Controls organized by function -->
         <section class="sampler-controls">
@@ -152,6 +148,18 @@
             </div>
           </div>
 
+          <div class="control-group">
+            <piano-keyboard target-node-id="test-sampler"> </piano-keyboard>
+
+            <load-button
+              target-node-id="test-sampler"
+              show-status="false"
+            ></load-button>
+            <record-button
+              target-node-id="test-sampler"
+              show-status="false"
+            ></record-button>
+          </div>
           <!-- <div class="control-group">
             <h3>Input</h3>
             <div class="inline keyboard-section">

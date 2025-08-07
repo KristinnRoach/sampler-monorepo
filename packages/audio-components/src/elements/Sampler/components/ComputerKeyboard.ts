@@ -32,21 +32,8 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
   // Listen for keymap changes from the select component
   const handleKeymapChange = (e: CustomEvent) => {
-    console.log('ComputerKeyboard: Received keymap change event:', {
-      eventDetail: e.detail,
-      myTargetNodeId: targetNodeId.val,
-      willUpdate: e.detail.targetNodeId === targetNodeId.val || !e.detail.targetNodeId,
-    });
-    
-    if (e.detail.targetNodeId === targetNodeId.val || !e.detail.targetNodeId) {
-      if (e.detail.keymap) {
-        console.log('ComputerKeyboard: Updating keymap from', currentKeymap.val, 'to', e.detail.keymap);
-        currentKeymap.val = e.detail.keymap;
-      }
-      if (e.detail.octaveOffset !== undefined) {
-        console.log('ComputerKeyboard: Updating octave offset to', e.detail.octaveOffset);
-        octaveOffset.val = e.detail.octaveOffset;
-      }
+    if (e.detail.targetNodeId === targetNodeId.val) {
+      currentKeymap.val = e.detail.keymap;
     }
   };
 
@@ -54,17 +41,6 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const newOct = octaveOffset.val + direction;
     if (newOct >= MIN_OCT_SHIFT && newOct <= MAX_OCT_SHIFT) {
       octaveOffset.val += direction;
-
-      // Broadcast octave changes to other components (like PianoKeyboard)
-      document.dispatchEvent(
-        new CustomEvent('keymap-changed', {
-          detail: {
-            keymap: currentKeymap.val,
-            octaveOffset: octaveOffset.val,
-            targetNodeId: targetNodeId.val,
-          },
-        })
-      );
     }
   };
 
