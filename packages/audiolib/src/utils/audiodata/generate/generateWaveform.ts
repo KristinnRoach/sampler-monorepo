@@ -23,6 +23,26 @@ const CUSTOM_WAVEFORMS = [
 
 export type CustomLibWaveform = (typeof CUSTOM_WAVEFORMS)[number];
 
+/** Union type of all supported waveforms */
+export type SupportedWaveform =
+  | 'sine'
+  | 'sawtooth'
+  | 'square'
+  | 'triangle'
+  | CustomLibWaveform;
+
+/** All supported oscillator waveforms */
+export const SUPPORTED_WAVEFORMS: readonly SupportedWaveform[] = [
+  // Default web audio waveforms
+  'sine',
+  'sawtooth',
+  'square',
+  'triangle',
+
+  // Custom audiolib waveforms
+  ...CUSTOM_WAVEFORMS,
+] as const;
+
 /** Typeguard for Audiolib's custom waveforms */
 export function isCustomLibWaveform(
   waveform: string

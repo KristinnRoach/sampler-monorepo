@@ -45,7 +45,10 @@ import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
 import { RecordButton, LoadButton } from './components/SamplerButtonFactory';
-import { KeymapSelect } from './components/SamplerSelectFactory';
+import {
+  KeymapSelect,
+  WaveformSelect,
+} from './components/SamplerSelectFactory';
 
 const { div } = van.tags;
 
@@ -101,18 +104,19 @@ export const SamplerElement = (attributes: ElementProps) => {
         Object.assign(attributes.$this, { nodeId: nodeId.val });
       } catch (error: any) {
         console.error('Sampler initialization error:', error);
-        
+
         // Check if it's an AudioWorklet support issue
         if (error?.message?.includes('AudioWorklet')) {
           status.val = 'Browser not supported';
-          
+
           // Show a user-friendly message
           document.dispatchEvent(
             new CustomEvent('sampler-error', {
               detail: {
                 nodeId: nodeId.val,
                 error: 'AudioWorklet not supported',
-                message: 'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.'
+                message:
+                  'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
               },
             })
           );
@@ -123,12 +127,15 @@ export const SamplerElement = (attributes: ElementProps) => {
     };
 
     // Check if we're on a mobile device or if AudioWorklet is not immediately available
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
     if (isMobile || typeof AudioWorklet === 'undefined') {
       // On mobile, wait for user interaction before initializing audio
       status.val = 'Tap to start audio';
-      
+
       const startAudio = async () => {
         status.val = 'Initializing...';
         await initializeAudio();
@@ -137,7 +144,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         document.removeEventListener('touchstart', startAudio);
         document.removeEventListener('keydown', startAudio);
       };
-      
+
       // Add listeners for user interaction
       document.addEventListener('click', startAudio, { once: true });
       document.addEventListener('touchstart', startAudio, { once: true });
@@ -215,6 +222,7 @@ export {
 
   // Select components
   KeymapSelect,
+  WaveformSelect,
 
   // Envelopes
   EnvelopeDisplay,
@@ -280,6 +288,7 @@ export const defineSampler = () => {
 
   // Select controls
   defineIfNotExists('keymap-select', KeymapSelect, false);
+  defineIfNotExists('waveform-select', WaveformSelect, false);
 };
 
 defineSampler();

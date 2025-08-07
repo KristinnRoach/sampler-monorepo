@@ -456,7 +456,7 @@ export class SampleVoice {
     return this;
   }
 
-  setModulationAmount(amount: number, modType: 'AM' | 'FM' = 'AM') {
+  setModulationAmount(modType: 'AM' | 'FM', amount: number) {
     const safeAmount = clamp(amount, 0, 1, {
       warn: true,
       name: 'sampleVoice.setModulationAmount',
