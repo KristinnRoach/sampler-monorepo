@@ -37,8 +37,6 @@ export class KnobElement extends HTMLElement {
 
   private gsapDraggable!: Draggable;
   private static stylesInjected = false;
-  private touchStartHandler?: (e: TouchEvent) => void;
-  private touchMoveHandler?: (e: TouchEvent) => void;
 
   private config: KnobConfig = {
     minValue: 0,
@@ -371,17 +369,6 @@ export class KnobElement extends HTMLElement {
     if (this.gsapDraggable) {
       this.gsapDraggable.kill();
     }
-
-    // Remove touch event listeners
-    if (this.touchStartHandler && this.knobElement) {
-      this.knobElement.removeEventListener(
-        'touchstart',
-        this.touchStartHandler
-      );
-    }
-    if (this.touchMoveHandler && this.knobElement) {
-      this.knobElement.removeEventListener('touchmove', this.touchMoveHandler);
-    }
   }
 
   private createUtilityFunctions(): void {
@@ -472,61 +459,9 @@ export class KnobElement extends HTMLElement {
     let startRotation = 0;
     let totalDeltaY = 0;
     let mouseMoveHandler: (e: MouseEvent) => void;
-    let startTouchY = 0;
+    let isTouchDevice = false;
+    let startY = 0;
 
-    // Touch event handlers for mobile devices
-    const touchStartHandler = (e: TouchEvent) => {
-      e.preventDefault();
-      startRotation = this.currentRotation;
-      startTouchY = e.touches[0].clientY;
-      totalDeltaY = 0;
-    };
-
-    const touchMoveHandler = (e: TouchEvent) => {
-      e.preventDefault();
-      const currentTouchY = e.touches[0].clientY;
-      const deltaY = currentTouchY - startTouchY;
-
-      const sensitivity = 4.0;
-      const newRotation = startRotation - deltaY * sensitivity;
-
-      const clampedRotation = gsap.utils.clamp(
-        this.config.minRotation,
-        this.config.maxRotation,
-        newRotation
-      );
-
-      const rawValue = this.rotationToValue(clampedRotation);
-      const snappedValue = this.applySnapping(rawValue);
-      this.currentValue = snappedValue;
-
-      if (snappedValue !== rawValue) {
-        this.currentRotation = this.valueToRotation(snappedValue);
-      } else {
-        this.currentRotation = clampedRotation;
-      }
-
-      gsap.set(this.knobElement, {
-        y: 0,
-        rotation: this.currentRotation,
-        duration: 0,
-      });
-
-      this.updateBorder();
-      this.dispatchChangeEvent();
-    };
-
-    // Store handlers for cleanup
-    this.touchStartHandler = touchStartHandler;
-    this.touchMoveHandler = touchMoveHandler;
-
-    // Add touch event listeners
-    this.knobElement.addEventListener('touchstart', touchStartHandler, {
-      passive: false,
-    });
-    this.knobElement.addEventListener('touchmove', touchMoveHandler, {
-      passive: false,
-    });
     this.gsapDraggable = Draggable.create(this.knobElement, {
       type: 'y',
       inertia: false,
@@ -535,18 +470,30 @@ export class KnobElement extends HTMLElement {
         minRotation: this.config.minRotation,
         maxRotation: this.config.maxRotation,
       },
-      onPress: () => {
+      onPress: (e: PointerEvent | TouchEvent | MouseEvent) => {
         startRotation = this.currentRotation;
         totalDeltaY = 0;
+        
+        // Detect if this is a touch event
+        isTouchDevice = 'touches' in e;
+        
+        // Store the starting Y position for touch devices
+        if (isTouchDevice && 'touches' in e) {
+          const touch = e.touches[0];
+          if (touch) {
+            startY = touch.clientY;
+          }
+        }
 
-        if (pointerLockSupported) {
+        // Only use pointer lock for non-touch devices
+        if (pointerLockSupported && !isTouchDevice) {
           this.knobElement.requestPointerLock();
 
           mouseMoveHandler = (e: MouseEvent) => {
             if (document.pointerLockElement === this.knobElement) {
               totalDeltaY += e.movementY;
 
-              const sensitivity = 4.0; // Adjust as needed
+              const sensitivity = 4.0;
               const newRotation = startRotation - totalDeltaY * sensitivity;
 
               const clampedRotation = gsap.utils.clamp(
@@ -567,7 +514,7 @@ export class KnobElement extends HTMLElement {
 
               gsap.set(this.knobElement, {
                 y: 0,
-                rotation: this.currentRotation, // Use snapped rotation
+                rotation: this.currentRotation,
                 duration: 0,
               });
 
@@ -577,15 +524,17 @@ export class KnobElement extends HTMLElement {
           };
           document.addEventListener('mousemove', mouseMoveHandler);
         }
-        // ??? No else: fallback is handled by Draggable's own drag logic
       },
 
       onDrag: () => {
-        // Only run if pointer lock is NOT supported
-        if (!pointerLockSupported) {
+        // Handle drag for both touch and non-pointer-lock mouse
+        if (!pointerLockSupported || isTouchDevice) {
           const sensitivity = 4.0;
-          const newRotation =
-            startRotation - this.gsapDraggable.y * sensitivity;
+          
+          // For touch devices, GSAP's y represents the delta from start
+          // For mouse without pointer lock, it's the same
+          const deltaY = this.gsapDraggable.y;
+          const newRotation = startRotation - deltaY * sensitivity;
 
           const clampedRotation = gsap.utils.clamp(
             this.config.minRotation,
@@ -615,13 +564,16 @@ export class KnobElement extends HTMLElement {
       },
 
       onRelease: () => {
-        if (pointerLockSupported) {
+        // Clean up pointer lock for non-touch devices
+        if (pointerLockSupported && !isTouchDevice) {
           document.exitPointerLock();
           if (mouseMoveHandler) {
             document.removeEventListener('mousemove', mouseMoveHandler);
           }
         }
-        // No else: Draggable handles release normally // ?
+        
+        // Reset touch device flag
+        isTouchDevice = false;
       },
     })[0];
   }
