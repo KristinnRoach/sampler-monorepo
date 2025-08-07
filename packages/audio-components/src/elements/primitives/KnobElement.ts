@@ -37,6 +37,8 @@ export class KnobElement extends HTMLElement {
 
   private gsapDraggable!: Draggable;
   private static stylesInjected = false;
+  private touchStartHandler?: (e: TouchEvent) => void;
+  private touchMoveHandler?: (e: TouchEvent) => void;
 
   private config: KnobConfig = {
     minValue: 0,
@@ -369,6 +371,17 @@ export class KnobElement extends HTMLElement {
     if (this.gsapDraggable) {
       this.gsapDraggable.kill();
     }
+
+    // Remove touch event listeners
+    if (this.touchStartHandler && this.knobElement) {
+      this.knobElement.removeEventListener(
+        'touchstart',
+        this.touchStartHandler
+      );
+    }
+    if (this.touchMoveHandler && this.knobElement) {
+      this.knobElement.removeEventListener('touchmove', this.touchMoveHandler);
+    }
   }
 
   private createUtilityFunctions(): void {
@@ -459,7 +472,61 @@ export class KnobElement extends HTMLElement {
     let startRotation = 0;
     let totalDeltaY = 0;
     let mouseMoveHandler: (e: MouseEvent) => void;
+    let startTouchY = 0;
 
+    // Touch event handlers for mobile devices
+    const touchStartHandler = (e: TouchEvent) => {
+      e.preventDefault();
+      startRotation = this.currentRotation;
+      startTouchY = e.touches[0].clientY;
+      totalDeltaY = 0;
+    };
+
+    const touchMoveHandler = (e: TouchEvent) => {
+      e.preventDefault();
+      const currentTouchY = e.touches[0].clientY;
+      const deltaY = currentTouchY - startTouchY;
+
+      const sensitivity = 4.0;
+      const newRotation = startRotation - deltaY * sensitivity;
+
+      const clampedRotation = gsap.utils.clamp(
+        this.config.minRotation,
+        this.config.maxRotation,
+        newRotation
+      );
+
+      const rawValue = this.rotationToValue(clampedRotation);
+      const snappedValue = this.applySnapping(rawValue);
+      this.currentValue = snappedValue;
+
+      if (snappedValue !== rawValue) {
+        this.currentRotation = this.valueToRotation(snappedValue);
+      } else {
+        this.currentRotation = clampedRotation;
+      }
+
+      gsap.set(this.knobElement, {
+        y: 0,
+        rotation: this.currentRotation,
+        duration: 0,
+      });
+
+      this.updateBorder();
+      this.dispatchChangeEvent();
+    };
+
+    // Store handlers for cleanup
+    this.touchStartHandler = touchStartHandler;
+    this.touchMoveHandler = touchMoveHandler;
+
+    // Add touch event listeners
+    this.knobElement.addEventListener('touchstart', touchStartHandler, {
+      passive: false,
+    });
+    this.knobElement.addEventListener('touchmove', touchMoveHandler, {
+      passive: false,
+    });
     this.gsapDraggable = Draggable.create(this.knobElement, {
       type: 'y',
       inertia: false,
