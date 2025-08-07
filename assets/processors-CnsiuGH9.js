@@ -5,40 +5,47 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn;
-class ValueSnapper {
-  constructor() {
-    this.allowedValues = [];
-    this.allowedPeriods = [];
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn;
+function findClosestIdx(sortedArray, target, direction = "any", getValue = (x) => x, getDistance = (a, b) => Math.abs(a - b)) {
+  if (sortedArray.length === 0) {
+    throw new Error("Array cannot be empty");
   }
-  setAllowedValues(values) {
-    this.allowedValues = [...values].sort((a, b) => a - b);
+  if (sortedArray.length === 1) {
+    return 0;
   }
-  setAllowedPeriods(periods) {
-    this.allowedPeriods = [...periods].sort((a, b) => a - b);
+  const targetValue = target;
+  const firstValue = getValue(sortedArray[0]);
+  const lastValue = getValue(sortedArray[sortedArray.length - 1]);
+  if (targetValue <= firstValue) return 0;
+  if (targetValue >= lastValue) return sortedArray.length - 1;
+  let left = 0;
+  let right = sortedArray.length - 1;
+  while (left < right - 1) {
+    const mid = Math.floor((left + right) / 2);
+    const midValue = getValue(sortedArray[mid]);
+    if (midValue === targetValue) {
+      return mid;
+    } else if (midValue < targetValue) {
+      left = mid;
+    } else {
+      right = mid;
+    }
   }
-  snapToValue(target) {
-    if (this.allowedValues.length === 0) return target;
-    return this.allowedValues.reduce(
-      (prev, curr) => Math.abs(curr - target) < Math.abs(prev - target) ? curr : prev
-    );
-  }
-  snapToMusicalPeriod(periodToSnap) {
-    if (this.allowedPeriods.length === 0) return periodToSnap;
-    const closestPeriod = this.allowedPeriods.reduce(
-      (prev, curr) => Math.abs(curr - periodToSnap) < Math.abs(prev - periodToSnap) ? curr : prev
-    );
-    return closestPeriod;
-  }
-  get hasValueSnapping() {
-    return this.allowedValues.length > 0;
-  }
-  get hasPeriodSnapping() {
-    return this.allowedPeriods.length > 0;
-  }
-  get longestPeriod() {
-    return this.allowedPeriods[this.allowedPeriods.length - 1] || 0;
-  }
+  if (direction === "left") return left;
+  if (direction === "right") return right;
+  const leftDistance = getDistance(getValue(sortedArray[left]), targetValue);
+  const rightDistance = getDistance(getValue(sortedArray[right]), targetValue);
+  return leftDistance <= rightDistance ? left : right;
+}
+function findClosest(sortedArray, target, direction = "any", getValue = (x) => x, getDistance = (a, b) => Math.abs(a - b)) {
+  const index = findClosestIdx(
+    sortedArray,
+    target,
+    direction,
+    getValue,
+    getDistance
+  );
+  return sortedArray[index];
 }
 class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== CONSTRUCTOR =====
@@ -48,29 +55,14 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     __privateAdd(this, _clamp, (value, min, max) => Math.max(min, Math.min(max, value)));
     __privateAdd(this, _clampZeroCrossing, (value) => __privateGet(this, _clamp).call(this, value, this.minZeroCrossing, this.maxZeroCrossing));
     this.buffer = null;
-    this.snapper = new ValueSnapper();
-    this.playbackPosition = 0;
-    this.transpositionPlaybackrate = 1;
-    this.loopCount = 0;
-    this.maxLoopCount = Number.MAX_SAFE_INTEGER;
-    this.isPlaying = false;
-    this.startTime = 0;
-    this.startPoint = 0;
-    this.scheduledEndTime = null;
     this.minZeroCrossing = 0;
     this.maxZeroCrossing = 0;
-    this.applyClickCompensation = false;
-    this.loopClickCompensation = 0;
-    this.isReleasing = false;
-    this.loopEnabled = false;
-    this.lockTrimToloop = false;
     this.usePlaybackPosition = false;
-    this.blockQuantizedLoopStart = 0;
-    this.blockQuantizedLoopEnd = 0;
-    this.lastProcessedLoopStart = -1;
-    this.lastProcessedLoopEnd = -1;
+    this.enableLoopSmoothing = true;
+    this.enableAdaptiveDrift = true;
+    this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
-    this.debugCounter = 0;
+    __privateMethod(this, _SamplePlayerProcessor_instances, resetState_fn).call(this);
   }
   // ===== PARAMETER DESCRIPTORS =====
   static get parameterDescriptors() {
@@ -97,10 +89,19 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         automationRate: "k-rate"
       },
       {
+        name: "pan",
+        defaultValue: 0,
+        minValue: -1,
+        // -1 hard left
+        maxValue: 1,
+        // 1 hard right
+        automationRate: "k-rate"
+      },
+      {
         name: "playbackRate",
         defaultValue: 1,
         minValue: 0.1,
-        maxValue: 8,
+        maxValue: 24,
         automationRate: "a-rate"
       },
       // NOTE: Time based params use seconds
@@ -142,63 +143,143 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         minValue: 0,
         maxValue: 99999,
         automationRate: "k-rate"
+      },
+      {
+        name: "loopDurationDriftAmount",
+        defaultValue: 0,
+        minValue: 0,
+        maxValue: 1,
+        // 0 = no drift, 1 = max drift (up to 100% of loop duration)
+        automationRate: "k-rate"
+      },
+      {
+        name: "maxLoopCount",
+        defaultValue: 999999,
+        minValue: 1,
+        maxValue: 999999,
+        automationRate: "k-rate"
       }
     ];
   }
   // ===== MAIN PROCESS METHOD =====
   process(inputs, outputs, parameters) {
-    var _a, _b;
+    var _a, _b, _c;
     const output = outputs[0];
     this.debugCounter++;
     if (!output || !this.isPlaying || !((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length)) {
       return true;
     }
+    const masterGain = parameters.masterGain[0];
     const positionParams = __privateMethod(this, _SamplePlayerProcessor_instances, extractPositionParams_fn).call(this, parameters);
     const playbackRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculatePlaybackRange_fn).call(this, positionParams);
-    const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters);
-    if (this.playbackPosition === 0 || this.playbackPosition < playbackRange.startSamples) {
-      this.playbackPosition = playbackRange.startSamples;
-    }
-    const masterGain = parameters.masterGain[0];
+    const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters.loopDurationDriftAmount[0]);
     const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]) * this.velocitySensitivity;
-    const numChannels = Math.min(output.length, this.buffer.length);
+    const basePan = parameters.pan[0];
+    const effectivePan = this.panDriftEnabled ? Math.max(-1, Math.min(1, basePan + this.currentPanDrift)) : basePan;
+    let outputChannels;
+    if (output instanceof Float32Array) {
+      outputChannels = [output];
+    } else if (Array.isArray(output) && output.every((ch) => ch instanceof Float32Array)) {
+      outputChannels = output;
+    } else {
+      console.error("Unexpected output structure:", {
+        outputType: typeof output,
+        isArray: Array.isArray(output),
+        constructor: (_c = output == null ? void 0 : output.constructor) == null ? void 0 : _c.name,
+        length: output == null ? void 0 : output.length
+      });
+      return true;
+    }
+    const numChannels = outputChannels.length;
     const isConstant = __privateMethod(this, _SamplePlayerProcessor_instances, getConstantFlags_fn).call(this, parameters);
-    for (let i = 0; i < output[0].length; i++) {
-      const envelopeGain = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.envGain, i, isConstant.envGain);
-      const playbackRate = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.playbackRate, i, isConstant.playbackRate);
-      if (this.loopEnabled && this.loopCount < this.maxLoopCount) {
-        if (this.playbackPosition >= loopRange.loopEndSamples) {
+    if (this.playbackPosition === 0) {
+      this.playbackPosition = this.reversePlayback ? playbackRange.endSamples - 1 : playbackRange.startSamples;
+    }
+    for (let sample = 0; sample < outputChannels[0].length; sample++) {
+      const envelopeGain = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.envGain, sample, isConstant.envGain);
+      const baseRate = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.playbackRate, sample, isConstant.playbackRate);
+      const effectiveRate = this.reversePlayback ? -Math.abs(baseRate) : Math.abs(baseRate);
+      if (this.loopEnabled && this.loopCount < parameters.maxLoopCount[0]) {
+        if (!this.reversePlayback && this.playbackPosition >= loopRange.loopEndSamples) {
           const lastLoopSample = this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
           const newFirstSample = this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
-          this.loopClickCompensation = (lastLoopSample - newFirstSample) * 0.5;
-          this.applyClickCompensation = true;
+          const discontinuity = lastLoopSample - newFirstSample;
+          if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
+            this.loopClickCompensation = discontinuity * 0.5;
+            this.compensationDecay = 0.9;
+            this.applyClickCompensation = true;
+          }
           this.playbackPosition = loopRange.loopStartSamples;
           this.loopCount++;
+          this.nextDriftGenerated = false;
+        } else if (this.reversePlayback && this.playbackPosition <= loopRange.loopStartSamples) {
+          this.playbackPosition = loopRange.loopEndSamples - 1;
+          this.loopCount++;
+          this.nextDriftGenerated = false;
         }
       }
-      if (this.playbackPosition >= playbackRange.endSamples) {
+      const shouldStopForward = !this.reversePlayback && this.playbackPosition >= playbackRange.endSamples;
+      const shouldStopReverse = this.reversePlayback && this.playbackPosition <= playbackRange.startSamples;
+      const isWithinLoop = this.loopEnabled && this.playbackPosition >= loopRange.loopStartSamples && this.playbackPosition <= loopRange.loopEndSamples;
+      if ((shouldStopForward || shouldStopReverse) && !(this.loopEnabled && isWithinLoop)) {
         __privateMethod(this, _SamplePlayerProcessor_instances, stop_fn).call(this);
         return true;
       }
-      const position = Math.floor(this.playbackPosition);
-      const fraction = this.playbackPosition - position;
-      const nextPosition = Math.min(position + 1, playbackRange.endSamples - 1);
-      for (let c = 0; c < numChannels; c++) {
-        const bufferChannel = this.buffer[Math.min(c, this.buffer.length - 1)];
-        const current = bufferChannel[position] || 0;
-        const next = bufferChannel[nextPosition] || 0;
-        let interpolatedSample = current + fraction * (next - current);
+      const currentPosition = Math.floor(this.playbackPosition);
+      const positionOffset = this.playbackPosition - currentPosition;
+      let nextPosition, interpWeight;
+      if (this.reversePlayback) {
+        nextPosition = Math.max(
+          currentPosition - 1,
+          playbackRange.startSamples
+        );
+        interpWeight = 1 - positionOffset;
+      } else {
+        nextPosition = Math.min(
+          currentPosition + 1,
+          playbackRange.endSamples - 1
+        );
+        interpWeight = positionOffset;
+      }
+      for (let channel = 0; channel < numChannels; channel++) {
+        if (!outputChannels[channel]) {
+          console.warn(
+            `Output channel ${channel} does not exist. Available channels:`,
+            outputChannels.length
+          );
+          continue;
+        }
+        const bufferChannelIndex = Math.min(channel, this.buffer.length - 1);
+        const bufferChannel = this.buffer[bufferChannelIndex];
+        const currentSample = bufferChannel[currentPosition] || 0;
+        const nextSample = bufferChannel[nextPosition] || 0;
+        let interpolatedSample = currentSample + interpWeight * (nextSample - currentSample);
         if (this.applyClickCompensation) {
           interpolatedSample += this.loopClickCompensation;
-          this.applyClickCompensation = false;
+          if (this.compensationDecay) {
+            this.loopClickCompensation *= this.compensationDecay;
+            if (Math.abs(this.loopClickCompensation) < 1e-3) {
+              this.applyClickCompensation = false;
+            }
+          } else {
+            this.applyClickCompensation = false;
+          }
         }
         const finalSample = interpolatedSample * velocityGain * envelopeGain * masterGain;
-        output[c][i] = Math.max(
+        let panAdjustedSample = finalSample;
+        if (outputChannels.length === 2) {
+          if (channel === 0) {
+            panAdjustedSample = finalSample * (1 - Math.max(0, effectivePan));
+          } else if (channel === 1) {
+            panAdjustedSample = finalSample * (1 - Math.max(0, -effectivePan));
+          }
+        }
+        outputChannels[channel][sample] = Math.max(
           -1,
-          Math.min(1, isFinite(finalSample) ? finalSample : 0)
+          Math.min(1, isFinite(panAdjustedSample) ? panAdjustedSample : 0)
         );
       }
-      this.playbackPosition += playbackRate * this.transpositionPlaybackrate;
+      this.playbackPosition += effectiveRate * this.transpositionPlaybackrate;
     }
     if (this.usePlaybackPosition) {
       const normalizedPosition = __privateMethod(this, _SamplePlayerProcessor_instances, samplesToNormalized_fn).call(this, this.playbackPosition);
@@ -221,14 +302,15 @@ handleMessage_fn = function(event) {
     durationSeconds,
     zeroCrossings,
     semitones,
-    allowedPeriods
+    allowedPeriods,
+    playbackDirection
   } = event.data;
   switch (type) {
     case "voice:init":
       __privateMethod(this, _SamplePlayerProcessor_instances, resetState_fn).call(this);
       this.port.postMessage({ type: "initialized" });
       break;
-    case "voice:set_buffer":
+    case "voice:setBuffer":
       __privateMethod(this, _SamplePlayerProcessor_instances, resetState_fn).call(this);
       this.buffer = null;
       this.buffer = buffer;
@@ -246,7 +328,7 @@ handleMessage_fn = function(event) {
         time: currentTime
       });
       break;
-    case "voice:set_zero_crossings":
+    case "voice:setZeroCrossings":
       this.zeroCrossings = (zeroCrossings || []).map(
         (timeSec) => timeSec * sampleRate
       );
@@ -255,17 +337,10 @@ handleMessage_fn = function(event) {
         this.maxZeroCrossing = this.zeroCrossings[this.zeroCrossings.length - 1];
       }
       break;
-    case "setAllowedPeriods":
-      const periodsInSamples = allowedPeriods.map(
-        (periodSec) => periodSec * sampleRate
-      );
-      this.snapper.setAllowedPeriods(periodsInSamples);
-      break;
     case "voice:start":
       this.isReleasing = false;
       this.isPlaying = true;
       this.loopCount = 0;
-      this.startTime = timestamp || currentTime;
       this.playbackPosition = 0;
       this.port.postMessage({
         type: "voice:started",
@@ -285,17 +360,22 @@ handleMessage_fn = function(event) {
     case "setLoopEnabled":
       this.loopEnabled = value;
       this.port.postMessage({
-        type: "loop:enabled"
+        type: "loop:enabled",
+        enabled: value
+      });
+      break;
+    case "setPanDriftEnabled":
+      this.panDriftEnabled = value;
+      break;
+    case "voice:setPlaybackDirection":
+      this.reversePlayback = playbackDirection === "reverse" ? true : false;
+      this.port.postMessage({
+        type: "voice:playbackDirectionChange",
+        playbackDirection
       });
       break;
     case "voice:usePlaybackPosition":
       this.usePlaybackPosition = value;
-      break;
-    case "lock:trimToloop":
-      this.lockTrimToloop = true;
-      break;
-    case "unlock:trimToLoop":
-      this.lockTrimToloop = false;
       break;
   }
 };
@@ -303,16 +383,20 @@ handleMessage_fn = function(event) {
 resetState_fn = function() {
   this.isPlaying = false;
   this.isReleasing = false;
-  this.startTime = 0;
-  this.startPoint = 0;
-  this.scheduledEndTime = null;
-  this.playbackPosition = 0;
-  this.loopCount = 0;
-  this.maxLoopCount = Number.MAX_SAFE_INTEGER;
+  this.loopEnabled = false;
+  this.transpositionPlaybackrate = 1;
   this.velocitySensitivity = 0.5;
+  this.reversePlayback = false;
+  this.playbackPosition = 0;
+  this.debugCounter = 0;
+  this.loopCount = 0;
   this.applyClickCompensation = false;
   this.loopClickCompensation = 0;
-  this.lockTrimToloop = false;
+  this.driftUpdateCounter = 0;
+  this.currentLoopDrift = 0;
+  this.currentPanDrift = 0;
+  this.panDriftEnabled = true;
+  this.nextDriftGenerated = false;
 };
 stop_fn = function() {
   this.isPlaying = false;
@@ -322,18 +406,15 @@ stop_fn = function() {
 };
 _clamp = new WeakMap();
 _clampZeroCrossing = new WeakMap();
-findNearestZeroCrossing_fn = function(position, maxDistance = null) {
+findNearestZeroCrossing_fn = function(position, direction = "any", maxDistance = null) {
   if (!this.zeroCrossings || this.zeroCrossings.length === 0) {
     return position;
   }
-  const closest = this.zeroCrossings.reduce(
-    (prev, curr) => Math.abs(curr - position) < Math.abs(prev - position) ? curr : prev,
-    this.zeroCrossings[0]
-  );
-  if (maxDistance !== null && Math.abs(closest - position) > maxDistance) {
+  const closestValue = findClosest(this.zeroCrossings, position, direction);
+  if (maxDistance !== null && Math.abs(closestValue - position) > maxDistance) {
     return position;
   }
-  return closest;
+  return closestValue;
 };
 // ===== CONVERSION UTILITIES =====
 /**
@@ -394,8 +475,8 @@ calculatePlaybackRange_fn = function(params) {
   const bufferLength = ((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length) || 0;
   const start = Math.max(0, params.startPointSamples);
   const end = params.endPointSamples > start ? Math.min(bufferLength, params.endPointSamples) : bufferLength;
-  const snappedStart = start;
-  const snappedEnd = end;
+  const snappedStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, start, "right");
+  const snappedEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, end, "left");
   return {
     startSamples: snappedStart,
     endSamples: snappedEnd,
@@ -403,16 +484,49 @@ calculatePlaybackRange_fn = function(params) {
   };
 };
 /**
- * Calculate effective loop range in samples
+ * Calculate effective loop range in samples with optional drift
  * @param {Object} params - Position parameters from #extractPositionParams
  * @param {Object} playbackRange - Range from #calculatePlaybackRange
- * @returns {Object} - Effective loop start and end positions
+ * @param {number} driftAmount - Loop duration drift amount (0-1)
+ * @returns {Object} - Effective loop start and end positions with drift applied
  */
-calculateLoopRange_fn = function(params, playbackRange, originalParams) {
+calculateLoopRange_fn = function(params, playbackRange, driftAmount = 0) {
   const lpStart = params.loopStartSamples;
   const lpEnd = params.loopEndSamples;
   let calcLoopStart = lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
   let calcLoopEnd = lpEnd > lpStart && lpEnd <= playbackRange.endSamples ? lpEnd : playbackRange.endSamples;
+  const baseDuration = calcLoopEnd - calcLoopStart;
+  if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
+    calcLoopStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopStart, "right");
+    calcLoopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopEnd, "left");
+  }
+  if (driftAmount > 0 && this.loopEnabled) {
+    if (!this.nextDriftGenerated || this.loopCount === 0) {
+      const updateInterval = baseDuration <= this.PITCH_PRESERVATION_THRESHOLD ? Math.max(
+        1,
+        Math.floor(this.PITCH_PRESERVATION_THRESHOLD / baseDuration)
+      ) : 1;
+      const shouldUpdateDrift = this.driftUpdateCounter % updateInterval === 0;
+      if (shouldUpdateDrift) {
+        this.currentLoopDrift = __privateMethod(this, _SamplePlayerProcessor_instances, generateLoopDrift_fn).call(this, driftAmount, baseDuration);
+        if (this.panDriftEnabled && driftAmount > 0 && this.loopCount > 0) {
+          this.currentPanDrift = this.currentLoopDrift * 64e-5;
+        } else {
+          this.currentPanDrift = 0;
+        }
+      }
+      this.driftUpdateCounter++;
+      this.nextDriftGenerated = true;
+    }
+    const driftedLoopEnd = calcLoopEnd + this.currentLoopDrift;
+    const minLoopDuration = Math.max(1, Math.floor(baseDuration * 0.1));
+    calcLoopEnd = Math.max(
+      calcLoopStart + minLoopDuration,
+      Math.min(playbackRange.endSamples, driftedLoopEnd)
+    );
+  } else {
+    this.currentPanDrift = 0;
+  }
   const loopDuration = calcLoopEnd - calcLoopStart;
   return {
     loopStartSamples: calcLoopStart,
@@ -427,6 +541,29 @@ getConstantFlags_fn = function(parameters) {
   return Object.fromEntries(
     Object.keys(parameters).map((key) => [key, parameters[key].length === 1])
   );
+};
+/**
+ * Generate a new drift amount for the current loop iteration
+ * @param {number} driftAmount - Maximum drift amount (0-1)
+ * @param {number} baseDuration - Base loop duration in samples
+ * @returns {number} - Drift amount in samples
+ */
+generateLoopDrift_fn = function(driftAmount, baseDuration) {
+  if (driftAmount <= 0) return 0;
+  const randomFactor = (Math.random() - 0.5) * 2;
+  let effectiveDriftAmount = driftAmount;
+  if (this.enableAdaptiveDrift) {
+    const shortThreshold = 1024;
+    const longThreshold = 8192;
+    if (baseDuration < shortThreshold) {
+      effectiveDriftAmount *= 0.1;
+    } else if (baseDuration < longThreshold) {
+      const scaleFactor = 0.1 + 0.9 * (baseDuration - shortThreshold) / (longThreshold - shortThreshold);
+      effectiveDriftAmount *= scaleFactor;
+    }
+  }
+  const maxDriftSamples = effectiveDriftAmount * baseDuration;
+  return Math.floor(randomFactor * maxDriftSamples);
 };
 registerProcessor("sample-player-processor", SamplePlayerProcessor);
 class RandomNoiseProcessor extends AudioWorkletProcessor {
@@ -474,7 +611,7 @@ const compressSingleSample = (input, threshold = 0.75, ratio = 4, limiter = { en
 };
 class DelayBuffer {
   constructor(maxDelaySamples) {
-    this.buffer = new Array(maxDelaySamples).fill(0);
+    this.buffer = new Float32Array(maxDelaySamples);
     this.writePtr = 0;
     this.readPtr = 0;
   }
@@ -557,7 +694,8 @@ registerProcessor(
         },
         {
           name: "decay",
-          defaultValue: 0,
+          // feedback decay time factor
+          defaultValue: 1,
           minValue: 0,
           maxValue: 1,
           automationRate: "k-rate"
