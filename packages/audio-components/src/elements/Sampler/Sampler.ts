@@ -2,18 +2,10 @@
 import van, { State } from '@repo/vanjs-core';
 import { define, ElementProps } from '@repo/vanjs-core/element';
 import { SamplePlayer, createSamplePlayer } from '@repo/audiolib';
-import { createFindNodeId } from '../../shared/utils/component-utils';
 
-import {
-  registerSampler,
-  unregisterSampler,
-  getSampler,
-} from './SamplerRegistry';
+import { registerSampler, unregisterSampler } from './SamplerRegistry';
 
-import {
-  COMPONENT_STYLE,
-  BUTTON_STYLE,
-} from '../../shared/styles/component-styles';
+import { COMPONENT_STYLE } from '../../shared/styles/component-styles';
 
 import {
   DryWetKnob,
@@ -142,59 +134,9 @@ export const SamplerElement = (attributes: ElementProps) => {
   });
 };
 
-// export const LoadButton = (attributes: ElementProps) => {
-//   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-//   const status = van.state('Ready');
-
-//   const findNodeId = createFindNodeId(attributes, targetNodeId);
-
-//   const loadSample = async () => {
-//     const nodeId = findNodeId();
-//     if (!nodeId) {
-//       status.val = 'Sampler not found';
-//       return;
-//     }
-//     const sampler = getSampler(nodeId);
-//     if (!sampler) {
-//       status.val = 'Sampler not found';
-//       return;
-//     }
-
-//     const fileInput = document.createElement('input');
-//     fileInput.type = 'file';
-//     fileInput.accept = 'audio/*';
-
-//     fileInput.onchange = async (event) => {
-//       const target = event.target as HTMLInputElement;
-//       const files = target.files;
-
-//       if (files && files.length > 0) {
-//         const file = files[0];
-//         status.val = `Loading: ${file.name}...`;
-
-//         try {
-//           const arrayBuffer = await file.arrayBuffer();
-//           await sampler.loadSample(arrayBuffer);
-//           status.val = `Loaded: ${file.name}`;
-//         } catch (error) {
-//           status.val = `Error: ${error}`;
-//         }
-//       }
-//     };
-
-//     fileInput.click();
-//   };
-
-//   return div(
-//     { style: COMPONENT_STYLE },
-//     button({ onclick: loadSample, style: BUTTON_STYLE }, 'Load Sample'),
-//     div(() => status.val)
-//   );
-// };
-
 // ===== EXPORT ALL COMPONENTS =====
 export {
-  // New knob components
+  // Knob components
   DryWetKnob,
   FeedbackKnob,
   DriveKnob,

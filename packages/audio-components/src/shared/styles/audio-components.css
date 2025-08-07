@@ -410,8 +410,8 @@
     --ac-color-text-disabled: #888888;
   }
 }
-
-/* Theme override utilities - for easy one-liner theme switching */
+/* 
+ Theme override utilities - for easy one-liner theme switching 
 .ac-theme--light {
   --ac-color-bg-primary: #767676 !important;
   --ac-color-bg-secondary: #f8f9fa !important;
@@ -430,8 +430,8 @@
   --ac-color-bg-disabled: #3a3a3a !important;
   --ac-color-border-primary: #444444 !important;
   --ac-color-border-focus: #0066cc !important;
-  --ac-color-text-primary: #ffffff !important;
+  --ac-color-text-primary: #272727 !important;
   --ac-color-text-secondary: #cccccc !important;
   --ac-color-text-disabled: #888888 !important;
-  --ac-color-text-inverse: #000000 !important;
-}
+  --ac-color-text-inverse: #ffffff !important;
+} */

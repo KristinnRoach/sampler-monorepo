@@ -36,11 +36,11 @@ const setSelectState = (key: string, state: any) =>
 
 const keymapSelectConfig: SelectConfig = {
   label: 'Keymap',
-  defaultValue: 'major',
+  defaultValue: 'default',
   options: [
-    { value: 'default', label: 'Default' },
-    { value: 'major', label: 'Major Scale' },
-    { value: 'minor', label: 'Minor Scale' },
+    { value: 'default', label: 'Chromatic' },
+    { value: 'major', label: 'Major' },
+    { value: 'minor', label: 'Minor' },
     { value: 'pentatonic', label: 'Pentatonic' },
   ],
   onTargetConnect: (sampler: any, state: State<string>, van: any) => {

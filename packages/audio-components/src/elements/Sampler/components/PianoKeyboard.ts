@@ -8,7 +8,9 @@ import {
   SMALL_BUTTON_STYLE,
   DISABLED_STYLE,
 } from '../../../shared/styles/component-styles';
+
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
+import { KeymapSelect } from './SamplerSelectFactory';
 
 const { div, button } = van.tags;
 
@@ -21,8 +23,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Sync with computer keyboard keymap and octave
   const currentKeymap = van.state(KeyMaps.default);
   const octaveOffset = van.state(0);
-  const MAX_OCT_SHIFT = 3;
-  const MIN_OCT_SHIFT = -3;
+  const MAX_OCT_SHIFT = 2;
+  const MIN_OCT_SHIFT = -2;
 
   const keyboard = document.createElement('webaudio-keyboard') as any;
 
@@ -148,26 +150,34 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       class: 'piano-keyboard-control',
       style: COMPONENT_STYLE,
     },
-    div(
-      {
-        style: CONTROL_ROW_STYLE,
-      },
-      button(
-        {
-          onclick: () => handleOctaveChange(-1),
-          style: SMALL_BUTTON_STYLE,
-        },
-        '< Oct'
-      ),
-      div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
-      button(
-        {
-          onclick: () => handleOctaveChange(1),
-          style: SMALL_BUTTON_STYLE,
-        },
-        'Oct >'
-      )
-    ),
+    // TODO: Remove or refactor keymap / oct controls !
+    // div(
+    //   {
+    //     style: CONTROL_ROW_STYLE,
+    //   },
+    //   button(
+    //     {
+    //       onclick: () => handleOctaveChange(-1),
+    //       style: SMALL_BUTTON_STYLE,
+    //     },
+    //     '<'
+    //   ),
+    //   div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
+    //   button(
+    //     {
+    //       onclick: () => handleOctaveChange(1),
+    //       style: SMALL_BUTTON_STYLE,
+    //     },
+    //     '>'
+    //   ),
+    //   KeymapSelect({
+    //     attr: (name: string, defaultValue?: string) => {
+    //       if (name === 'target-node-id') return targetNodeId;
+    //       if (name === 'show-label') return van.state('true');
+    //       return van.state(defaultValue || '');
+    //     },
+    //   } as ElementProps)
+    // ),
     keyboard
   );
 };
