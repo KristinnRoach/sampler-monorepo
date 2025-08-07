@@ -80,16 +80,21 @@ html {
 /* Drag handle base styles (for all drag handles) */
 .drag-handle {
   position: absolute;
-  top: var(--ac-spacing-xs);
-  right: var(--ac-spacing-xs);
-  width: 20px;
-  height: 12px;
+  top: 7px;
+  right: 0;
+  width: 28px;
+  height: 20px;
   background: var(--ac-color-accent);
   border-radius: var(--ac-border-radius-sm);
   cursor: grab;
   opacity: 0.6;
   transition: opacity 0.2s ease;
   z-index: 10;
+  outline-offset: 2px;
+}
+
+.drag-handle:focus-visible {
+  outline: 2px solid var(--ac-color-accent, #09f);
 }
 
 .drag-handle:hover {
@@ -161,6 +166,7 @@ html {
 /* Grid layout */
 .knob-grid,
 .toggle-grid {
+  display: grid;
   /* grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); */
   grid-template-rows: 1fr 1fr;
   grid-template-areas:
@@ -170,6 +176,7 @@ html {
 }
 
 .lfo-group {
+  display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: 1fr;
   grid-template-areas: '. . . .';

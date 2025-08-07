@@ -82,14 +82,180 @@ export const EnvelopeSVG = (
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
 
-  let clickCounts: Record<number, number> = {};
-  const activeTimeouts = new Set<number>();
+  // Optimized click handling with drag/click distinction
+  interface PointInteractionState {
+    dragThreshold: number;
+    clickStartTime: number;
+    clickStartPos: { x: number; y: number };
+    hasMoved: boolean;
+    doubleClickTimer: number | null;
+  }
+
+  const pointStates = new Map<number, PointInteractionState>();
+  const DRAG_THRESHOLD = 3; // pixels
+  const DOUBLE_CLICK_DELAY = 300; // ms
+
+  // Helper to get coordinates from mouse or touch event
+  const getEventCoordinates = (e: MouseEvent | TouchEvent) => {
+    if ('touches' in e && e.touches.length > 0) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if ('clientX' in e) {
+      return { x: e.clientX, y: e.clientY };
+    }
+    return { x: 0, y: 0 };
+  };
+
+  const handlePointMouseDown = (e: MouseEvent | TouchEvent, index: number) => {
+    if (!envelopeInfo.isEnabled) return;
+
+    e.preventDefault();
+
+    // Handle modifier key shortcuts (only for mouse events)
+    if ('altKey' in e && e.altKey) {
+      if (index === envelopeInfo.sustainPointIndex) {
+        instrument.setEnvelopeSustainPoint(envType, null);
+      } else {
+        instrument.setEnvelopeSustainPoint(envType, index);
+      }
+      updateControlPoints();
+      updateEnvelopePath();
+      return;
+    }
+
+    if ('metaKey' in e && (e.metaKey || e.ctrlKey)) {
+      if (
+        index === envelopeInfo.releasePointIndex &&
+        envelopeInfo.sustainPointIndex
+      ) {
+        instrument.setEnvelopeReleasePoint(
+          envType,
+          envelopeInfo.sustainPointIndex
+        );
+      } else {
+        instrument.setEnvelopeReleasePoint(envType, index);
+      }
+      updateControlPoints();
+      updateEnvelopePath();
+      return;
+    }
+
+    // Initialize or get point state
+    const state: PointInteractionState = pointStates.get(index) || {
+      dragThreshold: DRAG_THRESHOLD,
+      clickStartTime: 0,
+      clickStartPos: { x: 0, y: 0 },
+      hasMoved: false,
+      doubleClickTimer: null,
+    };
+
+    const now = Date.now();
+    const isDoubleClick =
+      state.doubleClickTimer !== null &&
+      now - state.clickStartTime < DOUBLE_CLICK_DELAY;
+
+    if (isDoubleClick) {
+      // Handle double click - delete point
+      if (state.doubleClickTimer) {
+        clearTimeout(state.doubleClickTimer);
+        state.doubleClickTimer = null;
+      }
+
+      if (index > 0 && index < envelopeInfo.points.length - 1) {
+        const currentSustainIndex = envelopeInfo.sustainPointIndex;
+        const currentReleaseIndex = envelopeInfo.releasePointIndex;
+
+        instrument.deleteEnvelopePoint(envelopeType, index);
+
+        // Adjust sustain point index if needed
+        if (index === currentSustainIndex) {
+          instrument.setEnvelopeSustainPoint(envType, null);
+        } else if (currentSustainIndex && index < currentSustainIndex) {
+          instrument.setEnvelopeSustainPoint(envType, currentSustainIndex - 1);
+        }
+
+        // Adjust release point index if needed
+        if (currentReleaseIndex && index < currentReleaseIndex) {
+          instrument.setEnvelopeReleasePoint(envType, currentReleaseIndex - 1);
+        }
+
+        updateControlPoints();
+        updateEnvelopePath();
+      }
+
+      pointStates.delete(index);
+      return;
+    }
+
+    // Single click - prepare for potential drag
+    const coords = getEventCoordinates(e);
+    state.clickStartTime = now;
+    state.clickStartPos = coords;
+    state.hasMoved = false;
+
+    // Set up double click detection
+    state.doubleClickTimer = setTimeout(() => {
+      // This was a single click, start dragging if we haven't moved much
+      if (!state.hasMoved) {
+        isDragging.val = true;
+        selectedPoint.val = index;
+      }
+      state.doubleClickTimer = null;
+    }, DOUBLE_CLICK_DELAY) as unknown as number;
+
+    pointStates.set(index, state);
+
+    // Add global mouse/touch listeners for this interaction
+    const handleGlobalMove = (e: MouseEvent | TouchEvent) => {
+      const state = pointStates.get(index);
+      if (!state) return;
+
+      const coords = getEventCoordinates(e);
+      const deltaX = Math.abs(coords.x - state.clickStartPos.x);
+      const deltaY = Math.abs(coords.y - state.clickStartPos.y);
+
+      if (
+        !state.hasMoved &&
+        (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD)
+      ) {
+        state.hasMoved = true;
+
+        // If we haven't started dragging yet, start now
+        if (!isDragging.val) {
+          isDragging.val = true;
+          selectedPoint.val = index;
+
+          // Cancel double click timer since we're dragging
+          if (state.doubleClickTimer) {
+            clearTimeout(state.doubleClickTimer);
+            state.doubleClickTimer = null;
+          }
+        }
+      }
+    };
+
+    const handleGlobalEnd = () => {
+      document.removeEventListener('mousemove', handleGlobalMove);
+      document.removeEventListener('mouseup', handleGlobalEnd);
+      document.removeEventListener('touchmove', handleGlobalMove, { passive: false } as any);
+      document.removeEventListener('touchend', handleGlobalEnd);
+
+      const state = pointStates.get(index);
+      if (state && !state.hasMoved && state.doubleClickTimer === null) {
+        // Clean single click without drag
+        pointStates.delete(index);
+      }
+    };
+
+    // Add both mouse and touch listeners
+    document.addEventListener('mousemove', handleGlobalMove);
+    document.addEventListener('mouseup', handleGlobalEnd);
+    // Use passive: false for touchmove since we might need preventDefault for dragging
+    document.addEventListener('touchmove', handleGlobalMove, { passive: false });
+    document.addEventListener('touchend', handleGlobalEnd);
+  };
 
   const updateControlPoints = () => {
     if (!pointsGroup) return;
-
-    activeTimeouts.forEach(clearTimeout);
-    activeTimeouts.clear();
 
     pointsGroup.replaceChildren();
 
@@ -169,87 +335,14 @@ export const EnvelopeSVG = (
       circle.style.cursor = 'pointer';
       circle.style.zIndex = '999';
 
-      // Mouse down - start drag
-      // Current approach is a somewhat convoluted way to allow using single click
-      // for moving a point and double click for adding a point (only one that worked)
-
-      let clickTimeout: number;
-
+      // Attach optimized click/touch handler
       circle.addEventListener('mousedown', (e: MouseEvent) => {
-        if (!envelopeInfo.isEnabled) return;
-
-        if (e.altKey) {
-          e.preventDefault();
-          if (index === envelopeInfo.sustainPointIndex) {
-            instrument.setEnvelopeSustainPoint(envType, null);
-          } else {
-            instrument.setEnvelopeSustainPoint(envType, index);
-          }
-          updateControlPoints();
-          updateEnvelopePath();
-          return;
-        }
-
-        if (e.metaKey) {
-          e.preventDefault();
-          if (
-            index === envelopeInfo.releasePointIndex &&
-            envelopeInfo.sustainPointIndex
-          ) {
-            instrument.setEnvelopeReleasePoint(
-              envType,
-              envelopeInfo.sustainPointIndex
-            );
-          } else {
-            instrument.setEnvelopeReleasePoint(envType, index);
-          }
-          updateControlPoints();
-          updateEnvelopePath();
-          return;
-        }
-
-        const currentCount = (clickCounts[index] || 0) + 1;
-        clickCounts = { ...clickCounts, [index]: currentCount };
-
-        // First click - start drag immediately and start timer
-        isDragging.val = true;
-        selectedPoint.val = index;
-
-        // Clear existing timeout
-        clearTimeout(clickTimeout);
-
-        if (currentCount === 1) {
-          // 200ms time given to double click
-          clickTimeout = setTimeout(() => {
-            clickCounts = { ...clickCounts, [index]: 0 };
-            activeTimeouts.delete(clickTimeout);
-          }, 200);
-          activeTimeouts.add(clickTimeout);
-        } else if (currentCount === 2) {
-          // Second click - delete and stop dragging
-          isDragging.val = false;
-          if (index > 0 && index < pts.length - 1) {
-            const currentSustainIndex = envelopeInfo.sustainPointIndex;
-
-            instrument.deleteEnvelopePoint(envelopeType, index);
-
-            if (index === currentSustainIndex) {
-              instrument.setEnvelopeSustainPoint(envType, null);
-            } else if (currentSustainIndex && index < currentSustainIndex) {
-              instrument.setEnvelopeSustainPoint(
-                envType,
-                currentSustainIndex - 1
-              );
-            }
-
-            updateControlPoints();
-            updateEnvelopePath();
-          }
-
-          clickCounts = { ...clickCounts, [index]: 0 };
-        }
-        e.preventDefault();
+        handlePointMouseDown(e, index);
       });
+      // Use passive: false since we call preventDefault in the handler
+      circle.addEventListener('touchstart', (e: TouchEvent) => {
+        handlePointMouseDown(e, index);
+      }, { passive: false });
 
       pointsGroup.appendChild(circle);
     });
@@ -367,15 +460,16 @@ export const EnvelopeSVG = (
       id: 'waveform-path',
       d: waveformSVGData.trim(),
       fill: 'none',
-      stroke: () => (enabled.val ? '#3467bc' : '#333'),
+      stroke: () =>
+        enabled.val ? 'rgba(52, 103, 188, 0.8)' : 'rgba(51, 51, 51, 0.8)',
       'stroke-width': 1,
       style: 'z-index: -999; pointer-events: none; ',
       'pointer-events': 'none', // SVG attribute, not CSS
       transform: `translate(${CIRCLE_PADDING}, ${CIRCLE_PADDING})`,
     }) as SVGPathElement;
 
-    // Insert waveform before points group
-    svgElement.insertBefore(waveformPath, pointsGroup);
+    // Insert waveform after grid but before envelope path
+    svgElement.insertBefore(waveformPath, envelopePath);
 
     gsap.from(waveformPath, {
       duration: 0.5,
@@ -386,24 +480,29 @@ export const EnvelopeSVG = (
 
   // EVENT HANDLERS
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent | TouchEvent) => {
     if (!envelopeInfo.isEnabled) return;
 
     if (isDragging.val && selectedPoint.val !== null) {
+      // Prevent default touch behavior during drag
+      if ('touches' in e) {
+        e.preventDefault();
+      }
       const pts = envelopeInfo.points;
       const isStartPoint = selectedPoint.val === 0;
       const isEndPoint = selectedPoint.val === pts.length - 1;
 
       const rect = svgElement.getBoundingClientRect();
+      const coords = getEventCoordinates(e);
 
       let time = screenXToSeconds(
-        e.clientX - rect.left - CIRCLE_PADDING,
+        coords.x - rect.left - CIRCLE_PADDING,
         rect.width - 2 * CIRCLE_PADDING,
         envelopeInfo.fullDuration
       );
 
       let value = screenYToAbsoluteValue(
-        e.clientY - rect.top - CIRCLE_PADDING,
+        coords.y - rect.top - CIRCLE_PADDING,
         rect.height - 2 * CIRCLE_PADDING,
         envelopeInfo.valueRange
       );
@@ -458,21 +557,29 @@ export const EnvelopeSVG = (
     updateControlPoints();
   };
 
-  const handleDoubleClick = (e: MouseEvent) => {
+  // Track last tap for double tap detection
+  let lastTapTime = 0;
+  let lastTapPos = { x: 0, y: 0 };
+  const DOUBLE_TAP_DELAY = 300;
+  const DOUBLE_TAP_THRESHOLD = 30;
+
+  const handleDoubleClick = (e: MouseEvent | TouchEvent) => {
     if (!envelopeInfo.isEnabled) return;
     e.stopPropagation(); // Prevent bubbling
+    e.preventDefault();
 
     if (isDragging.val) return;
     const rect = svgElement.getBoundingClientRect();
+    const coords = getEventCoordinates(e);
 
     let time = screenXToSeconds(
-      e.clientX - rect.left - CIRCLE_PADDING,
+      coords.x - rect.left - CIRCLE_PADDING,
       rect.width - 2 * CIRCLE_PADDING,
       envelopeInfo.fullDuration
     );
 
     let value = screenYToAbsoluteValue(
-      e.clientY - rect.top - CIRCLE_PADDING,
+      coords.y - rect.top - CIRCLE_PADDING,
       rect.height - 2 * CIRCLE_PADDING,
       envelopeInfo.valueRange
     );
@@ -497,11 +604,40 @@ export const EnvelopeSVG = (
     updateEnvelopePath();
   };
 
-  // Add event listeners
+  // Handle touch events for double tap
+  const handleTouchStart = (e: TouchEvent) => {
+    if (!envelopeInfo.isEnabled) return;
+
+    const coords = getEventCoordinates(e);
+    const now = Date.now();
+
+    // Check if this is a double tap
+    if (now - lastTapTime < DOUBLE_TAP_DELAY) {
+      const deltaX = Math.abs(coords.x - lastTapPos.x);
+      const deltaY = Math.abs(coords.y - lastTapPos.y);
+
+      if (deltaX < DOUBLE_TAP_THRESHOLD && deltaY < DOUBLE_TAP_THRESHOLD) {
+        // This is a double tap - add a point
+        handleDoubleClick(e);
+        lastTapTime = 0; // Reset to prevent triple tap
+        return;
+      }
+    }
+
+    lastTapTime = now;
+    lastTapPos = coords;
+  };
+
+  // Add event listeners for both mouse and touch
   svgElement.addEventListener('mousemove', handleMouseMove);
   svgElement.addEventListener('mouseup', handleMouseUp);
   svgElement.addEventListener('mouseleave', handleMouseLeave);
   svgElement.addEventListener('dblclick', handleDoubleClick);
+  
+  // Touch events - use passive: false where we need preventDefault
+  svgElement.addEventListener('touchmove', handleMouseMove, { passive: false });
+  svgElement.addEventListener('touchend', handleMouseUp);
+  svgElement.addEventListener('touchstart', handleTouchStart, { passive: false });
 
   // Assemble SVG
   svgElement.appendChild(gridGroup);
@@ -546,7 +682,13 @@ export const EnvelopeSVG = (
     drawWaveform,
     cleanup: () => {
       playheadManager.cleanup();
-      activeTimeouts.forEach(clearTimeout);
+      // Clean up point interaction states
+      pointStates.forEach((state) => {
+        if (state.doubleClickTimer) {
+          clearTimeout(state.doubleClickTimer);
+        }
+      });
+      pointStates.clear();
       if (waveformPath && waveformPath.parentNode === svgElement) {
         svgElement.removeChild(waveformPath);
       }

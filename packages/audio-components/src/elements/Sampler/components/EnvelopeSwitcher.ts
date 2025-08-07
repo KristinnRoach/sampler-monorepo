@@ -116,8 +116,21 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
 
     // Envelope display area
     div({ class: 'envelope-container' }, () => {
-      if (!samplerReady.val) return div('Waiting for sampler...');
-      if (!sampleLoaded.val) return div('Waiting for sample...');
+      if (!samplerReady.val)
+        return div(
+          {
+            style: `display: flex; height: ${height}; width: ${width}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem; `,
+          },
+          'Click anywhere to start, height: ',
+          height
+        );
+      if (!sampleLoaded.val)
+        return div(
+          {
+            style: `display: flex; height: ${height}; width: ${width}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem; `,
+          },
+          'Waiting to load sample...'
+        );
 
       const currentEnv = envelopes[activeEnvelope.val];
       if (!currentEnv) return div('Loading envelope...');

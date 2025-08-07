@@ -140,3 +140,10 @@ export const KeymapSelect = createSamplerSelect(
   van,
   COMPONENT_STYLE
 );
+
+export const WaveformSelect = createSamplerSelect(
+  keymapSelectConfig,
+  getSampler,
+  van,
+  COMPONENT_STYLE
+);
