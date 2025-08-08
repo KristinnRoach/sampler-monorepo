@@ -151,33 +151,33 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       style: COMPONENT_STYLE,
     },
     // TODO: Remove or refactor keymap / oct controls !
-    div(
-      {
-        style: CONTROL_ROW_STYLE,
-      },
-      button(
-        {
-          onclick: () => handleOctaveChange(-1),
-          style: SMALL_BUTTON_STYLE,
-        },
-        '<'
-      ),
-      div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
-      button(
-        {
-          onclick: () => handleOctaveChange(1),
-          style: SMALL_BUTTON_STYLE,
-        },
-        '>'
-      ),
-      KeymapSelect({
-        attr: (name: string, defaultValue?: string) => {
-          if (name === 'target-node-id') return targetNodeId;
-          if (name === 'show-label') return van.state('true');
-          return van.state(defaultValue || '');
-        },
-      } as ElementProps)
-    ),
+    // div(
+    //   {
+    //     style: CONTROL_ROW_STYLE,
+    //   },
+    //   button(
+    //     {
+    //       onclick: () => handleOctaveChange(-1),
+    //       style: SMALL_BUTTON_STYLE,
+    //     },
+    //     '<'
+    //   ),
+    //   div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
+    //   button(
+    //     {
+    //       onclick: () => handleOctaveChange(1),
+    //       style: SMALL_BUTTON_STYLE,
+    //     },
+    //     '>'
+    //   ),
+    //   KeymapSelect({
+    //     attr: (name: string, defaultValue?: string) => {
+    //       if (name === 'target-node-id') return targetNodeId;
+    //       if (name === 'show-label') return van.state('true');
+    //       return van.state(defaultValue || '');
+    //     },
+    //   } as ElementProps)
+    // ),
     keyboard
   );
 };
