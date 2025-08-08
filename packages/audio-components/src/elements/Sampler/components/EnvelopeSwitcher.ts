@@ -100,6 +100,9 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     };
   });
 
+  // Common style for loading state containers
+  const loadingStateStyle = `display: flex; height: ${height}; width: ${width}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem;`;
+
   return div(
     { class: 'envelope-switcher', style: COMPONENT_STYLE },
 
@@ -118,19 +121,11 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     div({ class: 'envelope-container' }, () => {
       if (!samplerReady.val)
         return div(
-          {
-            style: `display: flex; height: ${height}; width: ${width}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem; `,
-          },
-          'Click anywhere to start, height: ',
-          height
+          { style: loadingStateStyle },
+          'Click anywhere to start the audio system'
         );
       if (!sampleLoaded.val)
-        return div(
-          {
-            style: `display: flex; height: ${height}; width: ${width}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem; `,
-          },
-          'Waiting to load sample...'
-        );
+        return div({ style: loadingStateStyle }, 'Loading audio sample...');
 
       const currentEnv = envelopes[activeEnvelope.val];
       if (!currentEnv) return div('Loading envelope...');

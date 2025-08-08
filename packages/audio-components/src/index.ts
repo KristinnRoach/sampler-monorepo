@@ -18,7 +18,7 @@ export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
 
 // Basic controls
 export {
-  LoadButton as OptimizedLoadButton,
+  LoadButton,
   RecordButton,
 } from './elements/Sampler/components/SamplerButtonFactory';
 

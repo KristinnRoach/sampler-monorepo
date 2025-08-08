@@ -63,9 +63,15 @@
               <loop-duration-knob
                 target-node-id="test-sampler"
               ></loop-duration-knob>
-              <loop-duration-drift-knob
-                target-node-id="test-sampler"
-              ></loop-duration-drift-knob>
+
+              <div class="knob-w-toggle">
+                <loop-duration-drift-knob
+                  target-node-id="test-sampler"
+                ></loop-duration-drift-knob>
+                <pan-drift-toggle
+                  target-node-id="test-sampler"
+                ></pan-drift-toggle>
+              </div>
             </div>
           </div>
 
@@ -94,8 +100,7 @@
               <feedback-decay-knob
                 target-node-id="test-sampler"
               ></feedback-decay-knob>
-              <am-mod-knob target-node-id="test-sampler"></am-mod-knob>
-              <waveform-select target-node-id="test-sampler"></waveform-select>
+              <am-modulation target-node-id="test-sampler"></am-modulation>
             </div>
           </div>
 
@@ -143,9 +148,6 @@
               <pitch-lfo-sync-toggle
                 target-node-id="test-sampler"
               ></pitch-lfo-sync-toggle>
-              <pan-drift-toggle
-                target-node-id="test-sampler"
-              ></pan-drift-toggle>
             </div>
           </div>
 

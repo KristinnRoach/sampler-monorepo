@@ -49,6 +49,7 @@ import {
   KeymapSelect,
   WaveformSelect,
 } from './components/SamplerSelectFactory';
+import { AMModulation } from './components/AMModulation';
 
 const { div } = van.tags;
 
@@ -62,8 +63,15 @@ export const SamplerElement = (attributes: ElementProps) => {
   const debugMode = attributes.attr('debug-mode', '');
   const status = van.state('Initializing...');
 
+  // Track if audio has been initialized
+  let audioInitialized = false;
+  let userInteractionHandler: (() => void) | null = null;
+
   attributes.mount(() => {
     const initializeAudio = async () => {
+      if (audioInitialized) return; // Prevent multiple initializations
+      audioInitialized = true;
+
       try {
         samplePlayer = await createSamplePlayer(
           undefined,
@@ -126,35 +134,95 @@ export const SamplerElement = (attributes: ElementProps) => {
       }
     };
 
-    // Check if we're on a mobile device or if AudioWorklet is not immediately available
-    const isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent
-      );
+    // Feature detection for audio context policy
+    const requiresUserInteraction = async () => {
+      try {
+        // Create a test AudioContext to check if it starts suspended
+        const testContext = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        const needsInteraction = testContext.state === 'suspended';
+        await testContext.close();
+        return needsInteraction;
+      } catch {
+        // If we can't create an AudioContext, we'll need user interaction
+        return true;
+      }
+    };
 
-    if (isMobile || typeof AudioWorklet === 'undefined') {
-      // On mobile, wait for user interaction before initializing audio
-      status.val = 'Tap to start audio';
+    // Initialize audio based on browser policy
+    requiresUserInteraction().then((needsInteraction) => {
+      if (needsInteraction) {
+        // Wait for user interaction before initializing audio
+        status.val = 'Click to start audio';
 
-      const startAudio = async () => {
-        status.val = 'Initializing...';
-        await initializeAudio();
-        // Remove all listeners after initialization
-        document.removeEventListener('click', startAudio);
-        document.removeEventListener('touchstart', startAudio);
-        document.removeEventListener('keydown', startAudio);
-      };
+        // Create localized handler that only affects this component
+        userInteractionHandler = async () => {
+          if (audioInitialized) return;
+          status.val = 'Initializing...';
+          await initializeAudio();
 
-      // Add listeners for user interaction
-      document.addEventListener('click', startAudio, { once: true });
-      document.addEventListener('touchstart', startAudio, { once: true });
-      document.addEventListener('keydown', startAudio, { once: true });
-    } else {
-      // On desktop, initialize immediately
-      initializeAudio();
-    }
+          // Clean up the handler reference
+          userInteractionHandler = null;
+        };
+
+        // Add listener to the component itself, not the document
+        const element = attributes.$this;
+        if (element) {
+          // Use capture phase to ensure we get the event first
+          element.addEventListener('click', userInteractionHandler, {
+            once: true,
+            capture: true,
+          });
+          element.addEventListener('touchstart', userInteractionHandler, {
+            once: true,
+            capture: true,
+          });
+          element.addEventListener('keydown', userInteractionHandler, {
+            once: true,
+            capture: true,
+          });
+
+          // Also listen on parent to catch events on child elements
+          if (element.parentElement) {
+            element.parentElement.addEventListener(
+              'click',
+              userInteractionHandler,
+              { once: true, capture: true }
+            );
+            element.parentElement.addEventListener(
+              'touchstart',
+              userInteractionHandler,
+              { once: true, capture: true }
+            );
+          }
+        }
+      } else {
+        // Initialize immediately if no user interaction is needed
+        initializeAudio();
+      }
+    });
 
     return () => {
+      // Clean up event listeners if they haven't been triggered
+      if (userInteractionHandler) {
+        const element = attributes.$this;
+        if (element) {
+          element.removeEventListener('click', userInteractionHandler);
+          element.removeEventListener('touchstart', userInteractionHandler);
+          element.removeEventListener('keydown', userInteractionHandler);
+          if (element.parentElement) {
+            element.parentElement.removeEventListener(
+              'click',
+              userInteractionHandler
+            );
+            element.parentElement.removeEventListener(
+              'touchstart',
+              userInteractionHandler
+            );
+          }
+        }
+      }
+
       if (samplePlayer && nodeId.val) {
         unregisterSampler(nodeId.val);
         samplePlayer.dispose();
@@ -224,6 +292,9 @@ export {
   KeymapSelect,
   WaveformSelect,
 
+  // Composite components
+  AMModulation,
+
   // Envelopes
   EnvelopeDisplay,
 };
@@ -289,6 +360,9 @@ export const defineSampler = () => {
   // Select controls
   defineIfNotExists('keymap-select', KeymapSelect, false);
   defineIfNotExists('waveform-select', WaveformSelect, false);
+
+  // Composite controls
+  defineIfNotExists('am-modulation', AMModulation, false);
 };
 
 defineSampler();

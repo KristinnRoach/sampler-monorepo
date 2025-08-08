@@ -67,11 +67,19 @@ export const SMALL_BUTTON_STYLE = `
 `;
 
 export const SELECT_STYLE = `
-  margin-left: var(--ac-spacing-sm, 0.5rem);
-  padding: var(--ac-spacing-xs, 0.25rem);
-  border: 1px solid var(--ac-color-border-primary, #ccc);
+  padding: 2px 6px;
+  border: 1px solid var(--ac-color-border-secondary, #999);
   border-radius: var(--ac-border-radius, 4px);
+  font-size: var(--ac-font-size-xs, 11px);
+  background: var(--ac-color-bg-primary, white);
+  color: var(--ac-color-text-primary, black);
+  cursor: pointer;
+  width: 75px;
+  height: 22px;
   font-family: var(--ac-font-family, inherit);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 `;
 
 export const HELP_TEXT_STYLE = `

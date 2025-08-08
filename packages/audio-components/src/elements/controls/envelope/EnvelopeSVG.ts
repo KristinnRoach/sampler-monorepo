@@ -199,7 +199,7 @@ export const EnvelopeSVG = (
         selectedPoint.val = index;
       }
       state.doubleClickTimer = null;
-    }, DOUBLE_CLICK_DELAY) as unknown as number;
+    }, DOUBLE_CLICK_DELAY);
 
     pointStates.set(index, state);
 
@@ -235,7 +235,7 @@ export const EnvelopeSVG = (
     const handleGlobalEnd = () => {
       document.removeEventListener('mousemove', handleGlobalMove);
       document.removeEventListener('mouseup', handleGlobalEnd);
-      document.removeEventListener('touchmove', handleGlobalMove, { passive: false } as any);
+      document.removeEventListener('touchmove', handleGlobalMove);
       document.removeEventListener('touchend', handleGlobalEnd);
 
       const state = pointStates.get(index);
@@ -249,7 +249,9 @@ export const EnvelopeSVG = (
     document.addEventListener('mousemove', handleGlobalMove);
     document.addEventListener('mouseup', handleGlobalEnd);
     // Use passive: false for touchmove since we might need preventDefault for dragging
-    document.addEventListener('touchmove', handleGlobalMove, { passive: false });
+    document.addEventListener('touchmove', handleGlobalMove, {
+      passive: false,
+    });
     document.addEventListener('touchend', handleGlobalEnd);
   };
 
@@ -339,9 +341,13 @@ export const EnvelopeSVG = (
         handlePointMouseDown(e, index);
       });
       // Use passive: false since we call preventDefault in the handler
-      circle.addEventListener('touchstart', (e: TouchEvent) => {
-        handlePointMouseDown(e, index);
-      }, { passive: false });
+      circle.addEventListener(
+        'touchstart',
+        (e: TouchEvent) => {
+          handlePointMouseDown(e, index);
+        },
+        { passive: false }
+      );
 
       pointsGroup.appendChild(circle);
     });
@@ -632,11 +638,13 @@ export const EnvelopeSVG = (
   svgElement.addEventListener('mouseup', handleMouseUp);
   svgElement.addEventListener('mouseleave', handleMouseLeave);
   svgElement.addEventListener('dblclick', handleDoubleClick);
-  
+
   // Touch events - use passive: false where we need preventDefault
   svgElement.addEventListener('touchmove', handleMouseMove, { passive: false });
   svgElement.addEventListener('touchend', handleMouseUp);
-  svgElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+  svgElement.addEventListener('touchstart', handleTouchStart, {
+    passive: false,
+  });
 
   // Assemble SVG
   svgElement.appendChild(gridGroup);

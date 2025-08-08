@@ -93,34 +93,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.detail.error === 'AudioWorklet not supported') {
       // Create a browser compatibility warning
       const warning = document.createElement('div');
-      warning.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(255, 0, 0, 0.9);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        z-index: 10000;
-        max-width: 90%;
-        font-family: system-ui, -apple-system, sans-serif;
-      `;
-      warning.innerHTML = `
-        <h2 style="margin: 0 0 10px 0;">Browser Not Supported</h2>
-        <p style="margin: 10px 0;">${event.detail.message}</p>
-        <p style="margin: 10px 0; font-size: 0.9em;">Your browser does not fully support AudioWorklet API.</p>
-        <button onclick="this.parentElement.remove()" style="
-          background: white;
-          color: black;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 5px;
-          cursor: pointer;
-          margin-top: 10px;
-        ">Close</button>
-      `;
+      warning.className = 'browser-warning';
+      
+      // Create heading
+      const heading = document.createElement('h2');
+      heading.className = 'browser-warning__heading';
+      heading.textContent = 'Browser Not Supported';
+      
+      // Create message paragraph
+      const messagePara = document.createElement('p');
+      messagePara.className = 'browser-warning__message';
+      messagePara.textContent = event.detail.message || 'Your browser is not compatible.';
+      
+      // Create additional info paragraph
+      const infoPara = document.createElement('p');
+      infoPara.className = 'browser-warning__info';
+      infoPara.textContent = 'Your browser does not fully support AudioWorklet API.';
+      
+      // Create close button
+      const closeButton = document.createElement('button');
+      closeButton.className = 'browser-warning__button';
+      closeButton.textContent = 'Close';
+      
+      // Add event listener to close button
+      closeButton.addEventListener('click', () => {
+        warning.remove();
+      });
+      
+      // Append all elements to warning container
+      warning.appendChild(heading);
+      warning.appendChild(messagePara);
+      warning.appendChild(infoPara);
+      warning.appendChild(closeButton);
+      
       document.body.appendChild(warning);
     }
   });
