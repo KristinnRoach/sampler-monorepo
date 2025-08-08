@@ -15,11 +15,11 @@
     <meta name="theme-color" content="#000000" />
 
 
-    <script type="module" crossorigin src="./assets/index-DjBVXjM0.js"></script>
+    <script type="module" crossorigin src="./assets/index-D3KZtoS1.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/vendor-gsap-DSz2Z63p.js">
-    <link rel="modulepreload" crossorigin href="./assets/audiolib-CaYg0Z-n.js">
-    <link rel="modulepreload" crossorigin href="./assets/audio-components-QmEQdijw.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-CwoDtsWq.css">
+    <link rel="modulepreload" crossorigin href="./assets/audiolib-lIIV0uEG.js">
+    <link rel="modulepreload" crossorigin href="./assets/audio-components-DPqdX40m.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-5euN9nPe.css">
   </head>
 
   <body class="ac-theme--dark">
@@ -66,9 +66,15 @@
               <loop-duration-knob
                 target-node-id="test-sampler"
               ></loop-duration-knob>
-              <loop-duration-drift-knob
-                target-node-id="test-sampler"
-              ></loop-duration-drift-knob>
+
+              <div class="knob-w-toggle">
+                <loop-duration-drift-knob
+                  target-node-id="test-sampler"
+                ></loop-duration-drift-knob>
+                <pan-drift-toggle
+                  target-node-id="test-sampler"
+                ></pan-drift-toggle>
+              </div>
             </div>
           </div>
 
@@ -97,14 +103,14 @@
               <feedback-decay-knob
                 target-node-id="test-sampler"
               ></feedback-decay-knob>
-              <am-mod-knob target-node-id="test-sampler"></am-mod-knob>
+              <am-modulation target-node-id="test-sampler"></am-modulation>
             </div>
           </div>
 
           <!-- Modulation -->
-          <div class="control-group lfo-group">
-            <h3>LFO</h3>
-            <div class="ac-layout--grid knob-grid">
+          <div class="control-group">
+            <h3>MOVEMENT</h3>
+            <div class="ac-layout--grid knob-grid lfo-group">
               <gain-lfo-rate-knob
                 target-node-id="test-sampler"
               ></gain-lfo-rate-knob>
@@ -145,9 +151,6 @@
               <pitch-lfo-sync-toggle
                 target-node-id="test-sampler"
               ></pitch-lfo-sync-toggle>
-              <pan-drift-toggle
-                target-node-id="test-sampler"
-              ></pan-drift-toggle>
             </div>
           </div>
 
