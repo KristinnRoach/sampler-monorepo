@@ -38,8 +38,6 @@ html {
 .sampler-demo {
   max-width: 1200px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
   gap: var(--ac-spacing-sm);
 }
 
@@ -60,10 +58,11 @@ html {
 /* Control sections */
 .sampler-controls {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   grid-template-areas:
-    '. . .'
-    '. . .';
+    '. .'
+    '. .'
+    '. .';
 
   gap: var(--ac-spacing-md);
 }
@@ -192,6 +191,58 @@ piano-keyboard {
   max-width: 100%;
 }
 
+/* Browser warning modal styles */
+.browser-warning {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  z-index: 10000;
+  max-width: 90%;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+.browser-warning__heading {
+  margin: 0 0 10px 0;
+}
+
+.browser-warning__message {
+  margin: 10px 0;
+}
+
+.browser-warning__info {
+  margin: 10px 0;
+  font-size: 0.9em;
+}
+
+.browser-warning__button {
+  background: white;
+  color: black;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.2s ease;
+}
+
+.browser-warning__button:hover {
+  background-color: #f0f0f0;
+}
+
+.browser-warning__button:focus {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
 @media (max-width: 768px) {
   piano-keyboard {
     width: 100% !important;
@@ -215,4 +266,23 @@ piano-keyboard {
     flex-direction: column;
     gap: var(--ac-spacing-sm);
   }
+}
+
+/* Temp fix to override default styles */
+.knob-w-toggle {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+}
+
+pan-drift-toggle {
+  position: absolute;
+  right: -40px;
+  bottom: 0;
+  border: none;
+  background: transparent;
 }

@@ -92,7 +92,7 @@ export const createToggle = (
   getTargetNode: (nodeId: string) => any,
   Toggle: any,
   van: any,
-  INLINE_COMPONENT_STYLE: string
+  componentStyle?: string
 ) => {
   const { div, label } = van.tags;
 
@@ -128,15 +128,19 @@ export const createToggle = (
     });
 
     return div(
-      { style: INLINE_COMPONENT_STYLE },
+      { style: componentStyle || '' },
       config.label ? label({ textContent: config.label }) : null,
-      Toggle({
-        on: toggleState.val,
-        size: 1,
-        onColor: config.onColor || '#4CAF50',
-        onChange: () => (toggleState.val = !toggleState.val),
-      }),
-      div(() => (toggleState.val ? config.onText : config.offText))
+
+      div(
+        { style: 'display: flex; gap: 0.5rem; align-items: center;  ' },
+        Toggle({
+          on: toggleState.val,
+          size: 0.9,
+          onColor: config.onColor || '#4CAF50',
+          onChange: () => (toggleState.val = !toggleState.val),
+        }),
+        div(() => (toggleState.val ? config.onText : config.offText))
+      )
     );
   };
 };

@@ -361,8 +361,6 @@ export class SamplePlayer implements ILibInstrumentNode {
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
     customWaveOptions: WaveformOptions = {}
   ) {
-    console.debug('SamplePlayer: Setting waveform to', waveform);
-
     this.voicePool.applyToAllVoices((v) =>
       v.setModulationWaveform(modType, waveform, customWaveOptions)
     );

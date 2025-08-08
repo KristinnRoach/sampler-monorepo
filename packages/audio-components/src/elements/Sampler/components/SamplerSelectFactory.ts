@@ -71,13 +71,35 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
   },
 };
 
+// Helper to create short labels for waveforms
+const getWaveformLabel = (waveform: SupportedWaveform): string => {
+  const labelMap: Partial<Record<SupportedWaveform, string>> = {
+    'sine': 'Sine',
+    'square': 'Square',
+    'sawtooth': 'Saw',
+    'triangle': 'Triangle',
+    'pulse': 'Pulse',
+    'bandlimited-sawtooth': 'BL Saw',
+    'supersaw': 'SuperSaw',
+    'warm-pad': 'Warm Pad',
+    'metallic': 'Metallic',
+    'formant': 'Formant',
+    'white-noise': 'White',
+    'pink-noise': 'Pink',
+    'brown-noise': 'Brown',
+    'colored-noise': 'Colored',
+    'random-harmonic': 'Random',
+    'custom-function': 'Custom',
+  };
+  return labelMap[waveform] || waveform;
+};
+
 const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
-  // label: 'Wave',
+  label: 'Wave',
   defaultValue: 'square' as SupportedWaveform,
   options: SUPPORTED_WAVEFORMS.map((waveform: SupportedWaveform) => ({
     value: waveform,
-    label:
-      waveform.charAt(0).toUpperCase() + waveform.slice(1).replace(/-/g, ' '),
+    label: getWaveformLabel(waveform),
   })),
   onTargetConnect: (
     sampler: any,
@@ -105,6 +127,7 @@ const createSamplerSelect = <T extends string = string>(
   return (attributes: ElementProps) => {
     const targetNodeId: State<string> = attributes.attr('target-node-id', '');
     const showLabel = attributes.attr('show-label', 'true');
+    const labelPosition = attributes.attr('label-position', 'inline'); // 'inline' or 'below'
     const state = van.state(config.defaultValue);
 
     const findNodeId = createFindNodeId(attributes, targetNodeId);
@@ -181,18 +204,46 @@ const createSamplerSelect = <T extends string = string>(
         )
       );
 
-    if (showLabel.val === 'true' && config.label) {
+    // If no label needed, just return the select
+    if (showLabel.val !== 'true' || !config.label) {
+      return createSelectElement();
+    }
+
+    // Label below the select (for composite elements)
+    if (labelPosition.val === 'below') {
       return div(
-        { style: componentStyle },
+        { 
+          style: `
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+          ` 
+        },
+        createSelectElement(),
         div(
-          { style: CONTROL_GROUP_STYLE },
-          `${config.label}: `,
-          createSelectElement()
+          { 
+            style: `
+              font-size: 9px;
+              color: var(--ac-color-text-secondary, #999);
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            ` 
+          },
+          config.label
         )
       );
     }
 
-    return div({ style: componentStyle }, createSelectElement());
+    // Default: Label inline with select
+    return div(
+      { style: `display: inline-flex; align-items: center; gap: var(--ac-spacing-xs, 0.25rem);` },
+      div(
+        { style: `font-size: var(--ac-font-size-sm, 12px); color: var(--ac-color-text-primary);` },
+        `${config.label}:`
+      ),
+      createSelectElement()
+    );
   };
 };
 

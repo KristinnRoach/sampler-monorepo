@@ -3,7 +3,10 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
 import { Toggle } from '../../primitives/VanToggle';
-import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
+import {
+  COMPONENT_STYLE,
+  INLINE_COMPONENT_STYLE,
+} from '../../../shared/styles/component-styles';
 import {
   createToggle,
   ToggleConfig,
@@ -12,11 +15,11 @@ import {
 // ===== TOGGLE CONFIGURATIONS =====
 
 const feedbackModeConfig: ToggleConfig = {
-  label: 'Feedback Mode',
+  label: 'FB-Mode',
   defaultValue: false, // false = monophonic, true = polyphonic
   onColor: '#4CAF50',
-  offText: 'M',
-  onText: 'P',
+  offText: 'Mono',
+  onText: 'Poly',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       const mode = state.val ? 'polyphonic' : 'monophonic';
@@ -55,7 +58,7 @@ const midiConfig: ToggleConfig = {
 };
 
 const loopLockConfig: ToggleConfig = {
-  label: 'Loop Lock',
+  label: 'Loop',
   defaultValue: false,
   onColor: '#ff9800',
   offText: '○',
@@ -66,7 +69,7 @@ const loopLockConfig: ToggleConfig = {
 };
 
 const holdLockConfig: ToggleConfig = {
-  label: 'Hold Lock',
+  label: 'Hold',
   defaultValue: false,
   onColor: '#ff9800',
   offText: '○',
@@ -77,22 +80,22 @@ const holdLockConfig: ToggleConfig = {
 };
 
 const gainLFOSyncConfig: ToggleConfig = {
-  label: 'Gain LFO Sync',
+  label: 'Amp LFO',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: '○',
-  onText: '🔗',
+  offText: 'free',
+  onText: 'sync',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', state.val));
   },
 };
 
 const pitchLFOSyncConfig: ToggleConfig = {
-  label: 'Pitch LFO Sync',
+  label: 'Pitch LFO',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: '○',
-  onText: '🔗',
+  offText: 'free',
+  onText: 'sync',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', state.val));
   },
@@ -113,7 +116,7 @@ const playbackDirectionConfig: ToggleConfig = {
 };
 
 const panDriftConfig: ToggleConfig = {
-  label: 'Pan Drift',
+  label: '', // No label to keep it compact
   defaultValue: true,
   onColor: '#ff9800',
   offText: '○',
@@ -188,5 +191,5 @@ export const PanDriftToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
