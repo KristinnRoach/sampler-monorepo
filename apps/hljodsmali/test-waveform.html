@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Waveform Select Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .console-output {
+            background: #000;
+            border: 1px solid #444;
+            padding: 10px;
+            height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 5px;
+        }
+        .log-debug { color: #888; }
+        .log-info { color: #4CAF50; }
+        .log-warn { color: #FFC107; }
+        .log-error { color: #f44336; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Waveform Select Debug Test</h1>
+        
+        <div>
+            <button onclick="clearConsole()">Clear Console</button>
+            <button onclick="testWaveformChange()">Test Waveform Change</button>
+            <button onclick="showSamplerState()">Show Sampler State</button>
+        </div>
+
+        <div id="console-output" class="console-output"></div>
+    </div>
+
+    <script>
+        const consoleOutput = document.getElementById('console-output');
+        let logCounter = 0;
+
+        // Override console methods to capture logs
+        const originalConsole = {
+            log: console.log,
+            debug: console.debug,
+            error: console.error,
+            warn: console.warn
+        };
+
+        function addLog(type, args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = Array.from(args).map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+            ).join(' ');
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            consoleOutput.appendChild(entry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            logCounter++;
+
+            // Also log to real console
+            originalConsole[type](...args);
+        }
+
+        console.log = function(...args) { addLog('info', args); };
+        console.debug = function(...args) { addLog('debug', args); };
+        console.error = function(...args) { addLog('error', args); };
+        console.warn = function(...args) { addLog('warn', args); };
+
+        function clearConsole() {
+            consoleOutput.innerHTML = '';
+            logCounter = 0;
+            console.log('Console cleared');
+        }
+
+        function testWaveformChange() {
+            console.log('=== Testing Waveform Change ===');
+            const waveformSelect = document.querySelector('waveform-select select');
+            if (waveformSelect) {
+                const currentValue = waveformSelect.value;
+                console.log('Current waveform:', currentValue);
+                
+                // Try changing to a different waveform
+                const options = Array.from(waveformSelect.options).map(o => o.value);
+                const nextIndex = (options.indexOf(currentValue) + 1) % options.length;
+                const nextValue = options[nextIndex];
+                
+                console.log('Changing to:', nextValue);
+                waveformSelect.value = nextValue;
+                waveformSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                console.log('Change event dispatched');
+            } else {
+                console.error('Waveform select not found!');
+            }
+        }
+
+        function showSamplerState() {
+            console.log('=== Checking Sampler State ===');
+            
+            // Check if sampler is registered
+            const samplerElement = document.querySelector('sampler-element');
+            if (samplerElement) {
+                console.log('Sampler element found:', samplerElement);
+                console.log('Node ID:', samplerElement.getAttribute('node-id'));
+            } else {
+                console.error('No sampler element found');
+            }
+
+            // Check waveform select
+            const waveformSelect = document.querySelector('waveform-select');
+            if (waveformSelect) {
+                console.log('Waveform select found');
+                const selectElement = waveformSelect.querySelector('select');
+                if (selectElement) {
+                    console.log('Current selection:', selectElement.value);
+                    console.log('Available options:', Array.from(selectElement.options).map(o => o.value));
+                }
+            } else {
+                console.error('No waveform select found');
+            }
+
+            // Log recent events
+            console.log('Log entries captured:', logCounter);
+        }
+
+        // Listen for page load
+        window.addEventListener('load', () => {
+            console.log('Page loaded - monitoring waveform-select');
+            
+            // Listen for sampler ready
+            document.addEventListener('sampler-ready', (e) => {
+                console.log('Sampler ready event:', e.detail);
+            });
+
+            // Monitor the parent page if in iframe
+            if (window.parent !== window) {
+                console.log('Running in iframe - attempting to access parent');
+                try {
+                    const parentDoc = window.parent.document;
+                    showSamplerState();
+                } catch (e) {
+                    console.error('Cannot access parent:', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

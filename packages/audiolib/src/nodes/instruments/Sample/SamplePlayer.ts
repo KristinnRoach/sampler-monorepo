@@ -351,9 +351,9 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === LFOs === */
 
-  setModulationAmount = (amount: number, modType: 'AM' | 'FM' = 'AM') =>
+  setModulationAmount = (modType: 'AM' | 'FM', amount: number) =>
     this.voicePool.applyToAllVoices((v) =>
-      v.setModulationAmount(amount, modType)
+      v.setModulationAmount(modType, amount)
     );
 
   setModulationWaveform(
@@ -361,6 +361,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
     customWaveOptions: WaveformOptions = {}
   ) {
+    console.debug('SamplePlayer: Setting waveform to', waveform);
+
     this.voicePool.applyToAllVoices((v) =>
       v.setModulationWaveform(modType, waveform, customWaveOptions)
     );

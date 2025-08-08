@@ -62,7 +62,10 @@ export { ComputerKeyboard } from './elements/Sampler/components/ComputerKeyboard
 export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
 
 // Select controls
-export { KeymapSelect } from './elements/Sampler/components/SamplerSelectFactory';
+export {
+  KeymapSelect,
+  WaveformSelect,
+} from './elements/Sampler/components/SamplerSelectFactory';
 
 // Envelopes
 export { EnvelopeDisplay } from './elements/Sampler/components/EnvelopeDisplay';

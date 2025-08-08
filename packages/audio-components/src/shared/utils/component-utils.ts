@@ -76,7 +76,7 @@ export const createSamplerConnection = (
  * Configuration for a toggle component
  */
 export interface ToggleConfig {
-  label: string;
+  label?: string;
   defaultValue: boolean;
   onColor?: string;
   offText: string;
@@ -129,7 +129,7 @@ export const createToggle = (
 
     return div(
       { style: INLINE_COMPONENT_STYLE },
-      label({ textContent: config.label }),
+      config.label ? label({ textContent: config.label }) : null,
       Toggle({
         on: toggleState.val,
         size: 1,
@@ -145,7 +145,7 @@ export const createToggle = (
  * Configuration for a knob component
  */
 export interface KnobConfig {
-  label: string;
+  label?: string;
   defaultValue: number;
   minValue?: number;
   maxValue?: number;
@@ -184,7 +184,10 @@ export const createKnob = (
           config.onTargetConnect?.(target, value, van);
         } catch (error) {
           connected = false;
-          console.error(`Failed to connect knob "${config.label}":`, error);
+          console.error(
+            `Failed to connect knob "${config.label || 'unnamed'}":`,
+            error
+          );
         }
       }
     };

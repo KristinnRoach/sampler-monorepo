@@ -4,6 +4,8 @@ export * from './audiodata/validate/audiobuffer';
 export * from './audiodata/monitoring/LevelMonitor';
 export * from './audiodata/process/normalizeAudioBuffer';
 
+export * from './audiodata/generate/generateWaveform';
+
 // Musical utils & constants
 export * from './music-theory';
 

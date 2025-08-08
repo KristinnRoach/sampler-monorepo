@@ -199,7 +199,7 @@ const amplitudeModConfig: KnobConfig = {
   maxValue: 1,
   curve: 1,
   onTargetConnect: (sampler, state, van) => {
-    van.derive(() => sampler.setModulationAmount(state.val));
+    van.derive(() => sampler.setModulationAmount('AM', state.val));
   },
 };
 
