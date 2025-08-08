@@ -26,37 +26,56 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     'pitch-env': null,
   };
 
-  const createEnvelopes = () => {
+  const createEnvelope = (envType: SupportedEnvelopeType) => {
     if (!samplerReady.val || !sampleLoaded.val) return;
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) return;
 
     try {
-      // Create all envelope instances
-      (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
-        if (envelopes[envType]) {
-          envelopes[envType]!.cleanup();
-        }
+      // Cleanup existing envelope
+      if (envelopes[envType]) {
+        envelopes[envType]!.cleanup();
+      }
 
-        envelopes[envType] = EnvelopeSVG(
-          sampler,
-          envType as EnvelopeType, // Cast to the broader EnvelopeType for the API
-          width.val,
-          height.val
-        );
+      // Create new envelope instance
+      envelopes[envType] = EnvelopeSVG(
+        sampler,
+        envType as EnvelopeType,
+        width.val,
+        height.val
+      );
 
-        // Draw waveform if sample is loaded
-        if (sampler.audiobuffer) {
-          envelopes[envType]!.drawWaveform(sampler.audiobuffer);
-        }
-      });
+      // Draw waveform if sample is loaded
+      if (sampler.audiobuffer) {
+        envelopes[envType]!.drawWaveform(sampler.audiobuffer);
+      }
 
-      console.log('All envelopes created successfully');
+      console.log(`${envType} envelope created successfully`);
     } catch (error) {
-      console.error('Error creating envelopes:', error);
+      console.error(`Error creating ${envType} envelope:`, error);
     }
   };
+
+  const createEnvelopes = () => {
+    if (!samplerReady.val || !sampleLoaded.val) return;
+
+    // Create all envelope instances
+    (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
+      createEnvelope(envType);
+    });
+
+    console.log('All envelopes created successfully');
+  };
+
+  // Watch for active envelope changes and recreate the envelope to get fresh data
+  van.derive(() => {
+    const currentEnvType = activeEnvelope.val;
+    if (samplerReady.val && sampleLoaded.val) {
+      console.log(`Switching to ${currentEnvType}, recreating envelope...`);
+      createEnvelope(currentEnvType);
+    }
+  });
 
   attributes.mount(() => {
     const handleSamplerReady = (e: Event) => {
