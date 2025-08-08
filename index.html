@@ -15,11 +15,11 @@
     <meta name="theme-color" content="#000000" />
 
 
-    <script type="module" crossorigin src="./assets/index-Dp-AOdVk.js"></script>
+    <script type="module" crossorigin src="./assets/index-BFT3A0j0.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/vendor-gsap-DSz2Z63p.js">
     <link rel="modulepreload" crossorigin href="./assets/audiolib-lIIV0uEG.js">
     <link rel="modulepreload" crossorigin href="./assets/audio-components-DUSYwve2.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-D0f_6kPt.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-h5DsF2jP.css">
   </head>
 
   <body class="ac-theme--dark">
@@ -109,7 +109,7 @@
 
           <!-- Modulation -->
           <div class="control-group">
-            <h3>MOVEMENT</h3>
+            <h3>LFO</h3>
             <div class="ac-layout--grid knob-grid lfo-group">
               <gain-lfo-rate-knob
                 target-node-id="test-sampler"
@@ -123,6 +123,19 @@
               <pitch-lfo-depth-knob
                 target-node-id="test-sampler"
               ></pitch-lfo-depth-knob>
+            </div>
+
+            <div class="control-group">
+              <piano-keyboard target-node-id="test-sampler"> </piano-keyboard>
+
+              <load-button
+                target-node-id="test-sampler"
+                show-status="false"
+              ></load-button>
+              <record-button
+                target-node-id="test-sampler"
+                show-status="false"
+              ></record-button>
             </div>
           </div>
 
@@ -154,18 +167,6 @@
             </div>
           </div>
 
-          <div class="control-group">
-            <piano-keyboard target-node-id="test-sampler"> </piano-keyboard>
-
-            <load-button
-              target-node-id="test-sampler"
-              show-status="false"
-            ></load-button>
-            <record-button
-              target-node-id="test-sampler"
-              show-status="false"
-            ></record-button>
-          </div>
           <!-- <div class="control-group">
             <h3>Input</h3>
             <div class="inline keyboard-section">
