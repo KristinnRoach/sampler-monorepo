@@ -4,15 +4,12 @@ import '../../controls/webaudio-controls/webaudio-keyboard';
 import { getSampler } from '../SamplerRegistry';
 import {
   COMPONENT_STYLE,
-  CONTROL_ROW_STYLE,
-  SMALL_BUTTON_STYLE,
   DISABLED_STYLE,
 } from '../../../shared/styles/component-styles';
 
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
-// import { KeymapSelect } from './SamplerSelectFactory';
 
-const { div, button } = van.tags;
+const { div } = van.tags;
 
 export const PianoKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
@@ -150,34 +147,35 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       class: 'piano-keyboard-control',
       style: COMPONENT_STYLE,
     },
-    // TODO: Remove or refactor keymap / oct controls !
-    // div(
-    //   {
-    //     style: CONTROL_ROW_STYLE,
-    //   },
-    //   button(
-    //     {
-    //       onclick: () => handleOctaveChange(-1),
-    //       style: SMALL_BUTTON_STYLE,
-    //     },
-    //     '<'
-    //   ),
-    //   div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
-    //   button(
-    //     {
-    //       onclick: () => handleOctaveChange(1),
-    //       style: SMALL_BUTTON_STYLE,
-    //     },
-    //     '>'
-    //   ),
-    //   KeymapSelect({
-    //     attr: (name: string, defaultValue?: string) => {
-    //       if (name === 'target-node-id') return targetNodeId;
-    //       if (name === 'show-label') return van.state('true');
-    //       return van.state(defaultValue || '');
-    //     },
-    //   } as ElementProps)
-    // ),
     keyboard
   );
 };
+
+// TODO: Remove or refactor keymap / oct controls !
+// div(
+//   {
+//     style: CONTROL_ROW_STYLE,
+//   },
+// button(
+//   {
+//     onclick: () => handleOctaveChange(-1),
+//     style: SMALL_BUTTON_STYLE,
+//   },
+//   '<'
+// ),
+// div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
+// button(
+//   {
+//     onclick: () => handleOctaveChange(1),
+//     style: SMALL_BUTTON_STYLE,
+//   },
+//   '>'
+// ),
+//   KeymapSelect({
+//     attr: (name: string, defaultValue?: string) => {
+//       if (name === 'target-node-id') return targetNodeId;
+//       if (name === 'show-label') return van.state('true');
+//       return van.state(defaultValue || '');
+//     },
+//   } as ElementProps)
+// ),

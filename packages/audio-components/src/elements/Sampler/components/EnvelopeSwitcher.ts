@@ -50,8 +50,6 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       if (sampler.audiobuffer) {
         envelopes[envType]!.drawWaveform(sampler.audiobuffer);
       }
-
-      console.log(`${envType} envelope created successfully`);
     } catch (error) {
       console.error(`Error creating ${envType} envelope:`, error);
     }
@@ -64,15 +62,12 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
       createEnvelope(envType);
     });
-
-    console.log('All envelopes created successfully');
   };
 
   // Watch for active envelope changes and recreate the envelope to get fresh data
   van.derive(() => {
     const currentEnvType = activeEnvelope.val;
     if (samplerReady.val && sampleLoaded.val) {
-      console.log(`Switching to ${currentEnvType}, recreating envelope...`);
       createEnvelope(currentEnvType);
     }
   });
@@ -120,7 +115,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   });
 
   // Common style for loading state containers
-  const loadingStateStyle = `display: flex; height: ${height}; width: ${width}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem;`;
+  const loadingStateStyle = `display: flex; height: ${height.val}; width: ${width.val}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem;`;
 
   return div(
     { class: 'envelope-switcher', style: COMPONENT_STYLE },

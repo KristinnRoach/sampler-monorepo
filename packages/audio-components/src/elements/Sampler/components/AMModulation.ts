@@ -17,6 +17,9 @@ export const AMModulation = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const showWaveLabel = attributes.attr('show-wave-label', 'false'); // Default to no label
 
+  // Create label position state once to avoid repeated state allocations
+  const labelPositionState = van.state('below');
+
   // Create the inner controls with the same target node id
   const knobElement = AMModKnob({
     attr: (name: string, defaultValue: any) => {
@@ -30,7 +33,7 @@ export const AMModulation = (attributes: ElementProps) => {
   const selectElement = WaveformSelect({
     attr: (name: string, defaultValue: any) => {
       if (name === 'target-node-id') return targetNodeId;
-      if (name === 'label-position') return van.state('below'); // Label below for composite
+      if (name === 'label-position') return labelPositionState; // Label below for composite
       if (name === 'show-label') return showWaveLabel; // Pass through the label preference
       return attributes.attr(name, defaultValue);
     },
