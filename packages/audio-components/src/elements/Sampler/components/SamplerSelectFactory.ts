@@ -25,7 +25,12 @@ export interface SelectConfig<T extends string = string> {
   label?: string;
   defaultValue: T;
   options: SelectOption<T>[];
-  onTargetConnect?: (target: any, state: State<T>, van: any) => void;
+  onTargetConnect?: (
+    target: any,
+    state: State<T>,
+    van: any,
+    targetNodeId: string
+  ) => void;
 }
 
 // ===== SHARED SELECT STATE REGISTRY =====
@@ -48,7 +53,8 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
   onTargetConnect: (
     sampler: any,
     state: State<keyof typeof KeyMaps>,
-    van: any
+    van: any,
+    targetNodeId: string
   ) => {
     // Register this state for other components to access
     setSelectState('keymap', state);
@@ -63,7 +69,7 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
           detail: {
             keymap,
             selectedValue: state.val,
-            targetNodeId: sampler.nodeId,
+            targetNodeId: targetNodeId,
           },
         })
       );
@@ -74,16 +80,16 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
 // Helper to create short labels for waveforms
 const getWaveformLabel = (waveform: SupportedWaveform): string => {
   const labelMap: Partial<Record<SupportedWaveform, string>> = {
-    'sine': 'Sine',
-    'square': 'Square',
-    'sawtooth': 'Saw',
-    'triangle': 'Triangle',
-    'pulse': 'Pulse',
+    sine: 'Sine',
+    square: 'Square',
+    sawtooth: 'Saw',
+    triangle: 'Triangle',
+    pulse: 'Pulse',
     'bandlimited-sawtooth': 'BL Saw',
-    'supersaw': 'SuperSaw',
+    supersaw: 'SuperSaw',
     'warm-pad': 'Warm Pad',
-    'metallic': 'Metallic',
-    'formant': 'Formant',
+    metallic: 'Metallic',
+    formant: 'Formant',
     'white-noise': 'White',
     'pink-noise': 'Pink',
     'brown-noise': 'Brown',
@@ -104,7 +110,8 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   onTargetConnect: (
     sampler: any,
     state: State<SupportedWaveform>,
-    van: any
+    van: any,
+    targetNodeId: string
   ) => {
     // Register this state for other components to access
     setSelectState('waveform', state);
@@ -148,7 +155,7 @@ const createSamplerSelect = <T extends string = string>(
       if (config.onTargetConnect) {
         try {
           connected = true;
-          config.onTargetConnect(sampler, state, van);
+          config.onTargetConnect(sampler, state, van, nodeId);
         } catch (error) {
           connected = false;
           console.error(
@@ -212,23 +219,23 @@ const createSamplerSelect = <T extends string = string>(
     // Label below the select (for composite elements)
     if (labelPosition.val === 'below') {
       return div(
-        { 
+        {
           style: `
             display: inline-flex;
             flex-direction: column;
             align-items: center;
             gap: 2px;
-          ` 
+          `,
         },
         createSelectElement(),
         div(
-          { 
+          {
             style: `
               font-size: 9px;
               color: var(--ac-color-text-secondary, #999);
               text-transform: uppercase;
               letter-spacing: 0.5px;
-            ` 
+            `,
           },
           config.label
         )
@@ -237,9 +244,13 @@ const createSamplerSelect = <T extends string = string>(
 
     // Default: Label inline with select
     return div(
-      { style: `display: inline-flex; align-items: center; gap: var(--ac-spacing-xs, 0.25rem);` },
+      {
+        style: `display: inline-flex; align-items: center; gap: var(--ac-spacing-xs, 0.25rem);`,
+      },
       div(
-        { style: `font-size: var(--ac-font-size-sm, 12px); color: var(--ac-color-text-primary);` },
+        {
+          style: `font-size: var(--ac-font-size-sm, 12px); color: var(--ac-color-text-primary);`,
+        },
         `${config.label}:`
       ),
       createSelectElement()

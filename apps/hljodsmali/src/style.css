@@ -86,7 +86,7 @@ html {
   background: var(--ac-color-accent);
   border-radius: var(--ac-border-radius-sm);
   cursor: grab;
-  opacity: 0.6;
+  opacity: 0.8;
   transition: opacity 0.2s ease;
   z-index: 10;
   outline-offset: 2px;

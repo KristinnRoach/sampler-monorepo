@@ -6,7 +6,6 @@ export const COMPONENT_STYLE = `
   gap: var(--ac-spacing-sm, 0.5rem);
   padding: var(--ac-spacing-sm, 0.5rem);
   margin: var(--ac-spacing-xs, 0.25rem);
-  border: 1px solid var(--ac-color-border-primary, #ccc);
   border-radius: var(--ac-border-radius, 4px);
   min-height: var(--ac-component-height-md, 40px);
   font-family: var(--ac-font-family, system-ui, sans-serif);
@@ -19,7 +18,6 @@ export const INLINE_COMPONENT_STYLE = `
   gap: var(--ac-spacing-sm, 0.5rem);
   padding: var(--ac-spacing-sm, 0.5rem);
   margin: var(--ac-spacing-xs, 0.25rem);
-  border: 1px solid var(--ac-color-border-primary, #ccc);
   border-radius: var(--ac-border-radius, 4px);
   min-height: var(--ac-component-height-sm, 32px);
   font-family: var(--ac-font-family, system-ui, sans-serif);
@@ -28,7 +26,6 @@ export const INLINE_COMPONENT_STYLE = `
 
 export const BUTTON_STYLE = `
   padding: var(--ac-button-padding, 0.5rem 1rem);
-  border: 1px solid var(--ac-color-border-primary, #ccc);
   border-radius: var(--ac-border-radius, 4px);
   cursor: pointer;
   font-family: var(--ac-font-family, inherit);
@@ -60,7 +57,6 @@ export const CONTROL_GROUP_STYLE = `
 export const SMALL_BUTTON_STYLE = `
   padding: var(--ac-spacing-xs, 0.25rem) var(--ac-spacing-sm, 0.5rem);
   font-size: var(--ac-font-size-sm, 0.8rem);
-  border: 1px solid var(--ac-color-border-primary, #ccc);
   border-radius: var(--ac-border-radius, 4px);
   cursor: pointer;
   font-family: var(--ac-font-family, inherit);
@@ -68,7 +64,6 @@ export const SMALL_BUTTON_STYLE = `
 
 export const SELECT_STYLE = `
   padding: 2px 6px;
-  border: 1px solid var(--ac-color-border-secondary, #999);
   border-radius: var(--ac-border-radius, 4px);
   font-size: var(--ac-font-size-xs, 11px);
   background: var(--ac-color-bg-primary, white);

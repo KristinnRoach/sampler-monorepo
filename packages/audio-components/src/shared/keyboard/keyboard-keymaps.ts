@@ -168,17 +168,17 @@ export function generateKeymap(config: {
 
 // Some scales:
 export const majorKeymap = generateKeymap({
-  baseNote: 24,
+  baseNote: 36,
   scale: [0, 2, 4, 5, 7, 9, 11],
 });
 
 export const minorKeymap = generateKeymap({
-  baseNote: 24,
+  baseNote: 36,
   scale: [0, 2, 3, 5, 7, 8, 10],
 });
 
 export const pentatonicKeymap = generateKeymap({
-  baseNote: 24,
+  baseNote: 36,
   scale: [0, 2, 4, 7, 9], // Major pentatonic
 });
 

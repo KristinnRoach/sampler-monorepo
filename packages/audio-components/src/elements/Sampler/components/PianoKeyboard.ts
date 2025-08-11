@@ -10,7 +10,7 @@ import {
 } from '../../../shared/styles/component-styles';
 
 import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
-import { KeymapSelect } from './SamplerSelectFactory';
+// import { KeymapSelect } from './SamplerSelectFactory';
 
 const { div, button } = van.tags;
 

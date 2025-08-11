@@ -18,7 +18,7 @@ const { div, button } = van.tags;
 
 export const LoadButton = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const showStatus = attributes.attr('show-status', 'true');
+  const showStatus = attributes.attr('show-status', 'false');
   const status = van.state('Ready');
 
   const findNodeId = createFindNodeId(attributes, targetNodeId);
@@ -77,7 +77,7 @@ export const LoadButton = (attributes: ElementProps) => {
 
 export const RecordButton = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-  const showStatus = attributes.attr('show-status', 'true');
+  const showStatus = attributes.attr('show-status', 'false');
   const status = van.state('Ready');
 
   const currentRecorder: State<Recorder | null> = van.state(null);
