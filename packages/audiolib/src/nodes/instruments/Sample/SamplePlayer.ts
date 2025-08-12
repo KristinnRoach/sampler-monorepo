@@ -255,9 +255,9 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #setupMessageHandling(): this {
     this.voicePool.onMessage('sample:loaded', (msg: Message) => {
-      this.#envelopes.forEach((env) => {
-        env.setDurationSeconds(msg.durationSeconds);
-      });
+      // this.#envelopes.forEach((env) => {
+      //   env.setDurationSeconds(msg.durationSeconds);
+      // });
       this.#isLoaded = true;
     });
 

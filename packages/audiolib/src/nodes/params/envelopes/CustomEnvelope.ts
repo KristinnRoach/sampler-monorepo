@@ -79,6 +79,8 @@ export class CustomEnvelope implements LibNode {
       new EnvelopeData([...initialPoints], paramValueRange, durationSeconds);
 
     this.#initialized = true;
+
+    this.sendUpstreamMessage(`${this.envelopeType}:created`, {});
   }
 
   // Delegate data operations to EnvelopeData

@@ -101,6 +101,7 @@ export const SamplerElement = (attributes: ElementProps) => {
           });
 
           samplePlayer.onMessage('sample:loaded', (msg: any) => {
+            console.log('onmessage sample:loaded');
             document.dispatchEvent(
               new CustomEvent('sample-loaded', {
                 detail: {

@@ -15,7 +15,7 @@ const setKnobState = (key: string, state: any) => knobStates.set(key, state);
 
 const dryWetConfig: KnobConfig = {
   label: 'Dry/Wet',
-  defaultValue: 0.0,
+  defaultValue: 0.5,
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => {
       sampler.setDryWetMix({ dry: 1 - state.val, wet: state.val });
