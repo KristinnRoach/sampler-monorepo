@@ -106,7 +106,7 @@
 
           <!-- Modulation -->
           <div class="control-group">
-            <h3>MOVEMENT</h3>
+            <h3>LFO</h3>
             <div class="ac-layout--grid knob-grid lfo-group">
               <gain-lfo-rate-knob
                 target-node-id="test-sampler"
@@ -120,6 +120,19 @@
               <pitch-lfo-depth-knob
                 target-node-id="test-sampler"
               ></pitch-lfo-depth-knob>
+            </div>
+
+            <div class="control-group">
+              <piano-keyboard target-node-id="test-sampler"> </piano-keyboard>
+
+              <load-button
+                target-node-id="test-sampler"
+                show-status="false"
+              ></load-button>
+              <record-button
+                target-node-id="test-sampler"
+                show-status="false"
+              ></record-button>
             </div>
           </div>
 
@@ -151,18 +164,6 @@
             </div>
           </div>
 
-          <div class="control-group">
-            <piano-keyboard target-node-id="test-sampler"> </piano-keyboard>
-
-            <load-button
-              target-node-id="test-sampler"
-              show-status="false"
-            ></load-button>
-            <record-button
-              target-node-id="test-sampler"
-              show-status="false"
-            ></record-button>
-          </div>
           <!-- <div class="control-group">
             <h3>Input</h3>
             <div class="inline keyboard-section">

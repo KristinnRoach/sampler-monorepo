@@ -127,9 +127,18 @@ export const createToggle = (
         );
     });
 
+    // Check if label attribute was explicitly provided (even if empty)
+    const hasLabelAttribute = attributes.$this.hasAttribute('label');
+    const labelOverride = hasLabelAttribute
+      ? attributes.$this.getAttribute('label')
+      : null;
+
+    // Use label attribute if provided (including empty string), otherwise fall back to config label
+    const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
+
     return div(
       { style: componentStyle || '' },
-      config.label ? label({ textContent: config.label }) : null,
+      effectiveLabel ? label({ textContent: effectiveLabel }) : null,
 
       div(
         { style: 'display: flex; gap: 0.5rem; align-items: center;  ' },
@@ -209,8 +218,17 @@ export const createKnob = (
         );
     });
 
+    // Check if label attribute was explicitly provided (even if empty)
+    const hasLabelAttribute = attributes.$this.hasAttribute('label');
+    const labelOverride = hasLabelAttribute
+      ? attributes.$this.getAttribute('label')
+      : null;
+
+    // Use label attribute if provided (including empty string), otherwise fall back to config label
+    const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
+
     const knobElement = createLabeledKnob({
-      label: config.label,
+      label: effectiveLabel,
       defaultValue: config.defaultValue,
       minValue: config.minValue,
       maxValue: config.maxValue,

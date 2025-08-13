@@ -1,4 +1,4 @@
-// ToggleComponents.ts - Toggle and control components
+// SamplerToggleFactory.ts - Toggle and control components
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
@@ -16,7 +16,7 @@ import {
 
 const feedbackModeConfig: ToggleConfig = {
   label: 'FB-Mode',
-  defaultValue: false, // false = monophonic, true = polyphonic
+  defaultValue: true, // false = monophonic, true = polyphonic
   onColor: '#4CAF50',
   offText: 'Mono',
   onText: 'Poly',
@@ -83,8 +83,8 @@ const gainLFOSyncConfig: ToggleConfig = {
   label: 'Amp LFO',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'free',
-  onText: 'sync',
+  offText: 'Free',
+  onText: 'Sync',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', state.val));
   },
@@ -94,8 +94,8 @@ const pitchLFOSyncConfig: ToggleConfig = {
   label: 'Pitch LFO',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: 'free',
-  onText: 'sync',
+  offText: 'Free',
+  onText: 'Sync',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', state.val));
   },
@@ -116,7 +116,7 @@ const playbackDirectionConfig: ToggleConfig = {
 };
 
 const panDriftConfig: ToggleConfig = {
-  label: '', // No label to keep it compact
+  label: 'Pan drift',
   defaultValue: true,
   onColor: '#ff9800',
   offText: '○',
@@ -134,8 +134,8 @@ export const FeedbackModeToggle = createToggle(
   feedbackModeConfig,
   getSampler,
   Toggle,
-  van,
-  COMPONENT_STYLE
+  van
+  // COMPONENT_STYLE
 );
 
 export const MidiToggle = createToggle(

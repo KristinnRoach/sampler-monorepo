@@ -63,75 +63,83 @@ export const SamplerElement = (attributes: ElementProps) => {
   const debugMode = attributes.attr('debug-mode', '');
   const status = van.state('Initializing...');
 
-  // Track if audio has been initialized
-  let audioInitialized = false;
+  // Track audio initialization with promise to prevent race conditions
+  let initializationPromise: Promise<void> | null = null;
   let userInteractionHandler: (() => void) | null = null;
 
   attributes.mount(() => {
     const initializeAudio = async () => {
-      if (audioInitialized) return; // Prevent multiple initializations
-      audioInitialized = true;
-
-      try {
-        samplePlayer = await createSamplePlayer(
-          undefined,
-          parseInt(polyphony.val)
-        );
-
-        // Use attribute id if passed in, otherwise use the audiolib's nodeId
-        if (!nodeId.val) {
-          nodeId.val = samplePlayer.nodeId;
-        }
-
-        // ===== EVENT LISTENERS =====
-
-        samplePlayer.onMessage('sample-player:ready', () => {
-          if (!samplePlayer) throw new Error('SamplerEl: no samplerPlayer!');
-          registerSampler(nodeId.val, samplePlayer);
-          initialized = true;
-          status.val = 'Ready';
-          document.dispatchEvent(
-            new CustomEvent('sampler-ready', {
-              detail: { nodeId: nodeId.val },
-            })
-          );
-        });
-
-        samplePlayer.onMessage('sample:loaded', (msg: any) => {
-          document.dispatchEvent(
-            new CustomEvent('sample-loaded', {
-              detail: {
-                nodeId: nodeId.val,
-                buffer: samplePlayer?.audiobuffer,
-                durationSeconds: msg.durationSeconds,
-              },
-            })
-          );
-        });
-
-        Object.assign(attributes.$this, { nodeId: nodeId.val });
-      } catch (error: any) {
-        console.error('Sampler initialization error:', error);
-
-        // Check if it's an AudioWorklet support issue
-        if (error?.message?.includes('AudioWorklet')) {
-          status.val = 'Browser not supported';
-
-          // Show a user-friendly message
-          document.dispatchEvent(
-            new CustomEvent('sampler-error', {
-              detail: {
-                nodeId: nodeId.val,
-                error: 'AudioWorklet not supported',
-                message:
-                  'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
-              },
-            })
-          );
-        } else {
-          status.val = `Error: ${error}`;
-        }
+      if (initializationPromise) {
+        return initializationPromise; // Return existing promise if already initializing
       }
+
+      initializationPromise = (async () => {
+        try {
+          samplePlayer = await createSamplePlayer(
+            undefined,
+            parseInt(polyphony.val)
+          );
+
+          // Use attribute id if passed in, otherwise use the audiolib's nodeId
+          if (!nodeId.val) {
+            nodeId.val = samplePlayer.nodeId;
+          }
+
+          // ===== EVENT LISTENERS =====
+
+          samplePlayer.onMessage('sample-player:ready', () => {
+            if (!samplePlayer) throw new Error('SamplerEl: no samplerPlayer!');
+            registerSampler(nodeId.val, samplePlayer);
+            initialized = true;
+            status.val = 'Ready';
+            document.dispatchEvent(
+              new CustomEvent('sampler-ready', {
+                detail: { nodeId: nodeId.val },
+              })
+            );
+          });
+
+          samplePlayer.onMessage('sample:loaded', (msg: any) => {
+            document.dispatchEvent(
+              new CustomEvent('sample-loaded', {
+                detail: {
+                  nodeId: nodeId.val,
+                  buffer: samplePlayer?.audiobuffer,
+                  durationSeconds: msg.durationSeconds,
+                },
+              })
+            );
+          });
+
+          Object.assign(attributes.$this, { nodeId: nodeId.val });
+        } catch (error: any) {
+          // Reset promise on error to allow retry
+          initializationPromise = null;
+          console.error('Sampler initialization error:', error);
+
+          // Check if it's an AudioWorklet support issue
+          if (error?.message?.includes('AudioWorklet')) {
+            status.val = 'Browser not supported';
+
+            // Show a user-friendly message
+            document.dispatchEvent(
+              new CustomEvent('sampler-error', {
+                detail: {
+                  nodeId: nodeId.val,
+                  error: 'AudioWorklet not supported',
+                  message:
+                    'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
+                },
+              })
+            );
+          } else {
+            status.val = `Error: ${error}`;
+          }
+          throw error; // Re-throw to maintain error behavior
+        }
+      })();
+
+      return initializationPromise;
     };
 
     // Feature detection for audio context policy
@@ -157,7 +165,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         // Create localized handler that only affects this component
         userInteractionHandler = async () => {
-          if (audioInitialized) return;
+          if (initializationPromise) return; // Already initializing or initialized
           status.val = 'Initializing...';
           await initializeAudio();
 

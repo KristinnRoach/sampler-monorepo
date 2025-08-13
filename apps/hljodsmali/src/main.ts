@@ -89,44 +89,60 @@ document.addEventListener('DOMContentLoaded', () => {
   // Listen for sampler errors (browser compatibility issues)
   document.addEventListener('sampler-error', (event: any) => {
     console.error('Sampler error:', event.detail);
-    
+
     if (event.detail.error === 'AudioWorklet not supported') {
       // Create a browser compatibility warning
       const warning = document.createElement('div');
+      if (document.querySelector('.browser-warning')) return;
       warning.className = 'browser-warning';
-      
+      warning.setAttribute('role', 'dialog');
+      warning.setAttribute('aria-modal', 'true');
+
       // Create heading
       const heading = document.createElement('h2');
       heading.className = 'browser-warning__heading';
       heading.textContent = 'Browser Not Supported';
-      
+      const headingId = 'browser-warning__heading';
+      heading.id = headingId;
+      warning.setAttribute('aria-labelledby', headingId);
+
       // Create message paragraph
       const messagePara = document.createElement('p');
       messagePara.className = 'browser-warning__message';
-      messagePara.textContent = event.detail.message || 'Your browser is not compatible.';
-      
+      messagePara.textContent =
+        event.detail.message || 'Your browser is not compatible.';
+
       // Create additional info paragraph
       const infoPara = document.createElement('p');
       infoPara.className = 'browser-warning__info';
-      infoPara.textContent = 'Your browser does not fully support AudioWorklet API.';
-      
+      infoPara.textContent =
+        'Your browser does not fully support AudioWorklet API.';
+
       // Create close button
       const closeButton = document.createElement('button');
       closeButton.className = 'browser-warning__button';
       closeButton.textContent = 'Close';
-      
+
       // Add event listener to close button
-      closeButton.addEventListener('click', () => {
+      const removeWarning = () => {
         warning.remove();
-      });
-      
+        warning.removeEventListener('keydown', onKeydown);
+      };
+      const onKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') removeWarning();
+      };
+      warning.addEventListener('keydown', onKeydown);
+      closeButton.addEventListener('click', removeWarning);
+
       // Append all elements to warning container
       warning.appendChild(heading);
       warning.appendChild(messagePara);
       warning.appendChild(infoPara);
       warning.appendChild(closeButton);
-      
+
       document.body.appendChild(warning);
+      // Move focus into dialog
+      setTimeout(() => closeButton.focus(), 0);
     }
   });
 
