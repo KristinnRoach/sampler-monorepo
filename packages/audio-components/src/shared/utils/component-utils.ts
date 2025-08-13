@@ -167,6 +167,11 @@ export interface KnobConfig {
   snapIncrement?: number;
   valueFormatter?: (value: number) => string;
   onTargetConnect?: (target: any, state: State<number>, van: any) => void;
+  onKnobElementReady?: (
+    knobElement: any,
+    state: State<number>,
+    target?: any
+  ) => void;
 }
 
 /**
@@ -195,6 +200,15 @@ export const createKnob = (
         try {
           connected = true;
           config.onTargetConnect?.(target, value, van);
+
+          // Also call onKnobElementReady with the target if knob element is available
+          if (config.onKnobElementReady) {
+            const actualKnobElement =
+              knobElement?.querySelector('knob-element');
+            if (actualKnobElement) {
+              config.onKnobElementReady(actualKnobElement, value, target);
+            }
+          }
         } catch (error) {
           connected = false;
           console.error(

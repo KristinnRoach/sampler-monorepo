@@ -182,24 +182,26 @@ export class InstrumentMasterBus implements ILibAudioNode {
 
   #setupDefaultRouting(): void {
     // Main input chain
-    this.#connectFromTo('input', 'feedback');
-    this.#connectFromTo('feedback', 'distortion');
-    this.#connectFromTo('distortion', 'compressor');
-
-    this.#connectFromTo('compressor', 'hpf');
-    this.#connectFromTo('hpf', 'lpf');
+    this.#connectFromTo('input', 'hpf');
 
     // Dry path
+    this.#connectFromTo('hpf', 'lpf');
     this.#connectFromTo('lpf', 'dryMix');
 
     // Set up sends / returns
-    this.#connectFromTo('lpf', 'reverb_send');
+    this.#connectFromTo('hpf', 'reverb_send');
     this.#connectFromTo('reverb_send', 'reverb');
-    this.#connectFromTo('reverb', 'wetMix');
+    this.#connectFromTo('reverb', 'lpf');
+    this.#connectFromTo('lpf', 'wetMix');
 
     // Main output chain
-    this.#connectFromTo('dryMix', 'limiter');
-    this.#connectFromTo('wetMix', 'limiter');
+    this.#connectFromTo('dryMix', 'feedback');
+    this.#connectFromTo('wetMix', 'feedback');
+
+    this.#connectFromTo('feedback', 'distortion');
+    this.#connectFromTo('distortion', 'compressor');
+
+    this.#connectFromTo('compressor', 'limiter');
     this.#connectFromTo('limiter', 'output');
   }
 

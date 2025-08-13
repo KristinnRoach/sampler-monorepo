@@ -40,7 +40,7 @@ export class ValueSnapper {
     scalePattern: readonly number[] | number[],
     tuningOffset: number = 0, // in semitones
     lowestOctave: number = 0,
-    highestOctave: number = 8,
+    highestOctave: number = 6,
     normalize: NormalizeOptions | false,
     snapToZeroCrossings: number[] | false = false
   ) {

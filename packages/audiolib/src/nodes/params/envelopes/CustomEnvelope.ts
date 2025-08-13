@@ -11,6 +11,7 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
+import { clamp } from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -754,10 +755,18 @@ export class CustomEnvelope implements LibNode {
         return {
           points: [
             { time: 0, value: 0, curve: 'exponential' as const },
-            { time: 0.005, value: 1, curve: 'exponential' as const },
-            { time: 0.67, value: 0.75, curve: 'exponential' as const },
             {
-              time: durationSeconds - 0.1,
+              time: Math.min(0.005, 0.1 * durationSeconds),
+              value: 1,
+              curve: 'exponential' as const,
+            },
+            {
+              time: 0.25 * durationSeconds,
+              value: 0.75,
+              curve: 'exponential' as const,
+            },
+            {
+              time: 0.75 * durationSeconds,
               value: 0.5,
               curve: 'exponential' as const,
             },
@@ -776,10 +785,10 @@ export class CustomEnvelope implements LibNode {
       case 'pitch-env':
         return {
           points: [
-            { time: 0, value: 0.5, curve: 'exponential' as const },
+            { time: 0, value: 1, curve: 'exponential' as const },
             {
               time: durationSeconds,
-              value: 0.5,
+              value: 1,
               curve: 'exponential' as const,
             },
           ],
@@ -793,7 +802,11 @@ export class CustomEnvelope implements LibNode {
         return {
           points: [
             { time: 0, value: 250, curve: 'exponential' as const },
-            { time: 0.1, value: 18000, curve: 'exponential' as const },
+            {
+              time: 0.01 * durationSeconds,
+              value: 18000,
+              curve: 'exponential' as const,
+            },
             {
               time: durationSeconds,
               value: 0,
@@ -810,7 +823,7 @@ export class CustomEnvelope implements LibNode {
         return {
           points: [
             { time: 0, value: 0, curve: 'linear' as const },
-            { time: 0.1, value: 1, curve: 'linear' as const },
+            { time: 0.1 * durationSeconds, value: 1, curve: 'linear' as const },
             { time: durationSeconds, value: 0, curve: 'linear' as const },
           ],
           paramValueRange: [0, 1] as [number, number],

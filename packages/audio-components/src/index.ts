@@ -80,4 +80,4 @@ export {
 } from './shared/utils/component-utils';
 
 // Old all-in-one version (for reference):
-export { defineSamplerMonolith } from './elements/instruments/sampler/SamplerMonolith';
+export { defineSamplerMonolith } from './elements/monoliths/sampler/SamplerMonolith';

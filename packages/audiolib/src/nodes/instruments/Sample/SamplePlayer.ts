@@ -4,7 +4,7 @@ import { getAudioContext } from '@/context';
 import { MidiController } from '@/io';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
-import { findClosestNote, mapToRange } from '@/utils';
+import { clamp, findClosestNote, mapToRange, NOTE_PERIODS } from '@/utils';
 
 import {
   preProcessAudioBuffer,
@@ -466,7 +466,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       rootNote: 'C',
       scale: [0],
       lowestOctave: 0,
-      highestOctave: 6,
+      highestOctave: 5,
       tuningOffset: 0,
       normalize: false as NormalizeOptions | false,
     };
@@ -647,7 +647,6 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#holdLocked = locked;
     if (locked === false) this.releaseAll();
 
-    console.debug(`sending hold:locked message, locked: ${locked}`);
     this.sendUpstreamMessage('hold:locked', { locked });
     return this;
   }
@@ -674,17 +673,21 @@ export class SamplePlayer implements ILibInstrumentNode {
   isNormalized = (value: number, range = [0, 1]) =>
     value >= range[0] && value <= range[1];
 
-  readonly MIN_LOOP_DURATION_SECONDS = 1 / 1046.502; // C5 = 523.25 Hz, C6 = 1046.502
+  readonly MIN_LOOP_DURATION_SECONDS = 1 / 523.25; // C5 = 523.25 Hz, C6 = 1046.502
 
   setLoopStart = (
     seconds: number,
     rampTime: number = this.getLoopRampDuration()
-  ) => this.setLoopPoint('start', seconds, this.loopEnd, rampTime);
+  ) => {
+    return this.setLoopPoint('start', seconds, this.loopEnd, rampTime);
+  };
 
   setLoopEnd = (
     seconds: number,
     rampTime: number = this.getLoopRampDuration()
-  ) => this.setLoopPoint('end', this.loopStart, seconds, rampTime);
+  ) => {
+    return this.setLoopPoint('end', this.loopStart, seconds, rampTime);
+  };
 
   setLoopDuration = (
     seconds: number,
@@ -697,64 +700,54 @@ export class SamplePlayer implements ILibInstrumentNode {
       rampTime
     );
 
+  debugcounter = 0;
+
   setLoopPoint(
     loopPoint: 'start' | 'end',
     loopStartSeconds: number,
     loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration()
   ) {
-    // TEMP hax to handle invalid loop points
-    if (loopStartSeconds >= loopEndSeconds) {
-      console.debug(
-        `samplePlayer.setLoopPoint: Loop points out of bounds.
-      Adjusting: ${loopPoint}, loopStart: ${loopStartSeconds}, loopEnd: ${loopEndSeconds}`
-      );
-      if (loopPoint === 'start') {
-        loopStartSeconds = Math.max(0, loopEndSeconds - 0.001);
-      } else {
-        loopEndSeconds = Math.min(
-          this.#bufferDuration,
-          loopStartSeconds + 0.001
-        );
-      }
-    }
+    let loopStart = clamp(
+      loopStartSeconds,
+      0 + this.MIN_LOOP_DURATION_SECONDS / 2,
+      loopEndSeconds
+    );
 
-    // Check buffer boundaries
-    if (this.isLoaded && loopEndSeconds >= this.#bufferDuration) {
-      loopEndSeconds = this.#bufferDuration - 0.001;
-    }
+    let loopEnd = clamp(
+      loopEndSeconds,
+      loopStart,
+      this.#bufferDuration - this.MIN_LOOP_DURATION_SECONDS / 2
+    );
 
+    const targetLoopDuration = loopEnd - loopStart;
     const RAMP_SENSITIVITY = 1;
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
-    if (loopPoint === 'start' && loopStartSeconds !== this.loopStart) {
-      const storeLoopStart = () =>
-        this.storeParamValue('loopStart', loopStartSeconds);
+    if (loopPoint === 'start' && loopStart !== this.loopStart) {
+      const storeLoopStart = () => this.storeParamValue('loopStart', loopStart);
 
-      this.#macroLoopStart.ramp(
-        loopStartSeconds,
-        scaledRampTime,
-        loopEndSeconds,
-        {
-          onComplete: () => {
-            storeLoopStart();
-          },
-        }
-      );
-    } else if (loopPoint === 'end' && loopEndSeconds !== this.loopEnd) {
-      const storeLoopEnd = () =>
-        this.storeParamValue('loopEnd', loopEndSeconds);
+      if (targetLoopDuration < this.MIN_LOOP_DURATION_SECONDS) {
+        loopStart = loopEnd - this.MIN_LOOP_DURATION_SECONDS;
+      }
 
-      this.#macroLoopEnd.ramp(
-        loopEndSeconds,
-        scaledRampTime,
-        loopStartSeconds,
-        {
-          onComplete: () => {
-            storeLoopEnd();
-          },
-        }
-      );
+      this.#macroLoopStart.ramp(loopStart, scaledRampTime, loopEnd, {
+        onComplete: () => {
+          storeLoopStart();
+        },
+      });
+    } else if (loopPoint === 'end' && loopEnd !== this.loopEnd) {
+      const storeLoopEnd = () => this.storeParamValue('loopEnd', loopEnd);
+
+      if (targetLoopDuration < this.MIN_LOOP_DURATION_SECONDS) {
+        loopEnd = loopStart + this.MIN_LOOP_DURATION_SECONDS;
+      }
+
+      this.#macroLoopEnd.ramp(loopEnd, scaledRampTime, loopStart, {
+        onComplete: () => {
+          storeLoopEnd();
+        },
+      });
     }
 
     return this;

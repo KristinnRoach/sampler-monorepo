@@ -243,32 +243,3 @@ async function applyHighPassFilter(
 
   return processedBuffer;
 }
-
-//  let tuningOffset = 0; // in semitones (float)
-//   let fundamentalFreq = undefined;
-//   if (shoulDetectPitch) {
-//     const detectedPitch = await this.detectPitch(buffer);
-
-//     if (detectedPitch.confidence > 0.35) {
-//       fundamentalFreq = detectedPitch.frequency;
-
-//       if (autoTranspose && detectedPitch.confidence > 0.35) {
-//         tuningOffset = this.detectedPitchToTransposition(
-//           detectedPitch.midiFloat,
-//           60 // Target midi note //  Todo: use setScale
-//         );
-//         this.setTransposition(tuningOffset);
-//       } else {
-//         console.info(
-//           `Skipped auto transpose due to unreliable pitch detection results: `,
-//           detectedPitch
-//         );
-//         this.sendUpstreamMessage('sample:auto-transpose:fail', {});
-//       }
-//     }
-//   }
-
-//   if (this.#useZeroCrossings) {
-//     const zeroes = findZeroCrossings(buffer);
-//     this.#zeroCrossings = zeroes;
-//   }
