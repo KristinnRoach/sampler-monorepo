@@ -431,7 +431,6 @@ export class InstrumentMasterBus implements ILibAudioNode {
   }
 
   setReverbAmount(amount: number): this {
-    this.setSend('reverb', amount);
     if (this.#reverbNode.setAmountMacro) {
       this.#reverbNode.setAmountMacro(amount);
     }

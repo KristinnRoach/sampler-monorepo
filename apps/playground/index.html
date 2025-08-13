@@ -42,9 +42,9 @@
         </fieldset>
         <!-- Volume and mixing -->
         <fieldset class="control-group volume-group">
-          <legend>Master</legend>
+          <legend>Mix</legend>
           <volume-knob target-node-id="test-sampler"></volume-knob>
-          <glide-knob target-node-id="test-sampler"></glide-knob>
+          <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
         </fieldset>
         <fieldset class="control-group loop-group">
           <legend>Loop</legend>
@@ -71,8 +71,8 @@
 
         <fieldset class="control-group space-group">
           <legend>Space</legend>
-          <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
-          <reverb-knob target-node-id="test-sampler"></reverb-knob>
+          <reverb-send-knob target-node-id="test-sampler"></reverb-send-knob>
+          <reverb-size-knob target-node-id="test-sampler"></reverb-size-knob>
         </fieldset>
 
         <fieldset class="control-group distortion-group">
@@ -186,16 +186,35 @@
 
           <div class="keyboard-wrapper">
             <piano-keyboard
+              id="piano-keyboard"
               target-node-id="test-sampler"
               width="800"
               height="80"
             ></piano-keyboard>
             <div class="keyboard-controls">
               <keymap-select target-node-id="test-sampler"></keymap-select>
+              <glide-knob target-node-id="test-sampler"></glide-knob>
+              <button
+                id="toggle-keyboard-visual"
+                class="keyboard-visual-toggle"
+              >
+                Show Keyboard
+              </button>
             </div>
           </div>
         </fieldset>
       </div>
     </div>
+
+    <script
+      type="module"
+      src="https://unpkg.com/@splinetool/viewer@1.10.44/build/spline-viewer.js"
+    ></script>
+    <spline-viewer
+      id="keyboard-visual"
+      class="keyboard-visual hidden"
+      loading-anim-type="none"
+      url="https://prod.spline.design/ZpiHTUHQUsP10Dtk/scene.splinecode"
+    ></spline-viewer>
   </body>
 </html>

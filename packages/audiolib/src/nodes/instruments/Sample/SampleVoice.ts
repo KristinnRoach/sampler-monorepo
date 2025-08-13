@@ -38,6 +38,7 @@ export class SampleVoice {
   #worklet: AudioWorkletNode;
 
   #am_lfo: LFO | null = null;
+  #am_gain: GainNode | null = null;
   #feedback: HarmonicFeedback | null = null;
 
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
@@ -81,6 +82,8 @@ export class SampleVoice {
     this.#outputNode = new GainNode(context, { gain: 1 });
     this.#destination = destination;
 
+    this.#am_gain = new GainNode(this.context, { gain: 1 });
+
     this.#filtersEnabled = options.enableFilters ?? true;
 
     if (this.#filtersEnabled) {
@@ -105,14 +108,16 @@ export class SampleVoice {
 
       // Connect: worklet -> feedback -> hpf -> lpf -> destination
       this.#worklet.connect(this.#feedback.input);
-      this.#worklet.connect(this.#hpf);
-      this.#feedback.output.connect(this.#hpf);
+      this.#worklet.connect(this.#am_gain);
+      this.#feedback.output.connect(this.#am_gain);
+      this.#am_gain.connect(this.#hpf);
       this.#hpf.connect(this.#lpf);
       this.#lpf.connect(this.#outputNode);
     } else {
       // Without filters
       this.#worklet.connect(this.#feedback.input);
-      this.#feedback.output.connect(this.#outputNode);
+      this.#feedback.output.connect(this.#am_gain);
+      this.#am_gain.connect(this.#outputNode);
     }
 
     this.#outputNode.connect(destination);
@@ -441,7 +446,8 @@ export class SampleVoice {
       this.#am_lfo.setWaveform(waveform, customWaveOptions);
       this.#am_lfo.setDepth(depth);
       this.#am_lfo.setMusicalNote(this.#activeMidiNote ?? 60);
-      this.#am_lfo.connect(this.#outputNode.gain);
+      if (this.#am_gain) this.#am_lfo.connect(this.#am_gain.gain);
+      else console.error('Missing gain node for AM-LFO in SampleVoice');
     } else {
       console.debug('setupAmpModLFO: LFO already setup: ', this.#am_lfo);
     }

@@ -968,7 +968,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.outBus.setDryWetMix(mix);
   };
 
-  send = (effect: BusEffectName, amount: number) => {
+  sendToFx = (effect: BusEffectName, amount: number) => {
     this.outBus.setSend(effect, amount);
   };
 

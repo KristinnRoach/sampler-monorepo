@@ -148,11 +148,23 @@ const volumeConfig: KnobConfig = {
   },
 };
 
-const reverbConfig: KnobConfig = {
-  label: 'Reverb',
+const reverbSendConfig: KnobConfig = {
+  label: 'Reverb Send',
+  defaultValue: 0,
+  onTargetConnect: (sampler, state, van) => {
+    van.derive(() => {
+      sampler.sendToFx('reverb', state.val);
+    });
+  },
+};
+
+const reverbSizeConfig: KnobConfig = {
+  label: 'Reverb Size',
   defaultValue: 0.5,
   onTargetConnect: (sampler, state, van) => {
-    van.derive(() => sampler.setReverbAmount(state.val));
+    van.derive(() => {
+      sampler.setReverbAmount(state.val);
+    });
   },
 };
 
@@ -336,8 +348,16 @@ export const VolumeKnob = createKnob(
   INLINE_COMPONENT_STYLE
 );
 
-export const ReverbKnob = createKnob(
-  reverbConfig,
+export const ReverbSendKnob = createKnob(
+  reverbSendConfig,
+  getSampler,
+  createLabeledKnob,
+  van,
+  INLINE_COMPONENT_STYLE
+);
+
+export const ReverbSizeKnob = createKnob(
+  reverbSizeConfig,
   getSampler,
   createLabeledKnob,
   van,

@@ -20,7 +20,8 @@ import {
   PitchLFORateKnob,
   PitchLFODepthKnob,
   VolumeKnob,
-  ReverbKnob,
+  ReverbSendKnob,
+  ReverbSizeKnob,
   LowpassFilterKnob,
   HighpassFilterKnob,
   LoopStartKnob,
@@ -272,7 +273,8 @@ export {
   PitchLFORateKnob,
   PitchLFODepthKnob,
   VolumeKnob,
-  ReverbKnob,
+  ReverbSendKnob,
+  ReverbSizeKnob,
   LowpassFilterKnob,
   HighpassFilterKnob,
   LoopStartKnob,
@@ -324,7 +326,8 @@ export const defineSampler = () => {
 
   // Knob controls
   defineIfNotExists('volume-knob', VolumeKnob, false);
-  defineIfNotExists('reverb-knob', ReverbKnob, false);
+  defineIfNotExists('reverb-send-knob', ReverbSendKnob, false);
+  defineIfNotExists('reverb-size-knob', ReverbSizeKnob, false);
   defineIfNotExists('lowpass-filter-knob', LowpassFilterKnob, false);
   defineIfNotExists('highpass-filter-knob', HighpassFilterKnob, false);
   defineIfNotExists('dry-wet-knob', DryWetKnob, false);
