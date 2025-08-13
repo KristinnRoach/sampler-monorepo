@@ -22,7 +22,6 @@
     <sampler-element node-id="test-sampler"></sampler-element>
 
     <div id="page-wrapper" class="page-wrapper">
-      <!-- Grid -->
       <div class="control-grid" id="sampler-container">
         <fieldset class="control-group env-group">
           <legend>Envelopes</legend>
@@ -40,7 +39,7 @@
             show-status="false"
           ></load-button>
         </fieldset>
-        <!-- Volume and mixing -->
+
         <fieldset class="control-group mix-group">
           <legend>Mix</legend>
           <volume-knob target-node-id="test-sampler"></volume-knob>
@@ -177,8 +176,6 @@
           ></playback-direction-toggle>
         </fieldset>
 
-        <!-- Visual piano keyboard -->
-
         <fieldset class="control-group keyboard-group">
           <legend>Keyboard</legend>
           <!-- Computer keyboard just attaches keyhandlers (invisible by default) -->
@@ -209,6 +206,10 @@
         </fieldset>
       </div>
     </div>
+
+    <script src="./src/utils/splineWarnings.ts">
+      /** Script to suppress warnings from the spline viewer about passive event listeners */
+    </script>
 
     <script
       type="module"

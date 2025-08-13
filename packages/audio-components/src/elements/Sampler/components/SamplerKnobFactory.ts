@@ -247,8 +247,6 @@ const loopDurationConfig: KnobConfig = {
   },
   onKnobElementReady: (knobElement, state, sampler) => {
     sampler.onMessage('sample:loaded', (msg: any) => {
-      console.debug('setting loopduration state val to ', msg.durationSeconds);
-
       // Update both the reactive state and visual knob position
       state.val = msg.durationSeconds;
       knobElement.setValue(msg.durationSeconds, true); // true for animation

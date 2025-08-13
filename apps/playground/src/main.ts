@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const samplerContainerEl = qs('#sampler-container');
   createAndAppendHandle(samplerContainerEl);
 
-  console.log(samplerContainerEl);
   if (samplerContainerEl) {
     makeDraggable(
       {
@@ -22,14 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       {
         type: 'x,y',
-        onDragStart: () => {
-          console.debug('dragging');
-          samplerContainerEl.classList.add('dragging');
-        },
-        onDragEnd: () => {
-          console.debug('stop dragging');
-          samplerContainerEl.classList.remove('dragging');
-        },
       }
     );
   }
