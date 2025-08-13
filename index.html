@@ -15,17 +15,18 @@
     <meta name="theme-color" content="#000000" />
 
 
-    <script type="module" crossorigin src="./assets/index-CdQh8cfk.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/audiolib-lIIV0uEG.js">
-    <link rel="modulepreload" crossorigin href="./assets/audio-components-Cyt-UHF_.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-BKZvph2s.css">
+    <script type="module" crossorigin src="./assets/index-DjddKiyd.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/audiolib-CsPHHjtg.js">
+    <link rel="modulepreload" crossorigin href="./assets/audio-components-3FpgGCJ1.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-gsap-DSz2Z63p.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-BiPMGHji.css">
   </head>
   <body>
     <sampler-element node-id="test-sampler"></sampler-element>
 
     <div id="page-wrapper" class="page-wrapper">
       <!-- Grid -->
-      <div class="control-grid">
+      <div class="control-grid" id="sampler-container">
         <fieldset class="control-group env-group">
           <legend>Envelopes</legend>
           <envelope-switcher target-node-id="test-sampler"></envelope-switcher>
@@ -43,10 +44,10 @@
           ></load-button>
         </fieldset>
         <!-- Volume and mixing -->
-        <fieldset class="control-group volume-group">
-          <legend>Master</legend>
+        <fieldset class="control-group mix-group">
+          <legend>Mix</legend>
           <volume-knob target-node-id="test-sampler"></volume-knob>
-          <glide-knob target-node-id="test-sampler"></glide-knob>
+          <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
         </fieldset>
         <fieldset class="control-group loop-group">
           <legend>Loop</legend>
@@ -73,8 +74,8 @@
 
         <fieldset class="control-group space-group">
           <legend>Space</legend>
-          <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
-          <reverb-knob target-node-id="test-sampler"></reverb-knob>
+          <reverb-send-knob target-node-id="test-sampler"></reverb-send-knob>
+          <reverb-size-knob target-node-id="test-sampler"></reverb-size-knob>
         </fieldset>
 
         <fieldset class="control-group distortion-group">
@@ -129,7 +130,7 @@
           <am-modulation target-node-id="test-sampler"></am-modulation>
         </fieldset>
 
-        <fieldset class="control-group lfo-group">
+        <fieldset class="control-group amp-lfo-group">
           <legend>Amp LFO</legend>
 
           <gain-lfo-rate-knob
@@ -148,7 +149,7 @@
           ></gain-lfo-sync-toggle>
         </fieldset>
 
-        <fieldset class="control-group lfo-group">
+        <fieldset class="control-group pitch-lfo-group">
           <legend>Pitch LFO</legend>
           <pitch-lfo-rate-knob
             target-node-id="test-sampler"
@@ -186,18 +187,35 @@
           <!-- Computer keyboard just attaches keyhandlers (invisible by default) -->
           <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
 
-          <div class="keyboard-wrapper">
-            <piano-keyboard
-              target-node-id="test-sampler"
-              width="800"
-              height="80"
-            ></piano-keyboard>
-            <div class="keyboard-controls">
-              <keymap-select target-node-id="test-sampler"></keymap-select>
-            </div>
+          <piano-keyboard
+            id="piano-keyboard"
+            class="piano-keyboard"
+            target-node-id="test-sampler"
+            width="800"
+            height="80"
+          ></piano-keyboard>
+
+          <spline-viewer
+            id="keyboard-visual"
+            class="keyboard-visual hidden"
+            loading-anim-type="none"
+            url="https://prod.spline.design/ZpiHTUHQUsP10Dtk/scene.splinecode"
+          ></spline-viewer>
+
+          <div class="keyboard-controls">
+            <keymap-select target-node-id="test-sampler"></keymap-select>
+            <glide-knob target-node-id="test-sampler"></glide-knob>
+            <button id="toggle-keyboard-visual" class="keyboard-visual-toggle">
+              Show Keyboard
+            </button>
           </div>
         </fieldset>
       </div>
     </div>
+
+    <script
+      type="module"
+      src="https://unpkg.com/@splinetool/viewer@1.10.44/build/spline-viewer.js"
+    ></script>
   </body>
 </html>

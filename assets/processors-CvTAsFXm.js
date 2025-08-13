@@ -5,7 +5,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
 function findClosestIdx(sortedArray, target, direction = "any", getValue = (x) => x, getDistance = (a, b) => Math.abs(a - b)) {
   if (sortedArray.length === 0) {
     throw new Error("Array cannot be empty");
@@ -60,7 +60,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.usePlaybackPosition = false;
     this.enableLoopSmoothing = true;
     this.enableAdaptiveDrift = true;
+    this.enableAmplitudeCompensation = true;
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
+    this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 130.81);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
     __privateMethod(this, _SamplePlayerProcessor_instances, resetState_fn).call(this);
   }
@@ -173,6 +175,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const positionParams = __privateMethod(this, _SamplePlayerProcessor_instances, extractPositionParams_fn).call(this, parameters);
     const playbackRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculatePlaybackRange_fn).call(this, positionParams);
     const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters.loopDurationDriftAmount[0]);
+    const amplitudeGain = __privateMethod(this, _SamplePlayerProcessor_instances, analyzeLoopAmplitude_fn).call(this, loopRange.loopStartSamples, loopRange.loopEndSamples);
     const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]) * this.velocitySensitivity;
     const basePan = parameters.pan[0];
     const effectivePan = this.panDriftEnabled ? Math.max(-1, Math.min(1, basePan + this.currentPanDrift)) : basePan;
@@ -265,7 +268,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
             this.applyClickCompensation = false;
           }
         }
-        const finalSample = interpolatedSample * velocityGain * envelopeGain * masterGain;
+        const finalSample = interpolatedSample * velocityGain * envelopeGain * masterGain * amplitudeGain;
         let panAdjustedSample = finalSample;
         if (outputChannels.length === 2) {
           if (channel === 0) {
@@ -397,6 +400,9 @@ resetState_fn = function() {
   this.currentPanDrift = 0;
   this.panDriftEnabled = true;
   this.nextDriftGenerated = false;
+  this.loopAmplitudeGain = 1;
+  this.lastAnalyzedLoopStart = -1;
+  this.lastAnalyzedLoopEnd = -1;
 };
 stop_fn = function() {
   this.isPlaying = false;
@@ -564,6 +570,46 @@ generateLoopDrift_fn = function(driftAmount, baseDuration) {
   }
   const maxDriftSamples = effectiveDriftAmount * baseDuration;
   return Math.floor(randomFactor * maxDriftSamples);
+};
+/**
+ * Analyze loop amplitude and calculate makeup gain for short loops
+ * @param {number} loopStart - Loop start position in samples
+ * @param {number} loopEnd - Loop end position in samples
+ * @returns {number} - Makeup gain multiplier (1.0 = no change)
+ */
+analyzeLoopAmplitude_fn = function(loopStart, loopEnd) {
+  if (!this.enableAmplitudeCompensation || !this.buffer || !this.buffer[0]) {
+    return 1;
+  }
+  const loopDuration = loopEnd - loopStart;
+  if (loopDuration >= this.AMPLITUDE_COMPENSATION_THRESHOLD) {
+    return 1;
+  }
+  if (loopStart === this.lastAnalyzedLoopStart && loopEnd === this.lastAnalyzedLoopEnd) {
+    return this.loopAmplitudeGain;
+  }
+  let sumSquares = 0;
+  let sampleCount = 0;
+  const channel = this.buffer[0];
+  const startIndex = Math.floor(loopStart);
+  const endIndex = Math.floor(loopEnd);
+  for (let i = startIndex; i < endIndex && i < channel.length; i++) {
+    const sample = channel[i];
+    sumSquares += sample * sample;
+    sampleCount++;
+  }
+  if (sampleCount === 0) return 1;
+  const rmsAmplitude = Math.sqrt(sumSquares / sampleCount);
+  const targetAmplitude = 0.5;
+  let makeupGain = 1;
+  if (rmsAmplitude > 1e-3) {
+    makeupGain = targetAmplitude / rmsAmplitude;
+    makeupGain = Math.max(0.5, Math.min(3, makeupGain));
+  }
+  this.lastAnalyzedLoopStart = loopStart;
+  this.lastAnalyzedLoopEnd = loopEnd;
+  this.loopAmplitudeGain = makeupGain;
+  return makeupGain;
 };
 registerProcessor("sample-player-processor", SamplePlayerProcessor);
 class RandomNoiseProcessor extends AudioWorkletProcessor {
