@@ -1,42 +1,44 @@
 import { defineSampler } from '@repo/audio-components';
+import { addKeyboardToggleHandler } from './utils/toggleKeyboardVisual';
+import { qs } from './utils';
+import { makeDraggable } from './utils/makeDraggable';
 
 defineSampler(); // Define all sampler components
 
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
 
-  // Keyboard visual toggle functionality
-  const toggleButton = document.getElementById(
-    'toggle-keyboard-visual'
-  ) as HTMLButtonElement;
+  addKeyboardToggleHandler();
 
-  const computerKeyVisEl = document.getElementById(
-    'keyboard-visual'
-  ) as HTMLElement;
-  let isVisible = false;
+  const samplerContainerEl = qs('#sampler-container');
+  createAndAppendHandle(samplerContainerEl);
 
-  const pianoKeyVisEl = document.getElementById(
-    'piano-keyboard'
-  ) as HTMLElement;
-  let currKeys: 'computer' | 'piano' = 'piano';
-
-  if (toggleButton && computerKeyVisEl) {
-    toggleButton.addEventListener('click', () => {
-      currKeys = currKeys === 'piano' ? 'computer' : 'piano';
-
-      if (currKeys === 'computer') {
-        pianoKeyVisEl.classList.remove('visible');
-        pianoKeyVisEl.classList.add('hidden');
-        computerKeyVisEl.classList.remove('hidden');
-        computerKeyVisEl.classList.add('visible');
-        toggleButton.textContent = 'Piano Keys';
-      } else {
-        pianoKeyVisEl.classList.remove('hidden');
-        pianoKeyVisEl.classList.add('visible');
-        computerKeyVisEl.classList.remove('visible');
-        computerKeyVisEl.classList.add('hidden');
-        toggleButton.textContent = 'Computer Keys';
+  console.log(samplerContainerEl);
+  if (samplerContainerEl) {
+    makeDraggable(
+      {
+        element: samplerContainerEl,
+        handleClassName: '.drag-handle',
+      },
+      {
+        type: 'x,y',
+        onDragStart: () => {
+          console.debug('dragging');
+          samplerContainerEl.classList.add('dragging');
+        },
+        onDragEnd: () => {
+          console.debug('stop dragging');
+          samplerContainerEl.classList.remove('dragging');
+        },
       }
-    });
+    );
   }
 });
+
+function createAndAppendHandle(element: Element | null) {
+  if (!element || element.querySelector('.drag-handle')) return;
+  const handle = document.createElement('div');
+  handle.className = 'drag-handle';
+  handle.setAttribute('aria-label', 'Drag to move this control group');
+  element.appendChild(handle);
+}
