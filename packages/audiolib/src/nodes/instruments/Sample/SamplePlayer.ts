@@ -40,8 +40,12 @@ export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
   readonly nodeType = 'sample-player' as const;
   readonly context: AudioContext;
-
   #messages: MessageBus<Message>;
+
+  #initialized = false;
+  #isLoaded = false;
+  #polyphony: number;
+  #initialAudioBuffer: AudioBuffer | null = null;
   #midiController: MidiController | null = null;
 
   #connections = new Set<NodeID>();
@@ -65,16 +69,12 @@ export class SamplePlayer implements ILibInstrumentNode {
   #syncGainLFOToMidiNote = false;
   #syncPitchLFOToMidiNote = false;
 
-  #envelopes = new Map<EnvelopeType, EnvelopeData>();
-
-  #isReady = false;
-  #isLoaded = false;
   #zeroCrossings: number[] = [];
   #useZeroCrossings = true;
   #preprocessAudio = true;
   randomizeVelocity = false;
 
-  voicePool: SampleVoicePool;
+  voicePool!: SampleVoicePool; // todo: fix use of '!'
   public outBus: InstrumentMasterBus;
 
   constructor(
@@ -85,45 +85,97 @@ export class SamplePlayer implements ILibInstrumentNode {
   ) {
     this.nodeId = registerNode('sample-player', this);
     this.context = context;
-    this.#messages = createMessageBus<Message>(this.nodeId);
 
-    // Initialize MIDI controller if provided
+    // Synchronus setup
+    this.#messages = createMessageBus<Message>(this.nodeId);
     this.#midiController = midiController || null;
 
+    this.#masterOut = new GainNode(context, { gain: 0.5 });
     this.outBus = new InstrumentMasterBus();
 
-    // Initialize voice pool and connect audiochain
-    this.voicePool = new SampleVoicePool(
-      context,
-      polyphony,
-      this.outBus.input, // destination for voices to connect to
-      true // enable filters
-    );
+    // this.outBus.connect(this.#masterOut);
+    // this.#masterOut.connect(context.destination);
 
-    this.#masterOut = new GainNode(context, { gain: 0.5 });
-    this.outBus.connect(this.#masterOut);
-    this.#masterOut.connect(context.destination);
+    // // Setup params
+    // this.#macroLoopStart = new MacroParam(
+    //   context,
+    //   DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+    // );
 
-    // Setup params
-    this.#macroLoopStart = new MacroParam(
-      context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_START
-    );
+    // this.#macroLoopEnd = new MacroParam(
+    //   context,
+    //   DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+    // );
 
-    this.#macroLoopEnd = new MacroParam(
-      context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_END
-    );
+    // this.#connectVoicesToMacros();
+    // this.#setupLFOs();
+    // this.#setupMessageHandling();
 
-    this.#connectVoicesToMacros();
-    this.#setupLFOs();
-    this.#setupMessageHandling();
+    // this.#initialized = true;
 
-    this.#isReady = true;
+    // if (audioBuffer?.duration) {
+    //   this.loadSample(audioBuffer, audioBuffer.sampleRate);
+    // }
 
-    if (audioBuffer?.duration) {
-      this.loadSample(audioBuffer, audioBuffer.sampleRate);
+    // Store configuration for async init
+    this.#polyphony = polyphony;
+    this.#initialAudioBuffer = audioBuffer || null;
+  }
+
+  async init(): Promise<void> {
+    try {
+      // Initialize child components first
+      // await this.outBus.init();
+
+      // Initialize voice pool
+      this.voicePool = new SampleVoicePool(
+        this.context,
+        this.#polyphony,
+        this.outBus.input,
+        true
+      );
+
+      // todo: await this.voicePool.init();
+
+      // Setup macro parameters
+      this.#macroLoopStart = new MacroParam(
+        this.context,
+        DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+      );
+      // todo: await this.#macroLoopStart.init();
+
+      this.#macroLoopEnd = new MacroParam(
+        this.context,
+        DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+      );
+      // todo: await this.#macroLoopEnd.init();
+
+      // Connect audio chain
+      this.#connectAudioChain();
+      this.#connectVoicesToMacros();
+      this.#setupLFOs();
+      this.#setupMessageHandling();
+
+      // Load initial sample if provided
+      if (this.#initialAudioBuffer) {
+        await this.loadSample(this.#initialAudioBuffer);
+      }
+
+      this.#initialized = true;
+      this.sendUpstreamMessage('sample-player:ready', {});
+    } catch (error) {
+      // Cleanup any partial initialization
+      this.voicePool?.dispose();
+      this.#macroLoopStart?.dispose();
+      this.#macroLoopEnd?.dispose();
+
+      throw new Error(`Failed to initialize SamplePlayer: ${error}`); // ? error.message
     }
+  }
+
+  #connectAudioChain() {
+    this.outBus.connect(this.#masterOut);
+    this.#masterOut.connect(this.context.destination);
   }
 
   // === MESSAGING ===
@@ -222,7 +274,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   get initialized() {
-    return this.#isReady;
+    return this.#initialized;
   }
 
   /**
@@ -255,9 +307,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #setupMessageHandling(): this {
     this.voicePool.onMessage('sample:loaded', (msg: Message) => {
-      // this.#envelopes.forEach((env) => {
-      //   env.setDurationSeconds(msg.durationSeconds);
-      // });
       this.#isLoaded = true;
     });
 
@@ -1170,7 +1219,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
       // Reset state variables
       this.#bufferDuration = 0;
-      this.#isReady = false;
+      this.#initialized = false;
       this.#isLoaded = false;
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;
