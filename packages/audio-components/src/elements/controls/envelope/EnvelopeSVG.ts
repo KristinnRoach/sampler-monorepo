@@ -67,6 +67,7 @@ export const EnvelopeSVG = (
   const CIRCLE_PADDING = 8;
   const TOP_BTNS_PADDING = 16;
 
+
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
