@@ -10,7 +10,12 @@ import {
   MessageBus,
 } from '@/events';
 
-import { clamp, interpolateLinearToExp, midiToPlaybackRate } from '@/utils';
+import {
+  assert,
+  clamp,
+  interpolateLinearToExp,
+  midiToPlaybackRate,
+} from '@/utils';
 
 import {
   CustomEnvelope,
@@ -32,8 +37,8 @@ export class SampleVoice {
   readonly nodeId: NodeID;
   readonly nodeType: NodeType = 'sample-voice';
   #messages: MessageBus<Message>;
+  #initPromise: Promise<void> | null = null;
 
-  #destination: Destination | null = null;
   #outputNode: GainNode;
   #worklet: AudioWorkletNode;
 
@@ -63,11 +68,13 @@ export class SampleVoice {
 
   constructor(
     private context: AudioContext = getAudioContext(),
-    destination: AudioNode,
     options: { processorOptions?: any; enableFilters?: boolean } = {}
   ) {
     this.nodeId = registerNode(this.nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
+    this.#filtersEnabled = options.enableFilters ?? true;
+
+    this.#outputNode = new GainNode(context, { gain: 1 });
 
     this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
       numberOfInputs: 0,
@@ -75,38 +82,45 @@ export class SampleVoice {
       outputChannelCount: [2], // Force stereo output
       processorOptions: options.processorOptions || {},
     });
+  }
 
-    this.#feedback = new HarmonicFeedback(this.context);
-    this.#feedback.input.gain.setValueAtTime(1.5, this.now);
+  async init(): Promise<void> {
+    if (this.#initPromise) return this.#initPromise;
+    this.#initPromise = (async () => {
+      try {
+        // Create nodes
+        if (this.#filtersEnabled) this.#initFilters();
 
-    this.#outputNode = new GainNode(context, { gain: 1 });
-    this.#destination = destination;
+        this.#feedback = new HarmonicFeedback(this.context);
+        this.#feedback.input.gain.setValueAtTime(1.5, this.now);
 
-    this.#am_gain = new GainNode(this.context, { gain: 1 });
+        this.#am_gain = new GainNode(this.context, { gain: 1 });
+        this.#setupAmpModLFO();
 
-    this.#filtersEnabled = options.enableFilters ?? true;
+        // Connect nodes
+        this.#connectAudioChain();
+
+        // Setup message handling
+        this.#setupWorkletMessageHandling();
+        this.sendToProcessor({ type: 'voice:init' });
+        this.#worklet.port.start();
+      } catch (error) {
+        this.dispose();
+        this.#initPromise = null;
+        throw error;
+      }
+    })();
+    return this.#initPromise;
+  }
+
+  #connectAudioChain() {
+    assert(this.#feedback, 'SampleVoice: Feedback not initialized!');
+    assert(this.#am_gain, 'SampleVoice: AM mod not initialized!');
 
     if (this.#filtersEnabled) {
-      this.#hpfHz = 50;
-      this.#lpfHz = this.context.sampleRate / 2 - 1000;
+      assert(this.#hpf && this.#lpf, 'SampleVoice: Filters not initialized!');
 
-      if (!this.#hpf) {
-        this.#hpf = new BiquadFilterNode(context, {
-          type: 'highpass',
-          frequency: this.#hpfHz,
-          Q: this.#hpfQ,
-        });
-      }
-
-      if (!this.#lpf) {
-        this.#lpf = new BiquadFilterNode(context, {
-          type: 'lowpass',
-          frequency: this.#lpfHz,
-          Q: this.#lpfQ,
-        });
-      }
-
-      // Connect: worklet -> feedback -> hpf -> lpf -> destination
+      // Connect: worklet -> feedback -> hpf -> lpf
       this.#worklet.connect(this.#feedback.input);
       this.#worklet.connect(this.#am_gain);
       this.#feedback.output.connect(this.#am_gain);
@@ -119,16 +133,27 @@ export class SampleVoice {
       this.#feedback.output.connect(this.#am_gain);
       this.#am_gain.connect(this.#outputNode);
     }
+  }
 
-    this.#outputNode.connect(destination);
+  #initFilters() {
+    this.#hpfHz = 50;
+    this.#lpfHz = this.context.sampleRate / 2 - 1000;
 
-    // Setup Modulation
-    this.#setupAmpModLFO();
+    if (!this.#hpf) {
+      this.#hpf = new BiquadFilterNode(this.context, {
+        type: 'highpass',
+        frequency: this.#hpfHz,
+        Q: this.#hpfQ,
+      });
+    }
 
-    // Setup message handling
-    this.#setupWorkletMessageHandling();
-    this.sendToProcessor({ type: 'voice:init' });
-    this.#worklet.port.start();
+    if (!this.#lpf) {
+      this.#lpf = new BiquadFilterNode(this.context, {
+        type: 'lowpass',
+        frequency: this.#lpfHz,
+        Q: this.#lpfQ,
+      });
+    }
   }
 
   #createEnvelopes() {
@@ -660,8 +685,6 @@ export class SampleVoice {
     output?: number,
     input?: number
   ): Destination {
-    if (destination === this.#destination) return this.#destination;
-
     if (destination instanceof LibAudioNode) {
       this.out.connect(destination.input, output);
     } else if (destination instanceof AudioParam) {
@@ -858,10 +881,6 @@ export class SampleVoice {
 
   get out() {
     return this.#outputNode;
-  }
-
-  get destination() {
-    return this.#destination;
   }
 
   get state(): VoiceState {

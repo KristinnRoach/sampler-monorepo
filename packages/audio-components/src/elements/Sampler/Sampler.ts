@@ -58,180 +58,71 @@ const { div } = van.tags;
 // ===== SAMPLER ENGINE =====
 export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
-  let initialized = false;
 
   const nodeId: State<string> = attributes.attr('node-id', '');
   const polyphony = attributes.attr('polyphony', '16');
   const debugMode = attributes.attr('debug-mode', 'false');
-  const status = van.state('Initializing...');
-
-  // Track audio initialization with promise to prevent race conditions
-  let initializationPromise: Promise<void> | null = null;
-  let userInteractionHandler: (() => void) | null = null;
+  const status = van.state('Click to start');
 
   attributes.mount(() => {
     const initializeAudio = async () => {
-      if (initializationPromise) {
-        return initializationPromise; // Return existing promise if already initializing
-      }
+      try {
+        samplePlayer = await createSamplePlayer(
+          undefined,
+          parseInt(polyphony.val)
+        );
 
-      initializationPromise = (async () => {
-        try {
-          samplePlayer = await createSamplePlayer(
-            undefined,
-            parseInt(polyphony.val)
-          );
+        if (!nodeId.val) {
+          nodeId.val = samplePlayer.nodeId;
+        }
 
-          // Use attribute id if passed in, otherwise use the audiolib's nodeId
-          if (!nodeId.val) {
-            nodeId.val = samplePlayer.nodeId;
-          }
+        registerSampler(nodeId.val, samplePlayer);
+        status.val = 'Initialized';
 
-          // SamplePlayer is guaranteed ready after createSamplePlayer returns
-          registerSampler(nodeId.val, samplePlayer);
-          initialized = true;
-          status.val = 'Initialized';
+        document.dispatchEvent(
+          new CustomEvent('sampler-initialized', {
+            detail: { nodeId: nodeId.val },
+          })
+        );
 
+        samplePlayer.onMessage('sample:loaded', (msg: any) => {
+          status.val = 'Loaded';
           document.dispatchEvent(
-            new CustomEvent('sampler-initialized', {
-              detail: { nodeId: nodeId.val },
+            new CustomEvent('sample-loaded', {
+              detail: {
+                nodeId: nodeId.val,
+                buffer: samplePlayer?.audiobuffer,
+                durationSeconds: msg.durationSeconds,
+              },
             })
           );
+        });
 
-          // Set up ongoing event listeners for runtime events
-
-          samplePlayer.onMessage('sample:loaded', (msg: any) => {
-            document.dispatchEvent(
-              new CustomEvent('sample-loaded', {
-                detail: {
-                  nodeId: nodeId.val,
-                  buffer: samplePlayer?.audiobuffer,
-                  durationSeconds: msg.durationSeconds,
-                },
-              })
-            );
-          });
-
-          Object.assign(attributes.$this, { nodeId: nodeId.val });
-        } catch (error: any) {
-          // Reset promise on error to allow retry
-          initializationPromise = null;
-          console.error('Sampler initialization error:', error);
-
-          // Check if it's an AudioWorklet support issue
-          if (error?.message?.includes('AudioWorklet')) {
-            status.val = 'Browser not supported';
-
-            // Show a user-friendly message
-            document.dispatchEvent(
-              new CustomEvent('sampler-error', {
-                detail: {
-                  nodeId: nodeId.val,
-                  error: 'AudioWorklet not supported',
-                  message:
-                    'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
-                },
-              })
-            );
-          } else {
-            status.val = `Error: ${error}`;
-          }
-          throw error; // Re-throw to maintain error behavior
+        Object.assign(attributes.$this, { nodeId: nodeId.val });
+      } catch (error: any) {
+        console.error('Sampler initialization error:', error);
+        if (error?.message?.includes('AudioWorklet')) {
+          status.val = 'Browser not supported';
+          document.dispatchEvent(
+            new CustomEvent('sampler-error', {
+              detail: {
+                nodeId: nodeId.val,
+                error: 'AudioWorklet not supported',
+                message:
+                  'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
+              },
+            })
+          );
+        } else {
+          status.val = `Error: ${error}`;
         }
-      })();
-
-      return initializationPromise;
-    };
-
-    // Feature detection for audio context policy
-    const requiresUserInteraction = async () => {
-      try {
-        // Create a test AudioContext to check if it starts suspended
-        const testContext = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        const needsInteraction = testContext.state === 'suspended';
-        await testContext.close();
-        return needsInteraction;
-      } catch {
-        // If we can't create an AudioContext, we'll need user interaction
-        return true;
+        throw error;
       }
     };
 
-    // Initialize audio based on browser policy
-    requiresUserInteraction().then((needsInteraction) => {
-      if (needsInteraction) {
-        // Wait for user interaction before initializing audio
-        status.val = 'Click to start audio';
-
-        // Create localized handler that only affects this component
-        userInteractionHandler = async () => {
-          if (initializationPromise) return; // Already initializing or initialized
-          status.val = 'Initializing...';
-          await initializeAudio();
-
-          // Clean up the handler reference
-          userInteractionHandler = null;
-        };
-
-        // Add listener to the component itself, not the document
-        const element = attributes.$this;
-        if (element) {
-          // Use capture phase to ensure we get the event first
-          element.addEventListener('click', userInteractionHandler, {
-            once: true,
-            capture: true,
-          });
-          element.addEventListener('touchstart', userInteractionHandler, {
-            once: true,
-            capture: true,
-          });
-          element.addEventListener('keydown', userInteractionHandler, {
-            once: true,
-            capture: true,
-          });
-
-          // Also listen on parent to catch events on child elements
-          if (element.parentElement) {
-            element.parentElement.addEventListener(
-              'click',
-              userInteractionHandler,
-              { once: true, capture: true }
-            );
-            element.parentElement.addEventListener(
-              'touchstart',
-              userInteractionHandler,
-              { once: true, capture: true }
-            );
-          }
-        }
-      } else {
-        // Initialize immediately if no user interaction is needed
-        initializeAudio();
-      }
-    });
+    initializeAudio();
 
     return () => {
-      // Clean up event listeners if they haven't been triggered
-      if (userInteractionHandler) {
-        const element = attributes.$this;
-        if (element) {
-          element.removeEventListener('click', userInteractionHandler);
-          element.removeEventListener('touchstart', userInteractionHandler);
-          element.removeEventListener('keydown', userInteractionHandler);
-          if (element.parentElement) {
-            element.parentElement.removeEventListener(
-              'click',
-              userInteractionHandler
-            );
-            element.parentElement.removeEventListener(
-              'touchstart',
-              userInteractionHandler
-            );
-          }
-        }
-      }
-
       if (samplePlayer && nodeId.val) {
         unregisterSampler(nodeId.val);
         samplePlayer.dispose();
@@ -239,7 +130,7 @@ export const SamplerElement = (attributes: ElementProps) => {
     };
   });
 
-  // Only render debug information if debug-mode attribute is present
+  // Render debug information, only if debug-mode attribute is present
   if (debugMode.val === 'true' || debugMode.val === '') {
     return div(
       {
@@ -251,7 +142,7 @@ export const SamplerElement = (attributes: ElementProps) => {
     );
   }
 
-  // Return invisible element that still maintains the nodeId attribute
+  // Return invisible element
   return div({
     'node-id': () => nodeId.val,
     style: 'display: none;',

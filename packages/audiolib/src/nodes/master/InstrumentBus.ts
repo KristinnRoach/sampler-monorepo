@@ -23,10 +23,18 @@ import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
 import { HarmonicFeedback } from '../effects/HarmonicFeedback';
 
 import { createDistortion } from '@/worklets/worklet-factory';
-import { DistortionWorklet, FbDelayWorklet } from '@/worklets/worklet-types';
+import { DistortionWorklet } from '@/worklets/worklet-types';
 import { WorkletNode } from '@/worklets/WorkletNode';
 
-export type BusEffectName =
+export type BusNodeName =
+  // Main mix nodes
+  | 'input'
+  | 'output'
+  | 'dryMix'
+  | 'wetMix'
+  | 'hpf'
+  | 'lpf'
+  // Effect nodes
   | 'distortion'
   | 'feedback'
   | 'reverb'
@@ -34,42 +42,48 @@ export type BusEffectName =
   | 'limiter'
   | 'feedbackDelay';
 
-export type BusNode =
-  | BusEffectName
-  | `${BusEffectName}_send`
-  | `${BusEffectName}_return`
-  | 'input'
-  | 'output'
-  | 'dryMix'
-  | 'wetMix'
-  | 'hpf'
-  | 'lpf';
+export type BusSendName = `${BusNodeName}_send`;
 
-export class InstrumentMasterBus implements ILibAudioNode {
+type BusNodeTypeMap = {
+  input: ILibAudioNode<GainNode>;
+  lpf: ILibAudioNode<BiquadFilterNode>;
+  hpf: ILibAudioNode<BiquadFilterNode>;
+  dryMix: ILibAudioNode<GainNode>;
+  wetMix: ILibAudioNode<GainNode>;
+  output: ILibAudioNode<GainNode>;
+  compressor: ILibAudioNode<DynamicsCompressorNode>;
+  limiter: ILibAudioNode<DynamicsCompressorNode>;
+  feedback: HarmonicFeedback;
+  distortion: ILibAudioNode<DistortionWorklet>;
+  reverb: DattorroReverb;
+  feedbackDelay?: ILibAudioNode<any>;
+};
+
+export class InstrumentBus implements ILibAudioNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'InstrumentBus';
   #messages: MessageBus<Message>;
   #context: AudioContext;
   #initialized = false;
+  #initPromise: Promise<void> | null = null;
 
   // Internal nodes
-  #inputNode!: ILibAudioNode<GainNode>;
-  #outputNode!: ILibAudioNode<GainNode>;
-  #lpfNode!: ILibAudioNode<BiquadFilterNode>;
-  #hpfNode!: ILibAudioNode<BiquadFilterNode>;
-  #dryMixNode!: ILibAudioNode<GainNode>;
-  #wetMixNode!: ILibAudioNode<GainNode>;
-  #compressorNode!: ILibAudioNode<DynamicsCompressorNode>;
-  #limiterNode!: ILibAudioNode<DynamicsCompressorNode>;
-  #distortionNode!: ILibAudioNode<DistortionWorklet>;
-  #reverbNode!: DattorroReverb;
-  #feedbackNode!: HarmonicFeedback;
+  #inputNode: ILibAudioNode<GainNode>;
+  #outputNode: ILibAudioNode<GainNode>;
+  #lpfNode: ILibAudioNode<BiquadFilterNode>;
+  #hpfNode: ILibAudioNode<BiquadFilterNode>;
+  #dryMixNode: ILibAudioNode<GainNode>;
+  #wetMixNode: ILibAudioNode<GainNode>;
+  #compressorNode: ILibAudioNode<DynamicsCompressorNode>;
+  #limiterNode: ILibAudioNode<DynamicsCompressorNode>;
+  #distortionNode: ILibAudioNode<DistortionWorklet>;
+  #reverbNode: DattorroReverb;
+  #feedbackNode: HarmonicFeedback;
 
-  #nodes = new Map<string, ILibAudioNode>();
+  #nodes: Partial<BusNodeTypeMap> = {};
   #internalRouting = new Map<string, string[]>();
 
-  #sendNodes = new Map<BusEffectName, ILibAudioNode<GainNode>>();
-  #returnNodes = new Map<BusEffectName, ILibAudioNode<GainNode>>();
+  #sendNodes = new Map<BusNodeName, ILibAudioNode<GainNode>>();
 
   #outgoingConnections = new Set<NodeID>();
   #incomingConnections = new Set<NodeID>();
@@ -137,157 +151,80 @@ export class InstrumentMasterBus implements ILibAudioNode {
     // Nodes that already implement ILibAudioNode
     this.#reverbNode = new DattorroReverb(this.#context);
     this.#feedbackNode = new HarmonicFeedback(this.#context);
-
-    // Add to Map
-    this.#addNodeToMap('input', this.#inputNode);
-    this.#addNodeToMap('lpf', this.#lpfNode);
-    this.#addNodeToMap('hpf', this.#hpfNode);
-    this.#addNodeToMap('dryMix', this.#dryMixNode);
-    this.#addNodeToMap('wetMix', this.#wetMixNode);
-    this.#addNodeToMap('output', this.#outputNode);
-    this.#addNodeToMap('compressor', this.#compressorNode);
-    this.#addNodeToMap('limiter', this.#limiterNode);
-    this.#addNodeToMap('feedback', this.#feedbackNode);
-    this.#addNodeToMap('distortion', this.#distortionNode);
-    this.#addNodeToMap('reverb', this.#reverbNode);
-
-    // Create sends / returns
-    const revSend = this.#createSendNode();
-    this.#sendNodes.set('reverb', revSend);
-    this.#addNodeToMap('reverb_send', revSend);
-
-    this.#setupDefaultRouting();
-
-    this.#initialized = true;
-
-    // this.debugRouting();
-    // this.debugSendReturn();
   }
 
-  #createSendNode = () =>
-    new LibAudioNode<GainNode>(
-      new GainNode(this.#context, { gain: 0.0 }),
-      this.#context,
-      'gain'
-    );
+  async init(): Promise<void> {
+    if (this.#initialized) return;
+    if (this.#initPromise) return this.#initPromise;
 
-  #createReturnNode = () => {
-    const returnNode = new LibAudioNode<GainNode>(
-      new GainNode(this.#context, { gain: 1.0 }),
-      this.#context,
-      'gain'
-    );
-    return returnNode;
+    this.#initPromise = (async () => {
+      try {
+        // Add to Map
+        this.#addNodes({
+          input: this.#inputNode,
+          lpf: this.#lpfNode,
+          hpf: this.#hpfNode,
+          dryMix: this.#dryMixNode,
+          wetMix: this.#wetMixNode,
+          output: this.#outputNode,
+          compressor: this.#compressorNode,
+          limiter: this.#limiterNode,
+          feedback: this.#feedbackNode,
+          distortion: this.#distortionNode,
+          reverb: this.#reverbNode,
+        });
+
+        // Create sends
+        this.#createSendNode('reverb');
+
+        this.#setupDefaultRouting();
+        // this.debugRouting(); // Uncomment for debugging
+        // this.debugSendReturn();
+
+        this.#initialized = true;
+      } catch {}
+    })();
+    return this.#initPromise;
+  }
+
+  // === ROUTING ===
+
+  #connectChain = (chain: Array<BusNodeName | BusSendName>): this => {
+    for (let i = 0; i < chain.length - 1; i++) {
+      this.#connectFromTo(chain[i], chain[i + 1]);
+    }
+    return this;
   };
 
   #setupDefaultRouting(): void {
-    // Main input chain
-    this.#connectFromTo('input', 'hpf');
+    // Dry chain
+    this.#connectChain(['input', 'hpf', 'feedback', 'dryMix', 'distortion']);
 
-    // Dry path
-    this.#connectFromTo('hpf', 'lpf');
-    this.#connectFromTo('lpf', 'dryMix');
+    // Wet chain
+    this.#connectChain([
+      'feedback',
+      'reverb_send',
+      'reverb',
+      'wetMix',
+      'distortion',
+    ]);
 
-    // Set up sends / returns
-    this.#connectFromTo('hpf', 'reverb_send');
-    this.#connectFromTo('reverb_send', 'reverb');
-    this.#connectFromTo('reverb', 'lpf');
-    this.#connectFromTo('lpf', 'wetMix');
-
-    // Main output chain
-    this.#connectFromTo('dryMix', 'feedback');
-    this.#connectFromTo('wetMix', 'feedback');
-
-    this.#connectFromTo('feedback', 'distortion');
-    this.#connectFromTo('distortion', 'compressor');
-
-    this.#connectFromTo('compressor', 'limiter');
-    this.#connectFromTo('limiter', 'output');
+    // Shared output chain
+    this.#connectChain([
+      'distortion',
+      'compressor',
+      'lpf',
+      'limiter',
+      'output',
+    ]);
   }
 
-  // Helper method to add nodes to the Map
-  #addNodeToMap<T extends AudioNode | AudioWorkletNode>(
-    name: string,
-    node: ILibAudioNode<T>
-  ): void {
-    this.#nodes.set(name, node);
-    this.#internalRouting.set(name, []);
-  }
-
-  // Node getters
-  getInput() {
-    return this.#inputNode;
-  }
-  getOutput() {
-    return this.#outputNode;
-  }
-  getLpf() {
-    return this.#lpfNode;
-  }
-  getHpf() {
-    return this.#hpfNode;
-  }
-  getDryMix() {
-    return this.#dryMixNode;
-  }
-  getWetMix() {
-    return this.#wetMixNode;
-  }
-  getCompressor() {
-    return this.#compressorNode;
-  }
-  getLimiter() {
-    return this.#limiterNode;
-  }
-  getDistortion() {
-    return this.#distortionNode;
-  }
-  getReverb() {
-    return this.#reverbNode;
-  }
-  getFeedback() {
-    return this.#feedbackNode;
-  }
-
-  // Send getters
-  getSend(name: BusEffectName) {
-    return this.#sendNodes.get(name);
-  }
-
-  addNode<T extends AudioNode | AudioWorkletNode>(
-    name: string,
-    node: ILibAudioNode<T>
+  #connectFromTo(
+    from: BusNodeName | BusSendName,
+    to: BusNodeName | BusSendName
   ): this {
-    this.#addNodeToMap(name, node);
-    return this;
-  }
-
-  removeNode(name: string): this {
-    const node = this.#nodes.get(name);
-    if (node) {
-      // Disconnect everything
-      this.#disconnectFromTo(name);
-
-      // Remove from other connections
-      for (const [fromName, connections] of this.#internalRouting) {
-        const index = connections.indexOf(name);
-        if (index > -1) {
-          connections.splice(index, 1);
-          this.#internalRouting.set(fromName, connections);
-        }
-      }
-
-      // Clean up
-      this.#nodes.delete(name);
-      this.#internalRouting.delete(name);
-    }
-    return this;
-  }
-
-  // Internal connection methods
-  #connectFromTo(from: BusNode, to: BusNode): this {
-    const fromNode = this.#nodes.get(from);
-    const toNode = this.#nodes.get(to);
+    const fromNode = this.getNode(from);
+    const toNode = this.getNode(to);
 
     if (!fromNode || !toNode) {
       console.warn(`Cannot connect ${from} -> ${to}: node not found`);
@@ -307,11 +244,11 @@ export class InstrumentMasterBus implements ILibAudioNode {
   }
 
   #disconnectFromTo(from: string, to?: string): this {
-    const fromNode = this.#nodes.get(from);
+    const fromNode = this.#nodes[from as keyof BusNodeTypeMap];
     if (!fromNode) return this;
 
     if (to) {
-      const toNode = this.#nodes.get(to);
+      const toNode = this.#nodes[to as keyof BusNodeTypeMap];
       if (toNode) {
         fromNode.disconnect(toNode);
 
@@ -332,33 +269,70 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this;
   }
 
-  setSend(effect: BusEffectName, amount: number): this {
-    const sendNode = this.#sendNodes.get(effect);
+  // === NODE MGMT ===
 
-    if (!sendNode) {
-      console.warn(`Send effect ${effect} not found`);
-      return this;
+  #createSendNode = (nodeName: BusNodeName): ILibAudioNode<GainNode> => {
+    const node = new LibAudioNode<GainNode>(
+      new GainNode(this.#context, { gain: 0.0 }),
+      this.#context,
+      'gain'
+    );
+    this.#sendNodes.set(nodeName, node);
+    return node;
+  };
+
+  getNode = (name: BusNodeName | BusSendName) => {
+    if (name.endsWith('_send')) {
+      const node = name.replace('_send', '') as BusNodeName;
+      return this.#sendNodes.get(node);
     }
+    return this.#nodes[name as keyof BusNodeTypeMap];
+  };
 
-    const safeAmount = Math.max(0, Math.min(1, amount));
-    sendNode.setParam('gain', safeAmount);
+  getSendNode = (name: BusNodeName) => this.#sendNodes.get(name);
+
+  #addNode<K extends keyof BusNodeTypeMap>(
+    name: K,
+    node: BusNodeTypeMap[K]
+  ): void {
+    this.#nodes[name] = node;
+    this.#internalRouting.set(name as string, []);
+  }
+
+  #addNodes(nodes: Partial<BusNodeTypeMap>): this {
+    (Object.keys(nodes) as Array<keyof BusNodeTypeMap>).forEach((name) => {
+      const node = nodes[name];
+      if (node !== undefined) {
+        this.#addNode(name, node);
+      }
+    });
+    return this;
+  }
+
+  removeNode(name: string): this {
+    const node = this.#nodes[name as keyof BusNodeTypeMap];
+    if (node) {
+      // Disconnect everything
+      this.#disconnectFromTo(name);
+
+      // Remove from other connections
+      for (const [fromName, connections] of this.#internalRouting) {
+        const index = connections.indexOf(name);
+        if (index > -1) {
+          connections.splice(index, 1);
+          this.#internalRouting.set(fromName, connections);
+        }
+      }
+
+      // Clean up
+      delete this.#nodes[name as keyof BusNodeTypeMap];
+      this.#internalRouting.delete(name);
+    }
 
     return this;
   }
 
-  setReturn(effect: BusEffectName, gain: number): this {
-    const returnNode = this.#returnNodes.get(effect);
-
-    if (!returnNode) {
-      console.warn(`Return for effect ${effect} not found`);
-      return this;
-    }
-
-    const safeGain = Math.max(0, Math.min(2, gain)); // Allow up to 2x gain
-    returnNode.setParam('gain', safeGain);
-
-    return this;
-  }
+  // === NOTE ON/OFF ===
 
   noteOn(
     midiNote: number,
@@ -376,7 +350,22 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this;
   }
 
-  // parameter methods
+  // === PARAMS ===
+
+  setSendAmount(effect: BusNodeName, amount: number): this {
+    const sendNode = this.#sendNodes.get(effect);
+
+    if (!sendNode) {
+      console.warn(`Send effect ${effect} not found`);
+      return this;
+    }
+
+    const safeAmount = Math.max(0, Math.min(1, amount));
+    sendNode.setParam('gain', safeAmount);
+
+    return this;
+  }
+
   setHpfCutoff(hz: number): this {
     this.#hpfNode.audioNode.frequency.setValueAtTime(hz, this.now);
     return this;
@@ -555,14 +544,49 @@ export class InstrumentMasterBus implements ILibAudioNode {
     }
   }
 
+  // Convenience node getters
+  getInput() {
+    return this.#inputNode;
+  }
+  getOutput() {
+    return this.#outputNode;
+  }
+  getLpf() {
+    return this.#lpfNode;
+  }
+  getHpf() {
+    return this.#hpfNode;
+  }
+  getDryMix() {
+    return this.#dryMixNode;
+  }
+  getWetMix() {
+    return this.#wetMixNode;
+  }
+  getCompressor() {
+    return this.#compressorNode;
+  }
+  getLimiter() {
+    return this.#limiterNode;
+  }
+  getDistortion() {
+    return this.#distortionNode;
+  }
+  getReverb() {
+    return this.#reverbNode;
+  }
+  getFeedback() {
+    return this.#feedbackNode;
+  }
+
   dispose(): void {
     // Disconnect all nodes
-    for (const [name] of this.#nodes) {
+    for (const name of Object.keys(this.#nodes)) {
       this.#disconnectFromTo(name);
     }
 
     // Clear all maps
-    this.#nodes.clear();
+    this.#nodes = {};
     this.#internalRouting.clear();
     this.#sendNodes.clear();
 
@@ -619,14 +643,9 @@ export class InstrumentMasterBus implements ILibAudioNode {
     };
   }
 
-  getSendAmount(effect: BusEffectName): number {
+  getSendAmount(effect: BusNodeName): number {
     const sendNode = this.#sendNodes.get(effect);
     return sendNode?.getParam('gain')?.value ?? 0;
-  }
-
-  getReturnGain(effect: BusEffectName): number {
-    const returnNode = this.#returnNodes.get(effect);
-    return returnNode?.getParam('gain')?.value ?? 1;
   }
 
   // Debug methods
@@ -648,20 +667,17 @@ export class InstrumentMasterBus implements ILibAudioNode {
     console.debug('======================');
   }
 
-  debugSendReturn(): void {
-    console.debug('=== Send/Return Configuration ===');
+  debugSends(): void {
+    console.debug('=== Sends ===');
     for (const [effect] of this.#sendNodes) {
       const sendAmount = this.getSendAmount(effect);
-      const returnGain = this.getReturnGain(effect);
-      console.debug(
-        `${effect}: Send=${sendAmount.toFixed(2)}, Return=${returnGain.toFixed(2)}`
-      );
+      console.debug(`${effect}: Send=${sendAmount.toFixed(2)}}`);
     }
     console.debug('=================================');
   }
 
   listNodes(): string[] {
-    return Array.from(this.#nodes.keys());
+    return Object.keys(this.#nodes);
   }
 
   // Level monitoring

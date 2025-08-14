@@ -14,47 +14,71 @@ export class SampleVoicePool implements LibNode {
   readonly nodeId: NodeID;
   readonly nodeType = 'pool';
   #messages: MessageBus<Message>;
+  #context: AudioContext;
+  #initialized = false;
+  #initPromise: Promise<void> | null = null;
+  #polyphony: number;
 
-  #gainReductionScalar = 1; // Reduces gain based on number of playing voices
-
-  #allVoices: SampleVoice[];
+  #allVoices: SampleVoice[] = [];
   #loaded = new Set<NodeID>();
-
-  #playingMidiVoiceMap = new Map<MidiValue, SampleVoice>();
-
   #available = new Set<SampleVoice>();
   #playing = new Set<SampleVoice>();
   #releasing = new Set<SampleVoice>();
 
-  #initialized = false;
+  #playingMidiVoiceMap = new Map<MidiValue, SampleVoice>();
 
-  constructor(
-    context: AudioContext,
-    numVoices: number,
-    destination: AudioNode, // { dry: AudioNode; wet: AudioNode },
-    enableFilters: boolean = true
-  ) {
+  #gainReductionScalar = 1; // Reduces gain based on number of playing voices
+
+  constructor(context: AudioContext, polyphony: number) {
     this.nodeId = registerNode(this.nodeType, this);
-
     this.#messages = createMessageBus<Message>(this.nodeId);
+    this.#context = context;
+    this.#polyphony = polyphony;
+  }
 
-    this.#allVoices = Array.from({ length: numVoices }, () => {
-      const voice = new SampleVoice(context, destination, {
-        enableFilters,
-      });
+  async init() {
+    if (this.#initialized) return;
+    if (this.#initPromise) return this.#initPromise;
 
-      voice.connect(destination);
+    this.#initPromise = (async () => {
+      try {
+        this.#allVoices = Array.from(
+          { length: this.#polyphony },
+          () => new SampleVoice(this.#context)
+        );
+        await Promise.all(
+          this.#allVoices.map(async (voice) => {
+            await voice.init();
+            this.#available.add(voice);
+            this.#setupMessageHandling(voice);
+          })
+        );
+        this.#initialized = true;
+      } catch (error) {
+        this.#allVoices.forEach((voice) => voice.dispose());
+        this.#allVoices = [];
+        this.#available.clear();
+        this.#initPromise = null;
 
-      return voice;
-    });
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to initialize SamplePlayer: ${errorMessage}`);
+      }
+    })();
 
-    // All voices start as available
+    return this.#initPromise;
+  }
+
+  connect(destination: AudioNode) {
     this.#allVoices.forEach((voice) => {
-      this.#available.add(voice);
-      this.#setupMessageHandling(voice);
+      voice.connect(destination);
     });
+  }
 
-    this.#initialized = true;
+  disconnect() {
+    this.#allVoices.forEach((voice) => {
+      voice.disconnect();
+    });
   }
 
   /* === MESSAGES === */
@@ -298,6 +322,7 @@ export class SampleVoicePool implements LibNode {
     this.#playing.clear();
     this.#loaded.clear();
     this.#initialized = false;
+    this.#initPromise = null;
     unregisterNode(this.nodeId);
   }
 

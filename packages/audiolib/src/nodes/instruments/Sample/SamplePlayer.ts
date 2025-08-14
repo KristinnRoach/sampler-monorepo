@@ -22,8 +22,11 @@ import {
 } from '@/nodes/params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
-import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
-import { BusEffectName } from '@/nodes/master/InstrumentMasterBus';
+import {
+  createInstrumentBus,
+  type InstrumentBus,
+} from '@/nodes/master/createInstrumentBus';
+import { BusNodeName } from '@/nodes/master/InstrumentBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
@@ -43,6 +46,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   #messages: MessageBus<Message>;
 
   #initialized = false;
+  #initPromise: Promise<void> | null = null;
   #isLoaded = false;
   #polyphony: number;
   #initialAudioBuffer: AudioBuffer | null = null;
@@ -59,7 +63,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   #holdEnabled = false;
   #holdLocked = false;
 
-  #masterOut: GainNode;
+  #masterOut!: GainNode; // todo: fix use of '!'
 
   #macroLoopStart!: MacroParam; // todo: fix use of '!'
   #macroLoopEnd!: MacroParam; // todo: fix use of '!'
@@ -75,7 +79,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   randomizeVelocity = false;
 
   voicePool!: SampleVoicePool; // todo: fix use of '!'
-  public outBus: InstrumentMasterBus;
+  outBus!: InstrumentBus; // todo: fix use of '!'
 
   constructor(
     context: AudioContext,
@@ -90,89 +94,67 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#messages = createMessageBus<Message>(this.nodeId);
     this.#midiController = midiController || null;
 
-    this.#masterOut = new GainNode(context, { gain: 0.5 });
-    this.outBus = new InstrumentMasterBus();
-
-    // this.outBus.connect(this.#masterOut);
-    // this.#masterOut.connect(context.destination);
-
-    // // Setup params
-    // this.#macroLoopStart = new MacroParam(
-    //   context,
-    //   DEFAULT_PARAM_DESCRIPTORS.LOOP_START
-    // );
-
-    // this.#macroLoopEnd = new MacroParam(
-    //   context,
-    //   DEFAULT_PARAM_DESCRIPTORS.LOOP_END
-    // );
-
-    // this.#connectVoicesToMacros();
-    // this.#setupLFOs();
-    // this.#setupMessageHandling();
-
-    // this.#initialized = true;
-
-    // if (audioBuffer?.duration) {
-    //   this.loadSample(audioBuffer, audioBuffer.sampleRate);
-    // }
-
     // Store configuration for async init
     this.#polyphony = polyphony;
     this.#initialAudioBuffer = audioBuffer || null;
   }
 
   async init(): Promise<void> {
-    try {
-      // Initialize child components first
-      // await this.outBus.init();
+    if (this.#initialized) return; // todo: remove #initialized flag if redundant (since now using initPromise)
+    if (this.#initPromise) return this.#initPromise;
 
-      // Initialize voice pool
-      this.voicePool = new SampleVoicePool(
-        this.context,
-        this.#polyphony,
-        this.outBus.input, // todo: remove param and connect in connectAudioChain
-        true
-      );
+    this.#initPromise = (async () => {
+      try {
+        // Initialize child components first
+        this.#masterOut = new GainNode(this.context, { gain: 0.5 });
 
-      // todo: await this.voicePool.init();
+        this.outBus = await createInstrumentBus(this.context); // WIP
 
-      // Setup macro parameters
-      this.#macroLoopStart = new MacroParam(
-        this.context,
-        DEFAULT_PARAM_DESCRIPTORS.LOOP_START
-      );
-      // todo: await this.#macroLoopStart.init();
+        // Initialize voice pool
+        this.voicePool = new SampleVoicePool(this.context, this.#polyphony);
+        await this.voicePool.init();
 
-      this.#macroLoopEnd = new MacroParam(
-        this.context,
-        DEFAULT_PARAM_DESCRIPTORS.LOOP_END
-      );
-      // todo: await this.#macroLoopEnd.init();
+        // Setup macro parameters
+        this.#macroLoopStart = new MacroParam(
+          this.context,
+          DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+        );
+        // todo: await this.#macroLoopStart.init();
 
-      // Connect audio chain
-      this.#connectAudioChain();
-      this.#connectVoicesToMacros();
-      this.#setupLFOs();
-      this.#setupMessageHandling();
+        this.#macroLoopEnd = new MacroParam(
+          this.context,
+          DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+        );
+        // todo: await this.#macroLoopEnd.init();
 
-      // Load initial sample if provided
-      if (this.#initialAudioBuffer) {
-        await this.loadSample(this.#initialAudioBuffer);
+        // Connect audio chain
+        this.#connectAudioChain();
+        this.#connectVoicesToMacros();
+        this.#setupLFOs();
+        this.#setupMessageHandling();
+
+        // Load initial sample if provided
+        if (this.#initialAudioBuffer) {
+          await this.loadSample(this.#initialAudioBuffer);
+        }
+
+        this.#initialized = true;
+      } catch (error) {
+        // Cleanup any partial initialization
+        this.voicePool?.dispose();
+        this.#macroLoopStart?.dispose();
+        this.#macroLoopEnd?.dispose();
+
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to initialize SamplePlayer: ${errorMessage}`);
       }
-
-      this.#initialized = true;
-    } catch (error) {
-      // Cleanup any partial initialization
-      this.voicePool?.dispose();
-      this.#macroLoopStart?.dispose();
-      this.#macroLoopEnd?.dispose();
-
-      throw new Error(`Failed to initialize SamplePlayer: ${error}`); // ? error.message
-    }
+    })();
+    return this.#initPromise;
   }
 
   #connectAudioChain() {
+    this.voicePool.connect(this.outBus.input);
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(this.context.destination);
   }
@@ -1009,8 +991,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.outBus.setDryWetMix(mix);
   };
 
-  sendToFx = (effect: BusEffectName, amount: number) => {
-    this.outBus.setSend(effect, amount);
+  sendToFx = (effect: BusNodeName, amount: number) => {
+    this.outBus.setSendAmount(effect, amount);
   };
 
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
@@ -1202,7 +1184,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
       if (this.outBus) {
         this.outBus.dispose();
-        this.outBus = null as unknown as InstrumentMasterBus;
+        this.outBus = null as unknown as InstrumentBus;
       }
 
       this.#macroLoopStart?.dispose();
