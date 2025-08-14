@@ -33,9 +33,10 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     if (!sampler) return;
 
     try {
-      // Cleanup existing envelope
+      // Always cleanup existing envelope to ensure fresh instance
       if (envelopes[envType]) {
         envelopes[envType]!.cleanup();
+        envelopes[envType] = null;
       }
 
       // Create new envelope instance
@@ -68,6 +69,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   van.derive(() => {
     const currentEnvType = activeEnvelope.val;
     if (samplerReady.val && sampleLoaded.val) {
+      // Always recreate the active envelope to ensure it has the latest data
       createEnvelope(currentEnvType);
     }
   });
@@ -82,9 +84,12 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     };
 
     const handleSampleLoaded = (e: Event) => {
+      sampleLoaded.val = false;
       const customEvent = e as CustomEvent;
       if (customEvent.detail.nodeId === targetNodeId.val) {
         sampleLoaded.val = true;
+
+        // Recreate all envelopes with the new sample data
         createEnvelopes();
       }
     };
@@ -134,10 +139,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     // Envelope display area
     div({ class: 'envelope-container' }, () => {
       if (!samplerReady.val)
-        return div(
-          { style: loadingStateStyle },
-          'Click anywhere to start the audio system'
-        );
+        return div({ style: loadingStateStyle }, 'Click anywhere to start');
       if (!sampleLoaded.val)
         return div({ style: loadingStateStyle }, 'Loading audio sample...');
 

@@ -64,8 +64,9 @@ export const EnvelopeSVG = (
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
-  const CIRCLE_RADIUS = 4; // Radius of the envelope point circles
-  const CIRCLE_PADDING = CIRCLE_RADIUS * 2; // Padding to prevent circles from being cut off
+  const CIRCLE_PADDING = 8;
+  const TOP_BTNS_PADDING = 16;
+
 
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
@@ -259,7 +260,9 @@ export const EnvelopeSVG = (
   const updateControlPoints = () => {
     if (!pointsGroup) return;
 
-    pointsGroup.replaceChildren();
+    // Only remove circle elements (control points), not all children
+    const circles = pointsGroup.querySelectorAll('circle');
+    circles.forEach((circle) => circle.remove());
 
     const pts = envelopeInfo.points;
 
@@ -288,8 +291,10 @@ export const EnvelopeSVG = (
       circle.setAttribute(
         'cy',
         (
-          (1 - normalizedValue) * (SVG_HEIGHT - 2 * CIRCLE_PADDING) +
-          CIRCLE_PADDING
+          (1 - normalizedValue) *
+            (SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING) +
+          CIRCLE_PADDING +
+          TOP_BTNS_PADDING
         ).toString()
       );
 
@@ -413,11 +418,11 @@ export const EnvelopeSVG = (
         envelopeInfo.points,
         envelopeInfo.fullDuration,
         SVG_WIDTH - 2 * CIRCLE_PADDING,
-        SVG_HEIGHT - 2 * CIRCLE_PADDING,
+        SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
         envelopeInfo.valueRange,
         envelopeType === 'filter-env' ? 'logarithmic' : 'linear',
         CIRCLE_PADDING,
-        CIRCLE_PADDING
+        CIRCLE_PADDING + TOP_BTNS_PADDING
       )
     );
   };
@@ -436,7 +441,6 @@ export const EnvelopeSVG = (
   pointsGroup.setAttribute('class', 'control-points');
 
   // Animated Playheads
-  // Create simplified playhead manager
   const playheadManager: PlayheadManager = createPlayheads(
     svgElement,
     pointsGroup,
@@ -459,7 +463,7 @@ export const EnvelopeSVG = (
     const waveformSVGData = getWaveformSVGData(
       audiobuffer,
       SVG_WIDTH - 2 * CIRCLE_PADDING,
-      SVG_HEIGHT - 2 * CIRCLE_PADDING
+      SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING
     );
 
     waveformPath = path({
@@ -471,7 +475,7 @@ export const EnvelopeSVG = (
       'stroke-width': 1,
       style: 'z-index: -999; pointer-events: none; ',
       'pointer-events': 'none', // SVG attribute, not CSS
-      transform: `translate(${CIRCLE_PADDING}, ${CIRCLE_PADDING})`,
+      transform: `translate(${CIRCLE_PADDING}, ${CIRCLE_PADDING + TOP_BTNS_PADDING})`,
     }) as SVGPathElement;
 
     // Insert waveform after grid but before envelope path
@@ -508,8 +512,8 @@ export const EnvelopeSVG = (
       );
 
       let value = screenYToAbsoluteValue(
-        coords.y - rect.top - CIRCLE_PADDING,
-        rect.height - 2 * CIRCLE_PADDING,
+        coords.y - rect.top - CIRCLE_PADDING - TOP_BTNS_PADDING,
+        rect.height - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
         envelopeInfo.valueRange
       );
 
@@ -554,8 +558,6 @@ export const EnvelopeSVG = (
     updateControlPoints();
   };
 
-  //
-
   const handleMouseLeave = () => {
     if (!envelopeInfo.isEnabled) return;
     isDragging.val = false;
@@ -585,8 +587,8 @@ export const EnvelopeSVG = (
     );
 
     let value = screenYToAbsoluteValue(
-      coords.y - rect.top - CIRCLE_PADDING,
-      rect.height - 2 * CIRCLE_PADDING,
+      coords.y - rect.top - CIRCLE_PADDING - TOP_BTNS_PADDING,
+      rect.height - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
       envelopeInfo.valueRange
     );
 

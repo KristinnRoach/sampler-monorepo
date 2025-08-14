@@ -48,7 +48,12 @@
             <div class="ac-layout--grid knob-grid">
               <volume-knob target-node-id="test-sampler"></volume-knob>
               <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
-              <reverb-knob target-node-id="test-sampler"></reverb-knob>
+              <reverb-send-knob
+                target-node-id="test-sampler"
+              ></reverb-send-knob>
+              <reverb-size-knob
+                target-node-id="test-sampler"
+              ></reverb-size-knob>
 
               <!-- Filters -->
               <lowpass-filter-knob
@@ -64,14 +69,12 @@
                 target-node-id="test-sampler"
               ></loop-duration-knob>
 
-              <div class="knob-w-toggle">
-                <loop-duration-drift-knob
-                  target-node-id="test-sampler"
-                ></loop-duration-drift-knob>
-                <pan-drift-toggle
-                  target-node-id="test-sampler"
-                ></pan-drift-toggle>
-              </div>
+              <loop-duration-drift-knob
+                target-node-id="test-sampler"
+              ></loop-duration-drift-knob>
+              <pan-drift-toggle
+                target-node-id="test-sampler"
+              ></pan-drift-toggle>
             </div>
           </div>
 
@@ -123,8 +126,6 @@
             </div>
 
             <div class="control-group">
-              <piano-keyboard target-node-id="test-sampler"> </piano-keyboard>
-
               <load-button
                 target-node-id="test-sampler"
                 show-status="false"
@@ -164,7 +165,7 @@
             </div>
           </div>
 
-          <!-- <div class="control-group">
+          <div class="control-group">
             <h3>Input</h3>
             <div class="inline keyboard-section">
               <computer-keyboard
@@ -177,7 +178,7 @@
               >
               </piano-keyboard>
             </div>
-          </div> -->
+          </div>
         </section>
       </main>
     </div>

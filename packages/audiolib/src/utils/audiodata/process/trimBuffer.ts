@@ -18,7 +18,7 @@ export function trimAudioBuffer(
   buffer: AudioBuffer,
   start: number,
   end: number,
-  fadeMs: number = 5
+  fadeMs: number = 4
 ) {
   const numChannels = buffer.numberOfChannels;
   const newLength = end - start;

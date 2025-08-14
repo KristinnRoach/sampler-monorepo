@@ -105,11 +105,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.usePlaybackPosition = false;
     this.enableLoopSmoothing = true; // Crossfade between loop points
     this.enableAdaptiveDrift = true; // Adaptive drift scaling based on loop duration
+    this.enableAmplitudeCompensation = true; // Automatic makeup gain for short loops
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
     // At 44.1kHz: 0.061 * 44100 ≈ 2690 samples
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061); // ~2690 samples @ 44.1kHz
+
+    // C3 = ~130.81 Hz, period = ~337 samples @ 44.1kHz
+    this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 130.81); // ~337 samples @ 44.1kHz
 
     this.port.onmessage = this.#handleMessage.bind(this);
 
@@ -254,6 +258,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.currentPanDrift = 0;
     this.panDriftEnabled = true;
     this.nextDriftGenerated = false;
+
+    // Amplitude compensation for short loops
+    this.loopAmplitudeGain = 1.0;
+    this.lastAnalyzedLoopStart = -1;
+    this.lastAnalyzedLoopEnd = -1;
   }
 
   #stop() {
@@ -502,6 +511,71 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     return Math.floor(randomFactor * maxDriftSamples);
   }
 
+  /**
+   * Analyze loop amplitude and calculate makeup gain for short loops
+   * @param {number} loopStart - Loop start position in samples
+   * @param {number} loopEnd - Loop end position in samples
+   * @returns {number} - Makeup gain multiplier (1.0 = no change)
+   */
+  #analyzeLoopAmplitude(loopStart, loopEnd) {
+    if (!this.enableAmplitudeCompensation || !this.buffer || !this.buffer[0]) {
+      return 1.0;
+    }
+
+    const loopDuration = loopEnd - loopStart;
+
+    // Only analyze very short loops (shorter than C3 period)
+    if (loopDuration >= this.AMPLITUDE_COMPENSATION_THRESHOLD) {
+      return 1.0;
+    }
+
+    // Skip if we already analyzed this exact loop range
+    if (
+      loopStart === this.lastAnalyzedLoopStart &&
+      loopEnd === this.lastAnalyzedLoopEnd
+    ) {
+      return this.loopAmplitudeGain;
+    }
+
+    // Calculate RMS amplitude of the loop
+    let sumSquares = 0;
+    let sampleCount = 0;
+
+    // Analyze first channel only for simplicity
+    const channel = this.buffer[0];
+    const startIndex = Math.floor(loopStart);
+    const endIndex = Math.floor(loopEnd);
+
+    for (let i = startIndex; i < endIndex && i < channel.length; i++) {
+      const sample = channel[i];
+      sumSquares += sample * sample;
+      sampleCount++;
+    }
+
+    if (sampleCount === 0) return 1.0;
+
+    const rmsAmplitude = Math.sqrt(sumSquares / sampleCount);
+
+    // if the amplitude is below the target, we apply makeup gain to bring it closer
+    const targetAmplitude = 0.5;
+
+    // Calculate makeup gain, but limit it to reasonable range
+    let makeupGain = 1.0;
+    if (rmsAmplitude > 0.001) {
+      // Avoid division by very small numbers
+      makeupGain = targetAmplitude / rmsAmplitude;
+      // Limit gain to reasonable range (0.5x to 3x)
+      makeupGain = Math.max(0.5, Math.min(3.0, makeupGain));
+    }
+
+    // Cache the result
+    this.lastAnalyzedLoopStart = loopStart;
+    this.lastAnalyzedLoopEnd = loopEnd;
+    this.loopAmplitudeGain = makeupGain;
+
+    return makeupGain;
+  }
+
   // ===== MAIN PROCESS METHOD =====
 
   process(inputs, outputs, parameters) {
@@ -524,6 +598,12 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       positionParams,
       playbackRange,
       parameters.loopDurationDriftAmount[0]
+    );
+
+    // Calculate amplitude compensation for short loops
+    const amplitudeGain = this.#analyzeLoopAmplitude(
+      loopRange.loopStartSamples,
+      loopRange.loopEndSamples
     );
 
     const velocityGain =
@@ -709,7 +789,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         }
 
         const finalSample =
-          interpolatedSample * velocityGain * envelopeGain * masterGain;
+          interpolatedSample *
+          velocityGain *
+          envelopeGain *
+          masterGain *
+          amplitudeGain;
 
         // Apply pan (only affects stereo output)
         let panAdjustedSample = finalSample;

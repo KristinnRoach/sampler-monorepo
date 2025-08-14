@@ -171,7 +171,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ease: 'back.inOut',
       });
 
-      // Make draggable with handle and callbacks
       makeDraggable(
         {
           element,

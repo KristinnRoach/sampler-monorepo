@@ -704,7 +704,12 @@ export class SampleVoice {
     this.#envelopes.forEach((env, envType) => {
       this.#messages.forwardFrom(
         env,
-        [`${envType}:trigger`, `${envType}:release`, `${envType}:trigger:loop`],
+        [
+          `${envType}:trigger`,
+          `${envType}:release`,
+          `${envType}:trigger:loop`,
+          `${envType}:created`,
+        ],
         (msg) => ({
           ...msg,
           voiceId: this.nodeId,

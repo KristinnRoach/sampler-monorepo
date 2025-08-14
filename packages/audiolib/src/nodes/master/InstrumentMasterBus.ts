@@ -71,8 +71,8 @@ export class InstrumentMasterBus implements ILibAudioNode {
   #sendNodes = new Map<BusEffectName, ILibAudioNode<GainNode>>();
   #returnNodes = new Map<BusEffectName, ILibAudioNode<GainNode>>();
 
-  #externalConnections = new Set<NodeID>();
-  #incoming = new Set<NodeID>();
+  #outgoingConnections = new Set<NodeID>();
+  #incomingConnections = new Set<NodeID>();
 
   constructor(context?: AudioContext) {
     this.nodeId = registerNode(this.nodeType, this);
@@ -182,24 +182,26 @@ export class InstrumentMasterBus implements ILibAudioNode {
 
   #setupDefaultRouting(): void {
     // Main input chain
-    this.#connectFromTo('input', 'feedback');
-    this.#connectFromTo('feedback', 'distortion');
-    this.#connectFromTo('distortion', 'compressor');
-
-    this.#connectFromTo('compressor', 'hpf');
-    this.#connectFromTo('hpf', 'lpf');
+    this.#connectFromTo('input', 'hpf');
 
     // Dry path
+    this.#connectFromTo('hpf', 'lpf');
     this.#connectFromTo('lpf', 'dryMix');
 
     // Set up sends / returns
-    this.#connectFromTo('lpf', 'reverb_send');
+    this.#connectFromTo('hpf', 'reverb_send');
     this.#connectFromTo('reverb_send', 'reverb');
-    this.#connectFromTo('reverb', 'wetMix');
+    this.#connectFromTo('reverb', 'lpf');
+    this.#connectFromTo('lpf', 'wetMix');
 
     // Main output chain
-    this.#connectFromTo('dryMix', 'limiter');
-    this.#connectFromTo('wetMix', 'limiter');
+    this.#connectFromTo('dryMix', 'feedback');
+    this.#connectFromTo('wetMix', 'feedback');
+
+    this.#connectFromTo('feedback', 'distortion');
+    this.#connectFromTo('distortion', 'compressor');
+
+    this.#connectFromTo('compressor', 'limiter');
     this.#connectFromTo('limiter', 'output');
   }
 
@@ -260,6 +262,28 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this;
   }
 
+  removeNode(name: string): this {
+    const node = this.#nodes.get(name);
+    if (node) {
+      // Disconnect everything
+      this.#disconnectFromTo(name);
+
+      // Remove from other connections
+      for (const [fromName, connections] of this.#internalRouting) {
+        const index = connections.indexOf(name);
+        if (index > -1) {
+          connections.splice(index, 1);
+          this.#internalRouting.set(fromName, connections);
+        }
+      }
+
+      // Clean up
+      this.#nodes.delete(name);
+      this.#internalRouting.delete(name);
+    }
+    return this;
+  }
+
   // Internal connection methods
   #connectFromTo(from: BusNode, to: BusNode): this {
     const fromNode = this.#nodes.get(from);
@@ -282,7 +306,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this;
   }
 
-  disconnectFromTo(from: string, to?: string): this {
+  #disconnectFromTo(from: string, to?: string): this {
     const fromNode = this.#nodes.get(from);
     if (!fromNode) return this;
 
@@ -307,69 +331,6 @@ export class InstrumentMasterBus implements ILibAudioNode {
 
     return this;
   }
-
-  removeNode(name: string): this {
-    const node = this.#nodes.get(name);
-    if (node) {
-      // Disconnect everything
-      this.disconnectFromTo(name);
-
-      // Remove from other connections
-      for (const [fromName, connections] of this.#internalRouting) {
-        const index = connections.indexOf(name);
-        if (index > -1) {
-          connections.splice(index, 1);
-          this.#internalRouting.set(fromName, connections);
-        }
-      }
-
-      // Clean up
-      this.#nodes.delete(name);
-      this.#internalRouting.delete(name);
-    }
-    return this;
-  }
-
-  // Typed parameter methods - no more casting needed!
-  setHpfCutoff(hz: number): this {
-    this.#hpfNode.audioNode.frequency.setValueAtTime(hz, this.now);
-    return this;
-  }
-
-  setLpfCutoff(hz: number): this {
-    this.#lpfNode.audioNode.frequency.setValueAtTime(hz, this.now);
-    return this;
-  }
-
-  setCompressorParams(params: {
-    threshold?: number;
-    knee?: number;
-    ratio?: number;
-    attack?: number;
-    release?: number;
-  }): this {
-    const node = this.#compressorNode.audioNode;
-
-    if (params.threshold !== undefined) {
-      node.threshold.setValueAtTime(params.threshold, this.now);
-    }
-    if (params.knee !== undefined) {
-      node.knee.setValueAtTime(params.knee, this.now);
-    }
-    if (params.ratio !== undefined) {
-      node.ratio.setValueAtTime(params.ratio, this.now);
-    }
-    if (params.attack !== undefined) {
-      node.attack.setValueAtTime(params.attack, this.now);
-    }
-    if (params.release !== undefined) {
-      node.release.setValueAtTime(params.release, this.now);
-    }
-
-    return this;
-  }
-
-  // Effect control methods
 
   setSend(effect: BusEffectName, amount: number): this {
     const sendNode = this.#sendNodes.get(effect);
@@ -415,7 +376,45 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this;
   }
 
-  // Convenience methods
+  // parameter methods
+  setHpfCutoff(hz: number): this {
+    this.#hpfNode.audioNode.frequency.setValueAtTime(hz, this.now);
+    return this;
+  }
+
+  setLpfCutoff(hz: number): this {
+    this.#lpfNode.audioNode.frequency.setValueAtTime(hz, this.now);
+    return this;
+  }
+
+  setCompressorParams(params: {
+    threshold?: number;
+    knee?: number;
+    ratio?: number;
+    attack?: number;
+    release?: number;
+  }): this {
+    const node = this.#compressorNode.audioNode;
+
+    if (params.threshold !== undefined) {
+      node.threshold.setValueAtTime(params.threshold, this.now);
+    }
+    if (params.knee !== undefined) {
+      node.knee.setValueAtTime(params.knee, this.now);
+    }
+    if (params.ratio !== undefined) {
+      node.ratio.setValueAtTime(params.ratio, this.now);
+    }
+    if (params.attack !== undefined) {
+      node.attack.setValueAtTime(params.attack, this.now);
+    }
+    if (params.release !== undefined) {
+      node.release.setValueAtTime(params.release, this.now);
+    }
+
+    return this;
+  }
+
   setDryWetMix(mix: { dry: number; wet: number }): this {
     if (mix.dry !== undefined) {
       const safeDry = Math.max(0, Math.min(1, mix.dry));
@@ -484,13 +483,11 @@ export class InstrumentMasterBus implements ILibAudioNode {
     return this;
   }
 
-  // Core ILibAudioNode interface methods
   connect(destination: ILibAudioNode | AudioNode): void {
     this.#outputNode.connect(destination);
 
-    // Track external connections by NodeID if possible
     if ('nodeId' in destination) {
-      this.#externalConnections.add(destination.nodeId);
+      this.#outgoingConnections.add(destination.nodeId);
       (destination as any).addIncoming?.(this.nodeId);
     }
   }
@@ -499,19 +496,19 @@ export class InstrumentMasterBus implements ILibAudioNode {
     this.#outputNode.disconnect(destination);
 
     if (destination && 'nodeId' in destination) {
-      this.#externalConnections.delete(destination.nodeId);
+      this.#outgoingConnections.delete(destination.nodeId);
       (destination as any).removeIncoming?.(this.nodeId);
     } else if (!destination) {
-      this.#externalConnections.clear();
+      this.#outgoingConnections.clear();
     }
   }
 
   addIncoming(sourceNodeId: NodeID): void {
-    this.#incoming.add(sourceNodeId);
+    this.#incomingConnections.add(sourceNodeId);
   }
 
   removeIncoming(sourceNodeId: NodeID): void {
-    this.#incoming.delete(sourceNodeId);
+    this.#incomingConnections.delete(sourceNodeId);
   }
 
   setParam(name: string, value: number): void {
@@ -561,7 +558,7 @@ export class InstrumentMasterBus implements ILibAudioNode {
   dispose(): void {
     // Disconnect all nodes
     for (const [name] of this.#nodes) {
-      this.disconnectFromTo(name);
+      this.#disconnectFromTo(name);
     }
 
     // Clear all maps
@@ -583,8 +580,8 @@ export class InstrumentMasterBus implements ILibAudioNode {
 
   get connections() {
     return {
-      outgoing: Array.from(this.#externalConnections),
-      incoming: Array.from(this.#incoming),
+      outgoing: Array.from(this.#outgoingConnections),
+      incoming: Array.from(this.#incomingConnections),
     };
   }
 

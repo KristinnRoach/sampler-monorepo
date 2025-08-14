@@ -15,7 +15,7 @@ const setKnobState = (key: string, state: any) => knobStates.set(key, state);
 
 const dryWetConfig: KnobConfig = {
   label: 'Dry/Wet',
-  defaultValue: 0.0,
+  defaultValue: 0.5,
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => {
       sampler.setDryWetMix({ dry: 1 - state.val, wet: state.val });
@@ -224,10 +224,9 @@ const loopStartConfig: KnobConfig = {
     setKnobState('loopStart', state);
     van.derive(() => {
       sampler.setLoopStart(state.val);
-
-      const loopDurationState = getKnobState('loopDuration');
-      const loopDuration = loopDurationState?.val ?? 0.5;
-      sampler.setLoopEnd(state.val + loopDuration);
+      // const loopDurationState = getKnobState('loopDuration');
+      // const loopDuration = loopDurationState?.val ?? 0.5;
+      // sampler.setLoopEnd(state.val + loopDuration);
     });
   },
 };
@@ -243,10 +242,18 @@ const loopDurationConfig: KnobConfig = {
     van.derive(() => {
       // Register this state for other knobs to access
       setKnobState('loopDuration', state);
-      const loopStartState = getKnobState('loopStart');
-      const loopStart = loopStartState?.val ?? 0;
-      sampler.setLoopEnd(loopStart + state.val);
+      sampler.setLoopDuration(state.val);
     });
+  },
+  onKnobElementReady: (knobElement, state, sampler) => {
+    sampler.onMessage('sample:loaded', (msg: any) => {
+      // Update both the reactive state and visual knob position
+      state.val = msg.durationSeconds;
+      knobElement.setValue(msg.durationSeconds, true); // true for animation
+    });
+
+    // Store reference to knob element for external updates (if needed)
+    setKnobState('loopDurationKnobElement', knobElement);
   },
 };
 
