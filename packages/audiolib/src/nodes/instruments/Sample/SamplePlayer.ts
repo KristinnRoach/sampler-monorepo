@@ -1038,14 +1038,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#feedbackMode = mode;
 
     if (mode === 'monophonic') {
-      let currAmount = this.voicePool.allVoices[0].feedback?.currAmount ?? 0;
+      let currAmount = this.voicePool.allVoices[0].feedback?.currentAmount ?? 0;
       this.voicePool.applyToAllVoices((voice) => {
         voice.feedback?.setAmountMacro(0);
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
       const monoFx = this.outBus.getFeedback();
-      const currAmount = monoFx.currAmount;
+      const currAmount = monoFx.currentAmount;
 
       this.outBus.setFeedbackAmount(0);
 
