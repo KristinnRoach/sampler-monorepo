@@ -15,17 +15,20 @@
     <meta name="theme-color" content="#000000" />
 
 
-    <script type="module" crossorigin src="./assets/index-BtC4eY6C.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/audiolib-DZZoG2Bh.js">
-    <link rel="modulepreload" crossorigin href="./assets/audio-components-Dc_tlw2n.js">
+    <script type="module" crossorigin src="./assets/index-B3nQb3Dj.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/audiolib-Bt5XHjOR.js">
+    <link rel="modulepreload" crossorigin href="./assets/audio-components-BsJq1fj4.js">
     <link rel="modulepreload" crossorigin href="./assets/vendor-gsap-DSz2Z63p.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-BiPMGHji.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-Cbl_ii-K.css">
   </head>
   <body>
-    <sampler-element node-id="test-sampler"></sampler-element>
-
     <div id="page-wrapper" class="page-wrapper">
       <div class="control-grid" id="sampler-container">
+        <sampler-element
+          node-id="test-sampler"
+          debug-mode="false"
+        ></sampler-element>
+
         <fieldset class="control-group env-group">
           <legend>Envelopes</legend>
           <envelope-switcher target-node-id="test-sampler"></envelope-switcher>
@@ -167,16 +170,19 @@
         </fieldset>
 
         <fieldset class="control-group toggle-group">
-          <legend>Toggles</legend>
-          <midi-toggle target-node-id="test-sampler"></midi-toggle>
+          <div>
+            <legend>Toggles</legend>
+            <midi-toggle target-node-id="test-sampler"></midi-toggle>
+            <playback-direction-toggle
+              target-node-id="test-sampler"
+            ></playback-direction-toggle>
 
-          <loop-lock-toggle target-node-id="test-sampler"></loop-lock-toggle>
+            <loop-lock-toggle target-node-id="test-sampler"></loop-lock-toggle>
 
-          <hold-lock-toggle target-node-id="test-sampler"></hold-lock-toggle>
+            <hold-lock-toggle target-node-id="test-sampler"></hold-lock-toggle>
 
-          <playback-direction-toggle
-            target-node-id="test-sampler"
-          ></playback-direction-toggle>
+            <sampler-status target-node-id="test-sampler"></sampler-status>
+          </div>
         </fieldset>
 
         <fieldset class="control-group keyboard-group">
