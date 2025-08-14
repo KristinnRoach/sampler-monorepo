@@ -27,7 +27,9 @@ import { createLabeledKnob } from '../../primitives/createKnob';
 import { Toggle } from '../../primitives/VanToggle';
 
 import { EnvelopeSVG } from '../../controls/envelope/EnvelopeSVG';
-import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
+import KeyMaps, {
+  DEFAULT_KEYMAP_KEY,
+} from '@/shared/keyboard/keyboard-keymaps';
 
 const { div, button, label } = van.tags;
 
@@ -78,7 +80,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
   const sampleDurationSeconds = van.state(0);
 
   // Control states
-  const currentKeymap = van.state(KeyMaps.default); // major // minor // pentatonic // default
+  const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]); // major // minor // pentatonic // chromatic
   const keyboardEnabled = van.state(true);
   const midiEnabled = van.state(true);
   const loopEnabled = van.state(false);

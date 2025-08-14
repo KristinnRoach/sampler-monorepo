@@ -446,8 +446,13 @@ export class SampleVoice {
       this.#am_lfo.setWaveform(waveform, customWaveOptions);
       this.#am_lfo.setDepth(depth);
       this.#am_lfo.setMusicalNote(this.#activeMidiNote ?? 60);
-      if (this.#am_gain) this.#am_lfo.connect(this.#am_gain.gain);
-      else console.error('Missing gain node for AM-LFO in SampleVoice');
+
+      if (this.#am_gain) {
+        this.#am_lfo.connect(this.#am_gain.gain);
+      } else {
+        console.error('Missing gain node for AM-LFO in SampleVoice');
+        throw new Error('Missing gain node for AM-LFO in SampleVoice');
+      }
     } else {
       console.debug('setupAmpModLFO: LFO already setup: ', this.#am_lfo);
     }

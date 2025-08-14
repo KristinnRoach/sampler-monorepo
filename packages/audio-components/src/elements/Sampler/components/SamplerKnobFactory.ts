@@ -6,11 +6,6 @@ import { createLabeledKnob } from '../../primitives/createKnob';
 import { createKnob, KnobConfig } from '../../../shared/utils/component-utils';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 
-// ===== SHARED KNOB STATE REGISTRY =====
-const knobStates = new Map<string, any>();
-const getKnobState = (key: string) => knobStates.get(key);
-const setKnobState = (key: string, state: any) => knobStates.set(key, state);
-
 // ===== KNOB CONFIGURATIONS =====
 
 const dryWetConfig: KnobConfig = {
@@ -220,13 +215,8 @@ const loopStartConfig: KnobConfig = {
   defaultValue: 0,
   snapIncrement: 0.001,
   onTargetConnect: (sampler, state, van) => {
-    // Register this state for other knobs to access
-    setKnobState('loopStart', state);
     van.derive(() => {
       sampler.setLoopStart(state.val);
-      // const loopDurationState = getKnobState('loopDuration');
-      // const loopDuration = loopDurationState?.val ?? 0.5;
-      // sampler.setLoopEnd(state.val + loopDuration);
     });
   },
 };
@@ -240,20 +230,21 @@ const loopDurationConfig: KnobConfig = {
   snapIncrement: 0,
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => {
-      // Register this state for other knobs to access
-      setKnobState('loopDuration', state);
       sampler.setLoopDuration(state.val);
     });
   },
   onKnobElementReady: (knobElement, state, sampler) => {
     sampler.onMessage('sample:loaded', (msg: any) => {
-      // Update both the reactive state and visual knob position
-      state.val = msg.durationSeconds;
-      knobElement.setValue(msg.durationSeconds, true); // true for animation
+      try {
+        knobElement.setAttribute('max-value', msg.durationSeconds.toString());
+        if (state.val > msg.durationSeconds) {
+          state.val = msg.durationSeconds;
+          knobElement.setValue(msg.durationSeconds, true);
+        }
+      } catch (error) {
+        console.error('Failed to update loop duration knob:', error);
+      }
     });
-
-    // Store reference to knob element for external updates (if needed)
-    setKnobState('loopDurationKnobElement', knobElement);
   },
 };
 
@@ -418,3 +409,8 @@ export const LoopDurationKnob = createKnob(
   van,
   INLINE_COMPONENT_STYLE
 );
+
+// ===== SHARED KNOB STATE REGISTRY ===== // Currently not used
+// const knobStates = new Map<string, any>();
+// const getKnobState = (key: string) => knobStates.get(key);
+// const setKnobState = (key: string, state: any) => knobStates.set(key, state);

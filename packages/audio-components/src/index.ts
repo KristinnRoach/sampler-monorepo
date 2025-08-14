@@ -79,5 +79,7 @@ export {
   createKnob,
 } from './shared/utils/component-utils';
 
+export { SamplerStatusElement } from './elements/Sampler/components/SamplerStatusElement';
+
 // Old all-in-one version (for reference):
 export { defineSamplerMonolith } from './elements/monoliths/sampler/SamplerMonolith';

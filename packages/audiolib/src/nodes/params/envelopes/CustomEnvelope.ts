@@ -766,7 +766,7 @@ export class CustomEnvelope implements LibNode {
               curve: 'exponential' as const,
             },
             {
-              time: 0.75 * durationSeconds,
+              time: 0.9 * durationSeconds,
               value: 0.5,
               curve: 'exponential' as const,
             },
