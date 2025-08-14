@@ -32,8 +32,8 @@ const midiConfig: ToggleConfig = {
   label: '',
   defaultValue: true,
   onColor: '#4CAF50',
-  offText: 'MIDI on',
-  onText: 'MIDI off',
+  offText: 'MIDI off',
+  onText: 'MIDI on',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       if (state.val) {

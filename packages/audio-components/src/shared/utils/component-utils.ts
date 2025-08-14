@@ -201,6 +201,14 @@ export const createKnob = (
         try {
           connected = true;
           config.onTargetConnect?.(target, value, van);
+
+          if (config.onKnobElementReady) {
+            const actualKnobElement =
+              knobElement?.querySelector('knob-element');
+            if (actualKnobElement) {
+              config.onKnobElementReady(actualKnobElement, value, target);
+            }
+          }
         } catch (error) {
           connected = false;
           console.error(
@@ -244,18 +252,6 @@ export const createKnob = (
       valueFormatter: config.valueFormatter,
       onChange: (v: number) => (value.val = v),
     });
-
-    // Call onKnobElementReady if connected and knob element is ready
-    if (config.onKnobElementReady && connected) {
-      const actualKnobElement = knobElement?.querySelector('knob-element');
-      if (actualKnobElement) {
-        const nodeId = findNodeId();
-        const target = getTargetNode(nodeId);
-        if (target) {
-          config.onKnobElementReady(actualKnobElement, value, target);
-        }
-      }
-    }
 
     // Apply component style if provided
     if (componentStyle) {
