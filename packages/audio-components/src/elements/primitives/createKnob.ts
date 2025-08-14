@@ -101,13 +101,14 @@ export const createLabeledKnob = (config: LabeledKnobConfig): HTMLElement => {
     color: #ccc;
   `;
 
-  const labelElement = document.createElement('div');
-  labelElement.textContent = label;
-  labelElement.style.textAlign = 'center';
-
   const knob = createKnob(knobConfig);
+  if (label !== '') {
+    const labelElement = document.createElement('div');
+    labelElement.textContent = label;
+    labelElement.style.textAlign = 'center';
+    container.appendChild(labelElement);
+  }
 
-  container.appendChild(labelElement);
   container.appendChild(knob);
 
   if (showValue) {

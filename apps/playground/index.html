@@ -19,10 +19,13 @@
     <script type="module" src="./src/main.ts" defer></script>
   </head>
   <body>
-    <sampler-element node-id="test-sampler"></sampler-element>
-
     <div id="page-wrapper" class="page-wrapper">
       <div class="control-grid" id="sampler-container">
+        <sampler-element
+          node-id="test-sampler"
+          debug-mode="false"
+        ></sampler-element>
+
         <fieldset class="control-group env-group">
           <legend>Envelopes</legend>
           <envelope-switcher target-node-id="test-sampler"></envelope-switcher>
@@ -164,16 +167,19 @@
         </fieldset>
 
         <fieldset class="control-group toggle-group">
-          <legend>Toggles</legend>
-          <midi-toggle target-node-id="test-sampler"></midi-toggle>
+          <div>
+            <legend>Toggles</legend>
+            <midi-toggle target-node-id="test-sampler"></midi-toggle>
+            <playback-direction-toggle
+              target-node-id="test-sampler"
+            ></playback-direction-toggle>
 
-          <loop-lock-toggle target-node-id="test-sampler"></loop-lock-toggle>
+            <loop-lock-toggle target-node-id="test-sampler"></loop-lock-toggle>
 
-          <hold-lock-toggle target-node-id="test-sampler"></hold-lock-toggle>
+            <hold-lock-toggle target-node-id="test-sampler"></hold-lock-toggle>
 
-          <playback-direction-toggle
-            target-node-id="test-sampler"
-          ></playback-direction-toggle>
+            <sampler-status target-node-id="test-sampler"></sampler-status>
+          </div>
         </fieldset>
 
         <fieldset class="control-group keyboard-group">
@@ -207,7 +213,7 @@
       </div>
     </div>
 
-    <script src="./src/utils/splineWarnings.ts">
+    <script type="module" src="./src/utils/splineWarnings.ts">
       /** Script to suppress warnings from the spline viewer about passive event listeners */
     </script>
 

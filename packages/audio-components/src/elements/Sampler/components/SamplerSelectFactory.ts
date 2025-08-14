@@ -2,11 +2,12 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
-import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
+import KeyMaps, {
+  DEFAULT_KEYMAP_KEY,
+} from '@/shared/keyboard/keyboard-keymaps';
 import { createFindNodeId } from '../../../shared/utils/component-utils';
 import {
   COMPONENT_STYLE,
-  CONTROL_GROUP_STYLE,
   SELECT_STYLE,
 } from '../../../shared/styles/component-styles';
 
@@ -33,22 +34,17 @@ export interface SelectConfig<T extends string = string> {
   ) => void;
 }
 
-// ===== SHARED SELECT STATE REGISTRY =====
-const selectStates = new Map<string, any>();
-const getSelectState = (key: string) => selectStates.get(key);
-const setSelectState = (key: string, state: any) =>
-  selectStates.set(key, state);
-
 // ===== SELECT CONFIGURATIONS =====
 
 const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
-  label: 'Key',
-  defaultValue: 'default',
+  label: 'KeyMap',
+  defaultValue: DEFAULT_KEYMAP_KEY,
   options: [
-    { value: 'default', label: 'Chromatic' },
+    { value: 'piano', label: 'Piano' },
     { value: 'major', label: 'Major' },
     { value: 'minor', label: 'Minor' },
     { value: 'pentatonic', label: 'Pentatonic' },
+    { value: 'chromatic', label: 'Chromatic' },
   ],
   onTargetConnect: (
     sampler: any,
@@ -56,12 +52,9 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
     van: any,
     targetNodeId: string
   ) => {
-    // Register this state for other components to access
-    setSelectState('keymap', state);
-
     van.derive(() => {
       const selectedKeymap = state.val;
-      const keymap = KeyMaps[selectedKeymap] || KeyMaps.default;
+      const keymap = KeyMaps[selectedKeymap] || DEFAULT_KEYMAP_KEY;
 
       // Broadcast keymap changes for keyboard components
       document.dispatchEvent(
@@ -113,9 +106,6 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
     van: any,
     targetNodeId: string
   ) => {
-    // Register this state for other components to access
-    setSelectState('waveform', state);
-
     // Set up reactive binding to sampler method
     van.derive(() => {
       sampler.setModulationWaveform('AM', state.val);
@@ -273,3 +263,9 @@ export const WaveformSelect = createSamplerSelect(
   van,
   COMPONENT_STYLE
 );
+
+// ===== SHARED SELECT STATE REGISTRY =====
+// const selectStates = new Map<string, any>();
+// const getSelectState = (key: string) => selectStates.get(key);
+// const setSelectState = (key: string, state: any) =>
+//   selectStates.set(key, state);

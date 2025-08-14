@@ -7,7 +7,9 @@ import {
   DISABLED_STYLE,
 } from '../../../shared/styles/component-styles';
 
-import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
+import KeyMaps, {
+  DEFAULT_KEYMAP_KEY,
+} from '@/shared/keyboard/keyboard-keymaps';
 
 const { div } = van.tags;
 
@@ -18,14 +20,12 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   const enabled = van.state(true);
 
   // Sync with computer keyboard keymap and octave
-  const currentKeymap = van.state(KeyMaps.default);
+  const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]);
   const octaveOffset = van.state(0);
   const MAX_OCT_SHIFT = 2;
   const MIN_OCT_SHIFT = -2;
 
   const keyboard = document.createElement('webaudio-keyboard') as any;
-
-  // Keep keyboard attribute disabled (default) so we handle keyboard events ourselves
 
   const getDisplayRange = () => {
     // Get the actual note range from the current keymap
@@ -44,6 +44,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     return { min: displayMin, keys: Math.max(keymapSpan, 25) };
   };
+
+  // const getDisplayRange = () => {
+  //   return { min: 48, keys: 32 };
+  // };
 
   // Reactive updates
   van.derive(() => {

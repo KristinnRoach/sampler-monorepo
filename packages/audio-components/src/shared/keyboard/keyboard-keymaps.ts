@@ -184,11 +184,13 @@ export const pentatonicKeymap = generateKeymap({
 
 export const chromaticKeymap = generateKeymap({
   baseNote: 48,
-  scale: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], // All semitones
+  scale: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
 });
 
+export const DEFAULT_KEYMAP_KEY = 'major'; // update here to change default everywhere
+
 const KeyMaps = {
-  default: defaultKeymap,
+  piano: defaultKeymap,
   major: majorKeymap,
   minor: minorKeymap,
   pentatonic: pentatonicKeymap,

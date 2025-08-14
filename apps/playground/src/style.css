@@ -255,6 +255,12 @@ piano-keyboard.visible {
   pointer-events: all;
 }
 
+sampler-status {
+  display: flex;
+  flex-direction: row;
+  color: #a3a3a3d7;
+}
+
 /* DRAG HANDLE */
 
 .drag-handle {

@@ -66,6 +66,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   };
 
   // Watch for active envelope changes and recreate the envelope to get fresh data
+  // TODO: find better solution for this
   van.derive(() => {
     const currentEnvType = activeEnvelope.val;
     if (samplerReady.val && sampleLoaded.val) {
@@ -84,7 +85,6 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     };
 
     const handleSampleLoaded = (e: Event) => {
-      sampleLoaded.val = false;
       const customEvent = e as CustomEvent;
       if (customEvent.detail.nodeId === targetNodeId.val) {
         sampleLoaded.val = true;

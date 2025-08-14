@@ -7,7 +7,9 @@ import {
   disableComputerKeyboard,
   pressedKeys,
 } from '../../../shared/keyboard/keyboard-state';
-import KeyMaps from '@/shared/keyboard/keyboard-keymaps';
+import KeyMaps, {
+  DEFAULT_KEYMAP_KEY,
+} from '@/shared/keyboard/keyboard-keymaps';
 import { getSampler } from '../SamplerRegistry';
 import {
   COMPONENT_STYLE,
@@ -19,11 +21,11 @@ const { div } = van.tags;
 export const ComputerKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const enabled = van.state(true);
-  const currentKeymap = van.state(KeyMaps.default);
-  const octaveOffset = van.state(0); // todo: make 0 default work for major / minor
+  const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]);
+  const octaveOffset = van.state(0);
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
-  const showUI = attributes.attr('show-ui', 'false'); // Hidden by default
+  const showUI = attributes.attr('show-ui', 'false'); // Invisible by default
   const MAX_OCT_SHIFT = 3;
   const MIN_OCT_SHIFT = -3;
 

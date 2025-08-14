@@ -51,6 +51,7 @@ import {
   WaveformSelect,
 } from './components/SamplerSelectFactory';
 import { AMModulation } from './components/AMModulation';
+import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 const { div } = van.tags;
 
@@ -61,7 +62,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   const nodeId: State<string> = attributes.attr('node-id', '');
   const polyphony = attributes.attr('polyphony', '16');
-  const debugMode = attributes.attr('debug-mode', '');
+  const debugMode = attributes.attr('debug-mode', 'false');
   const status = van.state('Initializing...');
 
   // Track audio initialization with promise to prevent race conditions
@@ -240,14 +241,14 @@ export const SamplerElement = (attributes: ElementProps) => {
   });
 
   // Only render debug information if debug-mode attribute is present
-  if (debugMode.val) {
+  if (debugMode.val === 'true' || debugMode.val === '') {
     return div(
       {
         'node-id': () => nodeId.val,
-        style: COMPONENT_STYLE,
+        style: `${COMPONENT_STYLE}`,
       },
       div(() => `Sampler: ${nodeId.val}`),
-      div(() => status.val)
+      div(() => `Status: ${status.val}`)
     );
   }
 
@@ -304,6 +305,9 @@ export {
 
   // Composite components
   AMModulation,
+
+  // Status display
+  SamplerStatusElement,
 
   // Envelopes
   EnvelopeDisplay,
@@ -374,6 +378,9 @@ export const defineSampler = () => {
 
   // Composite controls
   defineIfNotExists('am-modulation', AMModulation, false);
+
+  // Status display
+  defineIfNotExists('sampler-status', SamplerStatusElement, false);
 };
 
 defineSampler();

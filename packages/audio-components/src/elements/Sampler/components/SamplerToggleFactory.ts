@@ -29,11 +29,11 @@ const feedbackModeConfig: ToggleConfig = {
 };
 
 const midiConfig: ToggleConfig = {
-  label: 'MIDI',
+  label: '',
   defaultValue: true,
   onColor: '#4CAF50',
-  offText: '○',
-  onText: '●',
+  offText: 'MIDI on',
+  onText: 'MIDI off',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       if (state.val) {
@@ -58,22 +58,22 @@ const midiConfig: ToggleConfig = {
 };
 
 const loopLockConfig: ToggleConfig = {
-  label: 'Loop',
+  label: '',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: '○',
-  onText: '🔒',
+  offText: 'Loop 🔓',
+  onText: 'Loop 🔒',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.setLoopLocked(state.val));
   },
 };
 
 const holdLockConfig: ToggleConfig = {
-  label: 'Hold',
+  label: '',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: '○',
-  onText: '⏸',
+  offText: 'Hold 🔓',
+  onText: 'Hold 🔒',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.setHoldLocked(state.val));
   },
@@ -102,11 +102,11 @@ const pitchLFOSyncConfig: ToggleConfig = {
 };
 
 const playbackDirectionConfig: ToggleConfig = {
-  label: 'Direction',
+  label: '',
   defaultValue: false,
   onColor: '#ff9800',
-  offText: '→',
-  onText: '←',
+  offText: 'Forward',
+  onText: 'Reverse',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       const direction = state.val === true ? 'reverse' : 'forward';
@@ -134,8 +134,8 @@ export const FeedbackModeToggle = createToggle(
   feedbackModeConfig,
   getSampler,
   Toggle,
-  van
-  // COMPONENT_STYLE
+  van,
+  COMPONENT_STYLE
 );
 
 export const MidiToggle = createToggle(
@@ -191,5 +191,5 @@ export const PanDriftToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  COMPONENT_STYLE
 );
