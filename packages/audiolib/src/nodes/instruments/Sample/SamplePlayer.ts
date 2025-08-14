@@ -22,8 +22,11 @@ import {
 } from '@/nodes/params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
-import { InstrumentMasterBus } from '@/nodes/master/InstrumentMasterBus';
-import { BusEffectName } from '@/nodes/master/InstrumentMasterBus';
+import {
+  createInstrumentBus,
+  type InstrumentBus,
+} from '@/nodes/master/createInstrumentBus';
+import { BusNodeName } from '@/nodes/master/InstrumentBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
 import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
@@ -40,8 +43,13 @@ export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
   readonly nodeType = 'sample-player' as const;
   readonly context: AudioContext;
-
   #messages: MessageBus<Message>;
+
+  #initialized = false;
+  #initPromise: Promise<void> | null = null;
+  #isLoaded = false;
+  #polyphony: number;
+  #initialAudioBuffer: AudioBuffer | null = null;
   #midiController: MidiController | null = null;
 
   #connections = new Set<NodeID>();
@@ -55,27 +63,23 @@ export class SamplePlayer implements ILibInstrumentNode {
   #holdEnabled = false;
   #holdLocked = false;
 
-  #masterOut: GainNode;
+  #masterOut!: GainNode; // todo: fix use of '!'
 
-  #macroLoopStart: MacroParam;
-  #macroLoopEnd: MacroParam;
+  #macroLoopStart!: MacroParam; // todo: fix use of '!'
+  #macroLoopEnd!: MacroParam; // todo: fix use of '!'
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
   #syncGainLFOToMidiNote = false;
   #syncPitchLFOToMidiNote = false;
 
-  #envelopes = new Map<EnvelopeType, EnvelopeData>();
-
-  #isReady = false;
-  #isLoaded = false;
   #zeroCrossings: number[] = [];
   #useZeroCrossings = true;
   #preprocessAudio = true;
   randomizeVelocity = false;
 
-  voicePool: SampleVoicePool;
-  public outBus: InstrumentMasterBus;
+  voicePool!: SampleVoicePool; // todo: fix use of '!'
+  outBus!: InstrumentBus; // todo: fix use of '!'
 
   constructor(
     context: AudioContext,
@@ -85,45 +89,74 @@ export class SamplePlayer implements ILibInstrumentNode {
   ) {
     this.nodeId = registerNode('sample-player', this);
     this.context = context;
-    this.#messages = createMessageBus<Message>(this.nodeId);
 
-    // Initialize MIDI controller if provided
+    // Synchronus setup
+    this.#messages = createMessageBus<Message>(this.nodeId);
     this.#midiController = midiController || null;
 
-    this.outBus = new InstrumentMasterBus();
+    // Store configuration for async init
+    this.#polyphony = polyphony;
+    this.#initialAudioBuffer = audioBuffer || null;
+  }
 
-    // Initialize voice pool and connect audiochain
-    this.voicePool = new SampleVoicePool(
-      context,
-      polyphony,
-      this.outBus.input, // destination for voices to connect to
-      true // enable filters
-    );
+  async init(): Promise<void> {
+    if (this.#initialized) return; // todo: remove #initialized flag if redundant (since now using initPromise)
+    if (this.#initPromise) return this.#initPromise;
 
-    this.#masterOut = new GainNode(context, { gain: 0.5 });
+    this.#initPromise = (async () => {
+      try {
+        // Initialize child components first
+        this.#masterOut = new GainNode(this.context, { gain: 0.5 });
+
+        this.outBus = await createInstrumentBus(this.context); // WIP
+
+        // Initialize voice pool
+        this.voicePool = new SampleVoicePool(this.context, this.#polyphony);
+        await this.voicePool.init();
+
+        // Setup macro parameters
+        this.#macroLoopStart = new MacroParam(
+          this.context,
+          DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+        );
+        // todo: await this.#macroLoopStart.init();
+
+        this.#macroLoopEnd = new MacroParam(
+          this.context,
+          DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+        );
+        // todo: await this.#macroLoopEnd.init();
+
+        // Connect audio chain
+        this.#connectAudioChain();
+        this.#connectVoicesToMacros();
+        this.#setupLFOs();
+        this.#setupMessageHandling();
+
+        // Load initial sample if provided
+        if (this.#initialAudioBuffer) {
+          await this.loadSample(this.#initialAudioBuffer);
+        }
+
+        this.#initialized = true;
+      } catch (error) {
+        // Cleanup any partial initialization
+        this.voicePool?.dispose();
+        this.#macroLoopStart?.dispose();
+        this.#macroLoopEnd?.dispose();
+
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to initialize SamplePlayer: ${errorMessage}`);
+      }
+    })();
+    return this.#initPromise;
+  }
+
+  #connectAudioChain() {
+    this.voicePool.connect(this.outBus.input);
     this.outBus.connect(this.#masterOut);
-    this.#masterOut.connect(context.destination);
-
-    // Setup params
-    this.#macroLoopStart = new MacroParam(
-      context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_START
-    );
-
-    this.#macroLoopEnd = new MacroParam(
-      context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_END
-    );
-
-    this.#connectVoicesToMacros();
-    this.#setupLFOs();
-    this.#setupMessageHandling();
-
-    this.#isReady = true;
-
-    if (audioBuffer?.duration) {
-      this.loadSample(audioBuffer, audioBuffer.sampleRate);
-    }
+    this.#masterOut.connect(this.context.destination);
   }
 
   // === MESSAGING ===
@@ -222,7 +255,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   get initialized() {
-    return this.#isReady;
+    return this.#initialized;
   }
 
   /**
@@ -255,14 +288,11 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #setupMessageHandling(): this {
     this.voicePool.onMessage('sample:loaded', (msg: Message) => {
-      // this.#envelopes.forEach((env) => {
-      //   env.setDurationSeconds(msg.durationSeconds);
-      // });
       this.#isLoaded = true;
     });
 
     this.voicePool.onMessage('voice-pool:initialized', () => {
-      this.sendUpstreamMessage('sample-player:ready', {});
+      this.sendUpstreamMessage('sample-player:initialized', {});
     });
 
     // Forward voice pool messages upstream
@@ -961,8 +991,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.outBus.setDryWetMix(mix);
   };
 
-  sendToFx = (effect: BusEffectName, amount: number) => {
-    this.outBus.setSend(effect, amount);
+  sendToFx = (effect: BusNodeName, amount: number) => {
+    this.outBus.setSendAmount(effect, amount);
   };
 
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
@@ -1008,14 +1038,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#feedbackMode = mode;
 
     if (mode === 'monophonic') {
-      let currAmount = this.voicePool.allVoices[0].feedback?.currAmount ?? 0;
+      let currAmount = this.voicePool.allVoices[0].feedback?.currentAmount ?? 0;
       this.voicePool.applyToAllVoices((voice) => {
         voice.feedback?.setAmountMacro(0);
       });
       this.outBus.setFeedbackAmount(currAmount);
     } else if (mode === 'polyphonic') {
       const monoFx = this.outBus.getFeedback();
-      const currAmount = monoFx.currAmount;
+      const currAmount = monoFx.currentAmount;
 
       this.outBus.setFeedbackAmount(0);
 
@@ -1154,7 +1184,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
       if (this.outBus) {
         this.outBus.dispose();
-        this.outBus = null as unknown as InstrumentMasterBus;
+        this.outBus = null as unknown as InstrumentBus;
       }
 
       this.#macroLoopStart?.dispose();
@@ -1170,7 +1200,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
       // Reset state variables
       this.#bufferDuration = 0;
-      this.#isReady = false;
+      this.#initialized = false;
       this.#isLoaded = false;
       this.#zeroCrossings = [];
       this.#useZeroCrossings = false;

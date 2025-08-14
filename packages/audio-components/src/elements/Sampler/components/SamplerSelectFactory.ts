@@ -161,19 +161,22 @@ const createSamplerSelect = <T extends string = string>(
       // Try to connect immediately
       connect();
 
-      // Listen for sampler-ready events
-      const handleReady = (e: CustomEvent) => {
+      // Listen for sampler-initialized events
+      const handleSamplerInitialized = (e: CustomEvent) => {
         if (e.detail.nodeId === findNodeId()) {
           connect();
         }
       };
-      document.addEventListener('sampler-ready', handleReady as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener
+      );
 
       // Cleanup
       return () => {
         document.removeEventListener(
-          'sampler-ready',
-          handleReady as EventListener
+          'sampler-initialized',
+          handleSamplerInitialized as EventListener
         );
       };
     });

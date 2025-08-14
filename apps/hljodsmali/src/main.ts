@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.addEventListener('sampler-ready', () => {
+  document.addEventListener('sampler-initialized', () => {
     animateSamplerEntry();
     addDragHandles();
     const controlGroups = qsa('.control-group');

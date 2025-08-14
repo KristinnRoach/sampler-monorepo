@@ -21,14 +21,14 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
       return;
     }
 
-    status.val = 'Ready';
+    status.val = 'Initialized';
   };
 
   attributes.mount(() => {
-    updateStatus();
+    status.val = 'Click to start';
 
     // Handlers
-    const handleSamplerReady = (event: Event) => {
+    const handleSamplerInitialized = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail?.nodeId === nodeId.val) {
         updateStatus();
@@ -50,12 +50,15 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
     };
 
     // Listeners
-    document.addEventListener('sampler-ready', handleSamplerReady);
+    document.addEventListener('sampler-initialized', handleSamplerInitialized);
     document.addEventListener('sample-loaded', handleSampleLoaded);
     document.addEventListener('sampler-error', handleSamplerError);
 
     return () => {
-      document.removeEventListener('sampler-ready', handleSamplerReady);
+      document.removeEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized
+      );
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('sampler-error', handleSamplerError);
     };

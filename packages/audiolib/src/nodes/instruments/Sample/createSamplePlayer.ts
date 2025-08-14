@@ -27,15 +27,15 @@ export async function createSamplePlayer(
   assert(context, 'Audio context is not available');
 
   const workletResult = await initProcessors(context); // Ensure worklets are registered
-  
+
   if (!workletResult.success) {
     // AudioWorklet is not supported on this browser
     throw new Error(
       'AudioWorklet is required but not supported on this browser. ' +
-      'Please use a modern desktop browser (Chrome, Firefox, Edge) or update your mobile browser.'
+        'Please use a modern desktop browser (Chrome, Firefox, Edge) or update your mobile browser.'
     );
   }
-  
+
   // Get buffer - only initialize IndexedDB if no buffer is provided
   let buffer: AudioBuffer;
   if (audioBuffer) {
@@ -52,7 +52,7 @@ export async function createSamplePlayer(
     midiController
   );
 
-  assert(samplePlayer, 'Failed to create SamplePlayer');
+  await samplePlayer.init();
 
   return samplePlayer;
 }

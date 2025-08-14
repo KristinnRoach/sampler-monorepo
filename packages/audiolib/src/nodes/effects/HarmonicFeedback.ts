@@ -107,7 +107,7 @@ export class HarmonicFeedback implements ILibAudioNode {
   //   return this;
   // }
 
-  currAmount = 0;
+  currentAmount = 0;
 
   setAmountMacro(amount: number): this {
     const safeAmount = clamp(amount, 0, 1);
@@ -115,7 +115,7 @@ export class HarmonicFeedback implements ILibAudioNode {
 
     this.setFeedbackAmount(safeAmount);
 
-    this.currAmount = safeAmount;
+    this.currentAmount = safeAmount;
     return this;
   }
 

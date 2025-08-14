@@ -187,7 +187,7 @@ record-button > div > button {
   position: relative;
 
   min-height: fit-content;
-  height: 20vh;
+  height: 30vh;
 
   align-items: center;
 }

@@ -17,7 +17,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   const height = attributes.attr('height', '200px');
 
   const activeEnvelope = van.state<SupportedEnvelopeType>('amp-env');
-  const samplerReady = van.state(false);
+  const samplerInitialized = van.state(false);
   const sampleLoaded = van.state(false);
 
   const envelopes: Record<SupportedEnvelopeType, EnvelopeSVG | null> = {
@@ -27,7 +27,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   };
 
   const createEnvelope = (envType: SupportedEnvelopeType) => {
-    if (!samplerReady.val || !sampleLoaded.val) return;
+    if (!samplerInitialized.val || !sampleLoaded.val) return;
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) return;
@@ -57,7 +57,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   };
 
   const createEnvelopes = () => {
-    if (!samplerReady.val || !sampleLoaded.val) return;
+    if (!samplerInitialized.val || !sampleLoaded.val) return;
 
     // Create all envelope instances
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
@@ -69,17 +69,17 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   // TODO: find better solution for this
   van.derive(() => {
     const currentEnvType = activeEnvelope.val;
-    if (samplerReady.val && sampleLoaded.val) {
+    if (samplerInitialized.val && sampleLoaded.val) {
       // Always recreate the active envelope to ensure it has the latest data
       createEnvelope(currentEnvType);
     }
   });
 
   attributes.mount(() => {
-    const handleSamplerReady = (e: Event) => {
+    const handlesamplerInitialized = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail.nodeId === targetNodeId.val) {
-        samplerReady.val = true;
+        samplerInitialized.val = true;
         createEnvelopes();
       }
     };
@@ -95,8 +95,8 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     };
 
     document.addEventListener(
-      'sampler-ready',
-      handleSamplerReady as EventListener
+      'sampler-initialized',
+      handlesamplerInitialized as EventListener
     );
     document.addEventListener(
       'sample-loaded',
@@ -109,8 +109,8 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
         if (env) env.cleanup();
       });
       document.removeEventListener(
-        'sampler-ready',
-        handleSamplerReady as EventListener
+        'sampler-initialized',
+        handlesamplerInitialized as EventListener
       );
       document.removeEventListener(
         'sample-loaded',
@@ -138,7 +138,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
 
     // Envelope display area
     div({ class: 'envelope-container' }, () => {
-      if (!samplerReady.val)
+      if (!samplerInitialized.val)
         return div({ style: loadingStateStyle }, 'Click anywhere to start');
       if (!sampleLoaded.val)
         return div({ style: loadingStateStyle }, 'Loading audio sample...');

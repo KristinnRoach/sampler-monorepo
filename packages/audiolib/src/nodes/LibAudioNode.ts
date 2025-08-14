@@ -7,7 +7,7 @@ import {
   Message,
   createMessageBus,
 } from '@/events';
-import { InstrumentMasterBus } from './master/InstrumentMasterBus';
+import { InstrumentBus } from './master/InstrumentBus';
 
 /** Adapter interface for web native and Audiolib's custom audio nodes */
 export interface ILibAudioNode<
@@ -48,7 +48,7 @@ export interface ILibInstrumentNode extends ILibAudioNode {
 
   enableMIDI(controller: MidiController): Promise<this>;
 
-  outBus?: InstrumentMasterBus;
+  outBus?: InstrumentBus;
 }
 
 export interface LibAudioNodeOptions {
