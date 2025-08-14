@@ -38,7 +38,7 @@ export const SamplerElement = (attributes: ElementProps) => {
       registerSampler(nodeId.val, samplePlayer);
       setupEventListeners();
 
-      status.val = 'Ready';
+      status.val = 'Initialized';
       Object.assign(attributes.$this, { nodeId: nodeId.val });
     } catch (error: any) {
       console.error('Sampler initialization error:', error);

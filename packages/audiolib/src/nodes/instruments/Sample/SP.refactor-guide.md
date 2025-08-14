@@ -75,7 +75,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       }
 
       this.#initialized = true;
-      this.sendUpstreamMessage('sample-player:ready', {});
+      this.sendUpstreamMessage('sample-player:initialized', {});
     } catch (error) {
       // Cleanup any partial initialization
       this.voicePool?.dispose();

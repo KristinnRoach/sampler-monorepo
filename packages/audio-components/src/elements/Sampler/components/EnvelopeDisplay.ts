@@ -17,14 +17,14 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   let envelopeInstance: EnvelopeSVG | null = null;
 
   // Convert to VanJS states for reactivity
-  const samplerReady = van.state(false);
+  const samplerInitialized = van.state(false);
   const sampleLoaded = van.state(false);
 
   const tryCreateEnvelope = () => {
     // Only create envelope when both sampler is ready AND sample is loaded
-    if (!samplerReady.val || !sampleLoaded.val) {
+    if (!samplerInitialized.val || !sampleLoaded.val) {
       console.log('Waiting for both sampler ready and sample loaded...', {
-        samplerReady: samplerReady.val,
+        samplerReady: samplerInitialized.val,
         sampleLoaded: sampleLoaded.val,
       });
       return;
@@ -64,11 +64,11 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   };
 
   attributes.mount(() => {
-    const handleSamplerReady = (e: Event) => {
+    const handleSamplerInitialized = (e: Event) => {
       const customEvent = e as CustomEvent;
-      console.log('Sampler ready event:', customEvent.detail);
+      console.log('Sampler initialized event:', customEvent.detail);
       if (customEvent.detail.nodeId === targetNodeId.val) {
-        samplerReady.val = true; // Update state
+        samplerInitialized.val = true; // Update state
         tryCreateEnvelope();
       }
     };
@@ -83,8 +83,8 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
     };
 
     document.addEventListener(
-      'sampler-ready',
-      handleSamplerReady as EventListener
+      'sampler-initialized',
+      handleSamplerInitialized as EventListener
     );
     document.addEventListener(
       'sample-loaded',
@@ -96,8 +96,8 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
         envelopeInstance.cleanup();
       }
       document.removeEventListener(
-        'sampler-ready',
-        handleSamplerReady as EventListener
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener
       );
       document.removeEventListener(
         'sample-loaded',
@@ -112,7 +112,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       style: COMPONENT_STYLE,
     },
     () => {
-      if (!samplerReady.val) return div('Waiting for sampler...');
+      if (!samplerInitialized.val) return div('Waiting for sampler...');
       if (!sampleLoaded.val) return div('Waiting for sample...');
       if (!envelopeInstance) return div('Creating envelope...');
       return envelopeInstance.element;
@@ -193,7 +193,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 //     };
 
 //     document.addEventListener(
-//       'sampler-ready',
+//       'sampler-initialized',
 //       handleSamplerReady as EventListener
 //     );
 //     document.addEventListener(
@@ -206,7 +206,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 //         envelopeInstance.cleanup();
 //       }
 //       document.removeEventListener(
-//         'sampler-ready',
+//         'sampler-initialized',
 //         handleSamplerReady as EventListener
 //       );
 //       document.removeEventListener(

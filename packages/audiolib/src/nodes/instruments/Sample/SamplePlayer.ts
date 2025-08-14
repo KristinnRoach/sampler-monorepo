@@ -61,8 +61,8 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #masterOut: GainNode;
 
-  #macroLoopStart: MacroParam;
-  #macroLoopEnd: MacroParam;
+  #macroLoopStart!: MacroParam; // todo: fix use of '!'
+  #macroLoopEnd!: MacroParam; // todo: fix use of '!'
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
@@ -131,7 +131,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.voicePool = new SampleVoicePool(
         this.context,
         this.#polyphony,
-        this.outBus.input,
+        this.outBus.input, // todo: remove param and connect in connectAudioChain
         true
       );
 
@@ -162,7 +162,6 @@ export class SamplePlayer implements ILibInstrumentNode {
       }
 
       this.#initialized = true;
-      this.sendUpstreamMessage('sample-player:ready', {});
     } catch (error) {
       // Cleanup any partial initialization
       this.voicePool?.dispose();
@@ -311,7 +310,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     });
 
     this.voicePool.onMessage('voice-pool:initialized', () => {
-      this.sendUpstreamMessage('sample-player:ready', {});
+      this.sendUpstreamMessage('sample-player:initialized', {});
     });
 
     // Forward voice pool messages upstream

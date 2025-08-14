@@ -87,19 +87,18 @@ export const SamplerElement = (attributes: ElementProps) => {
             nodeId.val = samplePlayer.nodeId;
           }
 
-          // ===== EVENT LISTENERS =====
+          // SamplePlayer is guaranteed ready after createSamplePlayer returns
+          registerSampler(nodeId.val, samplePlayer);
+          initialized = true;
+          status.val = 'Initialized';
 
-          samplePlayer.onMessage('sample-player:ready', () => {
-            if (!samplePlayer) throw new Error('SamplerEl: no samplerPlayer!');
-            registerSampler(nodeId.val, samplePlayer);
-            initialized = true;
-            status.val = 'Ready';
-            document.dispatchEvent(
-              new CustomEvent('sampler-ready', {
-                detail: { nodeId: nodeId.val },
-              })
-            );
-          });
+          document.dispatchEvent(
+            new CustomEvent('sampler-initialized', {
+              detail: { nodeId: nodeId.val },
+            })
+          );
+
+          // Set up ongoing event listeners for runtime events
 
           samplePlayer.onMessage('sample:loaded', (msg: any) => {
             document.dispatchEvent(

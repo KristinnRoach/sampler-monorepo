@@ -48,11 +48,14 @@ export const createSamplerConnection = (
       // Try to connect immediately
       connect();
 
-      // Listen for sampler-ready events
-      const handleReady = (e: CustomEvent) => {
+      // Listen for sampler-initialized events
+      const handleSamplerInitialized = (e: CustomEvent) => {
         if (e.detail.nodeId === findNodeId()) connect();
       };
-      document.addEventListener('sampler-ready', handleReady as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener
+      );
 
       // Also try connecting periodically for timing issues
       const interval = setInterval(() => {
@@ -61,8 +64,8 @@ export const createSamplerConnection = (
 
       return () => {
         document.removeEventListener(
-          'sampler-ready',
-          handleReady as EventListener
+          'sampler-initialized',
+          handleSamplerInitialized as EventListener
         );
         clearInterval(interval);
       };
@@ -116,14 +119,17 @@ export const createToggle = (
 
     attributes.mount(() => {
       connect();
-      const handleReady = (e: CustomEvent) => {
+      const handleInitialized = (e: CustomEvent) => {
         if (e.detail.nodeId === findNodeId()) connect();
       };
-      document.addEventListener('sampler-ready', handleReady as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleInitialized as EventListener
+      );
       return () =>
         document.removeEventListener(
-          'sampler-ready',
-          handleReady as EventListener
+          'sampler-initialized',
+          handleInitialized as EventListener
         );
     });
 
@@ -224,10 +230,13 @@ export const createKnob = (
       const handleReady = (e: CustomEvent) => {
         if (e.detail.nodeId === findNodeId()) connect();
       };
-      document.addEventListener('sampler-ready', handleReady as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleReady as EventListener
+      );
       return () =>
         document.removeEventListener(
-          'sampler-ready',
+          'sampler-initialized',
           handleReady as EventListener
         );
     });

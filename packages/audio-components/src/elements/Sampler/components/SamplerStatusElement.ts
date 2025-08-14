@@ -50,12 +50,12 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
     };
 
     // Listeners
-    document.addEventListener('sampler-ready', handleSamplerReady);
+    document.addEventListener('sampler-initialized', handleSamplerReady);
     document.addEventListener('sample-loaded', handleSampleLoaded);
     document.addEventListener('sampler-error', handleSamplerError);
 
     return () => {
-      document.removeEventListener('sampler-ready', handleSamplerReady);
+      document.removeEventListener('sampler-initialized', handleSamplerReady);
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('sampler-error', handleSamplerError);
     };
