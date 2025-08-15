@@ -114,9 +114,18 @@ export const SamplerElement = (attributes: ElementProps) => {
             })
           );
         } else {
-          status.val = `Error: ${error}`;
+          const errText =
+            typeof error?.message === 'string' ? error.message : String(error);
+          status.val = `Error: ${errText}`;
+          document.dispatchEvent(
+            new CustomEvent('sampler-error', {
+              detail: {
+                nodeId: nodeId.val,
+                error: errText,
+              },
+            })
+          );
         }
-        throw error;
       }
     };
 
