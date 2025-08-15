@@ -14,9 +14,9 @@ import {
 
 const { div, button } = van.tags;
 
-// ===== LOAD BUTTON =====
+// ===== UPLOAD BUTTON =====
 
-export const LoadButton = (attributes: ElementProps) => {
+export const UploadButton = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const showStatus = attributes.attr('show-status', 'false');
   const status = van.state('Ready');
@@ -67,7 +67,7 @@ export const LoadButton = (attributes: ElementProps) => {
         onclick: loadSample,
         style: BUTTON_STYLE,
       },
-      'Load Sample'
+      'Upload'
     ),
     ...(showStatus.val === 'true' ? [div(() => status.val)] : [])
   );
