@@ -56,6 +56,7 @@ export {
   PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
   PanDriftToggle,
+  PitchToggle,
 } from './elements/Sampler/components/SamplerToggleFactory';
 
 // Input controls

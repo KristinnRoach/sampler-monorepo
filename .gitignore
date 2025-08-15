@@ -1,5 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+.vscode
+
 # trash to be cleaned up
 **/trash
 **/*trash.txt
@@ -19,6 +21,9 @@ node_modules
 
 # Testing
 coverage
+playwright-report/
+test-results/
+.qodo
 
 # Turbo
 .turbo

@@ -904,6 +904,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     }
   }
 
+  /* === PITCH === */
+
+  enablePitch = () => this.voicePool.allVoices.forEach((v) => v.enablePitch());
+  disablePitch = () => {
+    console.warn('disable pitch');
+    this.voicePool.allVoices.forEach((v) => v.disablePitch());
+  };
+
   /* === ENVELOPES === */
 
   enableEnvelope = (envType: EnvelopeType) => {

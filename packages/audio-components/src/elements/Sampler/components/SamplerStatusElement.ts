@@ -49,6 +49,9 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
   return div(
     {
       'target-node-id': () => nodeId.val,
+      role: 'status',
+      'aria-live': 'polite',
+      'aria-atomic': 'true',
       style: `font-family: monospace; font-size: 12px;`,
     },
     () => `${status.val}`

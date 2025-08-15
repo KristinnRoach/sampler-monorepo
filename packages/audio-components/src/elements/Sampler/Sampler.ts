@@ -39,6 +39,7 @@ import {
   PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
   PanDriftToggle,
+  PitchToggle,
 } from './components/SamplerToggleFactory';
 
 import { EnvelopeDisplay } from './components/EnvelopeDisplay';
@@ -191,6 +192,7 @@ export {
   PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
   PanDriftToggle,
+  PitchToggle,
 
   // Control components
   ComputerKeyboard,
@@ -262,6 +264,7 @@ export const defineSampler = () => {
     false
   );
   defineIfNotExists('pan-drift-toggle', PanDriftToggle, false);
+  defineIfNotExists('pitch-toggle', PitchToggle, false);
 
   // Envelopes
   defineIfNotExists('envelope-display', EnvelopeDisplay, false);

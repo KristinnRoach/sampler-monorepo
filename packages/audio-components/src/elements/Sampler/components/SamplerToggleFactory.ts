@@ -57,6 +57,35 @@ const midiConfig: ToggleConfig = {
   },
 };
 
+const pitchToggleConfig: ToggleConfig = {
+  label: '',
+  defaultValue: true,
+  onColor: '#4CAF50',
+  offText: 'Pitch off',
+  onText: 'Pitch on',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => {
+      if (state.val) {
+        if (
+          sampler &&
+          'enablePitch' in sampler &&
+          typeof sampler.enablePitch === 'function'
+        ) {
+          sampler.enablePitch();
+        }
+      } else {
+        if (
+          sampler &&
+          'disablePitch' in sampler &&
+          typeof sampler.disablePitch === 'function'
+        ) {
+          sampler.disablePitch();
+        }
+      }
+    });
+  },
+};
+
 const loopLockConfig: ToggleConfig = {
   label: '',
   defaultValue: false,
@@ -135,7 +164,7 @@ export const FeedbackModeToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
 
 export const MidiToggle = createToggle(
@@ -143,7 +172,15 @@ export const MidiToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
+);
+
+export const PitchToggle = createToggle(
+  pitchToggleConfig,
+  getSampler,
+  Toggle,
+  van,
+  INLINE_COMPONENT_STYLE
 );
 
 export const LoopLockToggle = createToggle(
@@ -151,7 +188,7 @@ export const LoopLockToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
 
 export const HoldLockToggle = createToggle(
@@ -159,7 +196,7 @@ export const HoldLockToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
 
 export const GainLFOSyncNoteToggle = createToggle(
@@ -167,7 +204,7 @@ export const GainLFOSyncNoteToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
 
 export const PitchLFOSyncNoteToggle = createToggle(
@@ -175,7 +212,7 @@ export const PitchLFOSyncNoteToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
 
 export const PlaybackDirectionToggle = createToggle(
@@ -183,7 +220,7 @@ export const PlaybackDirectionToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
 
 export const PanDriftToggle = createToggle(
@@ -191,5 +228,5 @@ export const PanDriftToggle = createToggle(
   getSampler,
   Toggle,
   van,
-  COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE
 );
