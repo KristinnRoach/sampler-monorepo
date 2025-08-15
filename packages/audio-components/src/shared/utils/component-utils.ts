@@ -146,18 +146,13 @@ export const createToggle = (
     return div(
       { style: componentStyle || '' },
 
-      div(
-        { style: 'display: flex; gap: 0.5rem; align-items: center;  ' },
-        effectiveLabel ? label({ textContent: effectiveLabel }) : null,
-
-        Toggle({
-          on: toggleState.val,
-          size: 0.9,
-          onColor: config.onColor || '#4CAF50',
-          onChange: () => (toggleState.val = !toggleState.val),
-        }),
-        div(() => (toggleState.val ? config.onText : config.offText))
-      )
+      Toggle({
+        on: toggleState.val,
+        size: 0.9,
+        onColor: config.onColor || '#4CAF50',
+        onChange: () => (toggleState.val = !toggleState.val),
+      }),
+      div(() => (toggleState.val ? config.onText : config.offText))
     );
   };
 };

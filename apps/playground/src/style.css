@@ -22,7 +22,7 @@ body {
   height: clamp(100dvh, 100dvh, 100dvh);
   width: clamp(100dvw, 100dvw, 100dvw);
 
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 .page-wrapper {
@@ -30,8 +30,6 @@ body {
   height: 100%;
   width: 100%;
   padding: 1rem;
-
-  overflow: hidden;
 }
 
 .control-grid {
@@ -179,8 +177,10 @@ record-button > div > button {
   grid-area: toggle;
   grid-auto-flow: row;
   grid-template-columns: repeat(2, min-content);
-  grid-template-rows: auto auto;
-  gap: 0.5rem;
+  grid-template-rows: min-content;
+  gap: 0.2rem;
+  padding-top: 0;
+  padding-bottom: 0.2;
 }
 
 .keyboard-group {

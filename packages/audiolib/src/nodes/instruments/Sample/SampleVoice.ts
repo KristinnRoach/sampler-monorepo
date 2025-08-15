@@ -49,7 +49,7 @@ export class SampleVoice {
   #envelopes = new Map<EnvelopeType, CustomEnvelope>();
 
   #state: VoiceState = VoiceState.NOT_READY;
-  #isInitialized: boolean = false;
+  #isInitialized = false;
 
   #activeMidiNote: number | null = null;
   #startedTimestamp: number = -1;
@@ -59,10 +59,12 @@ export class SampleVoice {
   #pitchGlideTime = 0; // in seconds
 
   #filtersEnabled: boolean;
+  #pitchDisabled = false;
+
   #hpf: BiquadFilterNode | null = null;
   #lpf: BiquadFilterNode | null = null;
   #hpfHz: number = 40;
-  #hpfQ: number = 0.707;
+  #hpfQ: number = 0.5;
   #lpfHz: number = 18000;
   #lpfQ: number = 0.707;
 
@@ -278,7 +280,11 @@ export class SampleVoice {
     const glideTime = options.glide?.glideTime ?? this.#pitchGlideTime;
     const scaledGlideTime = glideTime / GLIDE_TEMP_SCALAR;
 
-    const playbackRate = midiToPlaybackRate(midiNote);
+    let playbackRate = 1;
+
+    if (!this.#pitchDisabled) {
+      playbackRate = midiToPlaybackRate(midiNote);
+    }
 
     if (options.glide && scaledGlideTime > 0) {
       const rateParam = this.getParam('playbackRate')!;
@@ -677,6 +683,12 @@ export class SampleVoice {
 
     return this;
   }
+
+  disablePitch = () => {
+    console.warn('disabled pitch');
+    this.#pitchDisabled = true;
+  };
+  enablePitch = () => (this.#pitchDisabled = false);
 
   /** CONNECTIONS */
 
