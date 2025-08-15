@@ -187,7 +187,14 @@ export const chromaticKeymap = generateKeymap({
   scale: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
 });
 
-export const DEFAULT_KEYMAP_KEY = 'major'; // update here to change default everywhere
+export type KeymapKey =
+  | 'piano'
+  | 'major'
+  | 'minor'
+  | 'pentatonic'
+  | 'chromatic';
+
+export const DEFAULT_KEYMAP_KEY: KeymapKey = 'major'; // update here to change default everywhere
 
 const KeyMaps = {
   piano: defaultKeymap,

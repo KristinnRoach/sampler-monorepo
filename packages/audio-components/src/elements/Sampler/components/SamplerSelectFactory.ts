@@ -61,7 +61,7 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
   ) => {
     van.derive(() => {
       const selectedKeymap = state.val;
-      const keymap = KeyMaps[selectedKeymap] || DEFAULT_KEYMAP_KEY;
+      const keymap = KeyMaps[selectedKeymap] || KeyMaps[DEFAULT_KEYMAP_KEY];
 
       // Broadcast keymap changes for keyboard components
       document.dispatchEvent(
