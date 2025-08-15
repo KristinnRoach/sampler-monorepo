@@ -98,7 +98,7 @@ export const createToggle = (
   van: any,
   componentStyle?: string
 ) => {
-  const { div, label } = van.tags;
+  const { div } = van.tags;
 
   return (attributes: ElementProps) => {
     const targetNodeId: State<string> = attributes.attr('target-node-id', '');
@@ -134,14 +134,14 @@ export const createToggle = (
         );
     });
 
-    // Check if label attribute was explicitly provided (even if empty)
-    const hasLabelAttribute = attributes.$this.hasAttribute('label');
-    const labelOverride = hasLabelAttribute
-      ? attributes.$this.getAttribute('label')
-      : null;
+    // // Check if label attribute was explicitly provided (even if empty)
+    // const hasLabelAttribute = attributes.$this.hasAttribute('label');
+    // const labelOverride = hasLabelAttribute
+    //   ? attributes.$this.getAttribute('label')
+    //   : null;
 
-    // Use label attribute if provided (including empty string), otherwise fall back to config label
-    const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
+    // // Use label attribute if provided (including empty string), otherwise fall back to config label
+    // const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
 
     return div(
       { style: componentStyle || '' },

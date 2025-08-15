@@ -109,11 +109,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
-    // At 44.1kHz: 0.061 * 44100 ≈ 2690 samples
-    this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061); // ~2690 samples @ 44.1kHz
+    this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
 
-    // C3 = ~130.81 Hz, period = ~337 samples @ 44.1kHz
-    this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 130.81); // ~337 samples @ 44.1kHz
+    this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 16.35);
 
     this.port.onmessage = this.#handleMessage.bind(this);
 
@@ -557,15 +555,15 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const rmsAmplitude = Math.sqrt(sumSquares / sampleCount);
 
     // if the amplitude is below the target, we apply makeup gain to bring it closer
-    const targetAmplitude = 0.5;
+    const targetAmplitude = 0.3;
 
     // Calculate makeup gain, but limit it to reasonable range
     let makeupGain = 1.0;
     if (rmsAmplitude > 0.001) {
       // Avoid division by very small numbers
       makeupGain = targetAmplitude / rmsAmplitude;
-      // Limit gain to reasonable range (0.5x to 3x)
-      makeupGain = Math.max(0.5, Math.min(3.0, makeupGain));
+      // Limit gain to reasonable range
+      makeupGain = Math.max(targetAmplitude, Math.min(3.0, makeupGain));
     }
 
     // Cache the result

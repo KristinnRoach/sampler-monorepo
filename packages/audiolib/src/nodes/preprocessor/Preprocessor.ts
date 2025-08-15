@@ -1,4 +1,5 @@
 import { normalizeAudioBuffer } from '@/utils/audiodata/process/normalizeAudioBuffer';
+import { compressAudioBuffer } from '@/utils/audiodata/process/compressAudioBuffer';
 import { detectThresholdCrossing } from '@/utils/audiodata/process/detectSilence';
 import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
@@ -13,6 +14,12 @@ import {
 
 export type PreProcessOptions = {
   normalize?: { enabled: boolean; maxAmplitudePeak?: number }; // amplitude range [-1, 1]
+  compress?: {
+    enabled: boolean;
+    threshold?: number;
+    ratio?: number;
+    makeupGain?: number;
+  }; // dynamic range compression
   trimSilence?: { enabled: boolean; threshold?: number }; // [-1, 1]
   fadeInOutMs?: number; // milliseconds
   tune?: { detectPitch?: boolean; autotune: boolean; targetMidiNote?: number };
@@ -21,7 +28,8 @@ export type PreProcessOptions = {
 };
 
 export const DEFAULT_PRE_PROCESS_OPTIONS: PreProcessOptions = {
-  normalize: { enabled: true, maxAmplitudePeak: 0.9 }, // amplitude range [-1, 1]
+  normalize: { enabled: true, maxAmplitudePeak: 0.98 }, // amplitude range [-1, 1] - increased from 0.9 for better volume
+  compress: { enabled: true, threshold: 0.3, ratio: 4, makeupGain: 1.5 }, // disabled by default - enable for louder audio
   trimSilence: { enabled: true, threshold: 0.01 }, // [-1, 1]
   fadeInOutMs: 5, // milliseconds
   tune: { detectPitch: true, autotune: true, targetMidiNote: 60 },
@@ -46,16 +54,20 @@ export async function preProcessAudioBuffer(
   buffer: AudioBuffer,
   options: PreProcessOptions = DEFAULT_PRE_PROCESS_OPTIONS
 ): Promise<PreProcessResults> {
-  const { normalize, trimSilence, fadeInOutMs, tune, hpf, getZeroCrossings } =
-    options;
+  const {
+    normalize,
+    compress,
+    trimSilence,
+    fadeInOutMs,
+    tune,
+    hpf,
+    getZeroCrossings,
+  } = options;
 
   let processed = buffer;
   let results: Partial<PreProcessResults> = {};
 
   const PITCH_CONFIDENCE_THRESHOLD = 0.35;
-
-  if (normalize?.enabled)
-    processed = normalizeAudioBuffer(ctx, buffer, normalize.maxAmplitudePeak);
 
   if (trimSilence?.enabled) {
     const { start, end } = detectThresholdCrossing(
@@ -63,6 +75,37 @@ export async function preProcessAudioBuffer(
       trimSilence.threshold ?? 0.01
     );
     processed = trimAudioBuffer(ctx, processed, start, end, fadeInOutMs);
+  }
+
+  // Apply HPF first (before normalization) to avoid filter-induced clipping
+  if (hpf) {
+    if ('cutoff' in hpf) {
+      processed = await applyHighPassFilter(processed, hpf.cutoff ?? 80);
+    } else if ('auto' in hpf && hpf.auto) {
+      // For auto HPF, we need pitch detection first
+      const tempPitch = await detectPitch(buffer);
+      if (tempPitch.confidence >= PITCH_CONFIDENCE_THRESHOLD) {
+        const cutoffFreq = tempPitch.frequency > 30 ? tempPitch.frequency : 80;
+        processed = await applyHighPassFilter(processed, cutoffFreq);
+      }
+    }
+  }
+
+  if (normalize?.enabled)
+    processed = normalizeAudioBuffer(
+      ctx,
+      processed,
+      normalize.maxAmplitudePeak
+    );
+
+  if (compress?.enabled) {
+    processed = compressAudioBuffer(
+      ctx,
+      processed,
+      compress.threshold,
+      compress.ratio,
+      compress.makeupGain
+    );
   }
 
   if (
@@ -105,18 +148,7 @@ export async function preProcessAudioBuffer(
     results.zeroCrossings = zeroes;
   }
 
-  if (hpf) {
-    if ('cutoff' in hpf) {
-      processed = await applyHighPassFilter(processed, hpf.cutoff ?? 80); // 80Hz fallback
-    } else if (
-      results.detectedPitch &&
-      results.detectedPitch.confidence >= PITCH_CONFIDENCE_THRESHOLD
-    ) {
-      const fundamental = results.detectedPitch?.fundamentalHz;
-      const cutoffFreq = fundamental > 30 ? fundamental : 80; // 80Hz fallback
-      processed = await applyHighPassFilter(processed, cutoffFreq);
-    }
-  }
+  // HPF has been moved earlier in the pipeline to prevent clipping
 
   const finalResults: PreProcessResults = {
     ...results,
