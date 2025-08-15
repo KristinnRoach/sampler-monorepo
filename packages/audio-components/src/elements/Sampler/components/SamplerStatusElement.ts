@@ -2,63 +2,45 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
+import {
+  createFindNodeId,
+  createSamplerConnection,
+} from '../../../shared/utils/component-utils';
 
 const { div } = van.tags;
 
 export const SamplerStatusElement = (attributes: ElementProps) => {
   const nodeId: State<string> = attributes.attr('target-node-id', '');
   const status = van.state('No sampler found');
+  const findNodeId = createFindNodeId(attributes, nodeId);
 
-  const updateStatus = () => {
-    if (!nodeId.val) {
-      status.val = 'No node-id specified';
-      return;
-    }
-
-    const samplePlayer = getSampler(nodeId.val);
-    if (!samplePlayer) {
-      status.val = 'Sampler not found';
-      return;
-    }
-
-    status.val = 'Initialized';
-  };
+  // Use standardized connection utility for initial status
+  const { createMountHandler } = createSamplerConnection(
+    findNodeId,
+    getSampler,
+    () => (status.val = 'Initialized')
+  );
 
   attributes.mount(() => {
     status.val = 'Click to start';
+    createMountHandler(attributes)();
 
-    // Handlers
-    const handleSamplerInitialized = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.nodeId === nodeId.val) {
-        updateStatus();
-      }
-    };
-
+    // Additional listeners for sample-loaded and error events
     const handleSampleLoaded = (event: Event) => {
       const customEvent = event as CustomEvent;
-      if (customEvent.detail?.nodeId === nodeId.val) {
+      if (customEvent.detail?.nodeId === findNodeId()) {
         status.val = 'Sample loaded';
       }
     };
-
     const handleSamplerError = (event: Event) => {
       const customEvent = event as CustomEvent;
-      if (customEvent.detail?.nodeId === nodeId.val) {
+      if (customEvent.detail?.nodeId === findNodeId()) {
         status.val = `Error: ${customEvent.detail.error}`;
       }
     };
-
-    // Listeners
-    document.addEventListener('sampler-initialized', handleSamplerInitialized);
     document.addEventListener('sample-loaded', handleSampleLoaded);
     document.addEventListener('sampler-error', handleSamplerError);
-
     return () => {
-      document.removeEventListener(
-        'sampler-initialized',
-        handleSamplerInitialized
-      );
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('sampler-error', handleSamplerError);
     };

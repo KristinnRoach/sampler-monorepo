@@ -1,4 +1,5 @@
 // component-utils.ts - Shared utilities for components
+import { type SamplePlayer } from '@repo/audiolib';
 import { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 
@@ -28,7 +29,7 @@ export const createFindNodeId =
 export const createSamplerConnection = (
   findNodeId: () => string,
   getSampler: (nodeId: string) => any,
-  onConnect: (sampler: any) => void
+  onConnect: (sampler: SamplePlayer) => void
 ) => {
   let connected = false;
 

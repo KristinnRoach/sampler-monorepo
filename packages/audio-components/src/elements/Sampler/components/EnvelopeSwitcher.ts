@@ -65,12 +65,15 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     });
   };
 
-  // Watch for active envelope changes and recreate the envelope to get fresh data
-  // TODO: find better solution for this
+  // TODO: Proper fix
   van.derive(() => {
+    // When switching envelope type, create the envelope instance if it doesn't exist
     const currentEnvType = activeEnvelope.val;
-    if (samplerInitialized.val && sampleLoaded.val) {
-      // Always recreate the active envelope to ensure it has the latest data
+    if (
+      samplerInitialized.val &&
+      sampleLoaded.val &&
+      !envelopes[currentEnvType]
+    ) {
       createEnvelope(currentEnvType);
     }
   });

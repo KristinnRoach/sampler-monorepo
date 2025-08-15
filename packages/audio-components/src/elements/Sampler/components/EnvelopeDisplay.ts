@@ -1,5 +1,5 @@
 // EnvelopeDisplay.ts
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
@@ -23,7 +23,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   const tryCreateEnvelope = () => {
     // Only create envelope when both sampler is ready AND sample is loaded
     if (!samplerInitialized.val || !sampleLoaded.val) {
-      console.log('Waiting for both sampler ready and sample loaded...', {
+      console.log('Waiting for sampler...', {
         samplerReady: samplerInitialized.val,
         sampleLoaded: sampleLoaded.val,
       });
@@ -42,8 +42,6 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
     }
 
     try {
-      console.log('Creating envelope after sample loaded...', envelopeType.val);
-
       // Create new envelope instance
       envelopeInstance = EnvelopeSVG(
         sampler,
@@ -56,8 +54,6 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       if (sampler.audiobuffer) {
         envelopeInstance.drawWaveform(sampler.audiobuffer);
       }
-
-      console.log('Envelope created successfully');
     } catch (error) {
       console.error('Error creating envelope:', error);
     }
@@ -66,7 +62,6 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   attributes.mount(() => {
     const handleSamplerInitialized = (e: Event) => {
       const customEvent = e as CustomEvent;
-      console.log('Sampler initialized event:', customEvent.detail);
       if (customEvent.detail.nodeId === targetNodeId.val) {
         samplerInitialized.val = true; // Update state
         tryCreateEnvelope();
@@ -75,7 +70,6 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 
     const handleSampleLoaded = (e: Event) => {
       const customEvent = e as CustomEvent;
-      console.log('Sample loaded event:', customEvent.detail);
       if (customEvent.detail.nodeId === targetNodeId.val) {
         sampleLoaded.val = true; // Update state
         tryCreateEnvelope();
