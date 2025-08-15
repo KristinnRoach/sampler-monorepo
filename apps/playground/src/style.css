@@ -180,7 +180,7 @@ record-button > div > button {
   grid-template-rows: min-content;
   gap: 0.2rem;
   padding-top: 0;
-  padding-bottom: 0.2;
+  padding-bottom: 0.2rem;
 }
 
 .keyboard-group {

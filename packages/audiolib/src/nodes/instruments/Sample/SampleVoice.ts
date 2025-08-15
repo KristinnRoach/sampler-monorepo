@@ -281,14 +281,18 @@ export class SampleVoice {
     const scaledGlideTime = glideTime / GLIDE_TEMP_SCALAR;
 
     let playbackRate = 1;
+    let prevRate = 1;
 
     if (!this.#pitchDisabled) {
       playbackRate = midiToPlaybackRate(midiNote);
+      if (options.glide) {
+        prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
+      }
     }
 
-    if (options.glide && scaledGlideTime > 0) {
+    // Only apply glide if pitch is enabled and glide is requested
+    if (!this.#pitchDisabled && options.glide && scaledGlideTime > 0) {
       const rateParam = this.getParam('playbackRate')!;
-      const prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
       prevRate > 0 && rateParam.setValueAtTime(prevRate, timestamp);
 
       this.getParam('playbackRate')!.setTargetAtTime(
@@ -685,10 +689,25 @@ export class SampleVoice {
   }
 
   disablePitch = () => {
-    console.warn('disabled pitch');
     this.#pitchDisabled = true;
+
+    // if (this.isPlaying()) {
+    this.getParam('playbackRate')?.linearRampToValueAtTime(
+      1,
+      this.context.currentTime + 0.01
+    );
   };
-  enablePitch = () => (this.#pitchDisabled = false);
+  enablePitch = () => {
+    this.#pitchDisabled = false;
+
+    if (this.#activeMidiNote) {
+      const rate = midiToPlaybackRate(this.#activeMidiNote);
+      this.getParam('playbackRate')?.linearRampToValueAtTime(
+        rate,
+        this.context.currentTime + 0.01
+      );
+    }
+  };
 
   /** CONNECTIONS */
 
