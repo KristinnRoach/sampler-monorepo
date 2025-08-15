@@ -134,13 +134,13 @@ defineIfNotExists('my-knob', MyKnob, false);
 
 ```mermaid
 graph TD
-    A[Component Mounts] --> B[Call connect()]
+    A[Component Mounts] --> B["Call connect()"]
     B --> C{Find NodeId}
     C -->|Found| D[Get Sampler from Registry]
-    C -->|Not Found| E[Wait for sampler-initialized]
+    C -->|Not Found| E["Wait for sampler-initialized"]
     D --> F{Sampler Exists?}
     F -->|Yes| G[Call onTargetConnect]
-    F -->|No| E
+    F -->|No| E["Wait for sampler-initialized"]
     G --> H[Setup van.derive]
     H --> I[Component Initialized]
     E --> J[Listen for Events]

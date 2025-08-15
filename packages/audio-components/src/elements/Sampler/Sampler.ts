@@ -45,7 +45,7 @@ import { EnvelopeDisplay } from './components/EnvelopeDisplay';
 import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
-import { RecordButton, LoadButton } from './components/SamplerButtonFactory';
+import { RecordButton, UploadButton } from './components/SamplerButtonFactory';
 import {
   KeymapSelect,
   WaveformSelect,
@@ -196,7 +196,7 @@ export {
   ComputerKeyboard,
   PianoKeyboard,
   RecordButton,
-  LoadButton,
+  UploadButton as LoadButton,
 
   // Select components
   KeymapSelect,
@@ -224,7 +224,7 @@ export const defineSampler = () => {
   defineIfNotExists('sampler-element', SamplerElement, false);
 
   // Basic controls
-  defineIfNotExists('load-button', LoadButton, false);
+  defineIfNotExists('load-button', UploadButton, false);
   defineIfNotExists('record-button', RecordButton, false);
 
   // Knob controls

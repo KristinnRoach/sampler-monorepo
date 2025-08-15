@@ -16,13 +16,13 @@ body {
   padding: 0;
   box-sizing: border-box;
 
-  background-color: #35883fd5; /* old yellow: #c0c44fd5; */
+  background-color: #357d3f; /* old yellow: #c0c44fd5; */
   color: #ccc;
 
   height: clamp(100dvh, 100dvh, 100dvh);
   width: clamp(100dvw, 100dvw, 100dvw);
 
-  /* overflow: hidden; */
+  overflow: hidden;
 }
 
 .page-wrapper {
@@ -31,7 +31,7 @@ body {
   width: 100%;
   padding: 1rem;
 
-  /* overflow: hidden; */
+  overflow: hidden;
 }
 
 .control-grid {
@@ -41,7 +41,7 @@ body {
   height: fit-content;
   width: fit-content;
 
-  gap: 1rem;
+  row-gap: 0.5rem;
   padding: 1rem;
 
   place-self: center;
@@ -53,10 +53,10 @@ body {
     'loop drift feedback amp-lfo pitch-lfo'
     'toggle keyboard keyboard keyboard keyboard';
 
-  border: #999 2px solid;
+  border: 1px solid #a8a6a692;
 
   border-radius: 0.5rem;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.35);
 }
 
 /* Individual elements now positioned via parent grid areas */
@@ -79,14 +79,16 @@ record-button > div > button {
 
   width: fit-content;
   height: fit-content;
+  /* min-width: 100%; */
 
   border: none;
 
-  border: 1px solid #99999974;
+  border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
   padding: 0.5rem;
   gap: 0.5rem;
-  min-width: fit-content;
+
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .control-group > legend {

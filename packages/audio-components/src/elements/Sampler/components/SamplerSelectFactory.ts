@@ -5,13 +5,20 @@ import { getSampler } from '../SamplerRegistry';
 import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
 } from '@/shared/keyboard/keyboard-keymaps';
-import { createFindNodeId } from '../../../shared/utils/component-utils';
+import {
+  createFindNodeId,
+  createSamplerConnection,
+} from '../../../shared/utils/component-utils';
 import {
   COMPONENT_STYLE,
   SELECT_STYLE,
 } from '../../../shared/styles/component-styles';
 
-import { SUPPORTED_WAVEFORMS, SupportedWaveform } from '@repo/audiolib';
+import {
+  type SamplePlayer,
+  SUPPORTED_WAVEFORMS,
+  SupportedWaveform,
+} from '@repo/audiolib';
 
 const { div, select, option } = van.tags;
 
@@ -129,57 +136,25 @@ const createSamplerSelect = <T extends string = string>(
 
     const findNodeId = createFindNodeId(attributes, targetNodeId);
 
-    // Track if we've already set up the connection
-    let connected = false;
-
-    // Connection handler - same pattern as knobs
-    const connect = () => {
-      if (connected) return;
-      const nodeId = findNodeId();
-      if (!nodeId) return;
-
-      const sampler = getSamplerFn(nodeId);
-      if (!sampler) return;
-
-      // Set up the connection once
-      if (config.onTargetConnect) {
-        try {
-          connected = true;
-          config.onTargetConnect(sampler, state, van, nodeId);
-        } catch (error) {
-          connected = false;
-          console.error(
-            `Failed to connect select "${config.label || 'unnamed'}":`,
-            error
-          );
+    // Use standardized connection utility
+    const { createMountHandler } = createSamplerConnection(
+      findNodeId,
+      getSamplerFn,
+      (sampler: SamplePlayer) => {
+        if (config.onTargetConnect) {
+          try {
+            config.onTargetConnect(sampler, state, van, findNodeId());
+          } catch (error) {
+            console.error(
+              `Failed to connect select "${config.label || 'unnamed'}":`,
+              error
+            );
+          }
         }
       }
-    };
+    );
 
-    // Mount handler - same pattern as knobs
-    attributes.mount(() => {
-      // Try to connect immediately
-      connect();
-
-      // Listen for sampler-initialized events
-      const handleSamplerInitialized = (e: CustomEvent) => {
-        if (e.detail.nodeId === findNodeId()) {
-          connect();
-        }
-      };
-      document.addEventListener(
-        'sampler-initialized',
-        handleSamplerInitialized as EventListener
-      );
-
-      // Cleanup
-      return () => {
-        document.removeEventListener(
-          'sampler-initialized',
-          handleSamplerInitialized as EventListener
-        );
-      };
-    });
+    attributes.mount(createMountHandler(attributes));
 
     const handleChange = (e: Event) => {
       const target = e.target as HTMLSelectElement;
