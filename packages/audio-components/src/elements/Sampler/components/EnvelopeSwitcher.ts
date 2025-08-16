@@ -1,5 +1,5 @@
 // EnvelopeSwitcher.ts
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
@@ -26,56 +26,48 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     'pitch-env': null,
   };
 
-  const createEnvelope = (envType: SupportedEnvelopeType) => {
+  // Create all envelopes once when sampler is ready
+  const createEnvelopes = () => {
     if (!samplerInitialized.val || !sampleLoaded.val) return;
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) return;
 
-    try {
-      // Always cleanup existing envelope to ensure fresh instance
-      if (envelopes[envType]) {
-        envelopes[envType]!.cleanup();
-        envelopes[envType] = null;
-      }
-
-      // Create new envelope instance
-      envelopes[envType] = EnvelopeSVG(
-        sampler,
-        envType as EnvelopeType,
-        width.val,
-        height.val
-      );
-
-      // Draw waveform if sample is loaded
-      if (sampler.audiobuffer) {
-        envelopes[envType]!.drawWaveform(sampler.audiobuffer);
-      }
-    } catch (error) {
-      console.error(`Error creating ${envType} envelope:`, error);
-    }
-  };
-
-  const createEnvelopes = () => {
-    if (!samplerInitialized.val || !sampleLoaded.val) return;
-
-    // Create all envelope instances
+    // Create all envelope instances at once
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
-      createEnvelope(envType);
+      if (!envelopes[envType]) {
+        try {
+          envelopes[envType] = EnvelopeSVG(
+            sampler,
+            envType as EnvelopeType,
+            width.val,
+            height.val
+          );
+
+          // No need to manually draw waveform - EnvelopeSVG listens for sample:loaded
+
+          // Hide non-active envelopes initially
+          if (envType !== activeEnvelope.val) {
+            (envelopes[envType]!.element as HTMLElement).style.display = 'none';
+          }
+        } catch (error) {
+          console.error(`Error creating ${envType} envelope:`, error);
+        }
+      }
     });
   };
 
-  // TODO: Proper fix
+  // Show/hide envelopes when active envelope changes
   van.derive(() => {
-    // When switching envelope type, create the envelope instance if it doesn't exist
     const currentEnvType = activeEnvelope.val;
-    if (
-      samplerInitialized.val &&
-      sampleLoaded.val &&
-      !envelopes[currentEnvType]
-    ) {
-      createEnvelope(currentEnvType);
-    }
+    
+    // Hide all envelopes
+    (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
+      if (envelopes[envType]) {
+        (envelopes[envType]!.element as HTMLElement).style.display = 
+          envType === currentEnvType ? 'block' : 'none';
+      }
+    });
   });
 
   attributes.mount(() => {
@@ -83,7 +75,9 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail.nodeId === targetNodeId.val) {
         samplerInitialized.val = true;
-        createEnvelopes();
+        if (sampleLoaded.val) {
+          createEnvelopes();
+        }
       }
     };
 
@@ -91,8 +85,9 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail.nodeId === targetNodeId.val) {
         sampleLoaded.val = true;
-
-        createEnvelopes();
+        if (samplerInitialized.val) {
+          createEnvelopes();
+        }
       }
     };
 
@@ -138,17 +133,24 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       button({ onclick: () => (activeEnvelope.val = 'pitch-env') }, 'Pitch Env')
     ),
 
-    // Envelope display area
+    // Envelope display area - now contains all envelopes, showing/hiding them
     div({ class: 'envelope-container' }, () => {
       if (!samplerInitialized.val)
         return div({ style: loadingStateStyle }, 'Click anywhere to start');
       if (!sampleLoaded.val)
         return div({ style: loadingStateStyle }, 'Loading audio sample...');
 
-      const currentEnv = envelopes[activeEnvelope.val];
-      if (!currentEnv) return div('Loading envelope...');
-
-      return currentEnv.element;
+      // Return a container with all envelope elements
+      const container = div({ style: 'position: relative;' });
+      
+      // Add all created envelopes to the container
+      (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
+        if (envelopes[envType]) {
+          container.appendChild(envelopes[envType]!.element as HTMLElement);
+        }
+      });
+      
+      return container.children.length > 0 ? container : div('Loading envelopes...');
     })
   );
 };

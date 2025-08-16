@@ -2,6 +2,7 @@
 import { EnvelopeType } from '@repo/audiolib';
 import {
   createLabeledKnob,
+  createKnob,
   type KnobConfig,
   type LabeledKnobConfig,
 } from '../../primitives/createKnob';
@@ -25,7 +26,7 @@ const knobDefaults: Partial<TimeScaleKnobConfig> = {
 /**
  * Creates a time scale knob for envelope duration scaling
  */
-export const LabeledTimeScaleKnob = (
+export const TimeScaleKnob = (
   config: TimeScaleKnobConfig & { label?: string }
 ): HTMLElement => {
   const {
@@ -40,6 +41,8 @@ export const LabeledTimeScaleKnob = (
     maxValue: 120,
     defaultValue: 1,
     snapIncrement: 1,
+    width: 25,
+    height: 25,
     curve: 4,
     snapThresholds: [
       { maxValue: 0.5, increment: 0.5 },
@@ -48,15 +51,15 @@ export const LabeledTimeScaleKnob = (
       { maxValue: 100, increment: 1 },
     ],
     className: 'envelope-time-scale-knob',
-    title: `Time scale (${config.minValue || 0.1}x - ${config.maxValue || 180}x)`,
-    valueFormatter: (v) => `${v.toFixed(1)}x`,
+    // title: `Time scale (${config.minValue || 0.1}x - ${config.maxValue || 180}x)`,
+    // valueFormatter: (v) => `${v.toFixed(1)}x`,
   };
 
-  return createLabeledKnob({
+  return createKnob({
     ...knobDefaults,
     ...labeledKnobDefaults,
     ...knobConfig,
-    label,
+    // label,
     onChange: (timeScale) => onTimeScaleChange({ envelopeType, timeScale }),
   });
 };
