@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   preProcessAudioBuffer,
   DEFAULT_PRE_PROCESS_OPTIONS,
@@ -9,6 +9,13 @@ describe('Debug >1.0 peak issue', () => {
 
   beforeEach(() => {
     audioContext = new AudioContext();
+  });
+
+  afterEach(async () => {
+    if (audioContext && audioContext.state !== 'closed') {
+      await audioContext.close();
+    }
+    audioContext = null as any;
   });
 
   function analyzeBuffer(buffer: AudioBuffer, label: string) {

@@ -559,9 +559,11 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Calculate makeup gain, but limit it to reasonable range
     let makeupGain = 1.0;
-    if (rmsAmplitude < targetAmplitude && rmsAmplitude > 0) {
-      // Avoid division by very small numbers
-      makeupGain = targetAmplitude / rmsAmplitude;
+    if (rmsAmplitude < targetAmplitude) {
+      // Use a minimum floor to avoid division by very small numbers
+      // This prevents huge gain values that would cause artifacts
+      const safeRms = Math.max(rmsAmplitude, 1e-3);
+      makeupGain = targetAmplitude / safeRms;
       // Limit gain to reasonable range
       makeupGain = Math.min(2.0, makeupGain);
     }

@@ -3,7 +3,7 @@ import { CustomEnvelope } from '../CustomEnvelope';
 import { EnvelopeData } from '../EnvelopeData';
 
 // Mock dependencies
-vi.mock('@/nodes/node-store', () => ({
+vi.mock('../../../nodes/node-store', () => ({
   createNodeId: vi.fn(() => 'test-node-id'),
   deleteNodeId: vi.fn(),
   registerNode: vi.fn(() => 'test-node-id'),

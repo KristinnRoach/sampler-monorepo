@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { expect, describe, it, beforeEach, afterEach } from 'vitest';
 import { normalizeAudioBuffer } from '../normalizeAudioBuffer';
 
 describe('Normalization experiments for better volume', () => {
@@ -6,6 +6,13 @@ describe('Normalization experiments for better volume', () => {
 
   beforeEach(() => {
     audioContext = new AudioContext();
+  });
+
+  afterEach(async () => {
+    if (audioContext && audioContext.state !== 'closed') {
+      await audioContext.close();
+    }
+    audioContext = null as any;
   });
 
   function analyzeAmplitude(buffer: AudioBuffer) {

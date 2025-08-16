@@ -30,7 +30,7 @@ export type PreProcessOptions = {
 
 export const DEFAULT_PRE_PROCESS_OPTIONS: PreProcessOptions = {
   normalize: { enabled: true, maxAmplitudePeak: 0.98 }, // amplitude range [-1, 1] - increased from 0.9 for better volume
-  compress: { enabled: true, threshold: 0.5, ratio: 2, makeupGain: 1.0 }, // uses shouldCompress // ? should this overwrite if passed in?
+  compress: { enabled: true }, // Smart compression - settings determined by shouldCompress()
   trimSilence: { enabled: true, threshold: 0.01 }, // [-1, 1]
   fadeInOutMs: 5, // milliseconds
   tune: { detectPitch: true, autotune: true, targetMidiNote: 60 },
@@ -104,12 +104,26 @@ export async function preProcessAudioBuffer(
     const compressionAnalysis = shouldCompress(processed);
 
     if (compressionAnalysis.shouldCompress) {
-      // Use suggested settings or fall back to configured ones
-      const settings = compressionAnalysis.suggestedSettings || {
-        threshold: compress.threshold,
-        ratio: compress.ratio,
-        makeupGain: compress.makeupGain,
-      };
+      // Always use the smart suggested settings when available
+      // Only use manual overrides if explicitly provided (not from defaults)
+      const hasManualSettings = compress.threshold !== undefined || 
+                                compress.ratio !== undefined || 
+                                compress.makeupGain !== undefined;
+      
+      let settings;
+      if (hasManualSettings && compress.threshold !== undefined) {
+        // User explicitly provided settings, use them
+        settings = {
+          threshold: compress.threshold ?? 0.5,
+          ratio: compress.ratio ?? 2,
+          makeupGain: compress.makeupGain ?? 1.0,
+        };
+        console.log('Using manual compression settings');
+      } else {
+        // Use smart suggested settings from analysis
+        settings = compressionAnalysis.suggestedSettings!;
+        console.log('Using smart compression settings based on audio analysis');
+      }
 
       processed = compressAudioBuffer(
         ctx,
@@ -120,11 +134,12 @@ export async function preProcessAudioBuffer(
       );
 
       console.log(
-        `Applied compression (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)})`
+        `Applied compression (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)}, ` +
+        `threshold: ${settings.threshold}, ratio: ${settings.ratio}:1)`
       );
     } else {
       console.log(
-        `Skipped compression - already compressed (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)})`
+        `Skipped compression - already compressed/mastered (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)})`
       );
     }
   }

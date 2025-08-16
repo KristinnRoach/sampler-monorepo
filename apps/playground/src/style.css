@@ -40,7 +40,7 @@ body {
   width: fit-content;
 
   row-gap: 0.5rem;
-  column-gap: 0.1;
+  column-gap: 0.1rem;
   padding: 1rem;
 
   place-self: center;
@@ -78,10 +78,8 @@ record-button > div > button {
 
   width: fit-content;
   height: fit-content;
-  /* min-width: 100%; */
 
   border: none;
-
   border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
   padding: 0.5rem;

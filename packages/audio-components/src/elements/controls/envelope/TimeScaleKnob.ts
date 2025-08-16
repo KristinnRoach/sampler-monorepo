@@ -1,27 +1,11 @@
 // envelopeTimeScaleKnob.ts
 import { EnvelopeType } from '@repo/audiolib';
-import {
-  createLabeledKnob,
-  createKnob,
-  type KnobConfig,
-  type LabeledKnobConfig,
-} from '../../primitives/createKnob';
+import { createKnob, type KnobConfig } from '../../primitives/createKnob';
 
 export interface TimeScaleKnobConfig extends KnobConfig {
   onChange: (data: { envelopeType: EnvelopeType; timeScale: number }) => void;
   envelopeType: EnvelopeType;
 }
-
-const knobDefaults: Partial<TimeScaleKnobConfig> = {
-  minValue: 0.5, // todo: Test min/max value constraints (in CustomEnvelope)
-  maxValue: 100,
-  defaultValue: 1,
-  snapIncrement: 1,
-  curve: 3.5,
-  snapThresholds: [{ maxValue: 1.0, increment: 0.1 }],
-  className: 'envelope-time-scale-knob',
-  title: `Time scale`,
-};
 
 /**
  * Creates a time scale knob for envelope duration scaling
@@ -36,51 +20,27 @@ export const TimeScaleKnob = (
     ...knobConfig
   } = config;
 
-  const labeledKnobDefaults: Partial<LabeledKnobConfig> = {
-    minValue: 0.5,
-    maxValue: 120,
+  const knobDefaults: Partial<KnobConfig> = {
+    minValue: 1, // todo: fix so halftime (0.5) works
+    maxValue: 100,
     defaultValue: 1,
     snapIncrement: 1,
-    width: 10,
-    height: 10,
-    curve: 4,
-    snapThresholds: [
-      { maxValue: 0.5, increment: 0.5 },
-      { maxValue: 1.0, increment: 0.1 },
-      { maxValue: 10, increment: 0.5 },
-      { maxValue: 100, increment: 1 },
-    ],
+    width: 25,
+    height: 25,
+    curve: 2.5,
     className: 'envelope-time-scale-knob',
-    // title: `Time scale (${config.minValue || 0.1}x - ${config.maxValue || 180}x)`,
-    // valueFormatter: (v) => `${v.toFixed(1)}x`,
   };
 
-  return createKnob({
+  const knob = createKnob({
     ...knobDefaults,
-    ...labeledKnobDefaults,
+    ...knobDefaults,
     ...knobConfig,
-    // label,
+    title: 'Envelope speed',
     onChange: (timeScale) => onTimeScaleChange({ envelopeType, timeScale }),
   });
+
+  // Ensure knob displays inline with other controls
+  knob.style.display = 'inline-block';
+
+  return knob;
 };
-
-// export const TimeScaleKnob = (config: TimeScaleKnobConfig): HTMLElement => {
-//   const { onTimeScaleChange, envelopeType, ...knobConfig } = config;
-
-//   const knobDefaults: Partial<KnobConfig> = {
-//     minValue: 0.5, // todo: Test min/max value constraints (in CustomEnvelope)
-//     maxValue: 100,
-//     defaultValue: 1,
-//     snapIncrement: 1,
-//     curve: 3.5,
-//     snapThresholds: [{ maxValue: 1.0, increment: 0.1 }],
-//     className: 'envelope-time-scale-knob',
-//     title: `Time scale (${config.minValue || 0.1}x - ${config.maxValue || 180}x)`,
-//   };
-
-//   return createKnob({
-//     ...knobDefaults,
-//     ...knobConfig,
-//     onChange: (value: number) => onTimeScaleChange(envelopeType, value),
-//   });
-// };

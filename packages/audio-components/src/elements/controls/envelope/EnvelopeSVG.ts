@@ -31,7 +31,7 @@ export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
   timeScaleKnob: HTMLElement;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
-  refresh: () => void;
+  refresh: () => void;  // Always updates in place, never returns a new instance
   cleanup: () => void;
 }
 
@@ -44,39 +44,33 @@ export const EnvelopeSVG = (
   snapThreshold = 0.025,
   multiColorPlayheads = true
 ): EnvelopeSVG => {
-  // Early return with refresh capability for empty envelopes
-  if (!instrument.getEnvelope(envType).points.length) {
-    const emptyDiv = div(
+
+  // Get envelope properties - store as let so we can update it
+  let envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
+  const envelopeType = envType;
+  
+  // If no points, return a simple placeholder that can be refreshed later
+  if (!envelopeInfo.points.length) {
+    const emptyContainer = div(
       {
         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
       },
       'Record or load a sample to start'
     );
-    return {
-      element: emptyDiv,
-      timeScaleKnob: emptyDiv,
+    
+    const result: EnvelopeSVG = {
+      element: emptyContainer,
+      timeScaleKnob: emptyContainer,
       drawWaveform: () => {},
       refresh: () => {
-        // When refresh is called, re-create the envelope if it now has points
-        if (instrument.getEnvelope(envType).points.length) {
-          return EnvelopeSVG(
-            instrument,
-            envType,
-            width,
-            height,
-            snapToValues,
-            snapThreshold,
-            multiColorPlayheads
-          );
-        }
+        // Just check if envelope has points now
+        envelopeInfo = instrument.getEnvelope(envType);
+        // Don't do anything for now - the parent will handle recreating if needed
       },
       cleanup: () => {},
     };
+    return result;
   }
-
-  // Get envelope properties - store as let so we can update it
-  let envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
-  const envelopeType = envType;
 
   const SVG_WIDTH = 400;
   const SVG_HEIGHT = 200;
@@ -393,11 +387,12 @@ export const EnvelopeSVG = (
   van.derive(() => {
     if (enabled.val) {
       instrument.enableEnvelope(envelopeType);
-      updateControlPoints();
-      updateEnvelopePath();
-    } else if (!enabled.val) {
+    } else {
       instrument.disableEnvelope(envelopeType);
     }
+    // Always refresh visuals to reflect enabled/disabled styles
+    updateControlPoints();
+    updateEnvelopePath();
   });
 
   van.derive(() => instrument.setEnvelopeLoop(envelopeType, loopEnabled.val));
@@ -412,8 +407,8 @@ export const EnvelopeSVG = (
     onChange: ({ envelopeType, timeScale }) =>
       instrument.setEnvelopeTimeScale(envelopeType, timeScale),
     envelopeType,
-    height: 40,
-    width: 40,
+    height: 25,
+    width: 25,
   });
 
   // Create container div with control buttons and timescale knob at the top
@@ -421,23 +416,17 @@ export const EnvelopeSVG = (
     {
       style: `position: relative; width: ${width}; height: ${height};`,
     },
-    // Timescale knob positioned separately on the right but not at the edge
+    // Timescale knob positioned to the left of control buttons
     div(
       {
-        style: 'position: absolute; top: 4px; right: 120px; z-index: 10;',
+        style: 'position: absolute; top: 4px; right: 65px; z-index: 10;',
       },
       timeScaleKnob
     ),
-    // Control buttons at the top right corner
-    div(
-      {
-        style:
-          'position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 4px; padding: 4px; z-index: 10;',
-      },
-      controlButtons.enabledToggle,
-      controlButtons.loopToggle,
-      controlButtons.syncToggle
-    )
+    // Control buttons keep their absolute positioning
+    controlButtons.enabledToggle,
+    controlButtons.loopToggle,
+    controlButtons.syncToggle
   );
 
   // Manually append the SVG element to avoid namespace issues

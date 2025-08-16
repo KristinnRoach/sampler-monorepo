@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { normalizeAudioBuffer } from '../normalizeAudioBuffer';
 
 describe('normalizeAudioBuffer amplitude analysis', () => {
@@ -7,6 +7,13 @@ describe('normalizeAudioBuffer amplitude analysis', () => {
   beforeEach(() => {
     // Create AudioContext for each test
     audioContext = new AudioContext();
+  });
+
+  afterEach(async () => {
+    if (audioContext && audioContext.state !== 'closed') {
+      await audioContext.close();
+    }
+    audioContext = null as any;
   });
 
   // Helper function to analyze amplitude statistics

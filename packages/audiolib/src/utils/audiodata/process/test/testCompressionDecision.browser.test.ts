@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { shouldCompress } from '../shouldCompress';
 import {
   preProcessAudioBuffer,
   DEFAULT_PRE_PROCESS_OPTIONS,
-} from '@/nodes/preprocessor/Preprocessor';
+} from '../../../../nodes/preprocessor/Preprocessor';
 
 describe('Test compression decision for init_sample', () => {
   let audioContext: AudioContext;
@@ -12,8 +12,19 @@ describe('Test compression decision for init_sample', () => {
     audioContext = new AudioContext();
   });
 
+  afterEach(async () => {
+    if (audioContext && audioContext.state !== 'closed') {
+      await audioContext.close();
+    }
+    audioContext = null as any;
+  });
+
   async function loadInitSample(): Promise<AudioBuffer> {
-    const response = await fetch('/src/storage/assets/init_sample.webm');
+    const url = new URL(
+      '../../../../storage/assets/init_sample.webm',
+      import.meta.url
+    );
+    const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     return audioBuffer;
@@ -98,9 +109,9 @@ describe('Test compression decision for init_sample', () => {
 
     // Test thresholds
     console.log('\n=== Crest factor thresholds ===');
-    console.log('< 4: Skip compression (already compressed)');
-    console.log('4-6: Gentle compression');
-    console.log('> 6: Normal compression');
+    console.log('< 5.5: Skip compression (already compressed/borderline)');
+    console.log('5.5–7: Gentle compression');
+    console.log('> 7: Normal compression');
     console.log(
       `\nNormalized buffer crest factor: ${decision.crestFactor.toFixed(2)}`
     );

@@ -26,8 +26,9 @@ export function shouldCompress(buffer: AudioBuffer): {
     }
   }
 
-  const rms = Math.sqrt(sumSquares / sampleCount);
-  const crestFactor = peak > 0 ? peak / rms : 0;
+  // Guard against empty buffer (division by zero)
+  const rms = sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0;
+  const crestFactor = rms > 0 ? peak / rms : 0;
 
   // Decision logic based on crest factor
   // Adjusted thresholds to be more conservative
@@ -76,7 +77,9 @@ export function needsCompression(buffer: AudioBuffer): boolean {
 
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
     const data = buffer.getChannelData(ch);
-    for (let i = 0; i < samplesToCheck; i++) {
+    // Clamp to actual data length to prevent out-of-bounds access
+    const samplesInChannel = Math.min(samplesToCheck, data.length);
+    for (let i = 0; i < samplesInChannel; i++) {
       const sample = Math.abs(data[i]);
       if (sample > peak) peak = sample;
       sumSquares += data[i] * data[i];
@@ -84,8 +87,9 @@ export function needsCompression(buffer: AudioBuffer): boolean {
     }
   }
 
-  const rms = Math.sqrt(sumSquares / sampleCount);
-  const crestFactor = peak > 0 ? peak / rms : 0;
+  // Guard against empty buffer and division by zero
+  const rms = sampleCount > 0 ? Math.sqrt(sumSquares / sampleCount) : 0;
+  const crestFactor = rms > 0 ? peak / rms : 0;
 
   // Simple decision: compress if crest factor > 5.5 (more conservative)
   return crestFactor > 5.5;
