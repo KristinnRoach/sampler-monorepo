@@ -9,17 +9,17 @@
 
 export const CSS_CUSTOM_PROPERTIES = {
   // Component spacing
-  '--ac-spacing-xs': '0.25rem',
-  '--ac-spacing-sm': '0.5rem',
-  '--ac-spacing-md': '1rem',
-  '--ac-spacing-lg': '1.5rem',
-  '--ac-spacing-xl': '2rem',
+  '--ac-spacing-xs': '0.15rem',
+  '--ac-spacing-sm': '0.25rem',
+  '--ac-spacing-md': '0.5rem',
+  '--ac-spacing-lg': '1rem',
+  '--ac-spacing-xl': '1.5rem',
 
   // Component sizing
-  '--ac-component-height-sm': '32px',
-  '--ac-component-height-md': '40px',
+  '--ac-component-height-sm': '24px',
+  '--ac-component-height-md': '32px',
   '--ac-component-height-lg': '48px',
-  '--ac-component-min-width': '80px',
+  '--ac-component-min-width': '60px',
 
   // Typography
   '--ac-font-family': 'system-ui, sans-serif',
@@ -61,8 +61,8 @@ export const CSS_CUSTOM_PROPERTIES = {
 
   // Component-specific
   '--ac-knob-size': '60px',
-  '--ac-button-padding': '0.5rem 1rem',
-  '--ac-toggle-height': '24px',
+  '--ac-button-padding': '0.25rem 0.5rem',
+  '--ac-toggle-height': '18px',
   '--ac-envelope-height': '200px',
   '--ac-keyboard-height': '60px',
 } as const;

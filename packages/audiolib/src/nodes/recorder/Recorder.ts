@@ -39,7 +39,7 @@ export const DEFAULT_RECORDER_OPTIONS = {
   stopThreshold: -40, // todo: guard ensuring stopTreshold < startTreshold
   silenceTimeoutMs: 1000,
   preprocess: false, // SamplePlayer handles preprocessing
-  preprocessOptions: undefined, // use default options
+  preprocessOptions: {}, // use default options
 };
 
 export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;

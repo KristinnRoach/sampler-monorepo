@@ -890,6 +890,10 @@ export class SampleVoice {
     return endPoint - startPoint;
   }
 
+  get isActive() {
+    return this.#activeMidiNote !== null;
+  }
+
   get feedback() {
     return this.#feedback;
   }

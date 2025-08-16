@@ -445,7 +445,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
-    preprocessOptions?: PreProcessOptions
+    preprocessOptions?: Partial<PreProcessOptions>
   ): Promise<AudioBuffer | null> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
