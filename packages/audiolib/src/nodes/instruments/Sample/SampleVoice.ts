@@ -102,6 +102,9 @@ export class SampleVoice {
         // Connect nodes
         this.#connectAudioChain();
 
+        // Create Envelopes // Todo: follow async pattern to the end
+        this.#createEnvelopes();
+
         // Setup message handling
         this.#setupWorkletMessageHandling();
         this.sendToProcessor({ type: 'voice:init' });
@@ -795,10 +798,8 @@ export class SampleVoice {
 
         case 'voice:loaded':
           this.#activeMidiNote = null;
-          this.#state = VoiceState.LOADED;
 
           if (data.durationSeconds) {
-            this.#activeMidiNote = null;
             this.#sampleDurationSeconds = data.durationSeconds;
 
             this.#createEnvelopes();
@@ -808,9 +809,11 @@ export class SampleVoice {
 
             // ? Why is this necessary ?
             // Initialize loopEnd to 0 to force the macro parameter to update
-            // This ensures the macro's value (1) will be applied when connected
+            // This ensures the macro's value will be applied when connected
             this.setParam('loopEnd', 0, this.now);
           }
+          this.#state = VoiceState.LOADED;
+
           break;
 
         case 'voice:transposed':

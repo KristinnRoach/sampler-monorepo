@@ -92,7 +92,6 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       if (customEvent.detail.nodeId === targetNodeId.val) {
         sampleLoaded.val = true;
 
-        // Recreate all envelopes with the new sample data
         createEnvelopes();
       }
     };

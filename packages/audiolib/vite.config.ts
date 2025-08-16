@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [
     dts({
       include: ['src'],
-      exclude: ['**/*.test.ts', '**/__tests__/**', '**/test-setup.ts'],
+      exclude: ['**/*.test.ts', '**/__tests__/**'],
       outDir: 'dist',
       rollupTypes: true,
     }),
@@ -25,9 +25,7 @@ export default defineConfig({
       formats: ['es'],
       fileName: 'index', // skoða
     },
-    rollupOptions: {
-      external: [/test-setup\.ts$/], // Exclude test setup from build
-    },
+    rollupOptions: {}, // ??
     // output: { globals: {}, }, // skoða
   },
   resolve: {
