@@ -431,7 +431,8 @@ export const EnvelopeSVG = (
     // Control buttons at the top right corner
     div(
       {
-        style: 'position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 4px; padding: 4px; z-index: 10;',
+        style:
+          'position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 4px; padding: 4px; z-index: 10;',
       },
       controlButtons.enabledToggle,
       controlButtons.loopToggle,
@@ -694,35 +695,39 @@ export const EnvelopeSVG = (
 
   updateControlPoints();
 
-  let tl = gsap.timeline();
-  tl.from(
-    gridGroup.children,
-    {
-      duration: 0.25,
-      drawSVG: 0,
-      ease: 'none',
-      stagger: 0.1,
-    },
-    0.1
-  )
-    .from(
-      envelopePath,
+  const animateIntro = () => {
+    let tl = gsap.timeline();
+    tl.from(
+      gridGroup.children,
       {
         duration: 0.25,
         drawSVG: 0,
         ease: 'none',
+        stagger: 0.1,
       },
-      0.2
+      0.1
     )
-    .from(
-      pointsGroup,
-      {
-        opacity: 0,
-        duration: 0.25,
-        ease: 'none',
-      },
-      '-=0.2'
-    );
+      .from(
+        envelopePath,
+        {
+          duration: 0.25,
+          drawSVG: 0,
+          ease: 'none',
+        },
+        0.2
+      )
+      .from(
+        pointsGroup,
+        {
+          opacity: 0,
+          duration: 0.25,
+          ease: 'none',
+        },
+        '-=0.2'
+      );
+  };
+
+  animateIntro();
 
   // Refresh function to update envelope display when data changes
   const refresh = () => {
@@ -737,6 +742,7 @@ export const EnvelopeSVG = (
     // Update visual elements
     updateControlPoints();
     updateEnvelopePath();
+    // animateIntro(); // TODO: make this work
   };
 
   // Listen for envelope created/updated messages

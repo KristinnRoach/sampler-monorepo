@@ -41,8 +41,8 @@ export const TimeScaleKnob = (
     maxValue: 120,
     defaultValue: 1,
     snapIncrement: 1,
-    width: 25,
-    height: 25,
+    width: 10,
+    height: 10,
     curve: 4,
     snapThresholds: [
       { maxValue: 0.5, increment: 0.5 },
