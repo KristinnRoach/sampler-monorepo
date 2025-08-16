@@ -22,7 +22,7 @@ body {
   height: clamp(100dvh, 100dvh, 100dvh);
   width: clamp(100dvw, 100dvw, 100dvw);
 
-  /* overflow: hidden; */
+  overflow: hidden;
 }
 
 .page-wrapper {
@@ -40,6 +40,7 @@ body {
   width: fit-content;
 
   row-gap: 0.5rem;
+  column-gap: 0.1;
   padding: 1rem;
 
   place-self: center;
@@ -69,7 +70,7 @@ record-button > div > button {
 .control-group {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-auto-columns: fit-content;
 
   align-items: start;
   justify-items: center;
@@ -180,8 +181,22 @@ record-button > div > button {
   grid-template-rows: min-content;
   gap: 0.2rem;
   padding-top: 0;
-  padding-bottom: 0.2;
+  padding-bottom: 0.2rem;
 }
+
+/* Override default component spacing for toggles */
+.toggle-group midi-toggle,
+.toggle-group playback-direction-toggle,
+.toggle-group loop-lock-toggle,
+.toggle-group hold-lock-toggle,
+.toggle-group pitch-toggle,
+.toggle-group sampler-status {
+  --ac-spacing-sm: 0.3rem; /* Reduce padding from 0.5rem */
+  --ac-spacing-xs: 0.15rem; /* Reduce margin from 0.25rem */
+  --ac-component-height-sm: 24px; /* Reduce min-height from 32px */
+}
+
+/** KEYBOARD **/
 
 .keyboard-group {
   grid-area: keyboard;

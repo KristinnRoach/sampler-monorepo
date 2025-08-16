@@ -102,6 +102,9 @@ export class SampleVoice {
         // Connect nodes
         this.#connectAudioChain();
 
+        // Create Envelopes // Todo: follow async pattern to the end
+        this.#createEnvelopes();
+
         // Setup message handling
         this.#setupWorkletMessageHandling();
         this.sendToProcessor({ type: 'voice:init' });
@@ -281,14 +284,18 @@ export class SampleVoice {
     const scaledGlideTime = glideTime / GLIDE_TEMP_SCALAR;
 
     let playbackRate = 1;
+    let prevRate = 1;
 
     if (!this.#pitchDisabled) {
       playbackRate = midiToPlaybackRate(midiNote);
+      if (options.glide) {
+        prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
+      }
     }
 
-    if (options.glide && scaledGlideTime > 0) {
+    // Only apply glide if pitch is enabled and glide is requested
+    if (!this.#pitchDisabled && options.glide && scaledGlideTime > 0) {
       const rateParam = this.getParam('playbackRate')!;
-      const prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
       prevRate > 0 && rateParam.setValueAtTime(prevRate, timestamp);
 
       this.getParam('playbackRate')!.setTargetAtTime(
@@ -685,10 +692,25 @@ export class SampleVoice {
   }
 
   disablePitch = () => {
-    console.warn('disabled pitch');
     this.#pitchDisabled = true;
+
+    // if (this.isPlaying()) {
+    this.getParam('playbackRate')?.linearRampToValueAtTime(
+      1,
+      this.context.currentTime + 0.01
+    );
   };
-  enablePitch = () => (this.#pitchDisabled = false);
+  enablePitch = () => {
+    this.#pitchDisabled = false;
+
+    if (this.#activeMidiNote) {
+      const rate = midiToPlaybackRate(this.#activeMidiNote);
+      this.getParam('playbackRate')?.linearRampToValueAtTime(
+        rate,
+        this.context.currentTime + 0.01
+      );
+    }
+  };
 
   /** CONNECTIONS */
 
@@ -776,10 +798,8 @@ export class SampleVoice {
 
         case 'voice:loaded':
           this.#activeMidiNote = null;
-          this.#state = VoiceState.LOADED;
 
           if (data.durationSeconds) {
-            this.#activeMidiNote = null;
             this.#sampleDurationSeconds = data.durationSeconds;
 
             this.#createEnvelopes();
@@ -789,9 +809,11 @@ export class SampleVoice {
 
             // ? Why is this necessary ?
             // Initialize loopEnd to 0 to force the macro parameter to update
-            // This ensures the macro's value (1) will be applied when connected
+            // This ensures the macro's value will be applied when connected
             this.setParam('loopEnd', 0, this.now);
           }
+          this.#state = VoiceState.LOADED;
+
           break;
 
         case 'voice:transposed':
@@ -869,6 +891,10 @@ export class SampleVoice {
     const startPoint = this.getParam('startPoint')!.value;
     const endPoint = this.getParam('endPoint')!.value;
     return endPoint - startPoint;
+  }
+
+  get isActive() {
+    return this.#activeMidiNote !== null;
   }
 
   get feedback() {

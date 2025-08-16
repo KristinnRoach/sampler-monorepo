@@ -302,12 +302,18 @@ export class SamplePlayer implements ILibInstrumentNode {
       'voice:stopped',
       'voice:releasing',
       'sample:loaded',
+
+      'amp-env:created',
       'amp-env:trigger',
       'amp-env:trigger:loop',
       'amp-env:release',
+
+      'pitch-env:created',
       'pitch-env:trigger',
       'pitch-env:trigger:loop',
       'pitch-env:release',
+
+      'filter-env:created',
       'filter-env:trigger',
       'filter-env:trigger:loop',
       'filter-env:release',
@@ -445,7 +451,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
-    preprocessOptions?: PreProcessOptions
+    preprocessOptions?: Partial<PreProcessOptions>
   ): Promise<AudioBuffer | null> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -488,8 +494,10 @@ export class SamplePlayer implements ILibInstrumentNode {
       }
     }
 
-    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
+    this.#audiobuffer = buffer;
     this.#bufferDuration = buffer.duration;
+
+    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
     this.#resetMacros(buffer.duration);
 
     const defaultScaleOptions = {
@@ -502,7 +510,6 @@ export class SamplePlayer implements ILibInstrumentNode {
     };
 
     this.setScale(defaultScaleOptions);
-    this.#audiobuffer = buffer;
 
     return buffer;
   }

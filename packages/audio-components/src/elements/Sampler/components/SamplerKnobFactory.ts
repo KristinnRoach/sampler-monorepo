@@ -410,7 +410,7 @@ export const LoopDurationKnob = createKnob(
   INLINE_COMPONENT_STYLE
 );
 
-// ===== SHARED KNOB STATE REGISTRY ===== // Currently not used
+// // ===== SHARED KNOB STATE REGISTRY =====
 // const knobStates = new Map<string, any>();
 // const getKnobState = (key: string) => knobStates.get(key);
 // const setKnobState = (key: string, state: any) => knobStates.set(key, state);

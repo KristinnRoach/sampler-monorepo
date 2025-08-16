@@ -48,7 +48,7 @@ export const EnvelopeSVG = (
       {
         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
       },
-      'No envelope data'
+      'Record or load a sample to start'
     );
     return {
       element: emptyDiv,
@@ -373,8 +373,13 @@ export const EnvelopeSVG = (
   );
 
   van.derive(() => {
-    if (enabled.val) instrument.enableEnvelope(envelopeType);
-    else if (!enabled.val) instrument.disableEnvelope(envelopeType);
+    if (enabled.val) {
+      instrument.enableEnvelope(envelopeType);
+      updateControlPoints();
+      updateEnvelopePath();
+    } else if (!enabled.val) {
+      instrument.disableEnvelope(envelopeType);
+    }
   });
 
   van.derive(() => instrument.setEnvelopeLoop(envelopeType, loopEnabled.val));

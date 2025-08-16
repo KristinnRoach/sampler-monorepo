@@ -13,8 +13,7 @@ export default defineConfig({
     },
 
     testTimeout: 10000,
-    // setupFiles: ['src/utils/test-setup.ts'],
-    // Mocks for web audio api - should only exist in the test environment!
+    setupFiles: [],
   },
   resolve: {
     alias: {
@@ -32,7 +31,7 @@ export default defineConfig({
 //     browser: {
 //       enabled: true,
 //       headless: true,
-//       name: 'chrome', // browser name is required
+//       name: 'chrome',
 //     },
 //     // logHeapUsage: true,
 //     reporters: 'default',

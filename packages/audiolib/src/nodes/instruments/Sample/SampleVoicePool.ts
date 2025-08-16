@@ -29,6 +29,9 @@ export class SampleVoicePool implements LibNode {
 
   #gainReductionScalar = 1; // Reduces gain based on number of playing voices
 
+  // Envelope creation tracking: Map<envType, Set<SampleVoice>>
+  #envelopeCreatedMap = new Map<string, Set<SampleVoice>>();
+
   constructor(context: AudioContext, polyphony: number) {
     this.nodeId = registerNode(this.nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
@@ -93,6 +96,7 @@ export class SampleVoicePool implements LibNode {
   }
 
   #initializedVoices = new Set<SampleVoice>();
+
   #setupMessageHandling(voice: SampleVoice) {
     voice.onMessage('voice:started', (msg: Message) => {
       // Ensure mutual exlusion (idempotent delete)
@@ -139,6 +143,25 @@ export class SampleVoicePool implements LibNode {
       }
     });
 
+    // Envelope creation tracking
+    const envelopeTypes = ['amp-env', 'pitch-env', 'filter-env'];
+    envelopeTypes.forEach((envType) => {
+      voice.onMessage(`${envType}:created`, (msg: Message) => {
+        if (!this.#envelopeCreatedMap.has(envType)) {
+          this.#envelopeCreatedMap.set(envType, new Set());
+        }
+        const set = this.#envelopeCreatedMap.get(envType)!;
+        set.add(msg.voice);
+        if (set.size === this.#allVoices.length) {
+          // All voices have created this envelope type
+          this.sendUpstreamMessage(`${envType}:created`, {
+            envType,
+            voiceCount: this.#allVoices.length,
+          });
+        }
+      });
+    });
+
     this.#messages.forwardFrom(
       voice,
       [
@@ -158,6 +181,10 @@ export class SampleVoicePool implements LibNode {
         'filter-env:trigger',
         'filter-env:trigger:loop',
         'filter-env:release',
+        // Forward envelope created events
+        'amp-env:created',
+        'pitch-env:created',
+        'filter-env:created',
       ],
       (msg) => {
         if (msg.type === 'voice:loaded') {
@@ -167,7 +194,7 @@ export class SampleVoicePool implements LibNode {
           if (this.#loaded.size === this.#allVoices.length) {
             return { ...msg, type: 'sample:loaded' };
           }
-          return null; // Don't forward individual voice:loaded messages
+          return null;
         }
         return msg;
       }

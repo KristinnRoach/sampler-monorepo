@@ -1,5 +1,6 @@
 import { normalizeAudioBuffer } from '@/utils/audiodata/process/normalizeAudioBuffer';
 import { compressAudioBuffer } from '@/utils/audiodata/process/compressAudioBuffer';
+import { shouldCompress } from '@/utils/audiodata/process/shouldCompress';
 import { detectThresholdCrossing } from '@/utils/audiodata/process/detectSilence';
 import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
@@ -29,7 +30,7 @@ export type PreProcessOptions = {
 
 export const DEFAULT_PRE_PROCESS_OPTIONS: PreProcessOptions = {
   normalize: { enabled: true, maxAmplitudePeak: 0.98 }, // amplitude range [-1, 1] - increased from 0.9 for better volume
-  compress: { enabled: true, threshold: 0.3, ratio: 4, makeupGain: 1.5 }, // disabled by default - enable for louder audio
+  compress: { enabled: true, threshold: 0.5, ratio: 2, makeupGain: 1.0 }, // uses shouldCompress // ? should this overwrite if passed in?
   trimSilence: { enabled: true, threshold: 0.01 }, // [-1, 1]
   fadeInOutMs: 5, // milliseconds
   tune: { detectPitch: true, autotune: true, targetMidiNote: 60 },
@@ -52,16 +53,16 @@ export type PreProcessResults = {
 export async function preProcessAudioBuffer(
   ctx: AudioContext,
   buffer: AudioBuffer,
-  options: PreProcessOptions = DEFAULT_PRE_PROCESS_OPTIONS
+  options: Partial<PreProcessOptions> = DEFAULT_PRE_PROCESS_OPTIONS
 ): Promise<PreProcessResults> {
   const {
-    normalize,
-    compress,
-    trimSilence,
-    fadeInOutMs,
-    tune,
-    hpf,
-    getZeroCrossings,
+    normalize = DEFAULT_PRE_PROCESS_OPTIONS.normalize,
+    compress = DEFAULT_PRE_PROCESS_OPTIONS.compress,
+    trimSilence = DEFAULT_PRE_PROCESS_OPTIONS.trimSilence,
+    fadeInOutMs = DEFAULT_PRE_PROCESS_OPTIONS.fadeInOutMs,
+    tune = DEFAULT_PRE_PROCESS_OPTIONS.tune,
+    hpf = DEFAULT_PRE_PROCESS_OPTIONS.hpf,
+    getZeroCrossings = DEFAULT_PRE_PROCESS_OPTIONS.getZeroCrossings,
   } = options;
 
   let processed = buffer;
@@ -99,13 +100,33 @@ export async function preProcessAudioBuffer(
     );
 
   if (compress?.enabled) {
-    processed = compressAudioBuffer(
-      ctx,
-      processed,
-      compress.threshold,
-      compress.ratio,
-      compress.makeupGain
-    );
+    // Smart compression: check if audio needs it
+    const compressionAnalysis = shouldCompress(processed);
+
+    if (compressionAnalysis.shouldCompress) {
+      // Use suggested settings or fall back to configured ones
+      const settings = compressionAnalysis.suggestedSettings || {
+        threshold: compress.threshold,
+        ratio: compress.ratio,
+        makeupGain: compress.makeupGain,
+      };
+
+      processed = compressAudioBuffer(
+        ctx,
+        processed,
+        settings.threshold,
+        settings.ratio,
+        settings.makeupGain
+      );
+
+      console.log(
+        `Applied compression (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)})`
+      );
+    } else {
+      console.log(
+        `Skipped compression - already compressed (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)})`
+      );
+    }
   }
 
   if (
