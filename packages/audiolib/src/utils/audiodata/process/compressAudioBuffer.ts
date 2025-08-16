@@ -110,10 +110,10 @@ export function compressAudioBufferRMS(
   const sampleRate = buffer.sampleRate;
 
   // Convert time constants to samples
-  const attackSamples = Math.floor(attack * sampleRate);
-  const releaseSamples = Math.floor(release * sampleRate);
-  const lookaheadSamples = Math.floor(lookahead * sampleRate);
-  const rmsWindowSize = Math.floor(0.01 * sampleRate); // 10ms RMS window
+  const attackSamples = Math.max(1, Math.floor(attack * sampleRate));
+  const releaseSamples = Math.max(1, Math.floor(release * sampleRate));
+  const lookaheadSamples = Math.max(0, Math.floor(lookahead * sampleRate));
+  const rmsWindowSize = Math.max(1, Math.floor(0.01 * sampleRate)); // 10ms RMS window
 
   // Create output buffer
   const compressed = ctx.createBuffer(numChannels, length, sampleRate);
