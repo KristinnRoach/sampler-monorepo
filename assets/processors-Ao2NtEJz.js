@@ -62,7 +62,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableAdaptiveDrift = true;
     this.enableAmplitudeCompensation = true;
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
-    this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 130.81);
+    this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 16.35);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
     __privateMethod(this, _SamplePlayerProcessor_instances, resetState_fn).call(this);
   }
@@ -600,11 +600,12 @@ analyzeLoopAmplitude_fn = function(loopStart, loopEnd) {
   }
   if (sampleCount === 0) return 1;
   const rmsAmplitude = Math.sqrt(sumSquares / sampleCount);
-  const targetAmplitude = 0.5;
+  const targetAmplitude = 0.3;
   let makeupGain = 1;
-  if (rmsAmplitude > 1e-3) {
-    makeupGain = targetAmplitude / rmsAmplitude;
-    makeupGain = Math.max(0.5, Math.min(3, makeupGain));
+  if (rmsAmplitude < targetAmplitude) {
+    const safeRms = Math.max(rmsAmplitude, 1e-3);
+    makeupGain = targetAmplitude / safeRms;
+    makeupGain = Math.min(2, makeupGain);
   }
   this.lastAnalyzedLoopStart = loopStart;
   this.lastAnalyzedLoopEnd = loopEnd;
