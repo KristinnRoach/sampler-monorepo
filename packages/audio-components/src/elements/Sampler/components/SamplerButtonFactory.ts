@@ -5,10 +5,9 @@ import { createAudioRecorder, type Recorder } from '@repo/audiolib';
 import { getSampler, onRegistryChange } from '../SamplerRegistry';
 import { createFindNodeId } from '../../../shared/utils/component-utils';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import { SVGButtonFactory } from '../../../shared/createSVGButton';
+import { createSVGButton } from '../../../shared/createSVGButton';
 
 const { div } = van.tags;
-const svgFactory = new SVGButtonFactory();
 
 // ===== UPLOAD BUTTON =====
 
@@ -56,8 +55,8 @@ export const UploadButton = (attributes: ElementProps) => {
     fileInput.click();
   };
 
-  // Create SVG upload button
-  const uploadButton = svgFactory.createButton('Upload Sample', 'upload', {
+  // Create SVG upload button using new function API
+  const uploadButton = createSVGButton('Upload Sample', 'upload', {
     size: 'md',
     onClick: loadSample,
   });
@@ -166,16 +165,17 @@ export const RecordButton = (attributes: ElementProps) => {
     }
   };
 
-  recordButton = svgFactory.createButton(
+  // Create SVG record button using new function API
+  recordButton = createSVGButton(
     'Record Sample',
     ['record_inactive', 'record_armed', 'record_recording'],
     {
       size: 'md',
       onClick: handleClick,
       colors: {
-        record_inactive: '#6b7280', // gray - can customize
-        record_armed: '#f59e0b', // amber - can customize
-        record_recording: '#ef4444', // red - can customize
+        record_inactive: '#FFFFFF',
+        record_armed: '#f59e0b',
+        record_recording: '#ef4444',
       },
     }
   );

@@ -3,16 +3,104 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
 import { Toggle } from '../../primitives/VanToggle';
-import {
-  COMPONENT_STYLE,
-  INLINE_COMPONENT_STYLE,
-} from '../../../shared/styles/component-styles';
+import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import {
   createToggle,
   ToggleConfig,
 } from '../../../shared/utils/component-utils';
 
+import { createSVGButton } from '../../../shared/createSVGButton';
+
+const { div } = van.tags;
+
 // ===== TOGGLE CONFIGURATIONS =====
+
+export const MidiToggle = (attributes: ElementProps) => {
+  const targetNodeId = attributes.attr('target-node-id', '');
+
+  const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
+    size: 'lg',
+    onClick: () => {
+      const sampler = getSampler(targetNodeId.val);
+      if (!sampler) return;
+
+      // Check current button state to determine action
+      const currentState = toggleButton.innerHTML.includes('line')
+        ? 'off'
+        : 'on';
+
+      if (currentState === 'on') {
+        if (typeof sampler.disableMIDI === 'function') {
+          sampler.disableMIDI();
+        }
+      } else {
+        if (typeof sampler.enableMIDI === 'function') {
+          sampler.enableMIDI();
+        }
+      }
+    },
+    colors: {
+      midi_on: '#ddd',
+      midi_off: '#aaa',
+    },
+  });
+
+  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+};
+
+export const PlaybackDirectionToggle = (attributes: ElementProps) => {
+  const targetNodeId = attributes.attr('target-node-id', '');
+
+  const toggleButton = createSVGButton(
+    'Toggle Playback Direction',
+    ['direction_forward', 'direction_reverse'],
+    {
+      size: 'md',
+      onClick: () => {
+        const sampler = getSampler(targetNodeId.val);
+        if (!sampler) return;
+
+        // Check current state - if it contains left-pointing arrow, it's reverse
+        const isCurrentlyReverse =
+          toggleButton.innerHTML.includes('19,3 5,12 19,21');
+        const newDirection = isCurrentlyReverse ? 'forward' : 'reverse';
+
+        sampler.setPlaybackDirection(newDirection);
+      },
+    }
+  );
+
+  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+};
+
+// const midiConfig: ToggleConfig = {
+//   label: '',
+//   defaultValue: true,
+//   onColor: '#4CAF50',
+//   offText: 'MIDI off',
+//   onText: 'MIDI on',
+//   onSamplerConnect: (sampler, state, van) => {
+//     van.derive(() => {
+//       if (state.val) {
+//         if (
+//           sampler &&
+//           'enableMIDI' in sampler &&
+//           typeof sampler.enableMIDI === 'function'
+//         ) {
+//           sampler.enableMIDI();
+//         }
+//       } else {
+//         if (
+//           sampler &&
+//           'disableMIDI' in sampler &&
+//           typeof sampler.disableMIDI === 'function'
+//         ) {
+//           sampler.disableMIDI();
+//         }
+//       }
+//     });
+//   },
+// };
 
 const feedbackModeConfig: ToggleConfig = {
   label: 'FB-Mode',
@@ -24,35 +112,6 @@ const feedbackModeConfig: ToggleConfig = {
     van.derive(() => {
       const mode = state.val ? 'polyphonic' : 'monophonic';
       sampler.setFeedbackMode(mode);
-    });
-  },
-};
-
-const midiConfig: ToggleConfig = {
-  label: '',
-  defaultValue: true,
-  onColor: '#4CAF50',
-  offText: 'MIDI off',
-  onText: 'MIDI on',
-  onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => {
-      if (state.val) {
-        if (
-          sampler &&
-          'enableMIDI' in sampler &&
-          typeof sampler.enableMIDI === 'function'
-        ) {
-          sampler.enableMIDI();
-        }
-      } else {
-        if (
-          sampler &&
-          'disableMIDI' in sampler &&
-          typeof sampler.disableMIDI === 'function'
-        ) {
-          sampler.disableMIDI();
-        }
-      }
     });
   },
 };
@@ -159,16 +218,16 @@ const panDriftConfig: ToggleConfig = {
 
 // ===== EXPORTED TOGGLE COMPONENTS =====
 
+// export const MidiToggle = createToggle(
+//   midiConfig,
+//   getSampler,
+//   Toggle,
+//   van,
+//   INLINE_COMPONENT_STYLE
+// );
+
 export const FeedbackModeToggle = createToggle(
   feedbackModeConfig,
-  getSampler,
-  Toggle,
-  van,
-  INLINE_COMPONENT_STYLE
-);
-
-export const MidiToggle = createToggle(
-  midiConfig,
   getSampler,
   Toggle,
   van,
@@ -215,13 +274,13 @@ export const PitchLFOSyncNoteToggle = createToggle(
   INLINE_COMPONENT_STYLE
 );
 
-export const PlaybackDirectionToggle = createToggle(
-  playbackDirectionConfig,
-  getSampler,
-  Toggle,
-  van,
-  INLINE_COMPONENT_STYLE
-);
+// export const PlaybackDirectionToggle = createToggle(
+//   playbackDirectionConfig,
+//   getSampler,
+//   Toggle,
+//   van,
+//   INLINE_COMPONENT_STYLE
+// );
 
 export const PanDriftToggle = createToggle(
   panDriftConfig,

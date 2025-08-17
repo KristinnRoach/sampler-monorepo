@@ -16,7 +16,7 @@ body {
   padding: 0;
   box-sizing: border-box;
 
-  background-color: #357d3f; /* old yellow: #c0c44fd5; */
+  background-color: #c0c44fa1; /* #357d3f;  old yellow: #c0c44fd5; */
   color: #ccc;
 
   height: clamp(100dvh, 100dvh, 100dvh);
@@ -55,7 +55,8 @@ body {
   border: 1px solid #a8a6a692;
 
   border-radius: 0.5rem;
-  background-color: rgba(0, 0, 0, 0.35);
+  /* background-color: rgba(0, 0, 0, 0.35); */
+  background-color: #29552f;
 }
 
 /* Individual elements now positioned via parent grid areas */
@@ -174,8 +175,8 @@ record-button > div > button {
 
 .toggle-group {
   grid-area: toggle;
-  grid-auto-flow: row;
-  grid-template-columns: repeat(2, min-content);
+  /* grid-auto-flow: row; */
+  grid-template-columns: 1fr 1fr;
   grid-template-rows: min-content;
   gap: 0.2rem;
   padding-top: 0;
@@ -189,9 +190,9 @@ record-button > div > button {
 .toggle-group hold-lock-toggle,
 .toggle-group pitch-toggle,
 .toggle-group sampler-status {
-  --ac-spacing-sm: 0.3rem; /* Reduce padding from 0.5rem */
-  --ac-spacing-xs: 0.15rem; /* Reduce margin from 0.25rem */
-  --ac-component-height-sm: 24px; /* Reduce min-height from 32px */
+  --ac-spacing-sm: 0.3rem;
+  --ac-spacing-xs: 0.15rem;
+  --ac-component-height-sm: 24px;
 }
 
 /** KEYBOARD **/
