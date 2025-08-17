@@ -3,7 +3,7 @@ import van from '@repo/vanjs-core';
 import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
-import { LabeledTimeScaleKnob } from './TimeScaleKnob';
+import { TimeScaleKnob } from './TimeScaleKnob';
 
 import {
   applySnapping,
@@ -31,6 +31,7 @@ export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
   timeScaleKnob: HTMLElement;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
+  refresh: () => void;
   cleanup: () => void;
 }
 
@@ -43,6 +44,7 @@ export const EnvelopeSVG = (
   snapThreshold = 0.025,
   multiColorPlayheads = true
 ): EnvelopeSVG => {
+  // Early return with refresh capability for empty envelopes
   if (!instrument.getEnvelope(envType).points.length) {
     const emptyDiv = div(
       {
@@ -54,12 +56,26 @@ export const EnvelopeSVG = (
       element: emptyDiv,
       timeScaleKnob: emptyDiv,
       drawWaveform: () => {},
+      refresh: () => {
+        // When refresh is called, re-create the envelope if it now has points
+        if (instrument.getEnvelope(envType).points.length) {
+          return EnvelopeSVG(
+            instrument,
+            envType,
+            width,
+            height,
+            snapToValues,
+            snapThreshold,
+            multiColorPlayheads
+          );
+        }
+      },
       cleanup: () => {},
     };
   }
 
-  // Get envelope properties
-  const envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
+  // Get envelope properties - store as let so we can update it
+  let envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
   const envelopeType = envType;
 
   const SVG_WIDTH = 400;
@@ -260,6 +276,9 @@ export const EnvelopeSVG = (
   const updateControlPoints = () => {
     if (!pointsGroup) return;
 
+    // Refresh envelope info before updating
+    envelopeInfo = instrument.getEnvelope(envType);
+
     // Only remove circle elements (control points), not all children
     const circles = pointsGroup.querySelectorAll('circle');
     circles.forEach((circle) => circle.remove());
@@ -389,7 +408,7 @@ export const EnvelopeSVG = (
   );
 
   // Add time scale knob if callback provided
-  const timeScaleKnob = LabeledTimeScaleKnob({
+  const timeScaleKnob = TimeScaleKnob({
     label: 'Env Speed',
     onChange: ({ envelopeType, timeScale }) =>
       instrument.setEnvelopeTimeScale(envelopeType, timeScale),
@@ -398,25 +417,41 @@ export const EnvelopeSVG = (
     width: 40,
   });
 
-  // Create container div
+  // Create container div with control buttons and timescale knob at the top
   const container = div(
     {
       style: `position: relative; width: ${width}; height: ${height};`,
     },
-    controlButtons.enabledToggle,
-    controlButtons.loopToggle,
-    controlButtons.syncToggle
+    // Timescale knob positioned separately on the right but not at the edge
+    div(
+      {
+        style: 'position: absolute; top: 4px; right: 120px; z-index: 10;',
+      },
+      timeScaleKnob
+    ),
+    // Control buttons at the top right corner
+    div(
+      {
+        style:
+          'position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 4px; padding: 4px; z-index: 10;',
+      },
+      controlButtons.enabledToggle,
+      controlButtons.loopToggle,
+      controlButtons.syncToggle
+    )
   );
 
   // Manually append the SVG element to avoid namespace issues
   container.appendChild(svgElement);
-
   // Grid
   const gridGroup = createEnvelopeGrid(SVG_WIDTH, SVG_HEIGHT);
 
   // Envelope path
 
   const updateEnvelopePath = () => {
+    // Refresh envelope info before updating path
+    envelopeInfo = instrument.getEnvelope(envType);
+
     envelopePath.setAttribute(
       'd',
       generateSVGPath(
@@ -661,41 +696,82 @@ export const EnvelopeSVG = (
 
   updateControlPoints();
 
-  let tl = gsap.timeline();
-  tl.from(
-    gridGroup.children,
-    {
-      duration: 0.25,
-      drawSVG: 0,
-      ease: 'none',
-      stagger: 0.1,
-    },
-    0.1
-  )
-    .from(
-      envelopePath,
+  const animateIntro = () => {
+    let tl = gsap.timeline();
+    tl.from(
+      gridGroup.children,
       {
         duration: 0.25,
         drawSVG: 0,
         ease: 'none',
+        stagger: 0.1,
       },
-      0.2
+      0.1
     )
-    .from(
-      pointsGroup,
-      {
-        opacity: 0,
-        duration: 0.25,
-        ease: 'none',
-      },
-      '-=0.2'
-    );
+      .from(
+        envelopePath,
+        {
+          duration: 0.25,
+          drawSVG: 0,
+          ease: 'none',
+        },
+        0.2
+      )
+      .from(
+        pointsGroup,
+        {
+          opacity: 0,
+          duration: 0.25,
+          ease: 'none',
+        },
+        '-=0.2'
+      );
+  };
+
+  animateIntro();
+
+  // Refresh function to update envelope display when data changes
+  const refresh = () => {
+    // Update envelope info
+    envelopeInfo = instrument.getEnvelope(envType);
+
+    // Update UI state
+    enabled.val = envelopeInfo.isEnabled;
+    loopEnabled.val = envelopeInfo.loopEnabled;
+    syncedToPlaybackRate.val = envelopeInfo.syncedToPlaybackRate;
+
+    // Update visual elements
+    updateControlPoints();
+    updateEnvelopePath();
+    // animateIntro(); // TODO: make this work
+  };
+
+  // Listen for envelope created/updated messages
+  const envelopeMessageCleanup = instrument.onMessage(
+    `${envType}:created`,
+    () => {
+      refresh();
+    }
+  );
+
+  // Listen for sample loaded to redraw waveform
+  const sampleLoadedCleanup = instrument.onMessage('sample:loaded', () => {
+    // Redraw waveform with the new sample
+    if (instrument.audiobuffer) {
+      drawWaveform(instrument.audiobuffer);
+    }
+    // Also refresh the envelope in case it changed with the new sample
+    refresh();
+  });
 
   return {
     element: container,
     timeScaleKnob,
     drawWaveform,
+    refresh,
     cleanup: () => {
+      envelopeMessageCleanup();
+      sampleLoadedCleanup();
       playheadManager.cleanup();
       // Clean up point interaction states
       pointStates.forEach((state) => {
