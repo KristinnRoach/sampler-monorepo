@@ -25,7 +25,7 @@ export * from './search';
 export * from './math/math-utils';
 export * from './math/interpolate';
 export * from './math/normalize';
-export * from './math/zero-crossing';
+export * from './audiodata/zero-crossing';
 export * from './math/second-diff';
 
 // JS data-type utils

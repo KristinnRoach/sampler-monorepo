@@ -1,3 +1,4 @@
+// Preprocessor.ts
 import { normalizeAudioBuffer } from '@/utils/audiodata/process/normalizeAudioBuffer';
 import { compressAudioBuffer } from '@/utils/audiodata/process/compressAudioBuffer';
 import { shouldCompress } from '@/utils/audiodata/process/shouldCompress';
@@ -5,13 +6,8 @@ import { detectThresholdCrossing } from '@/utils/audiodata/process/detectSilence
 import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
-import {
-  assert,
-  tryCatch,
-  isValidAudioBuffer,
-  isMidiValue,
-  findZeroCrossings,
-} from '@/utils';
+import { findZeroCrossings, findWaveCycles } from '@/utils';
+import { createPitchDivideEffect } from '@/utils/audiodata/process/pitchDivideFx';
 
 export type PreProcessOptions = {
   normalize?: { enabled: boolean; maxAmplitudePeak?: number }; // amplitude range [-1, 1]
@@ -38,8 +34,6 @@ export const DEFAULT_PRE_PROCESS_OPTIONS: PreProcessOptions = {
   getZeroCrossings: true,
 } as const;
 
-// Todo: should optimize not to create a new audio buffer in each processing step ?
-
 export type PreProcessResults = {
   audiobuffer: AudioBuffer;
   detectedPitch?: {
@@ -53,18 +47,30 @@ export type PreProcessResults = {
 export async function preProcessAudioBuffer(
   ctx: AudioContext,
   buffer: AudioBuffer,
-  options: Partial<PreProcessOptions> = DEFAULT_PRE_PROCESS_OPTIONS
+  options: Partial<PreProcessOptions> = {}
 ): Promise<PreProcessResults> {
   const {
-    normalize = DEFAULT_PRE_PROCESS_OPTIONS.normalize,
-    compress = DEFAULT_PRE_PROCESS_OPTIONS.compress,
-    trimSilence = DEFAULT_PRE_PROCESS_OPTIONS.trimSilence,
     fadeInOutMs = DEFAULT_PRE_PROCESS_OPTIONS.fadeInOutMs,
-    tune = DEFAULT_PRE_PROCESS_OPTIONS.tune,
     hpf = DEFAULT_PRE_PROCESS_OPTIONS.hpf,
     getZeroCrossings = DEFAULT_PRE_PROCESS_OPTIONS.getZeroCrossings,
   } = options;
 
+  const normalize = {
+    ...DEFAULT_PRE_PROCESS_OPTIONS.normalize,
+    ...(options.normalize || {}),
+  };
+  const compress = {
+    ...DEFAULT_PRE_PROCESS_OPTIONS.compress,
+    ...(options.compress || {}),
+  };
+  const trimSilence = {
+    ...DEFAULT_PRE_PROCESS_OPTIONS.trimSilence,
+    ...(options.trimSilence || {}),
+  };
+  const tune = {
+    ...DEFAULT_PRE_PROCESS_OPTIONS.tune,
+    ...(options.tune || {}),
+  };
   let processed = buffer;
   let results: Partial<PreProcessResults> = {};
 
@@ -106,10 +112,11 @@ export async function preProcessAudioBuffer(
     if (compressionAnalysis.shouldCompress) {
       // Always use the smart suggested settings when available
       // Only use manual overrides if explicitly provided (not from defaults)
-      const hasManualSettings = compress.threshold !== undefined || 
-                                compress.ratio !== undefined || 
-                                compress.makeupGain !== undefined;
-      
+      const hasManualSettings =
+        compress.threshold !== undefined ||
+        compress.ratio !== undefined ||
+        compress.makeupGain !== undefined;
+
       let settings;
       if (hasManualSettings && compress.threshold !== undefined) {
         // User explicitly provided settings, use them
@@ -135,7 +142,7 @@ export async function preProcessAudioBuffer(
 
       console.log(
         `Applied compression (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)}, ` +
-        `threshold: ${settings.threshold}, ratio: ${settings.ratio}:1)`
+          `threshold: ${settings.threshold}, ratio: ${settings.ratio}:1)`
       );
     } else {
       console.log(
@@ -184,7 +191,8 @@ export async function preProcessAudioBuffer(
     results.zeroCrossings = zeroes;
   }
 
-  // HPF has been moved earlier in the pipeline to prevent clipping
+  // TEST
+  processed = createPitchDivideEffect(processed, 4);
 
   const finalResults: PreProcessResults = {
     ...results,
