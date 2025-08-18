@@ -2,25 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Sampler Demo</title>
+    <link rel="icon" href="./favicon.ico" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Hljóð-Smali</title>
 
     <meta
       name="description"
       content="Playground for prototyping a sampler instrument "
     />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
-    <link rel="mask-icon" href="/mask-icon.svg" color="#000000" />
-    <meta name="theme-color" content="#000000" />
 
-
-    <script type="module" crossorigin src="./assets/index--b2pxXBM.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/audiolib-Cq2x_vn3.js">
-    <link rel="modulepreload" crossorigin href="./assets/audio-components-DoraP2e3.js">
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <script type="module" crossorigin src="./assets/index-YxK8Gje2.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/audiolib-DtiBnIzW.js">
+    <link rel="modulepreload" crossorigin href="./assets/audio-components-EIjxTboY.js">
     <link rel="modulepreload" crossorigin href="./assets/vendor-gsap-DSz2Z63p.js">
     <link rel="stylesheet" crossorigin href="./assets/index-C5K3-XMv.css">
-  </head>
+  <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
     <div id="page-wrapper" class="page-wrapper">
       <div class="control-grid" id="sampler-container">
@@ -199,31 +196,12 @@
             height="80"
           ></piano-keyboard>
 
-          <!-- <spline-viewer
-            id="keyboard-visual"
-            class="keyboard-visual hidden"
-            loading-anim-type="none"
-            url="https://prod.spline.design/ZpiHTUHQUsP10Dtk/scene.splinecode"
-          ></spline-viewer> -->
-
           <div class="keyboard-controls">
             <keymap-select target-node-id="test-sampler"></keymap-select>
             <glide-knob target-node-id="test-sampler"></glide-knob>
-            <!-- <button id="toggle-keyboard-visual" class="keyboard-visual-toggle">
-              Show Keyboard
-            </button> -->
           </div>
         </fieldset>
       </div>
     </div>
-
-    <!-- <script type="module" src="./src/utils/splineWarnings.ts">
-      /** Script to suppress warnings from the spline viewer about passive event listeners */
-    </script>
-
-    <script
-      type="module"
-      src="https://unpkg.com/@splinetool/viewer@1.10.44/build/spline-viewer.js"
-    ></script> -->
   </body>
 </html>
