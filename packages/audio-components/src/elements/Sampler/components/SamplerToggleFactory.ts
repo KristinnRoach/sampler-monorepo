@@ -19,7 +19,7 @@ export const MidiToggle = (attributes: ElementProps) => {
   const targetNodeId = attributes.attr('target-node-id', '');
 
   const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
-    size: 'lg',
+    size: 'md',
     onClick: () => {
       const sampler = getSampler(targetNodeId.val);
       if (!sampler) return;
@@ -81,6 +81,7 @@ export const LoopLockToggle = (attributes: ElementProps) => {
 
         sampler.setLoopLocked(shouldLock);
       },
+      initialState: 'loop_unlocked',
     }
   );
 
@@ -104,6 +105,7 @@ export const HoldLockToggle = (attributes: ElementProps) => {
 
         sampler.setHoldLocked(shouldLock);
       },
+      initialState: 'hold_unlocked',
     }
   );
 
