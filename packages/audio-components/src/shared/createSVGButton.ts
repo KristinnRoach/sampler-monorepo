@@ -1,3 +1,7 @@
+import { gsap, MorphSVGPlugin } from 'gsap/all';
+
+gsap.registerPlugin(MorphSVGPlugin);
+
 interface ButtonOptions {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -82,14 +86,78 @@ const icons = new Map<string, string>([
   <polygon points="19,3 5,12 19,21" fill="currentColor"/>
 </svg>`,
   ],
+
+  [
+    'loop_unlocked',
+    `<svg viewBox="0 0 17 17" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000">
+        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
+        <g id="SVGRepo_iconCarrier"> 
+        <path d="M1 9c0 2.206 1.711 4 3.813 4v1c-2.654 0-4.813-2.243-4.813-5s2.159-5 4.813-5h4.229l-1.646-1.646 0.707-0.707 2.854 2.853-2.853 2.854-0.708-0.708 1.647-1.646h-4.23c-2.102 0-3.813 1.794-3.813 4zM12.187 4v1c2.102 0 3.813 1.794 3.813 4s-1.711 4-3.813 4h-4.23l1.646-1.646-0.707-0.707-2.853 2.853 2.854 2.854 0.707-0.707-1.647-1.647h4.229c2.655 0 4.814-2.243 4.814-5s-2.159-5-4.813-5z" fill="currentColor"></path>
+        <!-- Diagonal line to indicate "off" state -->
+        <line x1="2" y1="15" x2="15" y2="2" stroke="currentColor" stroke-width="1" stroke-linecap="round"></line>
+        </g>
+     </svg>
+`,
+  ],
+
+  [
+    'loop_locked',
+    `<svg width="800px" height="800px" viewBox="0 0 17 17" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+	      <path d="M1 9c0 2.206 1.711 4 3.813 4v1c-2.654 0-4.813-2.243-4.813-5s2.159-5 4.813-5h4.229l-1.646-1.646 0.707-0.707 2.854 2.853-2.853 2.854-0.708-0.708 1.647-1.646h-4.23c-2.102 0-3.813 1.794-3.813 4zM12.187 4v1c2.102 0 3.813 1.794 3.813 4s-1.711 4-3.813 4h-4.23l1.646-1.646-0.707-0.707-2.853 2.853 2.854 2.854 0.707-0.707-1.647-1.647h4.229c2.655 0 4.814-2.243 4.814-5s-2.159-5-4.813-5z" fill="currentColor" />
+     </svg>`,
+  ],
+  [
+    'pitch_on',
+    `<svg viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+    <line x1="12" y1="12" x2="12" y2="12" stroke="currentColor" stroke-width="0" stroke-linecap="round"/>
+  </svg>`,
+  ],
+
+  [
+    'pitch_off',
+    `<svg viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+    <line x1="5" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  ],
+  [
+    'hold_locked',
+    `<svg viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="4" width="4" height="16"/>
+    <rect x="14" y="4" width="4" height="16"/>
+    <line x1="12" y1="12" x2="12" y2="12" stroke="currentColor" stroke-width="0" stroke-linecap="round"/>
+  </svg>`,
+  ],
+
+  [
+    'hold_unlocked',
+    `<svg viewBox="0 0 24 24" fill="currentColor">
+    <rect x="6" y="4" width="4" height="16"/>
+    <rect x="14" y="4" width="4" height="16"/>
+    <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  ],
 ]);
 
 const DEFAULT_COLORS = {
-  color: '#FFFFFF',
+  color: '#eee',
   background: 'transparent',
-  fill: '#FFFFFF',
-  stroke: '#FFFFFF',
+  fill: '#eee',
+  stroke: '#eee',
   hover: '#999999',
+
+  // States
+  midi_on: '#eee',
+  pitch_on: '#eee',
+  hold_locked: '#eee',
+  loop_locked: '#eee',
+
+  midi_off: '#aaa',
+  pitch_off: '#aaa',
+  hold_unlocked: '#aaa',
+  loop_unlocked: '#aaa',
 } as const;
 
 const getSizeConfig = (size: 'sm' | 'md' | 'lg'): ButtonSize => {
@@ -157,7 +225,9 @@ export function createSVGButton(
       svg.style.height = iconSize;
 
       const customColor = options.colors?.[stateName];
-      const color = customColor || DEFAULT_COLORS['color'];
+      const defaultStateColor =
+        DEFAULT_COLORS[stateName as keyof typeof DEFAULT_COLORS];
+      const color = customColor || defaultStateColor || DEFAULT_COLORS['color'];
       svg.style.color = color;
     }
   };
@@ -175,7 +245,8 @@ export function createSVGButton(
     }
   });
 
-  // Expose setState method
+  (button as any).getState = () => stateArray[currentStateIndex];
+
   (button as any).setState = (newState: string) => {
     const newIndex = stateArray.indexOf(newState);
     if (newIndex !== -1) {
@@ -195,180 +266,3 @@ export function registerIcon(name: string, svgContent: string): void {
 // Usage:
 // const downloadBtn = createSVGButton('Download', 'download', { size: 'lg' });
 // const recordBtn = createSVGButton('Record', ['record_inactive', 'record_armed', 'record_recording']);
-
-// interface ButtonOptions {
-//   size?: 'sm' | 'md' | 'lg';
-//   className?: string;
-//   onClick?: () => void;
-//   colors?: Record<string, string>;
-// }
-
-// interface ButtonSize {
-//   width: string;
-//   height: string;
-//   iconSize: string;
-// }
-
-// export class SVGButtonFactory {
-//   #icons = new Map<string, string>();
-//   #defaultColors = new Map<string, string>();
-//   static DEFAULT_STROKE_COLOR = '#000000';
-
-//   constructor() {
-//     this.registerIcon(
-//       'download',
-//       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-//       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-//       <polyline points="7,10 12,15 17,10" />
-//       <line x1="12" y1="15" x2="12" y2="3" />
-//     </svg>`
-//     );
-
-//     this.registerIcon(
-//       'upload',
-//       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-//       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-//       <polyline points="17,8 12,3 7,8" />
-//       <line x1="12" y1="3" x2="12" y2="15" />
-//     </svg>`
-//     );
-
-//     this.registerIcon(
-//       'record_inactive',
-//       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-//       <circle cx="12" cy="12" r="8" />
-//     </svg>`
-//     );
-
-//     this.registerIcon(
-//       'record_armed',
-//       `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-//       <circle cx="12" cy="12" r="8" />
-//       <circle cx="12" cy="12" r="4" fill="currentColor" />
-//     </svg>`
-//     );
-
-//     this.registerIcon(
-//       'record_recording',
-//       `<svg viewBox="0 0 24 24" fill="currentColor">
-//       <circle cx="12" cy="12" r="10" />
-//       <circle cx="12" cy="12" r="6" fill="white" />
-//     </svg>`
-//     );
-
-//     // Set default colors for record states
-//     this.#defaultColors.set('record_inactive', '#6b7280'); // gray
-//     this.#defaultColors.set('record_armed', '#f59e0b'); // amber/orange
-//     this.#defaultColors.set('record_recording', '#ef4444'); // red
-//   }
-
-//   registerIcon(name: string, svgContent: string): void {
-//     this.#icons.set(name, svgContent);
-//   }
-
-//   setDefaultColor(stateName: string, color: string): void {
-//     this.#defaultColors.set(stateName, color);
-//   }
-
-//   createButton(
-//     title: string,
-//     states: string | string[],
-//     options: ButtonOptions = {}
-//   ): HTMLButtonElement {
-//     const stateArray = Array.isArray(states) ? states : [states];
-//     let currentStateIndex = 0;
-
-//     const button = document.createElement('button');
-//     button.title = title;
-
-//     this.applyBaseStyles(button);
-//     this.applySizeStyles(button, this.getSizeConfig(options.size || 'md'));
-
-//     if (options.className) {
-//       button.className += ` ${options.className}`;
-//     }
-
-//     const updateButton = () => {
-//       const stateName = stateArray[currentStateIndex];
-//       const svgContent = this.#icons.get(stateName) || stateName;
-//       button.innerHTML = svgContent;
-
-//       const svg = button.querySelector('svg');
-//       if (svg) {
-//         const iconSize = this.getSizeConfig(options.size || 'md').iconSize;
-//         svg.style.width = iconSize;
-//         svg.style.height = iconSize;
-
-//         const customColor = options.colors?.[stateName];
-//         const defaultColor = this.#defaultColors.get(stateName);
-//         const color =
-//           customColor || defaultColor || SVGButtonFactory.DEFAULT_STROKE_COLOR;
-
-//         if (color) {
-//           svg.style.color = color;
-//         }
-//       }
-//     };
-
-//     updateButton();
-
-//     button.addEventListener('click', () => {
-//       // Allow manual cycling through states on click
-//       if (stateArray.length > 1) {
-//         currentStateIndex = (currentStateIndex + 1) % stateArray.length;
-//         updateButton();
-//       }
-
-//       if (options.onClick) {
-//         options.onClick();
-//       }
-//     });
-
-//     // Expose method to manually change state programmatically
-//     (button as any).setState = (newState: string) => {
-//       const newIndex = stateArray.indexOf(newState);
-//       if (newIndex !== -1) {
-//         currentStateIndex = newIndex;
-//         updateButton();
-//       }
-//     };
-
-//     return button;
-//   }
-
-//   private getSizeConfig(size: 'sm' | 'md' | 'lg'): ButtonSize {
-//     const sizeMap: Record<'sm' | 'md' | 'lg', ButtonSize> = {
-//       sm: { width: '32px', height: '32px', iconSize: '16px' },
-//       md: { width: '40px', height: '40px', iconSize: '20px' },
-//       lg: { width: '48px', height: '48px', iconSize: '24px' },
-//     };
-
-//     return sizeMap[size];
-//   }
-
-//   private applyBaseStyles(button: HTMLButtonElement): void {
-//     button.style.display = 'inline-flex';
-//     button.style.alignItems = 'center';
-//     button.style.justifyContent = 'center';
-//     button.style.padding = '8px';
-//     button.style.margin = '4px';
-//     button.style.borderRadius = '4px';
-//     button.style.cursor = 'pointer';
-//     button.style.border = 'none';
-//     button.style.backgroundColor = 'transparent';
-//     // button.style.backgroundColor = 'rgba(0,0,0,0.05)';
-
-//     button.addEventListener('mouseenter', () => {
-//       button.style.border = '1px solid rgba(0,0,0,0.5)';
-//     });
-
-//     button.addEventListener('mouseleave', () => {
-//       button.style.border = 'none';
-//     });
-//   }
-
-//   private applySizeStyles(button: HTMLButtonElement, size: ButtonSize): void {
-//     button.style.width = size.width;
-//     button.style.height = size.height;
-//   }
-// }

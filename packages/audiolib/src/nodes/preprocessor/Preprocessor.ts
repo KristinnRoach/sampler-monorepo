@@ -7,7 +7,6 @@ import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
 import { findZeroCrossings, findWaveCycles } from '@/utils';
-import { createPitchDivideEffect } from '@/utils/audiodata/process/pitchDivideFx';
 
 export type PreProcessOptions = {
   normalize?: { enabled: boolean; maxAmplitudePeak?: number }; // amplitude range [-1, 1]
@@ -190,9 +189,6 @@ export async function preProcessAudioBuffer(
     const zeroes = findZeroCrossings(buffer);
     results.zeroCrossings = zeroes;
   }
-
-  // TEST
-  processed = createPitchDivideEffect(processed, 4);
 
   const finalResults: PreProcessResults = {
     ...results,
