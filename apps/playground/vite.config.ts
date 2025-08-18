@@ -1,15 +1,39 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 // import dts from 'vite-plugin-dts';
-// import { VitePWA } from 'vite-plugin-pwa';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   base: './',
 
   plugins: [
-    // Not yet
-    // dts(),
-    // VitePWA({ registerType: 'autoUpdate' })
+    VitePWA({
+      registerType: 'autoUpdate', // Automatically update the service worker
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'], // assets to cache
+      manifest: {
+        name: 'Hljóð-Smali',
+        short_name: 'HljóðSmali',
+        description: 'Sampler Instrument',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            src: 'icons/android-chrome-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/android-chrome-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false, // enable PWA in dev for testing
+      },
+    }),
   ],
 
   server: {
