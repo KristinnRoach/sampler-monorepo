@@ -16,7 +16,7 @@ body {
   padding: 0;
   box-sizing: border-box;
 
-  background-color: #357d3f; /* old yellow: #c0c44fd5; */
+  background-color: #c0c44fa1; /* #357d3f;  old yellow: #c0c44fd5; */
   color: #ccc;
 
   height: clamp(100dvh, 100dvh, 100dvh);
@@ -40,7 +40,7 @@ body {
   width: fit-content;
 
   row-gap: 0.5rem;
-  column-gap: 0.1;
+  column-gap: 0.1rem;
   padding: 1rem;
 
   place-self: center;
@@ -55,7 +55,8 @@ body {
   border: 1px solid #a8a6a692;
 
   border-radius: 0.5rem;
-  background-color: rgba(0, 0, 0, 0.35);
+  /* background-color: rgba(0, 0, 0, 0.35); */
+  background-color: #29552f;
 }
 
 /* Individual elements now positioned via parent grid areas */
@@ -78,10 +79,8 @@ record-button > div > button {
 
   width: fit-content;
   height: fit-content;
-  /* min-width: 100%; */
 
   border: none;
-
   border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
   padding: 0.5rem;
@@ -176,24 +175,18 @@ record-button > div > button {
 
 .toggle-group {
   grid-area: toggle;
-  grid-auto-flow: row;
-  grid-template-columns: repeat(2, min-content);
-  grid-template-rows: min-content;
-  gap: 0.2rem;
-  padding-top: 0;
-  padding-bottom: 0.2rem;
 }
 
-/* Override default component spacing for toggles */
-.toggle-group midi-toggle,
-.toggle-group playback-direction-toggle,
-.toggle-group loop-lock-toggle,
-.toggle-group hold-lock-toggle,
-.toggle-group pitch-toggle,
+.toggle-group > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: row;
+  gap: 0.2rem;
+}
+
 .toggle-group sampler-status {
-  --ac-spacing-sm: 0.3rem; /* Reduce padding from 0.5rem */
-  --ac-spacing-xs: 0.15rem; /* Reduce margin from 0.25rem */
-  --ac-component-height-sm: 24px; /* Reduce min-height from 32px */
+  display: flex;
+  align-items: center;
 }
 
 /** KEYBOARD **/
@@ -204,7 +197,8 @@ record-button > div > button {
   position: relative;
 
   min-height: fit-content;
-  height: 30vh;
+  height: fit-content;
+  /* height: 30vh; */
 
   align-items: center;
 }

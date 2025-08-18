@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { preProcessAudioBuffer, DEFAULT_PRE_PROCESS_OPTIONS } from '@/nodes/preprocessor/Preprocessor';
 
 describe('Analyze distortion in init_sample.webm', () => {
@@ -6,6 +6,13 @@ describe('Analyze distortion in init_sample.webm', () => {
 
   beforeEach(() => {
     audioContext = new AudioContext();
+  });
+
+  afterEach(async () => {
+    if (audioContext && audioContext.state !== 'closed') {
+      await audioContext.close();
+    }
+    audioContext = null as any;
   });
 
   async function loadInitSample(): Promise<AudioBuffer> {
@@ -26,6 +33,10 @@ describe('Analyze distortion in init_sample.webm', () => {
       suddenJumps: 0, // Count of sudden amplitude changes
       maxJump: 0,
     };
+
+    // Accumulate RMS across all channels
+    let totalSquareSum = 0;
+    let totalSamples = 0;
 
     for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
       const data = buffer.getChannelData(ch);
@@ -64,8 +75,15 @@ describe('Analyze distortion in init_sample.webm', () => {
         prevSample = sample;
       }
 
-      stats.rms = Math.sqrt(squareSum / data.length);
-      stats.crestFactor = stats.peak / stats.rms;
+      // Accumulate channel's contribution to total RMS
+      totalSquareSum += squareSum;
+      totalSamples += data.length;
+    }
+
+    // Calculate RMS and crest factor once, using all channels
+    if (totalSamples > 0) {
+      stats.rms = Math.sqrt(totalSquareSum / totalSamples);
+      stats.crestFactor = stats.rms > 0 ? stats.peak / stats.rms : 0;
     }
 
     console.log(`\n${label}:`);

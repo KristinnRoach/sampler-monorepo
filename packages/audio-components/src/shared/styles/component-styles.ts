@@ -66,8 +66,8 @@ export const SELECT_STYLE = `
   padding: 2px 6px;
   border-radius: var(--ac-border-radius, 4px);
   font-size: var(--ac-font-size-xs, 11px);
-  background: var(--ac-color-bg-primary, white);
-  color: var(--ac-color-text-primary, black);
+  background: var(--ac-color-bg-primary, #333);
+  color: var(--ac-color-text-primary, #ccc);
   cursor: pointer;
   width: 75px;
   height: 22px;
