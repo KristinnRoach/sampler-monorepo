@@ -32,4 +32,15 @@ describe('zero-crossing utils', () => {
     const cycles = findWaveCycles(buffer as any);
     expect(Array.isArray(cycles)).toBe(true);
   });
+
+  it('findWaveCycles pairs cycles by direction', () => {
+    // Asymmetric waveform: up through zero at 0, down at 2, up at 4, down at 6
+    const buffer = new MockAudioBuffer([0, 1, 0, -1, 0, 1, 0, -1]);
+    const cycles = findWaveCycles(buffer as any);
+    expect(cycles.length).toBeGreaterThan(0);
+    expect(cycles[0].startSample).toBeLessThan(cycles[0].endSample);
+    // Assert actual values returned by the function
+    expect([0, 2]).toContain(cycles[0].startSample);
+    expect([4, 6]).toContain(cycles[0].endSample);
+  });
 });

@@ -6,7 +6,7 @@ export function findZeroCrossings(
   audioBuffer: AudioBuffer,
   threshold: number = THRESHOLD
 ): number[] {
-  const channel = audioBuffer.getChannelData(0); // Assuming mono audio !
+  const channel = audioBuffer.getChannelData(0); // Always use the first channel (left if stereo)
   const sampleRate = audioBuffer.sampleRate;
   const zeroCrossings: number[] = [];
 
@@ -39,6 +39,7 @@ export function snapToNearestZeroCrossing(
   );
 }
 
+// Untested on real audio!
 export function findWaveCycles(
   audioBuffer: AudioBuffer,
   threshold: number = THRESHOLD
@@ -48,21 +49,55 @@ export function findWaveCycles(
   startSample: number;
   endSample: number;
 }> {
-  const zeroCrossings = findZeroCrossings(audioBuffer, threshold);
-  const sampleRate = audioBuffer.sampleRate;
-  const cycles = [];
+  const channel = audioBuffer.getChannelData(0);
+  const sr = audioBuffer.sampleRate;
+  // Build zero crossings with direction (+ going up through zero, - going down)
+  const zc: Array<{ t: number; dir: 1 | -1 }> = [];
+  for (let i = 1; i < channel.length; i++) {
+    const a = channel[i - 1],
+      b = channel[i];
+    if (Math.abs(b) < threshold) {
+      zc.push({ t: i / sr, dir: (Math.sign(b) as 1 | -1) || 1 });
+    } else if (Math.sign(a) !== Math.sign(b)) {
+      const t = -a / (b - a);
+      const time = (i - 1 + t) / sr;
+      const dir = (b > a ? 1 : -1) as 1 | -1;
+      zc.push({ t: time, dir });
+    }
+  }
 
-  // Every 2 zero crossings = 1 complete cycle
-  for (let i = 0; i < zeroCrossings.length - 1; i += 2) {
-    if (i + 1 < zeroCrossings.length) {
-      const startTime = zeroCrossings[i];
-      const endTime = zeroCrossings[i + 1];
-
+  const cycles: Array<{
+    startTime: number;
+    endTime: number;
+    startSample: number;
+    endSample: number;
+  }> = [];
+  // Pair zero-crossings of the same direction (one full waveform period)
+  for (let i = 0; i < zc.length - 2; i++) {
+    const a = zc[i];
+    const c = zc[i + 2];
+    if (a.dir === c.dir) {
+      const startTime = a.t;
+      const endTime = c.t;
       cycles.push({
         startTime,
         endTime,
-        startSample: Math.floor(startTime * sampleRate),
-        endSample: Math.floor(endTime * sampleRate),
+        startSample: Math.floor(startTime * sr),
+        endSample: Math.floor(endTime * sr),
+      });
+    }
+  }
+
+  // Fallback: if too few directional pairs, use previous simple pairing
+  if (cycles.length === 0 && zc.length > 1) {
+    for (let i = 0; i < zc.length - 1; i += 2) {
+      const startTime = zc[i].t;
+      const endTime = zc[i + 1].t;
+      cycles.push({
+        startTime,
+        endTime,
+        startSample: Math.floor(startTime * sr),
+        endSample: Math.floor(endTime * sr),
       });
     }
   }

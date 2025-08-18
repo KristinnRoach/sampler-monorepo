@@ -13,8 +13,6 @@ import { createSVGButton } from '../../../shared/createSVGButton';
 
 const { div } = van.tags;
 
-// ===== TOGGLE CONFIGURATIONS =====
-
 export const MidiToggle = (attributes: ElementProps) => {
   const targetNodeId = attributes.attr('target-node-id', '');
 
@@ -27,15 +25,12 @@ export const MidiToggle = (attributes: ElementProps) => {
       const currentState = (toggleButton as any).getState();
 
       if (currentState === 'midi_on') {
-        if (typeof sampler.disableMIDI === 'function') {
-          sampler.disableMIDI();
-        }
+        sampler.enableMIDI();
       } else {
-        if (typeof sampler.enableMIDI === 'function') {
-          sampler.enableMIDI();
-        }
+        sampler.disableMIDI();
       }
     },
+    initialState: 'midi_on',
   });
 
   return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
@@ -112,20 +107,6 @@ export const HoldLockToggle = (attributes: ElementProps) => {
   return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
 };
 
-const feedbackModeConfig: ToggleConfig = {
-  label: 'FB-Mode',
-  defaultValue: true, // false = monophonic, true = polyphonic
-  onColor: '#4CAF50',
-  offText: 'Mono',
-  onText: 'Poly',
-  onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => {
-      const mode = state.val ? 'polyphonic' : 'monophonic';
-      sampler.setFeedbackMode(mode);
-    });
-  },
-};
-
 export const PitchToggle = (attributes: ElementProps) => {
   const targetNodeId = attributes.attr('target-node-id', '');
 
@@ -147,6 +128,22 @@ export const PitchToggle = (attributes: ElementProps) => {
   );
 
   return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+};
+
+// ===== TOGGLE CONFIGURATIONS =====
+
+const feedbackModeConfig: ToggleConfig = {
+  label: 'FB-Mode',
+  defaultValue: true, // false = monophonic, true = polyphonic
+  onColor: '#4CAF50',
+  offText: 'Mono',
+  onText: 'Poly',
+  onSamplerConnect: (sampler, state, van) => {
+    van.derive(() => {
+      const mode = state.val ? 'polyphonic' : 'monophonic';
+      sampler.setFeedbackMode(mode);
+    });
+  },
 };
 
 const gainLFOSyncConfig: ToggleConfig = {
@@ -184,7 +181,7 @@ const panDriftConfig: ToggleConfig = {
   },
 };
 
-// ===== EXPORTED TOGGLE COMPONENTS =====
+// ===== TOGGLE COMPONENTS USING CONFIG =====
 
 export const FeedbackModeToggle = createToggle(
   feedbackModeConfig,

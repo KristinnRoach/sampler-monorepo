@@ -809,7 +809,7 @@ export class CustomEnvelope implements LibNode {
             },
             {
               time: durationSeconds,
-              value: 0,
+              value: 1000,
               curve: 'exponential' as const,
             },
           ],
