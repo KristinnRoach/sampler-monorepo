@@ -84,10 +84,12 @@ export class EnvelopeData {
 
   updatePoint(index: number, time?: number, value?: number) {
     if (index >= 0 && index < this.points.length) {
-      // Currently does not support modifying start / end points. Todo: enforce this where needed
+      // TODO: Modifying start / end points should be allowed and we should ensure no big jumps here instead. Requires also updating EnvelopeSVG.
+      // Currently does not support modifying start / end points.
       if (index === this.startPointIndex || index === this.endPointIndex) {
         return;
       }
+
       const currentPoint = this.points[index];
       let newTime = time ?? currentPoint.time;
 

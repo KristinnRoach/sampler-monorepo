@@ -33,3 +33,22 @@ export const addKeyboardToggleHandler = () => {
     });
   }
 };
+
+// SPLINE code not used:
+// <!-- <spline-viewer
+//    id="keyboard-visual"
+//    class="keyboard-visual hidden"
+//    loading-anim-type="none"
+//    url="https://prod.spline.design/ZpiHTUHQUsP10Dtk/scene.splinecode"
+//  ></spline-viewer> -->
+//              <!-- <button id="toggle-keyboard-visual" class="keyboard-visual-toggle">
+//      Show Keyboard
+//    </button> -->
+//        <!-- <script type="module" src="./src/utils/splineWarnings.ts">
+//   /** Script to suppress warnings from the spline viewer about passive event listeners */
+// </script>
+
+// <script
+//   type="module"
+//   src="https://unpkg.com/@splinetool/viewer@1.10.44/build/spline-viewer.js"
+// ></script> -->

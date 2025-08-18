@@ -131,6 +131,10 @@ const icons = new Map<string, string>([
   ],
 ]);
 
+export function registerIcon(name: string, svgContent: string): void {
+  icons.set(name, svgContent);
+}
+
 const DEFAULT_COLORS = {
   color: '#eee',
   background: 'transparent',
@@ -201,6 +205,12 @@ export function createSVGButton(
   const button = document.createElement('button');
   button.title = title;
 
+  if (stateArray.length > 1) {
+    button.setAttribute('role', 'button');
+    button.setAttribute('aria-pressed', 'false');
+    button.tabIndex = 0;
+  }
+
   applyBaseStyles(button);
   applySizeStyles(button, getSizeConfig(options.size || 'md'));
 
@@ -224,10 +234,27 @@ export function createSVGButton(
         DEFAULT_COLORS[stateName as keyof typeof DEFAULT_COLORS];
       const color = customColor || defaultStateColor || DEFAULT_COLORS['color'];
       svg.style.color = color;
+
+      if (stateArray.length > 1) {
+        button.setAttribute(
+          'aria-pressed',
+          currentStateIndex !== 0 ? 'true' : 'false'
+        );
+      }
     }
   };
 
   updateButton();
+
+  (button as any).getState = () => stateArray[currentStateIndex];
+
+  (button as any).setState = (newState: string) => {
+    const newIndex = stateArray.indexOf(newState);
+    if (newIndex !== -1) {
+      currentStateIndex = newIndex;
+      updateButton();
+    }
+  };
 
   button.addEventListener('click', () => {
     if (stateArray.length > 1) {
@@ -240,27 +267,15 @@ export function createSVGButton(
     }
   });
 
-  (button as any).getState = () => stateArray[currentStateIndex];
-
-  (button as any).setState = (newState: string) => {
-    const newIndex = stateArray.indexOf(newState);
-    if (newIndex !== -1) {
-      currentStateIndex = newIndex;
-      updateButton();
+  button.addEventListener('keydown', (e) => {
+    if (stateArray.length > 1 && (e.key === ' ' || e.key === 'Enter')) {
+      e.preventDefault();
+      button.click();
     }
-  };
+  });
 
   return button;
 }
-
-// Helper functions to modify the maps if needed
-export function registerIcon(name: string, svgContent: string): void {
-  icons.set(name, svgContent);
-}
-
-// Usage:
-// const downloadBtn = createSVGButton('Download', 'download', { size: 'lg' });
-// const recordBtn = createSVGButton('Record', ['record_inactive', 'record_armed', 'record_recording']);
 
 /** Helper to check if two SVGs can morph (both have single path with d attribute) */
 function canMorph(fromSvg: string, toSvg: string): boolean {
