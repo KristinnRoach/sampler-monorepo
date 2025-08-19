@@ -21,68 +21,101 @@ body {
 
   height: clamp(100dvh, 100dvh, 100dvh);
   width: clamp(100dvw, 100dvw, 100dvw);
+}
 
-  overflow: hidden;
+gain-lfo-sync-toggle,
+pitch-lfo-sync-toggle,
+feedback-mode-toggle {
+  height: fit-content;
+  padding: 0;
+  margin: 0;
 }
 
 .page-wrapper {
-  display: block;
-  height: 100%;
-  width: 100%;
-  padding: 1rem;
+  overflow: hidden;
 }
 
 .control-grid {
+  display: grid;
   position: relative;
 
-  display: grid;
+  margin: 1rem;
+  padding: 1rem;
+  padding-right: 2rem;
+
   height: fit-content;
   width: fit-content;
-  row-gap: 0.5rem;
+
+  row-gap: 1rem;
   column-gap: 0.1rem;
-  padding: 1rem;
-  /* place-self: center; */
+  place-self: center;
 
-  /* grid-template-columns: repeat(5, min-content); */
+  grid-auto-columns: repeat(auto-fill, minmax(min(275px, 100%), 1fr));
+  grid-auto-rows: min-content;
 
-  grid-auto-columns: 200px;
-  grid-auto-rows: 200px;
   grid-template-areas:
     'env env  sample mix distortion'
-    'env env  filter space mod'
+    'env env  filter reverb mod'
     'loop trim feedback amp-lfo pitch-lfo'
     'toggle keyboard keyboard keyboard keyboard';
 
-  border: 1px solid #a8a6a692;
+  justify-content: center;
 
+  border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
   /* background-color: rgba(0, 0, 0, 0.35); */
   background-color: #29552f;
   user-select: none;
 }
 
-/* Individual elements now positioned via parent grid areas */
+.flex-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
-record-button > div > button {
-  width: 100%;
-  height: 100%;
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.envelope-buttons {
+  display: flex;
+  gap: 0 0.5rem;
+  width: fit-content;
+}
+
+.envelope-buttons > .button {
+  padding: 0 0.2rem;
+  border: solid 1px rgba(0, 0, 0, 0);
+  border-radius: 5%;
+
+  color: black;
+  background-color: #cccccce2;
+}
+
+.envelope-buttons .button.selected {
+  background-color: #ddd;
+}
+
+.envelope-buttons > .button:hover {
+  background-color: #eee;
+  border: 1px solid rgb(0, 0, 0);
 }
 
 /* GROUPS */
 
 .control-group {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: fit-content;
-
-  align-items: start;
-  justify-items: center;
-  justify-self: center;
+  display: flex;
 
   width: fit-content;
   height: fit-content;
 
-  /* place-items: stretch; */
+  justify-content: center;
+
+  justify-self: center;
 
   border: none;
   border: 1px solid #a8a6a692;
@@ -91,6 +124,8 @@ record-button > div > button {
   gap: 0.5rem;
 
   background-color: rgba(0, 0, 0, 0.1);
+
+  transition: all 0.3s ease;
 }
 
 .control-group > legend {
@@ -99,8 +134,60 @@ record-button > div > button {
   color: #ccc;
 }
 
+.control-group.collapsed .expandable-content {
+  max-height: 0;
+  opacity: 0;
+  width: fit-content;
+
+  pointer-events: none;
+}
+
+.control-group.collapsed {
+  border: none;
+  border-top: 1px solid #a8a6a692;
+  border-radius: 0;
+  padding: 0.5rem 0rem;
+
+  background-color: transparent;
+}
+
+.expandable-content {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: flex-start;
+
+  max-height: 200px;
+  opacity: 1;
+  transition:
+    max-height 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.expandable-legend {
+  cursor: pointer;
+  user-select: none;
+}
+
+.expandable-legend:hover {
+  color: #fff;
+}
+
+.feedback-group {
+  grid-area: feedback;
+  justify-self: center;
+}
+
 .env-group {
   grid-area: env;
+  height: auto;
+  min-height: 300px;
+}
+
+.env-group.collapsed {
+  grid-area: env;
+  height: auto;
+  min-height: 0;
 }
 
 .sample-group {
@@ -113,33 +200,16 @@ record-button > div > button {
 
 .loop-group {
   grid-area: loop;
-  grid-auto-flow: row;
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-.loop-group .loop-drift {
-  display: flex;
-  flex-direction: column;
-}
-
-.feedback-group {
-  grid-area: feedback;
-
-  grid-auto-flow: row;
-  grid-template-columns: repeat(2, min-content);
-  grid-template-rows: auto auto;
-  gap: 0.5rem;
-
-  justify-self: center;
 }
 
 .amp-lfo-group {
   grid-area: amp-lfo;
-  grid-auto-flow: row;
+  justify-self: center;
+
+  /* grid-auto-flow: row;
   grid-template-columns: repeat(2, min-content);
   grid-template-rows: auto auto;
-  gap: 0.5rem;
-  justify-self: center;
+  gap: 0.5rem; */
 }
 
 .amp-lfo-group > gain-lfo-sync-toggle {
@@ -174,8 +244,8 @@ record-button > div > button {
   grid-area: filter;
 }
 
-.space-group {
-  grid-area: space;
+.reverb-group {
+  grid-area: reverb;
 }
 
 .distortion-group {
@@ -184,10 +254,14 @@ record-button > div > button {
 
 .toggle-group {
   grid-area: toggle;
+  width: 50%;
+  place-self: center;
 }
 
 .toggle-group > div {
   display: grid;
+  justify-content: center;
+
   grid-template-columns: repeat(3, 1fr);
   grid-auto-flow: row;
   gap: 0.2rem;
@@ -196,6 +270,8 @@ record-button > div > button {
 .toggle-group sampler-status {
   display: flex;
   align-items: center;
+
+  color: #b7b5b5d6;
 }
 
 /** KEYBOARD **/
@@ -207,9 +283,11 @@ record-button > div > button {
 
   min-height: fit-content;
   height: fit-content;
-  /* height: 30vh; */
 
   align-items: center;
+  justify-content: center;
+
+  place-self: start;
 }
 
 .keyboard-controls {
@@ -273,12 +351,6 @@ piano-keyboard.visible {
 .keyboard-visual.visible {
   opacity: 1;
   pointer-events: all;
-}
-
-sampler-status {
-  display: flex;
-  flex-direction: row;
-  color: #a3a3a3d7;
 }
 
 /* DRAG HANDLE */
@@ -345,3 +417,76 @@ sampler-status {
     0 8px;
   background-repeat: no-repeat;
 }
+
+/* Row collapse icons */
+
+.row-collapse-icon {
+  justify-self: end;
+  align-self: start;
+
+  width: 1.2rem;
+  height: fit-content;
+  margin: 0.5rem;
+  margin-right: -1.5rem;
+
+  border: none;
+  border-radius: 3px;
+
+  cursor: pointer;
+  opacity: 0.9;
+  transition: all 0.2s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 0.8rem;
+  color: #dedede;
+  user-select: none;
+  z-index: 10;
+}
+
+.row-collapse-icon:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.row-collapse-icon::before {
+  content: '﹀';
+  font-weight: bold;
+}
+
+/* .row-collapse-icon {
+  position: absolute;
+  width: 1.2rem;
+  height: 1.2rem;
+
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+
+  cursor: pointer;
+  opacity: 0.9;
+  transition: all 0.2s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 0.8rem;
+  color: #ccc;
+  user-select: none;
+  z-index: 10;
+}
+
+.row-collapse-icon:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.row-collapse-icon::before {
+  content: '−';
+  font-weight: bold;
+} */

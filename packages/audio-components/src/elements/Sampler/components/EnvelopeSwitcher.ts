@@ -26,14 +26,12 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     'pitch-env': null,
   };
 
-  // Create all envelopes once when sampler is ready
   const createEnvelopes = () => {
     if (!samplerInitialized.val || !sampleLoaded.val) return;
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) return;
 
-    // Create all envelope instances at once
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
       if (!envelopes[envType]) {
         try {
@@ -44,9 +42,6 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
             height.val
           );
 
-          // No need to manually draw waveform - EnvelopeSVG listens for sample:loaded
-
-          // Hide non-active envelopes initially
           if (envType !== activeEnvelope.val) {
             (envelopes[envType]!.element as HTMLElement).style.display = 'none';
           }
@@ -57,14 +52,12 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     });
   };
 
-  // Show/hide envelopes when active envelope changes
   van.derive(() => {
     const currentEnvType = activeEnvelope.val;
-    
-    // Hide all envelopes
+
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
       if (envelopes[envType]) {
-        (envelopes[envType]!.element as HTMLElement).style.display = 
+        (envelopes[envType]!.element as HTMLElement).style.display =
           envType === currentEnvType ? 'block' : 'none';
       }
     });
@@ -101,7 +94,6 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     );
 
     return () => {
-      // Cleanup all envelopes
       Object.values(envelopes).forEach((env) => {
         if (env) env.cleanup();
       });
@@ -117,23 +109,39 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   });
 
   // Common style for loading state containers
-  const loadingStateStyle = `display: flex; height: ${height.val}; width: ${width.val}; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem;`;
+  const loadingStateStyle = `display: flex; height: 100%; width: 100%; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem;`; //  height: ${height.val}; width: ${width.val}
 
   return div(
     { class: 'envelope-switcher', style: COMPONENT_STYLE },
 
-    // Envelope type buttons
     div(
       { class: 'envelope-buttons' },
-      button({ onclick: () => (activeEnvelope.val = 'amp-env') }, 'Amp Env'),
-      button(
-        { onclick: () => (activeEnvelope.val = 'filter-env') },
-        'Filter Env'
+      div(
+        {
+          class: () =>
+            `button ${activeEnvelope.val === 'amp-env' ? 'selected' : ''}`,
+          onclick: () => (activeEnvelope.val = 'amp-env'),
+        },
+        'Amp'
       ),
-      button({ onclick: () => (activeEnvelope.val = 'pitch-env') }, 'Pitch Env')
+      div(
+        {
+          class: () =>
+            `button ${activeEnvelope.val === 'filter-env' ? 'selected' : ''}`,
+          onclick: () => (activeEnvelope.val = 'filter-env'),
+        },
+        'Filter'
+      ),
+      div(
+        {
+          class: () =>
+            `button ${activeEnvelope.val === 'pitch-env' ? 'selected' : ''}`,
+          onclick: () => (activeEnvelope.val = 'pitch-env'),
+        },
+        'Pitch'
+      )
     ),
 
-    // Envelope display area - now contains all envelopes, showing/hiding them
     div({ class: 'envelope-container' }, () => {
       if (!samplerInitialized.val)
         return div({ style: loadingStateStyle }, 'Click anywhere to start');
@@ -142,15 +150,17 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
 
       // Return a container with all envelope elements
       const container = div({ style: 'position: relative;' });
-      
+
       // Add all created envelopes to the container
       (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
         if (envelopes[envType]) {
           container.appendChild(envelopes[envType]!.element as HTMLElement);
         }
       });
-      
-      return container.children.length > 0 ? container : div('Loading envelopes...');
+
+      return container.children.length > 0
+        ? container
+        : div('Loading envelopes...');
     })
   );
 };
