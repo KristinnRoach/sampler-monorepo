@@ -11,13 +11,12 @@
       content="Playground for prototyping a sampler instrument "
     />
 
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- Injected by Vite PWA Plugin, no need for: <link rel="manifest" href="./manifest.webmanifest" /> -->
 
-    <script type="module" crossorigin src="./assets/index-YxK8Gje2.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/audiolib-DtiBnIzW.js">
-    <link rel="modulepreload" crossorigin href="./assets/audio-components-EIjxTboY.js">
-    <link rel="modulepreload" crossorigin href="./assets/vendor-gsap-DSz2Z63p.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-C5K3-XMv.css">
+    <script type="module" crossorigin src="./assets/index-fOc84_jl.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/audiolib-eC7v2Vn8.js">
+    <link rel="modulepreload" crossorigin href="./assets/audio-components-DVzMBFlr.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-BqcdFvhg.css">
   <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
     <div id="page-wrapper" class="page-wrapper">
@@ -29,7 +28,10 @@
 
         <fieldset class="control-group env-group">
           <legend>Envelopes</legend>
-          <envelope-switcher target-node-id="test-sampler"></envelope-switcher>
+          <envelope-switcher
+            height="225px"
+            target-node-id="test-sampler"
+          ></envelope-switcher>
         </fieldset>
 
         <fieldset class="control-group sample-group">
@@ -49,6 +51,7 @@
           <volume-knob target-node-id="test-sampler"></volume-knob>
           <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
         </fieldset>
+
         <fieldset class="control-group loop-group">
           <legend>Loop</legend>
           <loop-start-knob
@@ -60,6 +63,15 @@
             target-node-id="test-sampler"
             label="Duration"
           ></loop-duration-knob>
+
+          <div class="knob-w-toggle">
+            <loop-duration-drift-knob
+              target-node-id="test-sampler"
+              label="Drift"
+            ></loop-duration-drift-knob>
+
+            <pan-drift-toggle target-node-id="test-sampler"></pan-drift-toggle>
+          </div>
         </fieldset>
 
         <fieldset class="control-group filter-group">
@@ -89,40 +101,37 @@
 
         <!-- Feedback controls -->
         <fieldset class="control-group feedback-group">
-          <legend>Feedback</legend>
+          <legend class="expandable-legend">Feedback</legend>
 
-          <feedback-knob
-            target-node-id="test-sampler"
-            label="Amount"
-          ></feedback-knob>
+          <div class="expandable-content">
+            <div class="knob-w-toggle">
+              <feedback-knob
+                target-node-id="test-sampler"
+                label="Amount"
+              ></feedback-knob>
 
-          <feedback-pitch-knob
-            target-node-id="test-sampler"
-            label="Pitch"
-          ></feedback-pitch-knob>
+              <feedback-mode-toggle
+                target-node-id="test-sampler"
+                label=""
+              ></feedback-mode-toggle>
+            </div>
 
-          <feedback-decay-knob
-            target-node-id="test-sampler"
-            label="Decay"
-          ></feedback-decay-knob>
+            <feedback-pitch-knob
+              target-node-id="test-sampler"
+              label="Pitch"
+            ></feedback-pitch-knob>
 
-          <feedback-mode-toggle
-            target-node-id="test-sampler"
-            label=""
-          ></feedback-mode-toggle>
+            <feedback-decay-knob
+              target-node-id="test-sampler"
+              label="Decay"
+            ></feedback-decay-knob>
+          </div>
         </fieldset>
 
-        <fieldset class="control-group drift-group">
-          <legend>Drift</legend>
-          <loop-duration-drift-knob
-            target-node-id="test-sampler"
-            label="Loop Length"
-          ></loop-duration-drift-knob>
-
-          <pan-drift-toggle
-            target-node-id="test-sampler"
-            label="Pan"
-          ></pan-drift-toggle>
+        <fieldset class="control-group trim-group">
+          <legend>Trim</legend>
+          <trim-start-knob target-node-id="test-sampler"></trim-start-knob>
+          <trim-end-knob target-node-id="test-sampler"></trim-end-knob>
         </fieldset>
 
         <fieldset class="control-group mod-group">
@@ -133,38 +142,43 @@
         <fieldset class="control-group amp-lfo-group">
           <legend>Amp LFO</legend>
 
-          <gain-lfo-rate-knob
-            target-node-id="test-sampler"
-            label="Rate"
-          ></gain-lfo-rate-knob>
+          <div class="knob-w-toggle">
+            <gain-lfo-rate-knob
+              target-node-id="test-sampler"
+              label="Rate"
+            ></gain-lfo-rate-knob>
+
+            <gain-lfo-sync-toggle
+              target-node-id="test-sampler"
+              label=""
+            ></gain-lfo-sync-toggle>
+          </div>
 
           <gain-lfo-depth-knob
             target-node-id="test-sampler"
             label="Depth"
           ></gain-lfo-depth-knob>
-
-          <gain-lfo-sync-toggle
-            target-node-id="test-sampler"
-            label=""
-          ></gain-lfo-sync-toggle>
         </fieldset>
 
         <fieldset class="control-group pitch-lfo-group">
           <legend>Pitch LFO</legend>
-          <pitch-lfo-rate-knob
-            target-node-id="test-sampler"
-            label="Rate"
-          ></pitch-lfo-rate-knob>
+
+          <div class="knob-w-toggle">
+            <pitch-lfo-rate-knob
+              target-node-id="test-sampler"
+              label="Rate"
+            ></pitch-lfo-rate-knob>
+
+            <pitch-lfo-sync-toggle
+              target-node-id="test-sampler"
+              label=""
+            ></pitch-lfo-sync-toggle>
+          </div>
 
           <pitch-lfo-depth-knob
             target-node-id="test-sampler"
             label="Depth"
           ></pitch-lfo-depth-knob>
-
-          <pitch-lfo-sync-toggle
-            target-node-id="test-sampler"
-            label=""
-          ></pitch-lfo-sync-toggle>
         </fieldset>
 
         <fieldset class="control-group toggle-group">
