@@ -88,6 +88,26 @@ export class KnobElement extends HTMLElement {
       this.createDraggable();
       this.setValue(this.config.defaultValue || this.config.minValue);
     }, 0);
+
+    // ! This does not work // TODO: make dblclick handler work
+    // Double-click to reset to default value (attach to knobElement after render)
+    //   setTimeout(() => {
+    //     const container = this.querySelector('.knob-container');
+    //     if (container) {
+    //       container.addEventListener('dblclick', (e) => {
+    //         console.debug('dblclick on container', e.target);
+    //       });
+    //     }
+    //     if (this.knobElement) {
+    //       this.knobElement.addEventListener('dblclick', (e) => {
+    //         console.debug('dblclick on knob', e.target);
+    //       });
+    //     }
+    //     // Also try on the custom element itself
+    //     this.addEventListener('dblclick', (e) => {
+    //       console.debug('dblclick on custom element', e.target);
+    //     });
+    //   }, 0);
   }
 
   disconnectedCallback(): void {
@@ -179,7 +199,7 @@ export class KnobElement extends HTMLElement {
       
       knob-element[disabled] {
         opacity: 0.5;
-        pointer-events: none;
+       /*  pointer-events: none; */
       }
       
       knob-element .knob-container {
@@ -192,7 +212,7 @@ export class KnobElement extends HTMLElement {
         position: absolute;
         top: 0;
         left: 0;
-        pointer-events: none;
+        /* pointer-events: none; */
       }
       
       knob-element .knob {
@@ -214,20 +234,7 @@ export class KnobElement extends HTMLElement {
         transform: scale(0.95);
       }
       
-      knob-element .center-dot {
-        display: none; 
-        position: absolute;
-        top: calc(50% - 2px);
-        left: calc(50% - 2px);
-        width: 4px;
-        height: 4px;
-        background: var(--knob-indicator-color);
-        border-radius: 50%;
-        pointer-events: none;
-      }
     `;
-
-    // TODO: Remove center dot if not using
 
     document.head.appendChild(styleElement);
     KnobElement.stylesInjected = true;
@@ -345,8 +352,6 @@ export class KnobElement extends HTMLElement {
         <div class="knob-indicator"></div>
       </div>
 
-      <!-- Fixed center dot -->
-        <div class="center-dot"></div>
     </div>
   `;
 
@@ -473,10 +478,10 @@ export class KnobElement extends HTMLElement {
       onPress: (e: PointerEvent | TouchEvent | MouseEvent) => {
         startRotation = this.currentRotation;
         totalDeltaY = 0;
-        
+
         // Detect if this is a touch event
         isTouchDevice = 'touches' in e;
-        
+
         // Store the starting Y position for touch devices
         if (isTouchDevice && 'touches' in e) {
           const touch = e.touches[0];
@@ -530,7 +535,7 @@ export class KnobElement extends HTMLElement {
         // Handle drag for both touch and non-pointer-lock mouse
         if (!pointerLockSupported || isTouchDevice) {
           const sensitivity = 4.0;
-          
+
           // For touch devices, GSAP's y represents the delta from start
           // For mouse without pointer lock, it's the same
           const deltaY = this.gsapDraggable.y;
@@ -571,7 +576,7 @@ export class KnobElement extends HTMLElement {
             document.removeEventListener('mousemove', mouseMoveHandler);
           }
         }
-        
+
         // Reset touch device flag
         isTouchDevice = false;
       },

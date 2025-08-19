@@ -40,7 +40,9 @@ export const createKnob = (config: KnobConfig): HTMLElement => {
   defineElement('knob-element', KnobElement);
 
   // Create the knob element
-  const knobElement = document.createElement('knob-element') as HTMLElement;
+  const knobElement = document.createElement('knob-element') as HTMLElement & {
+    setValue?: (value: number, animate?: boolean) => void;
+  };
 
   // Set attributes
   knobElement.setAttribute('min-value', minValue.toString());
@@ -70,6 +72,15 @@ export const createKnob = (config: KnobConfig): HTMLElement => {
     const msg: KnobChangeEventDetail = e.detail;
     onChange(msg.value);
   });
+
+  // ! This does not work // TODO: make dblclick handler work EITHER in KnobElement or here if necessary
+  // Add double-click event handler to reset to default value
+  // knobElement.addEventListener('dblclick', (e) => {
+  //   console.debug('dblclick fired');
+  //   if (typeof knobElement.setValue === 'function') {
+  //     knobElement.setValue(defaultValue, true);
+  //   }
+  // });
 
   return knobElement;
 };
@@ -106,6 +117,12 @@ export const createLabeledKnob = (config: LabeledKnobConfig): HTMLElement => {
     const labelElement = document.createElement('div');
     labelElement.textContent = label;
     labelElement.style.textAlign = 'center';
+    labelElement.style.cursor = 'pointer';
+    labelElement.addEventListener('dblclick', (e) => {
+      if (typeof (knob as any).setValue === 'function') {
+        (knob as any).setValue(knobConfig.defaultValue || 0, true);
+      }
+    });
     container.appendChild(labelElement);
   }
 

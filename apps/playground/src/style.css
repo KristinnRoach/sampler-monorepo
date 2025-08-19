@@ -41,7 +41,7 @@ feedback-mode-toggle {
 
   margin: 1rem;
   padding: 1rem;
-  padding-right: 2rem;
+  padding-right: 3rem;
 
   height: fit-content;
   width: fit-content;
@@ -427,7 +427,7 @@ piano-keyboard.visible {
   width: 1.2rem;
   height: fit-content;
   margin: 0.5rem;
-  margin-right: -1.5rem;
+  margin-right: -2rem;
 
   border: none;
   border-radius: 3px;

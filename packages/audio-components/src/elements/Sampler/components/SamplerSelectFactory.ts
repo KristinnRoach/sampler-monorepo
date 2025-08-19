@@ -6,7 +6,7 @@ import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
 } from '@/shared/keyboard/keyboard-keymaps';
 import {
-  createFindNodeId,
+  findNodeId,
   createSamplerConnection,
 } from '../../../shared/utils/component-utils';
 import {
@@ -134,16 +134,16 @@ const createSamplerSelect = <T extends string = string>(
     const labelPosition = attributes.attr('label-position', 'inline'); // 'inline' or 'below'
     const state = van.state(config.defaultValue);
 
-    const findNodeId = createFindNodeId(attributes, targetNodeId);
+    const getId = findNodeId(attributes, targetNodeId);
 
     // Use standardized connection utility
     const { createMountHandler } = createSamplerConnection(
-      findNodeId,
+      getId,
       getSamplerFn,
       (sampler: SamplePlayer) => {
         if (config.onTargetConnect) {
           try {
-            config.onTargetConnect(sampler, state, van, findNodeId());
+            config.onTargetConnect(sampler, state, van, getId());
           } catch (error) {
             console.error(
               `Failed to connect select "${config.label || 'unnamed'}":`,

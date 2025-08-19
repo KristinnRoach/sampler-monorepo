@@ -3,7 +3,7 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
 import { getSampler, onRegistryChange } from '../SamplerRegistry';
-import { createFindNodeId } from '../../../shared/utils/component-utils';
+import { findNodeId } from '../../../shared/utils/component-utils';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import { createSVGButton } from '../../../shared/createSVGButton';
 
@@ -16,10 +16,10 @@ export const UploadButton = (attributes: ElementProps) => {
   const showStatus = attributes.attr('show-status', 'false');
   const status = van.state('Ready');
 
-  const findNodeId = createFindNodeId(attributes, targetNodeId);
+  const getId = findNodeId(attributes, targetNodeId);
 
   const loadSample = async () => {
-    const nodeId = findNodeId();
+    const nodeId = getId();
     if (!nodeId) {
       status.val = 'Sampler not found';
       return;

@@ -2,12 +2,12 @@
 import { type SamplePlayer } from '@repo/audiolib';
 import { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-
+import { createLabeledKnob } from '@/elements/primitives/createKnob';
 /**
- * Creates a function to find the target node ID for a component.
+ * Find the target node ID for a component.
  * Follows the priority: explicit target-node-id > parent sampler > nearest sampler
  */
-export const createFindNodeId =
+export const findNodeId =
   (attributes: ElementProps, targetNodeId: State<string>) => () => {
     if (targetNodeId.val) return targetNodeId.val;
 
@@ -105,11 +105,11 @@ export const createToggle = (
     const toggleState = van.state(config.defaultValue);
     let connected = false;
 
-    const findNodeId = createFindNodeId(attributes, targetNodeId);
+    const findId = findNodeId(attributes, targetNodeId);
 
     const connect = () => {
       if (connected) return;
-      const nodeId = findNodeId();
+      const nodeId = findId();
       if (!nodeId) return;
       const sampler = getTargetNode(nodeId);
       if (sampler) {
@@ -121,7 +121,7 @@ export const createToggle = (
     attributes.mount(() => {
       connect();
       const handleInitialized = (e: CustomEvent) => {
-        if (e.detail.nodeId === findNodeId()) connect();
+        if (e.detail.nodeId === findId()) connect();
       };
       document.addEventListener(
         'sampler-initialized',
@@ -181,13 +181,9 @@ export interface KnobConfig {
   ) => void;
 }
 
-/**
- * Generic factory for creating knob components
- */
-export const createKnob = (
+export const createKnobForTarget = (
   config: KnobConfig,
   getTargetNode: (nodeId: string) => any,
-  createLabeledKnob: any,
   van: any,
   componentStyle?: string
 ) => {
@@ -196,11 +192,11 @@ export const createKnob = (
     const value = van.state(config.defaultValue);
     let connected = false;
 
-    const findNodeId = createFindNodeId(attributes, targetNodeId);
+    const getId = findNodeId(attributes, targetNodeId);
 
     const connect = () => {
       if (connected) return;
-      const nodeId = findNodeId();
+      const nodeId = getId();
       if (!nodeId) return;
       const target = getTargetNode(nodeId);
       if (target) {
@@ -228,7 +224,7 @@ export const createKnob = (
     attributes.mount(() => {
       connect();
       const handleReady = (e: CustomEvent) => {
-        if (e.detail.nodeId === findNodeId()) connect();
+        if (e.detail.nodeId === getId()) connect();
       };
       document.addEventListener(
         'sampler-initialized',
@@ -243,9 +239,10 @@ export const createKnob = (
 
     // Check if label attribute was explicitly provided (even if empty)
     const hasLabelAttribute = attributes.$this.hasAttribute('label');
-    const labelOverride = hasLabelAttribute
+    const rawLabel = hasLabelAttribute
       ? attributes.$this.getAttribute('label')
-      : null;
+      : undefined;
+    const labelOverride = rawLabel === null ? undefined : rawLabel;
 
     // Use label attribute if provided (including empty string), otherwise fall back to config label
     const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
