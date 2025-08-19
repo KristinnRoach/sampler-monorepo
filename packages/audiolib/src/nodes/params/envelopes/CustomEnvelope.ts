@@ -11,7 +11,6 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
-import { clamp } from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -809,7 +808,7 @@ export class CustomEnvelope implements LibNode {
             },
             {
               time: durationSeconds,
-              value: 0,
+              value: 1000,
               curve: 'exponential' as const,
             },
           ],

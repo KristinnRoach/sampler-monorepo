@@ -31,7 +31,7 @@ export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
   timeScaleKnob: HTMLElement;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
-  refresh: () => void;  // Always updates in place, never returns a new instance
+  refresh: () => void; // Always updates in place, never returns a new instance
   cleanup: () => void;
 }
 
@@ -44,11 +44,10 @@ export const EnvelopeSVG = (
   snapThreshold = 0.025,
   multiColorPlayheads = true
 ): EnvelopeSVG => {
-
   // Get envelope properties - store as let so we can update it
   let envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
   const envelopeType = envType;
-  
+
   // If no points, return a simple placeholder that can be refreshed later
   if (!envelopeInfo.points.length) {
     const emptyContainer = div(
@@ -57,7 +56,7 @@ export const EnvelopeSVG = (
       },
       'Record or load a sample to start'
     );
-    
+
     const result: EnvelopeSVG = {
       element: emptyContainer,
       timeScaleKnob: emptyContainer,
@@ -267,7 +266,7 @@ export const EnvelopeSVG = (
     document.addEventListener('touchend', handleGlobalEnd);
   };
 
-  const updateControlPoints = () => {
+  function updateControlPoints() {
     if (!pointsGroup) return;
 
     // Refresh envelope info before updating
@@ -370,7 +369,7 @@ export const EnvelopeSVG = (
 
       pointsGroup.appendChild(circle);
     });
-  };
+  }
 
   // Create SVG element
   svgElement = svg({
@@ -383,23 +382,6 @@ export const EnvelopeSVG = (
     enabled,
     loopEnabled,
     syncedToPlaybackRate
-  );
-
-  van.derive(() => {
-    if (enabled.val) {
-      instrument.enableEnvelope(envelopeType);
-    } else {
-      instrument.disableEnvelope(envelopeType);
-    }
-    // Always refresh visuals to reflect enabled/disabled styles
-    updateControlPoints();
-    updateEnvelopePath();
-  });
-
-  van.derive(() => instrument.setEnvelopeLoop(envelopeType, loopEnabled.val));
-
-  van.derive(() =>
-    instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val)
   );
 
   // Add time scale knob if callback provided
@@ -437,7 +419,7 @@ export const EnvelopeSVG = (
 
   // Envelope path
 
-  const updateEnvelopePath = () => {
+  function updateEnvelopePath() {
     // Refresh envelope info before updating path
     envelopeInfo = instrument.getEnvelope(envType);
 
@@ -454,7 +436,7 @@ export const EnvelopeSVG = (
         CIRCLE_PADDING + TOP_BTNS_PADDING
       )
     );
-  };
+  }
 
   envelopePath = path({
     id: 'envelope-path',
@@ -752,6 +734,23 @@ export const EnvelopeSVG = (
     // Also refresh the envelope in case it changed with the new sample
     refresh();
   });
+
+  van.derive(() => {
+    if (enabled.val) {
+      instrument.enableEnvelope(envelopeType);
+    } else {
+      instrument.disableEnvelope(envelopeType);
+    }
+    // Always refresh visuals to reflect enabled/disabled styles
+    updateControlPoints();
+    updateEnvelopePath();
+  });
+
+  van.derive(() => instrument.setEnvelopeLoop(envelopeType, loopEnabled.val));
+
+  van.derive(() =>
+    instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val)
+  );
 
   return {
     element: container,

@@ -38,12 +38,13 @@ body {
   display: grid;
   height: fit-content;
   width: fit-content;
-
   row-gap: 0.5rem;
   column-gap: 0.1rem;
   padding: 1rem;
-
   place-self: center;
+
+  width: 100vw;
+  height: 100vh;
 
   grid-template-columns: repeat(5, min-content);
   grid-template-areas:

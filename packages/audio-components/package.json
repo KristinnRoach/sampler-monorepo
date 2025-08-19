@@ -18,11 +18,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm clean && pnpm install && vite build",
+    "build": "pnpm clean && vite build",
     "watch": "vite build --watch",
-    "clean": "rimraf dist && mkdir -p dist",
-    "clean:deps": "rimraf node_modules && pnpm install",
-    "clean:all": "rimraf dist node_modules && pnpm store prune && pnpm prune"
+    "clean": "rm -rf dist && mkdir -p dist",
+    "clean:deps": "rm -rf node_modules && pnpm install",
+    "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune"
   },
   "dependencies": {
     "@repo/audiolib": "workspace:*",

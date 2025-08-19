@@ -1,5 +1,4 @@
 import { defineSampler } from '@repo/audio-components';
-import { addKeyboardToggleHandler } from './utils/toggleKeyboardVisual';
 import { qs } from './utils';
 import { makeDraggable } from './utils/makeDraggable';
 
@@ -7,8 +6,6 @@ defineSampler(); // Define all sampler components
 
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
-
-  addKeyboardToggleHandler();
 
   const samplerContainerEl = qs('#sampler-container');
   createAndAppendHandle(samplerContainerEl);
