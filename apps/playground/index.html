@@ -11,7 +11,7 @@
       content="Playground for prototyping a sampler instrument "
     />
 
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- Injected by Vite PWA Plugin, no need for: <link rel="manifest" href="./manifest.webmanifest" /> -->
     <link rel="stylesheet" href="./src/style.css" />
 
     <script type="module" src="./src/main.ts" defer></script>
@@ -57,6 +57,15 @@
             target-node-id="test-sampler"
             label="Duration"
           ></loop-duration-knob>
+
+          <div class="loop-drift">
+            <loop-duration-drift-knob
+              target-node-id="test-sampler"
+              label="Loop Length"
+            ></loop-duration-drift-knob>
+
+            <pan-drift-toggle target-node-id="test-sampler"></pan-drift-toggle>
+          </div>
         </fieldset>
 
         <fieldset class="control-group filter-group">
@@ -109,17 +118,10 @@
           ></feedback-mode-toggle>
         </fieldset>
 
-        <fieldset class="control-group drift-group">
-          <legend>Drift</legend>
-          <loop-duration-drift-knob
-            target-node-id="test-sampler"
-            label="Loop Length"
-          ></loop-duration-drift-knob>
-
-          <pan-drift-toggle
-            target-node-id="test-sampler"
-            label="Pan"
-          ></pan-drift-toggle>
+        <fieldset class="control-group trim-group">
+          <legend>Trim</legend>
+          <trim-start-knob target-node-id="test-sampler"></trim-start-knob>
+          <trim-end-knob target-node-id="test-sampler"></trim-end-knob>
         </fieldset>
 
         <fieldset class="control-group mod-group">

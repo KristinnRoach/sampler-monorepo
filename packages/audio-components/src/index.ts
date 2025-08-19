@@ -44,6 +44,8 @@ export {
   LoopDurationKnob,
   LoopDurationDriftKnob,
   AMModKnob,
+  TrimStartKnob,
+  TrimEndKnob,
 } from './elements/Sampler/components/SamplerKnobFactory';
 
 // Toggle components

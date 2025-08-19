@@ -43,14 +43,11 @@ body {
   padding: 1rem;
   place-self: center;
 
-  width: 100vw;
-  height: 100vh;
-
   grid-template-columns: repeat(5, min-content);
   grid-template-areas:
     'env env  sample mix distortion'
     'env env  filter space mod'
-    'loop drift feedback amp-lfo pitch-lfo'
+    'loop trim feedback amp-lfo pitch-lfo'
     'toggle keyboard keyboard keyboard keyboard';
 
   border: 1px solid #a8a6a692;
@@ -74,12 +71,14 @@ record-button > div > button {
   grid-auto-flow: column;
   grid-auto-columns: fit-content;
 
-  align-items: start;
+  align-items: center;
   justify-items: center;
   justify-self: center;
 
   width: fit-content;
   height: fit-content;
+
+  /* place-items: stretch; */
 
   border: none;
   border: 1px solid #a8a6a692;
@@ -110,6 +109,12 @@ record-button > div > button {
 
 .loop-group {
   grid-area: loop;
+  grid-auto-flow: row;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.loop-group .loop-drift {
+  display: flex;
 }
 
 .feedback-group {
@@ -156,10 +161,8 @@ record-button > div > button {
   padding: 0 1rem 1rem 1rem;
 }
 
-.drift-group {
-  grid-area: drift;
-  grid-auto-flow: row;
-  grid-template-columns: 1fr;
+.trim-group {
+  grid-area: trim;
 }
 
 .filter-group {

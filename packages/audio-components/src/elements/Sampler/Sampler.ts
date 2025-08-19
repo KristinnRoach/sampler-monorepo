@@ -28,6 +28,8 @@ import {
   LoopDurationKnob,
   LoopDurationDriftKnob,
   AMModKnob,
+  TrimStartKnob,
+  TrimEndKnob,
 } from './components/SamplerKnobFactory';
 
 import {
@@ -182,6 +184,8 @@ export {
   LoopDurationKnob,
   LoopDurationDriftKnob,
   AMModKnob,
+  TrimStartKnob,
+  TrimEndKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -250,6 +254,8 @@ export const defineSampler = () => {
   defineIfNotExists('loop-start-knob', LoopStartKnob, false);
   defineIfNotExists('loop-duration-knob', LoopDurationKnob, false);
   defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
+  defineIfNotExists('trim-start-knob', TrimStartKnob, false);
+  defineIfNotExists('trim-end-knob', TrimEndKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);
