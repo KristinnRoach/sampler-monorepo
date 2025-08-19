@@ -35,6 +35,21 @@ feedback-mode-toggle {
   overflow: hidden;
 }
 
+/* .logo {
+  grid-area: toggle;
+
+  position: absolute;
+  left: 8px;
+  top: 5rem;
+  margin-right: -0.85rem;
+  border-radius: 25%;
+
+  width: 80px;
+  height: 80px;
+
+  color: rgb(210, 210, 210);
+} */
+
 .control-grid {
   display: grid;
   position: relative;
