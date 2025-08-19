@@ -2,8 +2,10 @@
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
-import { createLabeledKnob } from '../../primitives/createKnob';
-import { createKnob, KnobConfig } from '../../../shared/utils/component-utils';
+import {
+  createKnobForTarget,
+  KnobConfig,
+} from '../../../shared/utils/component-utils';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 
 // ===== KNOB CONFIGURATIONS =====
@@ -318,178 +320,156 @@ const loopDurationConfig: KnobConfig = {
 
 // ===== EXPORTED KNOB COMPONENTS =====
 
-export const DryWetKnob = createKnob(
+export const DryWetKnob = createKnobForTarget(
   dryWetConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const FeedbackKnob = createKnob(
+export const FeedbackKnob = createKnobForTarget(
   feedbackConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const DriveKnob = createKnob(
+export const DriveKnob = createKnobForTarget(
   driveConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const ClippingKnob = createKnob(
+export const ClippingKnob = createKnobForTarget(
   clippingConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const GlideKnob = createKnob(
+export const GlideKnob = createKnobForTarget(
   glideConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const FeedbackPitchKnob = createKnob(
+export const FeedbackPitchKnob = createKnobForTarget(
   feedbackPitchConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const FeedbackDecayKnob = createKnob(
+export const FeedbackDecayKnob = createKnobForTarget(
   feedbackDecayConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const GainLFORateKnob = createKnob(
+export const GainLFORateKnob = createKnobForTarget(
   gainLFORateConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const GainLFODepthKnob = createKnob(
+export const GainLFODepthKnob = createKnobForTarget(
   gainLFODepthConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const PitchLFORateKnob = createKnob(
+export const PitchLFORateKnob = createKnobForTarget(
   pitchLFORateConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const PitchLFODepthKnob = createKnob(
+export const PitchLFODepthKnob = createKnobForTarget(
   pitchLFODepthConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const VolumeKnob = createKnob(
+export const VolumeKnob = createKnobForTarget(
   volumeConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const ReverbSendKnob = createKnob(
+export const ReverbSendKnob = createKnobForTarget(
   reverbSendConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const ReverbSizeKnob = createKnob(
+export const ReverbSizeKnob = createKnobForTarget(
   reverbSizeConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const LoopDurationDriftKnob = createKnob(
+export const LoopDurationDriftKnob = createKnobForTarget(
   loopDurationDriftConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const LowpassFilterKnob = createKnob(
+export const LowpassFilterKnob = createKnobForTarget(
   lowpassFilterConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const HighpassFilterKnob = createKnob(
+export const HighpassFilterKnob = createKnobForTarget(
   highpassFilterConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const AMModKnob = createKnob(
+export const AMModKnob = createKnobForTarget(
   amplitudeModConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const LoopStartKnob = createKnob(
+export const LoopStartKnob = createKnobForTarget(
   loopStartConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const LoopDurationKnob = createKnob(
+export const LoopDurationKnob = createKnobForTarget(
   loopDurationConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const TrimStartKnob = createKnob(
+export const TrimStartKnob = createKnobForTarget(
   trimStartConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );
 
-export const TrimEndKnob = createKnob(
+export const TrimEndKnob = createKnobForTarget(
   trimEndConfig,
   getSampler,
-  createLabeledKnob,
   van,
   INLINE_COMPONENT_STYLE
 );

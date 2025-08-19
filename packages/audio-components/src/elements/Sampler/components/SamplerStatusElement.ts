@@ -3,7 +3,7 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
 import {
-  createFindNodeId,
+  findNodeId,
   createSamplerConnection,
 } from '../../../shared/utils/component-utils';
 
@@ -12,11 +12,11 @@ const { div } = van.tags;
 export const SamplerStatusElement = (attributes: ElementProps) => {
   const nodeId: State<string> = attributes.attr('target-node-id', '');
   const status = van.state('No sampler found');
-  const findNodeId = createFindNodeId(attributes, nodeId);
+  const getId = findNodeId(attributes, nodeId);
 
   // Use standardized connection utility for initial status
   const { createMountHandler } = createSamplerConnection(
-    findNodeId,
+    getId,
     getSampler,
     () => (status.val = 'Initialized')
   );
@@ -28,13 +28,13 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
     // Additional listeners for sample-loaded and error events
     const handleSampleLoaded = (event: Event) => {
       const customEvent = event as CustomEvent;
-      if (customEvent.detail?.nodeId === findNodeId()) {
+      if (customEvent.detail?.nodeId === getId()) {
         status.val = 'Sample loaded';
       }
     };
     const handleSamplerError = (event: Event) => {
       const customEvent = event as CustomEvent;
-      if (customEvent.detail?.nodeId === findNodeId()) {
+      if (customEvent.detail?.nodeId === getId()) {
         status.val = `Error: ${customEvent.detail.error}`;
       }
     };

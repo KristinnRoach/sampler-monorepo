@@ -77,9 +77,9 @@ export { EnvelopeSwitcher } from './elements/Sampler/components/EnvelopeSwitcher
 
 // Utilities
 export {
-  createFindNodeId,
+  findNodeId as createFindNodeId,
   createToggle,
-  createKnob,
+  createKnobForTarget as createKnob,
 } from './shared/utils/component-utils';
 
 export { SamplerStatusElement } from './elements/Sampler/components/SamplerStatusElement';

@@ -4,7 +4,8 @@
 export const getWaveformSVGData = (
   audiobuffer: AudioBuffer,
   width: number,
-  height: number
+  height: number,
+  offsetY: number = 0
 ): string => {
   if (!audiobuffer.length) return '';
 
@@ -15,7 +16,7 @@ export const getWaveformSVGData = (
   for (let i = 0; i < width; i++) {
     const idx = i * step;
     const v = channelData[idx] || 0;
-    const y = (1 - (v + 1) / 2) * height;
+    const y = (1 - (v + 1) / 2) * height + offsetY;
     path += (i === 0 ? 'M' : 'L') + `${i},${y} `;
   }
 

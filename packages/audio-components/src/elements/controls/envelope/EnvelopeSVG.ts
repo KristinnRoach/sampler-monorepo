@@ -17,7 +17,7 @@ import {
 } from './env-utils';
 
 import { EnvToggleButtons } from './env-buttons';
-import { createEnvelopeGrid } from './env-grid';
+import { createGrid } from './env-grid';
 import { getWaveformSVGData } from '../../../shared/utils/visual/waveform-utils';
 
 import { createPlayheads, type PlayheadManager } from './env-playheads';
@@ -414,8 +414,12 @@ export const EnvelopeSVG = (
 
   // Manually append the SVG element to avoid namespace issues
   container.appendChild(svgElement);
+
   // Grid
-  const gridGroup = createEnvelopeGrid(SVG_WIDTH, SVG_HEIGHT);
+  const gridHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
+  const offsetY = CIRCLE_PADDING + TOP_BTNS_PADDING;
+
+  const gridGroup = createGrid(SVG_WIDTH, gridHeight, { offsetY });
 
   // Envelope path
 
@@ -474,7 +478,8 @@ export const EnvelopeSVG = (
     const waveformSVGData = getWaveformSVGData(
       audiobuffer,
       SVG_WIDTH - 2 * CIRCLE_PADDING,
-      SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING
+      SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
+      CIRCLE_PADDING + TOP_BTNS_PADDING
     );
 
     waveformPath = path({
@@ -484,9 +489,8 @@ export const EnvelopeSVG = (
       stroke: () =>
         enabled.val ? 'rgba(52, 103, 188, 0.8)' : 'rgba(51, 51, 51, 0.8)',
       'stroke-width': 1,
-      style: 'z-index: -999; pointer-events: none; ',
-      'pointer-events': 'none', // SVG attribute, not CSS
-      transform: `translate(${CIRCLE_PADDING}, ${CIRCLE_PADDING + TOP_BTNS_PADDING})`,
+      style: 'z-index: -999; pointer-events: none;',
+      'pointer-events': 'none',
     }) as SVGPathElement;
 
     // Insert waveform after grid but before envelope path
