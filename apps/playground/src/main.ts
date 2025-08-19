@@ -7,20 +7,20 @@ defineSampler(); // Define all sampler components
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
 
-  const samplerContainerEl = qs('#sampler-container');
-  createAndAppendHandle(samplerContainerEl);
+  // const samplerContainerEl = qs('#sampler-container');
 
-  if (samplerContainerEl) {
-    makeDraggable(
-      {
-        element: samplerContainerEl,
-        handleClassName: '.drag-handle',
-      },
-      {
-        type: 'x,y',
-      }
-    );
-  }
+  // createAndAppendHandle(samplerContainerEl);
+  // if (samplerContainerEl) {
+  //   makeDraggable(
+  //     {
+  //       element: samplerContainerEl,
+  //       handleClassName: '.drag-handle',
+  //     },
+  //     {
+  //       type: 'x,y',
+  //     }
+  //   );
+  // }
 });
 
 function createAndAppendHandle(element: Element | null) {

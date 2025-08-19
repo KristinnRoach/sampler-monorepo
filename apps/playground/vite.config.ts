@@ -9,12 +9,12 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate', // Automatically update the service worker
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'], // assets to cache
+      includeAssets: ['favicon.ico', 'icons/apple-touch-icon.png'], // assets to cache
       manifest: {
         name: 'Hljóð-Smali',
         short_name: 'HljóðSmali',
         description: 'Sampler Instrument',
-        theme_color: '#ffffff',
+        theme_color: '#666',
         icons: [
           {
             src: 'icons/android-chrome-192x192.png',

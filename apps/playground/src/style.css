@@ -41,9 +41,12 @@ body {
   row-gap: 0.5rem;
   column-gap: 0.1rem;
   padding: 1rem;
-  place-self: center;
+  /* place-self: center; */
 
-  grid-template-columns: repeat(5, min-content);
+  /* grid-template-columns: repeat(5, min-content); */
+
+  grid-auto-columns: 200px;
+  grid-auto-rows: 200px;
   grid-template-areas:
     'env env  sample mix distortion'
     'env env  filter space mod'
@@ -55,6 +58,7 @@ body {
   border-radius: 0.5rem;
   /* background-color: rgba(0, 0, 0, 0.35); */
   background-color: #29552f;
+  user-select: none;
 }
 
 /* Individual elements now positioned via parent grid areas */
@@ -71,7 +75,7 @@ record-button > div > button {
   grid-auto-flow: column;
   grid-auto-columns: fit-content;
 
-  align-items: center;
+  align-items: start;
   justify-items: center;
   justify-self: center;
 
@@ -115,6 +119,7 @@ record-button > div > button {
 
 .loop-group .loop-drift {
   display: flex;
+  flex-direction: column;
 }
 
 .feedback-group {

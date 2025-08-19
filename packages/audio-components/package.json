@@ -20,7 +20,7 @@
   "scripts": {
     "build": "pnpm clean && vite build",
     "watch": "vite build --watch",
-    "clean": "rm -rf dist && mkdir -p dist",
+    "clean": "rm -rf dist",
     "clean:deps": "rm -rf node_modules && pnpm install",
     "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune"
   },

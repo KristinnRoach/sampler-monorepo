@@ -267,13 +267,6 @@ export function createSVGButton(
     }
   });
 
-  button.addEventListener('keydown', (e) => {
-    if (stateArray.length > 1 && (e.key === ' ' || e.key === 'Enter')) {
-      e.preventDefault();
-      button.click();
-    }
-  });
-
   return button;
 }
 

@@ -363,12 +363,12 @@ export class InstrumentBus implements ILibAudioNode {
   }
 
   setHpfCutoff(hz: number): this {
-    this.getNode('hpf')?.audioNode.frequency.setValueAtTime(hz, this.now);
+    this.getNode('hpf')?.audioNode.frequency.setTargetAtTime(hz, this.now, 0.1);
     return this;
   }
 
   setLpfCutoff(hz: number): this {
-    this.getNode('lpf')?.audioNode.frequency.setValueAtTime(hz, this.now);
+    this.getNode('lpf')?.audioNode.frequency.setTargetAtTime(hz, this.now, 0.1);
     return this;
   }
 
