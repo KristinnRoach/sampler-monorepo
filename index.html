@@ -103,29 +103,29 @@
         <fieldset class="control-group feedback-group">
           <legend class="expandable-legend">Feedback</legend>
 
-          <div class="expandable-content">
-            <div class="knob-w-toggle">
-              <feedback-knob
-                target-node-id="test-sampler"
-                label="Amount"
-              ></feedback-knob>
-
-              <feedback-mode-toggle
-                target-node-id="test-sampler"
-                label=""
-              ></feedback-mode-toggle>
-            </div>
-
-            <feedback-pitch-knob
+          <!-- <div class="expandable-content"> -->
+          <div class="knob-w-toggle">
+            <feedback-knob
               target-node-id="test-sampler"
-              label="Pitch"
-            ></feedback-pitch-knob>
+              label="Amount"
+            ></feedback-knob>
 
-            <feedback-decay-knob
+            <feedback-mode-toggle
               target-node-id="test-sampler"
-              label="Decay"
-            ></feedback-decay-knob>
+              label=""
+            ></feedback-mode-toggle>
           </div>
+
+          <feedback-pitch-knob
+            target-node-id="test-sampler"
+            label="Pitch"
+          ></feedback-pitch-knob>
+
+          <feedback-decay-knob
+            target-node-id="test-sampler"
+            label="Decay"
+          ></feedback-decay-knob>
+          <!-- </div> -->
         </fieldset>
 
         <fieldset class="control-group trim-group">
