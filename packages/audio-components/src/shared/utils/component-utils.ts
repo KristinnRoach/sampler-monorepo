@@ -169,11 +169,15 @@ export interface KnobConfig {
   curve?: number;
   snapIncrement?: number;
   valueFormatter?: (value: number) => string;
-  onTargetConnect?: (target: any, state: State<number>, van: any) => void;
+  onTargetConnect?: (
+    target: SamplePlayer,
+    state: State<number>,
+    van: any
+  ) => void;
   onKnobElementReady?: (
     knobElement: any,
     state: State<number>,
-    target?: any
+    target?: SamplePlayer
   ) => void;
 }
 

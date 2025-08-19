@@ -11,7 +11,7 @@
       content="Playground for prototyping a sampler instrument "
     />
 
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <!-- Injected by Vite PWA Plugin, no need for: <link rel="manifest" href="./manifest.webmanifest" /> -->
     <link rel="stylesheet" href="./src/style.css" />
 
     <script type="module" src="./src/main.ts" defer></script>
@@ -19,155 +19,203 @@
   <body>
     <div id="page-wrapper" class="page-wrapper">
       <div class="control-grid" id="sampler-container">
+        <!-- Sampler Audio Engine -->
         <sampler-element
           node-id="test-sampler"
           debug-mode="false"
         ></sampler-element>
 
+        <!-- Controls -->
+
         <fieldset class="control-group env-group">
-          <legend>Envelopes</legend>
-          <envelope-switcher target-node-id="test-sampler"></envelope-switcher>
+          <legend class="expandable-legend">Envelopes</legend>
+          <div class="expandable-content">
+            <envelope-switcher
+              height="225px"
+              target-node-id="test-sampler"
+            ></envelope-switcher>
+          </div>
         </fieldset>
 
         <fieldset class="control-group sample-group">
-          <legend>Sample</legend>
-          <record-button
-            target-node-id="test-sampler"
-            show-status="false"
-          ></record-button>
-          <load-button
-            target-node-id="test-sampler"
-            show-status="false"
-          ></load-button>
+          <legend class="expandable-legend">Sample</legend>
+          <div class="expandable-content">
+            <record-button
+              target-node-id="test-sampler"
+              show-status="false"
+            ></record-button>
+            <load-button
+              target-node-id="test-sampler"
+              show-status="false"
+            ></load-button>
+          </div>
         </fieldset>
 
         <fieldset class="control-group mix-group">
-          <legend>Mix</legend>
-          <volume-knob target-node-id="test-sampler"></volume-knob>
-          <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
+          <legend class="expandable-legend">Mix</legend>
+          <div class="expandable-content">
+            <volume-knob target-node-id="test-sampler"></volume-knob>
+            <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
+          </div>
         </fieldset>
-        <fieldset class="control-group loop-group">
-          <legend>Loop</legend>
-          <loop-start-knob
-            target-node-id="test-sampler"
-            label="Start"
-          ></loop-start-knob>
 
-          <loop-duration-knob
-            target-node-id="test-sampler"
-            label="Duration"
-          ></loop-duration-knob>
+        <fieldset class="control-group loop-group">
+          <legend class="expandable-legend">Loop</legend>
+          <div class="expandable-content">
+            <loop-start-knob
+              target-node-id="test-sampler"
+              label="Start"
+            ></loop-start-knob>
+
+            <loop-duration-knob
+              target-node-id="test-sampler"
+              label="Duration"
+            ></loop-duration-knob>
+
+            <div class="flex-col">
+              <loop-duration-drift-knob
+                target-node-id="test-sampler"
+                label="Drift"
+              ></loop-duration-drift-knob>
+
+              <pan-drift-toggle
+                target-node-id="test-sampler"
+              ></pan-drift-toggle>
+            </div>
+          </div>
         </fieldset>
 
         <fieldset class="control-group filter-group">
-          <legend>Filters</legend>
-          <lowpass-filter-knob
-            target-node-id="test-sampler"
-          ></lowpass-filter-knob>
-          <highpass-filter-knob
-            target-node-id="test-sampler"
-          ></highpass-filter-knob>
+          <legend class="expandable-legend">Filters</legend>
+          <div class="expandable-content">
+            <lowpass-filter-knob
+              target-node-id="test-sampler"
+            ></lowpass-filter-knob>
+            <highpass-filter-knob
+              target-node-id="test-sampler"
+            ></highpass-filter-knob>
+          </div>
         </fieldset>
 
-        <fieldset class="control-group space-group">
-          <legend>Space</legend>
-          <reverb-send-knob target-node-id="test-sampler"></reverb-send-knob>
-          <reverb-size-knob target-node-id="test-sampler"></reverb-size-knob>
+        <fieldset class="control-group reverb-group">
+          <legend class="expandable-legend">Reverb</legend>
+          <div class="expandable-content">
+            <reverb-send-knob
+              label="Send"
+              target-node-id="test-sampler"
+            ></reverb-send-knob>
+            <reverb-size-knob
+              label="Size"
+              target-node-id="test-sampler"
+            ></reverb-size-knob>
+          </div>
         </fieldset>
 
         <fieldset class="control-group distortion-group">
-          <legend>Distortion</legend>
-          <drive-knob target-node-id="test-sampler"></drive-knob>
-          <clipping-knob
-            target-node-id="test-sampler"
-            label="Clip"
-          ></clipping-knob>
+          <legend class="expandable-legend">Distortion</legend>
+          <div class="expandable-content">
+            <drive-knob target-node-id="test-sampler"></drive-knob>
+            <clipping-knob
+              target-node-id="test-sampler"
+              label="Clip"
+            ></clipping-knob>
+          </div>
         </fieldset>
 
         <!-- Feedback controls -->
         <fieldset class="control-group feedback-group">
-          <legend>Feedback</legend>
+          <legend class="expandable-legend">Feedback</legend>
 
-          <feedback-knob
-            target-node-id="test-sampler"
-            label="Amount"
-          ></feedback-knob>
+          <div class="expandable-content">
+            <div class="flex-col">
+              <feedback-knob
+                target-node-id="test-sampler"
+                label="Amount"
+              ></feedback-knob>
 
-          <feedback-pitch-knob
-            target-node-id="test-sampler"
-            label="Pitch"
-          ></feedback-pitch-knob>
+              <feedback-mode-toggle
+                target-node-id="test-sampler"
+                label=""
+              ></feedback-mode-toggle>
+            </div>
 
-          <feedback-decay-knob
-            target-node-id="test-sampler"
-            label="Decay"
-          ></feedback-decay-knob>
+            <div class="flex-row">
+              <feedback-pitch-knob
+                target-node-id="test-sampler"
+                label="Pitch"
+              ></feedback-pitch-knob>
 
-          <feedback-mode-toggle
-            target-node-id="test-sampler"
-            label=""
-          ></feedback-mode-toggle>
+              <feedback-decay-knob
+                target-node-id="test-sampler"
+                label="Decay"
+              ></feedback-decay-knob>
+            </div>
+          </div>
         </fieldset>
 
-        <fieldset class="control-group drift-group">
-          <legend>Drift</legend>
-          <loop-duration-drift-knob
-            target-node-id="test-sampler"
-            label="Loop Length"
-          ></loop-duration-drift-knob>
-
-          <pan-drift-toggle
-            target-node-id="test-sampler"
-            label="Pan"
-          ></pan-drift-toggle>
+        <fieldset class="control-group trim-group">
+          <legend class="expandable-legend">Trim</legend>
+          <div class="expandable-content">
+            <trim-start-knob target-node-id="test-sampler"></trim-start-knob>
+            <trim-end-knob target-node-id="test-sampler"></trim-end-knob>
+          </div>
         </fieldset>
 
         <fieldset class="control-group mod-group">
-          <legend>Mod</legend>
-          <am-modulation target-node-id="test-sampler"></am-modulation>
+          <legend class="expandable-legend">Mod</legend>
+          <div class="expandable-content">
+            <am-modulation target-node-id="test-sampler"></am-modulation>
+          </div>
         </fieldset>
 
         <fieldset class="control-group amp-lfo-group">
-          <legend>Amp LFO</legend>
+          <legend class="expandable-legend">Amp LFO</legend>
+          <div class="expandable-content">
+            <div class="flex-col">
+              <gain-lfo-rate-knob
+                target-node-id="test-sampler"
+                label="Rate"
+              ></gain-lfo-rate-knob>
 
-          <gain-lfo-rate-knob
-            target-node-id="test-sampler"
-            label="Rate"
-          ></gain-lfo-rate-knob>
+              <gain-lfo-sync-toggle
+                target-node-id="test-sampler"
+                label=""
+              ></gain-lfo-sync-toggle>
+            </div>
 
-          <gain-lfo-depth-knob
-            target-node-id="test-sampler"
-            label="Depth"
-          ></gain-lfo-depth-knob>
-
-          <gain-lfo-sync-toggle
-            target-node-id="test-sampler"
-            label=""
-          ></gain-lfo-sync-toggle>
+            <gain-lfo-depth-knob
+              target-node-id="test-sampler"
+              label="Depth"
+            ></gain-lfo-depth-knob>
+          </div>
         </fieldset>
 
         <fieldset class="control-group pitch-lfo-group">
-          <legend>Pitch LFO</legend>
-          <pitch-lfo-rate-knob
-            target-node-id="test-sampler"
-            label="Rate"
-          ></pitch-lfo-rate-knob>
+          <legend class="expandable-legend">Pitch LFO</legend>
+          <div class="expandable-content">
+            <div class="flex-col">
+              <pitch-lfo-rate-knob
+                target-node-id="test-sampler"
+                label="Rate"
+              ></pitch-lfo-rate-knob>
 
-          <pitch-lfo-depth-knob
-            target-node-id="test-sampler"
-            label="Depth"
-          ></pitch-lfo-depth-knob>
+              <pitch-lfo-sync-toggle
+                target-node-id="test-sampler"
+                label=""
+              ></pitch-lfo-sync-toggle>
+            </div>
 
-          <pitch-lfo-sync-toggle
-            target-node-id="test-sampler"
-            label=""
-          ></pitch-lfo-sync-toggle>
+            <pitch-lfo-depth-knob
+              target-node-id="test-sampler"
+              label="Depth"
+            ></pitch-lfo-depth-knob>
+          </div>
         </fieldset>
 
         <fieldset class="control-group toggle-group">
-          <legend>Toggles</legend>
+          <legend class="expandable-legend">Toggles</legend>
 
-          <div>
+          <div class="expandable-content">
             <midi-toggle target-node-id="test-sampler"></midi-toggle>
             <playback-direction-toggle
               target-node-id="test-sampler"
@@ -182,23 +230,47 @@
         </fieldset>
 
         <fieldset class="control-group keyboard-group">
-          <legend>Keyboard</legend>
+          <legend class="expandable-legend">Keyboard</legend>
           <!-- Computer keyboard just attaches keyhandlers (invisible by default) -->
           <computer-keyboard target-node-id="test-sampler"></computer-keyboard>
 
-          <piano-keyboard
-            id="piano-keyboard"
-            class="piano-keyboard"
-            target-node-id="test-sampler"
-            width="800"
-            height="80"
-          ></piano-keyboard>
+          <div class="expandable-content">
+            <piano-keyboard
+              id="piano-keyboard"
+              class="piano-keyboard"
+              target-node-id="test-sampler"
+              width="800"
+              height="80"
+            ></piano-keyboard>
 
-          <div class="keyboard-controls">
-            <keymap-select target-node-id="test-sampler"></keymap-select>
-            <glide-knob target-node-id="test-sampler"></glide-knob>
+            <div class="keyboard-controls">
+              <keymap-select target-node-id="test-sampler"></keymap-select>
+              <glide-knob target-node-id="test-sampler"></glide-knob>
+            </div>
           </div>
         </fieldset>
+
+        <!-- Row collapse icons -->
+        <div
+          class="row-collapse-icon"
+          data-row="1"
+          style="grid-area: distortion"
+        ></div>
+        <div
+          class="row-collapse-icon"
+          data-row="2"
+          style="grid-area: mod"
+        ></div>
+        <div
+          class="row-collapse-icon"
+          data-row="3"
+          style="grid-area: pitch-lfo"
+        ></div>
+        <div
+          class="row-collapse-icon"
+          data-row="4"
+          style="grid-area: keyboard"
+        ></div>
       </div>
     </div>
   </body>
