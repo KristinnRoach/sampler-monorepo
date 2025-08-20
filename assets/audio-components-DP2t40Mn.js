@@ -75,7 +75,7 @@ import{E as zu,d as Nu,T as Fu}from"./audiolib-eC7v2Vn8.js";var Bu=Object.define
       
       knob-element[disabled] {
         opacity: 0.5;
-       /*  pointer-events: none; */
+        pointer-events: none; 
       }
       
       knob-element .knob-container {
@@ -88,7 +88,7 @@ import{E as zu,d as Nu,T as Fu}from"./audiolib-eC7v2Vn8.js";var Bu=Object.define
         position: absolute;
         top: 0;
         left: 0;
-        /* pointer-events: none; */
+        pointer-events: none;
       }
       
       knob-element .knob {
@@ -363,4 +363,4 @@ ${this.basestyle}
       </div>
         -->
     `,this.svg=this.querySelector(".slider-svg"),this.track=this.querySelector(".slider-track"),this.thumbs=Array.from(this.querySelectorAll(".slider-thumb")),this.initializeGSAP(),this.updateThumbs()}valueToNormalized(e){return(e-this.minValue)/(this.maxValue-this.minValue)}normalizedToValue(e){return this.minValue+e*(this.maxValue-this.minValue)}normalizedToPixels(e){return this.sliderMinPx+e*this.sliderWidthPx}pixelsToNormalized(e){return(e-this.sliderMinPx)/this.sliderWidthPx}initializeGSAP(){if(typeof rt>"u"){console.error("GSAP is not loaded");return}rt.registerPlugin(on),rt.set(this.thumbs[0],{x:this.positionsPixels[0]}),rt.set(this.thumbs[1],{x:this.positionsPixels[1]}),this.thumbs.forEach((e,n)=>{on.create(e,{type:"x",bounds:{minX:this.sliderMinPx,maxX:this.sliderMaxPx},onDrag:()=>this.onDrag(n),onPress:r=>this.onPress(r,n),onThrowUpdate:()=>this.onDrag(n),throwProps:!0})})}onPress(e,n){this.isShiftDragging=e.shiftKey,this.isShiftDragging&&(this.dragStartPositions=[rt.getProperty(this.thumbs[0],"x"),rt.getProperty(this.thumbs[1],"x")])}onDrag(e){let n=rt.getProperty(this.thumbs[0],"x"),r=rt.getProperty(this.thumbs[1],"x");if(this.isShiftDragging){const i=(e===0?n:r)-this.dragStartPositions[e],a=this.dragStartPositions[0]+i,o=this.dragStartPositions[1]+i,s=Math.max(this.sliderMinPx,Math.min(this.sliderMaxPx,a)),u=Math.max(this.sliderMinPx,Math.min(this.sliderMaxPx,o));rt.set(this.thumbs[0],{x:s}),rt.set(this.thumbs[1],{x:u}),this.positionsPixels[0]=s,this.positionsPixels[1]=u}else n>r-2&&(e===0?n=r-2:r=n+2,rt.set(this.thumbs[e],{x:e===0?n:r})),this.positionsPixels[0]=n,this.positionsPixels[1]=r;this.dispatchChangeEvent()}dispatchChangeEvent(){const e=this.pixelsToNormalized(this.positionsPixels[0]),n=this.pixelsToNormalized(this.positionsPixels[1]),r=this.normalizedToValue(e),i=this.normalizedToValue(n);this.dispatchEvent(new CustomEvent("range-change",{detail:{min:r,max:i,isShiftDragging:this.isShiftDragging,minNormalized:e,maxNormalized:n}}))}updateThumbs(){typeof rt>"u"||(this.thumbs.forEach((e,n)=>{rt.to(e,{x:this.positionsPixels[n],duration:.3,ease:"power2.out"})}),this.dispatchChangeEvent())}refreshDisplay(){this.thumbs.forEach((e,n)=>{const r=this.querySelector(`#value-${n}`);r&&(r.textContent=this.positionsPixels[n].toFixed(0))})}setRange(e,n){this.minValue=e,this.maxValue=n,this.updateThumbs()}setPosition(e,n){if(e>=0&&e<this.positionsPixels.length){const r=this.valueToNormalized(n);this.positionsPixels[e]=this.normalizedToPixels(r),this.updateThumbs()}}getPosition(e){const n=this.pixelsToNormalized(this.positionsPixels[e]);return this.normalizedToValue(n)}getPositionsInPx(){return[...this.positionsPixels]}}customElements.define("slider-gsap",kp);const{div:Lp,label:Ep}=D.tags,{div:Sp}=D.tags,{div:Cp,button:Pp}=D.tags,{div:Ap,span:Dp,input:Op,label:Rp}=D.tags,{div:Vp}=D.tags,{div:Ip,button:zp,label:Np}=D.tags;export{wp as A};
-//# sourceMappingURL=audio-components-uHUGzBeS.js.map
+//# sourceMappingURL=audio-components-DP2t40Mn.js.map
