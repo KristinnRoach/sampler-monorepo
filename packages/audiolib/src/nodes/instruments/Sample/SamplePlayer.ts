@@ -626,12 +626,18 @@ export class SamplePlayer implements ILibInstrumentNode {
   setSampleStartPoint(seconds: number): this {
     this.storeParamValue('startPoint', seconds);
     this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
+
+    // todo: debounce?
+    this.sendUpstreamMessage('start-point:updated', { startPoint: seconds });
     return this;
   }
 
   setSampleEndPoint(seconds: number): this {
     this.storeParamValue('endPoint', seconds);
     this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
+
+    // todo: debounce?
+    this.sendUpstreamMessage('end-point:updated', { endPoint: seconds });
     return this;
   }
 
@@ -787,6 +793,8 @@ export class SamplePlayer implements ILibInstrumentNode {
       });
     }
 
+    this.sendUpstreamMessage('loop-points:updated', { loopStart, loopEnd });
+
     return this;
   }
 
@@ -914,10 +922,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   /* === PITCH === */
 
   enablePitch = () => this.voicePool.allVoices.forEach((v) => v.enablePitch());
-  disablePitch = () => {
-    console.warn('disable pitch');
+  disablePitch = () =>
     this.voicePool.allVoices.forEach((v) => v.disablePitch());
-  };
 
   /* === ENVELOPES === */
 

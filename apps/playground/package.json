@@ -10,7 +10,8 @@
     "clean:deps": "rm -rf node_modules && pnpm install",
     "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune",
     "gh-deploy": "pnpm build && gh-pages -d dist -b gh-pages",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
     "@repo/audio-components": "workspace:*",
