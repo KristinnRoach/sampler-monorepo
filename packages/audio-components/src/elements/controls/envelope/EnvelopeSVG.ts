@@ -1,5 +1,5 @@
 // EnvelopeSVG.ts
-import van from '@repo/vanjs-core';
+import van, { State } from '@repo/vanjs-core';
 import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
 import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
@@ -76,7 +76,9 @@ export const EnvelopeSVG = (
   const CIRCLE_PADDING = 8;
   const TOP_BTNS_PADDING = 16;
 
-
+  const paddedWidth = SVG_WIDTH - 2 * CIRCLE_PADDING;
+  const paddedHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
+  
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
@@ -84,7 +86,7 @@ export const EnvelopeSVG = (
 
   // UI states
   const enabled = van.state<boolean>(envelopeInfo.isEnabled);
-  const loopEnabled = van.state<boolean>(envelopeInfo.loopEnabled);
+  const envLoopEnabled = van.state<boolean>(envelopeInfo.loopEnabled);
   const syncedToPlaybackRate = van.state<boolean>(
     envelopeInfo.syncedToPlaybackRate
   );
@@ -92,7 +94,26 @@ export const EnvelopeSVG = (
   const selectedPoint = van.state<number | null>(null);
   const isDragging = van.state(false);
 
-  // Optimized click handling with drag/click distinction
+  const loopEnabled = van.state(instrument.loopEnabled);
+
+  const sampleStartSeconds = van.state(instrument.getStartPoint());
+  const sampleEndSeconds = van.state(instrument.getEndPoint());
+  const loopStartSeconds = van.state(instrument.loopStart);
+  const loopEndSeconds = van.state(instrument.loopEnd);
+
+  const indicatorSecToXpos = (seconds: number) => {
+    return (
+      secondsToScreenX(seconds, envelopeInfo.fullDuration, paddedWidth) +
+      CIRCLE_PADDING
+    );
+  };
+
+  const startXpos = van.state(indicatorSecToXpos(sampleStartSeconds.val));
+  const endXpos = van.state(indicatorSecToXpos(sampleEndSeconds.val));
+  const loopStartXpos = van.state(0);
+  const loopEndXpos = van.state(indicatorSecToXpos(loopEndSeconds.val));
+
+  // Click handling
   interface PointInteractionState {
     dragThreshold: number;
     clickStartTime: number;
@@ -380,7 +401,7 @@ export const EnvelopeSVG = (
 
   const controlButtons = EnvToggleButtons(
     enabled,
-    loopEnabled,
+    envLoopEnabled,
     syncedToPlaybackRate
   );
 
@@ -419,12 +440,13 @@ export const EnvelopeSVG = (
   const gridHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
   const offsetY = CIRCLE_PADDING + TOP_BTNS_PADDING;
 
-  const gridGroup = createGrid(SVG_WIDTH, gridHeight, { offsetY });
+  const gridGroup = createGrid(SVG_WIDTH - 2 * CIRCLE_PADDING, gridHeight, {
+    offsetX: CIRCLE_PADDING,
+    offsetY: offsetY,
+  });
 
   // Envelope path
-
   function updateEnvelopePath() {
-    // Refresh envelope info before updating path
     envelopeInfo = instrument.getEnvelope(envType);
 
     envelopePath.setAttribute(
@@ -469,17 +491,19 @@ export const EnvelopeSVG = (
   // === WAVEFORM ===
 
   function drawWaveform(audiobuffer: AudioBuffer) {
-    // Remove previous waveform path if it exists
     if (waveformPath && waveformPath.parentNode === svgElement) {
       svgElement.removeChild(waveformPath);
       waveformPath = null;
     }
 
+    const offsetX = CIRCLE_PADDING;
+    const offsetY = CIRCLE_PADDING + TOP_BTNS_PADDING;
+
     const waveformSVGData = getWaveformSVGData(
       audiobuffer,
-      SVG_WIDTH - 2 * CIRCLE_PADDING,
-      SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
-      CIRCLE_PADDING + TOP_BTNS_PADDING
+      paddedWidth,
+      paddedHeight,
+      offsetY
     );
 
     waveformPath = path({
@@ -489,12 +513,15 @@ export const EnvelopeSVG = (
       stroke: () =>
         enabled.val ? 'rgba(52, 103, 188, 0.8)' : 'rgba(51, 51, 51, 0.8)',
       'stroke-width': 1,
-      style: 'z-index: -999; pointer-events: none;',
+      style: `z-index: -999; pointer-events: none;`,
       'pointer-events': 'none',
+      transform: `translate(${offsetX},0)`,
     }) as SVGPathElement;
 
     // Insert waveform after grid but before envelope path
     svgElement.insertBefore(waveformPath, envelopePath);
+
+    updateWaveformTransform();
 
     gsap.from(waveformPath, {
       duration: 0.5,
@@ -503,7 +530,368 @@ export const EnvelopeSVG = (
     });
   }
 
-  // EVENT HANDLERS
+  function updateWaveformTransform() {
+    if (waveformPath) {
+      const paddedWidth = SVG_WIDTH - 2 * CIRCLE_PADDING;
+
+      const startOffsetPixels = secondsToScreenX(
+        sampleStartSeconds.val,
+        envelopeInfo.fullDuration,
+        paddedWidth
+      );
+
+      // Calculate scale factor to stretch the active duration to full width
+      const activeDuration = sampleEndSeconds.val - sampleStartSeconds.val;
+
+      if (activeDuration <= 0) {
+        waveformPath.setAttribute('transform', 'scale(0,1)');
+        return;
+      }
+
+      const scaleX = envelopeInfo.fullDuration / activeDuration;
+
+      waveformPath.setAttribute(
+        'transform',
+        `translate(${CIRCLE_PADDING},0) scale(${scaleX},1) translate(${-startOffsetPixels},0)`
+      );
+    }
+  }
+
+  // === LOOP START/END INDICATORS ===
+
+  // let loopStartLine: SVGLineElement | null = null;
+  // let loopEndLine: SVGLineElement | null = null;
+
+  // const createIndicator = (color: string = '#992312'): SVGLineElement => {
+  //   const lineElement = document.createElementNS(
+  //     'http://www.w3.org/2000/svg',
+  //     'line'
+  //   );
+  //   lineElement.setAttribute(
+  //     'y1',
+  //     (CIRCLE_PADDING + TOP_BTNS_PADDING).toString()
+  //   );
+  //   lineElement.setAttribute('y2', (SVG_HEIGHT - CIRCLE_PADDING).toString());
+  //   lineElement.setAttribute('stroke', color);
+  //   lineElement.setAttribute('stroke-width', '2');
+  //   lineElement.style.pointerEvents = 'none';
+  //   lineElement.style.display = 'none'; // Hidden by default
+
+  //   return lineElement;
+  // };
+
+  // const makeDraggable = (line: SVGLineElement, isStart: boolean) => {
+  //   let isDragging = false;
+
+  //   line.style.cursor = 'ew-resize';
+  //   line.style.pointerEvents = 'auto'; // Re-enable pointer events
+
+  //   const handleMouseDown = (e: MouseEvent) => {
+  //     isDragging = true;
+  //     e.preventDefault();
+  //   };
+
+  //   const handleMouseMove = (e: MouseEvent) => {
+  //     if (!isDragging) return;
+
+  //     const rect = svgElement.getBoundingClientRect();
+  //     const x = e.clientX - rect.left - CIRCLE_PADDING;
+  //     const clampedX = Math.max(0, Math.min(x, SVG_WIDTH - 2 * CIRCLE_PADDING));
+
+  //     const seconds = screenXToSeconds(
+  //       clampedX,
+  //       envelopeInfo.fullDuration,
+  //       SVG_WIDTH - 2 * CIRCLE_PADDING
+  //     );
+
+  //     if (isStart) {
+  //       instrument.setLoopStart(seconds);
+  //     } else {
+  //       instrument.setLoopEnd(seconds);
+  //     }
+  //   };
+
+  //   const handleMouseUp = () => {
+  //     isDragging = false;
+  //   };
+
+  //   line.addEventListener('mousedown', handleMouseDown);
+  //   document.addEventListener('mousemove', handleMouseMove);
+  //   document.addEventListener('mouseup', handleMouseUp);
+  // };
+
+  // loopStartLine = createIndicator('#992312');
+  // makeDraggable(loopStartLine, true);
+
+  // loopEndLine = createIndicator('#992312');
+  // makeDraggable(loopEndLine, false);
+
+  // === WORKING BASELINE ===
+  let sampleStartLine: SVGLineElement | null = null;
+  let sampleEndLine: SVGLineElement | null = null;
+  let loopStartLine: SVGLineElement | null = null;
+  let loopEndLine: SVGLineElement | null = null;
+
+  const sampleStartColor = '#ddaa00';
+  const sampleEndColor = '#ddaa00';
+  const loopStartColor = '#0055dd';
+  const loopEndColor = '#0055dd';
+  const loopDisabledColor = '#666';
+
+  function updateLoopIndicators() {
+    // Update loop start line
+    if (
+      loopStartXpos.val >= CIRCLE_PADDING &&
+      loopStartXpos.val <= SVG_WIDTH - CIRCLE_PADDING
+    ) {
+      loopStartLine!.setAttribute('x1', loopStartXpos.val.toString());
+      loopStartLine!.setAttribute('x2', loopStartXpos.val.toString());
+      loopStartLine!.style.display = 'block';
+    } else {
+      loopStartLine!.style.display = 'none';
+      console.log('Loop start line out of bounds');
+    }
+
+    // Update loop end line
+    if (
+      loopEndXpos.val >= CIRCLE_PADDING &&
+      loopEndXpos.val <= SVG_WIDTH - CIRCLE_PADDING
+    ) {
+      loopEndLine!.setAttribute('x1', loopEndXpos.val.toString());
+      loopEndLine!.setAttribute('x2', loopEndXpos.val.toString());
+      loopEndLine!.style.display = 'block';
+    } else {
+      loopEndLine!.style.display = 'none';
+      console.log('Loop end line out of bounds');
+    }
+  }
+
+  function updateSampleIndicators() {
+    if (sampleStartLine && sampleEndLine) {
+      sampleStartLine.setAttribute('x1', startXpos.val.toString());
+      sampleStartLine.setAttribute('x2', startXpos.val.toString());
+
+      sampleEndLine.setAttribute('x1', endXpos.val.toString());
+      sampleEndLine.setAttribute('x2', endXpos.val.toString());
+    }
+  }
+
+  function updateLoopIndicatorsTransform() {
+    if (loopStartLine && loopEndLine) {
+      const paddedWidth = SVG_WIDTH - 2 * CIRCLE_PADDING;
+      const startOffsetPixels = secondsToScreenX(
+        sampleStartSeconds.val,
+        envelopeInfo.fullDuration,
+        paddedWidth
+      );
+
+      const activeDuration = sampleEndSeconds.val - sampleStartSeconds.val;
+
+      if (activeDuration <= 0) {
+        loopStartLine.style.display = 'none';
+        loopEndLine.style.display = 'none';
+        return;
+      }
+
+      const scaleX = envelopeInfo.fullDuration / activeDuration;
+
+      const transform = `scale(${scaleX},1) translate(${-startOffsetPixels},0)`;
+      loopStartLine.setAttribute('transform', transform);
+      loopEndLine.setAttribute('transform', transform);
+
+      loopStartLine.style.display = 'block';
+      loopEndLine.style.display = 'block';
+    }
+  }
+
+  function updateLoopIndicatorsEnabled() {
+    if (loopEnabled.val) {
+      loopStartLine!.setAttribute('stroke', loopStartColor);
+      loopEndLine!.setAttribute('stroke', loopEndColor);
+    } else {
+      loopStartLine!.setAttribute('stroke', loopDisabledColor);
+      loopEndLine!.setAttribute('stroke', loopDisabledColor);
+    }
+  }
+
+  const createSimpleIndicator = (color: string = '#ff0000'): SVGLineElement => {
+    const lineElement = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'line'
+    );
+    lineElement.setAttribute(
+      'y1',
+      (CIRCLE_PADDING + TOP_BTNS_PADDING).toString()
+    );
+    lineElement.setAttribute('y2', (SVG_HEIGHT - CIRCLE_PADDING).toString());
+    lineElement.setAttribute('stroke', color);
+    lineElement.setAttribute('stroke-width', '2');
+    lineElement.setAttribute('x1', CIRCLE_PADDING.toString());
+    lineElement.setAttribute('x2', CIRCLE_PADDING.toString());
+    lineElement.style.cursor = 'ew-resize';
+    lineElement.style.pointerEvents = 'auto';
+
+    return lineElement;
+  };
+
+  const makeSimpleDraggable = (
+    line: SVGLineElement,
+    label: 'loop-start' | 'loop-end' | 'start' | 'end'
+  ) => {
+    let isDragging = false;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      isDragging = true;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const rect = svgElement.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+
+      const clampedX = Math.max(
+        CIRCLE_PADDING,
+        Math.min(x, SVG_WIDTH - CIRCLE_PADDING)
+      );
+
+      line.setAttribute('x1', clampedX.toString());
+      line.setAttribute('x2', clampedX.toString());
+
+      // Apply inverse transform to get actual position
+      // const activeDuration = sampleEndSeconds.val - sampleStartSeconds.val;
+      // const scaleX =
+      //   activeDuration > 0 ? envelopeInfo.fullDuration / activeDuration : 1;
+      // const startOffsetPixels = secondsToScreenX(
+      //   sampleStartSeconds.val,
+      //   envelopeInfo.fullDuration,
+      //   paddedWidth
+      // );
+      // // Inverse transform: (x - padding + offset) / scale
+      // const transformedX = (x - CIRCLE_PADDING + startOffsetPixels) / scaleX;
+      // const clampedX = Math.max(0, Math.min(transformedX, paddedWidth));
+
+      const seconds = screenXToSeconds(
+        clampedX - CIRCLE_PADDING,
+        paddedWidth,
+        envelopeInfo.fullDuration
+      );
+
+      if (label === 'loop-start') {
+        instrument.setLoopStart(seconds);
+      } else if (label === 'loop-end') {
+        instrument.setLoopEnd(seconds);
+      } else if (label === 'start') {
+        instrument.setSampleStartPoint(seconds);
+      } else if (label === 'end') {
+        instrument.setSampleEndPoint(seconds);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDragging = false;
+    };
+
+    line.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Create and setup
+
+  sampleStartLine = createSimpleIndicator(sampleStartColor);
+  sampleEndLine = createSimpleIndicator(sampleEndColor);
+  loopStartLine = createSimpleIndicator(loopStartColor);
+  loopEndLine = createSimpleIndicator(loopEndColor);
+
+  makeSimpleDraggable(loopStartLine, 'loop-start');
+  makeSimpleDraggable(loopEndLine, 'loop-end');
+  makeSimpleDraggable(sampleStartLine, 'start');
+  makeSimpleDraggable(sampleEndLine, 'end');
+
+  const loopPointsMessageCleanup = instrument.onMessage(
+    'loop-points:updated',
+    (msg: any) => {
+      loopStartSeconds.val = msg.loopStart;
+      loopEndSeconds.val = msg.loopEnd;
+    }
+  );
+
+  // Add loop region background
+  let loopRegionRect: SVGRectElement | null = null;
+
+  // Create the background rectangle
+  loopRegionRect = document.createElementNS(
+    'http://www.w3.org/2000/svg',
+    'rect'
+  );
+  loopRegionRect.setAttribute(
+    'y',
+    (CIRCLE_PADDING + TOP_BTNS_PADDING).toString()
+  );
+  loopRegionRect.setAttribute(
+    'height',
+    (SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING).toString()
+  );
+  loopRegionRect.setAttribute('fill', 'rgba(255, 255, 255, 0.05)'); // Subtle bright overlay
+  loopRegionRect.style.pointerEvents = 'none';
+
+  // Update loop region function
+  function updateLoopRegion() {
+    if (loopRegionRect && loopEnabled.val) {
+      const startX = Math.min(loopStartXpos.val, loopEndXpos.val);
+      const endX = Math.max(loopStartXpos.val, loopEndXpos.val);
+      const width = endX - startX;
+
+      loopRegionRect.setAttribute('x', startX.toString());
+      loopRegionRect.setAttribute('width', width.toString());
+      loopRegionRect.style.display = width > 0 ? 'block' : 'none';
+    } else if (loopRegionRect) {
+      loopRegionRect.style.display = 'none';
+    }
+  }
+
+  updateLoopIndicators();
+
+  van.derive(() => {
+    loopStartXpos.val = indicatorSecToXpos(loopStartSeconds.val);
+    updateLoopIndicators();
+    updateLoopRegion();
+  });
+
+  van.derive(() => {
+    loopEndXpos.val = indicatorSecToXpos(loopEndSeconds.val);
+    updateLoopIndicators();
+    updateLoopRegion();
+  });
+
+  van.derive(() => {
+    startXpos.val = indicatorSecToXpos(sampleStartSeconds.val);
+    updateSampleIndicators();
+    updateLoopRegion();
+  });
+
+  van.derive(() => {
+    endXpos.val = indicatorSecToXpos(sampleEndSeconds.val);
+    updateSampleIndicators();
+  });
+
+  // van.derive(() => {
+  //   sampleStartSeconds.val;
+  //   if (waveformPath) updateWaveformTransform();
+  //   updateLoopIndicatorsTransform();
+  //   updateSampleIndicators();
+  // });
+
+  // van.derive(() => {
+  //   sampleEndSeconds.val;
+  //   if (waveformPath) updateWaveformTransform();
+  //   updateLoopIndicatorsTransform();
+  // });
+
+  // === EVENT HANDLERS ===
 
   const handleMouseMove = (e: MouseEvent | TouchEvent) => {
     if (!envelopeInfo.isEnabled) return;
@@ -668,8 +1056,11 @@ export const EnvelopeSVG = (
   svgElement.appendChild(gridGroup);
   svgElement.appendChild(envelopePath);
   svgElement.appendChild(pointsGroup);
-
-  updateControlPoints();
+  svgElement.appendChild(loopStartLine);
+  svgElement.appendChild(loopEndLine);
+  svgElement.appendChild(sampleStartLine);
+  svgElement.appendChild(sampleEndLine);
+  svgElement.appendChild(loopRegionRect);
 
   const animateIntro = () => {
     let tl = gsap.timeline();
@@ -707,19 +1098,19 @@ export const EnvelopeSVG = (
 
   // Refresh function to update envelope display when data changes
   const refresh = () => {
-    // Update envelope info
     envelopeInfo = instrument.getEnvelope(envType);
 
-    // Update UI state
     enabled.val = envelopeInfo.isEnabled;
-    loopEnabled.val = envelopeInfo.loopEnabled;
+    envLoopEnabled.val = envelopeInfo.loopEnabled;
     syncedToPlaybackRate.val = envelopeInfo.syncedToPlaybackRate;
 
-    // Update visual elements
     updateControlPoints();
     updateEnvelopePath();
+    updateLoopIndicators();
     // animateIntro(); // TODO: make this work
   };
+
+  // === LISTENERS ===
 
   // Listen for envelope created/updated messages
   const envelopeMessageCleanup = instrument.onMessage(
@@ -731,13 +1122,46 @@ export const EnvelopeSVG = (
 
   // Listen for sample loaded to redraw waveform
   const sampleLoadedCleanup = instrument.onMessage('sample:loaded', () => {
-    // Redraw waveform with the new sample
     if (instrument.audiobuffer) {
       drawWaveform(instrument.audiobuffer);
     }
-    // Also refresh the envelope in case it changed with the new sample
+    loopStartSeconds.val = 0;
+    loopEndSeconds.val = instrument.loopEnd;
     refresh();
   });
+
+  // Listen for start/end point updates
+  const startPointMessageCleanup = instrument.onMessage(
+    'start-point:updated',
+    (msg: any) => (sampleStartSeconds.val = msg.startPoint)
+  );
+
+  const endPointMessageCleanup = instrument.onMessage(
+    'end-point:updated',
+    (msg: any) => (sampleEndSeconds.val = msg.endPoint)
+  );
+
+  const loopEnabledMessageCleanup = instrument.onMessage(
+    'loop:enabled',
+    (msg: any) => (loopEnabled.val = msg.enabled)
+  );
+
+  van.derive(() => {
+    loopEnabled.val;
+    updateLoopIndicatorsEnabled();
+  });
+
+  const cleanupListeners = () => {
+    // ? is this not already automatically handled by audiolib's Messages?
+    envelopeMessageCleanup();
+    sampleLoadedCleanup();
+    startPointMessageCleanup();
+    endPointMessageCleanup();
+    loopPointsMessageCleanup();
+    loopEnabledMessageCleanup();
+  };
+
+  // === DERIVED STATES ===
 
   van.derive(() => {
     if (enabled.val) {
@@ -745,12 +1169,13 @@ export const EnvelopeSVG = (
     } else {
       instrument.disableEnvelope(envelopeType);
     }
-    // Always refresh visuals to reflect enabled/disabled styles
     updateControlPoints();
     updateEnvelopePath();
   });
 
-  van.derive(() => instrument.setEnvelopeLoop(envelopeType, loopEnabled.val));
+  van.derive(() =>
+    instrument.setEnvelopeLoop(envelopeType, envLoopEnabled.val)
+  );
 
   van.derive(() =>
     instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val)
@@ -762,10 +1187,8 @@ export const EnvelopeSVG = (
     drawWaveform,
     refresh,
     cleanup: () => {
-      envelopeMessageCleanup();
-      sampleLoadedCleanup();
+      cleanupListeners();
       playheadManager.cleanup();
-      // Clean up point interaction states
       pointStates.forEach((state) => {
         if (state.doubleClickTimer) {
           clearTimeout(state.doubleClickTimer);
@@ -774,6 +1197,12 @@ export const EnvelopeSVG = (
       pointStates.clear();
       if (waveformPath && waveformPath.parentNode === svgElement) {
         svgElement.removeChild(waveformPath);
+      }
+      if (loopStartLine && loopStartLine.parentNode === svgElement) {
+        svgElement.removeChild(loopStartLine);
+      }
+      if (loopEndLine && loopEndLine.parentNode === svgElement) {
+        svgElement.removeChild(loopEndLine);
       }
     },
   };

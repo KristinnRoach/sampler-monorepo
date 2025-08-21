@@ -170,7 +170,7 @@ const loopDurationDriftConfig: KnobConfig = {
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
-  curve: 1.5,
+  curve: 0.5,
   snapIncrement: 0.001,
   valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
   onTargetConnect: (sampler, state, van) => {

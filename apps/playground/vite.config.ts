@@ -9,7 +9,11 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate', // Automatically update the service worker
-      includeAssets: ['favicon.ico', 'icons/apple-touch-icon.png'], // assets to cache
+      includeAssets: [
+        'icons/favicon.svg',
+        'icons/favicon.ico',
+        'icons/apple-touch-icon-180x180.png',
+      ], // assets to cache
       manifest: {
         name: 'Hljóð-Smali',
         short_name: 'HljóðSmali',
@@ -17,13 +21,34 @@ export default defineConfig({
         theme_color: '#666',
         icons: [
           {
-            src: 'icons/android-chrome-192x192.png',
+            src: 'icons/pwa-64x64.png',
+            sizes: '64x64',
+            type: 'image/png',
+          },
+          {
+            src: 'icons/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'icons/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'icons/maskable-icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          {
+            src: 'icons/favicon_io/android-chrome-192x192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icons/android-chrome-512x512.png',
+            src: 'icons/favicon_io/android-chrome-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

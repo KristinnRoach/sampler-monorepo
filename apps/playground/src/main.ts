@@ -1,20 +1,29 @@
 import { defineSampler } from '@repo/audio-components';
+import { qsa } from './utils';
 
 defineSampler(); // Define all sampler components
 
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
 
-  document.addEventListener('click', function (e) {
-    const target = e?.target as HTMLElement;
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as EventTarget | null;
+    if (!(target instanceof Element)) return;
 
-    if (target?.classList.contains('expandable-legend')) {
-      target.closest('.control-group')?.classList.toggle('collapsed');
+    // Toggle a single group's collapse by legend (support clicks on descendants)
+    const legend = target.closest('.expandable-legend');
+    if (legend) {
+      legend.closest('.control-group')?.classList.toggle('collapsed');
     }
 
-    if (target?.classList.contains('row-collapse-icon')) {
-      const row = parseInt(target.getAttribute('data-row') || '0');
-      toggleRow(row);
+    // Toggle an entire row (support clicks on descendants)
+    const rowIcon = target.closest('.row-collapse-icon');
+    if (rowIcon) {
+      const rowAttr = rowIcon.getAttribute('data-row');
+      const row = Number.parseInt(rowAttr ?? '', 10);
+      if (Number.isFinite(row) && row > 0) {
+        toggleRow(row);
+      }
     }
   });
 });
@@ -27,7 +36,11 @@ function toggleRow(rowNumber: number) {
     '.toggle-group, .keyboard-group',
   ];
 
-  const groups = document.querySelectorAll(rowSelectors[rowNumber - 1]);
+  const selector = rowSelectors[rowNumber - 1];
+  if (!selector) return;
+  const groups = qsa(selector);
+
+  if (groups.length === 0) return;
   const allCollapsed = Array.from(groups).every((g) =>
     g.classList.contains('collapsed')
   );
