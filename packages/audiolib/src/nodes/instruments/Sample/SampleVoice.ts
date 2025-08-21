@@ -810,6 +810,7 @@ export class SampleVoice {
             // ? Why is this necessary ?
             // Initialize loopEnd to 0 to force the macro parameter to update
             // This ensures the macro's value will be applied when connected
+            this.setParam('loopStart', 0, this.now);
             this.setParam('loopEnd', 0, this.now);
           }
           this.#state = VoiceState.LOADED;

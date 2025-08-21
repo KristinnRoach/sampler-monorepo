@@ -1,6 +1,5 @@
 import { LibNode } from '@/nodes/LibNode';
 import { unregisterNode, registerNode } from '@/nodes/node-store';
-import { cancelScheduledParamValues } from '@/utils';
 
 export class AudioParamController implements LibNode {
   readonly nodeId: NodeID;
@@ -10,13 +9,14 @@ export class AudioParamController implements LibNode {
   #targets: Array<{ param: AudioParam; scaler?: GainNode }> = [];
   #initialized: boolean = false;
 
+  #value: number;
+
   static MIN_EXPONENTIAL_RAMP_VALUE = 1e-6;
 
   constructor(
     context: BaseAudioContext,
     initialValue: number = AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
   ) {
-    // Cast to AudioContext to access .resume()
     this.#context = context as AudioContext;
     this.nodeId = registerNode(this.nodeType, this);
 
@@ -26,6 +26,8 @@ export class AudioParamController implements LibNode {
       initialValue,
       context.currentTime
     );
+
+    this.#value = initialValue;
 
     // Hook into user gesture to avoid audio context warnings
     document.addEventListener('click', this.initOnUserGesture.bind(this), {
@@ -79,8 +81,10 @@ export class AudioParamController implements LibNode {
         AudioParamController.MIN_EXPONENTIAL_RAMP_VALUE
       );
       this.param.exponentialRampToValueAtTime(safeValue, now + duration);
+      this.#value = safeValue;
     } else {
       this.param.linearRampToValueAtTime(targetValue, now + duration);
+      this.#value = targetValue;
     }
 
     return this;
@@ -88,8 +92,8 @@ export class AudioParamController implements LibNode {
 
   setValue(value: number, timestamp = this.now, cancelScheduled = true): this {
     cancelScheduled && this.param.cancelScheduledValues(timestamp); // cancelScheduledParamValues(this.param, timestamp);
-
     this.param.setValueAtTime(value, timestamp); // + 0.00001 ?
+    this.#value = value;
     return this;
   }
 
@@ -110,7 +114,7 @@ export class AudioParamController implements LibNode {
   }
 
   get value(): number {
-    return this.param.value;
+    return this.#value;
   }
 
   get initialized() {

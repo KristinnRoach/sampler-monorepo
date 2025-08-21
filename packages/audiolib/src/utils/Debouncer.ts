@@ -3,25 +3,26 @@ export class Debouncer {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
 
   /**
-   * Debounce a function by a unique key.
-   * @param key - Unique identifier for this debounced function (e.g., parameter name)
+   * Debounce a function by key, or auto-key using function name if no key is provided.
    * @param fn - The function to debounce
    * @param delay - Debounce delay in milliseconds
+   * @param key - Optional unique identifier for this debounced function
    */
   debounce<T extends (...args: any[]) => void>(
-    key: string,
     fn: T,
-    delay: number
+    delay: number,
+    key?: string
   ): (...args: Parameters<T>) => void {
+    const actualKey = key ?? fn.name ?? 'default';
     return (...args: Parameters<T>) => {
-      if (this.timers.has(key)) {
-        clearTimeout(this.timers.get(key));
+      if (this.timers.has(actualKey)) {
+        clearTimeout(this.timers.get(actualKey));
       }
       this.timers.set(
-        key,
+        actualKey,
         setTimeout(() => {
           fn(...args);
-          this.timers.delete(key); // Clean up after call
+          this.timers.delete(actualKey);
         }, delay)
       );
     };
@@ -37,14 +38,4 @@ export class Debouncer {
     }
   }
 }
-
-// export function debounce<T extends (...args: any[]) => void>(
-//   fn: T,
-//   delay: number
-// ): (...args: Parameters<T>) => void {
-//   let timer: ReturnType<typeof setTimeout> | null = null;
-//   return (...args: Parameters<T>) => {
-//     if (timer) clearTimeout(timer);
-//     timer = setTimeout(() => fn(...args), delay);
-//   };
-// }
+// ...existing code...

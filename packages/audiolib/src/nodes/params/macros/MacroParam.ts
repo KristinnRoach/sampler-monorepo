@@ -27,6 +27,7 @@ export class MacroParam {
 
   constructor(context: BaseAudioContext, descriptor: LibParamDescriptor) {
     this.descriptor = descriptor;
+
     this.#controller = new AudioParamController(
       context,
       descriptor.defaultValue
@@ -98,9 +99,9 @@ export class MacroParam {
       executeRamp();
     } else {
       const debounced = this.#debouncer.debounce(
-        this.nodeId,
         executeRamp,
-        debounceMs
+        debounceMs,
+        this.nodeId // explicit key (can be omitted for auto-keying)
       );
       debounced();
     }
@@ -226,18 +227,13 @@ export class MacroParam {
     );
   }
 
-  // Delegate basic operations
   setValue(value: number, timestamp?: number): this {
     this.#controller.setValue(value, timestamp);
-    this.#sendValueChangedMessage(value);
-
     this.#currentTargetValue = value;
     return this;
   }
 
-  getValue(): number {
-    return this.#controller.value;
-  }
+  getValue = (): number => this.#controller.value;
 
   get targets() {
     return this.#controller.targets;

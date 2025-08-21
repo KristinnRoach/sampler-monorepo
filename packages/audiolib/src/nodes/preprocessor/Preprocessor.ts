@@ -124,11 +124,9 @@ export async function preProcessAudioBuffer(
           ratio: compress.ratio ?? 2,
           makeupGain: compress.makeupGain ?? 1.0,
         };
-        console.log('Using manual compression settings');
       } else {
         // Use smart suggested settings from analysis
         settings = compressionAnalysis.suggestedSettings!;
-        console.log('Using smart compression settings based on audio analysis');
       }
 
       processed = compressAudioBuffer(
@@ -137,15 +135,6 @@ export async function preProcessAudioBuffer(
         settings.threshold,
         settings.ratio,
         settings.makeupGain
-      );
-
-      console.log(
-        `Applied compression (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)}, ` +
-          `threshold: ${settings.threshold}, ratio: ${settings.ratio}:1)`
-      );
-    } else {
-      console.log(
-        `Skipped compression - already compressed/mastered (crest factor: ${compressionAnalysis.crestFactor.toFixed(2)})`
       );
     }
   }
