@@ -78,7 +78,7 @@ export const EnvelopeSVG = (
 
   const paddedWidth = SVG_WIDTH - 2 * CIRCLE_PADDING;
   const paddedHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
-
+  
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
