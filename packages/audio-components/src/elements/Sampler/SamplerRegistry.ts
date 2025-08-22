@@ -6,7 +6,6 @@ const changeCallbacks = new Set<() => void>();
 
 export const registerSampler = (nodeId: string, sampler: SamplePlayer) => {
   samplerRegistry.set(nodeId, sampler);
-  // Notify all listeners
   changeCallbacks.forEach((callback) => callback());
 };
 
@@ -21,7 +20,7 @@ export const getSampler = (nodeId: string): SamplePlayer | null => {
 
 export const onRegistryChange = (callback: () => void) => {
   changeCallbacks.add(callback);
-  return () => changeCallbacks.delete(callback); // Return cleanup function
+  return () => changeCallbacks.delete(callback); // cleanup
 };
 
 export const getAllSamplerIds = (): string[] => {

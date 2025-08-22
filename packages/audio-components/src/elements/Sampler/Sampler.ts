@@ -58,6 +58,11 @@ import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 const { div } = van.tags;
 
+export interface SamplerElement extends HTMLElement {
+  nodeId: string;
+  getSamplePlayer: () => SamplePlayer | null;
+}
+
 // ===== SAMPLER ENGINE =====
 export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
@@ -101,7 +106,12 @@ export const SamplerElement = (attributes: ElementProps) => {
           );
         });
 
-        Object.assign(attributes.$this, { nodeId: nodeId.val });
+        Object.assign(attributes.$this, {
+          nodeId: nodeId.val,
+          // getState: () => samplePlayer?.getSerializableState(),
+          // restoreState: (state: any) => samplePlayer?.restoreFromState(state),
+          getSamplePlayer: () => samplePlayer,
+        });
       } catch (error: any) {
         console.error('Sampler initialization error:', error);
         if (error?.message?.includes('AudioWorklet')) {

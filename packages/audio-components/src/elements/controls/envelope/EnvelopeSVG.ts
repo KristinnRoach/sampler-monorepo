@@ -393,7 +393,7 @@ export const EnvelopeSVG = (
   svgElement = svg({
     viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
     preserveAspectRatio: 'none',
-    style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
+    style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; overflow: visible; `,
   }) as SVGSVGElement;
 
   const controlButtons = EnvToggleButtons(
@@ -441,10 +441,6 @@ export const EnvelopeSVG = (
   tooltip.style.fontSize = '12px';
   tooltip.style.zIndex = '9999';
   tooltip.style.display = 'none';
-  container.appendChild(tooltip);
-
-  // Manually append the SVG element to avoid namespace issues
-  container.appendChild(svgElement);
 
   // Grid
   const gridHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
@@ -545,8 +541,8 @@ export const EnvelopeSVG = (
   let loopStartLine: SVGLineElement | null = null;
   let loopEndLine: SVGLineElement | null = null;
 
-  const sampleStartColor = 'rgba(171, 205, 239, 0.4)';
-  const sampleEndColor = 'rgba(171, 205, 239, 0.4)';
+  const sampleStartColor = 'rgba(200, 50, 0, 0.6)';
+  const sampleEndColor = 'rgba(200, 50, 0, 0.6)';
   const loopStartColor = '#6699dd';
   const loopEndColor = '#6699dd';
   const loopDisabledColor = '#666';
@@ -636,10 +632,18 @@ export const EnvelopeSVG = (
       tooltip.textContent = labelText;
       tooltip.style.display = 'block';
 
-      const lineX = line.getAttribute('x1');
-      if (lineX) tooltip.style.left = lineX + 'px';
-      const lineY = line.getAttribute('y1');
-      if (lineY) tooltip.style.top = lineY + 'px';
+      // Position tooltip at line
+      const vb = svgElement.viewBox.baseVal; // SVG units
+      const rect = svgElement.getBoundingClientRect(); // CSS px
+      const x1 = Number(line.getAttribute('x1') || 0);
+      const y1 = Number(line.getAttribute('y1') || 0);
+
+      const pxX = ((x1 - vb.x) / vb.width) * rect.width - 30;
+      const pxY = ((y1 - vb.y) / vb.height) * rect.height;
+
+      // place relative to container
+      tooltip.style.left = `${pxX}px`;
+      tooltip.style.top = `${pxY - 20}px`;
     };
 
     const hideTooltip = () => {
@@ -937,14 +941,17 @@ export const EnvelopeSVG = (
   });
 
   // Assemble SVG
+  container.appendChild(svgElement);
+  container.appendChild(tooltip);
+
   svgElement.appendChild(gridGroup);
   svgElement.appendChild(loopRegionRect);
-  svgElement.appendChild(envelopePath);
-  svgElement.appendChild(pointsGroup);
   svgElement.appendChild(loopStartLine);
   svgElement.appendChild(loopEndLine);
   svgElement.appendChild(sampleStartLine);
   svgElement.appendChild(sampleEndLine);
+  svgElement.appendChild(envelopePath);
+  svgElement.appendChild(pointsGroup);
 
   const animateIntro = () => {
     let tl = gsap.timeline();

@@ -14,7 +14,8 @@ export {
 } from './elements/Sampler/SamplerRegistry';
 
 // Core sampler
-export { defineSampler, SamplerElement } from './elements/Sampler/Sampler';
+export { defineSampler } from './elements/Sampler/Sampler';
+export type { SamplerElement } from './elements/Sampler/Sampler';
 
 // Basic controls
 export {

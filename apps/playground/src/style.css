@@ -69,8 +69,8 @@ feedback-mode-toggle {
   grid-auto-rows: min-content;
 
   grid-template-areas:
-    'env env  sample mix distortion'
-    'env env  filter reverb mod'
+    'env env  sample mix reverb'
+    'env env  filter distortion mod'
     'loop trim feedback amp-lfo pitch-lfo'
     'toggle keyboard keyboard keyboard keyboard';
 
