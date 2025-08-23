@@ -735,7 +735,7 @@ registerProcessor(
           name: "delayTime",
           defaultValue: 0.5,
           minValue: 12656238799684143e-20,
-          // <- B natural in seconds (highest note period that works)
+          // <- B8 natural in seconds (highest note period that works)
           maxValue: 4,
           automationRate: "k-rate"
         },
