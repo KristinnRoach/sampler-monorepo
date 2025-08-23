@@ -5,6 +5,7 @@ import { MidiController } from '@/io';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { clamp, findClosestNote, mapToRange, NOTE_PERIODS } from '@/utils';
+import { Debouncer } from '@/utils/Debouncer';
 
 import {
   preProcessAudioBuffer,
@@ -44,6 +45,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   readonly nodeType = 'sample-player' as const;
   readonly context: AudioContext;
   #messages: MessageBus<Message>;
+  #debouncer = new Debouncer();
+  #debounceMs = 100;
 
   #initialized = false;
   #initPromise: Promise<void> | null = null;
@@ -126,6 +129,8 @@ export class SamplePlayer implements ILibInstrumentNode {
           DEFAULT_PARAM_DESCRIPTORS.LOOP_END
         );
         // todo: await this.#macroLoopEnd.init();
+
+        this.#resetMacros();
 
         // Connect audio chain
         this.#connectAudioChain();
@@ -261,15 +266,22 @@ export class SamplePlayer implements ILibInstrumentNode {
   /**
    * Helper method to store parameter values in local storage
    */
-  protected storeParamValue(paramId: string, value: any): void {
-    const key = this.getLocalStorageKey(paramId);
-    localStore.saveValue(key, value);
+  protected storeParamValue(
+    paramId: string,
+    value: any,
+    delay = this.#debounceMs
+  ): void {
+    this.#debouncer.debounce(
+      () => localStore.saveValue(this.getLocalStorageKey(paramId), value),
+      delay,
+      paramId
+    )();
   }
 
   /**
    * Helper method to retrieve parameter values from local storage
    */
-  protected getStoredParamValue<T extends number | string>(
+  getStoredParamValue<T extends number | string>(
     paramId: string,
     defaultValue: T
   ): T {
@@ -350,12 +362,6 @@ export class SamplePlayer implements ILibInstrumentNode {
   #connectVoicesToMacros(): this {
     const voices = this.voicePool.allVoices;
 
-    this.#macroLoopStart.audioParam.setValueAtTime(0, this.context.currentTime);
-    this.#macroLoopEnd.audioParam.setValueAtTime(
-      this.#bufferDuration,
-      this.context.currentTime
-    );
-
     voices.forEach((voice, index) => {
       const loopStartParam = voice.getParam('loopStart');
       const loopEndParam = voice.getParam('loopEnd');
@@ -376,12 +382,13 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
-  #resetMacros(bufferDuration: number = this.#bufferDuration) {
-    this.#macroLoopStart.audioParam.setValueAtTime(0, this.context.currentTime);
-    this.#macroLoopEnd.audioParam.setValueAtTime(
-      bufferDuration,
-      this.context.currentTime
-    );
+  #resetMacros() {
+    this.#macroLoopStart.setValue(0);
+    this.storeParamValue('loopStart', 0);
+
+    this.#macroLoopEnd.setValue(this.#bufferDuration);
+    this.storeParamValue('loopEnd', this.#bufferDuration);
+
     return this;
   }
 
@@ -498,7 +505,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#bufferDuration = buffer.duration;
 
     this.voicePool.setBuffer(buffer, this.#zeroCrossings);
-    this.#resetMacros(buffer.duration);
+    this.#resetMacros();
 
     const defaultScaleOptions = {
       rootNote: 'C',
@@ -624,20 +631,24 @@ export class SamplePlayer implements ILibInstrumentNode {
   /** PARAM SETTERS  */
 
   setSampleStartPoint(seconds: number): this {
-    this.storeParamValue('startPoint', seconds);
     this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
 
-    // todo: debounce?
-    this.sendUpstreamMessage('start-point:updated', { startPoint: seconds });
+    this.storeParamValue('startPoint', seconds);
+
+    this.sendUpstreamMessage('start-point:updated', {
+      startPoint: seconds,
+    });
     return this;
   }
 
   setSampleEndPoint(seconds: number): this {
-    this.storeParamValue('endPoint', seconds);
     this.voicePool.applyToAllVoices((voice) => voice.setEndPoint(seconds));
 
-    // todo: debounce?
-    this.sendUpstreamMessage('end-point:updated', { endPoint: seconds });
+    this.storeParamValue('endPoint', seconds);
+
+    this.sendUpstreamMessage('end-point:updated', {
+      endPoint: seconds,
+    });
     return this;
   }
 
@@ -648,6 +659,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setGlideTime(seconds: number): this {
     this.storeParamValue('glideTime', seconds);
+
     return this;
   }
 
@@ -670,6 +682,8 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.#loopLocked = locked;
     this.setLoopEnabled(locked);
+
+    this.storeParamValue('loopLocked', locked);
     this.sendUpstreamMessage('loop:locked', { locked });
     return this;
   }
@@ -690,6 +704,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#holdLocked = locked;
     if (locked === false) this.releaseAll();
 
+    this.storeParamValue('holdLocked', locked);
     this.sendUpstreamMessage('hold:locked', { locked });
     return this;
   }
@@ -698,6 +713,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.applyToAllVoices((voice) =>
       voice.setPlaybackDirection(direction)
     );
+
+    this.storeParamValue('playbackDirection', direction);
     return this;
   }
 
@@ -705,13 +722,19 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.applyToAllVoices((voice) =>
       voice.setLoopDurationDriftAmount(amount)
     );
+
+    this.storeParamValue('loopDurationDrift', amount);
     return this;
   }
 
-  setPanDriftEnabled = (enabled: boolean) =>
+  setPanDriftEnabled = (enabled: boolean) => {
     this.voicePool.applyToAllVoices((voice) =>
       voice.setPanDriftEnabled(enabled)
     );
+
+    this.storeParamValue('panDriftEnabled', enabled);
+    return this;
+  };
 
   isNormalized = (value: number, range = [0, 1]) =>
     value >= range[0] && value <= range[1];
@@ -757,11 +780,15 @@ export class SamplePlayer implements ILibInstrumentNode {
       loopEndSeconds
     );
 
+    if (loopPoint === 'start' && loopStart === this.loopStart) return this;
+
     let loopEnd = clamp(
       loopEndSeconds,
       loopStart,
       this.#bufferDuration - this.MIN_LOOP_DURATION_SECONDS / 2
     );
+
+    if (loopPoint === 'end' && loopEnd === this.loopEnd) return this;
 
     const targetLoopDuration = loopEnd - loopStart;
     const RAMP_SENSITIVITY = 1;
@@ -802,6 +829,10 @@ export class SamplePlayer implements ILibInstrumentNode {
     const timestamp = this.context.currentTime;
     this.#macroLoopStart.setValue(loopStart, timestamp);
     this.#macroLoopEnd.setValue(loopEnd, timestamp);
+
+    this.storeParamValue('loopStart', loopStart);
+    this.storeParamValue('loopEnd', loopEnd);
+
     return this;
   }
 

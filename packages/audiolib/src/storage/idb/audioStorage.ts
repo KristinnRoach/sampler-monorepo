@@ -7,7 +7,7 @@ import {
   OfflineContextConfig,
 } from '@/context';
 
-import { AppSample, IdbSample, ISampleMetadata } from '@/types/Sample';
+import { AppSample, IdbSample, SampleMetadata } from '@/types/Sample';
 
 /**
  * Stores an AudioBuffer in IndexedDB
@@ -100,7 +100,7 @@ export async function getSampleArrayBuffer(
 
 export async function getSampleAsFloat32Array(
   id: string
-): Promise<ArrayBuffer | undefined> {
+): Promise<Float32Array | undefined> {
   const item = await idb.samples.get(id);
   return item ? new Float32Array(item.audioData) : undefined;
 }
@@ -115,7 +115,7 @@ export async function getSamplesDateAdded(
 // todo: getByUrl? sort/get by duration / samplerate / channels etc.
 
 function extractContextConfig(
-  metadata: ISampleMetadata,
+  metadata: SampleMetadata,
   audioData: Float32Array
 ): OfflineContextConfig {
   // Data needed for reconstruction of AudioBuffer

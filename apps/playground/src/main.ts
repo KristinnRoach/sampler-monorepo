@@ -1,5 +1,5 @@
 import { defineSampler } from '@repo/audio-components';
-import { qsa } from './utils';
+import { qsa } from './utils/dom-utils';
 
 defineSampler(); // Define all sampler components
 
@@ -10,13 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const target = e.target as EventTarget | null;
     if (!(target instanceof Element)) return;
 
-    // Toggle a single group's collapse by legend (support clicks on descendants)
+    // Toggle a single group's collapse by legend
     const legend = target.closest('.expandable-legend');
     if (legend) {
       legend.closest('.control-group')?.classList.toggle('collapsed');
     }
 
-    // Toggle an entire row (support clicks on descendants)
+    // Toggle an entire row
     const rowIcon = target.closest('.row-collapse-icon');
     if (rowIcon) {
       const rowAttr = rowIcon.getAttribute('data-row');

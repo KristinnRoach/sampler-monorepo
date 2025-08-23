@@ -58,13 +58,15 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || !enabled.val) return;
 
-    const baseLoopEnabled = e.getModifierState('CapsLock');
-    const baseHoldEnabled = e.shiftKey;
-
     if (e.code === 'Space') {
       spacePressed = true;
       e.preventDefault();
     }
+
+    const baseLoopEnabled =
+      e.code === 'CapsLock' || e.getModifierState('CapsLock');
+
+    const baseHoldEnabled = e.shiftKey;
 
     loopEnabled.val = baseLoopEnabled !== spacePressed;
     holdEnabled.val = baseHoldEnabled !== spacePressed;
@@ -85,7 +87,10 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || !enabled.val) return;
 
-    if (e.code === 'Space') {
+    if (e.code === 'CapsLock') {
+      loopEnabled.val = false;
+      sampler.setLoopEnabled?.(false);
+    } else if (e.code === 'Space') {
       spacePressed = false;
       loopEnabled.val = e.getModifierState('CapsLock');
       holdEnabled.val = e.shiftKey;

@@ -224,6 +224,10 @@ const trimStartConfig: KnobConfig = {
   onKnobElementReady: (knobElement, state, sampler) => {
     if (!sampler) return;
 
+    const initValue = sampler.getStoredParamValue('startPoint', 0);
+    state.val = initValue;
+    knobElement.setValue(initValue, true);
+
     const initDuration = sampler.sampleDuration;
     if (initDuration >= 0) {
       knobElement.setAttribute('max-value', initDuration.toString());
@@ -234,11 +238,11 @@ const trimStartConfig: KnobConfig = {
         knobElement.setAttribute('max-value', msg.durationSeconds.toString());
 
         if (state.val > msg.durationSeconds) {
-          state.val = msg.durationSeconds;
-          knobElement.setValue(msg.durationSeconds, true);
+          state.val = 0;
+          knobElement.setValue(0, true);
         }
       } catch (error) {
-        console.error('Failed to update loop duration knob:', error);
+        console.error('Failed to update sample-start knob:', error);
       }
     });
   },
@@ -256,6 +260,13 @@ const trimEndConfig: KnobConfig = {
   onKnobElementReady: (knobElement, state, sampler) => {
     if (!sampler) return;
 
+    const initValue = sampler.getStoredParamValue(
+      'endPoint',
+      sampler.sampleDuration
+    );
+    state.val = initValue;
+    knobElement.setValue(initValue, true);
+
     const initDuration = sampler.sampleDuration;
     if (initDuration >= 0) {
       knobElement.setAttribute('max-value', initDuration.toString());
@@ -271,7 +282,7 @@ const trimEndConfig: KnobConfig = {
           knobElement.setValue(msg.durationSeconds, true);
         }
       } catch (error) {
-        console.error('Failed to update loop duration knob:', error);
+        console.error('Failed to update sample-end duration knob:', error);
       }
     });
   },
@@ -280,10 +291,31 @@ const trimEndConfig: KnobConfig = {
 const loopStartConfig: KnobConfig = {
   label: 'Loop Start',
   defaultValue: 0,
+  minValue: 0,
   snapIncrement: 0.001,
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => {
       sampler.setLoopStart(state.val);
+    });
+  },
+  onKnobElementReady: (knobElement, state, sampler) => {
+    if (!sampler) return;
+
+    const initValue = sampler.getStoredParamValue('loopStart', 0);
+    state.val = initValue;
+    knobElement.setValue(initValue, true);
+
+    sampler.onMessage('sample:loaded', (msg: any) => {
+      try {
+        knobElement.setAttribute('max-value', msg.durationSeconds.toString());
+        knobElement.setAttribute('default-value', '0');
+
+        if (state.val < 0) state.val = 0;
+
+        knobElement.setValue(state.val, true);
+      } catch (error) {
+        console.error('Failed to update loop start knob:', error);
+      }
     });
   },
 };
@@ -303,9 +335,20 @@ const loopDurationConfig: KnobConfig = {
   onKnobElementReady: (knobElement, state, sampler) => {
     if (!sampler) return;
 
+    const initValue = sampler.getStoredParamValue(
+      'loopEnd',
+      sampler.sampleDuration
+    );
+    state.val = initValue;
+    knobElement.setValue(initValue, true);
+
     sampler.onMessage('sample:loaded', (msg: any) => {
       try {
         knobElement.setAttribute('max-value', msg.durationSeconds.toString());
+        knobElement.setAttribute(
+          'default-value',
+          msg.durationSeconds.toString()
+        );
 
         if (state.val > msg.durationSeconds) {
           state.val = msg.durationSeconds;
