@@ -188,17 +188,17 @@ export const createKnobForTarget = (
       const storageKey = getStorageKey(nodeId);
       const stored = localStorage.getItem(storageKey);
 
-      if (config.label === 'Volume') {
-        console.log('📦 Attempting to load from key:', storageKey);
-        console.log('📦 Found stored value:', stored);
-      }
+      // if (config.label === 'Volume') {
+      //   console.log('📦 Attempting to load from key:', storageKey);
+      //   console.debug('📦 Found stored value:', stored);
+      // }
 
       if (stored) {
         const parsed = parseFloat(stored);
         if (!isNaN(parsed)) {
-          if (config.label === 'Volume') {
-            console.log('📦 Setting state.val to:', parsed);
-          }
+          // if (config.label === 'Volume') {
+          //   console.debug('📦 Setting state.val to:', parsed);
+          // }
 
           state.val = parsed;
 
@@ -218,9 +218,9 @@ export const createKnobForTarget = (
 
     const saveValue = (value: number, nodeId: string) => {
       if (!config.useLocalStorage || !nodeId || isInitializing) {
-        if (config.label === 'Volume' && isInitializing) {
-          console.log('🚫 Skipping save during initialization');
-        }
+        // if (config.label === 'Volume' && isInitializing) {
+        //   console.debug('🚫 Skipping save during initialization');
+        // }
         return;
       }
 
@@ -232,22 +232,22 @@ export const createKnobForTarget = (
       if (connected) return;
       const nodeId = findId();
 
-      if (config.label === 'Volume') {
-        console.log('🔍 connect() called with nodeId:', nodeId);
-      }
+      // if (config.label === 'Volume') {
+      //   console.debug('🔍 connect() called with nodeId:', nodeId);
+      // }
 
       if (!nodeId) {
-        if (config.label === 'Volume') {
-          console.log('❌ No nodeId found, cannot connect');
-        }
+        // if (config.label === 'Volume') {
+        //   console.debug('❌ No nodeId found, cannot connect');
+        // }
         return;
       }
 
       const target = getTarget(nodeId);
 
-      if (config.label === 'Volume') {
-        console.log('🎯 getTarget returned:', target);
-      }
+      // if (config.label === 'Volume') {
+      //   console.debug('🎯 getTarget returned:', target);
+      // }
 
       if (target) {
         // Load stored value BEFORE connecting
@@ -261,39 +261,39 @@ export const createKnobForTarget = (
         // Now that we're connected, allow saving
         setTimeout(() => {
           isInitializing = false;
-          if (config.label === 'Volume') {
-            console.log('✅ Initialization complete, saving enabled');
-          }
+          // if (config.label === 'Volume') {
+          //   console.debug('✅ Initialization complete, saving enabled');
+          // }
         }, 100);
       } else {
-        if (config.label === 'Volume') {
-          console.log('❌ Target not found for nodeId:', nodeId);
-        }
+        // if (config.label === 'Volume') {
+        //   console.debug('❌ Target not found for nodeId:', nodeId);
+        // }
       }
     };
 
-    // Mount logic
+    // Mount debugic
     attributes.mount(() => {
-      if (config.label === 'Volume') {
-        console.log('🔌 Volume knob mounted, attempting initial connection');
-      }
+      // if (config.label === 'Volume') {
+      //   console.debug('🔌 Volume knob mounted, attempting initial connection');
+      // }
 
       connect();
 
       const handleInit = (e: CustomEvent) => {
-        if (config.label === 'Volume') {
-          console.log(
-            '📢 sampler-initialized event:',
-            e.detail.nodeId,
-            'looking for:',
-            findId()
-          );
-        }
+        // if (config.label === 'Volume') {
+        //   console.debug(
+        //     '📢 sampler-initialized event:',
+        //     e.detail.nodeId,
+        //     'looking for:',
+        //     findId()
+        //   );
+        // }
 
         if (e.detail.nodeId === findId()) {
-          if (config.label === 'Volume') {
-            console.log('✅ Matching sampler-initialized event, connecting');
-          }
+          // if (config.label === 'Volume') {
+          //   console.debug('✅ Matching sampler-initialized event, connecting');
+          // }
           connect();
         }
       };
@@ -311,9 +311,9 @@ export const createKnobForTarget = (
       };
     });
 
-    if (config.label === 'Volume') {
-      console.log('🎯 createKnobForTarget initial state.val:', state.val);
-    }
+    // if (config.label === 'Volume') {
+    //   console.log('🎯 createKnobForTarget initial state.val:', state.val);
+    // }
 
     // Create knob with simplified config - NO internal storage handling
     knobContainer = createKnob(

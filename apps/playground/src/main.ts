@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('sample-loaded', () => {
     samplePlayer = samplerEl.getSamplePlayer();
-    console.info(samplePlayer);
+    // console.info(samplePlayer);
   });
 
   addExpandCollapseListeners();

@@ -12,10 +12,10 @@ const volumeConfig: KnobConfig = {
   defaultValue: 0.75,
   useLocalStorage: true,
   onConnect: (sampler, state) => {
-    console.log('📍 onConnect: Setting sampler.volume to', state.val);
+    // console.debug('📍 onConnect: Setting sampler.volume to', state.val);
     sampler.volume = state.val;
     setTimeout(() => {
-      console.log('🔗 Setting up derive with state.val =', state.val);
+      // console.debug('🔗 Setting up derive with state.val =', state.val);
       van.derive(() => {
         if (sampler?.volume !== undefined) {
           sampler.volume = state.val;

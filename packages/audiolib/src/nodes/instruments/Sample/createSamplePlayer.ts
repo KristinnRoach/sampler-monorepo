@@ -12,13 +12,13 @@ import { fetchInitSampleAsAudioBuffer } from '@/storage/assets/asset-utils';
 /**
  * Creates a new SamplePlayer instance
  *
- * @param audioBuffer - Optional audio buffer to use (will use default if not provided)
+ * @param buffer - Optional audio buffer to use (will use default if not provided)
  * @param polyphony - Number of voices for polyphony (default: 16)
  * @param context - Optional AudioContext (will use global context if not provided)
  * @returns A new SamplePlayer instance
  */
 export async function createSamplePlayer(
-  audioBuffer?: AudioBuffer,
+  buffer?: AudioBuffer | ArrayBuffer,
   polyphony: number = 16,
   context: AudioContext = getAudioContext(),
   midiController?: MidiController
@@ -37,18 +37,20 @@ export async function createSamplePlayer(
   }
 
   // Get buffer - only initialize IndexedDB if no buffer is provided
-  let buffer: AudioBuffer;
-  if (audioBuffer) {
-    buffer = audioBuffer;
+  let audiobuffer: AudioBuffer;
+  if (buffer instanceof AudioBuffer) {
+    audiobuffer = buffer;
+  } else if (buffer instanceof ArrayBuffer) {
+    audiobuffer = await context.decodeAudioData(buffer);
   } else {
     await initIdb(); // Only initialize IndexedDB when needed
-    buffer = await fetchInitSampleAsAudioBuffer();
+    audiobuffer = await fetchInitSampleAsAudioBuffer();
   }
 
   const samplePlayer = new SamplePlayer(
     context,
     polyphony,
-    buffer,
+    audiobuffer,
     midiController
   );
 

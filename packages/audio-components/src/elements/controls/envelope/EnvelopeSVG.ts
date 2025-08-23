@@ -618,7 +618,7 @@ export const EnvelopeSVG = (
   const makeIndicatorDraggable = (
     line: SVGLineElement,
     label: 'loop-start' | 'loop-end' | 'start' | 'end'
-  ) => {
+  ): (() => void) => {
     let isDragging = false;
 
     const labelText = {
@@ -631,17 +631,12 @@ export const EnvelopeSVG = (
     const showTooltip = () => {
       tooltip.textContent = labelText;
       tooltip.style.display = 'block';
-
-      // Position tooltip at line
-      const vb = svgElement.viewBox.baseVal; // SVG units
-      const rect = svgElement.getBoundingClientRect(); // CSS px
+      const vb = svgElement.viewBox.baseVal;
+      const rect = svgElement.getBoundingClientRect();
       const x1 = Number(line.getAttribute('x1') || 0);
       const y1 = Number(line.getAttribute('y1') || 0);
-
       const pxX = ((x1 - vb.x) / vb.width) * rect.width - 30;
       const pxY = ((y1 - vb.y) / vb.height) * rect.height;
-
-      // place relative to container
       tooltip.style.left = `${pxX}px`;
       tooltip.style.top = `${pxY - 20}px`;
     };
@@ -659,24 +654,19 @@ export const EnvelopeSVG = (
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       showTooltip();
-
       const rect = svgElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
-
       const clampedX = Math.max(
         CIRCLE_PADDING,
         Math.min(x, SVG_WIDTH - CIRCLE_PADDING)
       );
-
       line.setAttribute('x1', clampedX.toString());
       line.setAttribute('x2', clampedX.toString());
-
       const seconds = screenXToSeconds(
         clampedX - CIRCLE_PADDING,
         paddedWidth,
         envelopeInfo.fullDuration
       );
-
       if (label === 'loop-start') {
         instrument.setLoopStart(seconds);
       } else if (label === 'loop-end') {
@@ -698,8 +688,16 @@ export const EnvelopeSVG = (
     line.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  };
 
+    // Return disposer function
+    return () => {
+      line.removeEventListener('mouseover', showTooltip);
+      line.removeEventListener('mouseout', hideTooltip);
+      line.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  };
   // Create and setup
 
   sampleStartLine = createSimpleIndicator(sampleStartColor);
@@ -707,10 +705,12 @@ export const EnvelopeSVG = (
   loopStartLine = createSimpleIndicator(loopStartColor);
   loopEndLine = createSimpleIndicator(loopEndColor);
 
-  makeIndicatorDraggable(loopStartLine, 'loop-start');
-  makeIndicatorDraggable(loopEndLine, 'loop-end');
-  makeIndicatorDraggable(sampleStartLine, 'start');
-  makeIndicatorDraggable(sampleEndLine, 'end');
+  // Capture disposer functions for each indicator
+  const indicatorDisposers: (() => void)[] = [];
+  indicatorDisposers.push(makeIndicatorDraggable(loopStartLine, 'loop-start'));
+  indicatorDisposers.push(makeIndicatorDraggable(loopEndLine, 'loop-end'));
+  indicatorDisposers.push(makeIndicatorDraggable(sampleStartLine, 'start'));
+  indicatorDisposers.push(makeIndicatorDraggable(sampleEndLine, 'end'));
 
   const loopPointsMessageCleanup = instrument.onMessage(
     'loop-points:updated',
@@ -1104,6 +1104,9 @@ export const EnvelopeSVG = (
         }
       });
       pointStates.clear();
+      // Dispose indicator event listeners
+      indicatorDisposers.forEach((dispose) => dispose());
+      // Remove SVG elements
       if (waveformPath && waveformPath.parentNode === svgElement) {
         svgElement.removeChild(waveformPath);
       }
@@ -1112,6 +1115,15 @@ export const EnvelopeSVG = (
       }
       if (loopEndLine && loopEndLine.parentNode === svgElement) {
         svgElement.removeChild(loopEndLine);
+      }
+      if (sampleStartLine && sampleStartLine.parentNode === svgElement) {
+        svgElement.removeChild(sampleStartLine);
+      }
+      if (sampleEndLine && sampleEndLine.parentNode === svgElement) {
+        svgElement.removeChild(sampleEndLine);
+      }
+      if (loopRegionRect && loopRegionRect.parentNode === svgElement) {
+        svgElement.removeChild(loopRegionRect);
       }
     },
   };
