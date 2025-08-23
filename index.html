@@ -28,9 +28,9 @@
     />
 
 
-    <script type="module" crossorigin src="./assets/index-BC2x4Z3K.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/audiolib-MONLDIdY.js">
-    <link rel="modulepreload" crossorigin href="./assets/audio-components-4VlJ0cMO.js">
+    <script type="module" crossorigin src="./assets/index-C5JIaM2I.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/audiolib-D_WQzItb.js">
+    <link rel="modulepreload" crossorigin href="./assets/audio-components-BFPJJeT6.js">
     <link rel="stylesheet" crossorigin href="./assets/index-Y3o1f-1q.css">
   <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
@@ -57,10 +57,14 @@
         <fieldset class="control-group sample-group">
           <legend class="expandable-legend">Sample</legend>
           <div class="expandable-content">
-            <record-button
-              target-node-id="test-sampler"
-              show-status="false"
-            ></record-button>
+            <div class="flex-col">
+              <record-button
+                target-node-id="test-sampler"
+                show-status="false"
+              ></record-button>
+              <input-select target-node-id="test-sampler"></input-select>
+            </div>
+
             <load-button
               target-node-id="test-sampler"
               show-status="false"
