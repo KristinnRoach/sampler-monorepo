@@ -140,20 +140,6 @@ export const createKnob = (
 
   const initialValue = getInitialValue();
 
-  if (config.state) {
-    if (config.label === 'Volume')
-      console.log(`🔄 BEFORE: state.val = ${config.state.val}`);
-
-    config.state.val = initialValue;
-
-    if (config.label === 'Volume') {
-      console.log(`🔄 AFTER: state.val = ${config.state.val}`);
-
-      // Verify it's actually set
-      console.log(`✅ VERIFY: config.state.val = ${config.state.val}`);
-    }
-  }
-
   knobElement.addEventListener('knob-change', (e: CustomEvent) => {
     const value = e.detail.value;
 

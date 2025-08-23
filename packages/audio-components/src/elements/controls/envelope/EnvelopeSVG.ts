@@ -1034,10 +1034,24 @@ export const EnvelopeSVG = (
     (msg: any) => (sampleEndSeconds.val = msg.endPoint)
   );
 
+  let momentarySustainForLoop = false;
+
   const loopEnabledMessageCleanup = instrument.onMessage(
     'loop:enabled',
     (msg: any) => {
       loopEnabled.val = msg.enabled;
+
+      if (msg.enabled && !envelopeInfo.sustainEnabled) {
+        momentarySustainForLoop = true;
+        instrument.setEnvelopeSustainPoint(envType, 2); // TODO: Use last-used sustainPoint index!
+        updateControlPoints();
+        updateEnvelopePath();
+      } else if (!msg.enabled && momentarySustainForLoop) {
+        momentarySustainForLoop = false;
+        instrument.setEnvelopeSustainPoint(envType, null);
+        updateControlPoints();
+        updateEnvelopePath();
+      }
     }
   );
 

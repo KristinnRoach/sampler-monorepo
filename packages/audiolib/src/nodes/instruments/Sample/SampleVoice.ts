@@ -14,6 +14,7 @@ import {
   assert,
   clamp,
   interpolateLinearToExp,
+  mapToRange,
   midiToPlaybackRate,
 } from '@/utils';
 
@@ -512,7 +513,7 @@ export class SampleVoice {
   }
 
   setModulationAmount(modType: 'AM' | 'FM', amount: number) {
-    const safeAmount = clamp(amount, 0, 1, {
+    const safeAmount = mapToRange(amount, 0, 1, 0, 0.95, {
       warn: true,
       name: 'sampleVoice.setModulationAmount',
     });

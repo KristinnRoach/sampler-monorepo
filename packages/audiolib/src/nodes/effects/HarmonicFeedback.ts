@@ -28,8 +28,8 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   #MIN_FB = 0; // 0.92; // ? make user friendly range in processor ?
   #MAX_FB = 0.999;
-  #C6_SECONDS = 0.00095556;
-  #C7_SECONDS = 0.0004774632;
+  #B8_SECONDS = 0.00012656238799684144; // B8 natural (H) in seconds
+  #MIN_DELAY_TIME = this.#B8_SECONDS;
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = registerNode(this.nodeType, this);
@@ -132,7 +132,7 @@ export class HarmonicFeedback implements ILibAudioNode {
 
     const delaySec = 1 / tunedFrequency;
 
-    const minDelay = this.#C6_SECONDS;
+    const minDelay = this.#MIN_DELAY_TIME;
     const safeDelay = Math.max(minDelay, delaySec);
 
     this.setDelay(safeDelay, timestamp, glideTime);
@@ -144,7 +144,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     this.#baseDelayTime = seconds;
 
     const scaled = seconds * this.#pitchMultiplier;
-    const clamped = clamp(scaled, this.#C7_SECONDS, 4);
+    const clamped = clamp(scaled, this.#MIN_DELAY_TIME, 4);
 
     if (glideTime === 0 || !isFinite(glideTime)) {
       this.getParam('delayTime')!.setValueAtTime(clamped, timestamp);
@@ -172,7 +172,7 @@ export class HarmonicFeedback implements ILibAudioNode {
 
     const newVal = clamp(
       mappedMultiplier * this.#baseDelayTime,
-      this.#C7_SECONDS,
+      this.#MIN_DELAY_TIME,
       4
     );
 
