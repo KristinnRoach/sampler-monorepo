@@ -39,6 +39,7 @@ import {
   CustomLibWaveform,
   WaveformOptions,
 } from '@/utils/audiodata/generate/generateWaveform';
+import { InputSource } from '@/nodes/recorder/Recorder';
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
@@ -83,6 +84,8 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   voicePool!: SampleVoicePool; // todo: fix use of '!'
   outBus!: InstrumentBus; // todo: fix use of '!'
+
+  #recordInputSource: InputSource = 'microphone';
 
   constructor(
     context: AudioContext,
@@ -162,6 +165,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.connect(this.outBus.input);
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(this.context.destination);
+  }
+
+  setRecorderInputSource(source: InputSource) {
+    this.#recordInputSource = source;
+  }
+
+  getRecorderInputSource() {
+    return this.#recordInputSource;
   }
 
   // === MESSAGING ===

@@ -70,6 +70,7 @@ export { PianoKeyboard } from './elements/Sampler/components/PianoKeyboard';
 export {
   KeymapSelect,
   WaveformSelect,
+  InputSourceSelect,
 } from './elements/Sampler/components/SamplerSelectFactory';
 
 // Envelopes

@@ -120,6 +120,31 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   },
 };
 
+const inputSourceSelectConfig: SelectConfig<'microphone' | 'browser'> = {
+  label: 'Input',
+  defaultValue: 'microphone',
+  options: [
+    {
+      value: 'microphone',
+      label: 'Mic',
+    },
+    {
+      value: 'browser',
+      label: 'Browser',
+    },
+  ],
+  onTargetConnect: (
+    sampler: any,
+    state: State<'microphone' | 'browser'>,
+    van: any,
+    targetNodeId: string
+  ) => {
+    van.derive(() => {
+      sampler.setRecorderInputSource(state.val);
+    });
+  },
+};
+
 // ===== SELECT CREATION UTILITY =====
 
 const createSamplerSelect = <T extends string = string>(
@@ -130,7 +155,7 @@ const createSamplerSelect = <T extends string = string>(
 ) => {
   return (attributes: ElementProps) => {
     const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-    const showLabel = attributes.attr('show-label', 'true');
+    const showLabel = attributes.attr('show-label', 'false');
     const labelPosition = attributes.attr('label-position', 'inline'); // 'inline' or 'below'
     const state = van.state(config.defaultValue);
 
@@ -237,6 +262,13 @@ export const KeymapSelect = createSamplerSelect(
 
 export const WaveformSelect = createSamplerSelect(
   waveformSelectConfig,
+  getSampler,
+  van,
+  COMPONENT_STYLE
+);
+
+export const InputSourceSelect = createSamplerSelect(
+  inputSourceSelectConfig,
   getSampler,
   van,
   COMPONENT_STYLE

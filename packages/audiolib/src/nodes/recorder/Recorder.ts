@@ -11,6 +11,16 @@ import {
 
 import { getMicrophone } from '@/io/devices/devices';
 
+// Helper for browser tab audio
+async function getBrowserAudio(): Promise<MediaStream> {
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    audio: true,
+    video: true,
+  });
+  // Only use the audio track
+  return new MediaStream(stream.getAudioTracks());
+}
+
 import {
   preProcessAudioBuffer,
   PreProcessOptions,
@@ -31,7 +41,20 @@ export const DEFAULT_MEDIA_REC_OPTIONS: MediaRecorderOptions = {
   mimeType: 'audio/webm',
 };
 
-export const DEFAULT_RECORDER_OPTIONS = {
+export type InputSource = 'microphone' | 'browser';
+
+export type RecorderOptions = {
+  mediaRecorderOptions: MediaRecorderOptions;
+  useThreshold: boolean;
+  startThreshold: number;
+  autoStop: boolean;
+  stopThreshold: number;
+  silenceTimeoutMs: number;
+  preprocess: boolean;
+  preprocessOptions: object;
+};
+
+export const DEFAULT_RECORDER_OPTIONS: RecorderOptions = {
   mediaRecorderOptions: DEFAULT_MEDIA_REC_OPTIONS,
   useThreshold: true,
   startThreshold: -30,
@@ -41,8 +64,6 @@ export const DEFAULT_RECORDER_OPTIONS = {
   preprocess: false, // SamplePlayer handles preprocessing
   preprocessOptions: {}, // use default options
 };
-
-export type RecorderOptions = typeof DEFAULT_RECORDER_OPTIONS;
 
 export class Recorder implements LibNode {
   readonly nodeId: NodeID;
@@ -56,11 +77,12 @@ export class Recorder implements LibNode {
   #state: AudioRecorderState = AudioRecorderState.IDLE;
 
   // Single audio monitoring setup
-  #audioSource: MediaStreamAudioSourceNode | null = null;
+  #mediaSourceNode: MediaStreamAudioSourceNode | null = null;
   #analyser: AnalyserNode | null = null;
   #animationFrame: number | null = null;
   #silenceStartTime: number | null = null;
   #config: RecorderOptions | null = null;
+  #inputSource: InputSource = 'microphone';
 
   constructor(context: AudioContext) {
     this.nodeId = registerNode(this.nodeType, this);
@@ -76,23 +98,52 @@ export class Recorder implements LibNode {
   }
 
   async start(options?: Partial<RecorderOptions>): Promise<this> {
-    const result = await tryCatch(() => getMicrophone());
-    assert(!result.error, `Failed to get microphone: ${result.error}`, result);
+    // Stop previous stream if exists
+    if (this.#stream) {
+      this.#stream.getTracks().forEach((track) => track.stop());
+      this.#stream = null;
+    }
 
-    this.#stream = result.data;
+    // ? Use a lower threshold for browser input unless overridden
+    let config = { ...DEFAULT_RECORDER_OPTIONS, ...options };
+    if (
+      this.#inputSource === 'browser' &&
+      options?.startThreshold === undefined
+    ) {
+      config.startThreshold = -60;
+    }
+    this.#config = config;
+    let streamResult;
+    if (this.#config && this.#inputSource === 'browser') {
+      streamResult = await tryCatch(() => getBrowserAudio());
+      assert(
+        !streamResult.error,
+        `Failed to get browser audio: ${streamResult.error}`,
+        streamResult
+      );
+    } else {
+      streamResult = await tryCatch(() => getMicrophone());
+      assert(
+        !streamResult.error,
+        `Failed to get microphone: ${streamResult.error}`,
+        streamResult
+      );
+    }
 
-    this.#config = { ...DEFAULT_RECORDER_OPTIONS, ...options };
+    this.#stream = streamResult.data;
 
     this.#recorder = new MediaRecorder(
       this.#stream,
-      this.#config.mediaRecorderOptions
+      this.#config
+        ? this.#config.mediaRecorderOptions
+        : DEFAULT_MEDIA_REC_OPTIONS
     );
 
     if (!this.#recorder) throw new Error('Recorder not initialized');
     if (this.#state === AudioRecorderState.RECORDING) return this;
 
     try {
-      if (!this.#config.useThreshold) {
+      if (!this.#config || !this.#config.useThreshold) {
         this.#startRecordingImmediate();
       } else {
         this.#startArmedRecording();
@@ -123,6 +174,10 @@ export class Recorder implements LibNode {
 
     this.#startRecordingImmediate();
     return true;
+  }
+
+  setInputSource(source: InputSource) {
+    this.#inputSource = source;
   }
 
   #startArmedRecording(): void {
@@ -157,10 +212,12 @@ export class Recorder implements LibNode {
   }
 
   #setupAudioMonitoring(): void {
-    this.#audioSource = this.#context.createMediaStreamSource(this.#stream!);
+    this.#mediaSourceNode = this.#context.createMediaStreamSource(
+      this.#stream!
+    );
     this.#analyser = this.#context.createAnalyser();
     this.#analyser.fftSize = 1024;
-    this.#audioSource.connect(this.#analyser);
+    this.#mediaSourceNode.connect(this.#analyser);
 
     const dataArray = new Float32Array(this.#analyser.fftSize);
 
@@ -222,9 +279,9 @@ export class Recorder implements LibNode {
       this.#animationFrame = null;
     }
 
-    if (this.#audioSource) {
-      this.#audioSource.disconnect();
-      this.#audioSource = null;
+    if (this.#mediaSourceNode) {
+      this.#mediaSourceNode.disconnect();
+      this.#mediaSourceNode = null;
     }
 
     if (this.#analyser) {
@@ -280,7 +337,13 @@ export class Recorder implements LibNode {
     this.sendMessage('record:stop', { duration: buffer.duration });
 
     // Clean up - a new stream and recorder is created for each recording
-    this.#stream?.getTracks().forEach((track) => track.stop());
+    if (this.#stream) {
+      this.#stream.getTracks().forEach((track) => track.stop());
+      // If inputSource is 'browser', also stop sharing
+      if (this.#inputSource === 'browser') {
+        this.#stream.getTracks().forEach((track) => track.stop());
+      }
+    }
     this.#stream = null;
     this.#recorder = null;
 

@@ -52,6 +52,7 @@ import { RecordButton, UploadButton } from './components/SamplerButtonFactory';
 import {
   KeymapSelect,
   WaveformSelect,
+  InputSourceSelect,
 } from './components/SamplerSelectFactory';
 import { AMModulation } from './components/AMModulation';
 import { SamplerStatusElement } from './components/SamplerStatusElement';
@@ -324,11 +325,12 @@ export {
   ComputerKeyboard,
   PianoKeyboard,
   RecordButton,
-  UploadButton as LoadButton,
+  UploadButton,
 
   // Select components
   KeymapSelect,
   WaveformSelect,
+  InputSourceSelect,
 
   // Composite components
   AMModulation,
@@ -405,6 +407,7 @@ export const defineSampler = () => {
   // Select controls
   defineIfNotExists('keymap-select', KeymapSelect, false);
   defineIfNotExists('waveform-select', WaveformSelect, false);
+  defineIfNotExists('input-select', InputSourceSelect, false);
 
   // Composite controls
   defineIfNotExists('am-modulation', AMModulation, false);

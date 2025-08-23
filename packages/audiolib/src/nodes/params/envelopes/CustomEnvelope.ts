@@ -531,6 +531,7 @@ export class CustomEnvelope implements LibNode {
     }
   ) {
     this.#isReleased = true;
+    // TODO: If we have passed release point, don't return to it by default ? Just fade out?
     const releaseIndex = this.releasePointIndex;
     this.#continueFromPoint(audioParam, startTime, releaseIndex, {
       baseValue: audioParam.value,

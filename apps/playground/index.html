@@ -55,10 +55,14 @@
         <fieldset class="control-group sample-group">
           <legend class="expandable-legend">Sample</legend>
           <div class="expandable-content">
-            <record-button
-              target-node-id="test-sampler"
-              show-status="false"
-            ></record-button>
+            <div class="flex-col">
+              <record-button
+                target-node-id="test-sampler"
+                show-status="false"
+              ></record-button>
+              <input-select target-node-id="test-sampler"></input-select>
+            </div>
+
             <load-button
               target-node-id="test-sampler"
               show-status="false"
