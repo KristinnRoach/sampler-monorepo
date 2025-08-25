@@ -311,18 +311,19 @@ export class CustomEnvelope implements LibNode {
       });
     }
 
-    const safeStart = Math.max(this.#context.currentTime, startTime);
+    const timestamp = this.#context.currentTime;
+
+    const safeStart = Math.max(timestamp, startTime);
 
     try {
-      audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueAtTime(curve[0], safeStart);
+      // audioParam.cancelScheduledValues(timestamp);
+      // audioParam.setValueAtTime(curve[0], timestamp);
       audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
       try {
-        const currentValue = audioParam.value;
-        audioParam.cancelScheduledValues(safeStart);
-        audioParam.setValueAtTime(currentValue, safeStart);
+        // audioParam.cancelScheduledValues(safeStart);
+        // audioParam.setValueAtTime(audioParam.value, safeStart);
         audioParam.linearRampToValueAtTime(
           curve[curve.length - 1],
           safeStart + scaledDuration
@@ -611,8 +612,8 @@ export class CustomEnvelope implements LibNode {
     }
 
     try {
-      audioParam.cancelScheduledValues(safeStart);
-      audioParam.setValueAtTime(currentValue, safeStart);
+      // audioParam.cancelScheduledValues(safeStart);
+      // audioParam.setValueAtTime(currentValue, safeStart);
 
       // Adjust curve to start from currentValue instead of envelope's release point
       const adjustedCurve = new Float32Array(curve.length);

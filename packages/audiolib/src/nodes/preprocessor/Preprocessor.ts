@@ -16,17 +16,17 @@ export type PreProcessOptions = {
     ratio?: number;
     makeupGain?: number;
   }; // dynamic range compression
-  trimSilence?: { enabled: boolean; threshold?: number }; // [-1, 1]
+  trimSilence?: { enabled: boolean; threshold?: number };
   fadeInOutMs?: number; // milliseconds
   tune?: { detectPitch?: boolean; autotune: boolean; targetMidiNote?: number };
-  hpf?: { auto?: boolean } | { cutoff?: number }; // auto starts filtering at detected fundamental
+  hpf?: { auto?: boolean } | { cutoff?: number }; // auto starts filtering at detected fundamental if within range 30-350 (below)
   getZeroCrossings?: boolean;
 };
 
 export const DEFAULT_PRE_PROCESS_OPTIONS: PreProcessOptions = {
-  normalize: { enabled: true, maxAmplitudePeak: 0.98 }, // amplitude range [-1, 1] - increased from 0.9 for better volume
-  compress: { enabled: true }, // Smart compression - settings determined by shouldCompress()
-  trimSilence: { enabled: true, threshold: 0.01 }, // [-1, 1]
+  normalize: { enabled: true, maxAmplitudePeak: 0.99 }, // amplitude range [-1, 1]
+  compress: { enabled: true },
+  trimSilence: { enabled: true, threshold: 0.005 },
   fadeInOutMs: 5, // milliseconds
   tune: { detectPitch: true, autotune: true, targetMidiNote: 60 },
   hpf: { auto: true },
@@ -91,18 +91,22 @@ export async function preProcessAudioBuffer(
       // For auto HPF, we need pitch detection first
       const tempPitch = await detectPitch(buffer);
       if (tempPitch.confidence >= PITCH_CONFIDENCE_THRESHOLD) {
-        const cutoffFreq = tempPitch.frequency > 30 ? tempPitch.frequency : 80;
+        const cutoffFreq =
+          tempPitch.frequency > 30 && tempPitch.frequency < 350
+            ? tempPitch.frequency
+            : 80;
         processed = await applyHighPassFilter(processed, cutoffFreq);
       }
     }
   }
 
-  if (normalize?.enabled)
+  if (normalize?.enabled) {
     processed = normalizeAudioBuffer(
       ctx,
       processed,
       normalize.maxAmplitudePeak
     );
+  }
 
   if (compress?.enabled) {
     // Smart compression: check if audio needs it
@@ -165,6 +169,10 @@ export async function preProcessAudioBuffer(
       results.detectedPitch.confidence < PITCH_CONFIDENCE_THRESHOLD
     ) {
       console.info('Skipped autotune due to unreliable pitch detection');
+    } else if (
+      Math.abs(results.detectedPitch?.transpositionSemitones ?? 0) < 0.1
+    ) {
+      console.info('Skipped autotune - detected pitch is already C');
     } else {
       processed = resampleForPitch(
         ctx,
@@ -172,6 +180,14 @@ export async function preProcessAudioBuffer(
         results.detectedPitch.transpositionSemitones
       );
     }
+  }
+
+  if (normalize?.enabled) {
+    processed = normalizeAudioBuffer(
+      ctx,
+      processed,
+      normalize.maxAmplitudePeak
+    );
   }
 
   if (getZeroCrossings) {

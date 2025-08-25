@@ -47,6 +47,18 @@ const feedbackConfig: KnobConfig = {
   },
 };
 
+const distortionConfig: KnobConfig = {
+  label: 'Distortion',
+  useLocalStorage: true,
+  defaultValue: 0.0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1,
+  onConnect: (sampler, state) => {
+    van.derive(() => sampler.outputBus.setDistortionMacro(state.val));
+  },
+};
+
 const driveConfig: KnobConfig = {
   label: 'Drive',
   useLocalStorage: true,
@@ -99,7 +111,7 @@ const feedbackPitchConfig: KnobConfig = {
 const feedbackDecayConfig: KnobConfig = {
   label: 'FB-Decay',
   useLocalStorage: true,
-  defaultValue: 1.0,
+  defaultValue: 0.75,
   minValue: 0.001,
   maxValue: 1,
   curve: 1,
@@ -366,6 +378,8 @@ export const VolumeKnob = createKnobForTarget(volumeConfig, getSampler);
 export const DryWetKnob = createKnobForTarget(dryWetConfig, getSampler);
 
 export const FeedbackKnob = createKnobForTarget(feedbackConfig, getSampler);
+
+export const DistortionKnob = createKnobForTarget(distortionConfig, getSampler);
 
 export const DriveKnob = createKnobForTarget(driveConfig, getSampler);
 

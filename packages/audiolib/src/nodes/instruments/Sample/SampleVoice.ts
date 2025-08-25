@@ -522,7 +522,7 @@ export class SampleVoice {
       if (!this.#am_lfo) this.#setupAmpModLFO(safeAmount);
       this.#am_lfo?.setDepth(safeAmount);
     } else if (modType === 'FM') {
-      console.info('SampleVoice: FM modulation not implemented yet');
+      console.warn('SampleVoice: FM modulation not implemented yet');
     }
     return this;
   }

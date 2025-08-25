@@ -47,6 +47,7 @@ export {
   AMModKnob,
   TrimStartKnob,
   TrimEndKnob,
+  DistortionKnob,
 } from './elements/Sampler/components/SamplerKnobFactory';
 
 // Toggle components

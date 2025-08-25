@@ -1,7 +1,9 @@
+// main.ts
+import { updateSW } from './utils/pwa-utils/updateSW';
 import { defineSampler } from '@repo/audio-components';
 import type { SamplerElement } from '@repo/audio-components';
 import { addExpandCollapseListeners } from './utils/expandCollapse';
-import { qs } from './utils';
+import { qs } from './utils/dom-utils';
 
 defineSampler(); // Define all sampler components
 

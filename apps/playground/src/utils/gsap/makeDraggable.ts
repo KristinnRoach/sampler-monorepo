@@ -1,4 +1,4 @@
-import { qs } from './dom-utils';
+import { qs } from '../dom-utils';
 import { gsap } from 'gsap';
 import { Draggable } from 'gsap/Draggable';
 

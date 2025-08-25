@@ -69,10 +69,10 @@ feedback-mode-toggle {
   grid-auto-rows: min-content;
 
   grid-template-areas:
-    'env env  sample mix reverb'
-    'env env  filter distortion mod'
-    'loop trim feedback amp-lfo pitch-lfo'
-    'toggle keyboard keyboard keyboard keyboard';
+    'env env  sample mix'
+    'env env  filter  reverb'
+    'loop trim feedback amp-lfo'
+    'toggle keyboard keyboard keyboard';
 
   justify-content: center;
 
@@ -87,6 +87,8 @@ feedback-mode-toggle {
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  align-items: center;
 }
 
 .flex-row {
@@ -210,6 +212,16 @@ feedback-mode-toggle {
 .sample-group {
   grid-area: sample;
 }
+
+/* .sample-group > .expandable-legend > .expandable-content > .flex-col {
+  justify-content: center;
+
+  border: 3px solid red;
+} */
+
+/* .sample-group input-select select {
+  width: 55px;
+} */
 
 .mix-group {
   grid-area: mix;

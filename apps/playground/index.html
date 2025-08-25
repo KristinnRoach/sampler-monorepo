@@ -75,6 +75,8 @@
           <div class="expandable-content">
             <volume-knob target-node-id="test-sampler"></volume-knob>
             <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
+            <distortion-knob target-node-id="test-sampler"></distortion-knob>
+            <am-modulation target-node-id="test-sampler"></am-modulation>
           </div>
         </fieldset>
 
@@ -130,16 +132,17 @@
           </div>
         </fieldset>
 
-        <fieldset class="control-group distortion-group">
+        <!-- <fieldset class="control-group distortion-group">
           <legend class="expandable-legend">Distortion</legend>
           <div class="expandable-content">
-            <drive-knob target-node-id="test-sampler"></drive-knob>
+            <distortion-knob target-node-id="test-sampler"></distortion-knob>
+           <drive-knob target-node-id="test-sampler"></drive-knob>
             <clipping-knob
               target-node-id="test-sampler"
               label="Clip"
-            ></clipping-knob>
+            ></clipping-knob> 
           </div>
-        </fieldset>
+        </fieldset> -->
 
         <!-- Feedback controls -->
         <fieldset class="control-group feedback-group">
@@ -180,15 +183,15 @@
           </div>
         </fieldset>
 
-        <fieldset class="control-group mod-group">
+        <!-- <fieldset class="control-group mod-group">
           <legend class="expandable-legend">Mod</legend>
           <div class="expandable-content">
             <am-modulation target-node-id="test-sampler"></am-modulation>
           </div>
-        </fieldset>
+        </fieldset> -->
 
         <fieldset class="control-group amp-lfo-group">
-          <legend class="expandable-legend">Amp LFO</legend>
+          <legend class="expandable-legend">LFO's</legend>
           <div class="expandable-content">
             <div class="flex-col">
               <gain-lfo-rate-knob
@@ -206,12 +209,12 @@
               target-node-id="test-sampler"
               label="Depth"
             ></gain-lfo-depth-knob>
-          </div>
-        </fieldset>
+            <!-- </div>
+        </fieldset> -->
 
-        <fieldset class="control-group pitch-lfo-group">
+            <!-- <fieldset class="control-group pitch-lfo-group">
           <legend class="expandable-legend">Pitch LFO</legend>
-          <div class="expandable-content">
+          <div class="expandable-content"> -->
             <div class="flex-col">
               <pitch-lfo-rate-knob
                 target-node-id="test-sampler"
@@ -276,17 +279,17 @@
         <div
           class="row-collapse-icon"
           data-row="1"
-          style="grid-area: reverb"
+          style="grid-area: mix"
         ></div>
         <div
           class="row-collapse-icon"
           data-row="2"
-          style="grid-area: mod"
+          style="grid-area: reverb"
         ></div>
         <div
           class="row-collapse-icon"
           data-row="3"
-          style="grid-area: pitch-lfo"
+          style="grid-area: amp-lfo"
         ></div>
         <div
           class="row-collapse-icon"

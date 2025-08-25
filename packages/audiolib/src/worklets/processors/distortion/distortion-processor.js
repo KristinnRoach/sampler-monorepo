@@ -7,8 +7,7 @@ class Distortion {
     if (driveAmount <= 0) return sample;
 
     const driveMultiplier = 1 + driveAmount * 3; // 1x to 4x drive
-    const tameGainScalar = 0.95;
-    const drivenSample = sample * driveMultiplier * tameGainScalar;
+    const drivenSample = sample * driveMultiplier;
 
     return drivenSample;
   }
@@ -35,12 +34,17 @@ class Distortion {
         break;
     }
 
-    // Add makeup gain to compensate for threshold reduction
-    const makeupGain = 1 / Math.max(clipThreshold, 0.1); // Prevent division by zero
-    clippedSample *= makeupGain;
+    // Add makeup gain to compensate for extreme low clip threshold
+    if (clipThreshold < 0.08) {
+      const makeupGain = Math.min(2, Math.pow(0.1 / clipThreshold, 0.5));
+      clippedSample *= makeupGain;
+    }
 
     // Blend clean and clipped
-    return sample * (1 - clippingAmount) + clippedSample * clippingAmount;
+    const blended =
+      sample * (1 - clippingAmount) + clippedSample * clippingAmount;
+
+    return blended;
   }
 
   setLimitingMode(mode) {

@@ -9,6 +9,7 @@
 
     "allowImportingTsExtensions": false,
 
+    "types": ["vite-plugin-pwa/client"],
     "paths": {
       "@/*": ["./src/*"]
     }
