@@ -14,6 +14,7 @@ import {
   assert,
   clamp,
   interpolateLinearToExp,
+  mapToRange,
   midiToPlaybackRate,
 } from '@/utils';
 
@@ -94,10 +95,16 @@ export class SampleVoice {
         if (this.#filtersEnabled) this.#initFilters();
 
         this.#feedback = new HarmonicFeedback(this.context);
-        this.#feedback.input.gain.setValueAtTime(1.5, this.now);
+        // this.#feedback.input.gain.setValueAtTime(1.5, this.now);
 
         this.#am_gain = new GainNode(this.context, { gain: 1 });
         this.#setupAmpModLFO();
+
+        // ? Why is this necessary ?
+        // Initialize loopEnd to 0 to force the macro parameter to update
+        // This ensures the macro's value will be applied when connected
+        this.setParam('loopStart', 0, this.now);
+        this.setParam('loopEnd', 0, this.now);
 
         // Connect nodes
         this.#connectAudioChain();
@@ -506,7 +513,7 @@ export class SampleVoice {
   }
 
   setModulationAmount(modType: 'AM' | 'FM', amount: number) {
-    const safeAmount = clamp(amount, 0, 1, {
+    const safeAmount = mapToRange(amount, 0, 1, 0, 0.95, {
       warn: true,
       name: 'sampleVoice.setModulationAmount',
     });
@@ -515,7 +522,7 @@ export class SampleVoice {
       if (!this.#am_lfo) this.#setupAmpModLFO(safeAmount);
       this.#am_lfo?.setDepth(safeAmount);
     } else if (modType === 'FM') {
-      console.info('SampleVoice: FM modulation not implemented yet');
+      console.warn('SampleVoice: FM modulation not implemented yet');
     }
     return this;
   }
@@ -806,12 +813,6 @@ export class SampleVoice {
 
             this.setStartPoint(0);
             this.setEndPoint(data.durationSeconds);
-
-            // ? Why is this necessary ?
-            // Initialize loopEnd to 0 to force the macro parameter to update
-            // This ensures the macro's value will be applied when connected
-            this.setParam('loopStart', 0, this.now);
-            this.setParam('loopEnd', 0, this.now);
           }
           this.#state = VoiceState.LOADED;
 

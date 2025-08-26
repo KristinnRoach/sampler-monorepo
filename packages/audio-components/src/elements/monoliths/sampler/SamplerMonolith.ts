@@ -23,7 +23,7 @@ import { SampleControls } from '../../controls/SampleControls';
 import { ExpandableHeader } from '../../primitives/ExpandableHeader';
 import { FileOperations } from '../../controls/FileOperations';
 import { InputControls, LoopHoldControls } from '../../controls/checkboxes';
-import { createLabeledKnob } from '../../primitives/createKnob';
+import { createKnob } from '../../primitives/createKnob';
 import { Toggle } from '../../primitives/VanToggle';
 
 import { EnvelopeSVG } from '../../controls/envelope/EnvelopeSVG';
@@ -684,13 +684,13 @@ export const SamplerMonolith = (attributes: ElementProps) => {
               : 'display: none; padding: 0.5rem;',
         },
 
-        createLabeledKnob({
+        createKnob({
           label: 'Volume',
           defaultValue: 0.75,
           onChange: (value: number) => (volume.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'Dry/Wet',
           defaultValue: 0,
           onChange: (value: number) => {
@@ -698,7 +698,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           },
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'HPF',
           defaultValue: 50,
           minValue: 30,
@@ -707,7 +707,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (hpfHz.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'LPF',
           defaultValue: 18000,
           minValue: 20,
@@ -716,13 +716,13 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (lpfHz.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'Reverb',
           defaultValue: 0.5,
           onChange: (value: number) => (reverbAmount.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'Feedback',
           defaultValue: 0,
           minValue: 0,
@@ -730,7 +730,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (feedbackAmount.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'Drive',
           defaultValue: 0,
           minValue: 0,
@@ -738,7 +738,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (drive.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'Clipping',
           defaultValue: 0,
           minValue: 0,
@@ -746,7 +746,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (clipping.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'FB-Pitch',
           defaultValue: 1,
           minValue: 0.25,
@@ -756,7 +756,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (feedbackPitch.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'amp-lfo-rate',
           defaultValue: 0.1,
           onChange: (value: number) => (gainLFORate.val = value),
@@ -764,14 +764,14 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           snapIncrement: 0,
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'amp-lfo-depth',
           defaultValue: 0,
           onChange: (value: number) => (gainLFODepth.val = value),
           curve: 1.5,
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'FB-Decay',
           defaultValue: 1,
           minValue: 0.001,
@@ -780,7 +780,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           onChange: (value: number) => (feedbackDecayTime.val = value),
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'pitch-lfo-rate',
           defaultValue: 0.01,
           onChange: (value: number) => (pitchLFORate.val = value),
@@ -788,14 +788,14 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           snapIncrement: 0,
         }),
 
-        createLabeledKnob({
+        createKnob({
           defaultValue: 0,
           label: 'pitch-lfo-depth',
           onChange: (value: number) => (pitchLFODepth.val = value),
           curve: 1.5,
         }),
 
-        createLabeledKnob({
+        createKnob({
           valueFormatter: (v) => v.toFixed(3),
           defaultValue: 0,
           minValue: 0,
@@ -806,7 +806,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
           curve: 2.75,
         }),
 
-        createLabeledKnob({
+        createKnob({
           label: 'Loop Drift',
           defaultValue: 0,
           minValue: 0,

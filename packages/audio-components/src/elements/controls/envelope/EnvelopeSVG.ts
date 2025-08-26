@@ -393,7 +393,7 @@ export const EnvelopeSVG = (
   svgElement = svg({
     viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
     preserveAspectRatio: 'none',
-    style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px;`,
+    style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; overflow: visible; `,
   }) as SVGSVGElement;
 
   const controlButtons = EnvToggleButtons(
@@ -441,10 +441,6 @@ export const EnvelopeSVG = (
   tooltip.style.fontSize = '12px';
   tooltip.style.zIndex = '9999';
   tooltip.style.display = 'none';
-  container.appendChild(tooltip);
-
-  // Manually append the SVG element to avoid namespace issues
-  container.appendChild(svgElement);
 
   // Grid
   const gridHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
@@ -545,8 +541,8 @@ export const EnvelopeSVG = (
   let loopStartLine: SVGLineElement | null = null;
   let loopEndLine: SVGLineElement | null = null;
 
-  const sampleStartColor = 'rgba(171, 205, 239, 0.4)';
-  const sampleEndColor = 'rgba(171, 205, 239, 0.4)';
+  const sampleStartColor = 'rgba(200, 50, 0, 0.6)';
+  const sampleEndColor = 'rgba(200, 50, 0, 0.6)';
   const loopStartColor = '#6699dd';
   const loopEndColor = '#6699dd';
   const loopDisabledColor = '#666';
@@ -622,7 +618,7 @@ export const EnvelopeSVG = (
   const makeIndicatorDraggable = (
     line: SVGLineElement,
     label: 'loop-start' | 'loop-end' | 'start' | 'end'
-  ) => {
+  ): (() => void) => {
     let isDragging = false;
 
     const labelText = {
@@ -635,11 +631,14 @@ export const EnvelopeSVG = (
     const showTooltip = () => {
       tooltip.textContent = labelText;
       tooltip.style.display = 'block';
-
-      const lineX = line.getAttribute('x1');
-      if (lineX) tooltip.style.left = lineX + 'px';
-      const lineY = line.getAttribute('y1');
-      if (lineY) tooltip.style.top = lineY + 'px';
+      const vb = svgElement.viewBox.baseVal;
+      const rect = svgElement.getBoundingClientRect();
+      const x1 = Number(line.getAttribute('x1') || 0);
+      const y1 = Number(line.getAttribute('y1') || 0);
+      const pxX = ((x1 - vb.x) / vb.width) * rect.width - 30;
+      const pxY = ((y1 - vb.y) / vb.height) * rect.height;
+      tooltip.style.left = `${pxX}px`;
+      tooltip.style.top = `${pxY - 20}px`;
     };
 
     const hideTooltip = () => {
@@ -655,24 +654,19 @@ export const EnvelopeSVG = (
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       showTooltip();
-
       const rect = svgElement.getBoundingClientRect();
       const x = e.clientX - rect.left;
-
       const clampedX = Math.max(
         CIRCLE_PADDING,
         Math.min(x, SVG_WIDTH - CIRCLE_PADDING)
       );
-
       line.setAttribute('x1', clampedX.toString());
       line.setAttribute('x2', clampedX.toString());
-
       const seconds = screenXToSeconds(
         clampedX - CIRCLE_PADDING,
         paddedWidth,
         envelopeInfo.fullDuration
       );
-
       if (label === 'loop-start') {
         instrument.setLoopStart(seconds);
       } else if (label === 'loop-end') {
@@ -694,8 +688,16 @@ export const EnvelopeSVG = (
     line.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  };
 
+    // Return disposer function
+    return () => {
+      line.removeEventListener('mouseover', showTooltip);
+      line.removeEventListener('mouseout', hideTooltip);
+      line.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  };
   // Create and setup
 
   sampleStartLine = createSimpleIndicator(sampleStartColor);
@@ -703,10 +705,12 @@ export const EnvelopeSVG = (
   loopStartLine = createSimpleIndicator(loopStartColor);
   loopEndLine = createSimpleIndicator(loopEndColor);
 
-  makeIndicatorDraggable(loopStartLine, 'loop-start');
-  makeIndicatorDraggable(loopEndLine, 'loop-end');
-  makeIndicatorDraggable(sampleStartLine, 'start');
-  makeIndicatorDraggable(sampleEndLine, 'end');
+  // Capture disposer functions for each indicator
+  const indicatorDisposers: (() => void)[] = [];
+  indicatorDisposers.push(makeIndicatorDraggable(loopStartLine, 'loop-start'));
+  indicatorDisposers.push(makeIndicatorDraggable(loopEndLine, 'loop-end'));
+  indicatorDisposers.push(makeIndicatorDraggable(sampleStartLine, 'start'));
+  indicatorDisposers.push(makeIndicatorDraggable(sampleEndLine, 'end'));
 
   const loopPointsMessageCleanup = instrument.onMessage(
     'loop-points:updated',
@@ -937,14 +941,17 @@ export const EnvelopeSVG = (
   });
 
   // Assemble SVG
+  container.appendChild(svgElement);
+  container.appendChild(tooltip);
+
   svgElement.appendChild(gridGroup);
   svgElement.appendChild(loopRegionRect);
-  svgElement.appendChild(envelopePath);
-  svgElement.appendChild(pointsGroup);
   svgElement.appendChild(loopStartLine);
   svgElement.appendChild(loopEndLine);
   svgElement.appendChild(sampleStartLine);
   svgElement.appendChild(sampleEndLine);
+  svgElement.appendChild(envelopePath);
+  svgElement.appendChild(pointsGroup);
 
   const animateIntro = () => {
     let tl = gsap.timeline();
@@ -1027,10 +1034,24 @@ export const EnvelopeSVG = (
     (msg: any) => (sampleEndSeconds.val = msg.endPoint)
   );
 
+  let momentarySustainForLoop = false;
+
   const loopEnabledMessageCleanup = instrument.onMessage(
     'loop:enabled',
     (msg: any) => {
       loopEnabled.val = msg.enabled;
+
+      if (msg.enabled && !envelopeInfo.sustainEnabled) {
+        momentarySustainForLoop = true;
+        instrument.setEnvelopeSustainPoint(envType, 2); // TODO: Use last-used sustainPoint index!
+        updateControlPoints();
+        updateEnvelopePath();
+      } else if (!msg.enabled && momentarySustainForLoop) {
+        momentarySustainForLoop = false;
+        instrument.setEnvelopeSustainPoint(envType, null);
+        updateControlPoints();
+        updateEnvelopePath();
+      }
     }
   );
 
@@ -1083,6 +1104,9 @@ export const EnvelopeSVG = (
         }
       });
       pointStates.clear();
+      // Dispose indicator event listeners
+      indicatorDisposers.forEach((dispose) => dispose());
+      // Remove SVG elements
       if (waveformPath && waveformPath.parentNode === svgElement) {
         svgElement.removeChild(waveformPath);
       }
@@ -1091,6 +1115,15 @@ export const EnvelopeSVG = (
       }
       if (loopEndLine && loopEndLine.parentNode === svgElement) {
         svgElement.removeChild(loopEndLine);
+      }
+      if (sampleStartLine && sampleStartLine.parentNode === svgElement) {
+        svgElement.removeChild(sampleStartLine);
+      }
+      if (sampleEndLine && sampleEndLine.parentNode === svgElement) {
+        svgElement.removeChild(sampleEndLine);
+      }
+      if (loopRegionRect && loopRegionRect.parentNode === svgElement) {
+        svgElement.removeChild(loopRegionRect);
       }
     },
   };

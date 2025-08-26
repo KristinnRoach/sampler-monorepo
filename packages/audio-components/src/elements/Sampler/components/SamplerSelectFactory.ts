@@ -20,7 +20,7 @@ import {
   SupportedWaveform,
 } from '@repo/audiolib';
 
-const { div, select, option } = van.tags;
+const { div, select, option, span } = van.tags;
 
 // ===== SELECT CONFIGURATION TYPES =====
 
@@ -120,17 +120,42 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   },
 };
 
+const inputSourceSelectConfig: SelectConfig<'microphone' | 'browser'> = {
+  defaultValue: 'microphone',
+  options: [
+    {
+      value: 'microphone',
+      label: 'Mic',
+    },
+    {
+      value: 'browser',
+      label: 'Browser',
+    },
+  ],
+  onTargetConnect: (
+    sampler: any,
+    state: State<'microphone' | 'browser'>,
+    van: any,
+    targetNodeId: string
+  ) => {
+    van.derive(() => {
+      sampler.setRecorderInputSource(state.val);
+    });
+  },
+};
+
 // ===== SELECT CREATION UTILITY =====
 
 const createSamplerSelect = <T extends string = string>(
   config: SelectConfig<T>,
   getSamplerFn: (nodeId: string) => any,
   van: any,
-  componentStyle: string
+  componentStyle: string,
+  autoResize = true
 ) => {
   return (attributes: ElementProps) => {
     const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-    const showLabel = attributes.attr('show-label', 'true');
+    const showLabel = attributes.attr('show-label', 'false');
     const labelPosition = attributes.attr('label-position', 'inline'); // 'inline' or 'below'
     const state = van.state(config.defaultValue);
 
@@ -161,12 +186,14 @@ const createSamplerSelect = <T extends string = string>(
       state.val = target.value as T;
     };
 
-    const createSelectElement = () =>
+    const SelectElement = div(
+      { class: 'ac-selectContainer' },
       select(
         {
           onchange: handleChange,
           style: SELECT_STYLE,
           value: () => state.val,
+          class: autoResize ? 'ac-select ac-autoResizableSelect' : 'ac-select',
         },
         ...config.options.map((opt: SelectOption<T>) =>
           option(
@@ -177,11 +204,43 @@ const createSamplerSelect = <T extends string = string>(
             opt.label
           )
         )
-      );
+      ),
+      autoResize &&
+        span({
+          class: 'ac-select-measure',
+          style:
+            'visibility: hidden; position: absolute; white-space: pre; font: inherit;',
+        })
+    );
+
+    if (autoResize) {
+      setTimeout(() => {
+        const container = SelectElement as HTMLElement;
+        const select = container.querySelector(
+          '.ac-autoResizableSelect'
+        ) as HTMLSelectElement | null;
+        const measure = container.querySelector(
+          '.ac-select-measure'
+        ) as HTMLSpanElement | null;
+
+        const resizeSelect = () => {
+          if (!select || !measure) return;
+          measure.textContent = select.options[select.selectedIndex].text;
+          measure.style.font = window.getComputedStyle(select).font;
+          select.style.width = measure.offsetWidth + 35 + 'px';
+        };
+
+        if (select) {
+          select.addEventListener('change', resizeSelect);
+          window.addEventListener('DOMContentLoaded', resizeSelect);
+          resizeSelect();
+        }
+      }, 0);
+    }
 
     // If no label needed, just return the select
     if (showLabel.val !== 'true' || !config.label) {
-      return createSelectElement();
+      return SelectElement;
     }
 
     // Label below the select (for composite elements)
@@ -195,7 +254,7 @@ const createSamplerSelect = <T extends string = string>(
             gap: 2px;
           `,
         },
-        createSelectElement(),
+        SelectElement,
         div(
           {
             style: `
@@ -221,7 +280,7 @@ const createSamplerSelect = <T extends string = string>(
         },
         `${config.label}:`
       ),
-      createSelectElement()
+      SelectElement
     );
   };
 };
@@ -237,6 +296,13 @@ export const KeymapSelect = createSamplerSelect(
 
 export const WaveformSelect = createSamplerSelect(
   waveformSelectConfig,
+  getSampler,
+  van,
+  COMPONENT_STYLE
+);
+
+export const InputSourceSelect = createSamplerSelect(
+  inputSourceSelectConfig,
   getSampler,
   van,
   COMPONENT_STYLE

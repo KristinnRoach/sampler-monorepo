@@ -30,6 +30,7 @@ import {
   AMModKnob,
   TrimStartKnob,
   TrimEndKnob,
+  DistortionKnob,
 } from './components/SamplerKnobFactory';
 
 import {
@@ -52,11 +53,114 @@ import { RecordButton, UploadButton } from './components/SamplerButtonFactory';
 import {
   KeymapSelect,
   WaveformSelect,
+  InputSourceSelect,
 } from './components/SamplerSelectFactory';
 import { AMModulation } from './components/AMModulation';
 import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 const { div } = van.tags;
+
+// Utility: Encode AudioBuffer as WAV (PCM 16-bit LE)
+function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const length = buffer.length;
+  const bytesPerSample = 2; // 16-bit PCM
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = length * blockAlign;
+  const bufferSize = 44 + dataSize;
+  const wavBuffer = new ArrayBuffer(bufferSize);
+  const view = new DataView(wavBuffer);
+
+  // RIFF header
+  let offset = 0;
+  function writeString(str: string) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset++, str.charCodeAt(i));
+    }
+  }
+  writeString('RIFF');
+  view.setUint32(offset, 36 + dataSize, true);
+  offset += 4;
+  writeString('WAVE');
+  writeString('fmt ');
+  view.setUint32(offset, 16, true);
+  offset += 4; // PCM chunk size
+  view.setUint16(offset, 1, true);
+  offset += 2; // PCM format
+  view.setUint16(offset, numChannels, true);
+  offset += 2;
+  view.setUint32(offset, sampleRate, true);
+  offset += 4;
+  view.setUint32(offset, byteRate, true);
+  offset += 4;
+  view.setUint16(offset, blockAlign, true);
+  offset += 2;
+  view.setUint16(offset, 16, true);
+  offset += 2; // bits per sample
+  writeString('data');
+  view.setUint32(offset, dataSize, true);
+  offset += 4;
+
+  // Write PCM samples
+  for (let i = 0; i < length; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      let sample = buffer.getChannelData(ch)[i];
+      // Clamp and convert to 16-bit PCM
+      sample = Math.max(-1, Math.min(1, sample));
+      view.setInt16(
+        offset,
+        sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+        true
+      );
+      offset += 2;
+    }
+  }
+  return wavBuffer;
+}
+
+function isWav(arrayBuffer: ArrayBuffer) {
+  // Check for WAV header: 'RIFF' at 0, 'WAVE' at 8
+  const header = new Uint8Array(arrayBuffer);
+  const isWav =
+    header[0] === 0x52 && // 'R'
+    header[1] === 0x49 && // 'I'
+    header[2] === 0x46 && // 'F'
+    header[3] === 0x46 && // 'F'
+    header[8] === 0x57 && // 'W'
+    header[9] === 0x41 && // 'A'
+    header[10] === 0x56 && // 'V'
+    header[11] === 0x45; // 'E'
+
+  return isWav;
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary); // encode as base64
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary: string = atob(base64);
+  const len: number = binary.length;
+  const buffer: ArrayBuffer = new ArrayBuffer(len);
+  const bytes: Uint8Array = new Uint8Array(buffer);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return buffer;
+}
+
+export interface SamplerElement extends HTMLElement {
+  nodeId: string;
+  getSamplePlayer: () => SamplePlayer | null;
+}
 
 // ===== SAMPLER ENGINE =====
 export const SamplerElement = (attributes: ElementProps) => {
@@ -70,8 +174,18 @@ export const SamplerElement = (attributes: ElementProps) => {
   attributes.mount(() => {
     const initializeAudio = async () => {
       try {
+        let initSample = undefined;
+        const storedBuffer = localStorage.getItem('currentSample');
+
+        if (storedBuffer?.length) {
+          const arrayBuffer = base64ToArrayBuffer(storedBuffer);
+          if (isWav(arrayBuffer)) {
+            initSample = arrayBuffer;
+          }
+        }
+
         samplePlayer = await createSamplePlayer(
-          undefined,
+          initSample,
           parseInt(polyphony.val)
         );
 
@@ -90,18 +204,28 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         samplePlayer.onMessage('sample:loaded', (msg: any) => {
           status.val = 'Loaded';
+          const audiobuffer = samplePlayer?.audiobuffer;
           document.dispatchEvent(
             new CustomEvent('sample-loaded', {
               detail: {
                 nodeId: nodeId.val,
-                buffer: samplePlayer?.audiobuffer,
+                buffer: audiobuffer,
                 durationSeconds: msg.durationSeconds,
               },
             })
           );
+          if (audiobuffer?.length) {
+            // Store as WAV for compatibility with decodeAudioData
+            const wavBuffer = audioBufferToWav(audiobuffer);
+            const base64buffer = arrayBufferToBase64(wavBuffer);
+            localStorage.setItem('currentSample', base64buffer);
+          }
         });
 
-        Object.assign(attributes.$this, { nodeId: nodeId.val });
+        Object.assign(attributes.$this, {
+          nodeId: nodeId.val,
+          getSamplePlayer: () => samplePlayer,
+        });
       } catch (error: any) {
         console.error('Sampler initialization error:', error);
         if (error?.message?.includes('AudioWorklet')) {
@@ -186,6 +310,7 @@ export {
   AMModKnob,
   TrimStartKnob,
   TrimEndKnob,
+  DistortionKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -202,11 +327,12 @@ export {
   ComputerKeyboard,
   PianoKeyboard,
   RecordButton,
-  UploadButton as LoadButton,
+  UploadButton,
 
   // Select components
   KeymapSelect,
   WaveformSelect,
+  InputSourceSelect,
 
   // Composite components
   AMModulation,
@@ -256,6 +382,7 @@ export const defineSampler = () => {
   defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
   defineIfNotExists('trim-start-knob', TrimStartKnob, false);
   defineIfNotExists('trim-end-knob', TrimEndKnob, false);
+  defineIfNotExists('distortion-knob', DistortionKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);
@@ -283,6 +410,7 @@ export const defineSampler = () => {
   // Select controls
   defineIfNotExists('keymap-select', KeymapSelect, false);
   defineIfNotExists('waveform-select', WaveformSelect, false);
+  defineIfNotExists('input-select', InputSourceSelect, false);
 
   // Composite controls
   defineIfNotExists('am-modulation', AMModulation, false);

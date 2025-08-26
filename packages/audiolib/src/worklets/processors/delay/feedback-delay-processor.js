@@ -17,7 +17,7 @@ registerProcessor(
         {
           name: 'delayTime',
           defaultValue: 0.5,
-          minValue: 0.00012656238799684144, // <- B natural in seconds (highest note period that works)
+          minValue: 0.00012656238799684144, // <- B8 natural in seconds (highest note period that works)
           maxValue: 4,
           automationRate: 'k-rate',
         },
@@ -92,14 +92,14 @@ registerProcessor(
             currentTime - this.decayStartTime + i / sampleRate;
 
           // Extremely gradual curve
-          const delayCompensation = Math.min(5, 0.5 / delayTime); // Boost for short delays
+          const delayCompensation = Math.min(100, 0.5 / delayTime); // Boost for short delays
           const timeConstant =
             Math.pow(decay, 5) * 1000 * delayCompensation + 0.5;
           const decayFactor = Math.exp(-elapsedTime / timeConstant);
           effectiveFeedbackAmount = baseFeedbackAmount * decayFactor;
 
           // Stop decay when feedback becomes negligible
-          if (effectiveFeedbackAmount < 0.001) {
+          if (effectiveFeedbackAmount < 0.01) {
             this.decayActive = false;
             effectiveFeedbackAmount = 0;
           }

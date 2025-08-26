@@ -1,8 +1,12 @@
 // component-utils.ts - Shared utilities for components
 import { type SamplePlayer } from '@repo/audiolib';
-import { State } from '@repo/vanjs-core';
+import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { createLabeledKnob } from '@/elements/primitives/createKnob';
+import { createKnob, KnobConfig } from '@/elements/primitives/createKnob';
+import { INLINE_COMPONENT_STYLE } from '../../shared/styles/component-styles';
+
+const { div } = van.tags;
+
 /**
  * Find the target node ID for a component.
  * Follows the priority: explicit target-node-id > parent sampler > nearest sampler
@@ -157,116 +161,385 @@ export const createToggle = (
   };
 };
 
-/**
- * Configuration for a knob component
- */
-export interface KnobConfig {
-  label?: string;
-  defaultValue: number;
-  minValue?: number;
-  maxValue?: number;
-  allowedValues?: number[];
-  curve?: number;
-  snapIncrement?: number;
-  valueFormatter?: (value: number) => string;
-  onTargetConnect?: (
-    target: SamplePlayer,
-    state: State<number>,
-    van: any
-  ) => void;
-  onKnobElementReady?: (
-    knobElement: any,
-    state: State<number>,
-    target?: SamplePlayer
-  ) => void;
-}
-
 export const createKnobForTarget = (
   config: KnobConfig,
-  getTargetNode: (nodeId: string) => any,
-  van: any,
-  componentStyle?: string
+  getTarget: (nodeId: string) => any
 ) => {
   return (attributes: ElementProps) => {
-    const targetNodeId: State<string> = attributes.attr('target-node-id', '');
-    const value = van.state(config.defaultValue);
-    let connected = false;
+    const targetNodeId = attributes.attr('target-node-id', '');
+    const findId = findNodeId(attributes, targetNodeId);
 
-    const getId = findNodeId(attributes, targetNodeId);
+    // Initialize state with default value
+    const state = van.state(config.defaultValue ?? 0);
+
+    let connected = false;
+    let knobContainer: HTMLElement | null = null;
+    let isInitializing = true; // Flag to prevent saving during initialization
+
+    // Storage functions
+    const getStorageKey = (nodeId: string) => {
+      const key = config.paramName || config.label || 'unknown';
+      return `${key}:nodeId:${nodeId}`;
+    };
+
+    const loadStoredValue = (nodeId: string) => {
+      if (!config.useLocalStorage || !nodeId) return false;
+
+      const storageKey = getStorageKey(nodeId);
+      const stored = localStorage.getItem(storageKey);
+
+      // if (config.label === 'Volume') {
+      //   console.log('📦 Attempting to load from key:', storageKey);
+      //   console.debug('📦 Found stored value:', stored);
+      // }
+
+      if (stored) {
+        const parsed = parseFloat(stored);
+        if (!isNaN(parsed)) {
+          // if (config.label === 'Volume') {
+          //   console.debug('📦 Setting state.val to:', parsed);
+          // }
+
+          state.val = parsed;
+
+          // Update the knob element
+          const knobElement = knobContainer?.querySelector(
+            'knob-element'
+          ) as any;
+          if (knobElement?.setValue) {
+            knobElement.setValue(parsed);
+          }
+
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const saveValue = (value: number, nodeId: string) => {
+      if (!config.useLocalStorage || !nodeId || isInitializing) {
+        // if (config.label === 'Volume' && isInitializing) {
+        //   console.debug('🚫 Skipping save during initialization');
+        // }
+        return;
+      }
+
+      const storageKey = getStorageKey(nodeId);
+      localStorage.setItem(storageKey, String(value));
+    };
 
     const connect = () => {
       if (connected) return;
-      const nodeId = getId();
-      if (!nodeId) return;
-      const target = getTargetNode(nodeId);
-      if (target) {
-        try {
-          connected = true;
-          config.onTargetConnect?.(target, value, van);
+      const nodeId = findId();
 
-          if (config.onKnobElementReady) {
-            const actualKnobElement =
-              knobElement?.querySelector('knob-element');
-            if (actualKnobElement) {
-              config.onKnobElementReady(actualKnobElement, value, target);
-            }
-          }
-        } catch (error) {
-          connected = false;
-          console.error(
-            `Failed to connect knob "${config.label || 'unnamed'}":`,
-            error
-          );
-        }
+      // if (config.label === 'Volume') {
+      //   console.debug('🔍 connect() called with nodeId:', nodeId);
+      // }
+
+      if (!nodeId) {
+        // if (config.label === 'Volume') {
+        //   console.debug('❌ No nodeId found, cannot connect');
+        // }
+        return;
+      }
+
+      const target = getTarget(nodeId);
+
+      // if (config.label === 'Volume') {
+      //   console.debug('🎯 getTarget returned:', target);
+      // }
+
+      if (target) {
+        // Load stored value BEFORE connecting
+        loadStoredValue(nodeId);
+
+        connected = true;
+
+        const knobElement = knobContainer?.querySelector('knob-element');
+        config.onConnect?.(target, state, knobElement);
+
+        // Now that we're connected, allow saving
+        setTimeout(() => {
+          isInitializing = false;
+          // if (config.label === 'Volume') {
+          //   console.debug('✅ Initialization complete, saving enabled');
+          // }
+        }, 100);
+      } else {
+        // if (config.label === 'Volume') {
+        //   console.debug('❌ Target not found for nodeId:', nodeId);
+        // }
       }
     };
 
+    // Mount debugic
     attributes.mount(() => {
+      // if (config.label === 'Volume') {
+      //   console.debug('🔌 Volume knob mounted, attempting initial connection');
+      // }
+
       connect();
-      const handleReady = (e: CustomEvent) => {
-        if (e.detail.nodeId === getId()) connect();
+
+      const handleInit = (e: CustomEvent) => {
+        // if (config.label === 'Volume') {
+        //   console.debug(
+        //     '📢 sampler-initialized event:',
+        //     e.detail.nodeId,
+        //     'looking for:',
+        //     findId()
+        //   );
+        // }
+
+        if (e.detail.nodeId === findId()) {
+          // if (config.label === 'Volume') {
+          //   console.debug('✅ Matching sampler-initialized event, connecting');
+          // }
+          connect();
+        }
       };
+
       document.addEventListener(
         'sampler-initialized',
-        handleReady as EventListener
+        handleInit as EventListener
       );
-      return () =>
+
+      return () => {
         document.removeEventListener(
           'sampler-initialized',
-          handleReady as EventListener
+          handleInit as EventListener
         );
+      };
     });
 
-    // Check if label attribute was explicitly provided (even if empty)
-    const hasLabelAttribute = attributes.$this.hasAttribute('label');
-    const rawLabel = hasLabelAttribute
-      ? attributes.$this.getAttribute('label')
-      : undefined;
-    const labelOverride = rawLabel === null ? undefined : rawLabel;
+    // if (config.label === 'Volume') {
+    //   console.log('🎯 createKnobForTarget initial state.val:', state.val);
+    // }
 
-    // Use label attribute if provided (including empty string), otherwise fall back to config label
-    const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
+    // Create knob with simplified config - NO internal storage handling
+    knobContainer = createKnob(
+      {
+        ...config,
+        useLocalStorage: false, // Disable internal storage
+        state,
+        onChange: (value) => {
+          state.val = value;
 
-    const knobElement = createLabeledKnob({
-      label: effectiveLabel,
-      defaultValue: config.defaultValue,
-      minValue: config.minValue,
-      maxValue: config.maxValue,
-      allowedValues: config.allowedValues,
-      curve: config.curve,
-      snapIncrement: config.snapIncrement,
-      valueFormatter: config.valueFormatter,
-      onChange: (v: number) => (value.val = v),
-    });
+          // Save to storage ourselves (but not during initialization)
+          const nodeId = findId();
+          if (nodeId) {
+            saveValue(value, nodeId);
+          }
 
-    // Apply component style if provided
-    if (componentStyle) {
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = componentStyle;
-      wrapper.appendChild(knobElement);
-      return wrapper;
-    }
+          config.onChange?.(value);
+        },
+      },
+      '' // Empty nodeId since we handle storage ourselves
+    );
 
-    return knobElement;
+    return div({ style: INLINE_COMPONENT_STYLE || '' }, knobContainer);
   };
 };
+
+// export const createKnobForTarget = (
+//   config: KnobConfig,
+//   getTarget: (nodeId: string) => any
+// ) => {
+//   return (attributes: ElementProps) => {
+//     const targetNodeId = attributes.attr('target-node-id', '');
+//     const findId = findNodeId(attributes, targetNodeId);
+
+//     const getStoredValue = () => {
+//       if (!config.useLocalStorage || !config.paramName) {
+//         return config.defaultValue ?? 0;
+//       }
+
+//       const nodeId = findId();
+//       if (!nodeId) return config.defaultValue ?? 0;
+
+//       const storageKey = `${config.paramName || config.label || 'unknown'}:nodeId:${nodeId}`;
+//       const stored = localStorage.getItem(storageKey);
+
+//       if (stored) {
+//         const parsed = parseFloat(stored);
+//         if (!isNaN(parsed)) return parsed;
+//       }
+
+//       return config.defaultValue ?? 0;
+//     };
+
+//     const state = van.state(getStoredValue());
+
+//     let connected = false;
+//     let knobContainer: HTMLElement | null = null; // Store reference
+
+//     const connect = () => {
+//       if (connected) return;
+//       const nodeId = findId();
+//       if (!nodeId) return;
+//       const target = getTarget(nodeId);
+//       if (target) {
+//         connected = true;
+
+//         const knobElement = knobContainer?.querySelector('knob-element');
+//         config.onConnect?.(target, state, knobElement);
+//       }
+//     };
+
+//     // Mount logic
+//     attributes.mount(() => {
+//       connect();
+//       const handleInit = (e: CustomEvent) => {
+//         if (e.detail.nodeId === findId()) connect();
+//       };
+//       document.addEventListener(
+//         'sampler-initialized',
+//         handleInit as EventListener
+//       );
+//       return () =>
+//         document.removeEventListener(
+//           'sampler-initialized',
+//           handleInit as EventListener
+//         );
+//     });
+
+//     if (config.label === 'Volume') {
+//       console.log(
+//         '🎯 createKnobForTarget with state:',
+//         state,
+//         'state.val:',
+//         state.val
+//       );
+//     }
+
+//     knobContainer = createKnob(
+//       {
+//         ...config,
+//         state,
+//         onChange: (value) => {
+//           state.val = value;
+//           config.onChange?.(value);
+//         },
+//       },
+//       findId()
+//     );
+
+//     // Create knob with simplified config
+//     return div({ style: INLINE_COMPONENT_STYLE || '' }, knobContainer);
+//   };
+// };
+
+// export const createKnobForTarget = (
+//   config: KnobConfig,
+//   getTargetNode: (nodeId: string) => any,
+//   van: any,
+//   componentStyle?: string
+// ) => {
+//   return (attributes: ElementProps) => {
+//     const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+//     const value = van.state(config.defaultValue);
+//     let connected = false;
+
+//     const getId = findNodeId(attributes, targetNodeId);
+
+//     const connect = () => {
+//       if (connected) return;
+//       const nodeId = getId();
+//       if (!nodeId) return;
+//       const target = getTargetNode(nodeId);
+//       if (target) {
+//         try {
+//           connected = true;
+//           config.onTargetConnect?.(target, value, van);
+
+//           if (config.onKnobElementReady) {
+//             const actualKnobElement =
+//               knobElement?.querySelector('knob-element');
+//             if (actualKnobElement) {
+//               config.onKnobElementReady(actualKnobElement, value, target);
+//             }
+//           }
+//         } catch (error) {
+//           connected = false;
+//           console.error(
+//             `Failed to connect knob "${config.label || 'unnamed'}":`,
+//             error
+//           );
+//         }
+//       }
+//     };
+
+//     attributes.mount(() => {
+//       connect();
+//       const handleReady = (e: CustomEvent) => {
+//         if (e.detail.nodeId === getId()) connect();
+//       };
+//       document.addEventListener(
+//         'sampler-initialized',
+//         handleReady as EventListener
+//       );
+//       return () =>
+//         document.removeEventListener(
+//           'sampler-initialized',
+//           handleReady as EventListener
+//         );
+//     });
+
+//     // Check if label attribute was explicitly provided (even if empty)
+//     const hasLabelAttribute = attributes.$this.hasAttribute('label');
+//     const rawLabel = hasLabelAttribute
+//       ? attributes.$this.getAttribute('label')
+//       : undefined;
+//     const labelOverride = rawLabel === null ? undefined : rawLabel;
+
+//     // Use label attribute if provided (including empty string), otherwise fall back to config label
+//     const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
+
+//     const knobElement = createLabeledKnob({
+//       label: effectiveLabel,
+//       defaultValue: config.defaultValue,
+//       minValue: config.minValue,
+//       maxValue: config.maxValue,
+//       allowedValues: config.allowedValues,
+//       curve: config.curve,
+//       snapIncrement: config.snapIncrement,
+//       valueFormatter: config.valueFormatter,
+//       onChange: (v: number) => (value.val = v),
+//     });
+
+//     // Apply component style if provided
+//     if (componentStyle) {
+//       const wrapper = document.createElement('div');
+//       wrapper.style.cssText = componentStyle;
+//       wrapper.appendChild(knobElement);
+//       return wrapper;
+//     }
+
+//     return knobElement;
+//   };
+// };
+
+// /**
+//  * Configuration for a knob component
+//  */
+// export interface KnobConfig {
+//   label?: string;
+//   defaultValue: number;
+//   minValue?: number;
+//   maxValue?: number;
+//   paramName?: string; // Used as key for local storage
+//   useLocalStorage?: boolean;
+//   allowedValues?: number[];
+//   curve?: number;
+//   snapIncrement?: number;
+//   valueFormatter?: (value: number) => string;
+//   onTargetConnect?: (
+//     target: SamplePlayer,
+//     state: State<number>,
+//     van: any
+//   ) => void;
+//   onKnobElementReady?: (
+//     knobElement: any,
+//     state: State<number>,
+//     target?: SamplePlayer
+//   ) => void;
+// }

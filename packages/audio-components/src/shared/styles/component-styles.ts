@@ -62,6 +62,9 @@ export const SMALL_BUTTON_STYLE = `
   font-family: var(--ac-font-family, inherit);
 `;
 
+// width: 75px;
+// height: 22px;
+
 export const SELECT_STYLE = `
   padding: 2px 6px;
   border-radius: var(--ac-border-radius, 4px);
@@ -69,8 +72,6 @@ export const SELECT_STYLE = `
   background: var(--ac-color-bg-primary, #333);
   color: var(--ac-color-text-primary, #ccc);
   cursor: pointer;
-  width: 75px;
-  height: 22px;
   font-family: var(--ac-font-family, inherit);
   text-overflow: ellipsis;
   white-space: nowrap;

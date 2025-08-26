@@ -48,6 +48,14 @@ export const compress = (
   }
 };
 
+export const softClipSingleSample = (sample: number, threshold = 0.8) => {
+  if (Math.abs(sample) < threshold) return sample;
+  return (
+    Math.sign(sample) *
+    (threshold + (1 - Math.exp(-Math.abs(sample) + threshold)))
+  );
+};
+
 /**
  *  Basic attenuation compressor for single sample
  *  Note: No validation since optimized for real time use
@@ -56,7 +64,7 @@ export const compressSingleSample = (
   input: number,
   threshold = 0.75,
   ratio = 4.0,
-  limiter = { enabled: true, outputRange: { min: -1, max: 1 } }
+  limiter = { enabled: true, type: 'soft', outputRange: { min: -1, max: 1 } }
 ): number => {
   const { min, max } = limiter.outputRange;
 
@@ -66,7 +74,11 @@ export const compressSingleSample = (
   }
 
   if (limiter.enabled) {
-    x = Math.max(min, Math.min(max, x));
+    if (limiter.type === 'soft') {
+      x = softClipSingleSample(x, Math.abs(max));
+    } else if (limiter.type === 'hard') {
+      x = Math.max(min, Math.min(max, x));
+    }
   }
 
   return x;

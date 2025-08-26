@@ -77,6 +77,8 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const midiNote = currentKeymap.val[e.code];
     if (!midiNote) return;
 
+    e.preventDefault();
+
     const adjustedMidiNote = midiNote + octaveOffset.val * 12;
 
     pressedKeys.add(e.code);

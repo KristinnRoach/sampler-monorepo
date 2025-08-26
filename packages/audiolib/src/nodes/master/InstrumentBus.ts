@@ -431,6 +431,11 @@ export class InstrumentBus implements ILibAudioNode {
     return this;
   }
 
+  setDistortionMacro(amount: number) {
+    this.setDrive(amount);
+    this.setClippingMacro(amount);
+  }
+
   setDrive(amount: number) {
     this.getNode('distortion')?.setParam('distortionDrive', amount);
     return this;
@@ -441,7 +446,8 @@ export class InstrumentBus implements ILibAudioNode {
     const distortion = this.getNode('distortion');
     distortion?.setParam('clippingAmount', safeAmount);
 
-    const clipThreshold = mapToRange(safeAmount, 0, 1, 0.5, 0.1);
+    const clipThreshold = mapToRange(safeAmount, 0, 1, 0.25, 0.03);
+
     distortion?.setParam('clippingThreshold', clipThreshold);
     return this;
   }

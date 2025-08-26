@@ -39,6 +39,7 @@ import {
   CustomLibWaveform,
   WaveformOptions,
 } from '@/utils/audiodata/generate/generateWaveform';
+import { InputSource } from '@/nodes/recorder/Recorder';
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
@@ -83,6 +84,8 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   voicePool!: SampleVoicePool; // todo: fix use of '!'
   outBus!: InstrumentBus; // todo: fix use of '!'
+
+  #recordInputSource: InputSource = 'microphone';
 
   constructor(
     context: AudioContext,
@@ -162,6 +165,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.connect(this.outBus.input);
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(this.context.destination);
+  }
+
+  setRecorderInputSource(source: InputSource) {
+    this.#recordInputSource = source;
+  }
+
+  getRecorderInputSource() {
+    return this.#recordInputSource;
   }
 
   // === MESSAGING ===
@@ -693,7 +704,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (this.#holdLocked && !enabled) return this;
 
     this.#holdEnabled = enabled;
-    if (!enabled) this.releaseAll(this.getReleaseTime());
+    if (!enabled) this.releaseAll(0.1);
     this.sendUpstreamMessage('hold:enabled', { enabled });
     return this;
   }
@@ -864,20 +875,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /** PARAM GETTERS  */
 
-  getAttackTime(): number {
-    return this.getStoredParamValue(
-      'attack',
-      DEFAULT_PARAM_DESCRIPTORS.ATTACK.defaultValue
-    );
-  }
-
-  getReleaseTime(): number {
-    return this.getStoredParamValue(
-      'release',
-      DEFAULT_PARAM_DESCRIPTORS.RELEASE.defaultValue
-    );
-  }
-
   getStartPoint(): number {
     return this.getStoredParamValue(
       'startPoint',
@@ -906,22 +903,6 @@ export class SamplePlayer implements ILibInstrumentNode {
   getHpfCutoff = () => this.getStoredParamValue('hpfCutoff', NaN);
   getLpfCutoff = () => this.getStoredParamValue('lpfCutoff', NaN);
 
-  // for UI integration
-  getParameterDescriptors(): Record<string, LibParamDescriptor> {
-    return {
-      attack: DEFAULT_PARAM_DESCRIPTORS.ATTACK,
-      release: DEFAULT_PARAM_DESCRIPTORS.RELEASE,
-      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
-      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
-      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
-      loopStart: this.#macroLoopStart.descriptor,
-      loopEnd: this.#macroLoopEnd.descriptor,
-      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
-      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
-      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
-    };
-  }
-
   getParameterValue(name: string): number | undefined {
     switch (name) {
       case 'loopStart':
@@ -930,10 +911,6 @@ export class SamplePlayer implements ILibInstrumentNode {
         return this.loopEnd;
       case 'loopRampDuration':
         return this.getLoopRampDuration();
-      case 'attack':
-        return this.getAttackTime();
-      case 'release':
-        return this.getReleaseTime();
       case 'startPoint':
         return this.getStartPoint();
       case 'endPoint':
@@ -948,6 +925,19 @@ export class SamplePlayer implements ILibInstrumentNode {
         console.warn(`Unknown parameter: ${name}`);
         return undefined;
     }
+  }
+
+  getParameterDescriptors(): Record<string, LibParamDescriptor> {
+    return {
+      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
+      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
+      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
+      loopStart: this.#macroLoopStart.descriptor,
+      loopEnd: this.#macroLoopEnd.descriptor,
+      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
+      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
+      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
+    };
   }
 
   /* === PITCH === */

@@ -86,6 +86,8 @@ export const RecordButton = (attributes: ElementProps) => {
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || recordBtnState.val === 'Recording') return;
 
+    const inputSource = sampler.getRecorderInputSource();
+
     try {
       const recorderResult = await createAudioRecorder(sampler.context);
 
@@ -93,6 +95,8 @@ export const RecordButton = (attributes: ElementProps) => {
         status.val = 'Failed to create recorder';
         return;
       }
+
+      recorderResult.setInputSource(inputSource ?? 'microphone');
 
       currentRecorder.val = recorderResult;
       currentRecorder.val.connect(sampler);

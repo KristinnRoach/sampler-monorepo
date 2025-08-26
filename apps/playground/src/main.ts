@@ -1,75 +1,22 @@
+// main.ts
+import { updateSW } from './utils/pwa-utils/updateSW';
 import { defineSampler } from '@repo/audio-components';
-import { qsa } from './utils/dom-utils';
+import type { SamplerElement } from '@repo/audio-components';
+import { addExpandCollapseListeners } from './utils/expandCollapse';
+import { qs } from './utils/dom-utils';
 
 defineSampler(); // Define all sampler components
 
 document.addEventListener('DOMContentLoaded', () => {
   console.debug('playground initialized');
 
-  document.addEventListener('click', (e: MouseEvent) => {
-    const target = e.target as EventTarget | null;
-    if (!(target instanceof Element)) return;
+  const samplerEl = qs('sampler-element') as SamplerElement;
+  let samplePlayer: any;
 
-    // Toggle a single group's collapse by legend
-    const legend = target.closest('.expandable-legend');
-    if (legend) {
-      legend.closest('.control-group')?.classList.toggle('collapsed');
-    }
-
-    // Toggle an entire row
-    const rowIcon = target.closest('.row-collapse-icon');
-    if (rowIcon) {
-      const rowAttr = rowIcon.getAttribute('data-row');
-      const row = Number.parseInt(rowAttr ?? '', 10);
-      if (Number.isFinite(row) && row > 0) {
-        toggleRow(row);
-      }
-    }
+  document.addEventListener('sample-loaded', () => {
+    samplePlayer = samplerEl.getSamplePlayer();
+    // console.info(samplePlayer);
   });
+
+  addExpandCollapseListeners();
 });
-
-function toggleRow(rowNumber: number) {
-  const rowSelectors = [
-    '.env-group, .sample-group, .mix-group, .distortion-group',
-    '.filter-group, .reverb-group, .mod-group',
-    '.loop-group, .trim-group, .feedback-group, .amp-lfo-group, .pitch-lfo-group',
-    '.toggle-group, .keyboard-group',
-  ];
-
-  const selector = rowSelectors[rowNumber - 1];
-  if (!selector) return;
-  const groups = qsa(selector);
-
-  if (groups.length === 0) return;
-  const allCollapsed = Array.from(groups).every((g) =>
-    g.classList.contains('collapsed')
-  );
-
-  groups.forEach((group) => group.classList.toggle('collapsed', !allCollapsed));
-}
-
-// import { qs } from './utils';
-// import { makeDraggable } from './utils/makeDraggable';
-
-// const samplerContainerEl = qs('#sampler-container');
-
-// createAndAppendHandle(samplerContainerEl);
-// if (samplerContainerEl) {
-//   makeDraggable(
-//     {
-//       element: samplerContainerEl,
-//       handleClassName: '.drag-handle',
-//     },
-//     {
-//       type: 'x,y',
-//     }
-//   );
-// }
-
-// function createAndAppendHandle(element: Element | null) {
-//   if (!element || element.querySelector('.drag-handle')) return;
-//   const handle = document.createElement('div');
-//   handle.className = 'drag-handle';
-//   handle.setAttribute('aria-label', 'Drag to move this control group');
-//   element.appendChild(handle);
-// }

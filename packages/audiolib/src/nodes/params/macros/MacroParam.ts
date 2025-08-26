@@ -230,6 +230,7 @@ export class MacroParam {
   setValue(value: number, timestamp?: number): this {
     this.#controller.setValue(value, timestamp);
     this.#currentTargetValue = value;
+    // this.#sendValueChangedMessage(value); // Todo: Uncomment if needed for onChange callback, otherwise delete this line and onChange.
     return this;
   }
 
