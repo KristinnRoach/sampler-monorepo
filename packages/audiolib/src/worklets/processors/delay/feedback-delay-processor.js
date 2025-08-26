@@ -18,7 +18,7 @@ registerProcessor(
           name: 'delayTime',
           defaultValue: 0.5,
           minValue: 0.00012656238799684144, // <- B8 natural in seconds (highest note period that works)
-          maxValue: 4,
+          maxValue: 2,
           automationRate: 'k-rate',
         },
         {
@@ -26,6 +26,13 @@ registerProcessor(
           defaultValue: 1,
           minValue: 0,
           maxValue: 1,
+          automationRate: 'k-rate',
+        },
+        {
+          name: 'lowpass',
+          defaultValue: 10000,
+          minValue: 100,
+          maxValue: 16000,
           automationRate: 'k-rate',
         },
       ];
@@ -79,6 +86,8 @@ registerProcessor(
       const baseFeedbackAmount = parameters.feedbackAmount[0];
       const delayTime = parameters.delayTime[0];
       const decay = parameters.decay[0];
+      const lowpassFreq = parameters.lowpass[0];
+
       const channelCount = Math.min(input.length, output.length);
       const frameCount = output[0].length;
 
@@ -112,7 +121,8 @@ registerProcessor(
             input[c][i],
             c,
             effectiveFeedbackAmount,
-            delayTime
+            delayTime,
+            lowpassFreq
           );
 
           // Direct output assignment (already processed)

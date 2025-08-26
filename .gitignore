@@ -1,6 +1,12 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 .vscode
+WARP.md
+
+# test / experiment apps
+apps/wave-worm-react
+apps/test-elements
+apps/hljodsmali
 
 # trash to be cleaned up
 **/trash

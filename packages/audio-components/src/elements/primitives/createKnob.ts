@@ -140,6 +140,14 @@ export const createKnob = (
 
   const initialValue = getInitialValue();
 
+  const storeDebounced = debounce((key: string, val: string) => {
+    try {
+      localStorage.setItem(key, val);
+    } catch {
+      /* ignore quota/unavailable */
+    }
+  }, 200);
+
   knobElement.addEventListener('knob-change', (e: CustomEvent) => {
     const value = e.detail.value;
 
@@ -150,9 +158,6 @@ export const createKnob = (
     // Save to localStorage if enabled
     const storageKey = getStorageKey();
     if (useLocalStorage && storageKey) {
-      const storeDebounced = debounce((key: string, val: string) => {
-        localStorage.setItem(key, val);
-      }, 200);
       storeDebounced(storageKey, String(value));
     }
 

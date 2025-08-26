@@ -48,12 +48,32 @@ export const compress = (
   }
 };
 
-export const softClipSingleSample = (sample: number, threshold = 0.8) => {
+export const softClipSingleSample = (
+  sample: number,
+  threshold = 0.8,
+  max = 0.9
+) => {
   if (Math.abs(sample) < threshold) return sample;
-  return (
+
+  const softClipped =
     Math.sign(sample) *
-    (threshold + (1 - Math.exp(-Math.abs(sample) + threshold)))
-  );
+    (threshold + (1 - Math.exp(-Math.abs(sample) + threshold)));
+
+  // Hard limit to prevent exceeding max
+  return Math.max(-max, Math.min(max, softClipped));
+};
+
+// export const softClipSingleSample = (sample: number, max = 0.9) => {
+//   return Math.sign(sample) * max * Math.tanh(sample / max);
+// };
+
+export const cheapSoftClipSingleSample = (sample: number, max = 0.9) => {
+  const a = Math.abs(sample);
+  if (a <= max) return sample;
+  // Rational approximation: bounded and fast
+  const x = a / max;
+  const compressed = x / (1 + x);
+  return Math.sign(sample) * max * compressed;
 };
 
 /**
@@ -75,7 +95,7 @@ export const compressSingleSample = (
 
   if (limiter.enabled) {
     if (limiter.type === 'soft') {
-      x = softClipSingleSample(x, Math.abs(max));
+      x = cheapSoftClipSingleSample(x, Math.abs(max));
     } else if (limiter.type === 'hard') {
       x = Math.max(min, Math.min(max, x));
     }

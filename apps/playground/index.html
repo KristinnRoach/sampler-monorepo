@@ -33,7 +33,7 @@
   </head>
   <body>
     <div id="page-wrapper" class="page-wrapper">
-      <div class="control-grid" id="sampler-container">
+      <div class="control-grid layout-desktop" id="sampler-container">
         <!-- Sampler Audio Engine -->
         <sampler-element
           node-id="test-sampler"
@@ -75,8 +75,6 @@
           <div class="expandable-content">
             <volume-knob target-node-id="test-sampler"></volume-knob>
             <dry-wet-knob target-node-id="test-sampler"></dry-wet-knob>
-            <distortion-knob target-node-id="test-sampler"></distortion-knob>
-            <am-modulation target-node-id="test-sampler"></am-modulation>
           </div>
         </fieldset>
 
@@ -132,19 +130,56 @@
           </div>
         </fieldset>
 
+        <fieldset class="control-group effects-group">
+          <legend class="expandable-legend">Effects</legend>
+          <div class="expandable-content effects-grid">
+            <div class="flex-row dist-am">
+              <distortion-knob target-node-id="test-sampler"></distortion-knob>
+              <am-modulation target-node-id="test-sampler"></am-modulation>
+            </div>
+            <div class="effect-section">
+              <h4>Feedback</h4>
+              <div class="feedback-controls">
+                <div class="flex-col">
+                  <feedback-knob
+                    target-node-id="test-sampler"
+                    label="Amount"
+                  ></feedback-knob>
+                  <feedback-mode-toggle
+                    target-node-id="test-sampler"
+                    label=""
+                  ></feedback-mode-toggle>
+                </div>
+
+                <div class="flex-row">
+                  <div class="flex-col">
+                    <feedback-pitch-knob
+                      target-node-id="test-sampler"
+                      label="Pitch"
+                    ></feedback-pitch-knob>
+                    <feedback-lpf-knob
+                      label="Lowpass"
+                      class="fb-lpf-knob"
+                      target-node-id="test-sampler"
+                    ></feedback-lpf-knob>
+                  </div>
+                  <feedback-decay-knob
+                    target-node-id="test-sampler"
+                    label="Decay"
+                  ></feedback-decay-knob>
+                </div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
         <!-- <fieldset class="control-group distortion-group">
           <legend class="expandable-legend">Distortion</legend>
           <div class="expandable-content">
             <distortion-knob target-node-id="test-sampler"></distortion-knob>
-           <drive-knob target-node-id="test-sampler"></drive-knob>
-            <clipping-knob
-              target-node-id="test-sampler"
-              label="Clip"
-            ></clipping-knob> 
           </div>
-        </fieldset> -->
+        </fieldset>
 
-        <!-- Feedback controls -->
         <fieldset class="control-group feedback-group">
           <legend class="expandable-legend">Feedback</legend>
 
@@ -162,10 +197,17 @@
             </div>
 
             <div class="flex-row">
-              <feedback-pitch-knob
-                target-node-id="test-sampler"
-                label="Pitch"
-              ></feedback-pitch-knob>
+              <div class="flex-col">
+                <feedback-pitch-knob
+                  target-node-id="test-sampler"
+                  label="Pitch"
+                ></feedback-pitch-knob>
+                <feedback-lpf-knob
+                  label="Lowpass"
+                  class="fb-lpf-knob"
+                  target-node-id="test-sampler"
+                ></feedback-lpf-knob>
+              </div>
 
               <feedback-decay-knob
                 target-node-id="test-sampler"
@@ -173,7 +215,14 @@
               ></feedback-decay-knob>
             </div>
           </div>
-        </fieldset>
+        </fieldset> -->
+
+        <!-- <fieldset class="control-group mod-group">
+          <legend class="expandable-legend">Mod</legend>
+          <div class="expandable-content">
+            <am-modulation target-node-id="test-sampler"></am-modulation>
+          </div>
+        </fieldset> -->
 
         <fieldset class="control-group trim-group">
           <legend class="expandable-legend">Trim</legend>
@@ -182,13 +231,6 @@
             <trim-end-knob target-node-id="test-sampler"></trim-end-knob>
           </div>
         </fieldset>
-
-        <!-- <fieldset class="control-group mod-group">
-          <legend class="expandable-legend">Mod</legend>
-          <div class="expandable-content">
-            <am-modulation target-node-id="test-sampler"></am-modulation>
-          </div>
-        </fieldset> -->
 
         <fieldset class="control-group amp-lfo-group">
           <legend class="expandable-legend">LFO's</legend>
@@ -209,10 +251,10 @@
               target-node-id="test-sampler"
               label="Depth"
             ></gain-lfo-depth-knob>
-            <!-- </div>
-        </fieldset> -->
+            <!-- </div> -->
+            <!-- </fieldset>
 
-            <!-- <fieldset class="control-group pitch-lfo-group">
+        <fieldset class="control-group pitch-lfo-group">
           <legend class="expandable-legend">Pitch LFO</legend>
           <div class="expandable-content"> -->
             <div class="flex-col">
@@ -279,17 +321,17 @@
         <div
           class="row-collapse-icon"
           data-row="1"
-          style="grid-area: mix"
-        ></div>
-        <div
-          class="row-collapse-icon"
-          data-row="2"
           style="grid-area: reverb"
         ></div>
         <div
           class="row-collapse-icon"
+          data-row="2"
+          style="grid-area: mod"
+        ></div>
+        <div
+          class="row-collapse-icon"
           data-row="3"
-          style="grid-area: amp-lfo"
+          style="grid-area: pitch-lfo"
         ></div>
         <div
           class="row-collapse-icon"

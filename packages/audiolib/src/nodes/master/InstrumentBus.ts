@@ -491,6 +491,11 @@ export class InstrumentBus implements ILibAudioNode {
     return this;
   }
 
+  setFeedbackLowpassCutoff(amount: number) {
+    this.getNode('feedback')?.setLowpassCutoff(amount);
+    return this;
+  }
+
   connect(destination: ILibAudioNode | AudioNode): void {
     this.getNode('output').connect(destination);
 

@@ -32,6 +32,7 @@ export {
   GlideKnob,
   FeedbackPitchKnob,
   FeedbackDecayKnob,
+  FeedbackLpfKnob,
   GainLFORateKnob,
   GainLFODepthKnob,
   PitchLFORateKnob,

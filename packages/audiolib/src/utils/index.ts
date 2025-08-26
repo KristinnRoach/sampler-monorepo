@@ -12,6 +12,7 @@ export * from './music-theory';
 // Code utils
 export * from './code/assert';
 export * from './code/tryCatch';
+export * from './throttle';
 export * from './code/generate/generateProcessorCode';
 
 // Validation utils

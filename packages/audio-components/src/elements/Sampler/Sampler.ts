@@ -31,6 +31,7 @@ import {
   TrimStartKnob,
   TrimEndKnob,
   DistortionKnob,
+  FeedbackLpfKnob,
 } from './components/SamplerKnobFactory';
 
 import {
@@ -311,6 +312,7 @@ export {
   TrimStartKnob,
   TrimEndKnob,
   DistortionKnob,
+  FeedbackLpfKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -372,6 +374,7 @@ export const defineSampler = () => {
   defineIfNotExists('glide-knob', GlideKnob, false);
   defineIfNotExists('feedback-pitch-knob', FeedbackPitchKnob, false);
   defineIfNotExists('feedback-decay-knob', FeedbackDecayKnob, false);
+  defineIfNotExists('feedback-lpf-knob', FeedbackLpfKnob, false);
   defineIfNotExists('gain-lfo-rate-knob', GainLFORateKnob, false);
   defineIfNotExists('gain-lfo-depth-knob', GainLFODepthKnob, false);
   defineIfNotExists('pitch-lfo-rate-knob', PitchLFORateKnob, false);
