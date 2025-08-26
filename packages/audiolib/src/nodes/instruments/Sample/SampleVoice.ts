@@ -132,11 +132,10 @@ export class SampleVoice {
     if (this.#filtersEnabled) {
       assert(this.#hpf && this.#lpf, 'SampleVoice: Filters not initialized!');
 
-      // Connect: worklet -> feedback -> hpf -> lpf
-      this.#worklet.connect(this.#feedback.input);
+      // Connect: worklet -> AM mod gain -> feedback -> hpf -> lpf
       this.#worklet.connect(this.#am_gain);
-      this.#feedback.output.connect(this.#am_gain);
-      this.#am_gain.connect(this.#hpf);
+      this.#am_gain.connect(this.#feedback.input);
+      this.#feedback.output.connect(this.#hpf);
       this.#hpf.connect(this.#lpf);
       this.#lpf.connect(this.#outputNode);
     } else {

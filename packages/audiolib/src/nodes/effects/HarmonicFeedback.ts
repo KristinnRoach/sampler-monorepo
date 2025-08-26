@@ -26,8 +26,9 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   #MIN_FB = 0;
   #MAX_FB = 0.999;
-  #MAX_DECAY = 0.999;
+  #MAX_DECAY = 1;
   #MIN_DELAY_TIME = 0.00012656238799684144; // B8 natural (H) in seconds
+  #MAX_DELAY_TIME = 2;
 
   constructor(context: AudioContext = getAudioContext()) {
     this.nodeId = registerNode(this.nodeType, this);
@@ -114,7 +115,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     this.#baseDelayTime = seconds;
 
     const scaled = seconds * this.#pitchMultiplier;
-    const clamped = clamp(scaled, this.#MIN_DELAY_TIME, 4);
+    const clamped = clamp(scaled, this.#MIN_DELAY_TIME, this.#MAX_DELAY_TIME);
 
     if (glideTime === 0 || !isFinite(glideTime)) {
       this.getParam('delayTime')!.setValueAtTime(clamped, timestamp);
@@ -146,7 +147,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     const newDelayTime = clamp(
       safeMultiplier * this.#baseDelayTime,
       this.#MIN_DELAY_TIME,
-      4
+      this.#MAX_DELAY_TIME
     );
 
     if (glideTime === 0 || !isFinite(glideTime)) {
@@ -186,6 +187,15 @@ export class HarmonicFeedback implements ILibAudioNode {
     const mappedAmount = mapToRange(amount, 0, 1, 0, this.#MAX_DECAY);
     this.getParam('decay')!.setValueAtTime(mappedAmount, timestamp);
     return this;
+  }
+
+  setLowpassCutoff(freqHz: number) {
+    if (freqHz > 16000 || freqHz < 100) {
+      console.warn('Feedback lowpass cutoff out of bounds');
+      return;
+    }
+
+    this.getParam('lowpass')!.setTargetAtTime(freqHz, this.now, 0.1);
   }
 
   #triggerDecay(): this {

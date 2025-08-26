@@ -89,7 +89,7 @@ export async function preProcessAudioBuffer(
       processed = await applyHighPassFilter(processed, hpf.cutoff ?? 80);
     } else if ('auto' in hpf && hpf.auto) {
       // For auto HPF, we need pitch detection first
-      const tempPitch = await detectPitch(buffer);
+      const tempPitch = await detectPitch(processed);
       if (tempPitch.confidence >= PITCH_CONFIDENCE_THRESHOLD) {
         const cutoffFreq =
           tempPitch.frequency > 30 && tempPitch.frequency < 350
@@ -113,7 +113,6 @@ export async function preProcessAudioBuffer(
     const compressionAnalysis = shouldCompress(processed);
 
     if (compressionAnalysis.shouldCompress) {
-      // Always use the smart suggested settings when available
       // Only use manual overrides if explicitly provided (not from defaults)
       const hasManualSettings =
         compress.threshold !== undefined ||
@@ -148,7 +147,7 @@ export async function preProcessAudioBuffer(
     tune?.autotune ||
     (hpf && 'auto' in hpf && hpf.auto)
   ) {
-    const detectedPitch = await detectPitch(buffer);
+    const detectedPitch = await detectPitch(processed);
     // Use target MIDI note 60 (C4) or a provided target note
     const targetMidiNote = tune?.targetMidiNote || 60;
     const transposeSemitones = detectedPitchToTransposition(
@@ -191,7 +190,7 @@ export async function preProcessAudioBuffer(
   }
 
   if (getZeroCrossings) {
-    const zeroes = findZeroCrossings(buffer);
+    const zeroes = findZeroCrossings(processed);
     results.zeroCrossings = zeroes;
   }
 

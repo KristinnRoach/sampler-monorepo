@@ -11,14 +11,17 @@ import {
 
 import { getMicrophone } from '@/io/devices/devices';
 
-// Helper for browser tab audio
+// Get browser tab audio
 async function getBrowserAudio(): Promise<MediaStream> {
   const stream = await navigator.mediaDevices.getDisplayMedia({
     audio: true,
     video: true,
   });
-  // Only use the audio track
-  return new MediaStream(stream.getAudioTracks());
+
+  const audioOnly = new MediaStream(stream.getAudioTracks());
+  stream.getVideoTracks().forEach((t) => t.stop()); // Stop video tracks
+
+  return audioOnly;
 }
 
 import {

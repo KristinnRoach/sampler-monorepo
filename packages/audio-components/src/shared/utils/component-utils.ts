@@ -172,6 +172,16 @@ export const createKnobForTarget = (
     // Initialize state with default value
     const state = van.state(config.defaultValue ?? 0);
 
+    // Check if label attribute was explicitly provided (even if empty)
+    const hasLabelAttribute = attributes.$this.hasAttribute('label');
+    const rawLabel = hasLabelAttribute
+      ? attributes.$this.getAttribute('label')
+      : undefined;
+    const labelOverride = rawLabel === null ? undefined : rawLabel;
+
+    // Use label attribute if provided (including empty string), otherwise fall back to config label
+    const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
+
     let connected = false;
     let knobContainer: HTMLElement | null = null;
     let isInitializing = true; // Flag to prevent saving during initialization
@@ -218,14 +228,15 @@ export const createKnobForTarget = (
 
     const saveValue = (value: number, nodeId: string) => {
       if (!config.useLocalStorage || !nodeId || isInitializing) {
-        // if (config.label === 'Volume' && isInitializing) {
-        //   console.debug('🚫 Skipping save during initialization');
-        // }
         return;
       }
 
-      const storageKey = getStorageKey(nodeId);
-      localStorage.setItem(storageKey, String(value));
+      try {
+        const storageKey = getStorageKey(nodeId);
+        localStorage.setItem(storageKey, String(value));
+      } catch (error) {
+        console.warn('Failed to save knob value to localStorage:', error);
+      }
     };
 
     const connect = () => {
@@ -319,6 +330,7 @@ export const createKnobForTarget = (
     knobContainer = createKnob(
       {
         ...config,
+        label: effectiveLabel,
         useLocalStorage: false, // Disable internal storage
         state,
         onChange: (value) => {

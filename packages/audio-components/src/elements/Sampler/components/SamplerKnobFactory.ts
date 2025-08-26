@@ -13,9 +13,7 @@ const volumeConfig: KnobConfig = {
   useLocalStorage: true,
   onConnect: (sampler, state) => {
     // console.debug('📍 onConnect: Setting sampler.volume to', state.val);
-    sampler.volume = state.val;
     setTimeout(() => {
-      // console.debug('🔗 Setting up derive with state.val =', state.val);
       van.derive(() => {
         if (sampler?.volume !== undefined) {
           sampler.volume = state.val;
@@ -114,9 +112,22 @@ const feedbackDecayConfig: KnobConfig = {
   defaultValue: 0.75,
   minValue: 0.001,
   maxValue: 1,
-  curve: 1,
+  curve: 2,
   onConnect: (sampler, state) => {
     van.derive(() => sampler.setFeedbackDecay(state.val));
+  },
+};
+
+const feedbackLpfConfig: KnobConfig = {
+  label: 'FB-LPF',
+  useLocalStorage: true,
+  defaultValue: 10000,
+  minValue: 400,
+  maxValue: 16000,
+  curve: 5,
+  valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,
+  onConnect: (sampler, state) => {
+    van.derive(() => sampler.setFeedbackLowpassCutoff(state.val));
   },
 };
 
@@ -347,9 +358,20 @@ const loopDurationConfig: KnobConfig = {
   onConnect: (sampler, state, knobElement) => {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
+
       if (currentDuration > 0) {
         knobElement.setAttribute('max-value', currentDuration.toString());
         knobElement.setAttribute('default-value', currentDuration.toString());
+      }
+
+      const storedLoopEnd = Number(localStorage.getItem('loopEnd'));
+      const storedLoopStart = Number(localStorage.getItem('loopStart'));
+      const storedLoopDuration = storedLoopEnd - storedLoopStart;
+      if (
+        storedLoopDuration > 0 &&
+        storedLoopDuration <= currentDuration - storedLoopStart
+      ) {
+        knobElement.setValue(storedLoopDuration);
       }
 
       sampler.onMessage('sample:loaded', (msg: any) => {
@@ -394,6 +416,11 @@ export const FeedbackPitchKnob = createKnobForTarget(
 
 export const FeedbackDecayKnob = createKnobForTarget(
   feedbackDecayConfig,
+  getSampler
+);
+
+export const FeedbackLpfKnob = createKnobForTarget(
+  feedbackLpfConfig,
   getSampler
 );
 

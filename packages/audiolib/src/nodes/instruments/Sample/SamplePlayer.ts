@@ -13,7 +13,13 @@ import {
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
-import { assert, tryCatch, isValidAudioBuffer, isMidiValue } from '@/utils';
+import {
+  assert,
+  tryCatch,
+  throttle,
+  isValidAudioBuffer,
+  isMidiValue,
+} from '@/utils';
 
 import {
   MacroParam,
@@ -1046,11 +1052,16 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setFeedbackDecay(value: number) {
     this.outBus.setFeedbackDecay(value);
-
-    // Useable range for polyphonic feedback is smaller, mapping:
-    const reducedForPoly = mapToRange(value, 0, 1, 0, 0.75);
     this.voicePool.applyToAllVoices((voice) => {
-      voice.feedback?.setDecay(reducedForPoly);
+      voice.feedback?.setDecay(value);
+    });
+  }
+
+  setFeedbackLowpassCutoff(freqHz: number) {
+    this.outBus.setFeedbackLowpassCutoff(freqHz);
+
+    this.voicePool.applyToAllVoices((voice) => {
+      voice.feedback?.setLowpassCutoff(freqHz);
     });
   }
 

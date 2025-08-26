@@ -17,10 +17,8 @@ export const AMModulation = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const showWaveLabel = attributes.attr('show-wave-label', 'false'); // Default to no label
 
-  // Create label position state once to avoid repeated state allocations
   const labelPositionState = van.state('below');
 
-  // Create the inner controls with the same target node id
   const knobElement = AMModKnob({
     attr: (name: string, defaultValue: any) => {
       if (name === 'target-node-id') return targetNodeId;
