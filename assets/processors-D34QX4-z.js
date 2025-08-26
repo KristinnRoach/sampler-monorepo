@@ -645,14 +645,25 @@ class RandomNoiseProcessor extends AudioWorkletProcessor {
   }
 }
 registerProcessor("random-noise-processor", RandomNoiseProcessor);
-const compressSingleSample = (input, threshold = 0.75, ratio = 4, limiter = { enabled: true, outputRange: { min: -1, max: 1 } }) => {
+const cheapSoftClipSingleSample = (sample, max = 0.9) => {
+  const a = Math.abs(sample);
+  if (a <= max) return sample;
+  const x = a / max;
+  const compressed = x / (1 + x);
+  return Math.sign(sample) * max * compressed;
+};
+const compressSingleSample = (input, threshold = 0.75, ratio = 4, limiter = { enabled: true, type: "soft", outputRange: { min: -1, max: 1 } }) => {
   const { min, max } = limiter.outputRange;
   let x = input;
   if (Math.abs(x) > threshold) {
     x = Math.sign(x) * (threshold + (Math.abs(x) - threshold) / ratio);
   }
   if (limiter.enabled) {
-    x = Math.max(min, Math.min(max, x));
+    if (limiter.type === "soft") {
+      x = cheapSoftClipSingleSample(x, Math.abs(max));
+    } else if (limiter.type === "hard") {
+      x = Math.max(min, Math.min(max, x));
+    }
   }
   return x;
 };
@@ -673,36 +684,79 @@ class DelayBuffer {
     this.readPtr = (this.writePtr - delaySamples + this.buffer.length) % this.buffer.length;
   }
 }
-const SAFETY_GAIN_COMPENSATION = 0.05;
 const AUTO_GAIN_THRESHOLD = 0.8;
+const SAFETY_GAIN_COMPENSATION = 0.2;
 class FeedbackDelay {
   constructor(sampleRate2) {
     this.sampleRate = sampleRate2;
     this.buffers = [];
     this.initialized = false;
-    this.autoGainEnabled = true;
+    this.autoGainEnabled = false;
     this.gainCompensation = SAFETY_GAIN_COMPENSATION;
+    this.lowpassStates = [];
+    this.highpassStates = [];
+    this.highpassInputStates = [];
   }
   initializeBuffers(channelCount) {
     this.buffers = [];
-    const maxSamples = Math.floor(this.sampleRate);
+    this.lowpassStates = [];
+    this.highpassStates = [];
+    this.highpassInputStates = [];
+    const maxSamples = Math.floor(this.sampleRate * 2);
     for (let c = 0; c < channelCount; c++) {
       this.buffers[c] = new DelayBuffer(maxSamples);
+      this.lowpassStates[c] = 0;
+      this.highpassStates[c] = 0;
+      this.highpassInputStates[c] = 0;
     }
     this.initialized = true;
   }
-  process(inputSample, channelIndex, feedbackAmount, delayTime) {
+  /** Simple one-pole lowpass filter */
+  lowpass(input, cutoffFreq, channelIndex) {
+    if (cutoffFreq >= this.sampleRate * 0.4) {
+      return input;
+    }
+    const omega = 2 * Math.PI * cutoffFreq / this.sampleRate;
+    const alpha = Math.max(
+      0,
+      Math.min(0.99, Math.sin(omega) / (Math.sin(omega) + Math.cos(omega)))
+    );
+    this.lowpassStates[channelIndex] = alpha * input + (1 - alpha) * this.lowpassStates[channelIndex];
+    return this.lowpassStates[channelIndex];
+  }
+  /** Simple one-pole highpass filter */
+  highpass(input, cutoffFreq, channelIndex) {
+    if (cutoffFreq < 5) return input;
+    const omega = 2 * Math.PI * cutoffFreq / this.sampleRate;
+    const alpha = Math.max(
+      0,
+      Math.min(0.99, Math.sin(omega) / (Math.sin(omega) + Math.cos(omega)))
+    );
+    const lowpassOutput = alpha * input + (1 - alpha) * this.highpassStates[channelIndex];
+    const highpassOutput = input - lowpassOutput;
+    this.highpassStates[channelIndex] = lowpassOutput;
+    return highpassOutput;
+  }
+  process(inputSample, channelIndex, feedbackAmount, delayTime, lowpassFreq = 1e4, highpassFreq = 100) {
     if (!this.initialized) return inputSample;
     const buffer = this.buffers[channelIndex] || this.buffers[0];
     const delaySamples = Math.floor(this.sampleRate * delayTime);
     const delayedSample = buffer.read();
-    const feedbackSample = feedbackAmount * delayedSample + inputSample;
-    const compressedFeedback = compressSingleSample(feedbackSample, 0.75, 3, {
+    let filteredDelay = this.highpass(
+      delayedSample,
+      highpassFreq,
+      channelIndex
+    );
+    filteredDelay = this.lowpass(filteredDelay, lowpassFreq, channelIndex);
+    const feedbackSample = feedbackAmount * filteredDelay + inputSample;
+    let outputSample = feedbackSample;
+    const compressedFeedback = compressSingleSample(feedbackSample, 0.5, 4, {
       enabled: true,
-      // Hard limiter enabled
-      outputRange: { min: -0.999, max: 0.999 }
+      // limiter enabled
+      outputRange: { min: -0.99, max: 0.99 },
+      type: "soft"
+      // soft clip
     });
-    let outputSample = compressedFeedback;
     if (this.autoGainEnabled && feedbackAmount > AUTO_GAIN_THRESHOLD) {
       const safetyReduction = 1 - (feedbackAmount - AUTO_GAIN_THRESHOLD) * this.gainCompensation;
       outputSample = compressedFeedback * safetyReduction;
@@ -736,7 +790,7 @@ registerProcessor(
           defaultValue: 0.5,
           minValue: 12656238799684143e-20,
           // <- B8 natural in seconds (highest note period that works)
-          maxValue: 4,
+          maxValue: 2,
           automationRate: "k-rate"
         },
         {
@@ -745,6 +799,13 @@ registerProcessor(
           defaultValue: 1,
           minValue: 0,
           maxValue: 1,
+          automationRate: "k-rate"
+        },
+        {
+          name: "lowpass",
+          defaultValue: 1e4,
+          minValue: 100,
+          maxValue: 16e3,
           automationRate: "k-rate"
         }
       ];
@@ -788,17 +849,18 @@ registerProcessor(
       const baseFeedbackAmount = parameters.feedbackAmount[0];
       const delayTime = parameters.delayTime[0];
       const decay = parameters.decay[0];
+      const lowpassFreq = parameters.lowpass[0];
       const channelCount = Math.min(input.length, output.length);
       const frameCount = output[0].length;
       for (let i = 0; i < frameCount; ++i) {
         let effectiveFeedbackAmount = baseFeedbackAmount;
         if (this.decayActive && this.decayStartTime !== null) {
           const elapsedTime = currentTime - this.decayStartTime + i / sampleRate;
-          const delayCompensation = Math.min(5, 0.5 / delayTime);
+          const delayCompensation = Math.min(100, 0.5 / delayTime);
           const timeConstant = Math.pow(decay, 5) * 1e3 * delayCompensation + 0.5;
           const decayFactor = Math.exp(-elapsedTime / timeConstant);
           effectiveFeedbackAmount = baseFeedbackAmount * decayFactor;
-          if (effectiveFeedbackAmount < 1e-3) {
+          if (effectiveFeedbackAmount < 0.01) {
             this.decayActive = false;
             effectiveFeedbackAmount = 0;
           }
@@ -808,7 +870,8 @@ registerProcessor(
             input[c][i],
             c,
             effectiveFeedbackAmount,
-            delayTime
+            delayTime,
+            lowpassFreq
           );
           output[c][i] = processed.outputSample;
           this.feedbackDelay.updateBuffer(
@@ -1002,8 +1065,7 @@ class Distortion {
   applyDrive(sample, driveAmount) {
     if (driveAmount <= 0) return sample;
     const driveMultiplier = 1 + driveAmount * 3;
-    const tameGainScalar = 0.95;
-    const drivenSample = sample * driveMultiplier * tameGainScalar;
+    const drivenSample = sample * driveMultiplier;
     return drivenSample;
   }
   applyClipping(sample, clippingAmount, clipThreshold) {
@@ -1024,9 +1086,12 @@ class Distortion {
         clippedSample = sample;
         break;
     }
-    const makeupGain = 1 / Math.max(clipThreshold, 0.1);
-    clippedSample *= makeupGain;
-    return sample * (1 - clippingAmount) + clippedSample * clippingAmount;
+    if (clipThreshold < 0.08) {
+      const makeupGain = Math.min(2, Math.pow(0.1 / clipThreshold, 0.5));
+      clippedSample *= makeupGain;
+    }
+    const blended = sample * (1 - clippingAmount) + clippedSample * clippingAmount;
+    return blended;
   }
   setLimitingMode(mode) {
     this.limitingMode = mode;
