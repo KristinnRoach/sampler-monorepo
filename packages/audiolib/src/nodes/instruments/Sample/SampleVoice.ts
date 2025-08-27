@@ -297,6 +297,7 @@ export class SampleVoice {
       if (options.glide) {
         prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
       }
+      this.#updateHPFCutoffForPlaybackRate(playbackRate);
     }
 
     // Only apply glide if pitch is enabled and glide is requested
@@ -477,6 +478,13 @@ export class SampleVoice {
     return this;
   }
 
+  /**  Set HPF cutoff relative to playback rate */
+  #updateHPFCutoffForPlaybackRate(playbackRate: number) {
+    if (this.#hpf) {
+      this.#hpf.frequency.setValueAtTime(this.#hpfHz * playbackRate, this.now);
+    }
+  }
+
   // === LFOs ===
 
   /** Setup amplitude modulation LFO (if not already setup) */
@@ -620,12 +628,17 @@ export class SampleVoice {
   setParam(
     name: string,
     targetValue: number,
-    timestamp: number,
+    timestamp: number = this.now,
     options: {
       glideTime?: number;
       cancelPrevious?: boolean;
     } = {}
   ): this {
+    if (name === 'hpf') {
+      this.setHpfCutoff(targetValue);
+      return this;
+    }
+
     const param = this.getParam(name);
     if (!param || param.value === targetValue) return this;
 
@@ -1010,7 +1023,15 @@ export class SampleVoice {
     }
   ): this {
     this.setParam('playbackRate', rate, atTime, options);
+    this.#updateHPFCutoffForPlaybackRate(rate);
     return this;
+  }
+
+  setHpfCutoff(hz: number) {
+    this.#hpfHz = hz;
+    if (this.#hpf) {
+      this.#hpf.frequency.setValueAtTime(hz, this.now);
+    }
   }
 
   setPlaybackDirection(direction: 'forward' | 'reverse'): this {

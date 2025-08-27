@@ -1044,10 +1044,19 @@ export class SamplePlayer implements ILibInstrumentNode {
   };
 
   setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
-  setHpfCutoff = (hz: number) => this.outBus.setHpfCutoff(hz);
+
+  setHpfCutoff = (hz: number, preOrPostFx: 'pre' | 'post' = 'pre') => {
+    if (preOrPostFx === 'pre') {
+      this.voicePool.applyToAllVoices((v) => {
+        v.setParam('hpf', hz);
+      });
+    } else if (preOrPostFx === 'post') {
+      this.outBus.setHpfCutoff(hz);
+    }
+  };
 
   setReverbAmount = (amount: number) => {
-    this.outBus.setReverbAmount(amount);
+    this.outBus.setReverbSize(amount);
   };
 
   setFeedbackDecay(value: number) {

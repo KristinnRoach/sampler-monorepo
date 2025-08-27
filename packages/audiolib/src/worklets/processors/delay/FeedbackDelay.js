@@ -115,7 +115,7 @@ export class FeedbackDelay {
       outputSample = compressedFeedback * safetyReduction;
     }
 
-    return { outputSample, feedbackSample, delaySamples };
+    return { outputSample, feedbackSample: compressedFeedback, delaySamples };
   }
 
   updateBuffer(channelIndex, sample, delaySamples) {

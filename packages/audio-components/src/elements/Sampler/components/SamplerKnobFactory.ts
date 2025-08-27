@@ -252,7 +252,6 @@ const amplitudeModConfig: KnobConfig = {
   maxValue: 1,
   curve: 1,
   onConnect: (sampler, state) => {
-    sampler.setModulationAmount('AM', state.val);
     van.derive(() => sampler.setModulationAmount('AM', state.val));
   },
 };
@@ -263,8 +262,6 @@ const trimStartConfig: KnobConfig = {
   defaultValue: 0,
   snapIncrement: 0.001,
   onConnect: (sampler, state, knobElement) => {
-    sampler.setSampleStartPoint(state.val);
-
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
       if (currentDuration > 0) {

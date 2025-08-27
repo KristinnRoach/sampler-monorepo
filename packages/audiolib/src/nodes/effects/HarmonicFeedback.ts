@@ -26,6 +26,7 @@ export class HarmonicFeedback implements ILibAudioNode {
 
   #MIN_FB = 0;
   #MAX_FB = 0.999;
+  #MIN_DECAY = 0.15;
   #MAX_DECAY = 1;
   #MIN_DELAY_TIME = 0.00012656238799684144; // B8 natural (H) in seconds
   #MAX_DELAY_TIME = 2;
@@ -184,7 +185,13 @@ export class HarmonicFeedback implements ILibAudioNode {
   }
 
   setDecay(amount: number, timestamp = this.now): this {
-    const mappedAmount = mapToRange(amount, 0, 1, 0, this.#MAX_DECAY);
+    const mappedAmount = mapToRange(
+      amount,
+      0,
+      1,
+      this.#MIN_DECAY,
+      this.#MAX_DECAY
+    );
     this.getParam('decay')!.setValueAtTime(mappedAmount, timestamp);
     return this;
   }
