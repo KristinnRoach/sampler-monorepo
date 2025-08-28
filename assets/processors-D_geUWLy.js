@@ -920,6 +920,7 @@ class DattorroReverb extends AudioWorkletProcessor {
     this._lp2 = 0;
     this._lp3 = 0;
     this._excPhase = 0;
+    const SHORT_DELAY_SCALE = 0.5;
     [
       4771345e-9,
       3595309e-9,
@@ -933,7 +934,7 @@ class DattorroReverb extends AudioWorkletProcessor {
       0.141695508,
       0.089244313,
       0.106280031
-    ].forEach((x) => this.makeDelay(x));
+    ].map((x) => x * SHORT_DELAY_SCALE).forEach((x) => this.makeDelay(x));
     this._taps = Int16Array.from(
       [
         8937872e-9,
