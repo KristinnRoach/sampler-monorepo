@@ -63,7 +63,7 @@ export default defineConfig({
   ],
 
   server: {
-    port: 3002,
+    port: 3000,
     open: true,
     host: true, // Allow access from network
   },

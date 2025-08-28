@@ -4,17 +4,35 @@ import type { SamplerElement } from '@repo/audio-components';
 const App: Component = () => {
   let samplerRef: SamplerElement | undefined;
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
+  const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
+    'desktop'
+  );
 
   onMount(() => {
     const handleSampleLoaded = () => {
       if (samplerRef) {
         const samplePlayer = samplerRef.getSamplePlayer();
-        console.log('Sample loaded, player:', samplePlayer);
         setSampleLoaded(true);
       }
     };
 
+    // Simple responsive layout detection
+    const updateLayout = () => {
+      const width = window.innerWidth;
+
+      if (width < 600) {
+        setLayout('mobile');
+      } else if (width < 900) {
+        setLayout('tablet');
+      } else {
+        setLayout('desktop');
+      }
+    };
+
     document.addEventListener('sample-loaded', handleSampleLoaded);
+    window.addEventListener('resize', updateLayout);
+
+    updateLayout(); // Initial check
 
     // Add expand/collapse listeners (from original main.ts)
     const addExpandCollapseListeners = () => {
@@ -33,12 +51,13 @@ const App: Component = () => {
 
     return () => {
       document.removeEventListener('sample-loaded', handleSampleLoaded);
+      window.removeEventListener('resize', updateLayout);
     };
   });
 
   return (
     <div id='page-wrapper' class='page-wrapper'>
-      <div class='control-grid' id='sampler-container'>
+      <div class={`control-grid layout-${layout()}`} id='sampler-container'>
         {/* Sampler Audio Engine */}
         <sampler-element
           ref={samplerRef}

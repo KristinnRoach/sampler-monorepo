@@ -414,7 +414,7 @@ export class InstrumentBus implements ILibAudioNode {
     return this;
   }
 
-  setReverbAmount(amount: number): this {
+  setReverbSize(amount: number): this {
     const reverb = this.getNode('reverb');
     if (
       reverb &&
@@ -530,7 +530,7 @@ export class InstrumentBus implements ILibAudioNode {
         this.outputLevel = value;
         break;
       case 'reverbAmount':
-        this.setReverbAmount(value);
+        this.setReverbSize(value);
         break;
       case 'feedbackAmount':
         this.setFeedbackAmount(value);

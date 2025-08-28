@@ -17,7 +17,7 @@ export class DattorroReverb implements ILibAudioNode {
   #incoming = new Set<NodeID>();
 
   #reverb: AudioWorkletNode;
-  #currentPreset: DattorroReverbPresetKey;
+  #currentPreset: DattorroReverbPresetKey = 'default';
 
   static readonly PRESETS = {
     // currently omitting 'wet' param
@@ -72,16 +72,16 @@ export class DattorroReverb implements ILibAudioNode {
     },
     default: {
       // Note: WIP
-      preDelay: 100,
-      bandwidth: 0.9, // -bandwith === pre LPF !
+      preDelay: 0,
+      bandwidth: 0.85, // -bandwith === pre LPF !
       inputDiffusion1: 0.4,
-      inputDiffusion2: 0.55,
-      decay: 0.2,
-      decayDiffusion1: 0.65,
-      decayDiffusion2: 0.6,
-      damping: 0.2,
-      excursionRate: 0.5,
-      excursionDepth: 0.5,
+      inputDiffusion2: 0.45,
+      decay: 0.1,
+      decayDiffusion1: 0.5,
+      decayDiffusion2: 0.45,
+      damping: 0.25,
+      excursionRate: 0.3,
+      excursionDepth: 0.3,
     },
 
     // get default() {
@@ -99,10 +99,7 @@ export class DattorroReverb implements ILibAudioNode {
 
     this.setParam('dry', 0); // Only using wet! (consider removing dry from processor)
 
-    this.setPreset('default');
-    this.#currentPreset = 'default';
-
-    this.setAmountMacro(0);
+    this.setAmountMacro(0.01);
   }
 
   connect(destination: ILibAudioNode | AudioNode): void {
@@ -147,7 +144,7 @@ export class DattorroReverb implements ILibAudioNode {
     }
 
     // Handle macro parameters
-    if (name === 'amount') {
+    if (name === 'size') {
       this.setAmountMacro(value);
       return;
     }
@@ -184,7 +181,7 @@ export class DattorroReverb implements ILibAudioNode {
     const presetValues = DattorroReverb.PRESETS[this.#currentPreset];
 
     // Map amount (0-1) to scale from preset value up to max
-    const decay = mapToRange(amount, 0, 1, presetValues.decay, 0.98);
+    const decay = mapToRange(amount, 0, 1, presetValues.decay, 0.93);
 
     const excRate = mapToRange(amount, 0, 1, presetValues.excursionRate, 2);
 
@@ -192,7 +189,7 @@ export class DattorroReverb implements ILibAudioNode {
 
     const damping = mapToRange(amount, 0, 1, presetValues.damping, 0.65);
     const preLPF = mapToRange(amount, 0, 1, presetValues.bandwidth, 0.2);
-    const diffusion = mapToRange(amount, 0, 1, 0, 0.7);
+    const diffusion = mapToRange(amount, 0, 1, 0.3, 1);
 
     // console.table({ decay, excRate, excDepth, damping, preLPF, diffusion });
 

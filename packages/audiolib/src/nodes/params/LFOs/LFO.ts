@@ -161,10 +161,12 @@ export class LFO {
   }
 
   dispose() {
+    if (this.#initialized) {
+      this.#oscillator.stop();
+    }
     this.#initialized = false;
     this.#targets.clear();
     this.#storedValues = null;
-    this.#oscillator.stop();
     this.disconnect();
   }
 }
