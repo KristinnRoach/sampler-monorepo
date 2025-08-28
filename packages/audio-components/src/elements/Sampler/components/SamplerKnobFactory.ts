@@ -51,7 +51,7 @@ const distortionConfig: KnobConfig = {
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
-  curve: 1,
+  curve: 1.5,
   onConnect: (sampler, state) => {
     van.derive(() => sampler.outputBus.setDistortionMacro(state.val));
   },

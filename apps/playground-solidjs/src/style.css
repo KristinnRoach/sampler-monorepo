@@ -23,6 +23,42 @@ body {
   width: clamp(100dvw, 100dvw, 100dvw);
 }
 
+:root {
+  interpolate-size: allow-keywords;
+}
+
+select,
+::picker(select) {
+  appearance: base-select;
+  background-color: #333;
+  color: #ccc;
+}
+
+select {
+  width: 100%;
+  font-size: smaller;
+}
+
+selectedcontent,
+option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+option {
+  padding-block: 0.1rem;
+}
+
+option::checkmark {
+  display: none;
+}
+
+option:checked {
+  background-color: #26436e;
+  color: #d6d6d6;
+}
+
 gain-lfo-sync-toggle,
 pitch-lfo-sync-toggle,
 feedback-mode-toggle {
@@ -45,65 +81,18 @@ feedback-lpf-knob knob-element {
   overflow-y: auto;
 }
 
-/* .logo {
-  grid-area: toggle;
-
-  position: absolute;
-  left: 8px;
-  top: 5rem;
-  margin-right: -0.85rem;
-  border-radius: 25%;
-
-  width: 80px;
-  height: 80px;
-
-  color: rgb(210, 210, 210);
-} */
-
-/* .control-grid {
-  display: grid;
-  position: relative;
-
-  margin: 1rem;
-  padding: 1rem;
-  padding-right: 3rem;
-
-  height: fit-content;
-  width: fit-content;
-
-  row-gap: 1rem;
-  column-gap: 0.1rem;
-  place-self: center;
-
-  grid-auto-rows: min-content;
-
-  grid-template-areas:
-    'env env  sample mix reverb'
-    'env env  filter  effects effects'
-    'loop trim amp-lfo effects effects'
-    'toggle keyboard keyboard keyboard keyboard';
-
-  justify-content: center;
-
-  border: 1px solid #a8a6a692;
-  border-radius: 0.5rem;
-  background-color: #29552f;
-  user-select: none;
-} */
-
 .control-grid {
   display: grid;
   position: relative;
   margin: 1rem;
   padding: 1rem;
   padding-right: 3rem;
-  height: fit-content;
-  width: fit-content;
+  width: 90dvw;
+  height: 90dvh;
   row-gap: 1rem;
   column-gap: 0.1rem;
-  place-self: center;
+  justify-self: center;
   grid-auto-rows: min-content;
-  justify-content: center;
   border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
   background-color: #29552f;
@@ -113,30 +102,41 @@ feedback-lpf-knob knob-element {
 /* Layout variants */
 .control-grid.layout-desktop {
   grid-template-areas:
-    'env env  sample mix reverb'
-    'env env  filter  effects effects'
-    'loop trim amp-lfo effects effects'
-    'toggle keyboard keyboard keyboard keyboard';
+    'env env sample mix'
+    'env env filter feedback '
+    'loop trim misc lfo  '
+    'toggle keyboard keyboard keyboard  ';
+
+  width: 1200px;
+  height: 800px;
+  max-width: 1200px;
+  max-height: 800px;
 }
 
 .control-grid.layout-mobile {
-  /* grid-template-columns: 1fr;
+  grid-template-columns: 1fr;
   margin: 0.5rem;
   padding: 0.5rem;
   width: calc(100vw - 1rem);
   max-width: 100%;
+  /* min-width: 300px; */
+
   box-sizing: border-box;
-  overflow-x: hidden; */
+  overflow-x: hidden;
   grid-template-areas:
-    'env'
     'sample'
-    'filter'
-    'effects'
-    'amp-lfo'
+    'env'
+    'keyboard'
     'loop'
     'trim'
-    'toggle'
-    'keyboard';
+    'mix'
+    'filter'
+    'misc'
+    'feedback'
+    'lfo'
+    'toggle';
+
+  height: 100%;
 }
 
 .control-grid.layout-tablet {
@@ -144,18 +144,68 @@ feedback-lpf-knob knob-element {
   grid-template-areas:
     'env sample'
     'env filter'
-    'effects effects'
     'loop trim'
-    'toggle keyboard';
+    'mix misc'
+    'feedback lfo'
+    'keyboard keyboard'
+    'toggle .';
+
+  height: 100%;
 }
 
-/* Mobile-specific control group adjustments */
-.control-grid.layout-mobile .control-group {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+/* Tablet */
+.control-grid.layout-tablet .row-collapse-icon {
+  display: none;
+  pointer-events: none;
+}
+
+.control-grid.layout-tablet .control-group {
   box-sizing: border-box;
   overflow: hidden;
+
+  max-width: 95dvw;
+  min-width: 0;
+}
+
+.control-grid.layout-tablet .env-group {
+  min-height: 150px;
+}
+
+.control-grid.layout-tablet .keyboard-group {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.control-grid.layout-tablet piano-keyboard {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.control-grid.layout-tablet envelope-switcher {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.control-grid.layout-tablet piano-keyboard webaudio-keyboard {
+  width: 100% !important;
+  max-width: calc(100vw - 2rem);
+}
+
+/* Mobile */
+.control-grid.layout-mobile .row-collapse-icon {
+  display: none;
+  pointer-events: none;
+}
+
+.control-grid.layout-mobile .control-group {
+  box-sizing: border-box;
+  overflow: hidden;
+
+  width: 90dvw;
+  max-width: 95dvw;
+  min-width: 0;
+
+  justify-content: center;
 }
 
 .control-grid.layout-mobile .env-group {
@@ -182,6 +232,8 @@ feedback-lpf-knob knob-element {
   width: 100% !important;
   max-width: calc(100vw - 2rem);
 }
+
+/* ____ */
 
 .flex-col {
   display: flex;
@@ -227,11 +279,7 @@ feedback-lpf-knob knob-element {
 .control-group {
   display: flex;
 
-  width: fit-content;
-  height: fit-content;
-
-  justify-content: center;
-
+  align-self: start;
   justify-self: center;
 
   border: none;
@@ -294,7 +342,6 @@ feedback-lpf-knob knob-element {
 
 .feedback-group {
   grid-area: feedback;
-  justify-self: center;
 }
 
 .env-group {
@@ -313,15 +360,9 @@ feedback-lpf-knob knob-element {
   grid-area: sample;
 }
 
-/* .sample-group > .expandable-legend > .expandable-content > .flex-col {
-  justify-content: center;
-
-  border: 3px solid red;
-} */
-
-/* .sample-group input-select select {
-  width: 55px;
-} */
+.main-controls-group {
+  grid-area: main-ctrl;
+}
 
 .mix-group {
   grid-area: mix;
@@ -331,9 +372,8 @@ feedback-lpf-knob knob-element {
   grid-area: loop;
 }
 
-.amp-lfo-group {
-  grid-area: amp-lfo;
-  justify-self: center;
+.lfo-group {
+  grid-area: lfo;
 
   /* grid-auto-flow: row;
   grid-template-columns: repeat(2, min-content);
@@ -341,12 +381,13 @@ feedback-lpf-knob knob-element {
   gap: 0.5rem; */
 }
 
-.amp-lfo-group > gain-lfo-sync-toggle {
+.lfo-group > gain-lfo-sync-toggle,
+.lfo-group > pitch-lfo-sync-toggle {
   grid-column: span 2;
   justify-self: center;
 }
 
-.pitch-lfo-group {
+/* .pitch-lfo-group {
   grid-area: pitch-lfo;
   grid-auto-flow: row;
   grid-template-columns: repeat(2, min-content);
@@ -358,7 +399,7 @@ feedback-lpf-knob knob-element {
 .pitch-lfo-group > pitch-lfo-sync-toggle {
   grid-column: span 2;
   justify-self: center;
-}
+} */
 
 .mod-group {
   grid-area: mod;
@@ -373,8 +414,12 @@ feedback-lpf-knob knob-element {
   grid-area: filter;
 }
 
-.reverb-group {
-  grid-area: reverb;
+.misc-group {
+  grid-area: misc;
+}
+
+.space-group {
+  grid-area: space;
 }
 
 .distortion-group {
@@ -598,7 +643,8 @@ piano-keyboard.visible {
 
 .effects-grid {
   display: grid;
-  grid-template-areas: '. .' '.';
+  place-self: start;
+  grid-template-areas: '. ' '. .';
   gap: 1rem;
   width: 100%;
 }

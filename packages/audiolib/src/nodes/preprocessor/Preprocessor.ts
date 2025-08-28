@@ -9,6 +9,7 @@ import { findClosestNote } from '@/utils';
 import { findZeroCrossings, findWaveCycles } from '@/utils';
 
 export type PreProcessOptions = {
+  skipPreProcessing?: boolean;
   normalize?: { enabled: boolean; maxAmplitudePeak?: number }; // amplitude range [-1, 1]
   compress?: {
     enabled: boolean;
@@ -53,6 +54,15 @@ export async function preProcessAudioBuffer(
     hpf = DEFAULT_PRE_PROCESS_OPTIONS.hpf,
     getZeroCrossings = DEFAULT_PRE_PROCESS_OPTIONS.getZeroCrossings,
   } = options;
+
+  if (options.skipPreProcessing) {
+    const finalResults: PreProcessResults = { audiobuffer: buffer };
+    if (getZeroCrossings) {
+      const zeroes = findZeroCrossings(buffer);
+      finalResults.zeroCrossings = zeroes;
+    }
+    return finalResults;
+  }
 
   const normalize = {
     ...DEFAULT_PRE_PROCESS_OPTIONS.normalize,
