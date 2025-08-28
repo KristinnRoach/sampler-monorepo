@@ -1,5 +1,6 @@
 import { Component, onMount, createSignal } from 'solid-js';
 import type { SamplerElement } from '@repo/audio-components';
+import { addExpandCollapseListeners } from './utils/expandCollapse';
 
 const App: Component = () => {
   let samplerRef: SamplerElement | undefined;
@@ -20,9 +21,9 @@ const App: Component = () => {
     const updateLayout = () => {
       const width = window.innerWidth;
 
-      if (width < 600) {
+      if (width < 800) {
         setLayout('mobile');
-      } else if (width < 900) {
+      } else if (width < 1200) {
         setLayout('tablet');
       } else {
         setLayout('desktop');
@@ -34,19 +35,7 @@ const App: Component = () => {
 
     updateLayout(); // Initial check
 
-    // Add expand/collapse listeners (from original main.ts)
-    const addExpandCollapseListeners = () => {
-      const legends = document.querySelectorAll('.expandable-legend');
-      legends.forEach((legend) => {
-        legend.addEventListener('click', () => {
-          const fieldset = legend.closest('fieldset');
-          if (fieldset) {
-            fieldset.classList.toggle('collapsed');
-          }
-        });
-      });
-    };
-
+    // Add expand/collapse listeners
     addExpandCollapseListeners();
 
     return () => {
@@ -92,6 +81,32 @@ const App: Component = () => {
           <div class='expandable-content'>
             <volume-knob target-node-id='test-sampler' />
             <dry-wet-knob target-node-id='test-sampler' />
+            <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
+            <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
+          </div>
+        </fieldset>
+
+        {/* <fieldset class='control-group space-group'>
+          <legend class='expandable-legend'>Space</legend>
+          <div class='expandable-content'>
+            <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
+            <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
+          </div>
+        </fieldset> */}
+
+        <fieldset class='control-group filter-group'>
+          <legend class='expandable-legend'>Filters</legend>
+          <div class='expandable-content'>
+            <highpass-filter-knob target-node-id='test-sampler' />
+            <lowpass-filter-knob target-node-id='test-sampler' />
+          </div>
+        </fieldset>
+
+        <fieldset class='control-group misc-group'>
+          <legend class='expandable-legend'>Misc</legend>
+          <div class='expandable-content'>
+            <distortion-knob target-node-id='test-sampler' />
+            <am-modulation label='AM' target-node-id='test-sampler' />
           </div>
         </fieldset>
 
@@ -113,61 +128,6 @@ const App: Component = () => {
           </div>
         </fieldset>
 
-        <fieldset class='control-group filter-group'>
-          <legend class='expandable-legend'>Filters</legend>
-          <div class='expandable-content'>
-            <lowpass-filter-knob target-node-id='test-sampler' />
-            <highpass-filter-knob target-node-id='test-sampler' />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group reverb-group'>
-          <legend class='expandable-legend'>Reverb</legend>
-          <div class='expandable-content'>
-            <reverb-send-knob label='Send' target-node-id='test-sampler' />
-            <reverb-size-knob label='Size' target-node-id='test-sampler' />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group effects-group'>
-          <legend class='expandable-legend'>Effects</legend>
-          <div class='expandable-content effects-grid'>
-            <div class='flex-row dist-am'>
-              <distortion-knob target-node-id='test-sampler' />
-              <am-modulation target-node-id='test-sampler' />
-            </div>
-            <div class='effect-section'>
-              <h4>Feedback</h4>
-              <div class='feedback-controls'>
-                <div class='flex-col'>
-                  <feedback-knob target-node-id='test-sampler' label='Amount' />
-                  <feedback-mode-toggle
-                    target-node-id='test-sampler'
-                    label=''
-                  />
-                </div>
-                <div class='flex-row'>
-                  <div class='flex-col'>
-                    <feedback-pitch-knob
-                      target-node-id='test-sampler'
-                      label='Pitch'
-                    />
-                    <feedback-lpf-knob
-                      label='Lowpass'
-                      class='fb-lpf-knob'
-                      target-node-id='test-sampler'
-                    />
-                  </div>
-                  <feedback-decay-knob
-                    target-node-id='test-sampler'
-                    label='Decay'
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </fieldset>
-
         <fieldset class='control-group trim-group'>
           <legend class='expandable-legend'>Trim</legend>
           <div class='expandable-content'>
@@ -176,7 +136,34 @@ const App: Component = () => {
           </div>
         </fieldset>
 
-        <fieldset class='control-group amp-lfo-group'>
+        <fieldset class='control-group feedback-group'>
+          <legend class='expandable-legend'>Feedback</legend>
+          <div class='expandable-content'>
+            <div class='flex-col'>
+              <feedback-knob target-node-id='test-sampler' label='Amount' />
+              <feedback-mode-toggle target-node-id='test-sampler' label='' />
+            </div>
+            <div class='flex-row'>
+              <div class='flex-col'>
+                <feedback-pitch-knob
+                  target-node-id='test-sampler'
+                  label='Pitch'
+                />
+                <feedback-lpf-knob
+                  label='Lowpass'
+                  class='fb-lpf-knob'
+                  target-node-id='test-sampler'
+                />
+              </div>
+              <feedback-decay-knob
+                target-node-id='test-sampler'
+                label='Decay'
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class='control-group lfo-group'>
           <legend class='expandable-legend'>LFO's</legend>
           <div class='expandable-content'>
             <div class='flex-col'>
@@ -212,7 +199,7 @@ const App: Component = () => {
               id='piano-keyboard'
               class='piano-keyboard'
               target-node-id='test-sampler'
-              width='800'
+              width='700'
               height='80'
             />
             <div class='keyboard-controls'>
@@ -223,13 +210,13 @@ const App: Component = () => {
         </fieldset>
 
         {/* Row collapse icons */}
-        <div class='row-collapse-icon' data-row='1' style='grid-area: reverb' />
-        <div class='row-collapse-icon' data-row='2' style='grid-area: mod' />
+        <div class='row-collapse-icon' data-row='1' style='grid-area: mix' />
         <div
           class='row-collapse-icon'
-          data-row='3'
-          style='grid-area: pitch-lfo'
+          data-row='2'
+          style='grid-area: feedback'
         />
+        <div class='row-collapse-icon' data-row='3' style='grid-area: lfo' />
         <div
           class='row-collapse-icon'
           data-row='4'

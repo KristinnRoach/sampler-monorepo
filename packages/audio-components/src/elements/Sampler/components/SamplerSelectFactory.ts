@@ -20,7 +20,7 @@ import {
   SupportedWaveform,
 } from '@repo/audiolib';
 
-const { div, select, option, span } = van.tags;
+const { div, select, option, span, button, selectedcontent } = van.tags;
 
 // ===== SELECT CONFIGURATION TYPES =====
 
@@ -195,6 +195,7 @@ const createSamplerSelect = <T extends string = string>(
           value: () => state.val,
           class: autoResize ? 'ac-select ac-autoResizableSelect' : 'ac-select',
         },
+        button(selectedcontent()),
         ...config.options.map((opt: SelectOption<T>) =>
           option(
             {

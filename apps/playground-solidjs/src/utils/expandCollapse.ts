@@ -2,9 +2,9 @@ import { qsa } from './dom-utils';
 
 export const toggleRow = (rowNumber: number) => {
   const rowSelectors = [
-    '.env-group, .sample-group, .mix-group, .reverb-group',
-    '.filter-group, .distortion-group, .mod-group',
-    '.loop-group, .trim-group, .feedback-group, .amp-lfo-group, .pitch-lfo-group',
+    '.env-group, .sample-group, .mix-group',
+    '.filter-group,  .feedback-group',
+    '.loop-group, .trim-group, .misc-group, .lfo-group',
     '.toggle-group, .keyboard-group',
   ];
 

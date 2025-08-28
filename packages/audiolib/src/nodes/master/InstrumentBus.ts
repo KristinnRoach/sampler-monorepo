@@ -363,12 +363,22 @@ export class InstrumentBus implements ILibAudioNode {
   }
 
   setHpfCutoff(hz: number): this {
-    this.getNode('hpf')?.audioNode.frequency.setTargetAtTime(hz, this.now, 0.1);
+    const safeHz = clamp(hz, 20, 20000);
+    this.getNode('hpf')?.audioNode.frequency.setTargetAtTime(
+      safeHz,
+      this.now,
+      0.1
+    );
     return this;
   }
 
   setLpfCutoff(hz: number): this {
-    this.getNode('lpf')?.audioNode.frequency.setTargetAtTime(hz, this.now, 0.1);
+    const safeHz = clamp(hz, 20, 20000);
+    this.getNode('lpf')?.audioNode.frequency.setTargetAtTime(
+      safeHz,
+      this.now,
+      0.1
+    );
     return this;
   }
 
@@ -432,8 +442,11 @@ export class InstrumentBus implements ILibAudioNode {
   }
 
   setDistortionMacro(amount: number) {
-    this.setDrive(amount);
-    this.setClippingMacro(amount);
+    const safeAmount = clamp(amount, 0, 1);
+    this.setDrive(safeAmount);
+
+    const tamedForClip = mapToRange(safeAmount, 0, 1, 0, 0.95);
+    this.setClippingMacro(tamedForClip);
   }
 
   setDrive(amount: number) {

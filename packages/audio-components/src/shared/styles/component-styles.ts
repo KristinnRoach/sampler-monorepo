@@ -66,7 +66,7 @@ export const SMALL_BUTTON_STYLE = `
 // height: 22px;
 
 export const SELECT_STYLE = `
-  padding: 2px 6px;
+  /* padding: 2px 6px;
   border-radius: var(--ac-border-radius, 4px);
   font-size: var(--ac-font-size-xs, 11px);
   background: var(--ac-color-bg-primary, #333);
@@ -75,7 +75,7 @@ export const SELECT_STYLE = `
   font-family: var(--ac-font-family, inherit);
   text-overflow: ellipsis;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: hidden; */
 `;
 
 export const HELP_TEXT_STYLE = `

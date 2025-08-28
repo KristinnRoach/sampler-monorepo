@@ -481,7 +481,8 @@ export class SampleVoice {
   /**  Set HPF cutoff relative to playback rate */
   #updateHPFCutoffForPlaybackRate(playbackRate: number) {
     if (this.#hpf) {
-      this.#hpf.frequency.setValueAtTime(this.#hpfHz * playbackRate, this.now);
+      const newHz = clamp(this.#hpfHz * playbackRate, 20, 20000);
+      this.#hpf.frequency.setValueAtTime(newHz, this.now);
     }
   }
 
@@ -1028,9 +1029,10 @@ export class SampleVoice {
   }
 
   setHpfCutoff(hz: number) {
-    this.#hpfHz = hz;
+    const safeHz = clamp(hz, 20, 20000);
+    this.#hpfHz = safeHz;
     if (this.#hpf) {
-      this.#hpf.frequency.setValueAtTime(hz, this.now);
+      this.#hpf.frequency.setValueAtTime(safeHz, this.now);
     }
   }
 
