@@ -33,17 +33,9 @@ function splitPath(pathElement) {
 }
 
 // Function to get the end point of a path
-function getPathEndPoint(pathData) {
-  const tempPath = document.createElementNS(
-    'http://www.w3.org/2000/svg',
-    'path'
-  );
-  tempPath.setAttribute('d', pathData);
-  document.body.appendChild(tempPath); // Temporarily add to DOM
-  const pathLength = tempPath.getTotalLength();
-  const endPoint = tempPath.getPointAtLength(pathLength);
-  document.body.removeChild(tempPath); // Remove from DOM
-  return endPoint;
+function getPathEndPoint(pathEl) {
+  const len = pathEl.getTotalLength();
+  return pathEl.getPointAtLength(len);
 }
 
 const { waveform, flatLine } = splitPath(visiblePath);

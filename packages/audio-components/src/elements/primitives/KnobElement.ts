@@ -92,7 +92,7 @@ export class KnobElement extends HTMLElement {
     // ! This does not work // TODO: make dblclick handler work
     // Double-click to reset to default value (attach to knobElement after render)
     //   setTimeout(() => {
-    //     const container = this.querySelector('.knob-container');
+    //     const container = this.querySelector('.ac-knob');
     //     if (container) {
     //       container.addEventListener('dblclick', (e) => {
     //         console.debug('dblclick on container', e.target);
@@ -202,7 +202,7 @@ export class KnobElement extends HTMLElement {
         pointer-events: none; 
       }
       
-      knob-element .knob-container {
+      knob-element .ac-knob {
         position: relative;
         width: 100%; /* Fill parent */
         height: 100%; 
@@ -337,7 +337,7 @@ export class KnobElement extends HTMLElement {
 
   private render(): void {
     this.innerHTML = `
-    <div class="knob-container">
+    <div class="ac-knob">
       <!-- SVG border (doesn't rotate) -->
       <svg class="knob-border-svg" width="100%" height="100%" viewBox="0 0 100 100">
           <path class="knob-border" 
@@ -661,6 +661,10 @@ export class KnobElement extends HTMLElement {
     this.updateBorder();
 
     this.dispatchChangeEvent();
+  }
+
+  public resetToDefault(animate: boolean = true): void {
+    this.setValue(this.config.defaultValue, animate);
   }
 
   public getValue(): number {

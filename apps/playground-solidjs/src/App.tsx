@@ -3,11 +3,13 @@ import type { SamplerElement } from '@repo/audio-components';
 import { addExpandCollapseListeners } from './utils/expandCollapse';
 
 const App: Component = () => {
-  let samplerRef: SamplerElement | undefined;
-  const [sampleLoaded, setSampleLoaded] = createSignal(false);
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
     'desktop'
   );
+
+  let samplerRef: SamplerElement | undefined;
+  const [sampleLoaded, setSampleLoaded] = createSignal(false);
+  const [paramsChanged, setParamsChanged] = createSignal(false);
 
   onMount(() => {
     const handleSampleLoaded = () => {
@@ -73,6 +75,25 @@ const App: Component = () => {
               <input-select target-node-id='test-sampler' />
             </div>
             <load-button target-node-id='test-sampler' show-status='false' />
+            <button
+              class='reset-button'
+              title='Reset knobs'
+              disabled={!sampleLoaded()}
+              onclick={() => {
+                const knobElements = document.querySelectorAll('knob-element');
+                knobElements.forEach((knob) => {
+                  (knob as any).resetToDefault();
+                });
+              }}
+            >
+              <svg
+                xmlns='http://www.w3.org/2000/svg'
+                viewBox='0 0 256 256'
+                fill='none'
+              >
+                <path d='M139.141 232.184c78.736 0 127.946-85.236 88.579-153.424-39.369-68.187-137.789-68.187-177.158 0A102.125 102.125 0 0 0 43.71 93.1m62.258-5.371c-14.966 5.594-35.547 10.026-48.737 19.272-2.137 1.497-26.015 16.195-26.049 13.991C27.503 98.21 13.21 75.873 13.21 52.583' />
+              </svg>
+            </button>
           </div>
         </fieldset>
 

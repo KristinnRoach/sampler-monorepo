@@ -605,8 +605,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       midiNote,
       safeVelocity,
       0, // zero delay
-      glideTime,
-      this.#macroLoopEnd.getValue()
+      glideTime
     );
   }
 

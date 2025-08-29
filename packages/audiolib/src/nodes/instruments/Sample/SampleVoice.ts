@@ -259,7 +259,6 @@ export class SampleVoice {
     midiNote: MidiValue;
     velocity: MidiValue;
     secondsFromNow?: number;
-    currentLoopEnd?: number;
     glide?: { prevMidiNote: number; glideTime?: number };
   }): MidiValue | null {
     const {
@@ -297,7 +296,10 @@ export class SampleVoice {
       if (options.glide) {
         prevRate = midiToPlaybackRate(options.glide.prevMidiNote);
       }
-      this.#updateHPFCutoffForPlaybackRate(playbackRate);
+      this.#updateHPFCutoffForPlaybackRate(playbackRate, timestamp, {
+        glideTime: scaledGlideTime,
+        prevRate,
+      });
     }
 
     // Only apply glide if pitch is enabled and glide is requested
@@ -447,7 +449,12 @@ export class SampleVoice {
     this.#releaseTimeout = setTimeout(
       () => {
         try {
-          if (this.#state === VoiceState.RELEASING) this.stop();
+          if (
+            this.#state === VoiceState.RELEASING ||
+            this.#state === VoiceState.PLAYING
+          ) {
+            this.stop();
+          }
         } finally {
           this.#releaseTimeout = null;
         }
@@ -479,12 +486,40 @@ export class SampleVoice {
   }
 
   /**  Set HPF cutoff relative to playback rate */
-  #updateHPFCutoffForPlaybackRate(playbackRate: number) {
-    if (this.#hpf) {
-      const newHz = clamp(this.#hpfHz * playbackRate, 20, 20000);
-      this.#hpf.frequency.setValueAtTime(newHz, this.now);
+  #updateHPFCutoffForPlaybackRate(
+    playbackRate: number,
+    atTime: number = this.now,
+    options?: {
+      glideTime?: number;
+      prevRate?: number;
+      cancelPrevious?: boolean;
+    }
+  ) {
+    if (!this.#hpf) return;
+    const freq = this.#hpf.frequency;
+    const { glideTime = 0, prevRate, cancelPrevious = true } = options || {};
+    if (cancelPrevious) {
+      freq.cancelScheduledValues(atTime);
+    }
+
+    if (glideTime > 0 && prevRate !== undefined) {
+      // start from the previous rate, then glide to the target
+      freq.setValueAtTime(this.#hpfHz * prevRate, atTime);
+      freq.setTargetAtTime(this.#hpfHz * playbackRate, atTime, glideTime);
+    } else {
+      // immediate set, slightly offset to avoid scheduling conflicts
+      freq.setValueAtTime(
+        this.#hpfHz * playbackRate,
+        Math.max(atTime, this.now + 0.001)
+      );
     }
   }
+  // #updateHPFCutoffForPlaybackRate(playbackRate: number) {
+  //   if (this.#hpf) {
+  //     const newHz = clamp(this.#hpfHz * playbackRate, 20, 20000);
+  //     this.#hpf.frequency.setValueAtTime(newHz, this.now);
+  //   }
+  // }
 
   // === LFOs ===
 
@@ -713,15 +748,23 @@ export class SampleVoice {
 
   disablePitch = () => {
     this.#pitchDisabled = true;
+    const timestamp = this.now;
+    const glideTime = 0.1;
+    const prevRate = this.getParam('playbackRate')?.value;
 
-    // if (this.isPlaying()) {
     this.getParam('playbackRate')?.linearRampToValueAtTime(
       1,
-      this.context.currentTime + 0.01
+      timestamp + glideTime
     );
+
+    this.#updateHPFCutoffForPlaybackRate(1, timestamp, { glideTime, prevRate });
   };
+
   enablePitch = () => {
     this.#pitchDisabled = false;
+    const timestamp = this.now;
+    const glideTime = 0.1;
+    const prevRate = this.getParam('playbackRate')?.value;
 
     if (this.#activeMidiNote) {
       const rate = midiToPlaybackRate(this.#activeMidiNote);
@@ -729,6 +772,10 @@ export class SampleVoice {
         rate,
         this.context.currentTime + 0.01
       );
+      this.#updateHPFCutoffForPlaybackRate(1, timestamp, {
+        glideTime,
+        prevRate,
+      });
     }
   };
 
@@ -1024,16 +1071,23 @@ export class SampleVoice {
     }
   ): this {
     this.setParam('playbackRate', rate, atTime, options);
-    this.#updateHPFCutoffForPlaybackRate(rate);
+    this.#updateHPFCutoffForPlaybackRate(rate, atTime, options);
     return this;
   }
 
-  setHpfCutoff(hz: number) {
+  setHpfCutoff(
+    hz: number,
+    atTime: number = this.now,
+    options: { glideTime?: number; cancelPrevious?: boolean } = {}
+  ) {
     const safeHz = clamp(hz, 20, 20000);
     this.#hpfHz = safeHz;
     if (this.#hpf) {
       this.#hpf.frequency.setValueAtTime(safeHz, this.now);
+      const currentRate = this.getParam('playbackRate')?.value ?? 1;
+      this.#updateHPFCutoffForPlaybackRate(currentRate, atTime, options);
     }
+    return this;
   }
 
   setPlaybackDirection(direction: 'forward' | 'reverse'): this {
