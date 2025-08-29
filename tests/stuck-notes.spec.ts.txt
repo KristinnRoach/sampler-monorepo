@@ -1,0 +1,279 @@
+import { test, expect, Page } from '@playwright/test';
+
+// Test configuration to run against the local dev server
+test.use({
+  baseURL: 'http://localhost:5173', // Vite default port for playground-solidjs
+});
+
+test.describe('Stuck Notes Investigation', () => {
+  let page: Page;
+
+  test.beforeEach(async ({ page: testPage }) => {
+    page = testPage;
+    
+    // Enable console logging to track messages
+    page.on('console', msg => {
+      if (msg.type() === 'log' || msg.type() === 'warning' || msg.type() === 'error') {
+        console.log(`[Browser ${msg.type()}]:`, msg.text());
+      }
+    });
+
+    // Navigate to the app
+    await page.goto('/');
+    
+    // Wait for the sampler to be ready
+    await page.waitForSelector('sampler-element', { state: 'attached' });
+    
+    // Wait a bit more for full initialization
+    await page.waitForTimeout(2000);
+    
+    // Inject debugging helper to monitor voice pool state
+    await page.evaluate(() => {
+      const samplerElement = document.querySelector('sampler-element') as any;
+      if (samplerElement && samplerElement.getSamplePlayer) {
+        const samplePlayer = samplerElement.getSamplePlayer();
+        
+        // Add global helper function to check voice pool state
+        (window as any).checkVoicePoolState = () => {
+          const voicePool = samplePlayer?.voicePool;
+          if (!voicePool) return null;
+          
+          const state = {
+            playing: voicePool.playingVoicesCount,
+            releasing: voicePool.releasingVoicesCount,
+            available: voicePool.availableVoicesCount,
+            total: voicePool.allVoicesCount,
+            midiMap: Array.from(voicePool.assignedVoicesMidiMap.entries())
+          };
+          
+          console.log('Voice Pool State:', state);
+          return state;
+        };
+        
+        // Add helper to track note events
+        let noteOnCount = 0;
+        let noteOffCount = 0;
+        
+        const originalPlay = samplePlayer.play.bind(samplePlayer);
+        const originalRelease = samplePlayer.release.bind(samplePlayer);
+        
+        samplePlayer.play = (midiNote: number) => {
+          noteOnCount++;
+          console.log(`Note ON: ${midiNote} (total on: ${noteOnCount})`);
+          return originalPlay(midiNote);
+        };
+        
+        samplePlayer.release = (midiNote: number) => {
+          noteOffCount++;
+          console.log(`Note OFF: ${midiNote} (total off: ${noteOffCount})`);
+          return originalRelease(midiNote);
+        };
+        
+        (window as any).getNoteStats = () => ({ noteOnCount, noteOffCount });
+      }
+    });
+  });
+
+  test('Basic note triggering - single note on/off', async () => {
+    console.log('Testing basic single note on/off...');
+    
+    // Press and release a single key
+    await page.keyboard.down('a');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('a');
+    await page.waitForTimeout(500);
+    
+    // Check voice pool state
+    const state = await page.evaluate(() => (window as any).checkVoicePoolState());
+    const stats = await page.evaluate(() => (window as any).getNoteStats());
+    
+    console.log('Final stats:', stats);
+    expect(state.playing).toBe(0);
+    expect(state.releasing).toBe(0);
+    console.log('Single note test completed');
+  });
+
+  test('Rapid note triggering with loop enabled', async () => {
+    console.log('Testing rapid notes with loop enabled...');
+    
+    // First, enable loop mode by pressing CapsLock
+    await page.keyboard.down('CapsLock');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('CapsLock');
+    await page.waitForTimeout(100);
+    
+    // Define a sequence of keys to test
+    const testKeys = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k'];
+    
+    // Rapidly trigger multiple notes
+    for (let i = 0; i < 5; i++) {
+      console.log(`Iteration ${i + 1} of rapid note triggering...`);
+      
+      for (const key of testKeys) {
+        // Quick press and release
+        await page.keyboard.down(key);
+        await page.waitForTimeout(20); // Very short hold time
+        await page.keyboard.up(key);
+        await page.waitForTimeout(10); // Very short gap between notes
+      }
+    }
+    
+    // Wait a moment to see if any notes are stuck
+    await page.waitForTimeout(2000);
+    
+    // Check for stuck notes before disabling loop
+    const beforeDisable = await page.evaluate(() => (window as any).checkVoicePoolState());
+    console.log('State before disabling loop:', beforeDisable);
+    
+    // Disable loop to see if stuck notes stop
+    console.log('Disabling loop mode...');
+    await page.keyboard.down('CapsLock');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('CapsLock');
+    
+    await page.waitForTimeout(1000);
+    
+    // Check final state
+    const finalState = await page.evaluate(() => (window as any).checkVoicePoolState());
+    const stats = await page.evaluate(() => (window as any).getNoteStats());
+    
+    console.log('Final state:', finalState);
+    console.log('Final stats:', stats);
+    
+    // Assert no stuck notes
+    if (finalState.playing > 0) {
+      console.error(`STUCK NOTES DETECTED: ${finalState.playing} voices still playing!`);
+      console.error('MIDI Map:', finalState.midiMap);
+    }
+    
+    expect(finalState.playing).toBe(0);
+    console.log('Rapid note test completed');
+  });
+
+  test('Overlapping notes with loop', async () => {
+    console.log('Testing overlapping notes with loop enabled...');
+    
+    // Enable loop mode
+    await page.keyboard.down('CapsLock');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('CapsLock');
+    await page.waitForTimeout(100);
+    
+    // Test overlapping key presses (press multiple before releasing any)
+    const keys = ['a', 's', 'd', 'f'];
+    
+    // Press all keys down
+    console.log('Pressing multiple keys...');
+    for (const key of keys) {
+      await page.keyboard.down(key);
+      await page.waitForTimeout(30);
+    }
+    
+    // Release keys in different order
+    console.log('Releasing keys in reverse order...');
+    for (const key of keys.reverse()) {
+      await page.keyboard.up(key);
+      await page.waitForTimeout(50);
+    }
+    
+    await page.waitForTimeout(2000);
+    
+    // Check for stuck notes by disabling loop
+    const beforeDisable = await page.evaluate(() => (window as any).checkVoicePoolState());
+    console.log('State before disabling loop:', beforeDisable);
+    
+    console.log('Disabling loop to check for stuck notes...');
+    await page.keyboard.down('CapsLock');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('CapsLock');
+    
+    await page.waitForTimeout(1000);
+    
+    // Check final state
+    const finalState = await page.evaluate(() => (window as any).checkVoicePoolState());
+    const stats = await page.evaluate(() => (window as any).getNoteStats());
+    
+    console.log('Final state:', finalState);
+    console.log('Final stats:', stats);
+    
+    if (finalState.playing > 0) {
+      console.error(`STUCK NOTES DETECTED: ${finalState.playing} voices still playing!`);
+      console.error('MIDI Map:', finalState.midiMap);
+    }
+    
+    expect(finalState.playing).toBe(0);
+    console.log('Overlapping notes test completed');
+  });
+
+  test('Stress test - very rapid random notes', async () => {
+    console.log('Starting stress test with very rapid random notes...');
+    
+    // Enable loop
+    await page.keyboard.down('CapsLock');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('CapsLock');
+    await page.waitForTimeout(100);
+    
+    const keys = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'q', 'w', 'e', 'r', 't', 'y'];
+    const activeKeys = new Set<string>();
+    
+    // Simulate chaotic keyboard playing for 5 seconds
+    const startTime = Date.now();
+    const duration = 5000; // 5 seconds
+    
+    while (Date.now() - startTime < duration) {
+      // Randomly decide to press or release a key
+      const key = keys[Math.floor(Math.random() * keys.length)];
+      const action = Math.random() > 0.5 ? 'press' : 'release';
+      
+      if (action === 'press' && !activeKeys.has(key)) {
+        await page.keyboard.down(key);
+        activeKeys.add(key);
+      } else if (action === 'release' && activeKeys.has(key)) {
+        await page.keyboard.up(key);
+        activeKeys.delete(key);
+      }
+      
+      // Very short random delay between actions (0-20ms)
+      await page.waitForTimeout(Math.random() * 20);
+    }
+    
+    // Release any remaining pressed keys
+    console.log('Releasing all remaining keys...');
+    for (const key of activeKeys) {
+      await page.keyboard.up(key);
+      await page.waitForTimeout(10);
+    }
+    
+    // Wait to observe
+    await page.waitForTimeout(3000);
+    
+    // Check state before disabling loop
+    const beforeDisable = await page.evaluate(() => (window as any).checkVoicePoolState());
+    console.log('State before disabling loop:', beforeDisable);
+    
+    // Disable loop to check for stuck notes
+    console.log('Disabling loop to check for stuck notes...');
+    await page.keyboard.down('CapsLock');
+    await page.waitForTimeout(100);
+    await page.keyboard.up('CapsLock');
+    
+    await page.waitForTimeout(2000);
+    
+    // Check final state
+    const finalState = await page.evaluate(() => (window as any).checkVoicePoolState());
+    const stats = await page.evaluate(() => (window as any).getNoteStats());
+    
+    console.log('Final state:', finalState);
+    console.log('Final stats:', stats);
+    console.log('Note on/off mismatch:', stats.noteOnCount - stats.noteOffCount);
+    
+    if (finalState.playing > 0) {
+      console.error(`STUCK NOTES DETECTED: ${finalState.playing} voices still playing!`);
+      console.error('MIDI Map:', finalState.midiMap);
+    }
+    
+    expect(finalState.playing).toBe(0);
+    console.log('Stress test completed');
+  });
+});

@@ -110,14 +110,13 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
       let sample = buffer.getChannelData(ch)[i];
       // Clamp and convert to 16-bit PCM
       sample = Math.max(-1, Math.min(1, sample));
-      view.setInt16(
-        offset,
-        sample < 0 ? sample * 0x8000 : sample * 0x7fff,
-        true
-      );
+
+      const pcmSample = Math.round(sample * 32767);
+      view.setInt16(offset, pcmSample, true);
       offset += 2;
     }
   }
+
   return wavBuffer;
 }
 
@@ -180,6 +179,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         if (storedBuffer?.length) {
           const arrayBuffer = base64ToArrayBuffer(storedBuffer);
+
           if (isWav(arrayBuffer)) {
             initSample = arrayBuffer;
           }
@@ -206,6 +206,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         samplePlayer.onMessage('sample:loaded', (msg: any) => {
           status.val = 'Loaded';
           const audiobuffer = samplePlayer?.audiobuffer;
+
           document.dispatchEvent(
             new CustomEvent('sample-loaded', {
               detail: {

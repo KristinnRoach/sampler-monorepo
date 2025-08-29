@@ -19,14 +19,16 @@ import {
   SUPPORTED_WAVEFORMS,
   SupportedWaveform,
 } from '@repo/audiolib';
+import { createWaveformIcon } from '@/shared/utils/icons/createWaveformIcons';
 
-const { div, select, option, span, button, selectedcontent } = van.tags;
+const { div, select, option, span, button, selectedcontent, img } = van.tags;
 
 // ===== SELECT CONFIGURATION TYPES =====
 
 export interface SelectOption<T extends string = string> {
   value: T;
-  label: string;
+  label?: string;
+  svg?: SVGElement | null;
 }
 
 export interface SelectConfig<T extends string = string> {
@@ -87,7 +89,7 @@ const getWaveformLabel = (waveform: SupportedWaveform): string => {
     pulse: 'Pulse',
     'bandlimited-sawtooth': 'BL Saw',
     supersaw: 'SuperSaw',
-    'warm-pad': 'Warm Pad',
+    'warm-pad': 'WarmPad',
     metallic: 'Metallic',
     formant: 'Formant',
     'white-noise': 'White',
@@ -102,10 +104,11 @@ const getWaveformLabel = (waveform: SupportedWaveform): string => {
 
 const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   label: 'Wave',
-  defaultValue: 'square' as SupportedWaveform,
+  defaultValue: 'warm-pad' as SupportedWaveform,
   options: SUPPORTED_WAVEFORMS.map((waveform: SupportedWaveform) => ({
     value: waveform,
-    label: getWaveformLabel(waveform),
+    // label: getWaveformLabel(waveform),
+    svg: createWaveformIcon(waveform),
   })),
   onTargetConnect: (
     sampler: any,
@@ -186,12 +189,14 @@ const createSamplerSelect = <T extends string = string>(
       state.val = target.value as T;
     };
 
+    const selectedOpt = config.options.find((opt) => opt.value === state.val);
+
     const SelectElement = div(
       { class: 'ac-selectContainer' },
       select(
         {
           onchange: handleChange,
-          style: SELECT_STYLE,
+          style: SELECT_STYLE + ' min-width: 2.5rem;',
           value: () => state.val,
           class: autoResize ? 'ac-select ac-autoResizableSelect' : 'ac-select',
         },
@@ -202,7 +207,16 @@ const createSamplerSelect = <T extends string = string>(
               value: opt.value,
               selected: () => state.val === opt.value,
             },
-            opt.label
+            opt.svg && opt.svg,
+            span(
+              {
+                class: () =>
+                  selectedOpt === opt && opt.svg
+                    ? 'selected-option-label'
+                    : 'option-label',
+              },
+              opt.label && opt.label
+            )
           )
         )
       ),

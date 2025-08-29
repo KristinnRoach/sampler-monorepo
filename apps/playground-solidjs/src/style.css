@@ -637,31 +637,29 @@ piano-keyboard.visible {
   }
 }
 
-.effects-group {
-  grid-area: effects;
-}
-
-.effects-grid {
-  display: grid;
-  place-self: start;
-  grid-template-areas: '. ' '. .';
-  gap: 1rem;
-  width: 100%;
-}
-
-.dist-am {
-  justify-content: space-evenly;
-}
-
-.effect-section h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.8rem;
-  color: #ccc;
-  text-align: center;
-}
-
-.feedback-controls {
+.reset-button {
   display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
+  place-self: center;
+
+  background: transparent;
+  stroke: #ddd;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 20px;
+
+  border: none;
+  border-radius: 0.25rem;
+
+  width: auto;
+  height: 2.5rem;
+
+  padding: 0.5rem;
+  cursor: pointer;
+
+  margin-bottom: 1.3rem;
+}
+
+.reset-button:hover {
+  border: 1px solid #aaa;
 }

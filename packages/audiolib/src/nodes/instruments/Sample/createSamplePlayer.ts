@@ -41,7 +41,15 @@ export async function createSamplePlayer(
   if (buffer instanceof AudioBuffer) {
     audiobuffer = buffer;
   } else if (buffer instanceof ArrayBuffer) {
-    audiobuffer = await context.decodeAudioData(buffer);
+    try {
+      audiobuffer = await context.decodeAudioData(buffer);
+    } catch (error) {
+      console.error(
+        'Failed to decode sample audiodata when creating SamplePlayer:',
+        error
+      );
+      throw error;
+    }
   } else {
     await initIdb(); // Only initialize IndexedDB when needed
     audiobuffer = await fetchInitSampleAsAudioBuffer();

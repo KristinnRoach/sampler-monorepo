@@ -1,6 +1,6 @@
 import { SampleVoice } from './SampleVoice';
 import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
-import { midiToPlaybackRate, pop } from '@/utils';
+import { pop } from '@/utils';
 import { VoiceState } from '../VoiceState';
 import {
   Message,
@@ -21,6 +21,7 @@ export class SampleVoicePool implements LibNode {
 
   #allVoices: SampleVoice[] = [];
   #loaded = new Set<NodeID>();
+
   #available = new Set<SampleVoice>();
   #playing = new Set<SampleVoice>();
   #releasing = new Set<SampleVoice>();
@@ -116,10 +117,10 @@ export class SampleVoicePool implements LibNode {
 
       this.#releasing.add(msg.voice);
 
-      // Remove from midiToVoice map, is this voice owns this midinote
-      if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
-        this.#playingMidiVoiceMap.delete(msg.midiNote);
-      }
+      // // Remove from midiToVoice map, is this voice owns this midinote
+      // if (this.#playingMidiVoiceMap.get(msg.midiNote) === msg.voice) {
+      //   this.#playingMidiVoiceMap.delete(msg.midiNote);
+      // }
     });
 
     voice.onMessage('voice:stopped', (msg: Message) => {
@@ -130,6 +131,14 @@ export class SampleVoicePool implements LibNode {
       this.#onVoiceStateChange();
 
       this.#available.add(msg.voice);
+
+      // Clean up MIDI mapping for this specific voice
+      if (msg.midiNote !== undefined) {
+        const mappedVoice = this.#playingMidiVoiceMap.get(msg.midiNote);
+        if (mappedVoice === msg.voice) {
+          this.#playingMidiVoiceMap.delete(msg.midiNote);
+        }
+      }
     });
 
     voice.onMessage('voice:initialized', (msg: Message) => {
@@ -213,7 +222,7 @@ export class SampleVoicePool implements LibNode {
     releasing = this.#releasing,
     playing = this.#playing
   ): SampleVoice {
-    let voice;
+    let voice: SampleVoice | undefined = undefined;
 
     if (available.size) {
       voice = pop(available);
@@ -236,8 +245,7 @@ export class SampleVoicePool implements LibNode {
     midiNote: MidiValue,
     velocity: MidiValue = 100,
     secondsFromNow = 0,
-    glideTime = 0,
-    currentLoopEnd?: number
+    glideTime = 0
   ): MidiValue | null {
     const voice = this.allocate();
 
@@ -245,7 +253,6 @@ export class SampleVoicePool implements LibNode {
       midiNote: midiNote,
       velocity,
       secondsFromNow,
-      currentLoopEnd,
       glide: { prevMidiNote: this.prevMidiNote, glideTime },
     });
 

@@ -162,8 +162,11 @@ export class LFO {
 
   dispose() {
     if (this.#initialized) {
-      this.#oscillator.start();
-      this.#oscillator.stop();
+      try {
+        this.#oscillator.stop();
+      } catch {
+        /* ignore */
+      }
     }
     this.#initialized = false;
     this.#targets.clear();

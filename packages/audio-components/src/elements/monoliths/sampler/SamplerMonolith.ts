@@ -18,7 +18,7 @@ import {
   createAudioRecorder,
 } from '@repo/audiolib';
 
-import { createIcons } from '../../../shared/utils/icons/icons';
+import { createToggleIcons } from '../../../shared/utils/icons/createToggleIcons';
 import { SampleControls } from '../../controls/SampleControls';
 import { ExpandableHeader } from '../../primitives/ExpandableHeader';
 import { FileOperations } from '../../controls/FileOperations';
@@ -88,7 +88,7 @@ export const SamplerMonolith = (attributes: ElementProps) => {
   const loopLocked = van.state(false);
   const holdLocked = van.state(false);
 
-  const icons = createIcons();
+  const icons = createToggleIcons();
 
   // === KEYEVENT HANDLERS ===
 
@@ -959,7 +959,12 @@ export const SamplerMonolith = (attributes: ElementProps) => {
 
       div(
         { style: 'display: flex; gap: 10px; flex-wrap: wrap;' },
-        InputControls(keyboardEnabled, midiEnabled, icons.keys, icons.midi),
+        InputControls(
+          keyboardEnabled,
+          midiEnabled,
+          icons.keys || '',
+          icons.midi || ''
+        ),
         LoopHoldControls(loopEnabled, loopLocked, holdLocked, icons)
       ),
 

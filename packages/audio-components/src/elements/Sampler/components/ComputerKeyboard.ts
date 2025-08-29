@@ -77,7 +77,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const midiNote = currentKeymap.val[e.code];
     if (!midiNote) return;
 
-    e.preventDefault();
+    if (!e.metaKey) e.preventDefault(); // Prevent default unless Meta key is pressed (to allow shortcuts)
 
     const adjustedMidiNote = midiNote + octaveOffset.val * 12;
 
