@@ -30,7 +30,6 @@ export const createToggleIcons = (
     armed:
       createSvgIcon(listeningSvgRaw, { width, height, color: 'white' }) ?? '',
     stop:
-      createSvgIcon(stopSvgRaw, { width, height, color: 'curren}tColor' }) ??
-      '',
+      createSvgIcon(stopSvgRaw, { width, height, color: 'currentColor' }) ?? '',
   };
 };

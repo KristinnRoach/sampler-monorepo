@@ -33,6 +33,7 @@ export interface SelectOption<T extends string = string> {
 
 export interface SelectConfig<T extends string = string> {
   label?: string;
+  title?: string;
   defaultValue: T;
   options: SelectOption<T>[];
   onTargetConnect?: (
@@ -47,6 +48,7 @@ export interface SelectConfig<T extends string = string> {
 
 const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
   label: 'KeyMap',
+  title: 'Select Keyboard Keymap',
   defaultValue: DEFAULT_KEYMAP_KEY,
   options: [
     { value: 'piano', label: 'Piano' },
@@ -104,6 +106,7 @@ const getWaveformLabel = (waveform: SupportedWaveform): string => {
 
 const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   label: 'Wave',
+  title: 'Select Modulation Waveform',
   defaultValue: 'warm-pad' as SupportedWaveform,
   options: SUPPORTED_WAVEFORMS.map((waveform: SupportedWaveform) => ({
     value: waveform,
@@ -124,6 +127,7 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
 };
 
 const inputSourceSelectConfig: SelectConfig<'microphone' | 'browser'> = {
+  title: 'Select Audio Input Source',
   defaultValue: 'microphone',
   options: [
     {
@@ -195,6 +199,7 @@ const createSamplerSelect = <T extends string = string>(
       { class: 'ac-selectContainer' },
       select(
         {
+          title: config.title || config.label || 'Select',
           onchange: handleChange,
           style: SELECT_STYLE + ' min-width: 2.5rem;',
           value: () => state.val,
