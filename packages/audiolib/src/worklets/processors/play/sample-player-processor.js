@@ -1,6 +1,6 @@
 import { findClosest } from '../../../utils/search/findClosest';
 
-class SamplePlayerProcessor extends AudioWorkletProcessor {
+export class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== PARAMETER DESCRIPTORS =====
   static get parameterDescriptors() {
     return [
@@ -422,7 +422,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           );
 
           if (this.panDriftEnabled && driftAmount > 0 && this.loopCount > 0) {
-            this.currentPanDrift = this.currentLoopDrift * 0.00064;
+            const panDriftAmountScalar = 0.0001;
+            this.currentPanDrift = this.currentLoopDrift * panDriftAmountScalar;
           } else {
             this.currentPanDrift = 0;
           }

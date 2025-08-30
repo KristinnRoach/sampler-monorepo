@@ -3,9 +3,9 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
 import { getSampler, onRegistryChange } from '../SamplerRegistry';
-import { findNodeId } from '../../../shared/utils/component-utils';
+import { findNodeId } from '../component-utils';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import { createSVGButton } from '../../../shared/createSVGButton';
+import { createSVGButton } from '../../primitives/createSVGButton';
 
 const { div } = van.tags;
 

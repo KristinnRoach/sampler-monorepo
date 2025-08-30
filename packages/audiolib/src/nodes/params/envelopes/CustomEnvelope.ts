@@ -11,6 +11,7 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
+import { clamp, mapToRange } from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -206,9 +207,9 @@ export class CustomEnvelope implements LibNode {
     endTime = this.fullDuration,
     options: {
       baseValue: number;
-      minValue?: number;
-      maxValue?: number;
-      playbackRate: number;
+      minValue: number;
+      maxValue: number;
+      playbackRate?: number;
       startFromValue?: number;
     }
   ): Float32Array {
@@ -218,25 +219,40 @@ export class CustomEnvelope implements LibNode {
 
     const { baseValue, minValue, maxValue, startFromValue } = options;
 
+    // Precompute log scaling for filter-env
+    let minLog: number | undefined,
+      maxLog: number | undefined,
+      logRange: number | undefined;
+    if (this.envelopeType === 'filter-env') {
+      minLog = Math.log(baseValue);
+      maxLog = Math.log(maxValue);
+      logRange = maxLog - minLog;
+    }
+
     for (let i = 0; i < numSamples; i++) {
       const normalizedProgress = i / (numSamples - 1);
       const absoluteTime = normalizedProgress * endTime;
 
-      let interpolatedValue = this.#data.interpolateValueAtTime(absoluteTime);
+      let envValue = this.#data.interpolateValueAtTime(absoluteTime); // normalized [0,1]
 
       // Blend from startFromValue to envelope trajectory if specified
-      if (startFromValue !== undefined && i === 0) {
-        interpolatedValue = startFromValue;
-      } else if (baseValue !== 1) {
-        interpolatedValue = interpolatedValue * baseValue;
+      if (
+        !(this.envelopeType === 'filter-env') &&
+        startFromValue !== undefined &&
+        i === 0
+      ) {
+        envValue = startFromValue;
+      } else if (this.envelopeType === 'filter-env' && minLog && logRange) {
+        // Use precomputed log values
+        envValue = Math.exp(minLog + logRange * envValue);
+        // envValue = mapToRange(envValue, 0, 1, baseValue, maxValue);
       }
 
-      if (minValue !== undefined)
-        interpolatedValue = Math.max(interpolatedValue, minValue);
-      if (maxValue !== undefined)
-        interpolatedValue = Math.min(interpolatedValue, maxValue);
+      // else if (baseValue !== 1) { // todo: consistent handling of baseValue across env types
+      //   envValue = envValue * baseValue;
+      // }
 
-      curve[i] = this.#clampToValueRange(interpolatedValue);
+      curve[i] = clamp(envValue, minValue, maxValue);
     }
 
     return curve;
@@ -250,8 +266,6 @@ export class CustomEnvelope implements LibNode {
       playbackRate: number;
       voiceId?: string;
       midiNote?: number;
-      minValue?: number;
-      maxValue?: number;
     } = { baseValue: 1, playbackRate: 1 }
   ) {
     this.#isReleased = false;
@@ -272,8 +286,6 @@ export class CustomEnvelope implements LibNode {
       playbackRate: number;
       voiceId?: string;
       midiNote?: number;
-      minValue?: number;
-      maxValue?: number;
     }
   ) {
     const endIdx = this.sustainEnabled
@@ -294,6 +306,8 @@ export class CustomEnvelope implements LibNode {
         : this.fullDuration,
       {
         ...options,
+        minValue: audioParam.minValue,
+        maxValue: audioParam.maxValue,
         startFromValue: audioParam.value,
       }
     );
@@ -312,8 +326,15 @@ export class CustomEnvelope implements LibNode {
     }
 
     const timestamp = this.#context.currentTime;
-
     const safeStart = Math.max(timestamp, startTime);
+
+    if (scaledDuration < 0.005) {
+      audioParam.linearRampToValueAtTime(
+        curve[curve.length - 1],
+        safeStart + scaledDuration
+      );
+      return;
+    }
 
     try {
       // audioParam.cancelScheduledValues(timestamp);
@@ -369,6 +390,8 @@ export class CustomEnvelope implements LibNode {
 
     let cachedCurve = this.#generateCurve(cachedDuration, this.fullDuration, {
       ...options,
+      minValue: audioParam.minValue,
+      maxValue: audioParam.maxValue,
       startFromValue: audioParam.value,
     });
 
@@ -422,6 +445,8 @@ export class CustomEnvelope implements LibNode {
 
           cachedCurve = this.#generateCurve(cachedDuration, this.fullDuration, {
             ...options,
+            minValue: audioParam.minValue,
+            maxValue: audioParam.maxValue,
             startFromValue: audioParam.value,
           });
         }
@@ -793,7 +818,7 @@ export class CustomEnvelope implements LibNode {
               curve: 'exponential' as const,
             },
           ],
-          paramValueRange: [0.5, 1.5] as [number, number],
+          paramValueRange: [0.1, 24] as [number, number],
           initEnable: false,
           sustainPointIndex: null,
           releasePointIndex: 1,
@@ -802,19 +827,24 @@ export class CustomEnvelope implements LibNode {
       case 'filter-env':
         return {
           points: [
-            { time: 0, value: 250, curve: 'exponential' as const },
+            { time: 0, value: 0, curve: 'exponential' as const },
             {
-              time: 0.01 * durationSeconds,
-              value: 18000,
+              time: 0.02 * durationSeconds,
+              value: 1,
+              curve: 'exponential' as const,
+            },
+            {
+              time: 0.3 * durationSeconds,
+              value: 0.2,
               curve: 'exponential' as const,
             },
             {
               time: durationSeconds,
-              value: 1000,
+              value: 0,
               curve: 'exponential' as const,
             },
           ],
-          paramValueRange: [20, 20000] as [number, number],
+          paramValueRange: [0, 1] as [number, number],
           initEnable: false,
           sustainPointIndex: null,
           releasePointIndex: 2,

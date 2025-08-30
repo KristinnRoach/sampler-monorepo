@@ -316,7 +316,8 @@ export const EnvelopeSVG = (
       const normalizedValue = absoluteValueToNormalized(
         point.value,
         envelopeInfo.valueRange,
-        envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
+        'linear'
+        // envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
       );
       circle.setAttribute(
         'cy',
@@ -463,7 +464,8 @@ export const EnvelopeSVG = (
         SVG_WIDTH - 2 * CIRCLE_PADDING,
         SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
         envelopeInfo.valueRange,
-        envelopeType === 'filter-env' ? 'logarithmic' : 'linear',
+        'linear',
+        // envelopeType === 'filter-env' ? 'logarithmic' : 'linear',
         CIRCLE_PADDING,
         CIRCLE_PADDING + TOP_BTNS_PADDING
       )
@@ -825,10 +827,18 @@ export const EnvelopeSVG = (
         time = applySnapping(time, snapToValues.x, snapThreshold);
       }
 
-      // Convert to logarithmic space for filter envelopes
-      if (envelopeType === 'filter-env') {
-        value = linearToLogarithmic(value, envelopeInfo.valueRange);
-      }
+      // console.warn('value before log:', value);
+      // if (envelopeType === 'filter-env')
+      //   value = linearToLogarithmic(value, envelopeInfo.valueRange);
+
+      // console.warn('value after log:', value);
+      // const normalizedValue = absoluteValueToNormalized(
+      //   value,
+      //   envelopeInfo.valueRange,
+      //   envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
+      // );
+      // console.warn('envelopeInfo.valueRange', envelopeInfo.valueRange);
+      // console.warn('normalized value:', normalizedValue);
 
       instrument.updateEnvelopePoint(
         envelopeType,
@@ -893,10 +903,15 @@ export const EnvelopeSVG = (
 
     time = applySnapping(time, snapToValues.x, snapThreshold);
 
-    // Convert to logarithmic space for filter envelopes
-    if (envelopeType === 'filter-env') {
-      value = linearToLogarithmic(value, envelopeInfo.valueRange);
-    }
+    // // Convert to logarithmic space for filter envelopes
+    // if (envelopeType === 'filter-env') {
+    //   value = linearToLogarithmic(value, envelopeInfo.valueRange);
+    // }
+    // const normalizedValue = absoluteValueToNormalized(
+    //   value,
+    //   envelopeInfo.valueRange,
+    //   envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
+    // );
 
     instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
@@ -1041,16 +1056,18 @@ export const EnvelopeSVG = (
     (msg: any) => {
       loopEnabled.val = msg.enabled;
 
-      if (msg.enabled && !envelopeInfo.sustainEnabled) {
-        momentarySustainForLoop = true;
-        instrument.setEnvelopeSustainPoint(envType, 2); // TODO: Use last-used sustainPoint index!
-        updateControlPoints();
-        updateEnvelopePath();
-      } else if (!msg.enabled && momentarySustainForLoop) {
-        momentarySustainForLoop = false;
-        instrument.setEnvelopeSustainPoint(envType, null);
-        updateControlPoints();
-        updateEnvelopePath();
+      if (envType === 'amp-env') {
+        if (msg.enabled && !envelopeInfo.sustainEnabled) {
+          momentarySustainForLoop = true;
+          instrument.setEnvelopeSustainPoint(envType, 2); // TODO: Use last-used sustainPoint index!
+          updateControlPoints();
+          updateEnvelopePath();
+        } else if (!msg.enabled && momentarySustainForLoop) {
+          momentarySustainForLoop = false;
+          instrument.setEnvelopeSustainPoint(envType, null);
+          updateControlPoints();
+          updateEnvelopePath();
+        }
       }
     }
   );
