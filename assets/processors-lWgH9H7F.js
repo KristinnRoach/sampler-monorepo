@@ -516,7 +516,8 @@ calculateLoopRange_fn = function(params, playbackRange, driftAmount = 0) {
       if (shouldUpdateDrift) {
         this.currentLoopDrift = __privateMethod(this, _SamplePlayerProcessor_instances, generateLoopDrift_fn).call(this, driftAmount, baseDuration);
         if (this.panDriftEnabled && driftAmount > 0 && this.loopCount > 0) {
-          this.currentPanDrift = this.currentLoopDrift * 64e-5;
+          const panDriftAmountScalar = 1e-4;
+          this.currentPanDrift = this.currentLoopDrift * panDriftAmountScalar;
         } else {
           this.currentPanDrift = 0;
         }
