@@ -40,7 +40,7 @@ export class CustomEnvelope implements LibNode {
     sharedData?: EnvelopeData,
 
     initialPoints: EnvelopePoint[] = [],
-    paramValueRange: [number, number] = [0, 1],
+    envPointValueRange: [number, number] = [0, 1],
     durationSeconds = 1,
     initEnable = true
   ) {
@@ -77,7 +77,7 @@ export class CustomEnvelope implements LibNode {
     // Use shared data if provided, otherwise create new
     this.#data =
       sharedData ||
-      new EnvelopeData([...initialPoints], paramValueRange, durationSeconds);
+      new EnvelopeData([...initialPoints], envPointValueRange, durationSeconds);
 
     this.#initialized = true;
 
@@ -148,8 +148,8 @@ export class CustomEnvelope implements LibNode {
   /**
    * The range of values applied to the audio param
    **/
-  get valueRange() {
-    return this.#data.valueRange;
+  get envPointValueRange() {
+    return this.#data.pointValueRange;
   }
 
   get loopEnabled() {
@@ -236,21 +236,15 @@ export class CustomEnvelope implements LibNode {
       let envValue = this.#data.interpolateValueAtTime(absoluteTime); // normalized [0,1]
 
       // Blend from startFromValue to envelope trajectory if specified
-      if (
-        !(this.envelopeType === 'filter-env') &&
-        startFromValue !== undefined &&
-        i === 0
-      ) {
-        envValue = startFromValue;
-      } else if (this.envelopeType === 'filter-env' && minLog && logRange) {
+      if (this.envelopeType === 'filter-env' && minLog && logRange) {
         // Use precomputed log values
         envValue = Math.exp(minLog + logRange * envValue);
         // envValue = mapToRange(envValue, 0, 1, baseValue, maxValue);
+      } else if (baseValue !== 1) {
+        envValue = envValue * baseValue;
+      } else if (startFromValue !== undefined && i === 0) {
+        envValue = startFromValue;
       }
-
-      // else if (baseValue !== 1) { // todo: consistent handling of baseValue across env types
-      //   envValue = envValue * baseValue;
-      // }
 
       curve[i] = clamp(envValue, minValue, maxValue);
     }
@@ -597,7 +591,7 @@ export class CustomEnvelope implements LibNode {
 
     const currentValue = audioParam.value;
 
-    const targetEndValue = this.#clampToValueRange(
+    const targetEndValue = this.#clampToPointValueRange(
       this.#data.interpolateValueAtTime(lastPoint.time)
     );
 
@@ -616,7 +610,7 @@ export class CustomEnvelope implements LibNode {
         fromPoint.time + normalizedProgress * rawRemainingDuration;
 
       // Get the envelope's original value at this time
-      curve[i] = this.#clampToValueRange(
+      curve[i] = this.#clampToPointValueRange(
         this.#data.interpolateValueAtTime(absoluteTime)
       );
     }
@@ -761,8 +755,8 @@ export class CustomEnvelope implements LibNode {
 
   // === UTILS ===
 
-  #clampToValueRange(value: number): number {
-    const [min, max] = this.#data.valueRange;
+  #clampToPointValueRange(value: number): number {
+    const [min, max] = this.#data.pointValueRange;
     return Math.max(min, Math.min(max, value));
   }
 
@@ -802,7 +796,7 @@ export class CustomEnvelope implements LibNode {
               curve: 'exponential' as const,
             },
           ],
-          paramValueRange: [0, 1] as [number, number],
+          envPointValueRange: [0, 1] as [number, number],
           initEnable: true,
           sustainPointIndex: null,
           releasePointIndex: 3, // release from second last point
@@ -818,7 +812,7 @@ export class CustomEnvelope implements LibNode {
               curve: 'exponential' as const,
             },
           ],
-          paramValueRange: [0.1, 24] as [number, number],
+          envPointValueRange: [0.5, 1.5] as [number, number],
           initEnable: false,
           sustainPointIndex: null,
           releasePointIndex: 1,
@@ -844,7 +838,7 @@ export class CustomEnvelope implements LibNode {
               curve: 'exponential' as const,
             },
           ],
-          paramValueRange: [0, 1] as [number, number],
+          envPointValueRange: [0, 1] as [number, number],
           initEnable: false,
           sustainPointIndex: null,
           releasePointIndex: 2,
@@ -857,7 +851,7 @@ export class CustomEnvelope implements LibNode {
             { time: 0.1 * durationSeconds, value: 1, curve: 'linear' as const },
             { time: durationSeconds, value: 0, curve: 'linear' as const },
           ],
-          paramValueRange: [0, 1] as [number, number],
+          envPointValueRange: [0, 1] as [number, number],
           initEnable: true,
           sustainPointIndex: null,
           releasePointIndex: 1,

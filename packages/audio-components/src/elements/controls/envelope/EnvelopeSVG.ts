@@ -315,7 +315,7 @@ export const EnvelopeSVG = (
 
       const normalizedValue = absoluteValueToNormalized(
         point.value,
-        envelopeInfo.valueRange,
+        envelopeInfo.envPointValueRange,
         'linear'
         // envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
       );
@@ -463,7 +463,7 @@ export const EnvelopeSVG = (
         envelopeInfo.fullDuration,
         SVG_WIDTH - 2 * CIRCLE_PADDING,
         SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
-        envelopeInfo.valueRange,
+        envelopeInfo.envPointValueRange,
         'linear',
         // envelopeType === 'filter-env' ? 'logarithmic' : 'linear',
         CIRCLE_PADDING,
@@ -807,7 +807,7 @@ export const EnvelopeSVG = (
       let value = screenYToAbsoluteValue(
         coords.y - rect.top - CIRCLE_PADDING - TOP_BTNS_PADDING,
         rect.height - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
-        envelopeInfo.valueRange
+        envelopeInfo.envPointValueRange
       );
 
       // Apply snapping in normalized space
@@ -815,7 +815,7 @@ export const EnvelopeSVG = (
         value,
         snapToValues.y,
         snapThreshold,
-        envelopeInfo.valueRange
+        envelopeInfo.envPointValueRange
       );
 
       // Handle fixed start/end times
@@ -829,15 +829,15 @@ export const EnvelopeSVG = (
 
       // console.warn('value before log:', value);
       // if (envelopeType === 'filter-env')
-      //   value = linearToLogarithmic(value, envelopeInfo.valueRange);
+      //   value = linearToLogarithmic(value, envelopeInfo.envPointValueRange);
 
       // console.warn('value after log:', value);
       // const normalizedValue = absoluteValueToNormalized(
       //   value,
-      //   envelopeInfo.valueRange,
+      //   envelopeInfo.envPointValueRange,
       //   envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
       // );
-      // console.warn('envelopeInfo.valueRange', envelopeInfo.valueRange);
+      // console.warn('envelopeInfo.envPointValueRange', envelopeInfo.envPointValueRange);
       // console.warn('normalized value:', normalizedValue);
 
       instrument.updateEnvelopePoint(
@@ -890,7 +890,7 @@ export const EnvelopeSVG = (
     let value = screenYToAbsoluteValue(
       coords.y - rect.top - CIRCLE_PADDING - TOP_BTNS_PADDING,
       rect.height - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
-      envelopeInfo.valueRange
+      envelopeInfo.envPointValueRange
     );
 
     // Apply snapping for consistency with drag behavior
@@ -898,18 +898,18 @@ export const EnvelopeSVG = (
       value,
       snapToValues.y,
       snapThreshold,
-      envelopeInfo.valueRange
+      envelopeInfo.envPointValueRange
     );
 
     time = applySnapping(time, snapToValues.x, snapThreshold);
 
     // // Convert to logarithmic space for filter envelopes
     // if (envelopeType === 'filter-env') {
-    //   value = linearToLogarithmic(value, envelopeInfo.valueRange);
+    //   value = linearToLogarithmic(value, envelopeInfo.envPointValueRange);
     // }
     // const normalizedValue = absoluteValueToNormalized(
     //   value,
-    //   envelopeInfo.valueRange,
+    //   envelopeInfo.envPointValueRange,
     //   envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
     // );
 
@@ -1059,7 +1059,17 @@ export const EnvelopeSVG = (
       if (envType === 'amp-env') {
         if (msg.enabled && !envelopeInfo.sustainEnabled) {
           momentarySustainForLoop = true;
-          instrument.setEnvelopeSustainPoint(envType, 2); // TODO: Use last-used sustainPoint index!
+
+          // TODO: Use last-used sustainPoint index.
+          // Temp safe solution for now:
+          const env = instrument.getEnvelope(envType);
+          const ptsLen = env.points.length;
+          const sustainIdx =
+            env.sustainPointIndex ??
+            Math.max(1, Math.min(ptsLen - 2, Math.round((ptsLen - 1) / 2)));
+
+          instrument.setEnvelopeSustainPoint(envType, sustainIdx);
+          instrument.setEnvelopeSustainPoint(envType, 2);
           updateControlPoints();
           updateEnvelopePath();
         } else if (!msg.enabled && momentarySustainForLoop) {

@@ -6,7 +6,7 @@ import type { EnvelopeData } from './EnvelopeData';
 interface EnvelopeOptions {
   durationSeconds?: number;
   points?: EnvelopePoint[];
-  paramValueRange?: [number, number];
+  envPointValueRange?: [number, number];
   initEnable?: boolean;
   sharedData?: EnvelopeData;
   sustainPointIndex?: number | null;
@@ -23,7 +23,7 @@ export function createEnvelope(
     points,
     sustainPointIndex,
     releasePointIndex,
-    paramValueRange,
+    envPointValueRange,
     initEnable,
     sharedData,
   } = options;
@@ -37,7 +37,7 @@ export function createEnvelope(
 
   // Use custom values or defaults
   const finalPoints = points || defaults.points;
-  let finalValueRange = paramValueRange || defaults.paramValueRange;
+  let finalValueRange = envPointValueRange || defaults.envPointValueRange;
   const finalInitEnable =
     initEnable !== undefined ? initEnable : defaults.initEnable;
   const finalSustainIndex =
