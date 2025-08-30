@@ -107,13 +107,21 @@ export class InstrumentBus implements ILibAudioNode {
         const output = this.createGainNode(this.#context, { initialGain: 1 });
 
         const lpf = new LibAudioNode<BiquadFilterNode>(
-          new BiquadFilterNode(this.#context, { type: 'lowpass', Q: 0.5 }),
+          new BiquadFilterNode(this.#context, {
+            type: 'lowpass',
+            Q: 0.5,
+            frequency: this.#context.sampleRate / 2 - 1000,
+          }),
           this.#context,
           'lpf'
         );
 
         const hpf = new LibAudioNode<BiquadFilterNode>(
-          new BiquadFilterNode(this.#context, { type: 'highpass', Q: 0.707 }),
+          new BiquadFilterNode(this.#context, {
+            type: 'highpass',
+            Q: 0.707,
+            frequency: 20,
+          }),
           this.#context,
           'hpf'
         );
@@ -363,7 +371,7 @@ export class InstrumentBus implements ILibAudioNode {
   }
 
   setHpfCutoff(hz: number): this {
-    const safeHz = clamp(hz, 20, 20000);
+    const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.getNode('hpf')?.audioNode.frequency.setTargetAtTime(
       safeHz,
       this.now,
@@ -373,7 +381,7 @@ export class InstrumentBus implements ILibAudioNode {
   }
 
   setLpfCutoff(hz: number): this {
-    const safeHz = clamp(hz, 20, 20000);
+    const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.getNode('lpf')?.audioNode.frequency.setTargetAtTime(
       safeHz,
       this.now,

@@ -82,9 +82,9 @@ export { EnvelopeSwitcher } from './elements/Sampler/components/EnvelopeSwitcher
 // Utilities
 export {
   findNodeId as createFindNodeId,
-  createToggle,
+  createToggleForTarget as createToggle,
   createKnobForTarget as createKnob,
-} from './shared/utils/component-utils';
+} from './elements/Sampler/component-utils';
 
 export { SamplerStatusElement } from './elements/Sampler/components/SamplerStatusElement';
 

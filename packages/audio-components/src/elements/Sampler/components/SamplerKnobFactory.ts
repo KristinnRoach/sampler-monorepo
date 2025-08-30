@@ -2,7 +2,7 @@
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
-import { createKnobForTarget } from '../../../shared/utils/component-utils';
+import { createKnobForTarget } from '../component-utils';
 import { KnobConfig } from '../../primitives/createKnob';
 
 // ===== KNOB CONFIGURATIONS =====
@@ -223,7 +223,7 @@ const lowpassFilterConfig: KnobConfig = {
   label: 'LPF',
   useLocalStorage: true,
   defaultValue: 18000,
-  minValue: 20,
+  minValue: 40,
   maxValue: 20000,
   curve: 5,
   valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,

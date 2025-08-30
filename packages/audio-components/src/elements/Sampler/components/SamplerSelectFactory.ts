@@ -5,10 +5,7 @@ import { getSampler } from '../SamplerRegistry';
 import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
 } from '@/shared/keyboard/keyboard-keymaps';
-import {
-  findNodeId,
-  createSamplerConnection,
-} from '../../../shared/utils/component-utils';
+import { findNodeId, createSamplerConnection } from '../component-utils';
 import {
   COMPONENT_STYLE,
   SELECT_STYLE,

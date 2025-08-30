@@ -4,12 +4,9 @@ import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
 import { Toggle } from '../../primitives/VanToggle';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import {
-  createToggle,
-  ToggleConfig,
-} from '../../../shared/utils/component-utils';
+import { createToggleForTarget, ToggleConfig } from '../component-utils';
 
-import { createSVGButton } from '../../../shared/createSVGButton';
+import { createSVGButton } from '../../primitives/createSVGButton';
 
 const { div } = van.tags;
 
@@ -183,7 +180,7 @@ const panDriftConfig: ToggleConfig = {
 
 // ===== TOGGLE COMPONENTS USING CONFIG =====
 
-export const FeedbackModeToggle = createToggle(
+export const FeedbackModeToggle = createToggleForTarget(
   feedbackModeConfig,
   getSampler,
   Toggle,
@@ -191,7 +188,7 @@ export const FeedbackModeToggle = createToggle(
   INLINE_COMPONENT_STYLE
 );
 
-export const GainLFOSyncNoteToggle = createToggle(
+export const GainLFOSyncNoteToggle = createToggleForTarget(
   gainLFOSyncConfig,
   getSampler,
   Toggle,
@@ -199,7 +196,7 @@ export const GainLFOSyncNoteToggle = createToggle(
   INLINE_COMPONENT_STYLE
 );
 
-export const PitchLFOSyncNoteToggle = createToggle(
+export const PitchLFOSyncNoteToggle = createToggleForTarget(
   pitchLFOSyncConfig,
   getSampler,
   Toggle,
@@ -207,7 +204,7 @@ export const PitchLFOSyncNoteToggle = createToggle(
   INLINE_COMPONENT_STYLE
 );
 
-export const PanDriftToggle = createToggle(
+export const PanDriftToggle = createToggleForTarget(
   panDriftConfig,
   getSampler,
   Toggle,

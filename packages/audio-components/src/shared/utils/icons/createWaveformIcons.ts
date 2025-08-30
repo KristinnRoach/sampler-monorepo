@@ -14,7 +14,7 @@ import formantRaw from '../../assets/icons/svg/waveworm/formant.svg?raw';
 import metallicRaw from '../../assets/icons/svg/waveworm/metallic.svg?raw';
 import pinkNoiseRaw from '../../assets/icons/svg/waveworm/pink-noise.svg?raw';
 import pulseRaw from '../../assets/icons/svg/waveworm/pulse.svg?raw';
-import randomHarmonicRaw from '../../assets/icons/svg/waveworm/random-hamonic.svg?raw';
+import randomHarmonicRaw from '../../assets/icons/svg/waveworm/random-harmonic.svg?raw';
 import supersawRaw from '../../assets/icons/svg/waveworm/supersaw.svg?raw';
 import warmpadRaw from '../../assets/icons/svg/waveworm/warmpad.svg?raw';
 import whiteRaw from '../../assets/icons/svg/waveworm/white.svg?raw';

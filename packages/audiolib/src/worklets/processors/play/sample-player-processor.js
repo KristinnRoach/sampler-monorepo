@@ -1,6 +1,6 @@
 import { findClosest } from '../../../utils/search/findClosest';
 
-class SamplePlayerProcessor extends AudioWorkletProcessor {
+export class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== PARAMETER DESCRIPTORS =====
   static get parameterDescriptors() {
     return [

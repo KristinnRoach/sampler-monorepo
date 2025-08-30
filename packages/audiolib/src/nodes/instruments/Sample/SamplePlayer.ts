@@ -24,9 +24,14 @@ import {
 import {
   MacroParam,
   LibParamDescriptor,
-  DEFAULT_PARAM_DESCRIPTORS,
   NormalizeOptions,
 } from '@/nodes/params';
+
+import { DEFAULT_PARAM_DESCRIPTORS } from './param-defaults'; // TODO: replace with SAMPLE_PLAYER_PARAM_DESCRIPTORS
+import {
+  SAMPLE_PLAYER_PARAM_DESCRIPTORS,
+  SAMPLE_PLAYER_PARAM_KEYS,
+} from '@/worklets/processors/play/sample-player-paramdescriptors';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
 import {
@@ -1044,12 +1049,20 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.outBus.setSendAmount(effect, amount);
   };
 
-  setLpfCutoff = (hz: number) => this.outBus.setLpfCutoff(hz);
+  setLpfCutoff = (hz: number, preOrPostFx: 'pre' | 'post' = 'pre') => {
+    if (preOrPostFx === 'pre') {
+      this.voicePool.applyToAllVoices((v) => {
+        v.setLpfCutoff(hz);
+      });
+    } else if (preOrPostFx === 'post') {
+      this.outBus.setLpfCutoff(hz);
+    }
+  };
 
   setHpfCutoff = (hz: number, preOrPostFx: 'pre' | 'post' = 'pre') => {
     if (preOrPostFx === 'pre') {
       this.voicePool.applyToAllVoices((v) => {
-        v.setParam('hpf', hz);
+        v.setHpfCutoff(hz);
       });
     } else if (preOrPostFx === 'post') {
       this.outBus.setHpfCutoff(hz);

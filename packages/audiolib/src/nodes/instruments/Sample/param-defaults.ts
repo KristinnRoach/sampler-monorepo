@@ -6,7 +6,7 @@ export const getMaxFilterFreq = (ctxSampleRate: number) =>
   Math.floor(ctxSampleRate / 2 - 1000);
 
 const MAX_HZ = getMaxFilterFreq(DEFAULT_SAMPLE_RATE); // Using default sample rate
-const MIN_HZ = 10; // Minimum frequency for filters
+const MIN_HZ = 20; // Minimum frequency for filters
 const DEFAULT_HPF_CUTOFF = 100;
 const DEFAULT_LPF_CUTOFF = MAX_HZ;
 const FILTER_STEP = 10; // Step size for filter frequency adjustments
@@ -14,8 +14,6 @@ const FILTER_STEP = 10; // Step size for filter frequency adjustments
 export type ParamDescriptorKey =
   | 'ENV_GAIN'
   | 'PLAYBACK_RATE'
-  | 'ATTACK'
-  | 'RELEASE'
   | 'LOOP_START'
   | 'LOOP_END'
   | 'LOOP_RAMP_DURATION'
@@ -29,18 +27,6 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
   ParamDescriptorKey,
   LibParamDescriptor
 > = {
-  ENV_GAIN: {
-    nodeId: 'env-gain',
-    name: 'env-gain',
-    dataType: 'number',
-    minValue: 0,
-    maxValue: 1,
-    step: 0.0001,
-    defaultValue: 0,
-    group: 'amp-env',
-    automationRate: 'k-rate',
-  },
-
   PLAYBACK_RATE: {
     nodeId: 'playback-rate',
     name: 'playback-rate',
@@ -53,26 +39,14 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
     automationRate: 'k-rate',
   },
 
-  ATTACK: {
-    nodeId: 'attack-time',
-    name: 'attack-time',
+  ENV_GAIN: {
+    nodeId: 'env-gain',
+    name: 'env-gain',
     dataType: 'number',
     minValue: 0,
-    maxValue: 5,
-    step: 0.001,
-    defaultValue: 0.01,
-    group: 'amp-env',
-    automationRate: 'k-rate',
-  },
-
-  RELEASE: {
-    nodeId: 'release-time',
-    name: 'release-time',
-    dataType: 'number',
-    minValue: 0,
-    maxValue: 5,
-    step: 0.001,
-    defaultValue: 0.05,
+    maxValue: 1,
+    step: 0.0001,
+    defaultValue: 0,
     group: 'amp-env',
     automationRate: 'k-rate',
   },
@@ -160,4 +134,15 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
     group: 'filter:hpf',
     automationRate: 'k-rate',
   },
-};
+} as const;
+
+// Exporting keys for easy reference
+export const PARAM_KEYS = Object.keys(
+  DEFAULT_PARAM_DESCRIPTORS
+) as ParamDescriptorKey[];
+
+export const getDefaultValue = (param: ParamDescriptorKey) =>
+  DEFAULT_PARAM_DESCRIPTORS[param].defaultValue;
+
+export const getParamDescriptor = (param: ParamDescriptorKey) =>
+  DEFAULT_PARAM_DESCRIPTORS[param];

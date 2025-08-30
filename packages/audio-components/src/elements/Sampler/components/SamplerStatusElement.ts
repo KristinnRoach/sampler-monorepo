@@ -2,10 +2,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
-import {
-  findNodeId,
-  createSamplerConnection,
-} from '../../../shared/utils/component-utils';
+import { findNodeId, createSamplerConnection } from '../component-utils';
 
 const { div } = van.tags;
 
