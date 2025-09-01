@@ -121,22 +121,6 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
   return wavBuffer;
 }
 
-function isWav(arrayBuffer: ArrayBuffer) {
-  // Check for WAV header: 'RIFF' at 0, 'WAVE' at 8
-  const header = new Uint8Array(arrayBuffer);
-  const isWav =
-    header[0] === 0x52 && // 'R'
-    header[1] === 0x49 && // 'I'
-    header[2] === 0x46 && // 'F'
-    header[3] === 0x46 && // 'F'
-    header[8] === 0x57 && // 'W'
-    header[9] === 0x41 && // 'A'
-    header[10] === 0x56 && // 'V'
-    header[11] === 0x45; // 'E'
-
-  return isWav;
-}
-
 function arrayBufferToBase64(buffer: ArrayBuffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -158,9 +142,78 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return buffer;
 }
 
+function isWav(arrayBuffer: ArrayBuffer) {
+  // Check for WAV header: 'RIFF' at 0, 'WAVE' at 8
+  const header = new Uint8Array(arrayBuffer);
+  const isWav =
+    header[0] === 0x52 && // 'R'
+    header[1] === 0x49 && // 'I'
+    header[2] === 0x46 && // 'F'
+    header[3] === 0x46 && // 'F'
+    header[8] === 0x57 && // 'W'
+    header[9] === 0x41 && // 'A'
+    header[10] === 0x56 && // 'V'
+    header[11] === 0x45; // 'E'
+
+  return isWav;
+}
+
+// TEMP fix to avoid loading corrupted samples from localStorage (happens in Brave browser)
+function validateWavBuffer(buffer: ArrayBuffer): boolean {
+  if (buffer.byteLength < 44) return false; // Minimum WAV header size
+
+  if (!isWav(buffer)) return false;
+
+  const view = new DataView(buffer);
+
+  // check if is at least 0.2 seconds and has non-zero data
+  const sampleRate = view.getUint32(24, true);
+  const numChannels = view.getUint16(22, true);
+  const bitsPerSample = view.getUint16(34, true);
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const dataSize = view.getUint32(40, true);
+  const durationSeconds = dataSize / byteRate;
+
+  if (durationSeconds < 0.2 || dataSize === 0) return false;
+
+  // Quick health check for amplitude
+  const dataOffset = 44; // Standard WAV header size
+  const sampleSize = bitsPerSample / 8;
+  const numSamples = Math.floor((buffer.byteLength - dataOffset) / sampleSize);
+
+  let sumAbs = 0;
+  const samplesToCheck = Math.min(1000, numSamples);
+  for (let i = 0; i < samplesToCheck; i++) {
+    const sampleIndex = Math.floor((i * numSamples) / samplesToCheck);
+    let sample;
+    if (bitsPerSample === 16) {
+      sample = view.getInt16(dataOffset + sampleIndex * sampleSize, true);
+    } else if (bitsPerSample === 8) {
+      sample = view.getInt8(dataOffset + sampleIndex * sampleSize);
+    } else {
+      continue;
+    }
+    sumAbs += Math.abs(sample);
+  }
+  const avgAbs = sumAbs / samplesToCheck;
+  const threshold = 0.08 * (1 << (bitsPerSample - 1));
+
+  // console.debug(
+  //   'WAV validation - Avg abs sample value:',
+  //   avgAbs,
+  //   'Threshold:',
+  //   threshold
+  // );
+
+  if (avgAbs < threshold) return false;
+
+  return true;
+}
+
 export interface SamplerElement extends HTMLElement {
   nodeId: string;
   getSamplePlayer: () => SamplePlayer | null;
+  getSampleBuffer: () => AudioBuffer | null;
 }
 
 // ===== SAMPLER ENGINE =====
@@ -181,7 +234,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         if (storedBuffer?.length) {
           const arrayBuffer = base64ToArrayBuffer(storedBuffer);
 
-          if (isWav(arrayBuffer)) {
+          if (validateWavBuffer(arrayBuffer)) {
             initSample = arrayBuffer;
           }
         }
@@ -228,6 +281,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         Object.assign(attributes.$this, {
           nodeId: nodeId.val,
           getSamplePlayer: () => samplePlayer,
+          getSampleBuffer: () => samplePlayer?.audiobuffer || null,
         });
       } catch (error: any) {
         console.error('Sampler initialization error:', error);

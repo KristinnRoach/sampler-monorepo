@@ -57,6 +57,7 @@ export class KnobElement extends HTMLElement {
     outMax: number,
     value: number
   ): number {
+    if (inMax === inMin) return outMin;
     return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
   }
 
