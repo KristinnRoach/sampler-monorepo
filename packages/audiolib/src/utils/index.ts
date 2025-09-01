@@ -3,6 +3,8 @@ export * from './audiodata/convert/parseWavHeader';
 export * from './audiodata/validate/audiobuffer';
 export * from './audiodata/monitoring/LevelMonitor';
 export * from './audiodata/process/normalizeAudioBuffer';
+export * from './audiodata/zero-crossings/zero-crossing';
+export * from './audiodata/wavecycles/findWaveCycles';
 
 export * from './audiodata/generate/generateWaveform';
 
@@ -26,7 +28,6 @@ export * from './search';
 export * from './math/math-utils';
 export * from './math/interpolate';
 export * from './math/normalize';
-export * from './audiodata/zero-crossing';
 export * from './math/second-diff';
 
 // JS data-type utils

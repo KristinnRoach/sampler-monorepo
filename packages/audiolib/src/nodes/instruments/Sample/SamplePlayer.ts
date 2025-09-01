@@ -4,7 +4,13 @@ import { getAudioContext } from '@/context';
 import { MidiController } from '@/io';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
-import { clamp, findClosestNote, mapToRange, NOTE_PERIODS } from '@/utils';
+import {
+  clamp,
+  findClosestNote,
+  mapToRange,
+  NOTE_PERIODS,
+  ROOT_NOTES,
+} from '@/utils';
 import { Debouncer } from '@/utils/Debouncer';
 
 import {
@@ -532,7 +538,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#resetMacros();
 
     const defaultScaleOptions = {
-      rootNote: 'C',
+      rootNote: 'C' as keyof typeof ROOT_NOTES,
       scale: [0],
       lowestOctave: 0,
       highestOctave: 5,
@@ -544,14 +550,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     return buffer;
   }
-
-  setTransposition = (semitones: number) => {
-    this.voicePool.transposeSemitones = semitones;
-    console.info(`transposing by ${semitones} semitones`);
-    this.sendUpstreamMessage('sample:auto-transpose:success', {
-      transposedBy: semitones,
-    });
-  };
 
   async detectPitch(buffer: AudioBuffer) {
     const pitchSource = await detectSinglePitchAC(buffer);
@@ -633,7 +631,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   /* === SCALE SETTINGS === */
 
   setScale(options: {
-    rootNote: string;
+    rootNote: keyof typeof ROOT_NOTES;
     scale: number[];
     tuningOffset: number;
     highestOctave: number;
@@ -648,6 +646,26 @@ export class SamplePlayer implements ILibInstrumentNode {
       snapToZeroCrossings: this.#zeroCrossings,
       ...options,
     });
+    return this;
+  }
+
+  setRootNote(note: keyof typeof ROOT_NOTES) {
+    const rootNoteNumber = ROOT_NOTES[note];
+
+    let semitones = 0;
+    if (rootNoteNumber < 6) {
+      semitones = rootNoteNumber; // C to F
+    } else {
+      semitones = rootNoteNumber - 12; // F# to B (negative transposition)
+    }
+
+    if (this.voicePool.transposedBySemitones === semitones) return this;
+
+    this.voicePool.transposeSemitones = semitones;
+
+    this.#macroLoopEnd.setRootNote(note);
+    this.#macroLoopStart.setRootNote(note);
+
     return this;
   }
 

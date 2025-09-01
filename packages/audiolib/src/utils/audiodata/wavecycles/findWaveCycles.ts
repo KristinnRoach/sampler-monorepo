@@ -1,48 +1,8 @@
-// zero-crossing.ts
+const DEFAULT_THRESHOLD = 0.0001;
 
-const THRESHOLD = 0.0001;
-
-export function findZeroCrossings(
-  audioBuffer: AudioBuffer,
-  threshold: number = THRESHOLD
-): number[] {
-  const channel = audioBuffer.getChannelData(0); // Always use the first channel (left if stereo)
-  const sampleRate = audioBuffer.sampleRate;
-  const zeroCrossings: number[] = [];
-
-  for (let i = 1; i < channel.length; i++) {
-    if (Math.abs(channel[i]) < threshold) {
-      // Sample is already very close to zero
-      zeroCrossings.push(i / sampleRate);
-    } else if (Math.sign(channel[i]) !== Math.sign(channel[i - 1])) {
-      // Sign change detected, perform linear interpolation
-      const t = -channel[i - 1] / (channel[i] - channel[i - 1]);
-      const zeroCrossingTime = (i - 1 + t) / sampleRate;
-      zeroCrossings.push(zeroCrossingTime);
-    }
-  }
-
-  return zeroCrossings;
-}
-
-export function snapToNearestZeroCrossing(
-  currTimeSec: number, // Seconds from start of audio buffer
-  zeroCrossings: number[]
-): number {
-  if (zeroCrossings.length === 0) {
-    console.warn('No zero crossings found');
-    return currTimeSec;
-  }
-
-  return zeroCrossings.reduce((prev, curr) =>
-    Math.abs(curr - currTimeSec) < Math.abs(prev - currTimeSec) ? curr : prev
-  );
-}
-
-// Untested on real audio!
 export function findWaveCycles(
   audioBuffer: AudioBuffer,
-  threshold: number = THRESHOLD
+  threshold: number = DEFAULT_THRESHOLD
 ): Array<{
   startTime: number;
   endTime: number;
@@ -105,7 +65,58 @@ export function findWaveCycles(
   return cycles;
 }
 
-// Usage
-// const zeroCrossings = findZeroCrossings(audioBuffer);
-// loopStart = snapToNearestZeroCrossing(userSelectedLoopStart, zeroCrossings);
-// loopEnd = snapToNearestZeroCrossing(userSelectedLoopEnd, zeroCrossings);
+export function duplicateWaveCycles(
+  audioBuffer: AudioBuffer,
+  numCycles: number
+): AudioBuffer {
+  // Find all wave cycles in the original buffer
+  const cycles = findWaveCycles(audioBuffer);
+
+  if (cycles.length === 0) {
+    // No cycles found, return original buffer
+    return audioBuffer;
+  }
+
+  // Calculate total length needed for duplicated cycles
+  let totalSamples = 0;
+  for (const cycle of cycles) {
+    const cycleLength = cycle.endSample - cycle.startSample;
+    totalSamples += cycleLength * numCycles;
+  }
+
+  // Create new AudioBuffer with calculated length
+  const newBuffer = new AudioBuffer({
+    numberOfChannels: audioBuffer.numberOfChannels,
+    length: totalSamples,
+    sampleRate: audioBuffer.sampleRate,
+  });
+
+  // Process each channel
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    const sourceData = audioBuffer.getChannelData(ch);
+    const targetData = newBuffer.getChannelData(ch);
+
+    let writeIndex = 0;
+
+    // For each detected cycle
+    for (const cycle of cycles) {
+      const cycleLength = cycle.endSample - cycle.startSample;
+
+      // Duplicate this cycle numCycles times
+      for (let duplication = 0; duplication < numCycles; duplication++) {
+        // Copy the cycle data
+        for (let i = 0; i < cycleLength; i++) {
+          if (
+            writeIndex < targetData.length &&
+            cycle.startSample + i < sourceData.length
+          ) {
+            targetData[writeIndex] = sourceData[cycle.startSample + i];
+            writeIndex++;
+          }
+        }
+      }
+    }
+  }
+
+  return newBuffer;
+}

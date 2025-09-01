@@ -85,6 +85,7 @@ export const createSamplerConnection = (
  */
 export interface ToggleConfig {
   label?: string;
+  title?: string;
   defaultValue: boolean;
   onColor?: string;
   offText: string;
@@ -148,7 +149,10 @@ export const createToggleForTarget = (
     // const effectiveLabel = hasLabelAttribute ? labelOverride : config.label;
 
     return div(
-      { style: componentStyle || '' },
+      {
+        style: componentStyle || '',
+        title: config.title || config.label || '',
+      },
 
       Toggle({
         on: toggleState.val,

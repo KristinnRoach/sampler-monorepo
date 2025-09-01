@@ -19,6 +19,8 @@ export class SampleVoicePool implements LibNode {
   #initPromise: Promise<void> | null = null;
   #polyphony: number;
 
+  #transposeSemitones = 0;
+
   #allVoices: SampleVoice[] = [];
   #loaded = new Set<NodeID>();
 
@@ -250,7 +252,7 @@ export class SampleVoicePool implements LibNode {
     const voice = this.allocate();
 
     const success = voice.trigger({
-      midiNote: midiNote,
+      midiNote: midiNote + this.#transposeSemitones,
       velocity,
       secondsFromNow,
       glide: { prevMidiNote: this.prevMidiNote, glideTime },
@@ -390,6 +392,10 @@ export class SampleVoicePool implements LibNode {
 
   get assignedVoicesMidiMap() {
     return this.#playingMidiVoiceMap;
+  }
+
+  get transposedBySemitones() {
+    return this.#transposeSemitones;
   }
 
   set transposeSemitones(semitones: number) {

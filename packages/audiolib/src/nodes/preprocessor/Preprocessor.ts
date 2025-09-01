@@ -6,7 +6,7 @@ import { detectThresholdCrossing } from '@/utils/audiodata/process/detectSilence
 import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { findClosestNote } from '@/utils';
-import { findZeroCrossings, findWaveCycles } from '@/utils';
+import { findZeroCrossingSeconds } from '@/utils';
 
 export type PreProcessOptions = {
   skipPreProcessing?: boolean;
@@ -58,7 +58,7 @@ export async function preProcessAudioBuffer(
   if (options.skipPreProcessing) {
     const finalResults: PreProcessResults = { audiobuffer: buffer };
     if (getZeroCrossings) {
-      const zeroes = findZeroCrossings(buffer);
+      const zeroes = findZeroCrossingSeconds(buffer);
       finalResults.zeroCrossings = zeroes;
     }
     return finalResults;
@@ -200,7 +200,7 @@ export async function preProcessAudioBuffer(
   }
 
   if (getZeroCrossings) {
-    const zeroes = findZeroCrossings(processed);
+    const zeroes = findZeroCrossingSeconds(processed);
     results.zeroCrossings = zeroes;
   }
 

@@ -1,5 +1,5 @@
 import {
-  NOTE_ROOTS,
+  ROOT_NOTES,
   NOTE_FREQUENCIES,
   NOTE_PERIODS,
   NOTE_NAMES_WITH_OCTAVE,
@@ -11,16 +11,13 @@ import type { Scale } from '../types';
  * Returns a musical scale with frequencies, periods, and note names
  */
 export function createScale(
-  rootNote: string,
+  rootNote: keyof typeof ROOT_NOTES,
   scalePattern: number[] | keyof typeof SCALE_PATTERNS,
   lowestOctave: number = 0,
   highestOctave: number = 8
 ): Scale {
   // Get the root note index
-  if (
-    !NOTE_ROOTS[rootNote as keyof typeof NOTE_ROOTS] &&
-    NOTE_ROOTS[rootNote as keyof typeof NOTE_ROOTS] !== 0
-  ) {
+  if (!ROOT_NOTES[rootNote] && ROOT_NOTES[rootNote] !== 0) {
     throw new Error(`Unknown root note: ${rootNote}`);
   }
 
@@ -33,7 +30,7 @@ export function createScale(
   // Create a copy of the pattern to ensure it's mutable
   const pattern = [...patternSource];
 
-  const rootIdx: number = NOTE_ROOTS[rootNote as keyof typeof NOTE_ROOTS];
+  const rootIdx: number = ROOT_NOTES[rootNote];
   const frequencies: number[] = [];
   const periodsInSec: number[] = [];
   const noteNames: string[] = [];
@@ -80,6 +77,13 @@ export function getScaleByName(scaleName: string): Scale {
   }
 
   const [rootNote, scaleType] = parts;
+
+  if (
+    !ROOT_NOTES[rootNote as keyof typeof ROOT_NOTES] &&
+    ROOT_NOTES[rootNote as keyof typeof ROOT_NOTES] !== 0
+  ) {
+    throw new Error(`Unknown root note: ${rootNote}`);
+  }
   const scalePattern = SCALE_PATTERNS[scaleType as keyof typeof SCALE_PATTERNS];
 
   if (!scalePattern) {
@@ -87,5 +91,5 @@ export function getScaleByName(scaleName: string): Scale {
   }
 
   // Create a copy of the pattern to ensure it's mutable
-  return createScale(rootNote, [...scalePattern]);
+  return createScale(rootNote as keyof typeof ROOT_NOTES, [...scalePattern]);
 }

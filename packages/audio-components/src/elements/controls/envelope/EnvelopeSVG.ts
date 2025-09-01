@@ -1069,7 +1069,6 @@ export const EnvelopeSVG = (
             Math.max(1, Math.min(ptsLen - 2, Math.round((ptsLen - 1) / 2)));
 
           instrument.setEnvelopeSustainPoint(envType, sustainIdx);
-          instrument.setEnvelopeSustainPoint(envType, 2);
           updateControlPoints();
           updateEnvelopePath();
         } else if (!msg.enabled && momentarySustainForLoop) {

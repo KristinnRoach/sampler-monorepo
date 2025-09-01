@@ -5,7 +5,7 @@ import {
   MessageHandler,
   createMessageBus,
 } from '@/events';
-import { SCALE_PATTERNS } from '@/utils/music-theory/constants';
+import { ROOT_NOTES, SCALE_PATTERNS } from '@/utils/music-theory/constants';
 import { Debouncer } from '@/utils/Debouncer';
 import { AudioParamController, ValueSnapper } from '@/nodes/params';
 import { assert } from '@/utils';
@@ -198,7 +198,7 @@ export class MacroParam {
   }
 
   setScale(options: {
-    rootNote: string;
+    rootNote: keyof typeof ROOT_NOTES;
     scale: keyof typeof SCALE_PATTERNS | number[];
     tuningOffset: number;
     highestOctave: number;
@@ -242,6 +242,18 @@ export class MacroParam {
 
   get snapper(): ValueSnapper {
     return this.#snapper;
+  }
+
+  get rootNote() {
+    return this.#snapper.rootNote;
+  }
+
+  setRootNote(rootNote: keyof typeof ROOT_NOTES) {
+    this.#snapper.setRootNote(rootNote);
+  }
+
+  get scalePattern() {
+    return this.#snapper.scalePattern;
   }
 
   get isReady() {

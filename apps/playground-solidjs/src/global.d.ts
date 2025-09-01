@@ -1,21 +1,22 @@
-import "solid-js";
+import 'solid-js';
 
-declare module "solid-js" {
+declare module 'solid-js' {
   namespace JSX {
     interface IntrinsicElements {
       // Sampler core
       'sampler-element': any;
-      
+
       // Envelope components
       'envelope-switcher': any;
       'envelope-display': any;
-      
+
       // Sample controls
       'record-button': any;
       'load-button': any;
       'input-select': any;
-      
+
       // Knob components
+      'knob-element': any;
       'volume-knob': any;
       'dry-wet-knob': any;
       'feedback-knob': any;
@@ -40,7 +41,7 @@ declare module "solid-js" {
       'trim-start-knob': any;
       'trim-end-knob': any;
       'distortion-knob': any;
-      
+
       // Toggle components
       'feedback-mode-toggle': any;
       'midi-toggle': any;
@@ -51,16 +52,17 @@ declare module "solid-js" {
       'playback-direction-toggle': any;
       'pan-drift-toggle': any;
       'pitch-toggle': any;
-      
+
       // Keyboard components
       'computer-keyboard': any;
       'piano-keyboard': any;
-      
+
       // Select components
       'keymap-select': any;
       'waveform-select': any;
       'input-source-select': any;
-      
+      'rootnote-select': any;
+
       // Status
       'sampler-status': any;
     }

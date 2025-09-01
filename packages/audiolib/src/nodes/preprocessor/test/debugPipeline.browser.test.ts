@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   preProcessAudioBuffer,
   DEFAULT_PRE_PROCESS_OPTIONS,
-} from './Preprocessor';
+} from '../Preprocessor';
 
 describe('Debug >1.0 peak issue', () => {
   let audioContext: AudioContext;
@@ -44,16 +44,16 @@ describe('Debug >1.0 peak issue', () => {
 
     // Test each step individually
     const { normalizeAudioBuffer } = await import(
-      '../../utils/audiodata/process/normalizeAudioBuffer'
+      '../../../utils/audiodata/process/normalizeAudioBuffer'
     );
     const { compressAudioBuffer } = await import(
-      '../../utils/audiodata/process/compressAudioBuffer'
+      '../../../utils/audiodata/process/compressAudioBuffer'
     );
     const { detectThresholdCrossing } = await import(
-      '../../utils/audiodata/process/detectSilence'
+      '../../../utils/audiodata/process/detectSilence'
     );
     const { trimAudioBuffer } = await import(
-      '../../utils/audiodata/process/trimBuffer'
+      '../../../utils/audiodata/process/trimBuffer'
     );
 
     // Step 1: Normalize
