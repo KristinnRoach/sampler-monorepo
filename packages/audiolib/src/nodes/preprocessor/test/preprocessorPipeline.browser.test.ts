@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   preProcessAudioBuffer,
   DEFAULT_PRE_PROCESS_OPTIONS,
-} from './Preprocessor';
+} from '../Preprocessor';
 
 describe('Preprocessor pipeline with quiet recordings', () => {
   let audioContext: AudioContext;
@@ -141,7 +141,7 @@ describe('Preprocessor pipeline with quiet recordings', () => {
 
     // Just compression
     const { compressAudioBuffer } = await import(
-      '../../utils/audiodata/process/compressAudioBuffer'
+      '../../../utils/audiodata/process/compressAudioBuffer'
     );
     const compressed = compressAudioBuffer(
       audioContext,
@@ -157,7 +157,7 @@ describe('Preprocessor pipeline with quiet recordings', () => {
 
     // Just normalization
     const { normalizeAudioBuffer } = await import(
-      '../../utils/audiodata/process/normalizeAudioBuffer'
+      '../../../utils/audiodata/process/normalizeAudioBuffer'
     );
     const normalized = normalizeAudioBuffer(audioContext, quietBuffer, 0.98);
     const normalizedStats = analyzeAmplitude(

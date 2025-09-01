@@ -18,7 +18,7 @@ const NAMES_W_OCT = Array.from({ length: FREQUENCIES.length }, (_, i) => {
 
 // Export everything with consistent naming
 export const NOTE_NAMES = Notes.NAMES;
-export const NOTE_ROOTS = Notes.ROOTS;
+export const ROOT_NOTES = Notes.ROOTS;
 export const NOTE_FREQUENCIES = FREQUENCIES;
 export const NOTE_PERIODS = PERIODS;
 export const NOTE_NAMES_WITH_OCTAVE = NAMES_W_OCT;

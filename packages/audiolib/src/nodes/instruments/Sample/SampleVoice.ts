@@ -192,7 +192,7 @@ export class SampleVoice {
 
       const filterEnv = createEnvelope(this.context, 'filter-env', {
         durationSeconds,
-        paramValueRange: [0, 1],
+        envPointValueRange: [0, 1],
         initEnable: false,
       });
 
@@ -503,14 +503,10 @@ export class SampleVoice {
       cancelPrevious?: boolean;
     } = {}
   ) {
-    if (
-      // !(this.state === 'PLAYING') ||
-      this.getParam('playbackRate')?.value === 1 ||
-      !this.#activeMidiNote ||
-      !this.#hpf ||
-      this.#keytrackHPFAmount <= 0
-    )
+    if (!this.#activeMidiNote || !this.#hpf || this.#keytrackHPFAmount <= 0) {
       return;
+    }
+
     const freq = this.#hpf.frequency;
     const { glideTime = 0, cancelPrevious = true } = options || {};
     if (cancelPrevious) {
@@ -537,12 +533,7 @@ export class SampleVoice {
       cancelPrevious?: boolean;
     } = {}
   ) {
-    if (
-      this.getParam('playbackRate')?.value === 1 ||
-      !this.#activeMidiNote ||
-      !this.#lpf ||
-      this.#keytrackLPFAmount <= 0
-    ) {
+    if (!this.#activeMidiNote || !this.#lpf || this.#keytrackLPFAmount <= 0) {
       return;
     }
 
@@ -554,8 +545,6 @@ export class SampleVoice {
 
     const keytrackedHz = this.#lpfHz * playbackRate * this.#keytrackLPFAmount;
     const safeHz = clamp(keytrackedHz, 20, this.context.sampleRate / 2 - 1000);
-
-    console.warn('keytrackedHz', safeHz);
 
     if (glideTime > 0) {
       freq.setTargetAtTime(safeHz, atTime, glideTime);
@@ -1114,7 +1103,7 @@ export class SampleVoice {
     const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.#hpfHz = safeHz;
     if (this.#hpf) {
-      this.#setParam('hpf', safeHz, this.now, { glideTime: 0 });
+      this.#setParam('hpf', safeHz, atTime, { glideTime: 0 });
       // this.#hpf.frequency.setValueAtTime(safeHz, this.now);
       const currentRate = this.getParam('playbackRate')?.value ?? 1;
       this.#updateHPFCutoffForPlaybackRate(currentRate, atTime, options);
@@ -1130,7 +1119,7 @@ export class SampleVoice {
     const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.#lpfHz = safeHz;
     if (this.#lpf) {
-      this.#setParam('lpf', safeHz, this.now, {
+      this.#setParam('lpf', safeHz, atTime, {
         glideTime: 0,
         cancelPrevious: true,
       });

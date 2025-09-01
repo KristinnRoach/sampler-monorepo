@@ -3,7 +3,7 @@ import {
   offsetPeriodsBySemitones,
 } from '@/utils/music-theory/utils/scale-utils';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
-import { findClosest, findClosestNote, Note } from '@/utils';
+import { findClosest, findClosestNote, Note, ROOT_NOTES } from '@/utils';
 
 const normalizeRange = (
   values: number | number[],
@@ -33,10 +33,13 @@ export class ValueSnapper {
   #allowedPeriods: number[] = [];
   #prevIndex = 0;
 
+  #currentRootNote: keyof typeof ROOT_NOTES = 'C';
+  #currentScalePattern: number[] = [];
+
   paramType: string | null = null;
 
   setScale(
-    rootNote: string,
+    rootNote: keyof typeof ROOT_NOTES,
     scalePattern: readonly number[] | number[],
     tuningOffset: number = 0, // in semitones
     lowestOctave: number = 0,
@@ -57,11 +60,18 @@ export class ValueSnapper {
       );
     }
 
+    this.#currentRootNote = rootNote;
+    this.#currentScalePattern = pattern;
+
     return this.setAllowedPeriods(
       periodsInSeconds,
       normalize,
       snapToZeroCrossings
     );
+  }
+
+  setRootNote(rootNote: keyof typeof ROOT_NOTES) {
+    this.setScale(rootNote, this.#currentScalePattern, 0, 0, 6, false, false);
   }
 
   setAllowedPeriods(
@@ -214,6 +224,14 @@ export class ValueSnapper {
 
     // console.log('Allowed Values: ', values);
     return this.#allowedValues;
+  }
+
+  get rootNote() {
+    return this.#currentRootNote;
+  }
+
+  get scalePattern() {
+    return this.#currentScalePattern;
   }
 
   get periods() {

@@ -123,6 +123,42 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   },
 };
 
+const ROOT_NOTES = [
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B',
+] as const;
+type RootNote = (typeof ROOT_NOTES)[number];
+
+const rootNoteSelectConfig: SelectConfig<RootNote> = {
+  label: 'Root',
+  title: 'Select Scale Root Note',
+  defaultValue: 'C',
+  options: ROOT_NOTES.map((note) => ({
+    value: note,
+    label: note,
+  })),
+  onTargetConnect: (
+    sampler: any,
+    state: State<RootNote>,
+    van: any,
+    targetNodeId: string
+  ) => {
+    van.derive(() => {
+      sampler.setRootNote(state.val);
+    });
+  },
+};
+
 const inputSourceSelectConfig: SelectConfig<'microphone' | 'browser'> = {
   title: 'Select Audio Input Source',
   defaultValue: 'microphone',
@@ -320,6 +356,13 @@ export const WaveformSelect = createSamplerSelect(
 
 export const InputSourceSelect = createSamplerSelect(
   inputSourceSelectConfig,
+  getSampler,
+  van,
+  COMPONENT_STYLE
+);
+
+export const RootNoteSelect = createSamplerSelect(
+  rootNoteSelectConfig,
   getSampler,
   van,
   COMPONENT_STYLE

@@ -55,6 +55,7 @@ import {
   KeymapSelect,
   WaveformSelect,
   InputSourceSelect,
+  RootNoteSelect,
 } from './components/SamplerSelectFactory';
 import { AMModulation } from './components/AMModulation';
 import { SamplerStatusElement } from './components/SamplerStatusElement';
@@ -336,6 +337,7 @@ export {
   KeymapSelect,
   WaveformSelect,
   InputSourceSelect,
+  RootNoteSelect,
 
   // Composite components
   AMModulation,
@@ -415,6 +417,7 @@ export const defineSampler = () => {
   defineIfNotExists('keymap-select', KeymapSelect, false);
   defineIfNotExists('waveform-select', WaveformSelect, false);
   defineIfNotExists('input-select', InputSourceSelect, false);
+  defineIfNotExists('rootnote-select', RootNoteSelect, false);
 
   // Composite controls
   defineIfNotExists('am-modulation', AMModulation, false);

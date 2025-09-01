@@ -1,5 +1,5 @@
 import { getAudioContext } from '@/context';
-import { findWaveCycles } from '@/utils/audiodata/zero-crossing';
+import { findWaveCycles } from '@/utils/audiodata/wavecycles/findWaveCycles';
 
 export function createPitchDivideEffect(
   audioBuffer: AudioBuffer,

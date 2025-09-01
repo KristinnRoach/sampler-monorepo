@@ -13,8 +13,6 @@ point value until released.
 
 Release index: envelope will continue from the release point to the end when released.
 
-**Important**: CustomEnvelope works directly with raw audio parameter values (frequencies, gains, etc.). All coordinate scaling between linear UI space and logarithmic frequency space is handled by UI components, not by the envelope itself.
-
 ## Quick Start
 
 ### 1. Basic Creation

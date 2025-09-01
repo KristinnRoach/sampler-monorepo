@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minimal Knob Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: #f0f0f0;
+        font-family: Arial, sans-serif;
+      }
+
+      .container {
+        text-align: center;
+      }
+
+      .knob-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 20px auto;
+        touch-action: none;
+        user-select: none;
+        cursor: grab;
+        border-radius: 50%;
+        background: green;
+      }
+
+      .knob-container:active {
+        cursor: grabbing;
+      }
+
+      .knob-border-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .value-display {
+        margin-top: 20px;
+        font-size: 18px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Minimal Knob Test</h2>
+      <div class="knob-container" id="knob">
+        <svg class="knob-border-svg" viewBox="0 0 100 100">
+          <path
+            id="knob-path"
+            fill="none"
+            stroke="white"
+            stroke-width="4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M50,50 L50,2"
+          />
+        </svg>
+      </div>
+      <div class="value-display">Value: <span id="value-display">0</span>%</div>
+    </div>
+
+    <script>
+      class MinimalKnob {
+        constructor(element) {
+          this.container = element;
+          this.pathElement = element.querySelector('#knob-path');
+          this.valueDisplay = document.getElementById('value-display');
+
+          this.minRotation = -150;
+          this.maxRotation = 150;
+          this.currentRotation = this.minRotation;
+          this.currentValue = 0;
+
+          this.isDragging = false;
+          this.startY = 0;
+          this.startRotation = 0;
+
+          this.init();
+          this.updateDisplay();
+        }
+
+        init() {
+          // Mouse events
+          this.container.addEventListener(
+            'mousedown',
+            this.handleStart.bind(this)
+          );
+          document.addEventListener('mousemove', this.handleMove.bind(this));
+          document.addEventListener('mouseup', this.handleEnd.bind(this));
+
+          // Touch events
+          this.container.addEventListener(
+            'touchstart',
+            this.handleStart.bind(this),
+            { passive: false }
+          );
+          document.addEventListener('touchmove', this.handleMove.bind(this), {
+            passive: false,
+          });
+          document.addEventListener('touchend', this.handleEnd.bind(this));
+        }
+
+        handleStart(e) {
+          this.isDragging = true;
+          this.startY = e.touches ? e.touches[0].clientY : e.clientY;
+          this.startRotation = this.currentRotation;
+          e.preventDefault();
+        }
+
+        handleMove(e) {
+          if (!this.isDragging) return;
+
+          const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+          const deltaY = this.startY - currentY; // Inverted for natural feel
+          const sensitivity = 2.0;
+
+          const newRotation = this.startRotation + deltaY * sensitivity;
+          this.currentRotation = Math.max(
+            this.minRotation,
+            Math.min(this.maxRotation, newRotation)
+          );
+
+          // Convert rotation to 0-100 value
+          this.currentValue = Math.round(
+            ((this.currentRotation - this.minRotation) /
+              (this.maxRotation - this.minRotation)) *
+              100
+          );
+
+          this.updateDisplay();
+          e.preventDefault();
+        }
+
+        handleEnd() {
+          this.isDragging = false;
+        }
+
+        updateDisplay() {
+          // Update the SVG path to show progress arc
+          const r = 48;
+          const cx = 50;
+          const cy = 50;
+
+          const startAngle = ((this.minRotation - 90) * Math.PI) / 180;
+          const currentAngle = ((this.currentRotation - 90) * Math.PI) / 180;
+
+          const startX = r * Math.cos(startAngle) + cx;
+          const startY = r * Math.sin(startAngle) + cy;
+          const endX = r * Math.cos(currentAngle) + cx;
+          const endY = r * Math.sin(currentAngle) + cy;
+
+          const totalAngle = this.currentRotation - this.minRotation;
+          const largeArc = Math.abs(totalAngle) > 180 ? 1 : 0;
+
+          const pathData = `M${cx},${cy} L${startX},${startY} A${r},${r},0,${largeArc},1,${endX},${endY} Z`;
+          this.pathElement.setAttribute('d', pathData);
+
+          // Update value display
+          this.valueDisplay.textContent = this.currentValue;
+        }
+      }
+
+      // Initialize when page loads
+      document.addEventListener('DOMContentLoaded', () => {
+        const knobElement = document.getElementById('knob');
+        const knob = new MinimalKnob(knobElement);
+      });
+    </script>
+  </body>
+</html>

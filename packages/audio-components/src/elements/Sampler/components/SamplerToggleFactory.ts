@@ -30,7 +30,7 @@ export const MidiToggle = (attributes: ElementProps) => {
     initialState: 'midi_on',
   });
 
-  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+  return div({ style: '' }, toggleButton);
 };
 
 export const PlaybackDirectionToggle = (attributes: ElementProps) => {
@@ -53,7 +53,7 @@ export const PlaybackDirectionToggle = (attributes: ElementProps) => {
     }
   );
 
-  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+  return div({ style: '' }, toggleButton);
 };
 
 export const LoopLockToggle = (attributes: ElementProps) => {
@@ -77,7 +77,7 @@ export const LoopLockToggle = (attributes: ElementProps) => {
     }
   );
 
-  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+  return div({ style: '' }, toggleButton);
 };
 
 export const HoldLockToggle = (attributes: ElementProps) => {
@@ -101,7 +101,7 @@ export const HoldLockToggle = (attributes: ElementProps) => {
     }
   );
 
-  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+  return div({ style: '' }, toggleButton);
 };
 
 export const PitchToggle = (attributes: ElementProps) => {
@@ -124,13 +124,14 @@ export const PitchToggle = (attributes: ElementProps) => {
     }
   );
 
-  return div({ style: '' }, toggleButton); // INLINE_COMPONENT_STYLE
+  return div({ style: '' }, toggleButton);
 };
 
 // ===== TOGGLE CONFIGURATIONS =====
 
 const feedbackModeConfig: ToggleConfig = {
   label: 'FB-Mode',
+  title: 'Feedback Mode',
   defaultValue: true, // false = monophonic, true = polyphonic
   onColor: '#4CAF50',
   offText: 'Mono',
@@ -144,7 +145,8 @@ const feedbackModeConfig: ToggleConfig = {
 };
 
 const gainLFOSyncConfig: ToggleConfig = {
-  label: 'Amp LFO',
+  label: 'Amp LFO Sync',
+  title: 'Toggle Amp LFO Sync',
   defaultValue: false,
   onColor: '#ff9800',
   offText: 'Free',
@@ -156,6 +158,7 @@ const gainLFOSyncConfig: ToggleConfig = {
 
 const pitchLFOSyncConfig: ToggleConfig = {
   label: 'Pitch LFO',
+  title: 'Toggle Pitch LFO Sync',
   defaultValue: false,
   onColor: '#ff9800',
   offText: 'Free',
@@ -167,6 +170,7 @@ const pitchLFOSyncConfig: ToggleConfig = {
 
 const panDriftConfig: ToggleConfig = {
   label: 'Pan drift',
+  title: 'Toggle Pan Drift enabled',
   defaultValue: true,
   onColor: '#ff9800',
   offText: '○',

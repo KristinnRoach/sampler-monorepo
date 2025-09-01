@@ -1,8 +1,5 @@
 // KnobElement.ts
-import { gsap } from 'gsap';
-import { Draggable } from 'gsap/Draggable';
-
-gsap.registerPlugin(Draggable);
+import { defineElement } from '../../elementRegistry';
 
 export interface KnobConfig {
   minValue: number;
@@ -31,11 +28,8 @@ declare global {
 }
 
 export class KnobElement extends HTMLElement {
-  private knobElement!: HTMLElement;
-  private indicatorElement!: HTMLElement;
   private pathElement!: SVGPathElement;
 
-  private gsapDraggable!: Draggable;
   private static stylesInjected = false;
 
   private config: KnobConfig = {
@@ -55,6 +49,20 @@ export class KnobElement extends HTMLElement {
   private rotationToValue!: (rotation: number) => number;
   private valueToRotation!: (value: number) => number;
   private applySnapping!: (value: number) => number;
+
+  private static mapRange(
+    inMin: number,
+    inMax: number,
+    outMin: number,
+    outMax: number,
+    value: number
+  ): number {
+    return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+  }
+
+  private static clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+  }
 
   // Observed attributes
   static get observedAttributes(): string[] {
@@ -88,26 +96,6 @@ export class KnobElement extends HTMLElement {
       this.createDraggable();
       this.setValue(this.config.defaultValue || this.config.minValue);
     }, 0);
-
-    // ! This does not work // TODO: make dblclick handler work
-    // Double-click to reset to default value (attach to knobElement after render)
-    //   setTimeout(() => {
-    //     const container = this.querySelector('.ac-knob');
-    //     if (container) {
-    //       container.addEventListener('dblclick', (e) => {
-    //         console.debug('dblclick on container', e.target);
-    //       });
-    //     }
-    //     if (this.knobElement) {
-    //       this.knobElement.addEventListener('dblclick', (e) => {
-    //         console.debug('dblclick on knob', e.target);
-    //       });
-    //     }
-    //     // Also try on the custom element itself
-    //     this.addEventListener('dblclick', (e) => {
-    //       console.debug('dblclick on custom element', e.target);
-    //     });
-    //   }, 0);
   }
 
   disconnectedCallback(): void {
@@ -133,7 +121,7 @@ export class KnobElement extends HTMLElement {
         let scaledValue: number;
 
         if (name === 'max-value') {
-          scaledValue = gsap.utils.mapRange(
+          scaledValue = KnobElement.mapRange(
             oldMin, // old min
             parseFloat(oldValue), // old max
             this.config.minValue, // new min
@@ -141,8 +129,7 @@ export class KnobElement extends HTMLElement {
             this.currentValue
           );
         } else {
-          // min-value
-          scaledValue = gsap.utils.mapRange(
+          scaledValue = KnobElement.mapRange(
             parseFloat(oldValue), // old min
             oldMax, // old max
             this.config.minValue, // new min
@@ -170,15 +157,10 @@ export class KnobElement extends HTMLElement {
         this.setValue(this.currentValue); // Refresh with new curve
         return;
       }
-
-      if (this.gsapDraggable) {
-        this.reinitialize();
-      }
     }
   }
 
   private injectGlobalStyles(): void {
-    // Only inject styles once globally
     if (KnobElement.stylesInjected) return;
 
     const styleElement = document.createElement('style');
@@ -187,53 +169,31 @@ export class KnobElement extends HTMLElement {
       knob-element {
         display: block;
         box-sizing: border-box;
-
         --knob-size: 120px;
-        --knob-bg: inherit;  /* or currentColor ? linear-gradient(145deg, #2d2d2d, #1a1a1a); */
-        --knob-border: rgb(234, 234, 234);
-        --knob-indicator-color: var(--knob-border); 
+        --knob-stroke: rgb(234, 234, 234);
 
-        width: var(--knob-size, 120px);  /* Default, but overridable */
+        width: var(--knob-size, 120px); 
         height: var(--knob-size, 120px);
+
+        touch-action: none; /* Prevents browser touch gestures */
+        user-select: none; /* Prevents text selection during drag */
+        border-radius: 50%;
+        cursor: grab;
       }
       
       knob-element[disabled] {
         opacity: 0.5;
         pointer-events: none; 
       }
+    
       
-      knob-element .ac-knob {
-        position: relative;
-        width: 100%; /* Fill parent */
-        height: 100%; 
-      }
-
-      knob-element .knob-border-svg {
-        position: absolute;
-        top: 0;
-        left: 0;
-        pointer-events: none;
+      knob-element:hover {
+        /* something? */
       }
       
-      knob-element .knob {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        position: relative;
-        cursor: grab;
-        transition: transform 0.1s ease;
-      }
-      
-      knob-element .knob:hover {
-        transform: scale(1.05);
-      }
-      
-      knob-element .knob:active {
+      knob-element:active {
         cursor: grabbing;
-        transform: scale(0.95);
       }
-      
     `;
 
     document.head.appendChild(styleElement);
@@ -337,42 +297,28 @@ export class KnobElement extends HTMLElement {
 
   private render(): void {
     this.innerHTML = `
-    <div class="ac-knob">
-      <!-- SVG border (doesn't rotate) -->
-      <svg class="knob-border-svg" width="100%" height="100%" viewBox="0 0 100 100">
-          <path class="knob-border" 
+      <svg class="ac-knob" width="100%" height="100%" viewBox="0 0 100 100">
+          <path class="knob-path" 
                 fill="none" 
-                stroke="var(--knob-border)" 
-                stroke-width="4" 
-                d="M50,50Z"/>
+                stroke="var(--knob-stroke)" 
+                stroke-width="5" 
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M50,50 L50,2"
+                />
       </svg>
-      
-      <!-- Rotating knob content -->
-      <div class="knob">
-        <div class="knob-indicator"></div>
-      </div>
-
-    </div>
   `;
-
-    this.knobElement = this.querySelector('.knob') as HTMLElement;
-    this.indicatorElement = this.querySelector(
-      '.knob-indicator'
-    ) as HTMLElement;
-
-    this.pathElement = this.querySelector('.knob-border') as SVGPathElement;
-  }
-
-  private reinitialize(): void {
-    this.cleanup();
-    this.createUtilityFunctions();
-    this.createDraggable();
-    this.setValue(this.config.defaultValue || this.config.minValue);
+    this.pathElement = this.querySelector('.knob-path') as SVGPathElement;
   }
 
   private cleanup(): void {
-    if (this.gsapDraggable) {
-      this.gsapDraggable.kill();
+    if (this.dragHandlers) {
+      this.removeEventListener('mousedown', this.dragHandlers.start);
+      this.removeEventListener('touchstart', this.dragHandlers.start);
+      document.removeEventListener('mousemove', this.dragHandlers.move);
+      document.removeEventListener('mouseup', this.dragHandlers.end);
+      document.removeEventListener('touchmove', this.dragHandlers.move);
+      document.removeEventListener('touchend', this.dragHandlers.end);
     }
   }
 
@@ -381,46 +327,46 @@ export class KnobElement extends HTMLElement {
     const curve = this.config.curve || 1; // 1 = linear, 2 = quadratic, etc.
 
     this.rotationToValue = (rotation: number) => {
-      // Map rotation to 0-1 range
-      const normalizedRotation = gsap.utils.mapRange(
+      const normalizedRotation = KnobElement.mapRange(
         this.config.minRotation,
         this.config.maxRotation,
         0,
-        1
-      )(rotation);
+        1,
+        rotation
+      );
 
       // Apply exponential curve
       const curvedValue = Math.pow(normalizedRotation, curve);
 
-      // Map back to actual value range
-      const value = gsap.utils.mapRange(
+      const value = KnobElement.mapRange(
         0,
         1,
         this.config.minValue,
-        this.config.maxValue
-      )(curvedValue);
+        this.config.maxValue,
+        curvedValue
+      );
 
       return value;
     };
 
     this.valueToRotation = (value: number) => {
-      // Reverse the process
-      const normalizedValue = gsap.utils.mapRange(
+      const normalizedValue = KnobElement.mapRange(
         this.config.minValue,
         this.config.maxValue,
         0,
-        1
-      )(value);
+        1,
+        value
+      );
 
-      // Apply inverse curve
       const curvedRotation = Math.pow(normalizedValue, 1 / curve);
 
-      return gsap.utils.mapRange(
+      return KnobElement.mapRange(
         0,
         1,
         this.config.minRotation,
-        this.config.maxRotation
-      )(curvedRotation);
+        this.config.maxRotation,
+        curvedRotation
+      );
     };
 
     this.applySnapping = (value: number): number => {
@@ -451,6 +397,15 @@ export class KnobElement extends HTMLElement {
     };
   }
 
+  private dragHandlers?: {
+    start: (e: MouseEvent | TouchEvent) => void;
+    move: (e: MouseEvent | TouchEvent) => void;
+    end: () => void;
+  };
+
+  private lastClickTime = 0;
+  private readonly DOUBLE_CLICK_THRESHOLD = 300;
+
   private createDraggable(): void {
     if (this.config.disabled) return;
 
@@ -458,129 +413,110 @@ export class KnobElement extends HTMLElement {
       'pointerLockElement' in document &&
       'requestPointerLock' in HTMLElement.prototype;
 
-    if (!pointerLockSupported)
-      console.info(`KnobElement: Pointer lock not supported`);
-
+    let isDragging = false;
+    let startY = 0;
     let startRotation = 0;
     let totalDeltaY = 0;
-    let mouseMoveHandler: (e: MouseEvent) => void;
-    let isTouchDevice = false;
-    let startY = 0;
+    let isUsingPointerLock = false;
 
-    this.gsapDraggable = Draggable.create(this.knobElement, {
-      type: 'y',
-      inertia: false,
-      overshootTolerance: 0,
-      bounds: {
-        minRotation: this.config.minRotation,
-        maxRotation: this.config.maxRotation,
-      },
-      onPress: (e: PointerEvent | TouchEvent | MouseEvent) => {
-        startRotation = this.currentRotation;
-        totalDeltaY = 0;
+    const handleStart = (e: MouseEvent | TouchEvent) => {
+      const now = Date.now();
+      const timeDiff = now - this.lastClickTime;
 
-        // Detect if this is a touch event
-        isTouchDevice = 'touches' in e;
+      // Check for double-click BEFORE starting drag or pointer lock
+      if (timeDiff < this.DOUBLE_CLICK_THRESHOLD && timeDiff > 0) {
+        this.resetToDefault();
+        return; // Exit early, don't start dragging
+      }
 
-        // Store the starting Y position for touch devices
-        if (isTouchDevice && 'touches' in e) {
-          const touch = e.touches[0];
-          if (touch) {
-            startY = touch.clientY;
-          }
-        }
+      this.lastClickTime = now;
 
-        // Only use pointer lock for non-touch devices
-        if (pointerLockSupported && !isTouchDevice) {
-          this.knobElement.requestPointerLock();
+      isDragging = true;
+      startRotation = this.currentRotation;
+      totalDeltaY = 0;
 
-          mouseMoveHandler = (e: MouseEvent) => {
-            if (document.pointerLockElement === this.knobElement) {
-              totalDeltaY += e.movementY;
+      const isTouchEvent = 'touches' in e;
 
-              const sensitivity = 4.0;
-              const newRotation = startRotation - totalDeltaY * sensitivity;
+      if (isTouchEvent) {
+        startY = e.touches[0].clientY;
+        isUsingPointerLock = false;
+      } else if (pointerLockSupported) {
+        // Try to use pointer lock for mouse
+        this.requestPointerLock();
+        isUsingPointerLock = true;
+      } else {
+        startY = (e as MouseEvent).clientY;
+        isUsingPointerLock = false;
+      }
 
-              const clampedRotation = gsap.utils.clamp(
-                this.config.minRotation,
-                this.config.maxRotation,
-                newRotation
-              );
+      e.preventDefault();
+    };
 
-              const rawValue = this.rotationToValue(clampedRotation);
-              const snappedValue = this.applySnapping(rawValue);
-              this.currentValue = snappedValue;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
 
-              if (snappedValue !== rawValue) {
-                this.currentRotation = this.valueToRotation(snappedValue);
-              } else {
-                this.currentRotation = clampedRotation;
-              }
+      let deltaY: number;
+      const sensitivity = 2.0;
 
-              gsap.set(this.knobElement, {
-                y: 0,
-                rotation: this.currentRotation,
-                duration: 0,
-              });
+      if (isUsingPointerLock && document.pointerLockElement) {
+        // Use movementY for pointer lock (more precise)
+        totalDeltaY += (e as MouseEvent).movementY;
+        deltaY = -totalDeltaY * sensitivity;
+      } else {
+        // Use clientY for touch and fallback mouse
+        const currentY =
+          'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+        deltaY = (startY - currentY) * sensitivity;
+      }
 
-              this.updateBorder();
-              this.dispatchChangeEvent();
-            }
-          };
-          document.addEventListener('mousemove', mouseMoveHandler);
-        }
-      },
+      const newRotation = startRotation + deltaY;
+      const clampedRotation = KnobElement.clamp(
+        newRotation,
+        this.config.minRotation,
+        this.config.maxRotation
+      );
 
-      onDrag: () => {
-        // Handle drag for both touch and non-pointer-lock mouse
-        if (!pointerLockSupported || isTouchDevice) {
-          const sensitivity = 4.0;
+      const rawValue = this.rotationToValue(clampedRotation);
+      const snappedValue = this.applySnapping(rawValue);
 
-          // For touch devices, GSAP's y represents the delta from start
-          // For mouse without pointer lock, it's the same
-          const deltaY = this.gsapDraggable.y;
-          const newRotation = startRotation - deltaY * sensitivity;
+      this.currentValue = snappedValue;
 
-          const clampedRotation = gsap.utils.clamp(
-            this.config.minRotation,
-            this.config.maxRotation,
-            newRotation
-          );
+      if (snappedValue !== rawValue) {
+        this.currentRotation = this.valueToRotation(snappedValue);
+      } else {
+        this.currentRotation = clampedRotation;
+      }
 
-          const rawValue = this.rotationToValue(clampedRotation);
-          const snappedValue = this.applySnapping(rawValue);
+      this.updateBorder();
+      this.dispatchChangeEvent();
+      e.preventDefault();
+    };
 
-          this.currentValue = snappedValue;
+    const handleEnd = () => {
+      isDragging = false;
 
-          if (snappedValue !== rawValue) {
-            this.currentRotation = this.valueToRotation(snappedValue);
-          } else {
-            this.currentRotation = clampedRotation;
-          }
+      if (isUsingPointerLock && document.pointerLockElement) {
+        document.exitPointerLock();
+      }
 
-          gsap.set(this.knobElement, {
-            rotation: this.currentRotation,
-            y: 0,
-          });
+      isUsingPointerLock = false;
+    };
 
-          this.updateBorder();
-          this.dispatchChangeEvent();
-        }
-      },
+    // Store references for cleanup
+    this.dragHandlers = {
+      start: handleStart,
+      move: handleMove,
+      end: handleEnd,
+    };
 
-      onRelease: () => {
-        // Clean up pointer lock for non-touch devices
-        if (pointerLockSupported && !isTouchDevice) {
-          document.exitPointerLock();
-          if (mouseMoveHandler) {
-            document.removeEventListener('mousemove', mouseMoveHandler);
-          }
-        }
+    // Event listeners
+    this.addEventListener('mousedown', handleStart);
+    this.addEventListener('touchstart', handleStart, { passive: false });
 
-        // Reset touch device flag
-        isTouchDevice = false;
-      },
-    })[0];
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
   }
 
   private updateBorder(): void {
@@ -612,12 +548,13 @@ export class KnobElement extends HTMLElement {
   }
 
   private dispatchChangeEvent(): void {
-    const percentage = gsap.utils.mapRange(
+    const percentage = KnobElement.mapRange(
       this.config.minValue,
       this.config.maxValue,
       0,
-      100
-    )(this.currentValue);
+      100,
+      this.currentValue
+    );
 
     const event = new CustomEvent<KnobChangeEventDetail>('knob-change', {
       detail: {
@@ -632,38 +569,26 @@ export class KnobElement extends HTMLElement {
   }
 
   // Public API
-  public setValue(
-    value: number,
-    animate: boolean = false,
-    animationOptions?: { duration: number; ease: string }
-  ): void {
-    // Guard against calls before initialization
-    if (!this.valueToRotation || !this.knobElement || !this.pathElement) return;
+  public setValue(value: number, animate: boolean = false): void {
+    if (!this.valueToRotation || !this.pathElement) return;
 
-    this.currentValue = gsap.utils.clamp(
+    if (animate) {
+      console.debug('KnobElement: Animation not implemented yet.');
+    }
+
+    this.currentValue = KnobElement.clamp(
+      value,
       this.config.minValue,
-      this.config.maxValue,
-      value
+      this.config.maxValue
     );
 
     this.currentRotation = this.valueToRotation(this.currentValue);
 
-    if (animate) {
-      gsap.to(this.knobElement, {
-        rotation: this.currentRotation,
-        duration: animationOptions?.duration ?? 0.3,
-        ease: animationOptions?.ease || 'power2.out',
-      });
-    } else {
-      gsap.set(this.knobElement, { rotation: this.currentRotation });
-    }
-
     this.updateBorder();
-
     this.dispatchChangeEvent();
   }
 
-  public resetToDefault(animate: boolean = true): void {
+  public resetToDefault(animate: boolean = false): void {
     this.setValue(this.config.defaultValue, animate);
   }
 
@@ -695,12 +620,13 @@ export class KnobElement extends HTMLElement {
   }
 
   public getPercentage(): number {
-    return gsap.utils.mapRange(
+    return KnobElement.mapRange(
       this.config.minValue,
       this.config.maxValue,
       0,
-      100
-    )(this.currentValue);
+      100,
+      this.currentValue
+    );
   }
 
   // Property getters/setters for easier JS usage
@@ -709,7 +635,7 @@ export class KnobElement extends HTMLElement {
   }
 
   set value(val: number) {
-    this.setValue(val, false);
+    this.setValue(val);
   }
 
   get disabled(): boolean {
@@ -723,5 +649,4 @@ export class KnobElement extends HTMLElement {
 
 export default KnobElement;
 
-// Note: Defining elements has been delegated to src/elements/elementRegistry.ts
-// customElements.define('knob-element', KnobElement);
+defineElement('knob-element', KnobElement);

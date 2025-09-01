@@ -1,6 +1,6 @@
 import {
   NOTE_NAMES,
-  NOTE_ROOTS,
+  ROOT_NOTES,
   NOTE_FREQUENCIES,
   NOTE_PERIODS,
   NOTE_NAMES_WITH_OCTAVE,
@@ -61,7 +61,7 @@ export function getMidiNote(noteName: string): number {
 
   const [_, note, octaveStr] = match;
   const octave = parseInt(octaveStr, 10);
-  const noteIndex = NOTE_ROOTS[note as keyof typeof NOTE_ROOTS];
+  const noteIndex = ROOT_NOTES[note as keyof typeof ROOT_NOTES];
 
   return (octave + 1) * 12 + noteIndex;
 }

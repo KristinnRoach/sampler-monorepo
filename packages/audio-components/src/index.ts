@@ -73,6 +73,7 @@ export {
   KeymapSelect,
   WaveformSelect,
   InputSourceSelect,
+  RootNoteSelect,
 } from './elements/Sampler/components/SamplerSelectFactory';
 
 // Envelopes

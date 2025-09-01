@@ -4,7 +4,7 @@ import { EnvelopePoint } from './env-types';
 
 // ===== ENVELOPE DATA - Pure data operations =====
 export class EnvelopeData {
-  #valueRange: [number, number];
+  #pointValueRange: [number, number];
   #durationSeconds: number = 0;
   #hasSharpTransitions = false;
 
@@ -26,7 +26,7 @@ export class EnvelopeData {
     );
 
     this.#durationSeconds = durationSeconds;
-    this.#valueRange = valueRange;
+    this.#pointValueRange = valueRange;
 
     this.#startIdx = 0;
     this.#endIdx = points.length - 1;
@@ -151,7 +151,7 @@ export class EnvelopeData {
   }
 
   interpolateValueAtTime(timeSeconds: number): number {
-    if (this.points.length === 0) return this.#valueRange[0];
+    if (this.points.length === 0) return this.#pointValueRange[0];
     if (this.points.length === 1) return this.points[0].value;
 
     const sorted = [...this.points].sort((a, b) => a.time - b.time);
@@ -242,11 +242,11 @@ export class EnvelopeData {
     return this.#endIdx;
   }
 
-  get valueRange() {
-    return this.#valueRange;
+  get pointValueRange() {
+    return this.#pointValueRange;
   }
 
-  setValueRange = (range: [number, number]) => (this.#valueRange = range);
+  setValueRange = (range: [number, number]) => (this.#pointValueRange = range);
 
   get startTime() {
     return this.points[this.#startIdx]?.time ?? 0;

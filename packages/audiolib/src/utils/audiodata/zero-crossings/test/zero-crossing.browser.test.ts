@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  findZeroCrossings,
+  findZeroCrossingSeconds,
   snapToNearestZeroCrossing,
-  findWaveCycles,
 } from '../zero-crossing';
+
+import { findWaveCycles } from '../../wavecycles/findWaveCycles';
 
 class MockAudioBuffer {
   constructor(
@@ -16,9 +17,9 @@ class MockAudioBuffer {
 }
 
 describe('zero-crossing utils', () => {
-  it('findZeroCrossings detects zero crossings', () => {
+  it('findZeroCrossingSeconds detects zero crossings', () => {
     const buffer = new MockAudioBuffer([1, -1, 1, -1]);
-    const crossings = findZeroCrossings(buffer as any);
+    const crossings = findZeroCrossingSeconds(buffer as any);
     expect(crossings.length).toBeGreaterThan(0);
   });
 
