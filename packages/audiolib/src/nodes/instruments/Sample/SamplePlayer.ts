@@ -91,6 +91,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
+  #transposedBySemitones = 0;
+
   #syncGainLFOToMidiNote = false;
   #syncPitchLFOToMidiNote = false;
 
@@ -512,7 +514,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     }
 
     this.releaseAll(0);
-    this.voicePool.transposeSemitones = 0;
+    this.transposeSemitones = 0;
     this.#isLoaded = false;
     this.#audiobuffer = null;
 
@@ -597,15 +599,21 @@ export class SamplePlayer implements ILibInstrumentNode {
     glideTime = this.getGlideTime()
   ): MidiValue | null {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
+    const transposedMidiNote = midiNote + this.#transposedBySemitones;
+    if (!isMidiValue(transposedMidiNote)) {
+      console.warn(`Invalid midiNote: ${transposedMidiNote}`);
+      return null;
+    }
 
-    this.#syncGainLFOToMidiNote && this.#gainLFO?.setMusicalNote(midiNote);
+    this.#syncGainLFOToMidiNote &&
+      this.#gainLFO?.setMusicalNote(transposedMidiNote);
     this.#syncPitchLFOToMidiNote &&
-      this.#pitchLFO?.setMusicalNote(midiNote, { divisor: 4 });
+      this.#pitchLFO?.setMusicalNote(transposedMidiNote, { divisor: 4 });
 
-    this.outBus.noteOn(midiNote, safeVelocity, 0, glideTime);
+    this.outBus.noteOn(transposedMidiNote, safeVelocity, 0, glideTime);
 
     return this.voicePool.noteOn(
-      midiNote,
+      transposedMidiNote,
       safeVelocity,
       0, // zero delay
       glideTime
@@ -615,8 +623,9 @@ export class SamplePlayer implements ILibInstrumentNode {
   release(midiNote: MidiValue): this {
     if (this.holdEnabled || this.#holdLocked) return this;
 
-    this.voicePool.noteOff(midiNote);
-    this.sendUpstreamMessage('note:off', { midiNote });
+    const transposedMidiNote = midiNote + this.#transposedBySemitones;
+    this.voicePool.noteOff(transposedMidiNote);
+    this.sendUpstreamMessage('note:off', { transposedMidiNote });
     return this;
   }
 
@@ -629,6 +638,15 @@ export class SamplePlayer implements ILibInstrumentNode {
   panic = (releaseTime?: number) => this.releaseAll(releaseTime);
 
   /* === SCALE SETTINGS === */
+
+  get transposedBySemitones() {
+    return this.#transposedBySemitones;
+  }
+
+  set transposeSemitones(semitones: number) {
+    if (this.#transposedBySemitones === semitones) return;
+    this.#transposedBySemitones = semitones;
+  }
 
   setScale(options: {
     rootNote: keyof typeof ROOT_NOTES;
@@ -652,16 +670,11 @@ export class SamplePlayer implements ILibInstrumentNode {
   setRootNote(note: keyof typeof ROOT_NOTES) {
     const rootNoteNumber = ROOT_NOTES[note];
 
-    let semitones = 0;
-    if (rootNoteNumber < 6) {
-      semitones = rootNoteNumber; // C to F
-    } else {
-      semitones = rootNoteNumber - 12; // F# to B (negative transposition)
-    }
+    let semitones = rootNoteNumber === 0 ? 0 : rootNoteNumber - 12;
 
-    if (this.voicePool.transposedBySemitones === semitones) return this;
+    if (this.transposedBySemitones === semitones) return this;
 
-    this.voicePool.transposeSemitones = semitones;
+    this.transposeSemitones = semitones;
 
     this.#macroLoopEnd.setRootNote(note);
     this.#macroLoopStart.setRootNote(note);

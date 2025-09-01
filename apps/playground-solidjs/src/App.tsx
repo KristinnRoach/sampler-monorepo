@@ -225,15 +225,14 @@ const App: Component = () => {
             />
             <div class='keyboard-controls'>
               <div class='flex-row'>
+                <rootnote-select
+                  show-label='false'
+                  target-node-id='test-sampler'
+                />
                 <keymap-select
                   show-label='false'
                   target-node-id='test-sampler'
                 />
-                {/* TODO: make root note apply to All tonal stuff (fb + AM + LFO) */}
-                {/* <rootnote-select
-                  show-label='false'
-                  target-node-id='test-sampler'
-                /> */}
               </div>
 
               <glide-knob target-node-id='test-sampler' />

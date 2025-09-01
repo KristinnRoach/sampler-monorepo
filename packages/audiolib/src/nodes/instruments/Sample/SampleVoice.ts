@@ -252,10 +252,6 @@ export class SampleVoice {
     return this;
   }
 
-  set transposeSemitones(semitones: number) {
-    this.sendToProcessor({ type: 'transpose', semitones });
-  }
-
   setGlideTime(seconds: number) {
     this.#pitchGlideTime = seconds;
   }
@@ -894,10 +890,6 @@ export class SampleVoice {
             this.setEndPoint(data.durationSeconds);
           }
           this.#state = VoiceState.LOADED;
-
-          break;
-
-        case 'voice:transposed':
           break;
 
         case 'voice:started':
