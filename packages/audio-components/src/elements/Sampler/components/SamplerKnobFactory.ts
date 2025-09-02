@@ -110,9 +110,9 @@ const feedbackDecayConfig: KnobConfig = {
   label: 'FB-Decay',
   useLocalStorage: true,
   defaultValue: 0.75,
-  minValue: 0.001,
+  minValue: 0.01,
   maxValue: 1,
-  curve: 2,
+  curve: 1.5,
   onConnect: (sampler, state) => {
     van.derive(() => sampler.setFeedbackDecay(state.val));
   },

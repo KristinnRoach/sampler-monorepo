@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Video Keyboard Player</title>
+  </head>
+  <body
+    style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+    "
+  >
+    <div>
+      <video id="video" width="640" height="480" controls muted></video>
+      <div style="display: flex; gap: 10px; justify-content: center">
+        <button style="width: 80%" id="record">Record</button>
+        <button style="width: 80%" id="stop">Stop</button>
+      </div>
+    </div>
+    <script>
+      const video = document.getElementById('video');
+      const recordBtn = document.getElementById('record');
+      const stopBtn = document.getElementById('stop');
+
+      const keymap = {
+        KeyZ: 48,
+        KeyS: 49,
+        KeyX: 50,
+        KeyD: 51,
+        KeyC: 52,
+        KeyV: 53,
+        KeyG: 54,
+        KeyB: 55,
+        KeyH: 56,
+        KeyN: 57,
+        KeyJ: 58,
+        KeyM: 59,
+        Comma: 60,
+        KeyL: 61,
+        Period: 62,
+        Semicolon: 63,
+        Slash: 64,
+        KeyQ: 60,
+        Digit2: 61,
+        KeyW: 62,
+        Digit3: 63,
+        KeyE: 64,
+        KeyR: 65,
+        Digit5: 66,
+        KeyT: 67,
+        Digit6: 68,
+        KeyY: 69,
+        Digit7: 70,
+        KeyU: 71,
+        KeyI: 72,
+        Digit9: 73,
+        KeyO: 74,
+        Digit0: 75,
+        KeyP: 76,
+        BracketLeft: 77,
+        Equal: 78,
+        BracketRight: 79,
+        Numpad1: 60,
+        Numpad2: 62,
+        Numpad3: 64,
+        Numpad4: 65,
+        Numpad5: 67,
+        Numpad6: 69,
+        Numpad7: 71,
+        Numpad8: 72,
+        Numpad9: 74,
+      };
+
+      let mediaRecorder;
+      let recordedChunks = [];
+      let audioContext;
+      let audioBuffer;
+
+      const activeSources = new Map();
+
+      recordBtn.onclick = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+
+        // Pre-warm the video element
+        video.srcObject = stream;
+        await video.play();
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Let camera stabilize
+
+        mediaRecorder = new MediaRecorder(stream);
+        recordedChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          video.srcObject = null;
+
+          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          video.src = URL.createObjectURL(blob);
+          stream.getTracks().forEach((track) => track.stop());
+
+          if (!audioContext) audioContext = new AudioContext();
+          await audioContext.resume();
+          const arrayBuffer = await blob.arrayBuffer();
+          audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+          // Preload video
+          video.load();
+          await video.play();
+          video.pause();
+          video.currentTime = 0;
+        };
+
+        mediaRecorder.start();
+      };
+
+      stopBtn.onclick = () => mediaRecorder?.stop();
+
+      document.onkeydown = async (e) => {
+        if (e.repeat) return;
+
+        if (keymap[e.code] && audioBuffer) {
+          if (audioContext.state === 'suspended') await audioContext.resume();
+
+          const midiNote = keymap[e.code];
+          const rate = Math.pow(2, (midiNote - 69) / 12);
+
+          video.currentTime = 0;
+          video.playbackRate = rate;
+          if (video.paused) video.play();
+
+          const src = audioContext.createBufferSource();
+          src.buffer = audioBuffer;
+          src.playbackRate.value = rate;
+          src.connect(audioContext.destination);
+          src.start();
+          activeSources.set(e.code, src);
+        }
+      };
+
+      document.onkeyup = async (e) => {
+        if (e.repeat) return;
+
+        if (keymap[e.code] && audioBuffer) {
+          if (activeSources.has(e.code)) activeSources.get(e.code).stop();
+          if (activeSources.size === 0) {
+            video.pause();
+            video.currentTime = 0;
+          }
+        }
+      };
+    </script>
+  </body>
+</html>
