@@ -117,6 +117,8 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Initialize all playback state
     this.#resetState();
+    // Signal to node that processor is initialized
+    this.port.postMessage({ type: 'initialized' });
   }
 
   // ===== MESSAGE HANDLING =====
@@ -135,10 +137,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     } = event.data;
 
     switch (type) {
-      case 'voice:init':
+      case 'voice:reset':
         this.#resetState();
-
-        this.port.postMessage({ type: 'initialized' });
+        this.port.postMessage({ type: 'voice:reset' });
         break;
 
       case 'voice:setBuffer':

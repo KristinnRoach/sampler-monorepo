@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Polyphonic Granular Pitch Shift Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .controls {
+        margin: 20px 0;
+      }
+      .controls h4 {
+        margin: 10px 0 5px 0;
+        color: #333;
+      }
+      .controls label {
+        display: block;
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      .controls input[type='range'] {
+        width: 200px;
+        margin: 0 10px;
+      }
+      .controls input[type='checkbox'] {
+        margin-right: 8px;
+      }
+      input[type='file'] {
+        margin: 10px 0;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .keyboard-help {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        font-size: 14px;
+      }
+      .status {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+        background: #e9ecef;
+      }
+      .keyboard-layout {
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre;
+        background: #fff;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Polyphonic Granular Pitch Shift Test</h1>
+
+      <div class="controls">
+        <input type="file" id="audioFile" accept="audio/*" />
+        <br />
+        <button id="startBtn" disabled>Start Audio Context</button>
+        <button id="stopBtn" disabled>Stop</button>
+
+        <div style="margin-top: 15px">
+          <h4>Quality Settings:</h4>
+          <label>
+            <input type="checkbox" id="randomizePhase" checked />
+            Phase Randomization </label
+          ><br />
+          <label>
+            <input type="checkbox" id="crossfadeGrains" checked />
+            Crossfade Grains </label
+          ><br />
+          <label>
+            Base Grain Size:
+            <input
+              type="range"
+              id="grainSize"
+              min="256"
+              max="16384"
+              value="2048"
+              step="256"
+            />
+            <span id="grainSizeValue">2048</span> </label
+          ><br />
+          <label>
+            Overlap:
+            <input
+              type="range"
+              id="overlap"
+              min="1"
+              max="16"
+              value="8"
+              step="1"
+            />
+            <span id="overlapValue">8</span> </label
+          ><br />
+          <label>
+            Window Shape:
+            <input
+              type="range"
+              id="windowTaper"
+              min="0.1"
+              max="0.5"
+              value="0.25"
+              step="0.05"
+            />
+            <span id="windowTaperValue">0.25</span>
+          </label>
+
+          <div style="margin-top: 10px">
+            <label style="font-weight: bold">Active Voices (8 max):</label>
+            <div
+              id="voiceIndicator"
+              style="font-family: monospace; font-size: 12px; margin-top: 5px"
+            >
+              --------
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="status">Upload an audio file to begin</div>
+
+      <div class="keyboard-help">
+        <h3>Keyboard Controls:</h3>
+        <p>
+          Press and hold keys to trigger notes polyphonically (up to 8
+          simultaneous notes). Root note (C4) is mapped to Comma key.
+        </p>
+        <div class="keyboard-layout">
+          Lower Row (C3-C4): Z S X D C V G B H N J M , L . ; / C3 C#3D3 D#3E3 F3
+          F#3G3 G#3A3 A#3B3 C4 C#4D4 D#4E4 Upper Row (C4-G5): Q 2 W 3 E R 5 T 6
+          Y 7 U I 9 O 0 P [ = ] C4 C#4D4 D#4E4 F4 F#4G4 G#4A4 A#4B4 C5 C#5D5
+          D#5E5 F5 F#5G5
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Keyboard to MIDI note mapping
+      const keyMap = {
+        KeyZ: 48,
+        KeyS: 49,
+        KeyX: 50,
+        KeyD: 51,
+        KeyC: 52,
+        KeyV: 53,
+        KeyG: 54,
+        KeyB: 55,
+        KeyH: 56,
+        KeyN: 57,
+        KeyJ: 58,
+        KeyM: 59,
+        Comma: 60,
+        KeyL: 61,
+        Period: 62,
+        Semicolon: 63,
+        Slash: 64,
+        KeyQ: 60,
+        Digit2: 61,
+        KeyW: 62,
+        Digit3: 63,
+        KeyE: 64,
+        KeyR: 65,
+        Digit5: 66,
+        KeyT: 67,
+        Digit6: 68,
+        KeyY: 69,
+        Digit7: 70,
+        KeyU: 71,
+        KeyI: 72,
+        Digit9: 73,
+        KeyO: 74,
+        Digit0: 75,
+        KeyP: 76,
+        BracketLeft: 77,
+        Equal: 78,
+        BracketRight: 79,
+      };
+
+      // Wave cycle detection functions
+      const DEFAULT_THRESHOLD = 0.0001;
+
+      function findWaveCycles(audioBuffer, threshold = DEFAULT_THRESHOLD) {
+        const channel = audioBuffer.getChannelData(0);
+        const sr = audioBuffer.sampleRate;
+
+        // Build zero crossings with direction (+ going up through zero, - going down)
+        const zc = [];
+        for (let i = 1; i < channel.length; i++) {
+          const a = channel[i - 1];
+          const b = channel[i];
+          if (Math.abs(b) < threshold) {
+            zc.push({ t: i / sr, dir: Math.sign(b) || 1 });
+          } else if (Math.sign(a) !== Math.sign(b)) {
+            const t = -a / (b - a);
+            const time = (i - 1 + t) / sr;
+            const dir = b > a ? 1 : -1;
+            zc.push({ t: time, dir });
+          }
+        }
+
+        const cycles = [];
+
+        // Pair zero-crossings of the same direction (one full waveform period)
+        for (let i = 0; i < zc.length - 2; i++) {
+          const a = zc[i];
+          const c = zc[i + 2];
+          if (a.dir === c.dir) {
+            const startTime = a.t;
+            const endTime = c.t;
+            cycles.push({
+              startTime,
+              endTime,
+              startSample: Math.floor(startTime * sr),
+              endSample: Math.floor(endTime * sr),
+            });
+          }
+        }
+
+        // Fallback: if too few directional pairs, use previous simple pairing
+        if (cycles.length === 0 && zc.length > 1) {
+          for (let i = 0; i < zc.length - 1; i += 2) {
+            const startTime = zc[i].t;
+            const endTime = zc[i + 1].t;
+            cycles.push({
+              startTime,
+              endTime,
+              startSample: Math.floor(startTime * sr),
+              endSample: Math.floor(endTime * sr),
+            });
+          }
+        }
+
+        return cycles;
+      }
+
+      function duplicateWaveCycles(audioBuffer, numCycles) {
+        // Find all wave cycles in the original buffer
+        const cycles = findWaveCycles(audioBuffer);
+
+        if (cycles.length === 0) {
+          // No cycles found, return original buffer
+          return audioBuffer;
+        }
+
+        // Calculate total length needed for duplicated cycles
+        let totalSamples = 0;
+        for (const cycle of cycles) {
+          const cycleLength = cycle.endSample - cycle.startSample;
+          totalSamples += cycleLength * numCycles;
+        }
+
+        // Create new AudioBuffer with calculated length
+        const newBuffer = new AudioBuffer({
+          numberOfChannels: audioBuffer.numberOfChannels,
+          length: totalSamples,
+          sampleRate: audioBuffer.sampleRate,
+        });
+
+        // Process each channel
+        for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+          const sourceData = audioBuffer.getChannelData(ch);
+          const targetData = newBuffer.getChannelData(ch);
+
+          let writeIndex = 0;
+
+          // For each detected cycle
+          for (const cycle of cycles) {
+            const cycleLength = cycle.endSample - cycle.startSample;
+
+            // Duplicate this cycle numCycles times
+            for (let duplication = 0; duplication < numCycles; duplication++) {
+              // Copy the cycle data
+              for (let i = 0; i < cycleLength; i++) {
+                if (
+                  writeIndex < targetData.length &&
+                  cycle.startSample + i < sourceData.length
+                ) {
+                  targetData[writeIndex] = sourceData[cycle.startSample + i];
+                  writeIndex++;
+                }
+              }
+            }
+          }
+        }
+
+        return newBuffer;
+      }
+
+      // Granular Pitch Processor Class (embedded as string for worklet)
+      const processorCode = `
+class GranularPitchProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        
+        // Audio buffer for the loaded file
+        this.audioBuffer = null;
+        this.waveCycles = null;
+        
+        // Polyphonic voice management
+        this.maxVoices = 8;
+        this.voices = [];
+        
+        // Initialize voices
+        for (let i = 0; i < this.maxVoices; i++) {
+            this.voices.push({
+                isPlaying: false,
+                playbackPosition: 0,
+                grains: [],
+                grainSpacing: 2048 / 8, // Will be updated when grain size changes
+                nextGrainTime: 0,
+                pitchRatio: 1.0,
+                midiNote: 60,
+                age: 0 // For voice stealing
+            });
+        }
+        
+        // Granular synthesis parameters (shared across voices)
+        this.grainSize = 2048;
+        this.overlap = 8;
+        
+        // Quality improvements (shared)
+        this.randomizePhase = true;
+        this.crossfadeGrains = true;
+        this.windowTaper = 0.25;
+        
+        // Anti-click features
+        this.dcBlocker = { x1: 0, y1: 0 }; // Simple DC blocker
+        this.smoothingBuffer = new Float32Array(128); // For output smoothing
+        this.smoothingIndex = 0;
+        
+        // Message handling
+        this.port.onmessage = (event) => {
+            const { type, data } = event.data;
+            
+            if (type === 'setAudioBuffer') {
+                this.audioBuffer = data;
+                this.playbackPosition = 0;
+            } else if (type === 'setAudioData') {
+                this.audioBuffer = data.audioBuffer;
+                this.waveCycles = data.waveCycles;
+                // Reset all voices
+                for (let i = 0; i < this.maxVoices; i++) {
+                    this.voices[i].playbackPosition = 0;
+                    this.voices[i].grains = [];
+                }
+            } else if (type === 'setParameter') {
+                this.handleParameterChange(data.parameter, data.value);
+            } else if (type === 'noteOn') {
+                this.handleNoteOn(data.note, data.voiceId);
+            } else if (type === 'noteOff') {
+                this.handleNoteOff(data.note, data.voiceId);
+            }
+        };
+    }
+    
+    handleParameterChange(parameter, value) {
+        switch(parameter) {
+            case 'baseGrainSize':
+                this.grainSize = value;
+                // Update grain spacing for all voices
+                for (let i = 0; i < this.maxVoices; i++) {
+                    this.voices[i].grainSpacing = this.grainSize / this.overlap;
+                }
+                break;
+            case 'overlap':
+                this.overlap = value;
+                // Update grain spacing for all voices
+                for (let i = 0; i < this.maxVoices; i++) {
+                    this.voices[i].grainSpacing = this.grainSize / this.overlap;
+                }
+                break;
+            case 'randomizePhase':
+                this.randomizePhase = value;
+                break;
+            case 'crossfadeGrains':
+                this.crossfadeGrains = value;
+                break;
+            case 'windowTaper':
+                this.windowTaper = value;
+                break;
+        }
+    }
+    
+    handleNoteOn(midiNote, voiceId) {
+        if (!this.audioBuffer) return;
+        
+        // Find the voice to use
+        let voice = null;
+        if (voiceId !== undefined && voiceId < this.maxVoices) {
+            voice = this.voices[voiceId];
+        } else {
+            // Find first available voice or steal oldest
+            voice = this.findAvailableVoice();
+        }
+        
+        if (!voice) return;
+        
+        // Convert MIDI note to pitch ratio (relative to root note 60)
+        const semitoneOffset = midiNote - 60;
+        voice.pitchRatio = Math.pow(2, semitoneOffset / 12);
+        voice.isPlaying = true;
+        voice.nextGrainTime = 0;
+        voice.midiNote = midiNote;
+        voice.age = Date.now(); // For voice stealing
+        
+        // Reset playback to beginning of buffer
+        voice.playbackPosition = 0;
+        
+        // Clear existing grains for clean restart
+        voice.grains = [];
+    }
+    
+    findAvailableVoice() {
+        // First, try to find a voice that's not playing
+        for (let i = 0; i < this.maxVoices; i++) {
+            if (!this.voices[i].isPlaying) {
+                return this.voices[i];
+            }
+        }
+        
+        // All voices are playing, steal the oldest one
+        let oldestVoice = this.voices[0];
+        let oldestAge = this.voices[0].age;
+        
+        for (let i = 1; i < this.maxVoices; i++) {
+            if (this.voices[i].age < oldestAge) {
+                oldestAge = this.voices[i].age;
+                oldestVoice = this.voices[i];
+            }
+        }
+        
+        return oldestVoice;
+    }
+    
+    handleNoteOff(midiNote, voiceId) {
+        if (voiceId !== undefined && voiceId < this.maxVoices) {
+            // Stop specific voice
+            this.voices[voiceId].isPlaying = false;
+            this.voices[voiceId].grains = [];
+        } else {
+            // Find voice playing this note and stop it
+            for (let i = 0; i < this.maxVoices; i++) {
+                if (this.voices[i].isPlaying && this.voices[i].midiNote === midiNote) {
+                    this.voices[i].isPlaying = false;
+                    this.voices[i].grains = [];
+                    break; // Only stop first matching voice
+                }
+            }
+        }
+    }
+    
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        if (!output[0] || !this.audioBuffer) return true;
+        
+        const outputChannel = output[0];
+        const frameCount = outputChannel.length;
+        
+        // Clear output
+        outputChannel.fill(0);
+        
+        // Process each voice
+        for (let voiceIndex = 0; voiceIndex < this.maxVoices; voiceIndex++) {
+            const voice = this.voices[voiceIndex];
+            if (!voice.isPlaying) continue;
+            
+            // Generate new grains as needed for this voice
+            while (voice.nextGrainTime < frameCount && voice.isPlaying) {
+                this.createGrain(voice);
+                voice.nextGrainTime += voice.grainSpacing / voice.pitchRatio;
+            }
+            voice.nextGrainTime -= frameCount;
+            
+            // Process active grains for this voice
+            const activeGrains = [];
+            for (let i = 0; i < voice.grains.length; i++) {
+                const grain = voice.grains[i];
+                const isActive = this.processGrain(grain, outputChannel, frameCount, i, voice);
+                if (isActive) {
+                    activeGrains.push(grain);
+                }
+            }
+            voice.grains = activeGrains;
+        }
+        
+        // Apply DC blocking and smoothing to reduce clicks
+        this.applyAntiClickProcessing(outputChannel, frameCount);
+        
+        return true;
+    }
+    
+    applyAntiClickProcessing(output, frameCount) {
+        // Simple DC blocker (high-pass filter)
+        for (let i = 0; i < frameCount; i++) {
+            const input = output[i];
+            const filtered = input - this.dcBlocker.x1 + 0.995 * this.dcBlocker.y1;
+            this.dcBlocker.x1 = input;
+            this.dcBlocker.y1 = filtered;
+            
+            // Store in smoothing buffer for additional processing if needed
+            this.smoothingBuffer[this.smoothingIndex] = filtered;
+            this.smoothingIndex = (this.smoothingIndex + 1) % this.smoothingBuffer.length;
+            
+            output[i] = filtered;
+        }
+    }
+    
+    createGrain(voice) {
+        if (!this.audioBuffer || voice.playbackPosition >= this.audioBuffer.length) return;
+        
+        let grainStartPos = voice.playbackPosition;
+        let grainSize = this.grainSize;
+        
+        // Add some randomization to reduce artifacts
+        const randomOffset = this.randomizePhase ? 
+            (Math.random() - 0.5) * 0.05 * grainSize : 0; // Reduced randomization for large grains
+        
+        // Calculate grain age for crossfading
+        const grainAge = voice.grains.length;
+        
+        voice.grains.push({
+            startPos: Math.max(0, grainStartPos + randomOffset),
+            position: 0,
+            playbackRate: voice.pitchRatio,
+            amplitude: 0.15 / Math.sqrt(Math.max(1, this.overlap)), // Reduced for polyphony
+            size: grainSize,
+            envelope: this.createEnvelope(grainSize),
+            age: grainAge,
+            id: Math.random() // Unique ID for crossfade tracking
+        });
+        
+        // Linear advancement
+        voice.playbackPosition += voice.grainSpacing;
+        if (voice.playbackPosition >= this.audioBuffer.length) {
+            voice.playbackPosition = 0; // Loop
+        }
+    }
+    
+    createEnvelope(grainSize) {
+        // Pre-calculate envelope for this grain size with adjustable taper
+        const envelope = new Float32Array(grainSize);
+        const taperRatio = this.windowTaper;
+        
+        for (let i = 0; i < grainSize; i++) {
+            const progress = i / grainSize;
+            
+            // Smoother Tukey window with adjustable taper
+            if (progress < taperRatio) {
+                // Smooth fade-in using raised cosine
+                const fadeProgress = progress / taperRatio;
+                envelope[i] = 0.5 * (1 - Math.cos(Math.PI * fadeProgress));
+            } else if (progress > 1 - taperRatio) {
+                // Smooth fade-out using raised cosine
+                const fadeProgress = (progress - (1 - taperRatio)) / taperRatio;
+                envelope[i] = 0.5 * (1 + Math.cos(Math.PI * fadeProgress));
+            } else {
+                // Flat portion in the middle
+                envelope[i] = 1.0;
+            }
+        }
+        return envelope;
+    }
+    
+    processGrain(grain, output, frameCount, grainIndex, voice) {
+        for (let i = 0; i < frameCount; i++) {
+            const grainProgress = grain.position / grain.size;
+            
+            // Grain finished?
+            if (grainProgress >= 1) return false;
+            
+            // Use pre-calculated envelope
+            const envelopeIndex = Math.floor(grainProgress * grain.envelope.length);
+            let envelope = grain.envelope[envelopeIndex] || 0;
+            
+            // Apply crossfading between overlapping grains
+            if (this.crossfadeGrains && voice.grains.length > 1) {
+                // Reduce amplitude for newer grains when many are active
+                const ageFactor = Math.exp(-grain.age * 0.1);
+                envelope *= ageFactor;
+            }
+            
+            // Read from audio buffer with high-quality interpolation
+            const exactReadPos = grain.startPos + grain.position;
+            const readPos = Math.floor(exactReadPos);
+            const fraction = exactReadPos - readPos;
+            
+            if (readPos >= 0 && readPos < this.audioBuffer.length - 1) {
+                // Cubic interpolation for smoother playback at large grain sizes
+                let interpolatedSample;
+                if (readPos > 0 && readPos < this.audioBuffer.length - 2) {
+                    // 4-point cubic interpolation
+                    const y0 = this.audioBuffer[readPos - 1];
+                    const y1 = this.audioBuffer[readPos];
+                    const y2 = this.audioBuffer[readPos + 1];
+                    const y3 = this.audioBuffer[readPos + 2];
+                    
+                    const c0 = y1;
+                    const c1 = 0.5 * (y2 - y0);
+                    const c2 = y0 - 2.5 * y1 + 2 * y2 - 0.5 * y3;
+                    const c3 = 1.5 * (y1 - y2) + 0.5 * (y3 - y0);
+                    
+                    interpolatedSample = c0 + c1 * fraction + c2 * fraction * fraction + c3 * fraction * fraction * fraction;
+                } else {
+                    // Linear interpolation fallback
+                    const sample1 = this.audioBuffer[readPos];
+                    const sample2 = this.audioBuffer[readPos + 1];
+                    interpolatedSample = sample1 + fraction * (sample2 - sample1);
+                }
+                
+                const finalSample = interpolatedSample * envelope * grain.amplitude;
+                output[i] += finalSample;
+            }
+            
+            grain.position += grain.playbackRate;
+        }
+        
+        return true; // Grain still active
+    }
+}
+
+registerProcessor('granular-pitch-processor', GranularPitchProcessor);
+        `;
+
+      let audioContext;
+      let granularNode;
+      let gainNode;
+      let audioBuffer;
+      let activeKeys = new Set();
+
+      // Polyphonic voice management
+      const MAX_VOICES = 8;
+      let voices = []; // Array to track active voices
+      let voiceAssignments = new Map(); // Map key codes to voice indices
+
+      // Create worklet processor as blob URL
+      const blob = new Blob([processorCode], {
+        type: 'application/javascript',
+      });
+      const processorURL = URL.createObjectURL(blob);
+
+      // DOM elements
+      const fileInput = document.getElementById('audioFile');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const status = document.getElementById('status');
+
+      // Quality control elements
+      const randomizePhaseCheckbox = document.getElementById('randomizePhase');
+      const crossfadeGrainsCheckbox =
+        document.getElementById('crossfadeGrains');
+      const grainSizeSlider = document.getElementById('grainSize');
+      const grainSizeValue = document.getElementById('grainSizeValue');
+      const overlapSlider = document.getElementById('overlap');
+      const overlapValue = document.getElementById('overlapValue');
+      const windowTaperSlider = document.getElementById('windowTaper');
+      const windowTaperValue = document.getElementById('windowTaperValue');
+      const voiceIndicator = document.getElementById('voiceIndicator');
+
+      // Function to update voice indicator
+      function updateVoiceIndicator() {
+        let indicator = '';
+        for (let i = 0; i < MAX_VOICES; i++) {
+          if (voices[i] && voices[i].active) {
+            indicator += '●'; // Active voice
+          } else {
+            indicator += '○'; // Inactive voice
+          }
+        }
+        voiceIndicator.textContent = indicator;
+      }
+
+      // Update display values
+      grainSizeSlider.addEventListener('input', () => {
+        grainSizeValue.textContent = grainSizeSlider.value;
+        if (granularNode) {
+          granularNode.port.postMessage({
+            type: 'setParameter',
+            data: {
+              parameter: 'baseGrainSize',
+              value: parseInt(grainSizeSlider.value),
+            },
+          });
+        }
+      });
+
+      overlapSlider.addEventListener('input', () => {
+        overlapValue.textContent = overlapSlider.value;
+        if (granularNode) {
+          granularNode.port.postMessage({
+            type: 'setParameter',
+            data: {
+              parameter: 'overlap',
+              value: parseInt(overlapSlider.value),
+            },
+          });
+        }
+      });
+
+      windowTaperSlider.addEventListener('input', () => {
+        windowTaperValue.textContent = windowTaperSlider.value;
+        if (granularNode) {
+          granularNode.port.postMessage({
+            type: 'setParameter',
+            data: {
+              parameter: 'windowTaper',
+              value: parseFloat(windowTaperSlider.value),
+            },
+          });
+        }
+      });
+
+      // Quality setting checkboxes
+      randomizePhaseCheckbox.addEventListener('change', () => {
+        if (granularNode) {
+          granularNode.port.postMessage({
+            type: 'setParameter',
+            data: {
+              parameter: 'randomizePhase',
+              value: randomizePhaseCheckbox.checked,
+            },
+          });
+        }
+      });
+
+      crossfadeGrainsCheckbox.addEventListener('change', () => {
+        if (granularNode) {
+          granularNode.port.postMessage({
+            type: 'setParameter',
+            data: {
+              parameter: 'crossfadeGrains',
+              value: crossfadeGrainsCheckbox.checked,
+            },
+          });
+        }
+      });
+
+      // File upload handler
+      fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+          status.textContent = 'Loading audio file...';
+          const arrayBuffer = await file.arrayBuffer();
+
+          if (!audioContext) {
+            audioContext = new AudioContext();
+          }
+
+          audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          status.textContent = `Audio loaded: ${file.name} (${audioBuffer.duration.toFixed(1)}s)`;
+          startBtn.disabled = false;
+        } catch (error) {
+          status.textContent = 'Error loading audio file: ' + error.message;
+          console.error(error);
+        }
+      });
+
+      // Start button handler
+      startBtn.addEventListener('click', async () => {
+        try {
+          if (!audioContext) {
+            audioContext = new AudioContext();
+          }
+
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+          }
+
+          // Load the worklet
+          await audioContext.audioWorklet.addModule(processorURL);
+
+          // Create worklet node
+          granularNode = new AudioWorkletNode(
+            audioContext,
+            'granular-pitch-processor'
+          );
+
+          gainNode = audioContext.createGain();
+
+          gainNode.gain.setValueAtTime(1.5, audioContext.currentTime); // Set initial gain to 0.7
+          granularNode.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+
+          // Send audio buffer and wave cycles to worklet
+          const channelData = audioBuffer.getChannelData(0);
+          const waveCycles = findWaveCycles(audioBuffer);
+
+          granularNode.port.postMessage({
+            type: 'setAudioData',
+            data: {
+              audioBuffer: channelData,
+              waveCycles: waveCycles,
+            },
+          });
+
+          status.textContent = 'Ready! Press keys to play notes.';
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } catch (error) {
+          status.textContent = 'Error starting audio: ' + error.message;
+          console.error(error);
+        }
+      });
+
+      // Stop button handler
+      stopBtn.addEventListener('click', () => {
+        if (granularNode) {
+          granularNode.disconnect();
+          granularNode = null;
+        }
+        activeKeys.clear();
+        voices = [];
+        voiceAssignments.clear();
+        status.textContent = 'Stopped. Click Start to resume.';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      });
+
+      // Helper function to find available voice
+      function findAvailableVoice() {
+        // First, try to find a voice that's not in use
+        for (let i = 0; i < MAX_VOICES; i++) {
+          if (!voices[i] || !voices[i].active) {
+            return i;
+          }
+        }
+
+        // All voices are active, steal the oldest one
+        let oldestVoice = 0;
+        let oldestTime = voices[0] ? voices[0].startTime : 0;
+
+        for (let i = 1; i < MAX_VOICES; i++) {
+          if (voices[i] && voices[i].startTime < oldestTime) {
+            oldestTime = voices[i].startTime;
+            oldestVoice = i;
+          }
+        }
+
+        return oldestVoice;
+      }
+
+      // Keyboard event handlers
+      document.addEventListener('keydown', (event) => {
+        if (!granularNode || activeKeys.has(event.code)) return;
+
+        const midiNote = keyMap[event.code];
+        if (midiNote !== undefined) {
+          // Find an available voice
+          const voiceIndex = findAvailableVoice();
+
+          // Assign voice
+          voices[voiceIndex] = {
+            active: true,
+            midiNote: midiNote,
+            startTime: Date.now(),
+            keyCode: event.code,
+          };
+
+          voiceAssignments.set(event.code, voiceIndex);
+          activeKeys.add(event.code);
+
+          // Update voice indicator
+          updateVoiceIndicator();
+
+          granularNode.port.postMessage({
+            type: 'noteOn',
+            data: { note: midiNote, voiceId: voiceIndex },
+          });
+          event.preventDefault();
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        if (!granularNode || !activeKeys.has(event.code)) return;
+
+        const midiNote = keyMap[event.code];
+        if (midiNote !== undefined) {
+          const voiceIndex = voiceAssignments.get(event.code);
+
+          if (voiceIndex !== undefined) {
+            // Mark voice as inactive
+            if (voices[voiceIndex]) {
+              voices[voiceIndex].active = false;
+            }
+
+            voiceAssignments.delete(event.code);
+
+            // Update voice indicator
+            updateVoiceIndicator();
+
+            granularNode.port.postMessage({
+              type: 'noteOff',
+              data: { note: midiNote, voiceId: voiceIndex },
+            });
+          }
+
+          activeKeys.delete(event.code);
+          event.preventDefault();
+        }
+      });
+
+      // Prevent default behavior for mapped keys
+      document.addEventListener('keydown', (event) => {
+        if (keyMap[event.code] !== undefined) {
+          event.preventDefault();
+        }
+      });
+    </script>
+  </body>
+</html>

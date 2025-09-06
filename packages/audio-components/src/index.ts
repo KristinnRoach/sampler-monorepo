@@ -17,10 +17,15 @@ export {
 export { defineSampler } from './elements/Sampler/Sampler';
 export type { SamplerElement } from './elements/Sampler/Sampler';
 
+// SamplePlayer class
+import { SamplePlayer } from '@repo/audiolib';
+export { SamplePlayer };
+
 // Basic controls
 export {
-  UploadButton as LoadButton,
+  UploadButton,
   RecordButton,
+  SaveButton,
 } from './elements/Sampler/components/SamplerButtonFactory';
 
 // Knob components

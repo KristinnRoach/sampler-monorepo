@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Granular Pitch Shift Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f0f0f0;
+      }
+      .container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .controls {
+        margin: 20px 0;
+      }
+      input[type='file'] {
+        margin: 10px 0;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .keyboard-help {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        font-size: 14px;
+      }
+      .status {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 4px;
+        background: #e9ecef;
+      }
+      .keyboard-layout {
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre;
+        background: #fff;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Granular Pitch Shift Test</h1>
+
+      <div class="controls">
+        <input type="file" id="audioFile" accept="audio/*" />
+        <br />
+        <button id="startBtn" disabled>Start Audio Context</button>
+        <button id="stopBtn" disabled>Stop</button>
+      </div>
+
+      <div class="status" id="status">Upload an audio file to begin</div>
+
+      <div class="keyboard-help">
+        <h3>Keyboard Controls:</h3>
+        <p>
+          Press and hold keys to trigger notes. Root note (C4) is mapped to
+          Comma key.
+        </p>
+        <div class="keyboard-layout">
+          Lower Row (C3-C4): Z S X D C V G B H N J M , L . ; / C3 C#3D3 D#3E3 F3
+          F#3G3 G#3A3 A#3B3 C4 C#4D4 D#4E4 Upper Row (C4-G5): Q 2 W 3 E R 5 T 6
+          Y 7 U I 9 O 0 P [ = ] C4 C#4D4 D#4E4 F4 F#4G4 G#4A4 A#4B4 C5 C#5D5
+          D#5E5 F5 F#5G5
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Keyboard to MIDI note mapping
+      const keyMap = {
+        KeyZ: 48,
+        KeyS: 49,
+        KeyX: 50,
+        KeyD: 51,
+        KeyC: 52,
+        KeyV: 53,
+        KeyG: 54,
+        KeyB: 55,
+        KeyH: 56,
+        KeyN: 57,
+        KeyJ: 58,
+        KeyM: 59,
+        Comma: 60,
+        KeyL: 61,
+        Period: 62,
+        Semicolon: 63,
+        Slash: 64,
+        KeyQ: 60,
+        Digit2: 61,
+        KeyW: 62,
+        Digit3: 63,
+        KeyE: 64,
+        KeyR: 65,
+        Digit5: 66,
+        KeyT: 67,
+        Digit6: 68,
+        KeyY: 69,
+        Digit7: 70,
+        KeyU: 71,
+        KeyI: 72,
+        Digit9: 73,
+        KeyO: 74,
+        Digit0: 75,
+        KeyP: 76,
+        BracketLeft: 77,
+        Equal: 78,
+        BracketRight: 79,
+      };
+
+      // Granular Pitch Processor Class (embedded as string for worklet)
+      const processorCode = `
+class GranularPitchProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        
+        // Audio buffer for the loaded file
+        this.audioBuffer = null;
+        this.isPlaying = false;
+        this.playbackPosition = 0;
+        
+        // Granular synthesis parameters
+        this.grainSize = 2048;
+        this.overlap = 4;
+        this.pitchRatio = 1.0;
+        
+        // Grain management
+        this.grains = [];
+        this.grainSpacing = this.grainSize / this.overlap;
+        this.nextGrainTime = 0;
+        
+        // Message handling
+        this.port.onmessage = (event) => {
+            const { type, data } = event.data;
+            
+            if (type === 'setAudioBuffer') {
+                this.audioBuffer = data;
+                this.playbackPosition = 0;
+            } else if (type === 'noteOn') {
+                this.handleNoteOn(data.note);
+            } else if (type === 'noteOff') {
+                this.handleNoteOff();
+            }
+        };
+    }
+    
+    handleNoteOn(midiNote) {
+        if (!this.audioBuffer) return;
+        
+        // Convert MIDI note to pitch ratio (relative to root note 60)
+        const semitoneOffset = midiNote - 60;
+        this.pitchRatio = Math.pow(2, semitoneOffset / 12);
+        this.isPlaying = true;
+        this.nextGrainTime = 0;
+        
+        // Reset playback to beginning of buffer
+        this.playbackPosition = 0;
+        
+        // Clear existing grains for clean restart
+        this.grains = [];
+    }
+    
+    handleNoteOff() {
+        this.isPlaying = false;
+        this.grains = []; // Clear all grains for immediate stop
+    }
+    
+    process(inputs, outputs, parameters) {
+        const output = outputs[0];
+        if (!output[0] || !this.audioBuffer || !this.isPlaying) return true;
+        
+        const outputChannel = output[0];
+        const frameCount = outputChannel.length;
+        
+        // Clear output
+        outputChannel.fill(0);
+        
+        // Generate new grains as needed
+        while (this.nextGrainTime < frameCount && this.isPlaying) {
+            this.createGrain();
+            this.nextGrainTime += this.grainSpacing / this.pitchRatio;
+        }
+        this.nextGrainTime -= frameCount;
+        
+        // Process active grains
+        this.grains = this.grains.filter(grain => {
+            return this.processGrain(grain, outputChannel, frameCount);
+        });
+        
+        return true;
+    }
+    
+    createGrain() {
+        if (!this.audioBuffer || this.playbackPosition >= this.audioBuffer.length) return;
+        
+        this.grains.push({
+            startPos: this.playbackPosition,
+            position: 0,
+            playbackRate: this.pitchRatio,
+            amplitude: 0.3 // Lower volume to prevent clipping
+        });
+        
+        // Advance playback position
+        this.playbackPosition += this.grainSpacing;
+        if (this.playbackPosition >= this.audioBuffer.length) {
+            this.playbackPosition = 0; // Loop
+        }
+    }
+    
+    processGrain(grain, output, frameCount) {
+        for (let i = 0; i < frameCount; i++) {
+            const grainProgress = grain.position / this.grainSize;
+            
+            // Grain finished?
+            if (grainProgress >= 1) return false;
+            
+            // Hann window envelope for smoother sound
+            const envelope = 0.5 * (1 - Math.cos(2 * Math.PI * grainProgress));
+            
+            // Read from audio buffer with bounds checking
+            const readPos = Math.floor(grain.startPos + grain.position);
+            if (readPos >= 0 && readPos < this.audioBuffer.length) {
+                const sample = this.audioBuffer[readPos] * envelope * grain.amplitude;
+                output[i] += sample;
+            }
+            
+            grain.position += grain.playbackRate;
+        }
+        
+        return true; // Grain still active
+    }
+}
+
+registerProcessor('granular-pitch-processor', GranularPitchProcessor);
+        `;
+
+      let audioContext;
+      let granularNode;
+      let audioBuffer;
+      let activeKeys = new Set();
+
+      // Create worklet processor as blob URL
+      const blob = new Blob([processorCode], {
+        type: 'application/javascript',
+      });
+      const processorURL = URL.createObjectURL(blob);
+
+      // DOM elements
+      const fileInput = document.getElementById('audioFile');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const status = document.getElementById('status');
+
+      // File upload handler
+      fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+          status.textContent = 'Loading audio file...';
+          const arrayBuffer = await file.arrayBuffer();
+
+          if (!audioContext) {
+            audioContext = new AudioContext();
+          }
+
+          audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          status.textContent = `Audio loaded: ${file.name} (${audioBuffer.duration.toFixed(1)}s)`;
+          startBtn.disabled = false;
+        } catch (error) {
+          status.textContent = 'Error loading audio file: ' + error.message;
+          console.error(error);
+        }
+      });
+
+      // Start button handler
+      startBtn.addEventListener('click', async () => {
+        try {
+          if (!audioContext) {
+            audioContext = new AudioContext();
+          }
+
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+          }
+
+          // Load the worklet
+          await audioContext.audioWorklet.addModule(processorURL);
+
+          // Create worklet node
+          granularNode = new AudioWorkletNode(
+            audioContext,
+            'granular-pitch-processor'
+          );
+          granularNode.connect(audioContext.destination);
+
+          // Send audio buffer to worklet
+          const channelData = audioBuffer.getChannelData(0); // Use first channel
+          granularNode.port.postMessage({
+            type: 'setAudioBuffer',
+            data: channelData,
+          });
+
+          status.textContent = 'Ready! Press keys to play notes.';
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+        } catch (error) {
+          status.textContent = 'Error starting audio: ' + error.message;
+          console.error(error);
+        }
+      });
+
+      // Stop button handler
+      stopBtn.addEventListener('click', () => {
+        if (granularNode) {
+          granularNode.disconnect();
+          granularNode = null;
+        }
+        activeKeys.clear();
+        status.textContent = 'Stopped. Click Start to resume.';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      });
+
+      // Keyboard event handlers
+      document.addEventListener('keydown', (event) => {
+        if (!granularNode || activeKeys.has(event.code)) return;
+
+        const midiNote = keyMap[event.code];
+        if (midiNote !== undefined) {
+          activeKeys.add(event.code);
+          granularNode.port.postMessage({
+            type: 'noteOn',
+            data: { note: midiNote },
+          });
+          event.preventDefault();
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        if (!granularNode || !activeKeys.has(event.code)) return;
+
+        const midiNote = keyMap[event.code];
+        if (midiNote !== undefined) {
+          activeKeys.delete(event.code);
+          granularNode.port.postMessage({
+            type: 'noteOff',
+            data: { note: midiNote },
+          });
+          event.preventDefault();
+        }
+      });
+
+      // Prevent default behavior for mapped keys
+      document.addEventListener('keydown', (event) => {
+        if (keyMap[event.code] !== undefined) {
+          event.preventDefault();
+        }
+      });
+    </script>
+  </body>
+</html>

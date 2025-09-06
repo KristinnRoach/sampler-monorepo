@@ -4,13 +4,7 @@ import { getAudioContext } from '@/context';
 import { MidiController } from '@/io';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
-import {
-  clamp,
-  findClosestNote,
-  mapToRange,
-  NOTE_PERIODS,
-  ROOT_NOTES,
-} from '@/utils';
+import { clamp, findClosestNote, ROOT_NOTES } from '@/utils';
 import { Debouncer } from '@/utils/Debouncer';
 
 import {
@@ -57,6 +51,7 @@ import {
   WaveformOptions,
 } from '@/utils/audiodata/generate/generateWaveform';
 import { InputSource } from '@/nodes/recorder/Recorder';
+import { createSampleVoicePool } from './createSampleVoicePool';
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
@@ -84,10 +79,10 @@ export class SamplePlayer implements ILibInstrumentNode {
   #holdEnabled = false;
   #holdLocked = false;
 
-  #masterOut!: GainNode; // todo: fix use of '!'
+  #masterOut: GainNode;
 
-  #macroLoopStart!: MacroParam; // todo: fix use of '!'
-  #macroLoopEnd!: MacroParam; // todo: fix use of '!'
+  #macroLoopStart: MacroParam;
+  #macroLoopEnd: MacroParam;
   #gainLFO: LFO | null = null;
   #pitchLFO: LFO | null = null;
 
@@ -119,6 +114,18 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#messages = createMessageBus<Message>(this.nodeId);
     this.#midiController = midiController || null;
 
+    this.#masterOut = new GainNode(this.context, { gain: 0.5 });
+
+    this.#macroLoopStart = new MacroParam(
+      this.context,
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+    );
+
+    this.#macroLoopEnd = new MacroParam(
+      this.context,
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+    );
+
     // Store configuration for async init
     this.#polyphony = polyphony;
     this.#initialAudioBuffer = audioBuffer || null;
@@ -131,26 +138,11 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.#initPromise = (async () => {
       try {
         // Initialize child components first
-        this.#masterOut = new GainNode(this.context, { gain: 0.5 });
-
         this.outBus = await createInstrumentBus(this.context); // WIP
-
-        // Initialize voice pool
-        this.voicePool = new SampleVoicePool(this.context, this.#polyphony);
-        await this.voicePool.init();
-
-        // Setup macro parameters
-        this.#macroLoopStart = new MacroParam(
+        this.voicePool = await createSampleVoicePool(
           this.context,
-          DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+          this.#polyphony
         );
-        // todo: await this.#macroLoopStart.init();
-
-        this.#macroLoopEnd = new MacroParam(
-          this.context,
-          DEFAULT_PARAM_DESCRIPTORS.LOOP_END
-        );
-        // todo: await this.#macroLoopEnd.init();
 
         this.#resetMacros();
 
@@ -498,6 +490,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     }
 
     if (!isValidAudioBuffer(buffer)) {
+      console.error('Invalid AudioBuffer provided to loadSample');
       return null;
     }
 

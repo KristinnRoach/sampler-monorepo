@@ -29,6 +29,7 @@ import {
   PreProcessOptions,
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
+import { SamplePlayer } from '../instruments';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -44,7 +45,7 @@ export const DEFAULT_MEDIA_REC_OPTIONS: MediaRecorderOptions = {
   mimeType: 'audio/webm',
 };
 
-export type InputSource = 'microphone' | 'browser';
+export type InputSource = 'microphone' | 'browser' | 'resample';
 
 export type RecorderOptions = {
   mediaRecorderOptions: MediaRecorderOptions;
@@ -87,6 +88,9 @@ export class Recorder implements LibNode {
   #config: RecorderOptions | null = null;
   #inputSource: InputSource = 'microphone';
 
+  #audioDestination: MediaStreamAudioDestinationNode | null = null;
+  #connectedSamplePlayer: SamplePlayer | null = null;
+
   constructor(context: AudioContext) {
     this.nodeId = registerNode(this.nodeType, this);
     this.#context = context;
@@ -100,6 +104,20 @@ export class Recorder implements LibNode {
     return this;
   }
 
+  async #createResampleStream(): Promise<MediaStream> {
+    if (!this.#connectedSamplePlayer) {
+      throw new Error('No SamplePlayer connected for resampling');
+    }
+
+    // Create a destination that converts audio to MediaStream
+    this.#audioDestination = this.#context.createMediaStreamDestination();
+
+    // Connect the SamplePlayer's output to our destination
+    this.#connectedSamplePlayer.output.connect(this.#audioDestination);
+
+    return this.#audioDestination.stream;
+  }
+
   async start(options?: Partial<RecorderOptions>): Promise<this> {
     // Stop previous stream if exists
     if (this.#stream) {
@@ -109,6 +127,7 @@ export class Recorder implements LibNode {
 
     // ? Use a lower threshold for browser input unless overridden
     let config = { ...DEFAULT_RECORDER_OPTIONS, ...options };
+
     if (
       this.#inputSource === 'browser' &&
       options?.startThreshold === undefined
@@ -117,7 +136,15 @@ export class Recorder implements LibNode {
     }
     this.#config = config;
     let streamResult;
-    if (this.#config && this.#inputSource === 'browser') {
+
+    if (this.#inputSource === 'resample') {
+      streamResult = await tryCatch(() => this.#createResampleStream());
+      assert(
+        !streamResult.error,
+        `Failed to create resample stream: ${streamResult.error}`,
+        streamResult
+      );
+    } else if (this.#config && this.#inputSource === 'browser') {
       streamResult = await tryCatch(() => getBrowserAudio());
       assert(
         !streamResult.error,
@@ -350,6 +377,9 @@ export class Recorder implements LibNode {
     this.#stream = null;
     this.#recorder = null;
 
+    // Clean up resample connection if used
+    this.#cleanupResampleConnection();
+
     return buffer;
   }
 
@@ -397,12 +427,27 @@ export class Recorder implements LibNode {
     return this;
   }
 
+  // Method to connect a SamplePlayer for resampling
+  connectResampleInputSource(samplePlayer: SamplePlayer): this {
+    this.#connectedSamplePlayer = samplePlayer;
+    return this;
+  }
+
+  // In stop() and dispose() methods
+  #cleanupResampleConnection(): void {
+    if (this.#audioDestination && this.#connectedSamplePlayer) {
+      this.#connectedSamplePlayer.output.disconnect(this.#audioDestination);
+      this.#audioDestination = null;
+    }
+  }
+
   disconnect(): void {
     this.#destination = null;
   }
 
   dispose(): void {
     this.#cleanupMonitoring();
+    this.#cleanupResampleConnection();
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     this.#recorder = null;

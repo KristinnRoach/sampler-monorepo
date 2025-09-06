@@ -96,6 +96,8 @@ export class SampleVoice {
     if (this.#initPromise) return this.#initPromise;
     this.#initPromise = (async () => {
       try {
+        // ? Need to wait for worklet 'initialized' message ?
+
         // Create nodes
         if (this.#filtersEnabled) this.#initFilters();
 
@@ -119,7 +121,6 @@ export class SampleVoice {
 
         // Setup message handling
         this.#setupWorkletMessageHandling();
-        this.sendToProcessor({ type: 'voice:init' });
         this.#worklet.port.start();
       } catch (error) {
         this.dispose();

@@ -66,6 +66,8 @@ class DattorroReverb extends AudioWorkletProcessor {
       ],
       (x) => Math.round(x * sampleRate)
     );
+    // Signal to node that processor is initialized
+    this.port.postMessage({ type: 'initialized' });
   }
 
   makeDelay(length) {

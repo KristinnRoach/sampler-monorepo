@@ -85,6 +85,8 @@ registerProcessor(
       super();
       this.distortion = new Distortion();
       this.setupMessageHandling();
+      // Signal to node that processor is initialized
+      this.port.postMessage({ type: 'initialized' });
     }
 
     setupMessageHandling() {

@@ -32,6 +32,9 @@ import {
   TrimEndKnob,
   DistortionKnob,
   FeedbackLpfKnob,
+  DelaySendKnob,
+  DelayTimeKnob,
+  DelayFeedbackKnob,
 } from './components/SamplerKnobFactory';
 
 import {
@@ -50,7 +53,11 @@ import { EnvelopeDisplay } from './components/EnvelopeDisplay';
 import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import { ComputerKeyboard } from './components/ComputerKeyboard';
 import { PianoKeyboard } from './components/PianoKeyboard';
-import { RecordButton, UploadButton } from './components/SamplerButtonFactory';
+import {
+  RecordButton,
+  UploadButton,
+  SaveButton,
+} from './components/SamplerButtonFactory';
 import {
   KeymapSelect,
   WaveformSelect,
@@ -369,6 +376,9 @@ export {
   TrimEndKnob,
   DistortionKnob,
   FeedbackLpfKnob,
+  DelaySendKnob,
+  DelayTimeKnob,
+  DelayFeedbackKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -386,6 +396,7 @@ export {
   PianoKeyboard,
   RecordButton,
   UploadButton,
+  SaveButton,
 
   // Select components
   KeymapSelect,
@@ -417,6 +428,7 @@ export const defineSampler = () => {
   // Basic controls
   defineIfNotExists('load-button', UploadButton, false);
   defineIfNotExists('record-button', RecordButton, false);
+  defineIfNotExists('save-button', SaveButton, false);
 
   // Knob controls
   defineIfNotExists('volume-knob', VolumeKnob, false);
@@ -443,6 +455,9 @@ export const defineSampler = () => {
   defineIfNotExists('trim-start-knob', TrimStartKnob, false);
   defineIfNotExists('trim-end-knob', TrimEndKnob, false);
   defineIfNotExists('distortion-knob', DistortionKnob, false);
+  defineIfNotExists('delay-send-knob', DelaySendKnob, false);
+  defineIfNotExists('delay-time-knob', DelayTimeKnob, false);
+  defineIfNotExists('delay-feedback-knob', DelayFeedbackKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);

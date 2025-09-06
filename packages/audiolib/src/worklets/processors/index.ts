@@ -7,6 +7,7 @@
 import './play/sample-player-processor';
 import './noise/random-noise-processor';
 import './delay/feedback-delay-processor';
+import './delay/delay-processor';
 import './reverb/dattorro-reverb-processor';
 import './distortion/distortion-processor';
 import './follower/envelope-follower-processor';

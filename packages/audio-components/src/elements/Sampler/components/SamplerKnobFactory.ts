@@ -131,6 +131,45 @@ const feedbackLpfConfig: KnobConfig = {
   },
 };
 
+const delayTimeConfig: KnobConfig = {
+  label: 'Delay',
+  useLocalStorage: true,
+  defaultValue: 0.1,
+  minValue: 0.005,
+  maxValue: 1.5,
+  curve: 2,
+  valueFormatter: (v: number) => `${v.toFixed(3)} s`,
+  onConnect: (sampler, state) => {
+    van.derive(() => sampler.outputBus.setDelayTime(state.val));
+  },
+};
+
+const delayFBConfig: KnobConfig = {
+  label: 'Delay Feedback',
+  useLocalStorage: true,
+  defaultValue: 0.25,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1.5,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+  onConnect: (sampler, state) => {
+    van.derive(() => sampler.outputBus.setDelayFeedback(state.val));
+  },
+};
+
+const delaySendConfig: KnobConfig = {
+  label: 'Delay Send',
+  useLocalStorage: true,
+  defaultValue: 0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+  onConnect: (sampler, state) => {
+    van.derive(() => sampler.sendToFx('delay', state.val));
+  },
+};
+
 const gainLFORateConfig: KnobConfig = {
   label: 'Amp LFO Rate',
   useLocalStorage: true,
@@ -186,6 +225,10 @@ const reverbSendConfig: KnobConfig = {
   label: 'Reverb Send',
   useLocalStorage: true,
   defaultValue: 0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
   onConnect: (sampler, state) => {
     van.derive(() => {
       sampler.sendToFx('reverb', state.val);
@@ -196,7 +239,7 @@ const reverbSendConfig: KnobConfig = {
 const reverbSizeConfig: KnobConfig = {
   label: 'Reverb Size',
   useLocalStorage: true,
-  defaultValue: 0.5,
+  defaultValue: 0.7,
   curve: 1,
   onConnect: (sampler, state) => {
     van.derive(() => {
@@ -222,7 +265,7 @@ const loopDurationDriftConfig: KnobConfig = {
 const lowpassFilterConfig: KnobConfig = {
   label: 'LPF',
   useLocalStorage: true,
-  defaultValue: 18000,
+  defaultValue: 20000,
   minValue: 40,
   maxValue: 20000,
   curve: 5,
@@ -444,6 +487,12 @@ export const PitchLFODepthKnob = createKnobForTarget(
 export const ReverbSendKnob = createKnobForTarget(reverbSendConfig, getSampler);
 
 export const ReverbSizeKnob = createKnobForTarget(reverbSizeConfig, getSampler);
+
+export const DelaySendKnob = createKnobForTarget(delaySendConfig, getSampler);
+
+export const DelayTimeKnob = createKnobForTarget(delayTimeConfig, getSampler);
+
+export const DelayFeedbackKnob = createKnobForTarget(delayFBConfig, getSampler);
 
 export const LoopDurationDriftKnob = createKnobForTarget(
   loopDurationDriftConfig,

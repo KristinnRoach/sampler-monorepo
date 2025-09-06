@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@repo/audio-components": "workspace:*",
-    "@repo/vanjs-core": "workspace:*",
+    "dexie": "^4.0.11",
     "solid-js": "^1.9.4",
     "gsap": "^3.13.0"
   },
