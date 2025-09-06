@@ -19,6 +19,8 @@ body {
   background-color: #c0c44fa1; /* #357d3f;  old yellow: #c0c44fd5; */
   color: #ccc;
 
+  interpolate-size: allow-keywords;
+
   height: clamp(100dvh, 100dvh, 100dvh);
   width: clamp(100dvw, 100dvw, 100dvw);
 }
@@ -95,6 +97,11 @@ feedback-lpf-knob knob-element {
   border-radius: 0.5rem;
   background-color: #29552f;
   user-select: none;
+
+  will-change: grid-template-areas, width;
+  transition:
+    grid-template-areas 0.2s ease,
+    width 0.2s ease;
 }
 
 /* Layout variants */
@@ -159,6 +166,8 @@ feedback-lpf-knob knob-element {
 
   max-width: 95dvw;
   min-width: 0;
+
+  justify-content: center;
 }
 
 .control-grid.layout-tablet .env-group {
@@ -181,7 +190,7 @@ feedback-lpf-knob knob-element {
 }
 
 .control-grid.layout-tablet piano-keyboard webaudio-keyboard {
-  width: 100% !important;
+  width: 100%;
   max-width: calc(100vw - 2rem);
 }
 
@@ -223,7 +232,7 @@ feedback-lpf-knob knob-element {
 }
 
 .control-grid.layout-mobile piano-keyboard webaudio-keyboard {
-  width: 100% !important;
+  width: 100%;
   max-width: calc(100vw - 2rem);
 }
 
@@ -284,7 +293,8 @@ feedback-lpf-knob knob-element {
 
   background-color: rgba(0, 0, 0, 0.1);
 
-  transition: all 0.3s ease;
+  will-change: max-height, opacity, width, background-color, padding, border;
+  transition: all 0.2s ease;
 }
 
 .control-group > legend {
@@ -321,8 +331,8 @@ feedback-lpf-knob knob-element {
   overflow: hidden;
   opacity: 1;
   transition:
-    max-height 0.3s ease,
-    opacity 0.3s ease;
+    max-height 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .expandable-legend {
@@ -506,7 +516,7 @@ piano-keyboard.visible {
   height: auto;
   background: transparent;
   border: none;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   overflow: visible;
   clip-path: inset(0 20% 0 0);
 }
@@ -656,4 +666,146 @@ piano-keyboard.visible {
 
 .reset-button:hover {
   border: 1px solid #aaa;
+}
+
+/* SAMPLELIB SIDEBAR */
+
+.pre-sidebar-buttons {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  gap: 10px;
+}
+
+/* .save-button .svg-button {
+  mix-blend-mode: difference;
+} */
+
+.sidebar-toggle {
+  z-index: 1000;
+  background: var(--button-bg, #333);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+
+  will-change: opacity, transform;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.sidebar-toggle:hover {
+  background: var(--button-hover-bg, #444);
+  transform: scale(1.1);
+}
+
+.sidebar-toggle:active {
+  transform: scale(0.9);
+}
+
+.sidebar-toggle.open {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50px);
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100dvh;
+  width: 20dvw;
+  background: var(--sidebar-bg, #222);
+  color: white;
+  z-index: 999;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+
+.sidebar-open {
+  transform: translateX(0);
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #444;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.sidebar-content {
+  padding: 20px;
+}
+
+.sample-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #444;
+  margin-bottom: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.sample-item:hover {
+  background: #333;
+}
+
+.sample-info {
+  flex: 1;
+}
+
+.sample-name {
+  font-weight: bold;
+}
+
+.sample-date {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.delete-button {
+  background: none;
+  border: none;
+  color: #ddd;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+}
+
+.delete-button:hover {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff5252;
+}
+
+.delete-button svg {
+  pointer-events: none;
+}
+
+.no-samples {
+  text-align: center;
+  opacity: 0.7;
+  margin-top: 50px;
 }

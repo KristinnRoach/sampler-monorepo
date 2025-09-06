@@ -2,6 +2,8 @@ import {
   FbDelayConfig,
   DistortionConfig,
   DistortionWorklet,
+  DelayConfig,
+  DelayWorklet,
 } from './worklet-types';
 import { WorkletNode } from './WorkletNode';
 
@@ -16,4 +18,12 @@ function createDistortion(context: AudioContext) {
   ) as DistortionWorklet;
 }
 
+function createDelay(context: AudioContext) {
+  return new WorkletNode<DelayConfig>(
+    context,
+    'delay-processor'
+  ) as DelayWorklet;
+}
+
 export { createFeedbackDelay, createDistortion };
+export { createDelay };

@@ -68,6 +68,31 @@ export type FbDelayConfig = {
 
 export type FbDelayWorklet = WorkletNode<FbDelayConfig>;
 
+// === SIMPLE DELAY ===
+
+export type DelayParams = {
+  delayTime: number;
+  feedbackAmount: number;
+};
+
+export type DelayCharacter = 'clean' | 'bitCrushed' | 'filtered';
+export type SetDelayCharacterMsg = {
+  type: 'setCharacter';
+  modes: DelayCharacter[];
+};
+export type TriggerDelayMsg = {
+  type: 'trigger';
+};
+
+export type DelayMsg = SetDelayCharacterMsg | TriggerDelayMsg;
+
+export type DelayConfig = {
+  params: DelayParams;
+  message: DelayMsg;
+};
+
+export type DelayWorklet = WorkletNode<DelayConfig>;
+
 // === DATTORRO REVERB ===
 
 export type DattorroReverbParams = {

@@ -68,6 +68,18 @@ export const UploadButton = (attributes: ElementProps) => {
   );
 };
 
+export const SaveButton = () => {
+  const svgButton = createSVGButton('Save Sample', 'save', {
+    size: 'md',
+    onClick: () => {
+      // Placeholder for save functionality
+      console.log('Save button clicked');
+    },
+  });
+
+  return div({ class: 'save-button', style: COMPONENT_STYLE }, svgButton);
+};
+
 // ===== RECORD BUTTON =====
 
 export const RecordButton = (attributes: ElementProps) => {
@@ -97,6 +109,10 @@ export const RecordButton = (attributes: ElementProps) => {
       }
 
       recorderResult.setInputSource(inputSource ?? 'microphone');
+
+      if (inputSource === 'resample') {
+        recorderResult.connectResampleInputSource(sampler);
+      }
 
       currentRecorder.val = recorderResult;
       currentRecorder.val.connect(sampler);

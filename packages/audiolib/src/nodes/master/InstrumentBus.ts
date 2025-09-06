@@ -22,8 +22,8 @@ import { LevelMonitor } from '@/utils/audiodata/monitoring/LevelMonitor';
 import { DattorroReverb } from '@/nodes/effects/DattorroReverb';
 import { HarmonicFeedback } from '../effects/HarmonicFeedback';
 
-import { createDistortion } from '@/worklets/worklet-factory';
-import { DistortionWorklet } from '@/worklets/worklet-types';
+import { createDelay, createDistortion } from '@/worklets/worklet-factory';
+import { DelayWorklet, DistortionWorklet } from '@/worklets/worklet-types';
 import { WorkletNode } from '@/worklets/WorkletNode';
 
 export type BusNodeName =
@@ -40,7 +40,7 @@ export type BusNodeName =
   | 'reverb'
   | 'compressor'
   | 'limiter'
-  | 'feedbackDelay';
+  | 'delay';
 
 export type BusSendName = `${BusNodeName}_send`;
 
@@ -56,7 +56,7 @@ type BusNodeTypeMap = {
   feedback: HarmonicFeedback;
   distortion: ILibAudioNode<DistortionWorklet>;
   reverb: DattorroReverb;
-  feedbackDelay?: ILibAudioNode<any>;
+  delay?: ILibAudioNode<DelayWorklet>;
 };
 
 export class InstrumentBus implements ILibAudioNode {
@@ -100,7 +100,7 @@ export class InstrumentBus implements ILibAudioNode {
 
     this.#initPromise = (async () => {
       try {
-        // Create nodes // TODO: Finish implementing the async init pattern consistently
+        // Create nodes
         const input = this.createGainNode(this.#context, { initialGain: 0.5 });
         const dryMix = this.createGainNode(this.#context, { initialGain: 1 });
         const wetMix = this.createGainNode(this.#context, { initialGain: 1 });
@@ -147,6 +147,13 @@ export class InstrumentBus implements ILibAudioNode {
           'distortion'
         );
 
+        const delay = new LibAudioNode<DelayWorklet>(
+          createDelay(this.#context),
+          this.#context,
+          'Delay',
+          { createIOGains: false }
+        );
+
         // Nodes that already implement ILibAudioNode
         const reverb = new DattorroReverb(this.#context);
         const feedback = new HarmonicFeedback(this.#context);
@@ -164,14 +171,15 @@ export class InstrumentBus implements ILibAudioNode {
           feedback,
           distortion,
           reverb,
+          delay,
         });
 
         // Create sends
         this.#createSendNode('reverb');
+        this.#createSendNode('delay');
 
         this.#setupDefaultRouting();
         // this.debugRouting(); // Uncomment for debugging
-        // this.debugSendReturn();
 
         this.#initialized = true;
       } catch {}
@@ -190,16 +198,19 @@ export class InstrumentBus implements ILibAudioNode {
 
   #setupDefaultRouting(): void {
     // Dry chain
-    this.#connectChain(['input', 'hpf', 'feedback', 'dryMix', 'distortion']);
+    this.#connectChain(['input', 'hpf', 'feedback', 'dryMix']);
 
-    // Wet chain
-    this.#connectChain([
-      'feedback',
-      'reverb_send',
-      'reverb',
-      'wetMix',
-      'distortion',
-    ]);
+    // Delay chain
+    this.#connectChain(['feedback', 'delay_send', 'delay', 'wetMix']);
+
+    this.#connectChain(['delay', 'reverb_send']);
+
+    // Reverb chain
+    this.#connectChain(['feedback', 'reverb_send', 'reverb', 'wetMix']);
+
+    // Combine chains
+    this.#connectChain(['wetMix', 'distortion']);
+    this.#connectFromTo('dryMix', 'distortion');
 
     // Shared output chain
     this.#connectChain([
@@ -268,9 +279,13 @@ export class InstrumentBus implements ILibAudioNode {
 
   // === NODE MGMT ===
 
-  #createSendNode = (nodeName: BusNodeName): ILibAudioNode<GainNode> => {
+  #createSendNode = (
+    nodeName: BusNodeName,
+    options: { initGain?: number } = {}
+  ): ILibAudioNode<GainNode> => {
+    const { initGain = 0.0 } = options;
     const node = new LibAudioNode<GainNode>(
-      new GainNode(this.#context, { gain: 0.0 }),
+      new GainNode(this.#context, { gain: initGain }),
       this.#context,
       'gain'
     );
@@ -351,6 +366,10 @@ export class InstrumentBus implements ILibAudioNode {
         glideTime,
       });
     }
+
+    const delayNode = this.getNode('delay');
+    delayNode?.audioNode.sendProcessorMessage({ type: 'trigger' });
+
     return this;
   }
 
@@ -429,6 +448,28 @@ export class InstrumentBus implements ILibAudioNode {
       this.getNode('wetMix')?.setParam('gain', safeWet);
     }
 
+    return this;
+  }
+
+  setDelayTime(seconds: number): this {
+    const safeTime = clamp(seconds, 0, 5.0);
+    this.getNode('delay')?.setParam('delayTime', safeTime);
+
+    return this;
+  }
+
+  setDelayFeedback(amount: number): this {
+    const safeAmount = mapToRange(amount, 0, 1, 0, 0.99);
+    this.getNode('delay')?.setParam('feedbackAmount', safeAmount);
+    return this;
+  }
+
+  /**
+   * Set the character modes for the delay processor, in the order in which to process (e.g. ['filtered', 'bitCrushed'])
+   */
+  setDelayCharacter(modes: Array<'clean' | 'bitCrushed' | 'filtered'>): this {
+    const delayNode = this.getNode('delay');
+    delayNode?.audioNode.sendProcessorMessage({ type: 'setCharacter', modes });
     return this;
   }
 

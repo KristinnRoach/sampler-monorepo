@@ -1,20 +1,47 @@
 import { Component, onMount, createSignal } from 'solid-js';
-import type { SamplerElement } from '@repo/audio-components';
+import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
 import { addExpandCollapseListeners } from './utils/expandCollapse';
+import SaveButton from './components/SaveButton';
+import { SavedSample } from './db/samplelib/sampleIdb';
+import Sidebar from './components/Sidebar';
+import SidebarToggle from './components/SidebarToggle';
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
     'desktop'
   );
 
-  let samplerRef: SamplerElement | undefined;
+  let samplerElementRef: SamplerElement | undefined;
+  let samplePlayerRef: SamplePlayer | null = null;
+
+  const [currentAudioBuffer, setCurrentAudioBuffer] =
+    createSignal<AudioBuffer | null>(null);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
-  const [paramsChanged, setParamsChanged] = createSignal(false);
+  const [sidebarOpen, setSidebarOpen] = createSignal(false);
+
+  const handleSampleSelect = async (sample: SavedSample) => {
+    try {
+      if (!samplePlayerRef) return;
+
+      const arrayBuffer = sample.audioData;
+
+      await samplePlayerRef.loadSample(arrayBuffer, undefined, {
+        skipPreProcessing: true,
+      });
+
+      setSidebarOpen(false);
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+    }
+  };
 
   onMount(() => {
     const handleSampleLoaded = () => {
-      if (samplerRef) {
-        const samplePlayer = samplerRef.getSamplePlayer();
+      if (samplerElementRef) {
+        samplePlayerRef = samplerElementRef.getSamplePlayer();
+        const audiobuffer = samplePlayerRef?.audiobuffer || null;
+
+        setCurrentAudioBuffer(audiobuffer);
         setSampleLoaded(true);
       }
     };
@@ -48,10 +75,28 @@ const App: Component = () => {
 
   return (
     <div id='page-wrapper' class='page-wrapper'>
+      <div class='pre-sidebar-buttons'>
+        <SidebarToggle
+          onclick={() => setSidebarOpen(!sidebarOpen())}
+          isOpen={sidebarOpen()}
+        />
+
+        <SaveButton
+          audioBuffer={currentAudioBuffer()}
+          disabled={!sampleLoaded()}
+        />
+      </div>
+
+      <Sidebar
+        isOpen={sidebarOpen()}
+        onClose={() => setSidebarOpen(false)}
+        onSampleSelect={handleSampleSelect}
+      />
+
       <div class={`control-grid layout-${layout()}`} id='sampler-container'>
         {/* Sampler Audio Engine */}
         <sampler-element
-          ref={samplerRef}
+          ref={samplerElementRef}
           node-id='test-sampler'
           debug-mode='false'
         />
@@ -75,6 +120,10 @@ const App: Component = () => {
               <input-select target-node-id='test-sampler' />
             </div>
             <load-button target-node-id='test-sampler' show-status='false' />
+            {/* <SaveButton
+              audioBuffer={currentAudioBuffer()}
+              disabled={!sampleLoaded()}
+            /> */}
             <button
               class='reset-button'
               title='Reset knobs'
@@ -104,16 +153,11 @@ const App: Component = () => {
             <dry-wet-knob target-node-id='test-sampler' />
             <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
             <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
+            <delay-send-knob label='Delay' target-node-id='test-sampler' />
+            <delay-time-knob label='Time' target-node-id='test-sampler' />
+            <delay-feedback-knob label='FB' target-node-id='test-sampler' />
           </div>
         </fieldset>
-
-        {/* <fieldset class='control-group space-group'>
-          <legend class='expandable-legend'>Space</legend>
-          <div class='expandable-content'>
-            <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
-            <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
-          </div>
-        </fieldset> */}
 
         <fieldset class='control-group filter-group'>
           <legend class='expandable-legend'>Filters</legend>

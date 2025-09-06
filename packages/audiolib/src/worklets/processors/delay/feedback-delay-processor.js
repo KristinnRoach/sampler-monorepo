@@ -45,6 +45,8 @@ registerProcessor(
       this.decayActive = false;
       this.baseFeedbackAmount = 0.5;
       this.setupMessageHandling();
+      // Signal to node that processor is initialized
+      this.port.postMessage({ type: 'initialized' });
     }
 
     setupMessageHandling() {

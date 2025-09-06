@@ -41,6 +41,10 @@ export class MacroParam {
     this.#isReady = true;
   }
 
+  async init(): Promise<void> {
+    // No-op for sync classes
+  }
+
   addTarget(
     targetParam: AudioParam,
     paramType: string,

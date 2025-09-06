@@ -86,9 +86,9 @@ const getWaveformLabel = (waveform: SupportedWaveform): string => {
     sawtooth: 'Saw',
     triangle: 'Triangle',
     pulse: 'Pulse',
-    'bandlimited-sawtooth': 'BL Saw',
-    supersaw: 'SuperSaw',
-    'warm-pad': 'WarmPad',
+    'bandlimited-sawtooth': 'BL-Saw',
+    supersaw: 'Super',
+    'warm-pad': 'Warm',
     metallic: 'Metallic',
     formant: 'Formant',
     'white-noise': 'White',
@@ -107,7 +107,7 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   defaultValue: 'warm-pad' as SupportedWaveform,
   options: SUPPORTED_WAVEFORMS.map((waveform: SupportedWaveform) => ({
     value: waveform,
-    // label: getWaveformLabel(waveform),
+    label: getWaveformLabel(waveform),
     svg: createWaveformIcon(waveform),
   })),
   onTargetConnect: (
@@ -159,7 +159,9 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
   },
 };
 
-const inputSourceSelectConfig: SelectConfig<'microphone' | 'browser'> = {
+const inputSourceSelectConfig: SelectConfig<
+  'microphone' | 'browser' | 'resample'
+> = {
   title: 'Select Audio Input Source',
   defaultValue: 'microphone',
   options: [
@@ -171,10 +173,14 @@ const inputSourceSelectConfig: SelectConfig<'microphone' | 'browser'> = {
       value: 'browser',
       label: 'Browser',
     },
+    {
+      value: 'resample',
+      label: 'ReSample',
+    },
   ],
   onTargetConnect: (
     sampler: any,
-    state: State<'microphone' | 'browser'>,
+    state: State<'microphone' | 'browser' | 'resample'>,
     van: any,
     targetNodeId: string
   ) => {
@@ -280,7 +286,28 @@ const createSamplerSelect = <T extends string = string>(
           if (!select || !measure) return;
           measure.textContent = select.options[select.selectedIndex].text;
           measure.style.font = window.getComputedStyle(select).font;
-          select.style.width = measure.offsetWidth + 35 + 'px';
+
+          // Try to get SVG width if present in the selected option
+          let svgWidth = 0;
+          const selectedOption = select.options[select.selectedIndex];
+          const optConfig = config.options.find(
+            (opt) => opt.value === selectedOption.value
+          );
+          if (optConfig && optConfig.svg) {
+            const svgEls = container.querySelectorAll('svg');
+            let foundWidth = 0;
+            svgEls.forEach((svg) => {
+              if (
+                svg.parentElement &&
+                svg.parentElement.textContent?.trim() ===
+                  selectedOption.text.trim()
+              ) {
+                foundWidth = svg.getBoundingClientRect().width;
+              }
+            });
+            svgWidth = foundWidth || 20; // fallback to 20px
+          }
+          select.style.width = measure.offsetWidth + 35 + svgWidth + 'px';
         };
 
         if (select) {
@@ -296,7 +323,7 @@ const createSamplerSelect = <T extends string = string>(
       return SelectElement;
     }
 
-    // Label below the select (for composite elements)
+    // Label below the select
     if (labelPosition.val === 'below') {
       return div(
         {

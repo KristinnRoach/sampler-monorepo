@@ -9,6 +9,7 @@ import {
   createMessageBus,
 } from '@/events';
 import { LibNode } from '@/nodes/LibNode';
+import { createSampleVoices } from './createSampleVoice';
 
 export class SampleVoicePool implements LibNode {
   readonly nodeId: NodeID;
@@ -30,9 +31,6 @@ export class SampleVoicePool implements LibNode {
 
   #gainReductionScalar = 1; // Reduces gain based on number of playing voices
 
-  // Envelope creation tracking: Map<envType, Set<SampleVoice>>
-  #envelopeCreatedMap = new Map<string, Set<SampleVoice>>();
-
   constructor(context: AudioContext, polyphony: number) {
     this.nodeId = registerNode(this.nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
@@ -46,17 +44,15 @@ export class SampleVoicePool implements LibNode {
 
     this.#initPromise = (async () => {
       try {
-        this.#allVoices = Array.from(
-          { length: this.#polyphony },
-          () => new SampleVoice(this.#context)
+        this.#allVoices = await createSampleVoices(
+          this.#polyphony,
+          this.#context
         );
-        await Promise.all(
-          this.#allVoices.map(async (voice) => {
-            await voice.init();
-            this.#available.add(voice);
-            this.#setupMessageHandling(voice);
-          })
-        );
+
+        this.#allVoices.forEach((voice) => {
+          this.#available.add(voice);
+          this.#setupMessageHandling(voice);
+        });
         this.#initialized = true;
       } catch (error) {
         this.#allVoices.forEach((voice) => voice.dispose());
@@ -97,6 +93,7 @@ export class SampleVoicePool implements LibNode {
   }
 
   #initializedVoices = new Set<SampleVoice>();
+  #envelopeCreatedMap = new Map<string, Set<SampleVoice>>();
 
   #setupMessageHandling(voice: SampleVoice) {
     voice.onMessage('voice:started', (msg: Message) => {

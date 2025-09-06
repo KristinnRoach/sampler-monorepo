@@ -40,6 +40,8 @@ registerProcessor(
       this.envelope = 0;
       this.gateThreshold = 0.005;
       this.debugCounter = 0;
+      // Signal to node that processor is initialized
+      this.port.postMessage({ type: 'initialized' });
     }
 
     process(inputs, outputs, parameters) {

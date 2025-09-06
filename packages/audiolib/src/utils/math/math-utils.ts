@@ -53,3 +53,25 @@ export const mapToRange = (
   // Ensure output is within bounds, considering that output range might be inverted
   return clamp(mapped, Math.min(outMin, outMax), Math.max(outMin, outMax));
 };
+
+/** Returns an array of numbers from start (inclusive) to end (exclusive). Start must be less than end.  */
+export const range = (start: number, end: number, step = 1) => {
+  let output: number[] = [];
+
+  if (start >= end) {
+    console.warn(
+      `range(): start (${start}) must be less than end (${end}). Returning empty array.`
+    );
+    return output;
+  }
+
+  for (let i = start; i < end; i += step) {
+    output.push(i);
+  }
+
+  return output;
+};
+
+/** Returns a random integer between min (inclusive) and max (exclusive) */
+export const randomInt = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min)) + min;

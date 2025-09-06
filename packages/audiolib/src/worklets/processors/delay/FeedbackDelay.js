@@ -110,8 +110,6 @@ export class FeedbackDelay {
     if (this.autoGainEnabled && feedbackAmount > AUTO_GAIN_THRESHOLD) {
       const safetyReduction =
         1 - (feedbackAmount - AUTO_GAIN_THRESHOLD) * this.gainCompensation;
-      // const excess = feedbackAmount - AUTO_GAIN_THRESHOLD;
-      // const safetyReduction = Math.exp(-excess * this.gainCompensation);
       outputSample = compressedFeedback * safetyReduction;
     }
 

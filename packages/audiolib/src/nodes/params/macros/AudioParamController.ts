@@ -122,7 +122,7 @@ export class AudioParamController implements LibNode {
   }
 
   dispose(): void {
-    this.#constantSignal.stop();
+    // this.#constantSignal.stop();
     this.#constantSignal.disconnect();
     unregisterNode(this.nodeId);
   }

@@ -13,6 +13,7 @@ declare module 'solid-js' {
       // Sample controls
       'record-button': any;
       'load-button': any;
+      'save-button': any;
       'input-select': any;
 
       // Knob components
@@ -41,6 +42,9 @@ declare module 'solid-js' {
       'trim-start-knob': any;
       'trim-end-knob': any;
       'distortion-knob': any;
+      'delay-send-knob': any;
+      'delay-time-knob': any;
+      'delay-feedback-knob': any;
 
       // Toggle components
       'feedback-mode-toggle': any;

@@ -12,6 +12,8 @@ class RandomNoiseProcessor extends AudioWorkletProcessor {
         this.alpha = this.calculateAlpha(this.hpfHz);
       }
     };
+    // Signal to node that processor is initialized
+    this.port.postMessage({ type: 'initialized' });
   }
 
   calculateAlpha(frequency) {
