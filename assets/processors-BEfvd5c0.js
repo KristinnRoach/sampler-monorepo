@@ -5,7 +5,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, getMusicalNoteDurations_fn, quantizeLoopDuration_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
 function findClosestIdx(sortedArray, target, direction = "any", getValue = (x) => x, getDistance = (a, b) => Math.abs(a - b)) {
   if (sortedArray.length === 0) {
     throw new Error("Array cannot be empty");
@@ -61,6 +61,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableLoopSmoothing = true;
     this.enableAdaptiveDrift = true;
     this.enableAmplitudeCompensation = true;
+    this.syncLoopToTempo = true;
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
     this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 16.35);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
@@ -161,6 +162,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
         minValue: 1,
         maxValue: 999999,
         automationRate: "k-rate"
+      },
+      {
+        name: "tempo",
+        defaultValue: 120,
+        minValue: 20,
+        maxValue: 300,
+        automationRate: "k-rate"
       }
     ];
   }
@@ -175,7 +183,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const masterGain = parameters.masterGain[0];
     const positionParams = __privateMethod(this, _SamplePlayerProcessor_instances, extractPositionParams_fn).call(this, parameters);
     const playbackRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculatePlaybackRange_fn).call(this, positionParams);
-    const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters.loopDurationDriftAmount[0]);
+    const basePlaybackRate = parameters.playbackRate[0];
+    const tempo = parameters.tempo[0];
+    const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters.loopDurationDriftAmount[0], tempo, basePlaybackRate);
     const amplitudeGain = __privateMethod(this, _SamplePlayerProcessor_instances, analyzeLoopAmplitude_fn).call(this, loopRange.loopStartSamples, loopRange.loopEndSamples);
     const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]) * this.velocitySensitivity;
     const basePan = parameters.pan[0];
@@ -381,6 +391,13 @@ handleMessage_fn = function(event) {
     case "voice:usePlaybackPosition":
       this.usePlaybackPosition = value;
       break;
+    case "syncLoopToTempo":
+      this.syncLoopToTempo = value;
+      this.port.postMessage({
+        type: "loop:syncToTempo",
+        enabled: value
+      });
+      break;
   }
 };
 // ===== METHODS =====
@@ -459,6 +476,57 @@ getBufferDurationSeconds_fn = function() {
   return (((_b = (_a = this.buffer) == null ? void 0 : _a[0]) == null ? void 0 : _b.length) || 0) / sampleRate;
 };
 /**
+ * Calculate musical note durations in samples for given tempo
+ * @param {number} tempo - BPM
+ * @returns {Object} - Musical note durations in samples
+ */
+getMusicalNoteDurations_fn = function(tempo) {
+  const beatsPerSecond = tempo / 60;
+  const samplesPerBeat = sampleRate / beatsPerSecond;
+  return {
+    // Standard notes
+    whole: samplesPerBeat * 4,
+    half: samplesPerBeat * 2,
+    quarter: samplesPerBeat,
+    eighth: samplesPerBeat / 2,
+    sixteenth: samplesPerBeat / 4,
+    thirtySecond: samplesPerBeat / 8,
+    // Triplets (divide by 3/2 = multiply by 2/3)
+    quarterTriplet: samplesPerBeat * 2 / 3,
+    eighthTriplet: samplesPerBeat / 2 * 2 / 3,
+    sixteenthTriplet: samplesPerBeat / 4 * 2 / 3
+  };
+};
+/**
+ * Quantize loop duration to nearest musical interval (skips if below the smallest quantize option)
+ * @param {number} loopDurationSamples - Current loop duration in samples
+ * @param {number} tempo - Current tempo in BPM
+ * @param {number} playbackRate - Current playback rate
+ * @returns {number} - Quantized loop duration in samples
+ */
+quantizeLoopDuration_fn = function(loopDurationSamples, tempo, playbackRate) {
+  if (!this.syncLoopToTempo) {
+    return loopDurationSamples;
+  }
+  const noteDurations = __privateMethod(this, _SamplePlayerProcessor_instances, getMusicalNoteDurations_fn).call(this, tempo);
+  const effectiveDuration = loopDurationSamples / Math.abs(playbackRate);
+  const smallestInterval = noteDurations.thirtySecond;
+  if (effectiveDuration < smallestInterval) {
+    return loopDurationSamples;
+  }
+  const intervals = Object.values(noteDurations);
+  let closestInterval = intervals[0];
+  let smallestDiff = Math.abs(effectiveDuration - closestInterval);
+  for (const interval of intervals) {
+    const diff = Math.abs(effectiveDuration - interval);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      closestInterval = interval;
+    }
+  }
+  return Math.floor(closestInterval * Math.abs(playbackRate));
+};
+/**
  * Extract and convert all position parameters from seconds to samples
  * @param {Object} parameters - AudioWorkletProcessor parameters
  * @returns {Object} - Converted parameters in samples
@@ -495,14 +563,21 @@ calculatePlaybackRange_fn = function(params) {
  * @param {Object} params - Position parameters from #extractPositionParams
  * @param {Object} playbackRange - Range from #calculatePlaybackRange
  * @param {number} driftAmount - Loop duration drift amount (0-1)
+ * @param {number} tempo - Current tempo in BPM
+ * @param {number} playbackRate - Current playback rate
  * @returns {Object} - Effective loop start and end positions with drift applied
  */
-calculateLoopRange_fn = function(params, playbackRange, driftAmount = 0) {
+calculateLoopRange_fn = function(params, playbackRange, driftAmount = 0, tempo = 120, playbackRate = 1) {
   const lpStart = params.loopStartSamples;
   const lpEnd = params.loopEndSamples;
   let calcLoopStart = lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
   let calcLoopEnd = lpEnd > lpStart && lpEnd <= playbackRange.endSamples ? lpEnd : playbackRange.endSamples;
   const baseDuration = calcLoopEnd - calcLoopStart;
+  if (this.syncLoopToTempo) {
+    const quantizedDuration = __privateMethod(this, _SamplePlayerProcessor_instances, quantizeLoopDuration_fn).call(this, baseDuration, tempo, playbackRate);
+    calcLoopEnd = calcLoopStart + quantizedDuration;
+    calcLoopEnd = Math.min(calcLoopEnd, playbackRange.endSamples);
+  }
   if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
     calcLoopStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopStart, "right");
     calcLoopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopEnd, "left");
@@ -941,6 +1016,9 @@ registerProcessor(
       this._bpState = [];
       this._bpFreq = DEFAULT_CHARACTER_CONFIG.filtered.freq;
       this._bpQ = DEFAULT_CHARACTER_CONFIG.filtered.Q;
+      this._bpCoeffs = null;
+      this._lastBpFreq = -1;
+      this._lastBpQ = -1;
       this.lofiBits = DEFAULT_CHARACTER_CONFIG["bitCrushed"].bits;
       this.lofiDownsample = DEFAULT_CHARACTER_CONFIG["bitCrushed"].downsample;
       this._lofiSampleHold = [];
@@ -951,7 +1029,7 @@ registerProcessor(
           this.characterModes = [...event.data.modes];
         }
         if (event.data && event.data.type === "setBandpassFreq" && typeof event.data.hz === "number") {
-          this.updatePitch(event.data.hz);
+          this.setBandpassFreq(event.data.hz);
         }
         if (event.data && event.data.type === "trigger") ;
       };
@@ -959,6 +1037,32 @@ registerProcessor(
     }
     setBandpassFreq(hz) {
       this._bpFreq = hz;
+      this._lastBpFreq = -1;
+    }
+    _updateBandpassCoeffs() {
+      if (this._lastBpFreq === this._bpFreq && this._lastBpQ === this._bpQ) {
+        return;
+      }
+      const bpFreq = this._bpFreq;
+      const bpQ = this._bpQ;
+      const omega = 2 * Math.PI * bpFreq / sampleRate;
+      const alpha = Math.sin(omega) / (2 * bpQ);
+      const cosw = Math.cos(omega);
+      const b0 = alpha;
+      const b1 = 0;
+      const b2 = -alpha;
+      const a0 = 1 + alpha;
+      const a1 = -2 * cosw;
+      const a2 = 1 - alpha;
+      this._bpCoeffs = {
+        b0: b0 / a0,
+        b1: b1 / a0,
+        b2: b2 / a0,
+        a1: a1 / a0,
+        a2: a2 / a0
+      };
+      this._lastBpFreq = bpFreq;
+      this._lastBpQ = bpQ;
     }
     initializeBuffers(channelCount) {
       const maxSamples = Math.floor(sampleRate * 2);
@@ -990,24 +1094,13 @@ registerProcessor(
       if (!this._bpState[c]) {
         this._bpState[c] = { x1: 0, x2: 0, y1: 0, y2: 0 };
       }
-      const bpFreq = this._bpFreq;
-      const bpQ = this._bpQ;
-      const omega = 2 * Math.PI * bpFreq / sampleRate;
-      const alpha = Math.sin(omega) / (2 * bpQ);
-      const cosw = Math.cos(omega);
-      const b0 = alpha;
-      const b1 = 0;
-      const b2 = -alpha;
-      const a0 = 1 + alpha;
-      const a1 = -2 * cosw;
-      const a2 = 1 - alpha;
-      const norm_b0 = b0 / a0;
-      const norm_b1 = b1 / a0;
-      const norm_b2 = b2 / a0;
-      const norm_a1 = a1 / a0;
-      const norm_a2 = a2 / a0;
+      this._updateBandpassCoeffs();
+      if (!this._bpCoeffs) {
+        return delayed;
+      }
+      const { b0, b1, b2, a1, a2 } = this._bpCoeffs;
       const s = this._bpState[c];
-      const y = norm_b0 * delayed + norm_b1 * s.x1 + norm_b2 * s.x2 - norm_a1 * s.y1 - norm_a2 * s.y2;
+      const y = b0 * delayed + b1 * s.x1 + b2 * s.x2 - a1 * s.y1 - a2 * s.y2;
       s.x2 = s.x1;
       s.x1 = delayed;
       s.y2 = s.y1;
@@ -1017,7 +1110,12 @@ registerProcessor(
     process(inputs, outputs, parameters) {
       const input = inputs[0];
       const output = outputs[0];
-      if (!input || !output) return true;
+      if (!input || !output || input.length === 0 || output.length === 0) {
+        return true;
+      }
+      if (!input[0] || !output[0] || input[0].length === 0 || output[0].length === 0) {
+        return true;
+      }
       if (!this.initialized || this.buffers.length !== input.length) {
         this.initializeBuffers(input.length);
       }
@@ -1030,6 +1128,9 @@ registerProcessor(
       for (let i = 0; i < frameCount; ++i) {
         for (let c = 0; c < channelCount; c++) {
           const buf = this.buffers[c];
+          if (!buf) {
+            continue;
+          }
           this.smoothedDelaySamples[c] += (targetDelaySamples - this.smoothedDelaySamples[c]) * smoothing;
           const smoothedDelay = this.smoothedDelaySamples[c];
           const intDelay = Math.floor(smoothedDelay);
@@ -1051,7 +1152,7 @@ registerProcessor(
             type: "soft",
             outputRange: { min: -0.9, max: 0.9 }
           });
-          const inputSample = input[c][i] || 0;
+          const inputSample = input[c] && input[c][i] !== void 0 ? input[c][i] : 0;
           buf.write(inputSample + delayed * feedbackAmount);
           buf.updatePointers(intDelay);
         }
