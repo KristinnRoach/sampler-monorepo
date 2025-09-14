@@ -53,7 +53,9 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
 
 interface SaveButtonProps {
   audioBuffer: AudioBuffer | null;
+  isOpen?: boolean;
   disabled?: boolean;
+  class?: string;
 }
 
 const SaveButton: Component<SaveButtonProps> = (props) => {
@@ -87,7 +89,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
 
   return (
     <save-button
-      class='save-button'
+      class={`${props.class ? props.class : ''} save-button ${props.isOpen ? 'open' : ''}`}
       disabled={props.disabled || saving()}
       onclick={handleSave}
       title='Save current sample'

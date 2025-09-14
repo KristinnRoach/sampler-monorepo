@@ -63,6 +63,9 @@ registerProcessor(
       this._bpState = [];
       this._bpFreq = DEFAULT_CHARACTER_CONFIG.filtered.freq;
       this._bpQ = DEFAULT_CHARACTER_CONFIG.filtered.Q;
+      this._bpCoeffs = null; // Cache for bandpass filter coefficients
+      this._lastBpFreq = -1; // Track when coefficients need updating
+      this._lastBpQ = -1;
 
       // lofi mode settings
       this.lofiBits = DEFAULT_CHARACTER_CONFIG['bitCrushed'].bits;
@@ -85,7 +88,7 @@ registerProcessor(
           event.data.type === 'setBandpassFreq' &&
           typeof event.data.hz === 'number'
         ) {
-          this.updatePitch(event.data.hz);
+          this.setBandpassFreq(event.data.hz);
         }
         if (event.data && event.data.type === 'trigger') {
           // Placeholder for any trigger-related functionality
@@ -97,6 +100,40 @@ registerProcessor(
 
     setBandpassFreq(hz) {
       this._bpFreq = hz;
+      // Invalidate cached coefficients when frequency changes
+      this._lastBpFreq = -1;
+    }
+
+    _updateBandpassCoeffs() {
+      // Only recompute coefficients if parameters have changed
+      if (this._lastBpFreq === this._bpFreq && this._lastBpQ === this._bpQ) {
+        return;
+      }
+
+      const bpFreq = this._bpFreq;
+      const bpQ = this._bpQ;
+
+      const omega = (2 * Math.PI * bpFreq) / sampleRate;
+      const alpha = Math.sin(omega) / (2 * bpQ);
+      const cosw = Math.cos(omega);
+      const b0 = alpha;
+      const b1 = 0;
+      const b2 = -alpha;
+      const a0 = 1 + alpha;
+      const a1 = -2 * cosw;
+      const a2 = 1 - alpha;
+
+      // Normalize coefficients and cache them
+      this._bpCoeffs = {
+        b0: b0 / a0,
+        b1: b1 / a0,
+        b2: b2 / a0,
+        a1: a1 / a0,
+        a2: a2 / a0,
+      };
+
+      this._lastBpFreq = bpFreq;
+      this._lastBpQ = bpQ;
     }
 
     initializeBuffers(channelCount) {
@@ -134,32 +171,19 @@ registerProcessor(
         this._bpState[c] = { x1: 0, x2: 0, y1: 0, y2: 0 };
       }
 
-      const bpFreq = this._bpFreq;
-      const bpQ = this._bpQ;
+      // Update coefficients only if needed (much more efficient)
+      this._updateBandpassCoeffs();
 
-      const omega = (2 * Math.PI * bpFreq) / sampleRate;
-      const alpha = Math.sin(omega) / (2 * bpQ);
-      const cosw = Math.cos(omega);
-      const b0 = alpha;
-      const b1 = 0;
-      const b2 = -alpha;
-      const a0 = 1 + alpha;
-      const a1 = -2 * cosw;
-      const a2 = 1 - alpha;
-      // Normalize coefficients
-      const norm_b0 = b0 / a0;
-      const norm_b1 = b1 / a0;
-      const norm_b2 = b2 / a0;
-      const norm_a1 = a1 / a0;
-      const norm_a2 = a2 / a0;
-      // Apply filter
+      if (!this._bpCoeffs) {
+        return delayed; // Fallback if coefficients aren't ready
+      }
+
+      const { b0, b1, b2, a1, a2 } = this._bpCoeffs;
+
+      // Apply filter using cached coefficients
       const s = this._bpState[c];
-      const y =
-        norm_b0 * delayed +
-        norm_b1 * s.x1 +
-        norm_b2 * s.x2 -
-        norm_a1 * s.y1 -
-        norm_a2 * s.y2;
+      const y = b0 * delayed + b1 * s.x1 + b2 * s.x2 - a1 * s.y1 - a2 * s.y2;
+
       // Shift states
       s.x2 = s.x1;
       s.x1 = delayed;
@@ -171,7 +195,21 @@ registerProcessor(
     process(inputs, outputs, parameters) {
       const input = inputs[0];
       const output = outputs[0];
-      if (!input || !output) return true;
+
+      // Improved validation: check for proper channel structure
+      if (!input || !output || input.length === 0 || output.length === 0) {
+        return true;
+      }
+
+      // Validate that channels have actual sample data
+      if (
+        !input[0] ||
+        !output[0] ||
+        input[0].length === 0 ||
+        output[0].length === 0
+      ) {
+        return true;
+      }
 
       if (!this.initialized || this.buffers.length !== input.length) {
         this.initializeBuffers(input.length);
@@ -189,6 +227,12 @@ registerProcessor(
       for (let i = 0; i < frameCount; ++i) {
         for (let c = 0; c < channelCount; c++) {
           const buf = this.buffers[c];
+
+          // Additional safety check for buffer availability
+          if (!buf) {
+            continue;
+          }
+
           // Smoothly interpolate delay samples
           this.smoothedDelaySamples[c] +=
             (targetDelaySamples - this.smoothedDelaySamples[c]) * smoothing;
@@ -213,7 +257,7 @@ registerProcessor(
             } else if (mode === 'filtered') {
               delayed = this._processBandpass(delayed, c);
             }
-            // Add more modes here as needed
+            // other modes can be added here
           }
 
           // Apply soft limiting to output
@@ -222,7 +266,8 @@ registerProcessor(
             type: 'soft',
             outputRange: { min: -0.9, max: 0.9 },
           });
-          const inputSample = input[c][i] || 0;
+          const inputSample =
+            input[c] && input[c][i] !== undefined ? input[c][i] : 0;
           buf.write(inputSample + delayed * feedbackAmount);
           buf.updatePointers(intDelay); // Use integer part for pointer update
         }

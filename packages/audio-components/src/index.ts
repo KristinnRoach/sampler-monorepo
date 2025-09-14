@@ -54,6 +54,7 @@ export {
   TrimStartKnob,
   TrimEndKnob,
   DistortionKnob,
+  TempoKnob,
 } from './elements/Sampler/components/SamplerKnobFactory';
 
 // Toggle components

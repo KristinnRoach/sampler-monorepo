@@ -88,6 +88,11 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #transposedBySemitones = 0;
 
+  #tempo = 120;
+  #loopTempoSync = false; // TODO: Implement!
+  #MAX_TEMPO = 300;
+  #MIN_TEMPO = 20;
+
   #syncGainLFOToMidiNote = false;
   #syncPitchLFOToMidiNote = false;
 
@@ -815,6 +820,24 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   debugcounter = 0;
 
+  setTempo(bpm: number) {
+    if (bpm < this.#MIN_TEMPO || bpm > this.#MAX_TEMPO) return;
+    this.#tempo = bpm;
+
+    this.voicePool.applyToAllVoices((voice) => voice.setTempo(bpm));
+
+    this.sendUpstreamMessage('tempo:updated', { bpm });
+    return this;
+  }
+
+  syncLoopToTempo(enabled: boolean) {
+    this.voicePool.applyToAllVoices((voice) => voice.syncLoopToTempo(enabled));
+  }
+
+  get tempo() {
+    return this.#tempo;
+  }
+
   setLoopPoint(
     loopPoint: 'start' | 'end',
     loopStartSeconds: number,
@@ -842,6 +865,13 @@ export class SamplePlayer implements ILibInstrumentNode {
     const scaledRampTime = rampDuration * RAMP_SENSITIVITY;
 
     if (loopPoint === 'start' && loopStart !== this.loopStart) {
+      // handle tempo loop sync for loop start
+      if (this.#loopTempoSync) {
+        const beatDuration = 60 / this.#tempo;
+        const numBeats = Math.round(targetLoopDuration / beatDuration);
+        loopStart = loopEnd - numBeats * beatDuration;
+      }
+
       const storeLoopStart = () => this.storeParamValue('loopStart', loopStart);
 
       if (targetLoopDuration < this.MIN_LOOP_DURATION_SECONDS) {
@@ -854,6 +884,13 @@ export class SamplePlayer implements ILibInstrumentNode {
         },
       });
     } else if (loopPoint === 'end' && loopEnd !== this.loopEnd) {
+      // handle tempo loop sync for loop end
+      if (this.#loopTempoSync) {
+        const beatDuration = 60 / this.#tempo;
+        const numBeats = Math.round(targetLoopDuration / beatDuration);
+        loopEnd = loopStart + numBeats * beatDuration;
+      }
+
       const storeLoopEnd = () => this.storeParamValue('loopEnd', loopEnd);
 
       if (targetLoopDuration < this.MIN_LOOP_DURATION_SECONDS) {

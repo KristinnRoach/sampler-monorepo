@@ -40,6 +40,9 @@ const feedbackConfig: KnobConfig = {
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
+  snapIncrement: 0.001,
+  curve: 2.5,
+  valueFormatter: (v: number) => v.toFixed(3),
   onConnect: (sampler, state) => {
     van.derive(() => sampler.setFeedbackAmount(state.val));
   },
@@ -163,7 +166,7 @@ const delaySendConfig: KnobConfig = {
   defaultValue: 0,
   minValue: 0,
   maxValue: 1,
-  curve: 1,
+  curve: 2,
   valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
   onConnect: (sampler, state) => {
     van.derive(() => sampler.sendToFx('delay', state.val));
@@ -251,7 +254,7 @@ const reverbSizeConfig: KnobConfig = {
 const loopDurationDriftConfig: KnobConfig = {
   label: 'Loop Drift',
   useLocalStorage: true,
-  defaultValue: 0.0,
+  defaultValue: 0.3,
   minValue: 0,
   maxValue: 1,
   curve: 0.5,
@@ -433,6 +436,23 @@ const loopDurationConfig: KnobConfig = {
   },
 };
 
+const tempoKnobConfig: KnobConfig = {
+  label: 'Tempo',
+  useLocalStorage: true,
+  defaultValue: 120,
+  minValue: 20,
+  maxValue: 300,
+  curve: 1,
+  snapIncrement: 1,
+  valueFormatter: (v: number) => `${v.toFixed(0)} BPM`,
+  color: '#333',
+  onConnect: (sampler, state) => {
+    van.derive(() => {
+      sampler.setTempo(state.val);
+    });
+  },
+};
+
 // ===== EXPORTED KNOB COMPONENTS =====
 
 export const VolumeKnob = createKnobForTarget(volumeConfig, getSampler);
@@ -521,6 +541,8 @@ export const LoopDurationKnob = createKnobForTarget(
 export const TrimStartKnob = createKnobForTarget(trimStartConfig, getSampler);
 
 export const TrimEndKnob = createKnobForTarget(trimEndConfig, getSampler);
+
+export const TempoKnob = createKnobForTarget(tempoKnobConfig, getSampler);
 
 // // ===== SHARED KNOB STATE REGISTRY =====
 // const knobStates = new Map<string, any>();
