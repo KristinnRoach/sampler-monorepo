@@ -4,12 +4,13 @@ import { Component } from 'solid-js';
 interface SidebarToggleProps {
   onclick: () => void;
   isOpen?: boolean;
+  class?: string;
 }
 
 const SidebarToggle: Component<SidebarToggleProps> = (props) => {
   return (
     <button
-      class={`sidebar-toggle ${props.isOpen ? 'open' : ''}`}
+      class={`${props.class ? props.class : ''} sidebar-toggle ${props.isOpen ? 'open' : ''}`}
       onclick={props.onclick}
       title='View saved samples'
     >

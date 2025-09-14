@@ -89,6 +89,13 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         maxValue: 999999,
         automationRate: 'k-rate',
       },
+      {
+        name: 'tempo',
+        defaultValue: 120,
+        minValue: 20,
+        maxValue: 300,
+        automationRate: 'k-rate',
+      },
     ];
   }
 
@@ -106,6 +113,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableLoopSmoothing = true; // Crossfade between loop points
     this.enableAdaptiveDrift = true; // Adaptive drift scaling based on loop duration
     this.enableAmplitudeCompensation = true; // Automatic makeup gain for short loops
+    this.syncLoopToTempo = true; // ! TEMP TRUE WHILE TESTING // Sync loop duration to tempo
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
@@ -230,6 +238,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       case 'voice:usePlaybackPosition':
         this.usePlaybackPosition = value;
         break;
+
+      case 'syncLoopToTempo':
+        this.syncLoopToTempo = value;
+
+        this.port.postMessage({
+          type: 'loop:syncToTempo',
+          enabled: value,
+        });
+        break;
     }
   }
 
@@ -334,6 +351,73 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   /**
+   * Calculate musical note durations in samples for given tempo
+   * @param {number} tempo - BPM
+   * @returns {Object} - Musical note durations in samples
+   */
+  #getMusicalNoteDurations(tempo) {
+    const beatsPerSecond = tempo / 60;
+    const samplesPerBeat = sampleRate / beatsPerSecond;
+
+    return {
+      // Standard notes
+      whole: samplesPerBeat * 4,
+      half: samplesPerBeat * 2,
+      quarter: samplesPerBeat,
+      eighth: samplesPerBeat / 2,
+      sixteenth: samplesPerBeat / 4,
+      thirtySecond: samplesPerBeat / 8,
+
+      // Triplets (divide by 3/2 = multiply by 2/3)
+      quarterTriplet: (samplesPerBeat * 2) / 3,
+      eighthTriplet: ((samplesPerBeat / 2) * 2) / 3,
+      sixteenthTriplet: ((samplesPerBeat / 4) * 2) / 3,
+    };
+  }
+
+  /**
+   * Quantize loop duration to nearest musical interval (skips if below the smallest quantize option)
+   * @param {number} loopDurationSamples - Current loop duration in samples
+   * @param {number} tempo - Current tempo in BPM
+   * @param {number} playbackRate - Current playback rate
+   * @returns {number} - Quantized loop duration in samples
+   */
+  #quantizeLoopDuration(loopDurationSamples, tempo, playbackRate) {
+    if (!this.syncLoopToTempo) {
+      return loopDurationSamples;
+    }
+
+    const noteDurations = this.#getMusicalNoteDurations(tempo);
+
+    // Account for playback rate - faster playback means shorter effective duration
+    const effectiveDuration = loopDurationSamples / Math.abs(playbackRate);
+
+    // Find the smallest quantize option (32nd note)
+    const smallestInterval = noteDurations.thirtySecond;
+
+    // Skip quantization if the base duration is smaller than the smallest option
+    if (effectiveDuration < smallestInterval) {
+      return loopDurationSamples;
+    }
+
+    // Find closest musical interval
+    const intervals = Object.values(noteDurations);
+    let closestInterval = intervals[0];
+    let smallestDiff = Math.abs(effectiveDuration - closestInterval);
+
+    for (const interval of intervals) {
+      const diff = Math.abs(effectiveDuration - interval);
+      if (diff < smallestDiff) {
+        smallestDiff = diff;
+        closestInterval = interval;
+      }
+    }
+
+    // Convert back to samples accounting for playback rate
+    return Math.floor(closestInterval * Math.abs(playbackRate));
+  }
+
+  /**
    * Extract and convert all position parameters from seconds to samples
    * @param {Object} parameters - AudioWorkletProcessor parameters
    * @returns {Object} - Converted parameters in samples
@@ -377,9 +461,17 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
    * @param {Object} params - Position parameters from #extractPositionParams
    * @param {Object} playbackRange - Range from #calculatePlaybackRange
    * @param {number} driftAmount - Loop duration drift amount (0-1)
+   * @param {number} tempo - Current tempo in BPM
+   * @param {number} playbackRate - Current playback rate
    * @returns {Object} - Effective loop start and end positions with drift applied
    */
-  #calculateLoopRange(params, playbackRange, driftAmount = 0) {
+  #calculateLoopRange(
+    params,
+    playbackRange,
+    driftAmount = 0,
+    tempo = 120,
+    playbackRate = 1
+  ) {
     const lpStart = params.loopStartSamples;
     const lpEnd = params.loopEndSamples;
 
@@ -393,6 +485,19 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         : playbackRange.endSamples;
 
     const baseDuration = calcLoopEnd - calcLoopStart;
+
+    // Apply tempo quantization if enabled
+    if (this.syncLoopToTempo) {
+      const quantizedDuration = this.#quantizeLoopDuration(
+        baseDuration,
+        tempo,
+        playbackRate
+      );
+      calcLoopEnd = calcLoopStart + quantizedDuration;
+
+      // Ensure we don't exceed playback range
+      calcLoopEnd = Math.min(calcLoopEnd, playbackRange.endSamples);
+    }
 
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
     if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
@@ -596,10 +701,16 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const playbackRange = this.#calculatePlaybackRange(positionParams);
 
+    const basePlaybackRate = parameters.playbackRate[0];
+
+    const tempo = parameters.tempo[0];
+
     const loopRange = this.#calculateLoopRange(
       positionParams,
       playbackRange,
-      parameters.loopDurationDriftAmount[0]
+      parameters.loopDurationDriftAmount[0],
+      tempo,
+      basePlaybackRate
     );
 
     // Calculate amplitude compensation for short loops

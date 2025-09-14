@@ -23,6 +23,8 @@ export interface KnobConfig {
   allowedValues?: number[];
   snapThresholds?: Array<{ maxValue: number; increment: number }>;
 
+  color?: string;
+
   // State
   state?: State<number>; // Optional van state
 
@@ -68,14 +70,14 @@ export const createKnob = (
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: #ccc;
+    color: ${config.color ?? '#ccc'}; 
   `;
 
   // Create label
   if (label) {
     const labelElement = document.createElement('div');
     labelElement.textContent = label;
-    labelElement.style.cssText = 'text-align: center; cursor: pointer;';
+    labelElement.style.cssText = `text-align: center; cursor: pointer; color: ${config.color ?? '#ccc'};`;
     labelElement.addEventListener('dblclick', () => {
       knobElement.setValue?.(config.defaultValue || 0, true);
     });
@@ -97,6 +99,7 @@ export const createKnob = (
     width: config.width ?? 45,
     height: config.height ?? 45,
     curve: config.curve ?? 1,
+    color: config.color ?? 'rgb(234, 234, 234)',
   }).forEach(([key, value]) => {
     knobElement.setAttribute(key, value.toString());
   });
@@ -167,8 +170,7 @@ export const createKnob = (
   if (showValue) {
     const valueDisplay = document.createElement('div');
     valueDisplay.textContent = valueFormatter(initialValue);
-    valueDisplay.style.cssText =
-      'font-size: 10px; color: #999; text-align: center;';
+    valueDisplay.style.cssText = `font-size: 10px; text-align: center; color: ${config.color ?? '#999'};`;
     container.appendChild(valueDisplay);
 
     knobElement.addEventListener('knob-change', (e: CustomEvent) => {

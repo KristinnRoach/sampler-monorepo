@@ -77,7 +77,7 @@ export const SaveButton = () => {
     },
   });
 
-  return div({ class: 'save-button', style: COMPONENT_STYLE }, svgButton);
+  return div({ class: 'save-button', style: '' }, svgButton); // COMPONENT_STYLE
 };
 
 // ===== RECORD BUTTON =====

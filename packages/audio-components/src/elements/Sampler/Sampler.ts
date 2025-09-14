@@ -35,6 +35,7 @@ import {
   DelaySendKnob,
   DelayTimeKnob,
   DelayFeedbackKnob,
+  TempoKnob,
 } from './components/SamplerKnobFactory';
 
 import {
@@ -379,6 +380,7 @@ export {
   DelaySendKnob,
   DelayTimeKnob,
   DelayFeedbackKnob,
+  TempoKnob,
 
   // Toggle components
   FeedbackModeToggle,
@@ -458,6 +460,7 @@ export const defineSampler = () => {
   defineIfNotExists('delay-send-knob', DelaySendKnob, false);
   defineIfNotExists('delay-time-knob', DelayTimeKnob, false);
   defineIfNotExists('delay-feedback-knob', DelayFeedbackKnob, false);
+  defineIfNotExists('tempo-knob', TempoKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);

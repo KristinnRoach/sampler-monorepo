@@ -45,6 +45,7 @@ declare module 'solid-js' {
       'delay-send-knob': any;
       'delay-time-knob': any;
       'delay-feedback-knob': any;
+      'tempo-knob': any;
 
       // Toggle components
       'feedback-mode-toggle': any;

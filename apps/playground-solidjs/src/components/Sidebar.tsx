@@ -1,5 +1,11 @@
 // components/Sidebar.tsx
-import { Component, createSignal, createEffect, For } from 'solid-js';
+import {
+  Component,
+  createSignal,
+  createEffect,
+  For,
+  onCleanup,
+} from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
 
 interface SidebarProps {
@@ -47,6 +53,22 @@ const Sidebar: Component<SidebarProps> = (props) => {
   createEffect(() => {
     if (props.isOpen) {
       loadSamples();
+    }
+  });
+
+  // Handle Escape key to close sidebar
+  createEffect(() => {
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && props.isOpen) {
+        props.onClose();
+      }
+    };
+
+    if (props.isOpen) {
+      document.addEventListener('keydown', handleEscapeKey);
+      onCleanup(() => {
+        document.removeEventListener('keydown', handleEscapeKey);
+      });
     }
   });
 

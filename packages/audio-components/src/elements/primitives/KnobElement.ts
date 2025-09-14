@@ -81,6 +81,7 @@ export class KnobElement extends HTMLElement {
       'height',
       'border-style',
       'curve',
+      'color',
     ];
   }
 
@@ -92,6 +93,7 @@ export class KnobElement extends HTMLElement {
     this.injectGlobalStyles();
     this.createUtilityFunctions();
     this.render();
+    this.updateColorFromAttribute();
 
     setTimeout(() => {
       this.createDraggable();
@@ -152,6 +154,11 @@ export class KnobElement extends HTMLElement {
 
       if (name === 'width' || name === 'height') return;
       if (name === 'border-style') return;
+
+      if (name === 'color') {
+        this.updateColorFromAttribute();
+        return;
+      }
 
       if (name === 'curve') {
         this.createUtilityFunctions();
@@ -293,6 +300,13 @@ export class KnobElement extends HTMLElement {
     if (width || height) {
       const size = width || height || '120';
       this.style.setProperty('--knob-size', `${size}px`);
+    }
+  }
+
+  private updateColorFromAttribute(): void {
+    const color = this.getAttribute('color');
+    if (color) {
+      this.style.setProperty('--knob-stroke', color);
     }
   }
 

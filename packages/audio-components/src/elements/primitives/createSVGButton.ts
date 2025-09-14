@@ -17,18 +17,26 @@ interface ButtonSize {
 }
 
 const icons = new Map<string, string>([
+  // [
+  //   'download',
+  //   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.5 0 23 24" width="23px" height="23px" stroke-width="2" fill="none" stroke="currentColor">
+  //     <path d="M 12 15.334 L 12 0 M 5.61 8.944 L 12 15.334 L 18.39 8.944 M 23.5 15.334 L 23.5 20.444 C 23.5 21.856 22.357 23 20.944 23 L 3.055 23 C 1.646 23 0.5 21.856 0.5 20.444 L 0.5 15.334" />
+  //   </svg>`,
+  // ],
+
   [
+    // ! SCALED version. TODO: verify that this is correct before using (otherwise use above version)
     'download',
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.5 0 23 24" width="23px" height="23px" stroke-width="2" fill="none" stroke="currentColor">
-      <path d="M 12 15.334 L 12 0 M 5.61 8.944 L 12 15.334 L 18.39 8.944 M 23.5 15.334 L 23.5 20.444 C 23.5 21.856 22.357 23 20.944 23 L 3.055 23 C 1.646 23 0.5 21.856 0.5 20.444 L 0.5 15.334" />
-    </svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+    <path d="M 12.5 16 L 12.5 0 M 5.8 9.3 L 12.5 16 L 19.2 9.3 M 24.5 16 L 24.5 21.3 C 24.5 22.8 23.4 24 21.9 24 L 3.1 24 C 1.6 24 0.5 22.8 0.5 21.3 L 0.5 16" />
+  </svg>`,
   ],
 
   [
     'upload',
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0.5 0 23 24" width="23px" height="23px" stroke-width="2" fill="none" stroke="currentColor">
-      <path d="M 12 0.75 L 12 16.084 M 23.5 15.334 L 23.5 20.444 C 23.5 21.856 22.357 23 20.944 23 L 3.055 23 C 1.646 23 0.5 21.856 0.5 20.444 L 0.5 15.334 M 5.61 7.14 L 12 0.75 L 18.39 7.14" />
-    </svg>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
+    <path d="M 12 0.75 L 12 16.084 M 24 15.334 L 24 20.444 C 24 21.856 22.857 23 21.444 23 L 2.667 23 C 1.254 23 0 21.856 0 20.444 L 0 15.334 M 5.339 7.14 L 12 0.75 L 18.661 7.14" />
+  </svg>`,
   ],
 
   [
@@ -131,11 +139,10 @@ const icons = new Map<string, string>([
   ],
   [
     'save',
-    `
-    <svg id="save" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 290 290" fill="currentColor" stroke="currentColor">
-      <path d="m287.602 53.599-51.2-51.2a8.212 8.212 0 0 0-5.8-2.399H8.199A8.195 8.195 0 0 0 0 8.199v273.602A8.195 8.195 0 0 0 8.199 290h273.602a8.195 8.195 0 0 0 8.199-8.199V59.397a8.216 8.216 0 0 0-2.398-5.798zM38.456 34.678a5.921 5.921 0 0 1 5.917-5.916h160.975a5.92 5.92 0 0 1 5.918 5.916v78.323a5.913 5.913 0 0 1-5.918 5.915H44.373a5.916 5.916 0 0 1-5.917-5.915V34.678zm213.088 212.835a7.3 7.3 0 0 1-7.296 7.298H45.752a7.3 7.3 0 0 1-7.296-7.298V150.94a7.298 7.298 0 0 1 7.296-7.295h198.496a7.298 7.298 0 0 1 7.296 7.295v96.573z"/>
-      <path d="M173.564 39.039h24.588v69.604h-24.588zM59.489 174.643H230.51v8.195H59.489zM59.489 215.62H230.51v8.195H59.489z"/>
-    </svg>`,
+    `<svg id="save" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor">
+    <path d="m23.65 4.4-4.2-4.2a.68.68 0 0 0-.48-.2H.675A.675.675 0 0 0 0 .675v22.5A.675.675 0 0 0 .675 24h22.5a.675.675 0 0 0 .675-.675V4.875a.675.675 0 0 0-.2-.475zM3.16 2.85a.487.487 0 0 1 .487-.487h13.24a.487.487 0 0 1 .487.487v6.44a.487.487 0 0 1-.487.487H3.647a.487.487 0 0 1-.487-.487V2.85zm17.53 17.52a.6.6 0 0 1-.6.6H3.765a.6.6 0 0 1-.6-.6v-7.88a.6.6 0 0 1 .6-.6h16.325a.6.6 0 0 1 .6.6v7.94z"/>
+    <path d="M14.29 3.21h2.02v5.73h-2.02zM4.89 14.38H19.51v.675H4.89zM4.89 17.74H19.51v.675H4.89z"/>
+  </svg>`,
   ],
 ]);
 

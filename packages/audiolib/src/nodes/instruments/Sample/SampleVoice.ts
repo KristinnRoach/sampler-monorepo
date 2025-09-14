@@ -110,8 +110,8 @@ export class SampleVoice {
         // ? Why is this necessary ?
         // Initialize loopEnd to 0 to force the macro parameter to update
         // This ensures the macro's value will be applied when connected
-        this.#setParam('loopStart', 0, this.now);
-        this.#setParam('loopEnd', 0, this.now);
+        this.setParam('loopStart', 0, this.now);
+        this.setParam('loopEnd', 0, this.now);
 
         // Connect nodes
         this.#connectAudioChain();
@@ -319,10 +319,10 @@ export class SampleVoice {
         scaledGlideTime
       );
     } else {
-      this.#setParam('playbackRate', playbackRate, timestamp);
+      this.setParam('playbackRate', playbackRate, timestamp);
     }
 
-    this.#setParam('velocity', velocity, timestamp);
+    this.setParam('velocity', velocity, timestamp);
 
     // Start playback
     this.sendToProcessor({
@@ -481,7 +481,7 @@ export class SampleVoice {
     this.#state = VoiceState.STOPPING;
 
     // Clear all scheduled values to prevent overlapping setValueCurveAtTime errors
-    this.#setParam('envGain', 0, timestamp, {
+    this.setParam('envGain', 0, timestamp, {
       cancelPrevious: true,
       glideTime: 0,
     });
@@ -674,14 +674,14 @@ export class SampleVoice {
   }
 
   setStartPoint = (time: number, timestamp = this.now) => {
-    this.#setParam('startPoint', time, timestamp);
+    this.setParam('startPoint', time, timestamp);
   };
 
   setEndPoint = (time: number, timestamp = this.now) => {
-    this.#setParam('endPoint', time, timestamp);
+    this.setParam('endPoint', time, timestamp);
   };
 
-  #setParam(
+  setParam(
     name: string,
     targetValue: number,
     timestamp: number = this.now,
@@ -723,7 +723,7 @@ export class SampleVoice {
 
     validParams.forEach(({ name, value }) => {
       // Pass the absolute timestamp to ensure all parameters use the same timestamp
-      this.#setParam(name, value, atTime, { ...options });
+      this.setParam(name, value, atTime, { ...options });
     });
     return this;
   }
@@ -737,18 +737,31 @@ export class SampleVoice {
     if (start >= end) return this;
 
     if (start !== undefined) {
-      this.#setParam('loopStart', start, timestamp, {
+      this.setParam('loopStart', start, timestamp, {
         glideTime: rampTime,
         cancelPrevious: true,
       });
     }
     if (end !== undefined) {
-      this.#setParam('loopEnd', end, timestamp, {
+      this.setParam('loopEnd', end, timestamp, {
         glideTime: rampTime,
         cancelPrevious: true,
       });
     }
 
+    return this;
+  }
+
+  syncLoopToTempo(enabled: boolean) {
+    this.sendToProcessor({
+      type: 'syncLoopToTempo',
+      value: enabled,
+    });
+    return this;
+  }
+
+  setTempo(bpm: number) {
+    this.setParam('tempo', bpm, this.now);
     return this;
   }
 
@@ -1082,7 +1095,7 @@ export class SampleVoice {
       cancelPrevious?: boolean;
     }
   ): this {
-    this.#setParam('playbackRate', rate, atTime, options);
+    this.setParam('playbackRate', rate, atTime, options);
     this.#updateHPFCutoffForPlaybackRate(rate, atTime, options);
     this.#updateLPFCutoffForPlaybackRate(rate, atTime, options);
     return this;
@@ -1096,7 +1109,7 @@ export class SampleVoice {
     const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.#hpfHz = safeHz;
     if (this.#hpf) {
-      this.#setParam('hpf', safeHz, atTime, { glideTime: 0 });
+      this.setParam('hpf', safeHz, atTime, { glideTime: 0 });
       // this.#hpf.frequency.setValueAtTime(safeHz, this.now);
       const currentRate = this.getParam('playbackRate')?.value ?? 1;
       this.#updateHPFCutoffForPlaybackRate(currentRate, atTime, options);
@@ -1112,7 +1125,7 @@ export class SampleVoice {
     const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.#lpfHz = safeHz;
     if (this.#lpf) {
-      this.#setParam('lpf', safeHz, atTime, {
+      this.setParam('lpf', safeHz, atTime, {
         glideTime: 0,
         cancelPrevious: true,
       });
@@ -1133,7 +1146,7 @@ export class SampleVoice {
 
   setLoopDurationDriftAmount(amount: number): this {
     if (amount === 0) {
-      this.#setParam('loopDurationDriftAmount', 0, this.now);
+      this.setParam('loopDurationDriftAmount', 0, this.now);
       return this;
     }
 
@@ -1150,7 +1163,7 @@ export class SampleVoice {
       logBase: 'dB',
       curve: 'linear',
     });
-    this.#setParam('loopDurationDriftAmount', interpolated, this.now);
+    this.setParam('loopDurationDriftAmount', interpolated, this.now);
     return this;
   }
 

@@ -79,11 +79,20 @@ const App: Component = () => {
         <SidebarToggle
           onclick={() => setSidebarOpen(!sidebarOpen())}
           isOpen={sidebarOpen()}
+          class='left-side-button bg-dark-gray'
         />
 
         <SaveButton
           audioBuffer={currentAudioBuffer()}
           disabled={!sampleLoaded()}
+          isOpen={sidebarOpen()}
+          class='left-side-button bg-dark-gray'
+        />
+
+        <tempo-knob
+          target-node-id='test-sampler'
+          label=' '
+          class={`aside-tempo-knob left-side-button ${sidebarOpen() ? 'open' : ''}`}
         />
       </div>
 
