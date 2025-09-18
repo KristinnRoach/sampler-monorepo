@@ -723,12 +723,21 @@ piano-keyboard.visible {
 }
 
 .left-side-button:hover {
-  background: var(--button-hover-bg, #444);
   transform: scale(1.1);
+}
+
+.left-side-button.bg-dark-gray:hover {
+  background: var(--button-hover-bg, #444);
 }
 
 .left-side-button:active {
   transform: scale(0.9);
+}
+
+.left-side-button.open {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50px);
 }
 
 tempo-knob {
@@ -744,12 +753,6 @@ tempo-knob {
   height: 40px;
 }
 
-.left-side-button.open {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50px);
-}
-
 tempo-knob > div knob-element {
   display: flex;
   justify-content: center;
@@ -760,12 +763,6 @@ tempo-knob > div knob-element {
   width: 40px;
   height: 40px;
 }
-
-/* tempo-knob.open {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50px);
-} */
 
 .sidebar {
   position: fixed;

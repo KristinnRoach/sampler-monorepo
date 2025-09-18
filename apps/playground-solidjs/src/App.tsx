@@ -6,6 +6,8 @@ import { SavedSample } from './db/samplelib/sampleIdb';
 import Sidebar from './components/Sidebar';
 import SidebarToggle from './components/SidebarToggle';
 
+import ModalTest from './components/ModalTest';
+
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
     'desktop'
@@ -92,8 +94,10 @@ const App: Component = () => {
         <tempo-knob
           target-node-id='test-sampler'
           label=' '
-          class={`aside-tempo-knob left-side-button ${sidebarOpen() ? 'open' : ''}`}
+          class={`left-side-button ${sidebarOpen() ? 'open' : ''}`}
         />
+
+        {/* <ModalTest /> */}
       </div>
 
       <Sidebar
