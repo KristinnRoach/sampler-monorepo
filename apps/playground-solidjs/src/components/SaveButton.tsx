@@ -1,6 +1,7 @@
 // components/SaveButton.tsx
 import { Component, createSignal } from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
+import { captureInstrumentState } from '../utils/instrumentState';
 // import { SaveButton as SaveSVGButton } from '@repo/audio-components';
 
 function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
@@ -70,12 +71,16 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
 
       const wavData = audioBufferToWav(props.audioBuffer);
 
+      // Capture current instrument settings
+      const settings = captureInstrumentState();
+
       const sample: SavedSample = {
         name,
         audioData: wavData,
         sampleRate: props.audioBuffer.sampleRate,
         channels: props.audioBuffer.numberOfChannels,
         createdAt: new Date(),
+        settings, // Include the instrument settings
       };
 
       await db.samples.add(sample);

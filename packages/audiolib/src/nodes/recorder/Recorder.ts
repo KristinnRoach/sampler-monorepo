@@ -246,7 +246,7 @@ export class Recorder implements LibNode {
 
     this.sendMessage('record:start', { destination: this.#destination });
 
-    if (this.#config!.autoStop) {
+    if (this.#config?.autoStop) {
       this.#setupAudioMonitoring();
     }
   }
@@ -265,19 +265,12 @@ export class Recorder implements LibNode {
       await this.#context.resume();
     }
 
-    let thresholdLogged = false; // Temp debugging
-
     const monitorAudio = async () => {
       if (!this.#analyser) return; // Cleaned up
 
       this.#analyser.getFloatTimeDomainData(dataArray);
       const peak = Math.max(...dataArray.map(Math.abs));
       const peakDB = peak > 0.0000001 ? 20 * Math.log10(peak) : -100;
-
-      if (!thresholdLogged && peakDB >= this.#config!.startThreshold) {
-        console.log('[Recorder] Threshold crossed:', peakDB);
-        thresholdLogged = true;
-      }
 
       if (this.#state === AudioRecorderState.ARMED) {
         this.#handleArmedState(peakDB);

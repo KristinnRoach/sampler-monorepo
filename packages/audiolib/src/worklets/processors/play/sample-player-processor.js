@@ -113,7 +113,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableLoopSmoothing = true; // Crossfade between loop points
     this.enableAdaptiveDrift = true; // Adaptive drift scaling based on loop duration
     this.enableAmplitudeCompensation = true; // Automatic makeup gain for short loops
-    this.syncLoopToTempo = true; // ! TEMP TRUE WHILE TESTING // Sync loop duration to tempo
+    this.syncLoopToTempo = false; // Todo: add controls for interactive testing
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
