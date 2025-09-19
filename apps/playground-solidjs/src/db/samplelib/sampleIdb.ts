@@ -8,6 +8,7 @@ export interface SavedSample {
   sampleRate?: number;
   channels?: number;
   createdAt?: Date;
+  settings?: any; // Instrument settings (knobs, toggles, etc.)
 }
 
 export class SampleDatabase extends Dexie {

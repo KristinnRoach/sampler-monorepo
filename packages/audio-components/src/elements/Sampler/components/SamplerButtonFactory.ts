@@ -213,7 +213,7 @@ export const RecordButton = (attributes: ElementProps) => {
 
     return () => {
       if (currentRecorder.val) {
-        currentRecorder.val.stop();
+        // currentRecorder.val.stop();
         currentRecorder.val.dispose();
         currentRecorder.val = null;
         recordBtnState.val = 'Record';

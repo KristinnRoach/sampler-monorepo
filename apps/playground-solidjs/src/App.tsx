@@ -5,6 +5,9 @@ import SaveButton from './components/SaveButton';
 import { SavedSample } from './db/samplelib/sampleIdb';
 import Sidebar from './components/Sidebar';
 import SidebarToggle from './components/SidebarToggle';
+import { restoreInstrumentState } from './utils/instrumentState';
+
+import ModalTest from './components/ModalTest';
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
@@ -28,6 +31,14 @@ const App: Component = () => {
       await samplePlayerRef.loadSample(arrayBuffer, undefined, {
         skipPreProcessing: true,
       });
+
+      // Restore instrument settings if they exist
+      if (sample.settings) {
+        // Delay to ensure audio is loaded and UI is ready
+        setTimeout(() => {
+          restoreInstrumentState(sample.settings);
+        }, 500);
+      }
 
       setSidebarOpen(false);
     } catch (error) {
@@ -92,8 +103,10 @@ const App: Component = () => {
         <tempo-knob
           target-node-id='test-sampler'
           label=' '
-          class={`aside-tempo-knob left-side-button ${sidebarOpen() ? 'open' : ''}`}
+          class={`left-side-button ${sidebarOpen() ? 'open' : ''}`}
         />
+
+        {/* <ModalTest /> */}
       </div>
 
       <Sidebar
@@ -129,10 +142,7 @@ const App: Component = () => {
               <input-select target-node-id='test-sampler' />
             </div>
             <load-button target-node-id='test-sampler' show-status='false' />
-            {/* <SaveButton
-              audioBuffer={currentAudioBuffer()}
-              disabled={!sampleLoaded()}
-            /> */}
+
             <button
               class='reset-button'
               title='Reset knobs'

@@ -15,7 +15,7 @@ import { getMicrophone } from '@/io/devices/devices';
 async function getBrowserAudio(): Promise<MediaStream> {
   const stream = await navigator.mediaDevices.getDisplayMedia({
     audio: true,
-    video: true,
+    video: true, // video seems to be required for getDisplayMedia to work
   });
 
   const audioOnly = new MediaStream(stream.getAudioTracks());
@@ -119,6 +119,10 @@ export class Recorder implements LibNode {
   }
 
   async start(options?: Partial<RecorderOptions>): Promise<this> {
+    if (this.#context.state === 'suspended') {
+      await this.#context.resume();
+    }
+
     // Stop previous stream if exists
     if (this.#stream) {
       this.#stream.getTracks().forEach((track) => track.stop());
@@ -145,7 +149,13 @@ export class Recorder implements LibNode {
         streamResult
       );
     } else if (this.#config && this.#inputSource === 'browser') {
-      streamResult = await tryCatch(() => getBrowserAudio());
+      streamResult = await tryCatch(async () => {
+        if (this.#context.state === 'suspended') {
+          await this.#context.resume();
+        }
+
+        return getBrowserAudio();
+      });
       assert(
         !streamResult.error,
         `Failed to get browser audio: ${streamResult.error}`,
@@ -236,12 +246,12 @@ export class Recorder implements LibNode {
 
     this.sendMessage('record:start', { destination: this.#destination });
 
-    if (this.#config!.autoStop) {
+    if (this.#config?.autoStop) {
       this.#setupAudioMonitoring();
     }
   }
 
-  #setupAudioMonitoring(): void {
+  async #setupAudioMonitoring() {
     this.#mediaSourceNode = this.#context.createMediaStreamSource(
       this.#stream!
     );
@@ -251,7 +261,11 @@ export class Recorder implements LibNode {
 
     const dataArray = new Float32Array(this.#analyser.fftSize);
 
-    const monitorAudio = () => {
+    if (this.#context.state === 'suspended') {
+      await this.#context.resume();
+    }
+
+    const monitorAudio = async () => {
       if (!this.#analyser) return; // Cleaned up
 
       this.#analyser.getFloatTimeDomainData(dataArray);

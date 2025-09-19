@@ -22,32 +22,51 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Sync with computer keyboard keymap and octave
   const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]);
   const octaveOffset = van.state(0);
+  const rootNote = van.state<
+    'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B'
+  >('C');
   const MAX_OCT_SHIFT = 2;
   const MIN_OCT_SHIFT = -2;
+
+  // Helper: get semitone offset from C
+  const getRootNoteOffset = (note: string) => {
+    const ROOT_NOTES = [
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'A#',
+      'B',
+    ];
+    return ROOT_NOTES.indexOf(note);
+  };
 
   const keyboard = document.createElement('webaudio-keyboard') as any;
 
   const getDisplayRange = () => {
     // Get the actual note range from the current keymap
     const notes = Object.values(currentKeymap.val).filter(Boolean) as number[];
+    const rootOffset = getRootNoteOffset(rootNote.val);
     if (notes.length === 0) {
       // Fallback to default range if no keymap
-      const displayMin = 48 + octaveOffset.val * 12; // C3 base
-      return { min: displayMin, keys: 25 }; // 2 octaves
+      const displayMin = 48 + octaveOffset.val * 12 + rootOffset; // C3 base + root
+      return { min: displayMin, keys: 25 };
     }
 
-    // Use keymap range + octave offset
+    // Use keymap range + octave offset + root note offset
     const keymapMin = Math.min(...notes);
     const keymapMax = Math.max(...notes);
-    const displayMin = keymapMin + octaveOffset.val * 12;
+    const displayMin = keymapMin + octaveOffset.val * 12 + rootOffset;
     const keymapSpan = keymapMax - keymapMin + 1;
 
     return { min: displayMin, keys: Math.max(keymapSpan, 25) };
   };
-
-  // const getDisplayRange = () => {
-  //   return { min: 48, keys: 32 };
-  // };
 
   // Reactive updates
   van.derive(() => {
@@ -65,8 +84,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     if (!sampler) return;
 
     const [noteState, noteNumber] = event.note;
-
-    const midiNote = noteNumber + 12 * octaveOffset.val;
+    const midiNote =
+      noteNumber + 12 * octaveOffset.val + getRootNoteOffset(rootNote.val);
 
     if (noteState === 1) {
       sampler.play(midiNote);
@@ -106,6 +125,18 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       }
     };
 
+    // Listen for root note changes
+    const handleRootNoteChange = (e: CustomEvent) => {
+      if (
+        e.detail.targetNodeId === targetNodeId.val ||
+        !e.detail.targetNodeId
+      ) {
+        if (e.detail.rootNote) {
+          rootNote.val = e.detail.rootNote;
+        }
+      }
+    };
+
     // Listen for computer keyboard events to sync visual feedback
     const handleKeyboardEvents = (e: KeyboardEvent) => {
       // Early exit if component is disabled or targetNodeId is empty
@@ -115,7 +146,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       const midiNote = currentKeymap.val[e.code];
       if (!midiNote) return;
 
-      const adjustedMidiNote = midiNote + octaveOffset.val * 12;
+      const adjustedMidiNote =
+        midiNote + octaveOffset.val * 12 + getRootNoteOffset(rootNote.val);
 
       // Check if this note is within the piano keyboard's visible range
       const { min, keys } = getDisplayRange();
@@ -135,6 +167,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       'keymap-changed',
       handleKeymapChange as EventListener
     );
+    document.addEventListener(
+      'rootnote-changed',
+      handleRootNoteChange as EventListener
+    );
     return () => {
       keyboard.removeEventListener('pointer', handlePianoClick);
       document.removeEventListener('keydown', handleKeyboardEvents);
@@ -142,6 +178,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       document.removeEventListener(
         'keymap-changed',
         handleKeymapChange as EventListener
+      );
+      document.removeEventListener(
+        'rootnote-changed',
+        handleRootNoteChange as EventListener
       );
     };
   });
@@ -154,32 +194,3 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     keyboard
   );
 };
-
-// TODO: Remove or refactor keymap / oct controls !
-// div(
-//   {
-//     style: CONTROL_ROW_STYLE,
-//   },
-// button(
-//   {
-//     onclick: () => handleOctaveChange(-1),
-//     style: SMALL_BUTTON_STYLE,
-//   },
-//   '<'
-// ),
-// div(() => `Oct: ${octaveOffset.val >= 0 ? '+' : ''}${octaveOffset.val}`),
-// button(
-//   {
-//     onclick: () => handleOctaveChange(1),
-//     style: SMALL_BUTTON_STYLE,
-//   },
-//   '>'
-// ),
-//   KeymapSelect({
-//     attr: (name: string, defaultValue?: string) => {
-//       if (name === 'target-node-id') return targetNodeId;
-//       if (name === 'show-label') return van.state('true');
-//       return van.state(defaultValue || '');
-//     },
-//   } as ElementProps)
-// ),

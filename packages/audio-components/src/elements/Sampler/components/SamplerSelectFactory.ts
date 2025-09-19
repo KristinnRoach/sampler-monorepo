@@ -154,7 +154,19 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
     targetNodeId: string
   ) => {
     van.derive(() => {
-      sampler.setRootNote(state.val);
+      const safeRoot = ROOT_NOTES.includes(state.val)
+        ? state.val
+        : ('C' as RootNote);
+      sampler.setRootNote(safeRoot);
+      // Dispatch rootnote-changed event for PianoKeyboard
+      document.dispatchEvent(
+        new CustomEvent('rootnote-changed', {
+          detail: {
+            rootNote: safeRoot,
+            targetNodeId: targetNodeId,
+          },
+        })
+      );
     });
   },
 };
