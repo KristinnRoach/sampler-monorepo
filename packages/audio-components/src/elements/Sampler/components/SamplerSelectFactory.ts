@@ -158,6 +158,15 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
         ? state.val
         : ('C' as RootNote);
       sampler.setRootNote(safeRoot);
+      // Dispatch rootnote-changed event for PianoKeyboard
+      document.dispatchEvent(
+        new CustomEvent('rootnote-changed', {
+          detail: {
+            rootNote: safeRoot,
+            targetNodeId: targetNodeId,
+          },
+        })
+      );
     });
   },
 };
