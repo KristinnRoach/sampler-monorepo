@@ -61,7 +61,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableLoopSmoothing = true;
     this.enableAdaptiveDrift = true;
     this.enableAmplitudeCompensation = true;
-    this.syncLoopToTempo = true;
+    this.syncLoopToTempo = false;
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
     this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 16.35);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
