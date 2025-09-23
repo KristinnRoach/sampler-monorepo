@@ -14,14 +14,19 @@
     // "noUnusedLocals": true,
     // "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+
+    // JSX Configuration for SolidJS
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+
     "paths": {
       "@/*": ["./src/*"]
     },
     "declaration": true,
     "declarationDir": "./dist",
-    "experimentalDecorators": true,
-    "composite": true
+    "experimentalDecorators": true
+    // ??? "composite": true
   },
-  "include": ["src"],
+  "include": ["src/**/*", "src/global.d.ts"],
   "references": [{ "path": "../audiolib" }]
 }

@@ -1,5 +1,5 @@
 import 'solid-js';
-
+import { KnobElement } from '@repo/audio-components';
 declare module 'solid-js' {
   namespace JSX {
     interface IntrinsicElements {
@@ -17,7 +17,7 @@ declare module 'solid-js' {
       'input-select': any;
 
       // Knob components
-      'knob-element': any;
+      'knob-element': KnobElement;
       'volume-knob': any;
       'dry-wet-knob': any;
       'feedback-knob': any;

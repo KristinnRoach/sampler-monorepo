@@ -49,9 +49,6 @@ export const createKnob = (
   config: KnobConfig,
   nodeId?: string
 ): HTMLElement => {
-  // if (config.label === 'Volume')
-  //   console.log('🏗️ createKnob received config.state:', config.state);
-
   const {
     label,
     valueFormatter = (v) => v.toFixed(2),
@@ -178,9 +175,6 @@ export const createKnob = (
     });
   }
 
-  // if (config.label === 'Volume') {
-  //   console.log(`🎛️ Setting knob to initial value: ${initialValue}`);
-  // }
   knobElement.setValue(initialValue);
 
   return container;

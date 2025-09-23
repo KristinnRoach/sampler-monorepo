@@ -52,7 +52,8 @@ export class EnvelopeData {
       const firstTime = this.points[this.startPointIndex].time;
       const lastTime = this.points[this.#endIdx].time;
 
-      if (time <= firstTime || time >= lastTime) {
+      if (time < firstTime || time > lastTime) {
+        // ? time <= firstTime || time >= lastTime)
         console.warn(
           `Cannot add point at time ${time}. Must be between ${firstTime} and ${lastTime}`
         );
