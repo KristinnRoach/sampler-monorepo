@@ -27,11 +27,67 @@ gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 const { div } = van.tags;
 const { svg, path } = van.tags('http://www.w3.org/2000/svg');
 
+export interface EnvelopeSettings {
+  points: Array<{ time: number; value: number; curve?: string }>;
+  sustainPointIndex?: number | null;
+  releasePointIndex?: number;
+  isEnabled: boolean;
+  loopEnabled: boolean;
+  syncedToPlaybackRate: boolean;
+  timeScale?: number;
+}
+
+function applyEnvelopeStateToInstrument(
+  instrument: SamplePlayer,
+  envType: EnvelopeType,
+  state: EnvelopeSettings
+) {
+  // Clear existing points first
+  const currentEnv = instrument.getEnvelope(envType);
+  const pointCount = currentEnv.points.length;
+  for (let i = pointCount - 1; i >= 0; i--) {
+    instrument.deleteEnvelopePoint(envType, i);
+  }
+
+  // Add restored points
+  state.points.forEach((point, index) => {
+    if (index === 0) {
+      // Update first point instead of adding
+      instrument.updateEnvelopePoint(envType, 0, point.time, point.value);
+    } else {
+      instrument.addEnvelopePoint(envType, point.time, point.value);
+    }
+  });
+
+  // Apply other envelope settings
+  if (state.sustainPointIndex !== undefined) {
+    instrument.setEnvelopeSustainPoint(envType, state.sustainPointIndex);
+  }
+  if (state.releasePointIndex !== undefined) {
+    instrument.setEnvelopeReleasePoint(envType, state.releasePointIndex);
+  }
+
+  // Apply boolean states
+  if (state.isEnabled) {
+    instrument.enableEnvelope(envType);
+  } else {
+    instrument.disableEnvelope(envType);
+  }
+
+  instrument.setEnvelopeLoop(envType, state.loopEnabled);
+  instrument.setEnvelopeSync(envType, state.syncedToPlaybackRate);
+
+  if (state.timeScale) {
+    instrument.setEnvelopeTimeScale(envType, state.timeScale);
+  }
+}
+
 export interface EnvelopeSVG {
   element: Element | SVGSVGElement;
   timeScaleKnob: HTMLElement;
   drawWaveform: (audiobuffer: AudioBuffer) => void;
   refresh: () => void; // Always updates in place, never returns a new instance
+  restoreState: (settings: EnvelopeSettings) => void; // Restore envelope state after creation
   cleanup: () => void;
 }
 
@@ -42,8 +98,14 @@ export const EnvelopeSVG = (
   height: string = '120px',
   snapToValues: { y?: number[]; x?: number[] } = {},
   snapThreshold = 0.025,
-  multiColorPlayheads = true
+  multiColorPlayheads = true,
+  restoreSavedSettings?: EnvelopeSettings
 ): EnvelopeSVG => {
+  // If saved state is provided, apply it to the instrument BEFORE getting envelope info
+  if (restoreSavedSettings) {
+    applyEnvelopeStateToInstrument(instrument, envType, restoreSavedSettings);
+  }
+
   let envelopeInfo: CustomEnvelope = instrument.getEnvelope(envType);
   const envelopeType = envType;
 
@@ -62,6 +124,10 @@ export const EnvelopeSVG = (
       drawWaveform: () => {},
       refresh: () => {
         envelopeInfo = instrument.getEnvelope(envType);
+      },
+      restoreState: (settings: EnvelopeSettings) => {
+        // Apply settings and refresh - this will trigger envelope creation if needed
+        applyEnvelopeStateToInstrument(instrument, envType, settings);
       },
       cleanup: () => {},
     };
@@ -1121,6 +1187,10 @@ export const EnvelopeSVG = (
     timeScaleKnob,
     drawWaveform,
     refresh,
+    restoreState: (settings: EnvelopeSettings) => {
+      applyEnvelopeStateToInstrument(instrument, envType, settings);
+      refresh(); // Update the UI to reflect the restored state
+    },
     cleanup: () => {
       cleanupListeners();
       playheadManager.cleanup();

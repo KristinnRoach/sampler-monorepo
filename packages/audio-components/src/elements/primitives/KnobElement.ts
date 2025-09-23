@@ -27,6 +27,91 @@ declare global {
   }
 }
 
+export interface KnobFactoryOptions extends Partial<KnobConfig> {
+  width?: number;
+  height?: number;
+  color?: string;
+  value?: number;
+}
+
+/**
+ * Creates and configures a KnobElement with sensible defaults
+ * @param container - Parent element to append the knob to
+ * @param options - Configuration options for the knob
+ * @returns The created KnobElement instance
+ */
+export function createKnobElement(
+  container: HTMLElement,
+  options: KnobFactoryOptions = {}
+): KnobElement {
+  const knob = document.createElement('knob-element') as KnobElement;
+
+  // Apply configuration via attributes
+  const {
+    minValue = 0,
+    maxValue = 100,
+    defaultValue = 0,
+    snapIncrement = 1,
+    width,
+    height,
+    color,
+    value,
+    disabled = false,
+    ...otherOptions
+  } = options;
+
+  // Set core attributes
+  knob.setAttribute('min-value', minValue.toString());
+  knob.setAttribute('max-value', maxValue.toString());
+  knob.setAttribute('default-value', defaultValue.toString());
+  knob.setAttribute('snap-increment', snapIncrement.toString());
+
+  // Set optional attributes
+  if (width) knob.setAttribute('width', width.toString());
+  if (height) knob.setAttribute('height', height.toString());
+  if (color) knob.setAttribute('color', color);
+  if (disabled) knob.setAttribute('disabled', '');
+
+  // Handle complex attributes that need JSON serialization
+  if (otherOptions.allowedValues) {
+    knob.setAttribute(
+      'allowed-values',
+      JSON.stringify(otherOptions.allowedValues)
+    );
+  }
+  if (otherOptions.snapThresholds) {
+    knob.setAttribute(
+      'snap-thresholds',
+      JSON.stringify(otherOptions.snapThresholds)
+    );
+  }
+  if (otherOptions.curve !== undefined) {
+    knob.setAttribute('curve', otherOptions.curve.toString());
+  }
+  if (otherOptions.minRotation !== undefined) {
+    knob.setAttribute('min-rotation', otherOptions.minRotation.toString());
+  }
+  if (otherOptions.maxRotation !== undefined) {
+    knob.setAttribute('max-rotation', otherOptions.maxRotation.toString());
+  }
+  if (otherOptions.borderStyle) {
+    knob.setAttribute('border-style', otherOptions.borderStyle);
+  }
+
+  // Append to container
+  container.appendChild(knob);
+
+  // Set initial value if provided (different from default)
+  if (value !== undefined && value !== defaultValue) {
+    // Use requestAnimationFrame to ensure element is fully initialized
+    requestAnimationFrame(() => {
+      knob.setValue(value);
+    });
+  }
+
+  return knob;
+}
+
 export class KnobElement extends HTMLElement {
   private pathElement!: SVGPathElement;
 

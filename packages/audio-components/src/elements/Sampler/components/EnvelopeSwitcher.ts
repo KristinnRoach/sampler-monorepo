@@ -1,7 +1,7 @@
 // EnvelopeSwitcher.ts
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { EnvelopeSVG } from '@/elements/controls/envelope';
+import { EnvelopeSVG, EnvelopeSettings } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
 import { getSampler } from '../SamplerRegistry';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
@@ -20,6 +20,9 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   const samplerInitialized = van.state(false);
   const sampleLoaded = van.state(false);
 
+  // Store saved envelope settings
+  let savedEnvelopeSettings: Record<string, EnvelopeSettings> | null = null;
+
   const envelopes: Record<SupportedEnvelopeType, EnvelopeSVG | null> = {
     'amp-env': null,
     'filter-env': null,
@@ -32,14 +35,21 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) return;
 
+    let snapToValues = {};
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
       if (!envelopes[envType]) {
+        if (envType === 'pitch-env') snapToValues = { y: [0.5] }; // Snap to center line
         try {
+          const savedSettings = savedEnvelopeSettings?.[envType] || undefined;
           envelopes[envType] = EnvelopeSVG(
             sampler,
             envType as EnvelopeType,
             width.val,
-            height.val
+            height.val,
+            snapToValues,
+            0.025,
+            true,
+            savedSettings
           );
 
           if (envType !== activeEnvelope.val) {
@@ -51,6 +61,20 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       }
     });
   };
+
+  // Public method to restore envelope settings
+  const restoreEnvelopeSettings = (
+    settings: Record<string, EnvelopeSettings>
+  ) => {
+    (Object.keys(settings) as SupportedEnvelopeType[]).forEach((envType) => {
+      if (envelopes[envType] && settings[envType]) {
+        envelopes[envType]!.restoreState(settings[envType]);
+      }
+    });
+  };
+
+  // Add the method to the custom element instance
+  (attributes.$this as any).restoreEnvelopeSettings = restoreEnvelopeSettings;
 
   van.derive(() => {
     const currentEnvType = activeEnvelope.val;
@@ -78,9 +102,23 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail.nodeId === targetNodeId.val) {
         sampleLoaded.val = true;
+        // Store envelope settings if provided in the event
+        if (customEvent.detail.envelopeSettings) {
+          savedEnvelopeSettings = customEvent.detail.envelopeSettings;
+        }
         if (samplerInitialized.val) {
           createEnvelopes();
         }
+      }
+    };
+
+    const handleRestoreEnvelopes = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (
+        customEvent.detail.nodeId === targetNodeId.val &&
+        customEvent.detail.envelopeSettings
+      ) {
+        restoreEnvelopeSettings(customEvent.detail.envelopeSettings);
       }
     };
 
@@ -91,6 +129,10 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     document.addEventListener(
       'sample-loaded',
       handleSampleLoaded as EventListener
+    );
+    document.addEventListener(
+      'restore-envelope-settings',
+      handleRestoreEnvelopes as EventListener
     );
 
     return () => {
@@ -104,6 +146,10 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       document.removeEventListener(
         'sample-loaded',
         handleSampleLoaded as EventListener
+      );
+      document.removeEventListener(
+        'restore-envelope-settings',
+        handleRestoreEnvelopes as EventListener
       );
     };
   });

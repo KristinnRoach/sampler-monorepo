@@ -206,13 +206,6 @@ function validateWavBuffer(buffer: ArrayBuffer): boolean {
   const avgAbs = sumAbs / samplesToCheck;
   const threshold = 0.08 * (1 << (bitsPerSample - 1));
 
-  // console.debug(
-  //   'WAV validation - Avg abs sample value:',
-  //   avgAbs,
-  //   'Threshold:',
-  //   threshold
-  // );
-
   if (avgAbs < threshold) return false;
 
   return true;

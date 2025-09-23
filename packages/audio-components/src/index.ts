@@ -1,4 +1,4 @@
-// index.ts - audio-components package entry point
+// packages/audio-components/src/index.ts
 
 // Import CSS for bundling
 import './shared/styles/audio-components.css';
@@ -18,8 +18,8 @@ export { defineSampler } from './elements/Sampler/Sampler';
 export type { SamplerElement } from './elements/Sampler/Sampler';
 
 // SamplePlayer class
-import { SamplePlayer } from '@repo/audiolib';
-export { SamplePlayer };
+// import { SamplePlayer } from '@repo/audiolib';
+export type { SamplePlayer } from '@repo/audiolib';
 
 // Basic controls
 export {
@@ -29,6 +29,8 @@ export {
 } from './elements/Sampler/components/SamplerButtonFactory';
 
 // Knob components
+export { KnobElement } from './elements/primitives/KnobElement';
+
 export {
   DryWetKnob,
   FeedbackKnob,
@@ -96,4 +98,7 @@ export {
 export { SamplerStatusElement } from './elements/Sampler/components/SamplerStatusElement';
 
 // Old all-in-one version (for reference):
-export { defineSamplerMonolith } from './elements/monoliths/sampler/SamplerMonolith';
+// export { defineSamplerMonolith } from './elements/monoliths/sampler/SamplerMonolith';
+
+// Framework wrappers // TODO: Move to separate entry point (was a hassle)
+export * from './frameworks/solidjs/solidjsEntry';

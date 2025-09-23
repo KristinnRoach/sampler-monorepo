@@ -1,20 +1,31 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
+import solidPlugin from 'vite-plugin-solid';
+import checker from 'vite-plugin-checker';
 
 export default defineConfig({
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: {
+        // Vanilla
+        index: resolve(__dirname, 'src/index.ts'),
+        // SolidJS
+        'frameworks/solidjs/solidjsEntry': resolve(
+          __dirname,
+          'src/frameworks/solidjs/solidjsEntry.ts'
+        ),
+      },
       name: 'AudioWebComponents',
       formats: ['es'],
-      fileName: 'index',
     },
     rollupOptions: {
-      external: ['@repo/audiolib'],
+      external: ['@repo/audiolib', 'solid-js', 'solid-js/web'],
       output: {
         globals: {
           '@repo/audiolib': 'audiolib',
+          'solid-js': 'solid',
+          'solid-js/web': 'solidWeb',
         },
         // Ensure CSS is extracted to a separate file
         assetFileNames: (assetInfo) => {
@@ -29,13 +40,35 @@ export default defineConfig({
     cssCodeSplit: false,
   },
   plugins: [
+    solidPlugin(),
+    checker({ typescript: true }),
+    // SEPARATE DTS INSTANCES FOR EACH ENTRY
+    // dts({
+    //   include: ['src/index.ts', 'src/elements/**/*', 'src/shared/**/*'],
+    //   exclude: ['**/*.test.ts', '**/__tests__/**', 'src/frameworks/**'],
+    //   outDir: 'dist',
+    //   entryRoot: 'src',
+    //   rollupTypes: true,
+    // }),
+    // dts({
+    //   include: ['src/frameworks/solidjs/**/*'],
+    //   exclude: ['**/*.test.ts', '**/__tests__/**'],
+    //   outDir: 'dist',
+    //   entryRoot: 'src',
+    //   rollupTypes: true,
+    // }),
+
+    // TEST SHARED DTS
     dts({
-      include: ['src'],
+      include: ['src/**/*'],
       exclude: ['**/*.test.ts', '**/__tests__/**'],
       outDir: 'dist',
+      entryRoot: 'src',
       rollupTypes: true,
+      insertTypesEntry: true,
     }),
   ],
+
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),

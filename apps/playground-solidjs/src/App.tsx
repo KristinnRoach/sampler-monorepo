@@ -1,5 +1,8 @@
 import { Component, onMount, createSignal } from 'solid-js';
+import KnobComponent from '@repo/audio-components/solidjs';
+
 import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
+
 import { addExpandCollapseListeners } from './utils/expandCollapse';
 import SaveButton from './components/SaveButton';
 import { SavedSample } from './db/samplelib/sampleIdb';
@@ -8,6 +11,10 @@ import SidebarToggle from './components/SidebarToggle';
 import { restoreInstrumentState } from './utils/instrumentState';
 
 import ModalTest from './components/ModalTest';
+
+import * as AudioComponents from '@repo/audio-components';
+
+console.log(Object.keys(AudioComponents));
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
@@ -32,11 +39,30 @@ const App: Component = () => {
         skipPreProcessing: true,
       });
 
-      // Restore instrument settings if they exist
-      if (sample.settings) {
-        // Delay to ensure audio is loaded and UI is ready
+      // Restore envelope settings using direct method call
+      if (sample.settings?.envelopes) {
+        // Wait a bit for the sample-loaded event to complete and envelopes to be created
         setTimeout(() => {
-          restoreInstrumentState(sample.settings);
+          const envelopeSwitcherElement = document.querySelector(
+            'envelope-switcher[target-node-id="test-sampler"]'
+          ) as any;
+          if (
+            envelopeSwitcherElement &&
+            envelopeSwitcherElement.restoreEnvelopeSettings
+          ) {
+            envelopeSwitcherElement.restoreEnvelopeSettings(
+              sample.settings.envelopes
+            );
+          }
+        }, 100);
+      }
+
+      // Restore other settings (non-envelope) after a delay
+      if (sample.settings) {
+        setTimeout(() => {
+          const settingsWithoutEnvelopes = { ...sample.settings };
+          delete settingsWithoutEnvelopes.envelopes;
+          restoreInstrumentState(settingsWithoutEnvelopes);
         }, 500);
       }
 
@@ -107,6 +133,8 @@ const App: Component = () => {
         />
 
         {/* <ModalTest /> */}
+
+        {/* <KnobComponent></KnobComponent> */}
       </div>
 
       <Sidebar
