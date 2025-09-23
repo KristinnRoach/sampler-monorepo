@@ -3,10 +3,7 @@
 .vscode
 WARP.md
 
-# test / experiment apps
-apps/wave-worm-react
-apps/test-elements
-apps/hljodsmali
+
 
 # trash to be cleaned up
 **/trash
