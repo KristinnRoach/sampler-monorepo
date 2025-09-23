@@ -12,10 +12,6 @@ import { restoreInstrumentState } from './utils/instrumentState';
 
 import ModalTest from './components/ModalTest';
 
-import * as AudioComponents from '@repo/audio-components';
-
-console.log(Object.keys(AudioComponents));
-
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
     'desktop'
