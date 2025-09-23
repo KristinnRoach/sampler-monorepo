@@ -2,7 +2,6 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
 import solidPlugin from 'vite-plugin-solid';
-import checker from 'vite-plugin-checker';
 
 export default defineConfig({
   build: {
@@ -41,7 +40,6 @@ export default defineConfig({
   },
   plugins: [
     solidPlugin(),
-    checker({ typescript: true }),
     // SEPARATE DTS INSTANCES FOR EACH ENTRY
     // dts({
     //   include: ['src/index.ts', 'src/elements/**/*', 'src/shared/**/*'],
@@ -58,7 +56,7 @@ export default defineConfig({
     //   rollupTypes: true,
     // }),
 
-    // TEST SHARED DTS
+    // OR SHARED DTS
     dts({
       include: ['src/**/*'],
       exclude: ['**/*.test.ts', '**/__tests__/**'],

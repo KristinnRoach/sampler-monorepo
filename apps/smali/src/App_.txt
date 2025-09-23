@@ -1,5 +1,8 @@
 import { Component, onMount, createSignal } from 'solid-js';
-import KnobComponent from '@repo/audio-components/solidjs';
+import {
+  KnobComponent,
+  type KnobChangeEventDetail,
+} from '@repo/audio-components/solidjs';
 
 import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
 
@@ -9,12 +12,6 @@ import { SavedSample } from './db/samplelib/sampleIdb';
 import Sidebar from './components/Sidebar';
 import SidebarToggle from './components/SidebarToggle';
 import { restoreInstrumentState } from './utils/instrumentState';
-
-import ModalTest from './components/ModalTest';
-
-// import * as AudioComponents from '@repo/audio-components';
-
-// console.log(Object.keys(AudioComponents));
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
@@ -118,23 +115,25 @@ const App: Component = () => {
           isOpen={sidebarOpen()}
           class='left-side-button bg-dark-gray'
         />
-
         <SaveButton
           audioBuffer={currentAudioBuffer()}
           disabled={!sampleLoaded()}
           isOpen={sidebarOpen()}
           class='left-side-button bg-dark-gray'
         />
-
         <tempo-knob
           target-node-id='test-sampler'
           label=' '
           class={`left-side-button ${sidebarOpen() ? 'open' : ''}`}
         />
-
-        {/* <ModalTest /> */}
-
-        {/* <KnobComponent></KnobComponent> */}
+        <KnobComponent
+          minValue={0}
+          maxValue={100}
+          defaultValue={50}
+          onChange={(detail: KnobChangeEventDetail) =>
+            console.log('Knob changed:', detail)
+          }
+        />
       </div>
 
       <Sidebar
