@@ -682,6 +682,13 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /** PARAM SETTERS  */
 
+  setVolume(volume: number): this {
+    volume = clamp(volume, 0, 1);
+    this.#masterOut.gain.setValueAtTime(volume, this.now);
+    this.storeParamValue('volume', volume);
+    return this;
+  }
+
   setSampleStartPoint(seconds: number): this {
     this.voicePool.applyToAllVoices((voice) => voice.setStartPoint(seconds));
 
@@ -1152,6 +1159,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   // === FEEDBACK ===
 
   setFeedbackAmount = (amount: number) => {
+    amount = clamp(amount, 0, 1);
     if (
       this.#feedbackMode === 'monophonic' ||
       this.#feedbackMode === 'double-trouble'

@@ -14,8 +14,10 @@ import {
   KnobChangeEventDetail,
 } from '../../../../elements/primitives/KnobElement';
 
+import { KnobPresetProps, KnobPresetKey } from './KnobPresets';
+
 export interface KnobComponentProps extends Partial<KnobConfig> {
-  preset?: Partial<KnobConfig>;
+  preset?: KnobPresetKey;
 
   // Visual props
   width?: number;
@@ -27,7 +29,7 @@ export interface KnobComponentProps extends Partial<KnobConfig> {
 
   // Label
   label?: string;
-  labelClass?: string; // allow styling override
+  labelClass?: string;
 
   // Event handlers
   onChange?: (detail: KnobChangeEventDetail) => void;
@@ -58,7 +60,30 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
   let knobInstance: KnobElement;
 
   // Set up default props
-  const merged = mergeProps(DEFAULT_KNOB_PROPS, props.preset ?? {}, props);
+  const presetConfig = props.preset ? KnobPresetProps[props.preset] : {};
+  const merged = mergeProps(DEFAULT_KNOB_PROPS, presetConfig, props);
+
+  // Calculate the effective knob size for label styling
+  const getKnobSize = () => {
+    // Default knob size from CSS custom property or fallback
+    const defaultSize = 120;
+    return merged.width || defaultSize;
+  };
+
+  // Generate label styles that scale with knob size
+  const getLabelStyle = () => {
+    const knobSize = getKnobSize();
+    // Scale font size proportionally to knob size (adjust multiplier as needed)
+    const fontSize = Math.max(10, knobSize * 0.2); // Min 10px, ~20% of knob size
+    const color = merged.labelColor || 'inherit';
+
+    return {
+      'font-size': `${fontSize}px`,
+      color: color,
+      'text-align': 'center',
+      'white-space': 'nowrap',
+    };
+  };
 
   // Support style as object as well as string
   const getStyleString = (
@@ -187,12 +212,27 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
     knobInstance.setValue(merged.value);
   });
 
+  // Note: Label styles are automatically reactive through getLabelStyle()
+  // which reads merged.width and merged.labelColor
+
   return (
-    <div class={merged.class} style={getStyleString(merged.style)}>
+    <div
+      class={merged.class}
+      style={getStyleString({
+        display: 'block',
+        gap: '8px',
+        ...(typeof merged.style === 'object' ? merged.style : {}),
+      })}
+    >
       <Show when={merged.label}>
-        <div class={merged.labelClass ?? 'knob-label'}>{merged.label}</div>
+        <div
+          class={merged.labelClass ?? 'knob-label'}
+          style={getLabelStyle().toString()}
+        >
+          {merged.label}
+        </div>
       </Show>
-      <div ref={containerRef!} />
+      <div ref={containerRef!} /> {/* Container for the knob-element */}
     </div>
   );
 };

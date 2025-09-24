@@ -1,32 +1,42 @@
-import { Component, onMount, createSignal } from 'solid-js';
-import {
-  KnobComponent,
-  type KnobChangeEventDetail,
-  type KnobComponentProps,
-} from '@repo/audio-components/solidjs';
+import { Component, onMount, createSignal, createEffect } from 'solid-js';
+
 import { SamplePlayer, createSamplePlayer } from '@repo/audiolib';
 
-const knobProps: KnobComponentProps = {
-  label: 'Volume',
-  width: 50,
-  minValue: 0,
-  maxValue: 1,
-  defaultValue: 0.75,
-  snapIncrement: 0.01,
-  curve: 1,
-};
+import type { KnobPresetKey } from '@repo/audio-components/solidjs';
+
+import KnobGroup from './components/knobs/KnobGroup';
 
 const App: Component = () => {
-  let samplePlayer: SamplePlayer | null = null;
+  const [activeInstruments, setActiveInstruments] = createSignal<
+    Record<string, SamplePlayer>
+  >({});
+
+  const knobs: Array<KnobPresetKey> = [
+    'volume',
+    'feedback',
+    'delaySend',
+    'delayTime',
+    'delayFeedback',
+    'reverbSend',
+    'reverbSize',
+    'dryWet',
+    'glide',
+    'feedbackPitch',
+    'feedbackDecay',
+    'feedbackLpf',
+    'gainLFORate',
+    'gainLFODepth',
+  ];
 
   onMount(async () => {
-    if (!samplePlayer) {
-      samplePlayer = await createSamplePlayer();
-    }
+    const samplePlayer = await createSamplePlayer();
+    const playerId = samplePlayer.nodeId;
+    setActiveInstruments({ [playerId]: samplePlayer });
 
     if (!samplePlayer) return;
 
     // Minimal keyboard support for testing
+    // Todo: samplePlayer.enableKeyboard('Major');
     document.addEventListener('keydown', (e) => {
       if (e.key === 'a') {
         samplePlayer?.play(60);
@@ -37,29 +47,26 @@ const App: Component = () => {
       }
     });
 
-    // Todo: samplePlayer.enableKeyboard('Major');
-
     return () => {
       document.removeEventListener('keydown', () => {});
-      samplePlayer?.dispose();
-      samplePlayer = null;
+      samplePlayer?.dispose(); // todo: dispose for each instrument in activeInstruments
     };
   });
 
+  createEffect(() => {
+    const instruments = activeInstruments();
+    console.info('Active instruments changed:', instruments);
+  });
+
   return (
-    <div>
-      <KnobComponent
-        // {...knobProps}
-        label='Volume'
-        width={50}
-        minValue={0}
-        maxValue={1}
-        defaultValue={0.75}
-        snapIncrement={0.01}
-        curve={1}
-        onChange={(detail: KnobChangeEventDetail) => {
-          if (samplePlayer) samplePlayer.volume = detail.value;
-        }}
+    <div style={{ padding: '1rem' }}>
+      <h2>Smali Sampler</h2>
+      <p>Press 'a', 's', or 'd' keys to play notes</p>
+
+      <KnobGroup
+        title='KnobGroup'
+        instruments={activeInstruments}
+        knobPresets={knobs}
       />
     </div>
   );

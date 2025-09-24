@@ -8,6 +8,8 @@ export { KnobComponent } from './primitives/knob/KnobComponent';
 
 // Export types for consumers
 export type { KnobComponentProps } from './primitives/knob/KnobComponent';
+export type { KnobPresetKey } from './primitives/knob/KnobPresets';
+export { KnobPresetProps } from './primitives/knob/KnobPresets';
 
 export type {
   KnobConfig,
