@@ -5,21 +5,31 @@ import {
   onMount,
   onCleanup,
   mergeProps,
+  Show,
 } from 'solid-js';
+
 import {
   KnobElement,
   KnobConfig,
   KnobChangeEventDetail,
 } from '../../../../elements/primitives/KnobElement';
 
+import { KnobPresetProps, KnobPresetKey } from './KnobPresets';
+
 export interface KnobComponentProps extends Partial<KnobConfig> {
+  preset?: KnobPresetKey;
+
   // Visual props
   width?: number;
-  height?: number;
-  color?: string;
+  knobColor?: string;
+  labelColor?: string;
 
   // Value props
   value?: number;
+
+  // Label
+  label?: string;
+  labelClass?: string;
 
   // Event handlers
   onChange?: (detail: KnobChangeEventDetail) => void;
@@ -30,6 +40,18 @@ export interface KnobComponentProps extends Partial<KnobConfig> {
   ref?: (el: KnobElement) => void;
 }
 
+const DEFAULT_KNOB_PROPS: Partial<KnobConfig> = {
+  minValue: 0,
+  maxValue: 1,
+  defaultValue: 0,
+  snapIncrement: 0.001,
+  minRotation: -150,
+  maxRotation: 150,
+  curve: 1,
+  disabled: false,
+  borderStyle: 'currentState' as const,
+};
+
 /**
  * SolidJS wrapper component for KnobElement web component
  */
@@ -38,51 +60,67 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
   let knobInstance: KnobElement;
 
   // Set up default props
-  const merged = mergeProps(
-    {
-      minValue: 0,
-      maxValue: 100,
-      defaultValue: 0,
-      snapIncrement: 1,
-      minRotation: -150,
-      maxRotation: 150,
-      curve: 1,
-      disabled: false,
-      borderStyle: 'currentState' as const,
-    },
-    props
-  );
+  const presetConfig = props.preset ? KnobPresetProps[props.preset] : {};
+  const merged = mergeProps(DEFAULT_KNOB_PROPS, presetConfig, props);
+
+  // Calculate the effective knob size for label styling
+  const getKnobSize = () => {
+    // Default knob size from CSS custom property or fallback
+    const defaultSize = 120;
+    return merged.width || defaultSize;
+  };
+
+  // Generate label styles that scale with knob size
+  const getLabelStyle = () => {
+    const knobSize = getKnobSize();
+    // Scale font size proportionally to knob size (adjust multiplier as needed)
+    const fontSize = Math.max(10, knobSize * 0.2); // Min 10px, ~20% of knob size
+    const color = merged.labelColor || 'inherit';
+
+    return {
+      'font-size': `${fontSize}px`,
+      color: color,
+      'text-align': 'center',
+      'white-space': 'nowrap',
+    };
+  };
+
+  // Support style as object as well as string
+  const getStyleString = (
+    style: string | Record<string, string> | undefined
+  ) => {
+    if (!style) return undefined;
+    if (typeof style === 'string') return style;
+    return Object.entries(style)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+  };
 
   onMount(() => {
-    // Create the knob element
-    knobInstance = document.createElement('knob-element') as KnobElement;
+    if (!customElements.get('knob-element')) {
+      throw new Error('knob-element not registered. Import KnobElement first.');
+    }
 
-    // Apply initial configuration
+    knobInstance = document.createElement('knob-element') as KnobElement;
     updateKnobAttributes();
 
-    // Add event listener
     const handleChange = (e: CustomEvent<KnobChangeEventDetail>) => {
       merged.onChange?.(e.detail);
     };
-
     knobInstance.addEventListener('knob-change', handleChange as EventListener);
 
-    // Append to container
     if (containerRef) {
       containerRef.appendChild(knobInstance);
     }
 
-    // Call ref callback if provided
     merged.ref?.(knobInstance);
 
-    // Set initial value if different from default
     if (merged.value !== undefined && merged.value !== merged.defaultValue) {
       requestAnimationFrame(() => {
         knobInstance.setValue(merged.value!);
       });
     }
 
-    // Cleanup function
     onCleanup(() => {
       knobInstance.removeEventListener(
         'knob-change',
@@ -92,76 +130,111 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
     });
   });
 
-  // Function to update knob attributes
-  const updateKnobAttributes = () => {
+  const updateVisualAttributes = () => {
     if (!knobInstance) return;
-
-    // Core value attributes
-    knobInstance.setAttribute('min-value', merged.minValue.toString());
-    knobInstance.setAttribute('max-value', merged.maxValue.toString());
-    knobInstance.setAttribute('default-value', merged.defaultValue.toString());
-    knobInstance.setAttribute(
-      'snap-increment',
-      merged.snapIncrement.toString()
-    );
-
-    // Rotation attributes
-    knobInstance.setAttribute('min-rotation', merged.minRotation.toString());
-    knobInstance.setAttribute('max-rotation', merged.maxRotation.toString());
-
-    // Visual attributes
-    if (merged.width)
-      knobInstance.setAttribute('width', merged.width.toString());
-    if (merged.height)
-      knobInstance.setAttribute('height', merged.height.toString());
-    if (merged.color) knobInstance.setAttribute('color', merged.color);
-    if (merged.curve !== undefined)
-      knobInstance.setAttribute('curve', merged.curve.toString());
-    if (merged.borderStyle)
-      knobInstance.setAttribute('border-style', merged.borderStyle);
-
-    // State attributes
-    if (merged.disabled) {
-      knobInstance.setAttribute('disabled', '');
-    } else {
-      knobInstance.removeAttribute('disabled');
-    }
-
-    // Complex attributes (JSON)
-    if (merged.allowedValues) {
-      knobInstance.setAttribute(
-        'allowed-values',
-        JSON.stringify(merged.allowedValues)
-      );
-    }
-    if (merged.snapThresholds) {
-      knobInstance.setAttribute(
-        'snap-thresholds',
-        JSON.stringify(merged.snapThresholds)
-      );
+    try {
+      if (merged.width)
+        knobInstance.setAttribute('width', merged.width.toString());
+      if (merged.knobColor)
+        knobInstance.setAttribute('color', merged.knobColor);
+      if (merged.disabled) {
+        knobInstance.setAttribute('disabled', '');
+      } else {
+        knobInstance.removeAttribute('disabled');
+      }
+    } catch (error) {
+      console.warn('Failed to update visual attributes:', error);
     }
   };
 
-  // React to prop changes
+  const updateValueAttributes = () => {
+    if (!knobInstance) return;
+    try {
+      knobInstance.setAttribute('min-value', (merged.minValue ?? 0).toString());
+      knobInstance.setAttribute('max-value', (merged.maxValue ?? 1).toString());
+      knobInstance.setAttribute(
+        'default-value',
+        (merged.defaultValue ?? 0).toString()
+      );
+      knobInstance.setAttribute(
+        'snap-increment',
+        (merged.snapIncrement ?? 0.001).toString()
+      );
+      knobInstance.setAttribute(
+        'min-rotation',
+        (merged.minRotation ?? -150).toString()
+      );
+      knobInstance.setAttribute(
+        'max-rotation',
+        (merged.maxRotation ?? 150).toString()
+      );
+
+      if (merged.curve !== undefined) {
+        knobInstance.setAttribute('curve', merged.curve.toString());
+      }
+      if (merged.borderStyle) {
+        knobInstance.setAttribute('border-style', merged.borderStyle);
+      }
+      if (merged.allowedValues) {
+        knobInstance.setAttribute(
+          'allowed-values',
+          JSON.stringify(merged.allowedValues)
+        );
+      }
+      if (merged.snapThresholds) {
+        knobInstance.setAttribute(
+          'snap-thresholds',
+          JSON.stringify(merged.snapThresholds)
+        );
+      }
+    } catch (error) {
+      console.warn('Failed to update value attributes:', error);
+    }
+  };
+
+  const updateKnobAttributes = () => {
+    updateVisualAttributes();
+    updateValueAttributes();
+  };
+
   createEffect(() => {
     if (!knobInstance) return;
-    updateKnobAttributes();
+    updateVisualAttributes();
   });
 
-  // React to value changes
+  createEffect(() => {
+    if (!knobInstance) return;
+    updateValueAttributes();
+  });
+
   createEffect(() => {
     if (!knobInstance || merged.value === undefined) return;
     knobInstance.setValue(merged.value);
   });
 
+  // Note: Label styles are automatically reactive through getLabelStyle()
+  // which reads merged.width and merged.labelColor
+
   return (
     <div
-      ref={containerRef!}
       class={merged.class}
-      style={typeof merged.style === 'string' ? merged.style : undefined}
-    />
+      style={getStyleString({
+        display: 'block',
+        gap: '8px',
+        ...(typeof merged.style === 'object' ? merged.style : {}),
+      })}
+    >
+      <Show when={merged.label}>
+        <div
+          class={merged.labelClass ?? 'knob-label'}
+          style={getLabelStyle().toString()}
+        >
+          {merged.label}
+        </div>
+      </Show>
+      <div ref={containerRef!} /> {/* Container for the knob-element */}
+    </div>
   );
 };
 
-// Export default for convenience
 export default KnobComponent;

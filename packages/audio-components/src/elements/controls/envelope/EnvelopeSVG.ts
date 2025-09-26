@@ -99,7 +99,8 @@ export const EnvelopeSVG = (
   snapToValues: { y?: number[]; x?: number[] } = {},
   snapThreshold = 0.025,
   multiColorPlayheads = true,
-  restoreSavedSettings?: EnvelopeSettings
+  restoreSavedSettings?: EnvelopeSettings,
+  bgColor?: string
 ): EnvelopeSVG => {
   // If saved state is provided, apply it to the instrument BEFORE getting envelope info
   if (restoreSavedSettings) {
@@ -460,7 +461,7 @@ export const EnvelopeSVG = (
   svgElement = svg({
     viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
     preserveAspectRatio: 'none',
-    style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; overflow: visible; `,
+    style: `width: ${width}; height: ${height}; background-color: ${bgColor || '#1a1a1a'}; border: 1px solid #444; border-radius: 4px; overflow: visible; `,
   }) as SVGSVGElement;
 
   const controlButtons = EnvToggleButtons(

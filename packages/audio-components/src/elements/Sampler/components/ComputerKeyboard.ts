@@ -49,6 +49,11 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   const keyDown = (e: KeyboardEvent) => {
     if (e.repeat) return;
 
+    // Return early if a text input is focused
+    const activeElement = document.activeElement as HTMLInputElement;
+    if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text')
+      return;
+
     if (e.code === 'Backquote') {
       e.preventDefault();
       if (e.shiftKey) handleOctaveChange(1);
@@ -86,6 +91,11 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   };
 
   const keyUp = (e: KeyboardEvent) => {
+    // Return early if a text input is focused
+    const activeElement = document.activeElement as HTMLInputElement;
+    if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text')
+      return;
+
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || !enabled.val) return;
 

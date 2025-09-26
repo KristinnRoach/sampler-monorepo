@@ -1,0 +1,61 @@
+SamplePlayer methods:
+
+Volume → samplePlayer.setVolume(detail.value)
+
+Dry/Wet → samplePlayer.setDryWetMix({ dry, wet })
+
+Feedback → samplePlayer.setFeedbackAmount(detail.value)
+
+Glide → samplePlayer.setGlideTime(detail.value)
+
+FB-Pitch → samplePlayer.setFeedbackPitchScale(detail.value)
+
+FB-Decay → samplePlayer.setFeedbackDecay(detail.value)
+
+FB-LPF → samplePlayer.setFeedbackLowpassCutoff(detail.value)
+
+Amp LFO Rate → samplePlayer.gainLFO?.setFrequency(freqHz)
+
+Amp LFO Depth → samplePlayer.gainLFO?.setDepth(detail.value)
+
+Pitch LFO Rate → samplePlayer.pitchLFO?.setFrequency(freqHz)
+
+Pitch LFO Depth → samplePlayer.pitchLFO?.setDepth(scaledDepth)
+
+Reverb Size → samplePlayer.setReverbAmount(detail.value)
+
+Loop Drift → samplePlayer.setLoopDurationDriftAmount(detail.value)
+
+LPF → samplePlayer.setLpfCutoff(detail.value)
+
+HPF → samplePlayer.setHpfCutoff(detail.value)
+
+AM → samplePlayer.setModulationAmount('AM', detail.value)
+
+Start → samplePlayer.setSampleStartPoint(detail.value)
+
+End → samplePlayer.setSampleEndPoint(detail.value)
+
+Loop Start → samplePlayer.setLoopStart(detail.value)
+
+Loop Length → samplePlayer.setLoopDuration(detail.value)
+
+Tempo → samplePlayer.setTempo(detail.value)
+
+Output bus methods:
+
+Distortion → samplePlayer.outputBus.setDistortionMacro(detail.value)
+
+Drive → samplePlayer.outputBus.setDrive(detail.value)
+
+Clipping → samplePlayer.outputBus.setClippingMacro(detail.value)
+
+Delay → samplePlayer.outputBus.setDelayTime(detail.value)
+
+Delay Feedback → samplePlayer.outputBus.setDelayFeedback(detail.value)
+
+Send-to-FX routing:
+
+Delay Send → samplePlayer.sendToFx('delay', detail.value)
+
+Reverb Send → samplePlayer.sendToFx('reverb', detail.value)

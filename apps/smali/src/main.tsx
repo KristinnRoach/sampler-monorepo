@@ -1,10 +1,7 @@
 /* @refresh reload */
 import { render } from 'solid-js/web';
-import { defineSampler } from '@repo/audio-components';
 import App from './App';
 import './style.css';
-
-defineSampler(); // Define all web components for the sampler
 
 const root = document.getElementById('root');
 

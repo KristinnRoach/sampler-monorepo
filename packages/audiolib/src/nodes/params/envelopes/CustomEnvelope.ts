@@ -631,6 +631,7 @@ export class CustomEnvelope implements LibNode {
     }
 
     try {
+      // ! Needs testing specifically for Firefox ( and Safari )
       // audioParam.cancelScheduledValues(safeStart);
       // audioParam.setValueAtTime(currentValue, safeStart);
 
