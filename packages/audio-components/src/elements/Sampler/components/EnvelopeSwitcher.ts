@@ -15,6 +15,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   const targetNodeId = attributes.attr('target-node-id', '');
   const width = attributes.attr('width', '100%');
   const height = attributes.attr('height', '200px');
+  const bgColor = attributes.attr('bg-color', '#1e1e1e');
 
   const activeEnvelope = van.state<SupportedEnvelopeType>('amp-env');
   const samplerInitialized = van.state(false);
@@ -49,7 +50,8 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
             snapToValues,
             0.025,
             true,
-            savedSettings
+            savedSettings,
+            bgColor.val
           );
 
           if (envType !== activeEnvelope.val) {
@@ -188,25 +190,35 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       )
     ),
 
-    div({ class: 'envelope-container' }, () => {
-      if (!samplerInitialized.val)
-        return div({ style: loadingStateStyle }, 'Click anywhere to start');
-      if (!sampleLoaded.val)
-        return div({ style: loadingStateStyle }, 'Loading audio sample...');
+    div(
+      {
+        class: 'envelope-container',
+        style: () => {
+          `backgroundColor: ${bgColor}`;
+        },
+      },
+      () => {
+        if (!samplerInitialized.val)
+          return div({ style: loadingStateStyle }, 'Click anywhere to start');
+        if (!sampleLoaded.val)
+          return div({ style: loadingStateStyle }, 'Loading audio sample...');
 
-      // Return a container with all envelope elements
-      const container = div({ style: 'position: relative;' });
+        // Return a container with all envelope elements
+        const container = div({ style: 'position: relative;' });
 
-      // Add all created envelopes to the container
-      (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
-        if (envelopes[envType]) {
-          container.appendChild(envelopes[envType]!.element as HTMLElement);
-        }
-      });
+        // Add all created envelopes to the container
+        (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach(
+          (envType) => {
+            if (envelopes[envType]) {
+              container.appendChild(envelopes[envType]!.element as HTMLElement);
+            }
+          }
+        );
 
-      return container.children.length > 0
-        ? container
-        : div('Loading envelopes...');
-    })
+        return container.children.length > 0
+          ? container
+          : div('Loading envelopes...');
+      }
+    )
   );
 };
