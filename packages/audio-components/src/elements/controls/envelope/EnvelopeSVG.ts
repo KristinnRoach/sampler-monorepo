@@ -141,7 +141,7 @@ export const EnvelopeSVG = (
 
   const paddedWidth = SVG_WIDTH - 2 * CIRCLE_PADDING;
   const paddedHeight = SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING;
-  
+
   let svgElement: SVGSVGElement;
   let pointsGroup: SVGGElement;
   let envelopePath: SVGPathElement;
@@ -350,6 +350,15 @@ export const EnvelopeSVG = (
     document.addEventListener('touchend', handleGlobalEnd);
   };
 
+  /**
+   * Rebuilds the SVG control points to reflect the current envelope state.
+   *
+   * Updates the pointsGroup by removing existing circle elements and creating
+   * a circle for each envelope point positioned according to the point's time
+   * (using baseDuration) and normalized value. Each circle receives visual
+   * styling for enabled/disabled, sustain/release/selected states and attaches
+   * mouse/touch handlers for point interaction.
+   */
   function updateControlPoints() {
     if (!pointsGroup) return;
 
@@ -518,7 +527,13 @@ export const EnvelopeSVG = (
     offsetY: offsetY,
   });
 
-  // Envelope path
+  /**
+   * Updates the SVG path for the envelope visual to match the instrument's current envelope.
+   *
+   * Reads the envelope for the configured envelope type from the instrument and sets the `d`
+   * attribute of `envelopePath` so the displayed curve reflects the envelope's points, duration,
+   * and value range.
+   */
   function updateEnvelopePath() {
     envelopeInfo = instrument.getEnvelope(envType);
 
