@@ -135,7 +135,7 @@ export const applySnappingAbsolute = (
  */
 export const generateSVGPath = (
   points: EnvelopePoint[],
-  maxDurationSeconds: number,
+  baseDurationSeconds: number,
   svgWidth: number,
   svgHeight: number,
   valueRange: [number, number],
@@ -154,14 +154,14 @@ export const generateSVGPath = (
     valueRange,
     scaling
   );
-  let path = `M${secondsToScreenX(sortedPoints[0].time, maxDurationSeconds, svgWidth) + offsetX},${(1 - firstNormalized) * svgHeight + offsetY}`;
+  let path = `M${secondsToScreenX(sortedPoints[0].time, baseDurationSeconds, svgWidth) + offsetX},${(1 - firstNormalized) * svgHeight + offsetY}`;
 
   for (let i = 1; i < sortedPoints.length; i++) {
     const point = sortedPoints[i];
     const prevPoint = sortedPoints[i - 1];
 
     const x =
-      secondsToScreenX(point.time, maxDurationSeconds, svgWidth) + offsetX;
+      secondsToScreenX(point.time, baseDurationSeconds, svgWidth) + offsetX;
     const normalizedY = absoluteValueToNormalized(
       point.value,
       valueRange,
@@ -171,7 +171,7 @@ export const generateSVGPath = (
 
     if (prevPoint.curve === 'exponential') {
       const prevX =
-        secondsToScreenX(prevPoint.time, maxDurationSeconds, svgWidth) +
+        secondsToScreenX(prevPoint.time, baseDurationSeconds, svgWidth) +
         offsetX;
       const prevNormalizedY = absoluteValueToNormalized(
         prevPoint.value,
@@ -190,90 +190,3 @@ export const generateSVGPath = (
   }
   return path;
 };
-
-// Legacy function for backward compatibility - DEPRECATED
-export const screenYToValue = screenYToNormalizedValue;
-// // env-utils.ts
-// import type { EnvelopePoint } from '@repo/audiolib';
-
-// /**
-//  * Convert time in seconds to SVG X coordinate
-//  */
-// export const secondsToScreenX = (
-//   timeInSeconds: number,
-//   maxDurationSeconds: number,
-//   svgWidth: number
-// ): number => {
-//   return (timeInSeconds / maxDurationSeconds) * svgWidth;
-// };
-
-// /**
-//  * Convert SVG X coordinate to time in seconds
-//  */
-// export const screenXToSeconds = (
-//   screenX: number,
-//   svgWidth: number,
-//   maxDurationSeconds: number
-// ): number => {
-//   return (screenX / svgWidth) * maxDurationSeconds;
-// };
-
-// /**
-//  * Convert SVG Y coordinate to envelope value (0-1)
-//  */
-// export const screenYToValue = (screenY: number, svgHeight: number): number => {
-//   return Math.max(0, Math.min(1, 1 - screenY / svgHeight));
-// };
-
-// /**
-//  * Apply snapping to a value if it's close to any snap points
-//  */
-// export const applySnapping = (
-//   value: number,
-//   snapValues: number[] | undefined,
-//   threshold: number
-// ): number => {
-//   if (!snapValues) return value;
-//   const closest = snapValues.find((v) => Math.abs(v - value) < threshold);
-//   return closest !== undefined ? closest : value;
-// };
-
-// /**
-//  * Generate SVG path data from envelope points
-//  */
-// export const generateSVGPath = (
-//   points: EnvelopePoint[],
-//   maxDurationSeconds: number,
-//   svgWidth: number,
-//   svgHeight: number
-// ): string => {
-//   if (points.length < 2) return `M0,${svgHeight} L${svgWidth},${svgHeight}`;
-
-//   const sortedPoints = [...points].sort((a, b) => a.time - b.time);
-//   let path = `M${secondsToScreenX(sortedPoints[0].time, maxDurationSeconds, svgWidth)},${(1 - sortedPoints[0].value) * svgHeight}`;
-
-//   for (let i = 1; i < sortedPoints.length; i++) {
-//     const point = sortedPoints[i];
-//     const prevPoint = sortedPoints[i - 1];
-
-//     const x = secondsToScreenX(point.time, maxDurationSeconds, svgWidth);
-//     const y = (1 - point.value) * svgHeight;
-
-//     if (prevPoint.curve === 'exponential') {
-//       const prevX = secondsToScreenX(
-//         prevPoint.time,
-//         maxDurationSeconds,
-//         svgWidth
-//       );
-//       const prevY = (1 - prevPoint.value) * svgHeight;
-//       const cp1X = prevX + (x - prevX) * 0.3;
-//       const cp1Y = prevY;
-//       const cp2X = prevX + (x - prevX) * 0.7;
-//       const cp2Y = y;
-//       path += ` C${cp1X},${cp1Y} ${cp2X},${cp2Y} ${x},${y}`;
-//     } else {
-//       path += ` L${x},${y}`;
-//     }
-//   }
-//   return path;
-// };

@@ -51,8 +51,9 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
     // Return early if a text input is focused
     const activeElement = document.activeElement as HTMLInputElement;
-    if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text')
+    if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text') {
       return;
+    }
 
     if (e.code === 'Backquote') {
       e.preventDefault();
@@ -64,8 +65,10 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     if (!sampler || !enabled.val) return;
 
     if (e.code === 'Space') {
-      spacePressed = true;
       e.preventDefault();
+      e.stopPropagation(); // prevent page scrolling
+
+      spacePressed = true;
     }
 
     const baseLoopEnabled =

@@ -218,16 +218,20 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
   return (
     <div
       class={merged.class}
-      style={getStyleString({
-        display: 'block',
-        gap: '8px',
-        ...(typeof merged.style === 'object' ? merged.style : {}),
-      })}
+      style={
+        typeof merged.style === 'string'
+          ? `${getStyleString({ display: 'block', gap: '8px' })}; ${merged.style}`
+          : getStyleString({
+              display: 'block',
+              gap: '8px',
+              ...(merged.style ?? {}),
+            })
+      }
     >
       <Show when={merged.label}>
         <div
           class={merged.labelClass ?? 'knob-label'}
-          style={getLabelStyle().toString()}
+          style={getStyleString(getLabelStyle())}
         >
           {merged.label}
         </div>

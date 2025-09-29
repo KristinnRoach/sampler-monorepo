@@ -2,7 +2,8 @@
 import { render } from 'solid-js/web';
 import { defineSampler } from '@repo/audio-components';
 import App from './App';
-import './style-wip.css';
+import './styles/themes.css';
+import './style-org-layout.css';
 
 defineSampler(); // Define all web components for the sampler
 

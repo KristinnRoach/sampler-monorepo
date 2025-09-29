@@ -108,8 +108,9 @@ describe('CustomEnvelope - #continueFromPoint', () => {
         voiceId: 'test-voice',
         midiNote: 64,
         releasePoint: {
-          normalizedTime: expect.any(Number),
+          time: expect.any(Number),
           value: expect.any(Number),
+          curve: expect.any(String),
         },
         remainingDuration: expect.any(Number),
       });

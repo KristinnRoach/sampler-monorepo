@@ -78,6 +78,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   #loopLocked = false;
   #holdEnabled = false;
   #holdLocked = false;
+  #sustainPedalPressed = false;
 
   #masterOut: GainNode;
 
@@ -768,6 +769,33 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
+  #sustainPedalLoopFlag: boolean = false;
+
+  setSustainPedal(pressed: boolean): this {
+    if (this.#sustainPedalPressed === pressed) return this;
+
+    this.#sustainPedalPressed = pressed;
+
+    if (!this.#loopLocked) {
+      if (this.#sustainPedalLoopFlag && !pressed) {
+        this.#sustainPedalLoopFlag = false;
+        this.setLoopEnabled(false);
+      } else if (pressed && !this.#loopEnabled) {
+        this.setLoopEnabled(true);
+        this.#sustainPedalLoopFlag = true;
+      }
+    }
+
+    if (!this.#holdLocked) {
+      this.setHoldEnabled(pressed);
+    }
+
+    return this;
+  }
+
+  sustainPedalOn = (): this => this.setSustainPedal(true);
+  sustainPedalOff = (): this => this.setSustainPedal(false);
+
   setPlaybackDirection(direction: 'forward' | 'reverse'): this {
     this.voicePool.applyToAllVoices((voice) =>
       voice.setPlaybackDirection(direction)
@@ -1239,7 +1267,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   // MIDI input
   async enableMIDI(
     midiController?: MidiController,
-    channel: number = 0
+    channel: number | 'all' = 'all'
   ): Promise<this> {
     if (!midiController) {
       midiController = new MidiController();
@@ -1253,9 +1281,12 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
-  disableMIDI(midiController?: MidiController, channel: number = 0): this {
+  disableMIDI(
+    midiController?: MidiController,
+    channel: number | 'all' = 'all'
+  ): this {
     const controller = midiController || this.#midiController;
-    controller?.disconnectInstrument(channel);
+    controller?.disconnectInstrument(this, channel);
     if (controller === this.#midiController) {
       this.#midiController = null;
     }

@@ -250,13 +250,14 @@ export const SamplerElement = (attributes: ElementProps) => {
         }
 
         registerSampler(nodeId.val, samplePlayer);
-        status.val = 'Initialized';
 
         document.dispatchEvent(
           new CustomEvent('sampler-initialized', {
             detail: { nodeId: nodeId.val },
           })
         );
+
+        status.val = 'Initialized';
 
         samplePlayer.onMessage('sample:loaded', (msg: any) => {
           status.val = 'Loaded';
@@ -284,6 +285,9 @@ export const SamplerElement = (attributes: ElementProps) => {
           getSamplePlayer: () => samplePlayer,
           getSampleBuffer: () => samplePlayer?.audiobuffer || null,
         });
+
+        // Enable MIDI by default // todo: reconsider enableMidi when refactoring to import from audiolib in app, assuming multiple players / samples
+        await samplePlayer?.enableMIDI();
       } catch (error: any) {
         console.error('Sampler initialization error:', error);
         if (error?.message?.includes('AudioWorklet')) {

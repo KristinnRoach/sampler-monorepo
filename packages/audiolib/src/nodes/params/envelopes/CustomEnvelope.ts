@@ -11,7 +11,7 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
-import { clamp, mapToRange } from '@/utils';
+import { assert, clamp, mapToRange } from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -62,7 +62,7 @@ export class CustomEnvelope implements LibNode {
         break;
       case 'loop-env':
         this.#paramName = 'loopEnd';
-        console.warn('CustomEnvelope not implemnted for type: loop-env');
+        console.warn('CustomEnvelope not implemented for type: loop-env');
         break;
       default:
         console.error(
@@ -137,8 +137,12 @@ export class CustomEnvelope implements LibNode {
     return this.#data.points;
   }
 
-  get fullDuration() {
-    return this.#data.durationSeconds;
+  get baseDuration() {
+    return this.#data.endTime - this.#data.startTime;
+  }
+
+  get effectiveDuration() {
+    return this.#getScaledDuration();
   }
 
   get timeScale() {
@@ -167,12 +171,16 @@ export class CustomEnvelope implements LibNode {
   // ===== AUDIO OPERATIONS =====
 
   #getScaledDuration(
-    fromIdx: number,
-    toIdx: number,
-    playbackRate = 1,
-    timeScale = 1
+    fromIdx = this.#data.startPointIndex,
+    toIdx = this.#data.endPointIndex,
+    playbackRate = this.#currentPlaybackRate,
+    timeScale = this.#timeScale
   ): number {
-    if (fromIdx < 0 || toIdx >= this.points.length || fromIdx >= toIdx) {
+    if (
+      fromIdx < this.#data.startPointIndex ||
+      toIdx > this.#data.endPointIndex ||
+      fromIdx >= toIdx
+    ) {
       return 0;
     }
 
@@ -191,6 +199,11 @@ export class CustomEnvelope implements LibNode {
     return duration / timeScale;
   }
 
+  getEffectivePointTime(index: number): number {
+    assert(index >= 0 && index <= this.points.length - 1);
+    return this.#getScaledDuration(this.#data.startPointIndex, index);
+  }
+
   #getCurveSamplingRate(duration: number): number {
     // Higher sample rate for filter envelopes (logarithmic) for smoother curves
     if (this.envelopeType === 'filter-env') {
@@ -204,7 +217,7 @@ export class CustomEnvelope implements LibNode {
 
   #generateCurve(
     scaledDuration: number,
-    endTime = this.fullDuration,
+    endTime = this.baseDuration,
     options: {
       baseValue: number;
       minValue: number;
@@ -265,11 +278,39 @@ export class CustomEnvelope implements LibNode {
     this.#isReleased = false;
     this.#currentPlaybackRate = options.playbackRate;
 
+    // Store active envelope state for dynamic sustain
+    this.#activeEnvelope = {
+      audioParam,
+      startTime,
+      options,
+    };
+
     if (this.#loopEnabled) {
       this.#startLoopingEnv(audioParam, startTime, options);
     } else {
       this.#startSingleEnv(audioParam, startTime, options);
     }
+
+    if (!this.releasePoint) {
+      console.error('Release point not set, ensure supported by envelope');
+      return;
+    }
+
+    setTimeout(() => {
+      if (this.sustainEnabled || this.#isReleased) return;
+
+      // Auto-release if releaseEnvelope is not called manually and sustain is not enabled
+      this.#isReleased = true;
+
+      if (options.voiceId !== undefined) {
+        this.sendUpstreamMessage(`${this.envelopeType}:release`, {
+          voiceId: options.voiceId,
+          midiNote: options.midiNote,
+          releasePoint: this.releasePoint, // normalization for display happens in UI code
+          remainingDuration: this.effectiveReleaseDuration,
+        });
+      }
+    }, this.effectiveReleaseStartTime * 1000);
   }
 
   #startSingleEnv(
@@ -296,8 +337,8 @@ export class CustomEnvelope implements LibNode {
     const curve = this.#generateCurve(
       scaledDuration,
       this.sustainEnabled
-        ? (this.sustainPoint?.time ?? this.fullDuration)
-        : this.fullDuration,
+        ? (this.sustainPoint?.time ?? this.baseDuration)
+        : this.baseDuration,
       {
         ...options,
         minValue: audioParam.minValue,
@@ -309,7 +350,7 @@ export class CustomEnvelope implements LibNode {
     if (options.voiceId !== undefined) {
       this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
         voiceId: options.voiceId,
-        midiNote: options.midiNote || 60,
+        midiNote: options.midiNote,
         duration: scaledDuration,
         sustainEnabled: this.sustainEnabled,
         loopEnabled: false,
@@ -334,6 +375,16 @@ export class CustomEnvelope implements LibNode {
       // audioParam.cancelScheduledValues(timestamp);
       // audioParam.setValueAtTime(curve[0], timestamp);
       audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
+
+      // Clear active envelope state when envelope completes (if not sustained)
+      if (!this.sustainEnabled) {
+        setTimeout(
+          () => {
+            this.#activeEnvelope = null;
+          },
+          scaledDuration * 1000 + 100
+        ); // Small buffer to ensure completion
+      }
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
       try {
@@ -343,11 +394,23 @@ export class CustomEnvelope implements LibNode {
           curve[curve.length - 1],
           safeStart + scaledDuration
         );
+
+        // Clear active envelope state for fallback case too
+        if (!this.sustainEnabled) {
+          setTimeout(
+            () => {
+              this.#activeEnvelope = null;
+            },
+            scaledDuration * 1000 + 100
+          );
+        }
       } catch (fallbackError) {
         try {
           audioParam.setValueAtTime(curve[curve.length - 1], safeStart);
+          this.#activeEnvelope = null; // Clear immediately for instant set
         } catch {
           // Silent fail
+          this.#activeEnvelope = null;
         }
       }
     }
@@ -357,6 +420,18 @@ export class CustomEnvelope implements LibNode {
   #isCurrentlyLooping = false;
   #loopUpdateFlag = false;
   #shouldLoop = () => this.#loopEnabled && !this.#isReleased;
+
+  // Active envelope tracking for dynamic sustain
+  #activeEnvelope: {
+    audioParam: AudioParam;
+    startTime: number;
+    options: {
+      baseValue: number;
+      playbackRate: number;
+      voiceId?: string;
+      midiNote?: number;
+    };
+  } | null = null;
 
   #startLoopingEnv(
     audioParam: AudioParam,
@@ -382,7 +457,7 @@ export class CustomEnvelope implements LibNode {
       this.#timeScale
     );
 
-    let cachedCurve = this.#generateCurve(cachedDuration, this.fullDuration, {
+    let cachedCurve = this.#generateCurve(cachedDuration, this.baseDuration, {
       ...options,
       minValue: audioParam.minValue,
       maxValue: audioParam.maxValue,
@@ -393,7 +468,7 @@ export class CustomEnvelope implements LibNode {
     if (options.voiceId !== undefined) {
       this.sendUpstreamMessage(`${this.envelopeType}:trigger`, {
         voiceId: options.voiceId,
-        midiNote: options.midiNote || 60,
+        midiNote: options.midiNote,
         duration: cachedDuration,
         sustainEnabled: false,
         loopEnabled: true,
@@ -437,7 +512,7 @@ export class CustomEnvelope implements LibNode {
             this.#timeScale
           );
 
-          cachedCurve = this.#generateCurve(cachedDuration, this.fullDuration, {
+          cachedCurve = this.#generateCurve(cachedDuration, this.baseDuration, {
             ...options,
             minValue: audioParam.minValue,
             maxValue: audioParam.maxValue,
@@ -503,7 +578,7 @@ export class CustomEnvelope implements LibNode {
                 }
                 this.sendUpstreamMessage(`${this.envelopeType}:trigger:loop`, {
                   voiceId: options.voiceId,
-                  midiNote: options.midiNote || 60,
+                  midiNote: options.midiNote,
                   duration: cachedDuration,
                 });
               }, delay);
@@ -515,7 +590,7 @@ export class CustomEnvelope implements LibNode {
               // Fallback: send message immediately if timestamp is not available
               this.sendUpstreamMessage(`${this.envelopeType}:trigger:loop`, {
                 voiceId: options.voiceId,
-                midiNote: options.midiNote || 60,
+                midiNote: options.midiNote,
                 duration: cachedDuration,
               });
             }
@@ -550,10 +625,12 @@ export class CustomEnvelope implements LibNode {
       maxValue?: number;
     }
   ) {
+    if (this.#isReleased) return;
+
     this.#isReleased = true;
-    // TODO: If we have passed release point, don't return to it by default ? Just fade out?
-    const releaseIndex = this.releasePointIndex;
-    this.#continueFromPoint(audioParam, startTime, releaseIndex, {
+    this.#activeEnvelope = null; // Clear active envelope state
+
+    this.#continueFromPoint(audioParam, startTime, this.releasePointIndex, {
       baseValue: audioParam.value,
       playbackRate: this.#currentPlaybackRate,
       ...options,
@@ -615,17 +692,12 @@ export class CustomEnvelope implements LibNode {
       );
     }
 
-    const releasePoint = this.points[this.releasePointIndex];
-
     // Emit release event
     if (options.voiceId !== undefined) {
       this.sendUpstreamMessage(`${this.envelopeType}:release`, {
         voiceId: options.voiceId,
-        midiNote: options.midiNote || 60,
-        releasePoint: {
-          normalizedTime: releasePoint.time / this.fullDuration, // ? / this.#timeScale;
-          value: releasePoint.value,
-        },
+        midiNote: options.midiNote,
+        releasePoint: this.releasePoint,
         remainingDuration: scaledRemainingDuration,
       });
     }
@@ -696,7 +768,74 @@ export class CustomEnvelope implements LibNode {
 
   // === SUSTAIN / RELEASE ===
 
-  setSustainPoint = (index: number | null) => this.#data.setSustainPoint(index);
+  setSustainPoint = (index: number | null) => {
+    this.#data.setSustainPoint(index);
+
+    // Handle dynamic sustain - reschedule if envelope is currently active
+    if (this.#activeEnvelope && !this.#loopEnabled && !this.#isReleased) {
+      this.#rescheduleForSustain();
+    }
+  };
+
+  #rescheduleForSustain() {
+    if (!this.#activeEnvelope || !this.sustainEnabled) return;
+
+    const { audioParam, startTime, options } = this.#activeEnvelope;
+    const currentTime = this.#context.currentTime;
+    const elapsedTime = currentTime - Math.max(startTime, currentTime);
+
+    // Calculate current position in envelope timeline
+    const scaledElapsedTime = this.#syncedToPlaybackRate
+      ? elapsedTime * options.playbackRate * this.#timeScale
+      : elapsedTime * this.#timeScale;
+
+    const sustainPoint = this.sustainPoint;
+    if (!sustainPoint || scaledElapsedTime >= sustainPoint.time) {
+      // Already passed sustain point, no action needed
+      return;
+    }
+
+    try {
+      // Cancel current scheduling
+      audioParam.cancelScheduledValues(currentTime);
+
+      // Get current audio param value for seamless transition
+      const currentValue = audioParam.value;
+      audioParam.setValueAtTime(currentValue, currentTime);
+
+      // Calculate remaining duration to sustain point
+      const remainingTimeToSustain = sustainPoint.time - scaledElapsedTime;
+      const scaledRemainingDuration = this.#syncedToPlaybackRate
+        ? remainingTimeToSustain / options.playbackRate / this.#timeScale
+        : remainingTimeToSustain / this.#timeScale;
+
+      if (scaledRemainingDuration > 0.001) {
+        // Generate curve from current position to sustain point
+        const curve = this.#generateCurve(
+          scaledRemainingDuration,
+          sustainPoint.time,
+          {
+            ...options,
+            minValue: audioParam.minValue,
+            maxValue: audioParam.maxValue,
+            startFromValue: currentValue,
+          }
+        );
+
+        audioParam.setValueCurveAtTime(
+          curve,
+          currentTime,
+          scaledRemainingDuration
+        );
+      }
+    } catch (error) {
+      // Silent fallback for rapid changes
+      console.debug(
+        'Dynamic sustain reschedule failed, envelope will continue normally'
+      );
+    }
+  }
+
   setReleasePoint = (index: number) => this.#data.setReleasePoint(index);
 
   get sustainPointIndex() {
@@ -711,14 +850,21 @@ export class CustomEnvelope implements LibNode {
     return this.points[this.releasePointIndex] || null;
   }
 
-  get releaseTime() {
-    const rawDuration =
-      this.points[this.points.length - 1].time -
-      this.points[this.releasePointIndex].time;
+  get effectiveReleaseStartTime() {
+    return this.getEffectivePointTime(this.releasePointIndex);
+  }
 
+  get baseReleaseDuration() {
+    return (
+      this.points[this.#data.endPointIndex].time -
+      this.points[this.releasePointIndex].time
+    );
+  }
+
+  get effectiveReleaseDuration() {
     return this.#syncedToPlaybackRate
-      ? rawDuration / this.#currentPlaybackRate / this.#timeScale
-      : rawDuration / this.#timeScale;
+      ? this.baseReleaseDuration / this.#currentPlaybackRate / this.#timeScale
+      : this.baseReleaseDuration / this.#timeScale;
   }
 
   get sustainEnabled() {

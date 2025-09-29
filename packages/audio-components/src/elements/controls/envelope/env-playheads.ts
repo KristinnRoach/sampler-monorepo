@@ -23,21 +23,22 @@ export const createPlayheads = (
 
   const playheads = new Map<string, SVGCircleElement>();
 
+  // Store baseDuration for consistent time calculations
+  let cachedBaseDuration = envelope.baseDuration;
+
   const colors = generateMidiNoteColors('none', [40, 90], true);
 
   const centerY = svgHeight / 2;
 
   // Create playhead element
-  const createPlayhead = (
-    voiceId: string,
-    midiNote: number
-  ): SVGCircleElement => {
+  const createPlayhead = (midiNote?: number): SVGCircleElement => {
     const circle = document.createElementNS(
       'http://www.w3.org/2000/svg',
       'circle'
     );
-    circle.setAttribute('fill', colors[midiNote]);
-    circle.setAttribute('pointer-events', 'none'); // SVG attribute
+    const color = midiNote ? colors[midiNote] : '#bb0000';
+    circle.setAttribute('fill', color);
+    circle.setAttribute('pointer-events', 'none');
     circle.setAttribute('stroke', '#fff');
     circle.setAttribute('stroke-width', '1');
     circle.style.pointerEvents = 'none';
@@ -74,6 +75,9 @@ export const createPlayheads = (
       releasePoint,
     } = msg; // curveData
 
+    // Update cached baseDuration from current envelope state
+    cachedBaseDuration = envelope.baseDuration;
+
     // Let looping envelopes continue
     if (loopEnabled && activeAnimations.has(voiceId)) return;
 
@@ -82,7 +86,7 @@ export const createPlayheads = (
       stopAnimation(voiceId);
     }
 
-    const playhead = createPlayhead(voiceId, midiNote);
+    const playhead = createPlayhead(midiNote);
     svgElement.appendChild(playhead);
     playheads.set(voiceId, playhead);
 
@@ -114,8 +118,8 @@ export const createPlayheads = (
       activeLoopingAnimations.set(voiceId, triggerTl);
       triggerTl.play();
     } else if (sustainEnabled) {
-      // Calculate sustain point x position
-      const sustainX = (sustainPoint.time / envelope.fullDuration) * svgWidth;
+      // Calculate sustain point x position, 0-1 normalized
+      const sustainX = (sustainPoint.time / cachedBaseDuration) * svgWidth;
 
       // Phase 1: Animate to sustain point
       triggerTl.to(
@@ -175,7 +179,7 @@ export const createPlayheads = (
 
     if (triggerTl && playhead) {
       // Jump to release point x position
-      const releaseX = releasePoint.normalizedTime * svgWidth;
+      const releaseX = (releasePoint.time / cachedBaseDuration) * svgWidth;
 
       gsap.set(playhead, { x: releaseX });
       gsap.set(playhead, { opacity: 0.7 });

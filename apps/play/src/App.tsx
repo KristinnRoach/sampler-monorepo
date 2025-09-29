@@ -1,14 +1,16 @@
-import { Component, onMount, createSignal } from 'solid-js';
-// import { KnobComponent } from '@repo/audio-components/solidjs';
+import { Component, onMount, createSignal, onCleanup } from 'solid-js';
 
 import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
 
 import { addExpandCollapseListeners } from './utils/expandCollapse';
-import SaveButton from './components/SaveButton';
+import { addPreventScrollOnSpacebarListener } from './utils/preventScrollOnSpacebar';
+import { restoreInstrumentState } from './utils/instrumentState';
 import { SavedSample } from './db/samplelib/sampleIdb';
+
+import { ThemeToggle } from './components/ThemeSwitcher';
+import SaveButton from './components/SaveButton';
 import Sidebar from './components/Sidebar';
 import SidebarToggle from './components/SidebarToggle';
-import { restoreInstrumentState } from './utils/instrumentState';
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
@@ -92,16 +94,17 @@ const App: Component = () => {
 
     document.addEventListener('sample-loaded', handleSampleLoaded);
     window.addEventListener('resize', updateLayout);
+    addPreventScrollOnSpacebarListener();
 
     updateLayout(); // Initial check
 
     // Add expand/collapse listeners
     addExpandCollapseListeners();
 
-    return () => {
+    onCleanup(() => {
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       window.removeEventListener('resize', updateLayout);
-    };
+    });
   });
 
   return (
@@ -110,15 +113,17 @@ const App: Component = () => {
         <SidebarToggle
           onclick={() => setSidebarOpen(!sidebarOpen())}
           isOpen={sidebarOpen()}
-          class='left-side-button bg-dark-gray'
+          class='left-side-button'
         />
 
         <SaveButton
           audioBuffer={currentAudioBuffer()}
           disabled={!sampleLoaded()}
           isOpen={sidebarOpen()}
-          class='left-side-button bg-dark-gray'
+          class='left-side-button'
         />
+
+        <ThemeToggle class={sidebarOpen() ? 'open' : ''} defaultTheme='light' />
 
         {/* <tempo-knob
           target-node-id='test-sampler'
@@ -145,11 +150,31 @@ const App: Component = () => {
         <fieldset class='control-group env-group'>
           <legend class='expandable-legend'>Envelopes</legend>
           <div class='expandable-content'>
-            <envelope-switcher
-              height='225px'
-              bg-color='#000'
-              target-node-id='test-sampler'
-            />
+            <div class='flex-col'>
+              <envelope-switcher
+                height='225px'
+                bg-color='var(--envelope-bg)'
+                target-node-id='test-sampler'
+              />
+              {/* <div class='flex-row'>
+                <trim-start-knob target-node-id='test-sampler' />
+                <trim-end-knob target-node-id='test-sampler' />
+
+                <loop-start-knob
+                  target-node-id='test-sampler'
+                  label='Loop Start'
+                />
+                <loop-duration-knob
+                  target-node-id='test-sampler'
+                  label='Loop Duration'
+                />
+                <loop-duration-drift-knob
+                  target-node-id='test-sampler'
+                  label='Loop Drift'
+                />
+                <pan-drift-toggle target-node-id='test-sampler' />
+              </div> */}
+            </div>
           </div>
         </fieldset>
 
@@ -209,7 +234,7 @@ const App: Component = () => {
         </fieldset>
 
         <fieldset class='control-group misc-group'>
-          <legend class='expandable-legend'>Edge</legend>
+          <legend class='expandable-legend'>Dirt</legend>
           <div class='expandable-content'>
             <distortion-knob target-node-id='test-sampler' />
             <am-modulation label='AM' target-node-id='test-sampler' />
