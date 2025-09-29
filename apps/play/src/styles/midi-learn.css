@@ -1,0 +1,37 @@
+/* MIDI Learn Styles */
+.midi-learn-highlight {
+  outline: 2px solid #00ffcc !important;
+  box-shadow: 0 0 10px #00ffcc !important;
+  position: relative;
+  z-index: 10;
+}
+
+body.midi-learn-active knob-element {
+  cursor: pointer;
+}
+
+body.midi-learn-active knob-element:hover {
+  outline: 1px dashed #00ffcc;
+}
+
+.midi-learn-status {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #00ffcc;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 1000;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.midi-learn-status.active {
+  opacity: 1;
+}
+
+.midi-learn-status.inactive {
+  opacity: 0;
+}

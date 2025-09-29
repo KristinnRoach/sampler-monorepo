@@ -1106,10 +1106,10 @@ export const EnvelopeSVG = (
           momentarySustainForLoop = true;
 
           // TODO: Use last-used sustainPoint index.
-          // Temp safe solution for now:
+          // Default to second-to-last point for now:
           const env = instrument.getEnvelope(envType);
           const numPoints = env.points.length;
-          const sustainIdx = env.sustainPointIndex ?? numPoints - 2; // Default to second-to-last point
+          const sustainIdx = env.sustainPointIndex ?? numPoints - 2;
 
           instrument.setEnvelopeSustainPoint(envType, sustainIdx);
           updateControlPoints();
