@@ -393,14 +393,14 @@ export class SampleVoice {
       midiNote: this.#activeMidiNote,
       envDurations: {
         'amp-env': ampEnv.syncedToPlaybackRate
-          ? ampEnv.fullDuration / playbackRate / ampEnv.timeScale
-          : ampEnv.fullDuration / ampEnv.timeScale,
+          ? ampEnv.baseDuration / playbackRate / ampEnv.timeScale
+          : ampEnv.baseDuration / ampEnv.timeScale,
         'pitch-env': pitchEnv.syncedToPlaybackRate
-          ? pitchEnv.fullDuration / playbackRate / pitchEnv.timeScale
-          : pitchEnv.fullDuration / pitchEnv.timeScale,
+          ? pitchEnv.baseDuration / playbackRate / pitchEnv.timeScale
+          : pitchEnv.baseDuration / pitchEnv.timeScale,
         'filter-env': filterEnv.syncedToPlaybackRate
-          ? filterEnv.fullDuration / playbackRate / filterEnv.timeScale
-          : filterEnv.fullDuration / filterEnv.timeScale,
+          ? filterEnv.baseDuration / playbackRate / filterEnv.timeScale
+          : filterEnv.baseDuration / filterEnv.timeScale,
       },
       loopEnabled: {
         'amp-env': ampEnv.loopEnabled,
@@ -447,7 +447,9 @@ export class SampleVoice {
 
     const effectiveReleaseTime =
       enabledEnvelopes.length > 0
-        ? Math.max(...enabledEnvelopes.map((env) => env.releaseTime))
+        ? Math.max(
+            ...enabledEnvelopes.map((env) => env.effectiveReleaseDuration)
+          )
         : releaseTime; // Fallback passed in release time
 
     // Stop after release duration // todo: check for redundancy
@@ -1041,7 +1043,7 @@ export class SampleVoice {
   }
 
   get releaseTime() {
-    return this.#envelopes.get('amp-env')!.releaseTime;
+    return this.#envelopes.get('amp-env')!.effectiveReleaseDuration;
   }
 
   // Setters

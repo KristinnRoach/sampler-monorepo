@@ -46,6 +46,9 @@ export interface ILibInstrumentNode extends ILibAudioNode {
   release(note: MidiValue): this;
   releaseAll(releaseTime?: number): this;
 
+  sustainPedalOn(): this;
+  sustainPedalOff(): this;
+
   enableMIDI(controller: MidiController): Promise<this>;
 
   outBus?: InstrumentBus;

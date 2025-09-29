@@ -1,0 +1,85 @@
+[data-theme='dark'] {
+  --bg-color-1: oklch(0.2 0.0001 220);
+  --bg-color-2: oklch(0.25 0.01 200);
+  --bg-color-3: oklch(0.2 0.005 210);
+
+  --sidebar-bg: oklch(27.685% 0.00003 271.152);
+  --envelope-bg: oklch(0.1 0.0001 220);
+
+  --color-text: oklch(0.85 0.01 240);
+}
+
+[data-theme='light'] {
+  /* green-yellow theme */
+  --bg-color-1: oklch(0.75 0.12 85 / 0.63);
+  --bg-color-2: oklch(0.3 0.08 155);
+  --bg-color-3: oklch(0.25 0.07 155 / 0.75);
+
+  --sidebar-bg: oklch(35.233% 0.00004 271.152);
+  --envelope-bg: oklch(0.05 0.0001 0);
+
+  --color-text: oklch(0.8 0.001 0);
+}
+
+/* [data-theme='light'] {
+  --bg-color-1: oklch(0.65 0.05 220);
+  --bg-color-2: oklch(0.52 0.01 200);
+  --bg-color-3: oklch(0.36 0.008 210);
+
+  --sidebar-bg: oklch(65.004% 0.00007 271.152);
+  --envelope-bg: oklch(0.85 0.02 220);
+
+  --color-text: #cacccf;
+} */
+
+/* org before oklch colors: 
+
+[data-theme='green-yellow'] {
+  --bg-color-1: #c0c44fa1;
+  --bg-color-2: rgba(7, 60, 9, 1);
+  --bg-color-3: rgba(7, 50, 9, 0.75);
+
+  --envelope-bg: rgba(2, 2, 2, 1);
+
+  --color-text: #ccc;
+} */
+
+/* Glossary: 
+
+Hue: 
+0 - 20	Red
+20 - 60	Orange
+60 - 90	Yellow
+90 - 140	Green
+140 - 220	Cyan / Blue
+220 - 270	Blue / Indigo
+270 - 320	Purple
+320 - 360	Magenta / Red
+
+Syntax: oklch(L C H / A) with parameters:
+
+L = Lightness (brightness), 0% = black, 100% = white
+
+C = Chroma (color intensity), 0 = gray, ~0.4 max (varies by display)
+
+H = Hue angle in degrees, 0-360 (e.g., 20 = red, 90 = yellow, 225 = blue)
+
+A = Alpha (opacity), optional, 0–1 or 0%–100%
+
+To make a color darker or lighter, adjust L (lower darker, higher lighter).
+
+To make it pastel, reduce C (closer to gray).
+
+To get a specific color like dark red: low L (~10%-30%), moderate C (~0.4), hue near 20°.
+
+To get pastel yellow: high L (~80%-90%), low C (~0.1), hue near 90°.
+
+Example for dark red:
+oklch(20% 0.4 20)
+
+Example for pastel yellow:
+oklch(85% 0.1 90)
+
+Use / 50% after the values for 50% transparency (alpha).
+
+*/

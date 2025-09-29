@@ -157,7 +157,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   });
 
   // Common style for loading state containers
-  const loadingStateStyle = `display: flex; height: 100%; width: 100%; justify-content: center; align-items: center; margin-top: 1rem; padding: 1rem;`; //  height: ${height.val}; width: ${width.val}
+  const loadingStateStyle = `background: transparent; justify-content: center; padding: 1rem; padding-top: 3rem; `; //  height: ${height.val}; width: ${width.val}
 
   return div(
     { class: 'envelope-switcher', style: COMPONENT_STYLE },
@@ -193,15 +193,20 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
     div(
       {
         class: 'envelope-container',
-        style: () => {
-          `backgroundColor: ${bgColor}`;
-        },
+        style: () =>
+          `background-color: ${!sampleLoaded.val ? 'transparent' : bgColor.val};`,
       },
       () => {
         if (!samplerInitialized.val)
-          return div({ style: loadingStateStyle }, 'Click anywhere to start');
+          return div(
+            { style: () => loadingStateStyle },
+            'Click anywhere to start'
+          );
         if (!sampleLoaded.val)
-          return div({ style: loadingStateStyle }, 'Loading audio sample...');
+          return div(
+            { style: () => loadingStateStyle },
+            'Loading audio sample...'
+          );
 
         // Return a container with all envelope elements
         const container = div({ style: 'position: relative;' });

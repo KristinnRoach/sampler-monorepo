@@ -13,7 +13,6 @@ import {
   screenYToAbsoluteValue,
   absoluteValueToNormalized,
   generateSVGPath,
-  linearToLogarithmic,
 } from './env-utils';
 
 import { EnvToggleButtons } from './env-buttons';
@@ -167,7 +166,7 @@ export const EnvelopeSVG = (
 
   const indicatorSecToXpos = (seconds: number) => {
     return (
-      secondsToScreenX(seconds, envelopeInfo.fullDuration, paddedWidth) +
+      secondsToScreenX(seconds, envelopeInfo.baseDuration, paddedWidth) +
       CIRCLE_PADDING
     );
   };
@@ -175,7 +174,7 @@ export const EnvelopeSVG = (
   const startXpos = van.state(indicatorSecToXpos(sampleStartSeconds.val));
   const endXpos = van.state(indicatorSecToXpos(sampleEndSeconds.val));
   const loopStartXpos = van.state(indicatorSecToXpos(loopStartSeconds.val));
-  const loopEndXpos = van.state(indicatorSecToXpos(envelopeInfo.fullDuration));
+  const loopEndXpos = van.state(indicatorSecToXpos(envelopeInfo.baseDuration));
 
   // Click handling
   interface PointInteractionState {
@@ -374,18 +373,18 @@ export const EnvelopeSVG = (
         (
           secondsToScreenX(
             point.time,
-            envelopeInfo.fullDuration,
+            envelopeInfo.baseDuration,
             SVG_WIDTH - 2 * CIRCLE_PADDING
           ) + CIRCLE_PADDING
         ).toString()
       );
 
+      // Convert absolute value to normalized for Y positioning (use absolute point.value everywhere else)
       const normalizedValue = absoluteValueToNormalized(
         point.value,
-        envelopeInfo.envPointValueRange,
-        'linear'
-        // envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
+        envelopeInfo.envPointValueRange
       );
+
       circle.setAttribute(
         'cy',
         (
@@ -461,7 +460,7 @@ export const EnvelopeSVG = (
   svgElement = svg({
     viewBox: `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`,
     preserveAspectRatio: 'none',
-    style: `width: ${width}; height: ${height}; background-color: ${bgColor || '#1a1a1a'}; border: 1px solid #444; border-radius: 4px; overflow: visible; `,
+    style: `width: ${width}; height: ${height}; background-color: transparent; border: 1px solid #444; border-radius: 4px; overflow: visible; `,
   }) as SVGSVGElement;
 
   const controlButtons = EnvToggleButtons(
@@ -527,12 +526,11 @@ export const EnvelopeSVG = (
       'd',
       generateSVGPath(
         envelopeInfo.points,
-        envelopeInfo.fullDuration,
+        envelopeInfo.baseDuration,
         SVG_WIDTH - 2 * CIRCLE_PADDING,
         SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
         envelopeInfo.envPointValueRange,
         'linear',
-        // envelopeType === 'filter-env' ? 'logarithmic' : 'linear',
         CIRCLE_PADDING,
         CIRCLE_PADDING + TOP_BTNS_PADDING
       )
@@ -734,7 +732,7 @@ export const EnvelopeSVG = (
       const seconds = screenXToSeconds(
         clampedX - CIRCLE_PADDING,
         paddedWidth,
-        envelopeInfo.fullDuration
+        envelopeInfo.baseDuration
       );
       if (label === 'loop-start') {
         instrument.setLoopStart(seconds);
@@ -868,7 +866,7 @@ export const EnvelopeSVG = (
       let time = screenXToSeconds(
         coords.x - rect.left - CIRCLE_PADDING,
         rect.width - 2 * CIRCLE_PADDING,
-        envelopeInfo.fullDuration
+        envelopeInfo.baseDuration
       );
 
       let value = screenYToAbsoluteValue(
@@ -877,7 +875,6 @@ export const EnvelopeSVG = (
         envelopeInfo.envPointValueRange
       );
 
-      // Apply snapping in normalized space
       value = applySnappingAbsolute(
         value,
         snapToValues.y,
@@ -889,23 +886,10 @@ export const EnvelopeSVG = (
       if (isStartPoint) {
         time = 0;
       } else if (isEndPoint) {
-        time = envelopeInfo.fullDuration;
+        time = envelopeInfo.baseDuration;
       } else {
         time = applySnapping(time, snapToValues.x, snapThreshold);
       }
-
-      // console.warn('value before log:', value);
-      // if (envelopeType === 'filter-env')
-      //   value = linearToLogarithmic(value, envelopeInfo.envPointValueRange);
-
-      // console.warn('value after log:', value);
-      // const normalizedValue = absoluteValueToNormalized(
-      //   value,
-      //   envelopeInfo.envPointValueRange,
-      //   envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
-      // );
-      // console.warn('envelopeInfo.envPointValueRange', envelopeInfo.envPointValueRange);
-      // console.warn('normalized value:', normalizedValue);
 
       instrument.updateEnvelopePoint(
         envelopeType,
@@ -951,7 +935,7 @@ export const EnvelopeSVG = (
     let time = screenXToSeconds(
       coords.x - rect.left - CIRCLE_PADDING,
       rect.width - 2 * CIRCLE_PADDING,
-      envelopeInfo.fullDuration
+      envelopeInfo.baseDuration
     );
 
     let value = screenYToAbsoluteValue(
@@ -969,16 +953,6 @@ export const EnvelopeSVG = (
     );
 
     time = applySnapping(time, snapToValues.x, snapThreshold);
-
-    // // Convert to logarithmic space for filter envelopes
-    // if (envelopeType === 'filter-env') {
-    //   value = linearToLogarithmic(value, envelopeInfo.envPointValueRange);
-    // }
-    // const normalizedValue = absoluteValueToNormalized(
-    //   value,
-    //   envelopeInfo.envPointValueRange,
-    //   envelopeType === 'filter-env' ? 'logarithmic' : 'linear'
-    // );
 
     instrument.addEnvelopePoint(envelopeType, time, value);
     updateControlPoints();
@@ -1102,6 +1076,10 @@ export const EnvelopeSVG = (
     }
     loopStartSeconds.val = instrument.loopStart;
     loopEndSeconds.val = instrument.loopEnd;
+
+    // Update background color to the proper envelope background
+    svgElement.style.backgroundColor = bgColor || '#1a1a1a';
+
     refresh();
   });
 
@@ -1130,10 +1108,8 @@ export const EnvelopeSVG = (
           // TODO: Use last-used sustainPoint index.
           // Temp safe solution for now:
           const env = instrument.getEnvelope(envType);
-          const ptsLen = env.points.length;
-          const sustainIdx =
-            env.sustainPointIndex ??
-            Math.max(1, Math.min(ptsLen - 2, Math.round((ptsLen - 1) / 2)));
+          const numPoints = env.points.length;
+          const sustainIdx = env.sustainPointIndex ?? numPoints - 2; // Default to second-to-last point
 
           instrument.setEnvelopeSustainPoint(envType, sustainIdx);
           updateControlPoints();
