@@ -2,14 +2,12 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import solidPlugin from 'vite-plugin-solid';
-import checker from 'vite-plugin-checker';
 
 export default defineConfig({
   base: './',
 
   plugins: [
     solidPlugin(),
-    checker({ typescript: true }),
     VitePWA({
       registerType: 'autoUpdate', // Automatically update the service worker
       includeAssets: [
@@ -65,6 +63,9 @@ export default defineConfig({
   ],
 
   server: {
+    hmr: {
+      overlay: false,
+    },
     port: 3000,
     open: true,
     host: true, // Allow access from network

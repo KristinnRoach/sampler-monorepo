@@ -18,7 +18,10 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
 
-    "allowJs": true
+    "allowJs": true,
+    "paths": {
+      "@repo/input-controller": ["../../packages/input-controller/src/index.ts"]
+    }
   },
   "include": ["src"]
 }

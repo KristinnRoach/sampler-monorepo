@@ -5,6 +5,7 @@ import type {
   SamplePlayer,
   KnobElement,
 } from '@repo/audio-components';
+import { inputController, type NoteEvent } from '@repo/input-controller';
 
 import './styles/midi-learn.css';
 
@@ -30,6 +31,8 @@ const App: Component = () => {
   let lowpassKnobRef: HTMLElement | undefined;
   let knobMidiController: KnobMidiController | null = null;
   let notificationEl: HTMLDivElement | undefined;
+  let midiNoteOnUnsub: (() => void) | null = null;
+  let midiNoteOffUnsub: (() => void) | null = null;
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
@@ -132,7 +135,7 @@ const App: Component = () => {
         // Listen for MIDI enabled/disabled events
         samplePlayerRef.onMessage('midi:enabled', (msg) => {
           showNotification(
-            'MIDI enabled - Press Alt+Shift+ˇ to access MIDI Learn'
+            'MIDI enabled - Press Alt+Shift+L to access MIDI Learn'
           );
         });
 
@@ -166,6 +169,24 @@ const App: Component = () => {
     document.addEventListener('sample-loaded', handleSampleLoaded);
     window.addEventListener('resize', updateLayout);
     addPreventScrollOnSpacebarListener();
+
+    const setupSharedMidi = async () => {
+      const initialized = await inputController.init();
+      if (!initialized) return;
+
+      midiNoteOnUnsub = inputController.onNoteOn((event: NoteEvent) => {
+        if (!samplePlayerRef) return;
+        const velocity = Math.max(0, Math.min(127, event.velocity ?? 0));
+        samplePlayerRef.play(event.note, velocity);
+      });
+
+      midiNoteOffUnsub = inputController.onNoteOff((event: NoteEvent) => {
+        if (!samplePlayerRef) return;
+        samplePlayerRef.release(event.note);
+      });
+    };
+
+    setupSharedMidi();
 
     // Listen for MIDI-related custom events
     document.addEventListener('midi:learn', ((
@@ -230,7 +251,7 @@ const App: Component = () => {
 
           // Show initial MIDI Learn notification
           showNotification(
-            'Press Alt+Shift+ˇ to toggle MIDI Learn mode (hold Shift to select multiple knobs)',
+            'Press Alt+Shift+L to toggle MIDI Learn mode (hold Shift to select multiple knobs)',
             6000
           );
         }, 500); // Small delay to ensure knobs are ready
@@ -255,6 +276,10 @@ const App: Component = () => {
       }
       notificationEl = undefined;
       knobMidiController = null;
+      midiNoteOnUnsub?.();
+      midiNoteOffUnsub?.();
+      midiNoteOnUnsub = null;
+      midiNoteOffUnsub = null;
     });
   });
 

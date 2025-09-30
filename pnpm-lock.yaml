@@ -32,6 +32,9 @@ importers:
       '@repo/audio-components':
         specifier: workspace:*
         version: link:../../packages/audio-components
+      '@repo/input-controller':
+        specifier: workspace:*
+        version: link:../../packages/input-controller
       dexie:
         specifier: ^4.0.11
         version: 4.0.11
@@ -57,9 +60,6 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.1.0(@types/node@24.0.8)(jiti@2.4.2)(terser@5.43.1)(yaml@2.8.0)
-      vite-plugin-checker:
-        specifier: ^0.10.3
-        version: 0.10.3(typescript@5.8.3)(vite@6.1.0(@types/node@24.0.8)(jiti@2.4.2)(terser@5.43.1)(yaml@2.8.0))
       vite-plugin-pwa:
         specifier: ^1.0.2
         version: 1.0.2(@vite-pwa/assets-generator@1.0.0)(vite@6.1.0(@types/node@24.0.8)(jiti@2.4.2)(terser@5.43.1)(yaml@2.8.0))(workbox-build@7.3.0(@types/babel__core@7.20.5))(workbox-window@7.3.0)
@@ -220,6 +220,12 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.0.8)(@vitest/browser@3.2.4)(jiti@2.4.2)(jsdom@26.0.0)(terser@5.43.1)(yaml@2.8.0)
+
+  packages/input-controller:
+    dependencies:
+      webmidi:
+        specifier: ^3.1.13
+        version: 3.1.13
 
   packages/vanjs:
     devDependencies:
@@ -2015,6 +2021,9 @@ packages:
   dexie@4.0.11:
     resolution: {integrity: sha512-SOKO002EqlvBYYKQSew3iymBoN2EQ4BDw/3yprjh7kAfFzjBYkaMNa/pZvcA7HSWlcKSQb9XhPe3wKyQ0x4A8A==}
 
+  djipevents@2.0.7:
+    resolution: {integrity: sha512-KNFYaU85imxOCKOUsIR70Iz9E19r96/X7LSH+u0tSoZdpWcBdzoqtTsU+wuLhc6GMpSFob+KInkZAbfKi01Bjg==}
+
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
 
@@ -2522,6 +2531,10 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  jazz-midi@1.7.9:
+    resolution: {integrity: sha512-c8c4BBgwxdsIr1iVm53nadCrtH7BUlnX3V95ciK/gbvXN/ndE5+POskBalXgqlc/r9p2XUbdLTrgrC6fou5p9w==}
+    engines: {node: '>=10.0.0'}
+
   jiti@2.4.2:
     resolution: {integrity: sha512-rg9zJN+G4n2nfJl5MW3BMygZX56zKPNVEYYqq7adpmMh4Jn2QNEwhvQlFy6jPVdcod7txZtKHWnyZiA3a0zP7A==}
     hasBin: true
@@ -2590,6 +2603,9 @@ packages:
   jsonpointer@5.0.1:
     resolution: {integrity: sha512-p/nXbhSEcu3pZRdkW1OfJhpsVtW1gd4Wa1fnQc9YLiTfAjn0312eMKimbdIQzuZl9aa9xUGaRlP9T/CJE/ditQ==}
     engines: {node: '>=0.10.0'}
+
+  jzz@1.9.6:
+    resolution: {integrity: sha512-J7ENLhXwfm2BNDKRUrL8eKtPhUS/CtMBpiafxQHDBcOWSocLhearDKEdh+ylnZFcr5OXWTed0gj6l/txeQA9vg==}
 
   kleur@3.0.3:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
@@ -3620,6 +3636,10 @@ packages:
   webidl-conversions@7.0.0:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
     engines: {node: '>=12'}
+
+  webmidi@3.1.13:
+    resolution: {integrity: sha512-CEZTHyJviQUI+X7yPNT1BZA7daZQ3ns80C7h0gmlk4Y2UNstPkSca54rzU5ay4HoZQFuOzS1WHwAdAC7Rpfl4w==}
+    engines: {node: '>=8.5'}
 
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
@@ -5618,6 +5638,10 @@ snapshots:
 
   dexie@4.0.11: {}
 
+  djipevents@2.0.7:
+    dependencies:
+      '@babel/runtime': 7.27.6
+
   dom-accessibility-api@0.5.16: {}
 
   dunder-proto@1.0.1:
@@ -6217,6 +6241,9 @@ snapshots:
       filelist: 1.0.4
       picocolors: 1.1.1
 
+  jazz-midi@1.7.9:
+    optional: true
+
   jiti@2.4.2: {}
 
   jju@1.4.0: {}
@@ -6306,6 +6333,11 @@ snapshots:
       graceful-fs: 4.2.11
 
   jsonpointer@5.0.1: {}
+
+  jzz@1.9.6:
+    dependencies:
+      jazz-midi: 1.7.9
+    optional: true
 
   kleur@3.0.3: {}
 
@@ -7422,6 +7454,12 @@ snapshots:
   webidl-conversions@4.0.2: {}
 
   webidl-conversions@7.0.0: {}
+
+  webmidi@3.1.13:
+    dependencies:
+      djipevents: 2.0.7
+    optionalDependencies:
+      jzz: 1.9.6
 
   whatwg-encoding@3.1.1:
     dependencies:
