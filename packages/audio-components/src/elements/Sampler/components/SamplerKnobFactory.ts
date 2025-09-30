@@ -2,6 +2,7 @@
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
+import { SamplePlayer } from '@repo/audiolib';
 import { createKnobForTarget } from '../component-utils';
 import { KnobConfig } from '../../primitives/createKnob';
 
@@ -168,7 +169,15 @@ const delaySendConfig: KnobConfig = {
   curve: 2,
   valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
   onConnect: (sampler, state) => {
-    van.derive(() => sampler.sendToFx('delay', state.val));
+    van.derive(() => {
+      if (sampler && typeof sampler.sendToFx === 'function') {
+        try {
+          sampler.sendToFx('delay', state.val);
+        } catch (err) {
+          console.debug('Unable to set delay send:', err);
+        }
+      }
+    });
   },
 };
 
@@ -233,7 +242,13 @@ const reverbSendConfig: KnobConfig = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
   onConnect: (sampler, state) => {
     van.derive(() => {
-      sampler.sendToFx('reverb', state.val);
+      if (sampler && typeof sampler.sendToFx === 'function') {
+        try {
+          sampler.sendToFx('reverb', state.val);
+        } catch (err) {
+          console.debug('Unable to set reverb send:', err);
+        }
+      }
     });
   },
 };
@@ -317,7 +332,7 @@ const trimStartConfig: KnobConfig = {
         knobElement.setAttribute('max-value', msg.durationSeconds.toString());
         if (state.val > msg.durationSeconds) {
           state.val = 0;
-          knobElement.setValue(0, true);
+          knobElement.setValue(0);
         }
       });
     }
@@ -349,7 +364,7 @@ const trimEndConfig: KnobConfig = {
         );
         if (state.val > msg.durationSeconds) {
           state.val = msg.durationSeconds;
-          knobElement.setValue(msg.durationSeconds, true);
+          knobElement.setValue(msg.durationSeconds);
         }
       });
     }
@@ -378,7 +393,7 @@ const loopStartConfig: KnobConfig = {
 
         if (state.val > msg.durationSeconds) {
           state.val = 0;
-          knobElement.setValue(0, true);
+          knobElement.setValue(0);
         }
       });
     }
@@ -424,7 +439,7 @@ const loopDurationConfig: KnobConfig = {
         );
         if (state.val > msg.durationSeconds) {
           state.val = msg.durationSeconds;
-          knobElement.setValue(msg.durationSeconds, true);
+          knobElement.setValue(msg.durationSeconds);
         }
       });
     }

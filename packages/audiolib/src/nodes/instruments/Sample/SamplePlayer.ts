@@ -1264,7 +1264,6 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
-  // MIDI input
   async enableMIDI(
     midiController?: MidiController,
     channel: number | 'all' = 'all'
@@ -1277,6 +1276,8 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (midiController.isInitialized) {
       this.#midiController = midiController;
       midiController.connectInstrument(this, channel);
+
+      this.sendUpstreamMessage('midi:enabled', { channel });
     }
     return this;
   }
@@ -1290,7 +1291,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (controller === this.#midiController) {
       this.#midiController = null;
     }
+
+    this.sendUpstreamMessage('midi:disabled', { channel });
+
     return this;
+  }
+
+  switchMIDIChannel(channel: number | 'all') {
+    this.#midiController?.switchInstrumentChannel(this, channel);
   }
 
   /* === PUBLIC GETTERS === */

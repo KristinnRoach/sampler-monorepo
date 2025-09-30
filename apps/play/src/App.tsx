@@ -1,11 +1,18 @@
 import { Component, onMount, createSignal, onCleanup } from 'solid-js';
 
-import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
+import type {
+  SamplerElement,
+  SamplePlayer,
+  KnobElement,
+} from '@repo/audio-components';
+
+import './styles/midi-learn.css';
 
 import { addExpandCollapseListeners } from './utils/expandCollapse';
 import { addPreventScrollOnSpacebarListener } from './utils/preventScrollOnSpacebar';
 import { restoreInstrumentState } from './utils/instrumentState';
 import { SavedSample } from './db/samplelib/sampleIdb';
+import { KnobMidiController } from './io/KnobMidiController';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -20,10 +27,50 @@ const App: Component = () => {
   let samplerElementRef: SamplerElement | undefined;
   let samplePlayerRef: SamplePlayer | null = null;
 
+  let lowpassKnobRef: HTMLElement | undefined;
+  let knobMidiController: KnobMidiController | null = null;
+  let notificationEl: HTMLDivElement | undefined;
+
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
+
+  // Helper function to show temporary notifications
+  const showNotification = (message: string, duration = 3000) => {
+    if (!notificationEl) {
+      // Create notification element if it doesn't exist yet
+      notificationEl = document.createElement('div');
+      notificationEl.className = 'midi-notification';
+      notificationEl.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 1000;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: opacity 0.3s, transform 0.3s;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      `;
+      document.body.appendChild(notificationEl);
+    }
+
+    notificationEl.innerHTML = message;
+    notificationEl.style.opacity = '1';
+    notificationEl.style.transform = 'translateY(0)';
+
+    setTimeout(() => {
+      if (notificationEl) {
+        notificationEl.style.opacity = '0';
+        notificationEl.style.transform = 'translateY(20px)';
+      }
+    }, duration);
+  };
 
   const handleSampleSelect = async (sample: SavedSample) => {
     try {
@@ -70,12 +117,36 @@ const App: Component = () => {
 
   onMount(() => {
     const handleSampleLoaded = () => {
-      if (samplerElementRef) {
-        samplePlayerRef = samplerElementRef.getSamplePlayer();
-        const audiobuffer = samplePlayerRef?.audiobuffer || null;
+      if (!samplerElementRef) {
+        return;
+      }
 
-        setCurrentAudioBuffer(audiobuffer);
-        setSampleLoaded(true);
+      samplePlayerRef = samplerElementRef.getSamplePlayer();
+      const audiobuffer = samplePlayerRef?.audiobuffer || null;
+
+      setCurrentAudioBuffer(audiobuffer);
+      setSampleLoaded(true);
+
+      // Set up event listeners for MIDI-related messages
+      if (samplePlayerRef) {
+        // Listen for MIDI enabled/disabled events
+        samplePlayerRef.onMessage('midi:enabled', (msg) => {
+          showNotification(
+            'MIDI enabled - Press Alt+Shift+ˇ to access MIDI Learn'
+          );
+        });
+
+        samplePlayerRef.onMessage('midi:disabled', (msg) => {
+          showNotification('MIDI disabled');
+        });
+
+        // Also show notification for note on/off events from MIDI
+        samplePlayerRef.onMessage('midi:noteOn', (msg) => {
+          const midiNote = msg.detail?.note;
+          if (midiNote) {
+            showNotification(`MIDI Note On: ${midiNote}`, 1000);
+          }
+        });
       }
     };
 
@@ -96,14 +167,94 @@ const App: Component = () => {
     window.addEventListener('resize', updateLayout);
     addPreventScrollOnSpacebarListener();
 
+    // Listen for MIDI-related custom events
+    document.addEventListener('midi:learn', ((
+      e: CustomEvent<{ message: string }>
+    ) => {
+      if (e.detail?.message) {
+        showNotification(e.detail.message);
+      }
+    }) as EventListener);
+
+    document.addEventListener('midi:mapping', ((
+      e: CustomEvent<{ message: string }>
+    ) => {
+      if (e.detail?.message) {
+        showNotification(e.detail.message);
+      }
+    }) as EventListener);
+
     updateLayout(); // Initial check
 
     // Add expand/collapse listeners
     addExpandCollapseListeners();
 
+    // Initialize MIDI for UI controls
+    knobMidiController = new KnobMidiController();
+    knobMidiController.initialize().then((success) => {
+      if (success) {
+        console.log('UI MIDI controller initialized');
+
+        setTimeout(() => {
+          const mappings = [
+            { cc: 15, selector: 'loop-start-knob', name: 'Start' },
+            { cc: 73, selector: 'loop-duration-knob', name: 'Duration' },
+          ];
+
+          mappings.forEach(({ cc, selector, name }) => {
+            const element = document.querySelector(
+              `${selector}[target-node-id="test-sampler"]`
+            );
+            const knobElement = element?.querySelector(
+              'knob-element'
+            ) as KnobElement;
+            if (knobElement) {
+              knobMidiController?.mapCCToKnob(cc, knobElement);
+            }
+          });
+
+          // Add MIDI learn click handlers to all knobs
+          document.querySelectorAll('knob-element').forEach((knob) => {
+            knob.addEventListener('click', ((e: MouseEvent) => {
+              // Only activate if MIDI learn mode is active
+              if (knobMidiController?.midiLearnActive) {
+                const isShiftKey = e.shiftKey; // Check if shift key is pressed
+                knobMidiController.startMidiLearnForKnob(
+                  knob as KnobElement,
+                  isShiftKey
+                );
+                e.stopPropagation(); // Prevent other click behaviors
+              }
+            }) as EventListener);
+          });
+
+          // Show initial MIDI Learn notification
+          showNotification(
+            'Press Alt+Shift+ˇ to toggle MIDI Learn mode (hold Shift to select multiple knobs)',
+            6000
+          );
+        }, 500); // Small delay to ensure knobs are ready
+      }
+    });
+
     onCleanup(() => {
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       window.removeEventListener('resize', updateLayout);
+
+      // Remove MIDI notification event listeners
+      document.removeEventListener('midi:learn', ((
+        e: CustomEvent
+      ) => {}) as EventListener);
+      document.removeEventListener('midi:mapping', ((
+        e: CustomEvent
+      ) => {}) as EventListener);
+
+      // Clean up notification element
+      if (notificationEl && notificationEl.parentNode) {
+        notificationEl.parentNode.removeChild(notificationEl);
+      }
+      notificationEl = undefined;
+      knobMidiController = null;
     });
   });
 
@@ -229,7 +380,10 @@ const App: Component = () => {
           <legend class='expandable-legend'>Filters</legend>
           <div class='expandable-content'>
             <highpass-filter-knob target-node-id='test-sampler' />
-            <lowpass-filter-knob target-node-id='test-sampler' />
+            <lowpass-filter-knob
+              ref={lowpassKnobRef}
+              target-node-id='test-sampler'
+            />
           </div>
         </fieldset>
 

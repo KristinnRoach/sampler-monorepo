@@ -520,6 +520,21 @@ export class KnobElement extends HTMLElement {
     let isUsingPointerLock = false;
 
     const handleStart = (e: MouseEvent | TouchEvent) => {
+      // Check if MIDI learn is active by looking at body class
+      if (document.body.classList.contains('midi-learn-active')) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // ? Seems to work fine without dispatching. // Todo: remove commented out code after testing diff envs // Dispatch custom event that KnobMidiController listens to
+        // this.dispatchEvent(
+        //   new CustomEvent('knob-midi-learn-request', {
+        //     bubbles: true,
+        //     detail: { knob: this },
+        //   })
+        // );
+        return;
+      }
+
       const now = Date.now();
       const timeDiff = now - this.lastClickTime;
 
@@ -669,12 +684,9 @@ export class KnobElement extends HTMLElement {
   }
 
   // Public API
-  public setValue(value: number, animate: boolean = false): void {
+  public setValue(value: number): void {
+    // todo: animate: boolean = false
     if (!this.valueToRotation || !this.pathElement) return;
-
-    if (animate) {
-      console.debug('KnobElement: Animation not implemented yet.');
-    }
 
     this.currentValue = KnobElement.clamp(
       value,
@@ -688,8 +700,26 @@ export class KnobElement extends HTMLElement {
     this.dispatchChangeEvent();
   }
 
-  public resetToDefault(animate: boolean = false): void {
-    this.setValue(this.config.defaultValue, animate);
+  /**
+   * Sets the knob value using a normalized 0-1 input, automatically handling
+   * the knob's range and curve transformation.
+   * @param normalizedValue - Value between 0 and 1
+   */
+  public setValueNormalized(normalizedValue: number): void {
+    const { minValue, maxValue, minRotation, maxRotation } = this.config;
+
+    const clamped = Math.max(0, Math.min(1, normalizedValue));
+
+    // Follow mouse handler pattern: normalizedValue → rotation → value
+    const rotation = minRotation + clamped * (maxRotation - minRotation);
+    const value = this.rotationToValue(rotation);
+
+    this.setValue(value);
+  }
+
+  public resetToDefault(): void {
+    // animate: boolean = false
+    this.setValue(this.config.defaultValue);
   }
 
   public getValue(): number {
@@ -727,6 +757,24 @@ export class KnobElement extends HTMLElement {
       100,
       this.currentValue
     );
+  }
+
+  /**
+   * Gets the current knob value as a normalized 0-1 value, accounting for
+   * the knob's range and curve. Inverse of setValueNormalized().
+   * @returns Normalized value between 0 and 1
+   */
+  public getValueNormalized(): number {
+    const { minValue, maxValue, curve = 1 } = this.config;
+
+    // Convert current value to 0-1 range
+    const linearPosition =
+      (this.currentValue - minValue) / (maxValue - minValue);
+
+    // Apply curve to get the normalized position
+    const normalizedValue = Math.pow(linearPosition, curve);
+
+    return Math.max(0, Math.min(1, normalizedValue));
   }
 
   // Property getters/setters for easier JS usage

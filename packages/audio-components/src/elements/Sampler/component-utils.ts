@@ -167,7 +167,7 @@ export const createToggleForTarget = (
 
 export const createKnobForTarget = (
   config: KnobConfig,
-  getTarget: (nodeId: string) => any
+  getTarget: (nodeId: string) => SamplePlayer | null
 ) => {
   return (attributes: ElementProps) => {
     const targetNodeId = attributes.attr('target-node-id', '');
