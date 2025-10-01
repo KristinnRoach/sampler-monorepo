@@ -213,11 +213,12 @@ export class SampleVoicePool implements LibNode {
     return this;
   }
 
+  // TODO: Remove or uncomment "playing" logic after testing
   allocate(
     available = this.#available,
-    releasing = this.#releasing,
-    playing = this.#playing
-  ): SampleVoice {
+    releasing = this.#releasing
+    // playing = this.#playing
+  ): SampleVoice | undefined {
     let voice: SampleVoice | undefined = undefined;
 
     if (available.size) {
@@ -225,12 +226,15 @@ export class SampleVoicePool implements LibNode {
     } else if (releasing.size) {
       voice = pop(releasing);
       voice?.stop();
-    } else if (playing.size) {
-      voice = pop(playing);
-      voice?.stop();
     }
+    // else if (playing.size) {
+    //   voice = pop(playing);
+    //   voice?.stop();
+    // }
 
-    if (!voice) throw new Error(`Could not allocate voice`);
+    if (!voice) {
+      console.warn('Could not allocate voice');
+    }
 
     return voice;
   }
@@ -243,16 +247,21 @@ export class SampleVoicePool implements LibNode {
     secondsFromNow = 0,
     glideTime = 0
   ): MidiValue | null {
+    if (this.playingVoicesCount >= this.#polyphony) {
+      console.log('Pool noteON(): Max polyphony reached, cannot play new note');
+      return null;
+    }
+
     const voice = this.allocate();
 
-    const success = voice.trigger({
+    const success = voice?.trigger({
       midiNote: midiNote,
       velocity,
       secondsFromNow,
       glide: { prevMidiNote: this.prevMidiNote, glideTime },
     });
 
-    if (success) {
+    if (success && voice) {
       this.#playingMidiVoiceMap.set(midiNote, voice);
       this.prevMidiNote = midiNote;
       return midiNote;

@@ -5,7 +5,6 @@ import type {
   SamplePlayer,
   KnobElement,
 } from '@repo/audio-components';
-import { inputController, type NoteEvent } from '@repo/input-controller';
 
 import './styles/midi-learn.css';
 
@@ -14,6 +13,10 @@ import { addPreventScrollOnSpacebarListener } from './utils/preventScrollOnSpace
 import { restoreInstrumentState } from './utils/instrumentState';
 import { SavedSample } from './db/samplelib/sampleIdb';
 import { KnobMidiController } from './io/KnobMidiController';
+import {
+  enableSamplePlayerMidi,
+  disableSamplePlayerMidi,
+} from './io/InputController';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -31,8 +34,6 @@ const App: Component = () => {
   let lowpassKnobRef: HTMLElement | undefined;
   let knobMidiController: KnobMidiController | null = null;
   let notificationEl: HTMLDivElement | undefined;
-  let midiNoteOnUnsub: (() => void) | null = null;
-  let midiNoteOffUnsub: (() => void) | null = null;
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
@@ -40,7 +41,11 @@ const App: Component = () => {
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
 
   // Helper function to show temporary notifications
-  const showNotification = (message: string, duration = 3000) => {
+  const showNotification = (
+    message: string,
+    duration = 3000,
+    transitionDuration = 500
+  ) => {
     if (!notificationEl) {
       // Create notification element if it doesn't exist yet
       notificationEl = document.createElement('div');
@@ -64,6 +69,7 @@ const App: Component = () => {
     }
 
     notificationEl.innerHTML = message;
+
     notificationEl.style.opacity = '1';
     notificationEl.style.transform = 'translateY(0)';
 
@@ -170,23 +176,13 @@ const App: Component = () => {
     window.addEventListener('resize', updateLayout);
     addPreventScrollOnSpacebarListener();
 
-    const setupSharedMidi = async () => {
-      const initialized = await inputController.init();
-      if (!initialized) return;
-
-      midiNoteOnUnsub = inputController.onNoteOn((event: NoteEvent) => {
-        if (!samplePlayerRef) return;
-        const velocity = Math.max(0, Math.min(127, event.velocity ?? 0));
-        samplePlayerRef.play(event.note, velocity);
-      });
-
-      midiNoteOffUnsub = inputController.onNoteOff((event: NoteEvent) => {
-        if (!samplePlayerRef) return;
-        samplePlayerRef.release(event.note);
-      });
-    };
-
-    setupSharedMidi();
+    enableSamplePlayerMidi({
+      getSamplePlayer: () => samplePlayerRef,
+    }).then((success) => {
+      if (!success) {
+        console.warn('Shared MIDI initialization failed');
+      }
+    });
 
     // Listen for MIDI-related custom events
     document.addEventListener('midi:learn', ((
@@ -248,12 +244,6 @@ const App: Component = () => {
               }
             }) as EventListener);
           });
-
-          // Show initial MIDI Learn notification
-          showNotification(
-            'Press Alt+Shift+L to toggle MIDI Learn mode (hold Shift to select multiple knobs)',
-            6000
-          );
         }, 500); // Small delay to ensure knobs are ready
       }
     });
@@ -276,63 +266,60 @@ const App: Component = () => {
       }
       notificationEl = undefined;
       knobMidiController = null;
-      midiNoteOnUnsub?.();
-      midiNoteOffUnsub?.();
-      midiNoteOnUnsub = null;
-      midiNoteOffUnsub = null;
+      disableSamplePlayerMidi();
     });
   });
 
   return (
-    <div id='page-wrapper' class='page-wrapper'>
-      <div class='pre-sidebar-buttons'>
-        <SidebarToggle
-          onclick={() => setSidebarOpen(!sidebarOpen())}
-          isOpen={sidebarOpen()}
-          class='left-side-button'
-        />
+    <>
+      <div id='page-wrapper' class='page-wrapper'>
+        <div class='pre-sidebar-buttons'>
+          <SidebarToggle
+            onclick={() => setSidebarOpen(!sidebarOpen())}
+            isOpen={sidebarOpen()}
+            class='left-side-button'
+          />
 
-        <SaveButton
-          audioBuffer={currentAudioBuffer()}
-          disabled={!sampleLoaded()}
-          isOpen={sidebarOpen()}
-          class='left-side-button'
-        />
+          <SaveButton
+            audioBuffer={currentAudioBuffer()}
+            disabled={!sampleLoaded()}
+            isOpen={sidebarOpen()}
+            class='left-side-button'
+          />
 
-        <ThemeToggle class={sidebarOpen() ? 'open' : ''} defaultTheme='light' />
+          <ThemeToggle
+            class={sidebarOpen() ? 'open' : ''}
+            defaultTheme='light'
+          />
 
-        {/* <tempo-knob
+          {/* <tempo-knob
           target-node-id='test-sampler'
           label=' '
           class={`left-side-button ${sidebarOpen() ? 'open' : ''} `}
         /> */}
-      </div>
-
-      <Sidebar
-        isOpen={sidebarOpen()}
-        onClose={() => setSidebarOpen(false)}
-        onSampleSelect={handleSampleSelect}
-      />
-
-      <div class={`control-grid layout-${layout()}`} id='sampler-container'>
-        {/* Sampler Audio Engine */}
-        <sampler-element
-          ref={samplerElementRef}
-          node-id='test-sampler'
-          debug-mode='false'
+        </div>
+        <Sidebar
+          isOpen={sidebarOpen()}
+          onClose={() => setSidebarOpen(false)}
+          onSampleSelect={handleSampleSelect}
         />
+        <div class={`control-grid layout-${layout()}`} id='sampler-container'>
+          <sampler-element
+            ref={samplerElementRef}
+            node-id='test-sampler'
+            debug-mode='false'
+          />
 
-        {/* Controls */}
-        <fieldset class='control-group env-group'>
-          <legend class='expandable-legend'>Envelopes</legend>
-          <div class='expandable-content'>
-            <div class='flex-col'>
-              <envelope-switcher
-                height='225px'
-                bg-color='var(--envelope-bg)'
-                target-node-id='test-sampler'
-              />
-              {/* <div class='flex-row'>
+          <fieldset class='control-group env-group'>
+            <legend class='expandable-legend'>Envelopes</legend>
+            <div class='expandable-content'>
+              <div class='flex-col'>
+                <envelope-switcher
+                  height='225px'
+                  bg-color='var(--envelope-bg)'
+                  target-node-id='test-sampler'
+                />
+                {/* <div class='flex-row'>
                 <trim-start-knob target-node-id='test-sampler' />
                 <trim-end-knob target-node-id='test-sampler' />
 
@@ -350,211 +337,229 @@ const App: Component = () => {
                 />
                 <pan-drift-toggle target-node-id='test-sampler' />
               </div> */}
+              </div>
             </div>
-          </div>
-        </fieldset>
+          </fieldset>
 
-        <fieldset class='control-group sample-group'>
-          <legend class='expandable-legend'>Sample</legend>
-          <div class='expandable-content'>
-            <volume-knob target-node-id='test-sampler' />
-            <div class='flex-col'>
-              <record-button
-                target-node-id='test-sampler'
-                show-status='false'
-              />
-              <input-select target-node-id='test-sampler' />
-            </div>
-            <load-button target-node-id='test-sampler' show-status='false' />
+          <fieldset id='sample-group' class='control-group sample-group'>
+            <legend class='expandable-legend'>Sample</legend>
+            <div class='expandable-content'>
+              <volume-knob target-node-id='test-sampler' />
+              <div class='flex-col'>
+                <record-button
+                  target-node-id='test-sampler'
+                  show-status='false'
+                />
+                <input-select target-node-id='test-sampler' />
+              </div>
+              <load-button target-node-id='test-sampler' show-status='false' />
 
-            <button
-              class='reset-button'
-              title='Reset knobs'
-              disabled={!sampleLoaded()}
-              onclick={() => {
-                const knobElements = document.querySelectorAll('knob-element');
-                knobElements.forEach((knob) => {
-                  (knob as any).resetToDefault();
-                });
-              }}
-            >
-              <svg
-                xmlns='http://www.w3.org/2000/svg'
-                viewBox='0 0 256 256'
-                fill='none'
+              <button
+                class='reset-button'
+                title='Reset knobs'
+                disabled={!sampleLoaded()}
+                onclick={() => {
+                  const knobElements =
+                    document.querySelectorAll('knob-element');
+                  knobElements.forEach((knob) => {
+                    (knob as any).resetToDefault();
+                  });
+                }}
               >
-                <path d='M139.141 232.184c78.736 0 127.946-85.236 88.579-153.424-39.369-68.187-137.789-68.187-177.158 0A102.125 102.125 0 0 0 43.71 93.1m62.258-5.371c-14.966 5.594-35.547 10.026-48.737 19.272-2.137 1.497-26.015 16.195-26.049 13.991C27.503 98.21 13.21 75.873 13.21 52.583' />
-              </svg>
-            </button>
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group space-group'>
-          <legend class='expandable-legend'>Space</legend>
-          <div class='expandable-content'>
-            <dry-wet-knob target-node-id='test-sampler' />
-            <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
-            <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
-            <delay-send-knob label='Delay' target-node-id='test-sampler' />
-            <delay-time-knob label='Time' target-node-id='test-sampler' />
-            <delay-feedback-knob label='FB' target-node-id='test-sampler' />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group filter-group'>
-          <legend class='expandable-legend'>Filters</legend>
-          <div class='expandable-content'>
-            <highpass-filter-knob target-node-id='test-sampler' />
-            <lowpass-filter-knob
-              ref={lowpassKnobRef}
-              target-node-id='test-sampler'
-            />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group misc-group'>
-          <legend class='expandable-legend'>Dirt</legend>
-          <div class='expandable-content'>
-            <distortion-knob target-node-id='test-sampler' />
-            <am-modulation label='AM' target-node-id='test-sampler' />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group loop-group'>
-          <legend class='expandable-legend'>Loop</legend>
-          <div class='expandable-content'>
-            <loop-start-knob target-node-id='test-sampler' label='Start' />
-            <loop-duration-knob
-              target-node-id='test-sampler'
-              label='Duration'
-            />
-            <div class='flex-col'>
-              <loop-duration-drift-knob
-                target-node-id='test-sampler'
-                label='Drift'
-              />
-              <pan-drift-toggle target-node-id='test-sampler' />
+                <svg
+                  xmlns='http://www.w3.org/2000/svg'
+                  viewBox='0 0 256 256'
+                  fill='none'
+                >
+                  <path d='M139.141 232.184c78.736 0 127.946-85.236 88.579-153.424-39.369-68.187-137.789-68.187-177.158 0A102.125 102.125 0 0 0 43.71 93.1m62.258-5.371c-14.966 5.594-35.547 10.026-48.737 19.272-2.137 1.497-26.015 16.195-26.049 13.991C27.503 98.21 13.21 75.873 13.21 52.583' />
+                </svg>
+              </button>
             </div>
-          </div>
-        </fieldset>
+          </fieldset>
 
-        <fieldset class='control-group trim-group'>
-          <legend class='expandable-legend'>Trim</legend>
-          <div class='expandable-content'>
-            <trim-start-knob target-node-id='test-sampler' />
-            <trim-end-knob target-node-id='test-sampler' />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group feedback-group'>
-          <legend class='expandable-legend'>Feedback</legend>
-          <div class='expandable-content'>
-            <feedback-knob target-node-id='test-sampler' label='Amount' />
-            <feedback-pitch-knob target-node-id='test-sampler' label='Pitch' />
-            <feedback-lpf-knob
-              label='Lowpass'
-              class='fb-lpf-knob'
-              target-node-id='test-sampler'
-            />
-
-            <feedback-decay-knob target-node-id='test-sampler' label='Decay' />
-
-            <feedback-mode-toggle target-node-id='test-sampler' label='' />
-          </div>
-        </fieldset>
-
-        {/* Todo: add .control-group to lfo-container? Clarify */}
-        <div class='lfo-container'>
-          <fieldset class='control-group amp-lfo-group'>
-            <legend class='expandable-legend'>Amp LFO</legend>
+          <fieldset id='space-group' class='control-group space-group'>
+            <legend class='expandable-legend'>Space</legend>
             <div class='expandable-content'>
-              <div class='flex-col'>
-                <gain-lfo-rate-knob
-                  target-node-id='test-sampler'
-                  label='Rate'
-                />
-                <gain-lfo-sync-toggle target-node-id='test-sampler' label='' />
-              </div>
-              <gain-lfo-depth-knob
+              <dry-wet-knob target-node-id='test-sampler' />
+              <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
+              <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
+              <delay-send-knob label='Delay' target-node-id='test-sampler' />
+              <delay-time-knob label='Time' target-node-id='test-sampler' />
+              <delay-feedback-knob label='FB' target-node-id='test-sampler' />
+            </div>
+          </fieldset>
+
+          <fieldset class='control-group filter-group'>
+            <legend class='expandable-legend'>Filters</legend>
+            <div class='expandable-content'>
+              <highpass-filter-knob target-node-id='test-sampler' />
+              <lowpass-filter-knob
+                ref={lowpassKnobRef}
                 target-node-id='test-sampler'
-                label='Depth'
               />
             </div>
           </fieldset>
 
-          <fieldset class='control-group pitch-lfo-group'>
-            <legend class='expandable-legend'>Pitch LFO</legend>
+          <fieldset class='control-group misc-group'>
+            <legend class='expandable-legend'>Dirt</legend>
             <div class='expandable-content'>
-              <div class='flex-col'>
-                <pitch-lfo-rate-knob
-                  target-node-id='test-sampler'
-                  label='Rate'
-                />
-                <pitch-lfo-sync-toggle target-node-id='test-sampler' label='' />
-              </div>
-              <pitch-lfo-depth-knob
-                target-node-id='test-sampler'
-                label='Depth'
-              />
+              <distortion-knob target-node-id='test-sampler' />
+              <am-modulation label='AM' target-node-id='test-sampler' />
             </div>
           </fieldset>
+
+          <fieldset class='control-group loop-group'>
+            <legend class='expandable-legend'>Loop</legend>
+            <div class='expandable-content'>
+              <loop-start-knob target-node-id='test-sampler' label='Start' />
+              <loop-duration-knob
+                target-node-id='test-sampler'
+                label='Duration'
+              />
+              <div class='flex-col'>
+                <loop-duration-drift-knob
+                  target-node-id='test-sampler'
+                  label='Drift'
+                />
+                <pan-drift-toggle target-node-id='test-sampler' />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class='control-group trim-group'>
+            <legend class='expandable-legend'>Trim</legend>
+            <div class='expandable-content'>
+              <trim-start-knob target-node-id='test-sampler' />
+              <trim-end-knob target-node-id='test-sampler' />
+            </div>
+          </fieldset>
+
+          <fieldset class='control-group feedback-group'>
+            <legend class='expandable-legend'>Feedback</legend>
+            <div class='expandable-content'>
+              <feedback-knob target-node-id='test-sampler' label='Amount' />
+              <feedback-pitch-knob
+                target-node-id='test-sampler'
+                label='Pitch'
+              />
+              <feedback-lpf-knob
+                label='Lowpass'
+                class='fb-lpf-knob'
+                target-node-id='test-sampler'
+              />
+
+              <feedback-decay-knob
+                target-node-id='test-sampler'
+                label='Decay'
+              />
+
+              <feedback-mode-toggle target-node-id='test-sampler' label='' />
+            </div>
+          </fieldset>
+
+          {/* Todo: add .control-group to lfo-container? Clarify */}
+          <div class='lfo-container'>
+            <fieldset class='control-group amp-lfo-group'>
+              <legend class='expandable-legend'>Amp LFO</legend>
+              <div class='expandable-content'>
+                <div class='flex-col'>
+                  <gain-lfo-rate-knob
+                    target-node-id='test-sampler'
+                    label='Rate'
+                  />
+                  <gain-lfo-sync-toggle
+                    target-node-id='test-sampler'
+                    label=''
+                  />
+                </div>
+                <gain-lfo-depth-knob
+                  target-node-id='test-sampler'
+                  label='Depth'
+                />
+              </div>
+            </fieldset>
+
+            <fieldset class='control-group pitch-lfo-group'>
+              <legend class='expandable-legend'>Pitch LFO</legend>
+              <div class='expandable-content'>
+                <div class='flex-col'>
+                  <pitch-lfo-rate-knob
+                    target-node-id='test-sampler'
+                    label='Rate'
+                  />
+                  <pitch-lfo-sync-toggle
+                    target-node-id='test-sampler'
+                    label=''
+                  />
+                </div>
+                <pitch-lfo-depth-knob
+                  target-node-id='test-sampler'
+                  label='Depth'
+                />
+              </div>
+            </fieldset>
+          </div>
+
+          <fieldset class='control-group toggle-group'>
+            <legend class='expandable-legend'>Toggles</legend>
+            <div class='expandable-content'>
+              <midi-toggle target-node-id='test-sampler' />
+              <playback-direction-toggle target-node-id='test-sampler' />
+              <loop-lock-toggle target-node-id='test-sampler' />
+              <hold-lock-toggle target-node-id='test-sampler' />
+              <pitch-toggle target-node-id='test-sampler' />
+              <sampler-status target-node-id='test-sampler' />
+            </div>
+          </fieldset>
+
+          <fieldset class='control-group keyboard-group'>
+            <legend class='expandable-legend'>Keyboard</legend>
+            <computer-keyboard target-node-id='test-sampler' />
+            <div class='expandable-content'>
+              <piano-keyboard
+                id='piano-keyboard'
+                class='piano-keyboard'
+                target-node-id='test-sampler'
+                width='700'
+                height='80'
+              />
+              <div class='keyboard-controls'>
+                <div class='flex-row'>
+                  <rootnote-select
+                    show-label='false'
+                    target-node-id='test-sampler'
+                  />
+                  <keymap-select
+                    show-label='false'
+                    target-node-id='test-sampler'
+                  />
+                </div>
+
+                <glide-knob target-node-id='test-sampler' />
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Row collapse icons */}
+          <div
+            class='row-collapse-icon'
+            data-row='1'
+            style='grid-area: space'
+          />
+          <div
+            class='row-collapse-icon'
+            data-row='2'
+            style='grid-area: feedback'
+          />
+          <div class='row-collapse-icon' data-row='3' style='grid-area: lfo' />
+          <div
+            class='row-collapse-icon'
+            data-row='4'
+            style='grid-area: keyboard'
+          />
         </div>
-
-        <fieldset class='control-group toggle-group'>
-          <legend class='expandable-legend'>Toggles</legend>
-          <div class='expandable-content'>
-            <midi-toggle target-node-id='test-sampler' />
-            <playback-direction-toggle target-node-id='test-sampler' />
-            <loop-lock-toggle target-node-id='test-sampler' />
-            <hold-lock-toggle target-node-id='test-sampler' />
-            <pitch-toggle target-node-id='test-sampler' />
-            <sampler-status target-node-id='test-sampler' />
-          </div>
-        </fieldset>
-
-        <fieldset class='control-group keyboard-group'>
-          <legend class='expandable-legend'>Keyboard</legend>
-          <computer-keyboard target-node-id='test-sampler' />
-          <div class='expandable-content'>
-            <piano-keyboard
-              id='piano-keyboard'
-              class='piano-keyboard'
-              target-node-id='test-sampler'
-              width='700'
-              height='80'
-            />
-            <div class='keyboard-controls'>
-              <div class='flex-row'>
-                <rootnote-select
-                  show-label='false'
-                  target-node-id='test-sampler'
-                />
-                <keymap-select
-                  show-label='false'
-                  target-node-id='test-sampler'
-                />
-              </div>
-
-              <glide-knob target-node-id='test-sampler' />
-            </div>
-          </div>
-        </fieldset>
-
-        {/* Row collapse icons */}
-        <div class='row-collapse-icon' data-row='1' style='grid-area: space' />
-        <div
-          class='row-collapse-icon'
-          data-row='2'
-          style='grid-area: feedback'
-        />
-        <div class='row-collapse-icon' data-row='3' style='grid-area: lfo' />
-        <div
-          class='row-collapse-icon'
-          data-row='4'
-          style='grid-area: keyboard'
-        />
       </div>
-    </div>
+    </>
   );
 };
 

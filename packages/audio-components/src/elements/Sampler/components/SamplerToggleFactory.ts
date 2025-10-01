@@ -16,16 +16,15 @@ export const MidiToggle = (attributes: ElementProps) => {
   const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
     size: 'md',
     onClick: () => {
-      const sampler = getSampler(targetNodeId.val);
-      if (!sampler) return;
-
-      const currentState = (toggleButton as any).getState();
-
-      if (currentState === 'midi_on') {
-        sampler.enableMIDI();
-      } else {
-        sampler.disableMIDI();
-      }
+      // TODO: Finish refacoring to use centralized input handling package
+      // const sampler = getSampler(targetNodeId.val);
+      // if (!sampler) return;
+      // const currentState = (toggleButton as any).getState();
+      // if (currentState === 'midi_on') {
+      //   sampler.enableMIDI();
+      // } else {
+      //   sampler.disableMIDI();
+      // }
     },
     initialState: 'midi_on',
   });
