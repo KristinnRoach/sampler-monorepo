@@ -3,7 +3,7 @@ import { render } from 'solid-js/web';
 import { defineSampler } from '@repo/audio-components';
 import App from './App';
 import './styles/themes.css';
-import './style-org-layout.css';
+import './style.css';
 
 defineSampler(); // Define all web components for the sampler
 

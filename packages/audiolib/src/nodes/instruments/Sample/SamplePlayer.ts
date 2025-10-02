@@ -1,7 +1,6 @@
 // SamplePlayer.ts - Refactored with Composition Pattern
 
 import { getAudioContext } from '@/context';
-import { MidiController } from '@/io';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { clamp, findClosestNote, ROOT_NOTES } from '@/utils';
@@ -66,7 +65,6 @@ export class SamplePlayer implements ILibInstrumentNode {
   #isLoaded = false;
   #polyphony: number;
   #initialAudioBuffer: AudioBuffer | null = null;
-  #midiController: MidiController | null = null;
 
   #connections = new Set<NodeID>();
   #incoming = new Set<NodeID>();
@@ -110,15 +108,13 @@ export class SamplePlayer implements ILibInstrumentNode {
   constructor(
     context: AudioContext,
     polyphony: number = 16,
-    audioBuffer?: AudioBuffer,
-    midiController?: MidiController
+    audioBuffer?: AudioBuffer
   ) {
     this.nodeId = registerNode('sample-player', this);
     this.context = context;
 
     // Synchronus setup
     this.#messages = createMessageBus<Message>(this.nodeId);
-    this.#midiController = midiController || null;
 
     this.#masterOut = new GainNode(this.context, { gain: 0.5 });
 
@@ -1240,66 +1236,66 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === I/O === */
 
-  async initMidiController(): Promise<boolean> {
-    if (this.#midiController?.isInitialized) {
-      return true;
-    }
+  // async initMidiController(): Promise<boolean> {
+  //   if (this.#midiController?.isInitialized) {
+  //     return true;
+  //   }
 
-    if (!this.#midiController) {
-      this.#midiController = new MidiController();
-    }
+  //   if (!this.#midiController) {
+  //     this.#midiController = new MidiController();
+  //   }
 
-    assert(
-      this.#midiController,
-      `SamplePlayer: Failed to create MIDI controller`
-    );
+  //   assert(
+  //     this.#midiController,
+  //     `SamplePlayer: Failed to create MIDI controller`
+  //   );
 
-    const result = await tryCatch(() => this.#midiController!.initialize());
-    assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
-    return result.data;
-  }
+  //   const result = await tryCatch(() => this.#midiController!.initialize());
+  //   assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
+  //   return result.data;
+  // }
 
-  setMidiController(midiController: MidiController): this {
-    this.#midiController = midiController;
-    return this;
-  }
+  // setMidiController(midiController: MidiController): this {
+  //   this.#midiController = midiController;
+  //   return this;
+  // }
 
-  async enableMIDI(
-    midiController?: MidiController,
-    channel: number | 'all' = 'all'
-  ): Promise<this> {
-    if (!midiController) {
-      midiController = new MidiController();
-      await midiController.initialize();
-    }
+  // async enableMIDI(
+  //   midiController?: MidiController,
+  //   channel: number | 'all' = 'all'
+  // ): Promise<this> {
+  //   if (!midiController) {
+  //     midiController = new MidiController();
+  //     await midiController.initialize();
+  //   }
 
-    if (midiController.isInitialized) {
-      this.#midiController = midiController;
-      midiController.connectInstrument(this, channel);
+  //   if (midiController.isInitialized) {
+  //     this.#midiController = midiController;
+  //     midiController.connectInstrument(this, channel);
 
-      this.sendUpstreamMessage('midi:enabled', { channel });
-    }
-    return this;
-  }
+  //     this.sendUpstreamMessage('midi:enabled', { channel });
+  //   }
+  //   return this;
+  // }
 
-  disableMIDI(
-    midiController?: MidiController,
-    channel: number | 'all' = 'all'
-  ): this {
-    const controller = midiController || this.#midiController;
-    controller?.disconnectInstrument(this, channel);
-    if (controller === this.#midiController) {
-      this.#midiController = null;
-    }
+  // disableMIDI(
+  //   midiController?: MidiController,
+  //   channel: number | 'all' = 'all'
+  // ): this {
+  //   const controller = midiController || this.#midiController;
+  //   controller?.disconnectInstrument(this, channel);
+  //   if (controller === this.#midiController) {
+  //     this.#midiController = null;
+  //   }
 
-    this.sendUpstreamMessage('midi:disabled', { channel });
+  //   this.sendUpstreamMessage('midi:disabled', { channel });
 
-    return this;
-  }
+  //   return this;
+  // }
 
-  switchMIDIChannel(channel: number | 'all') {
-    this.#midiController?.switchInstrumentChannel(this, channel);
-  }
+  // switchMIDIChannel(channel: number | 'all') {
+  //   this.#midiController?.switchInstrumentChannel(this, channel);
+  // }
 
   /* === PUBLIC GETTERS === */
 
@@ -1380,7 +1376,6 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.#pitchLFO?.dispose();
 
       this.disconnect();
-      this.disableMIDI();
 
       // Reset state variables
       this.#bufferDuration = 0;

@@ -1,6 +1,5 @@
 import { LibNode, NodeType } from './LibNode';
 import { registerNode, unregisterNode, NodeID } from './node-store';
-import { MidiController } from '@/io';
 import {
   MessageBus,
   MessageHandler,
@@ -48,8 +47,6 @@ export interface ILibInstrumentNode extends ILibAudioNode {
 
   sustainPedalOn(): this;
   sustainPedalOff(): this;
-
-  enableMIDI(controller: MidiController): Promise<this>;
 
   outBus?: InstrumentBus;
 }

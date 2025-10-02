@@ -1,25 +1,35 @@
 // src/midi/KnobMidiController.ts
 
 import { KnobElement } from '@repo/audio-components';
+import {
+  inputController,
+  type ControlChangeEvent,
+} from '@repo/input-controller';
 
 export class KnobMidiController {
-  #midiAccess: MIDIAccess | null = null;
   #initialized: boolean = false;
   #ccMappings: Map<number, KnobElement[]> = new Map();
   #midiLearnActive: boolean = false;
   #knobsToLearn: KnobElement[] = [];
+  #controlChangeUnsub: (() => void) | null = null;
 
   async initialize(): Promise<boolean> {
     if (this.#initialized) return true;
 
     try {
-      this.#midiAccess = await navigator.requestMIDIAccess();
-
-      const inputs = this.#midiAccess.inputs.values();
-      for (const input of inputs) {
-        input.onmidimessage = this.#handleMidiMessage.bind(this);
-        console.log(`UI MIDI input connected: ${input.name}`);
+      // Use the centralized input controller instead of setting up our own MIDIAccess
+      const initialized = await inputController.init();
+      if (!initialized) {
+        console.error(
+          'Failed to initialize centralized input controller for knobs'
+        );
+        return false;
       }
+
+      // Subscribe to control change events from the centralized controller
+      this.#controlChangeUnsub = inputController.onControlChange(
+        this.#handleControlChange.bind(this)
+      );
 
       document.addEventListener('keydown', (e) => {
         if (e.repeat) return;
@@ -31,22 +41,21 @@ export class KnobMidiController {
       });
 
       this.#initialized = true;
+      console.log(
+        'KnobMidiController initialized using centralized input controller'
+      );
       return true;
     } catch (error) {
-      console.error('Failed to initialize UI MIDI:', error);
+      console.error('Failed to initialize KnobMidiController:', error);
       return false;
     }
   }
 
-  #handleMidiMessage(event: MIDIMessageEvent): void {
+  #handleControlChange(event: ControlChangeEvent): void {
     if (!this.#initialized) return;
-    if (!event || !event.data) return;
 
-    const [status, ccNumber, value] = event.data;
-    const command = status & 0xf0;
-
-    // Only handle Control Change messages (0xB0)
-    if (command !== 0xb0) return;
+    const ccNumber = event.controller;
+    const value = event.value;
 
     // MIDI learn mode: map incoming CC to the selected knob(s)
     if (this.#midiLearnActive && this.#knobsToLearn.length > 0 && value > 0) {
@@ -100,7 +109,8 @@ export class KnobMidiController {
     // Normal mode: use mapped CCs to control knobs
     const knobs = this.#ccMappings.get(ccNumber);
     if (knobs && knobs.length > 0) {
-      const normalizedValue = Math.max(0, Math.min(1, value / 127));
+      // Value is already normalized (0-1) by the input-controller
+      const normalizedValue = Math.max(0, Math.min(1, value));
       // Apply to all mapped knobs
       knobs.forEach((knob) => {
         knob.setValueNormalized(normalizedValue);
@@ -245,6 +255,34 @@ export class KnobMidiController {
   // Get knobs mapped to a specific CC
   getKnobsForCC(ccNumber: number): KnobElement[] | undefined {
     return this.#ccMappings.get(ccNumber);
+  }
+
+  // Clean up resources
+  destroy(): void {
+    if (this.#controlChangeUnsub) {
+      this.#controlChangeUnsub();
+      this.#controlChangeUnsub = null;
+    }
+
+    // Cancel MIDI learn mode
+    this.#midiLearnActive = false;
+    this.#knobsToLearn = [];
+
+    // Remove highlight from all knobs
+    document.querySelectorAll('.midi-learn-highlight').forEach((el) => {
+      el.classList.remove('midi-learn-highlight');
+    });
+
+    // Remove status indicator
+    const statusEl = document.querySelector('.midi-learn-status');
+    if (statusEl) {
+      statusEl.remove();
+    }
+
+    document.body.classList.remove('midi-learn-active');
+
+    this.#initialized = false;
+    console.log('KnobMidiController destroyed');
   }
 
   get isInitialized() {

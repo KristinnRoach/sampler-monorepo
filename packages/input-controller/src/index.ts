@@ -24,6 +24,16 @@ export type NoteTarget = {
   release: (note: number) => void;
 };
 
+export type ControlTarget = {
+  onControlChange: (value: number, event: ControlChangeEvent) => void;
+};
+
+type RegisterControlOptions = {
+  controller: number | number[];
+  channel?: number | 'all';
+  transformValue?: (event: ControlChangeEvent) => number;
+};
+
 export class InputController {
   #initialized = false;
   #noteOnHandlers = new Set<NoteHandler>();
@@ -83,6 +93,30 @@ export class InputController {
       noteOnUnsub();
       noteOffUnsub();
     };
+  }
+
+  registerControlTarget(
+    target: ControlTarget,
+    options: RegisterControlOptions
+  ): () => void {
+    const controllers = Array.isArray(options.controller)
+      ? options.controller
+      : [options.controller];
+    const channel = options.channel ?? 'all';
+    const transformValue =
+      options.transformValue ??
+      ((event: ControlChangeEvent) =>
+        Math.max(0, Math.min(127, event.value)) / 127);
+
+    const unsubscribe = this.onControlChange((event) => {
+      if (!controllers.includes(event.controller)) return;
+      if (!this.#matchesChannel(channel, event.channel)) return;
+
+      const value = transformValue(event);
+      target.onControlChange(value, event);
+    });
+
+    return unsubscribe;
   }
 
   get initialized(): boolean {

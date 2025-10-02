@@ -3,7 +3,6 @@
 import { getAudioContext, ensureAudioCtx } from '@/context';
 import { SamplePlayer } from './SamplePlayer';
 import { assert } from '@/utils';
-import { MidiController } from '@/io';
 
 import { initProcessors } from '@/worklets';
 import { initIdb } from '@/storage/idb';
@@ -20,8 +19,7 @@ import { fetchInitSampleAsAudioBuffer } from '@/storage/assets/asset-utils';
 export async function createSamplePlayer(
   buffer?: AudioBuffer | ArrayBuffer,
   polyphony: number = 16,
-  context: AudioContext = getAudioContext(),
-  midiController?: MidiController
+  context: AudioContext = getAudioContext()
 ): Promise<SamplePlayer> {
   await ensureAudioCtx();
   assert(context, 'Audio context is not available');
@@ -55,12 +53,7 @@ export async function createSamplePlayer(
     audiobuffer = await fetchInitSampleAsAudioBuffer();
   }
 
-  const samplePlayer = new SamplePlayer(
-    context,
-    polyphony,
-    audiobuffer,
-    midiController
-  );
+  const samplePlayer = new SamplePlayer(context, polyphony, audiobuffer);
 
   await samplePlayer.init();
 
