@@ -1,0 +1,15 @@
+{
+  "name": "@repo/input-controller",
+  "version": "0.0.1",
+  "description": "Shared music performance IO helpers",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "webmidi": "^3.1.13"
+  }
+}

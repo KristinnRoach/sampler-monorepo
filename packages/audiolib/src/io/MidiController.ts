@@ -1,12 +1,13 @@
 // MidiController.ts
 import type { ILibInstrumentNode } from '@/nodes/LibAudioNode.js';
 
+// TODO: Merge into shared package ?
+
 export class MidiController {
   #midiAccess: MIDIAccess | null = null;
   #initialized: boolean = false;
   #sustainPedalState = false;
 
-  // Support multiple instruments per channel, plus 'all' channel
   #instruments: Map<number | 'all', ILibInstrumentNode[]> = new Map();
 
   async initialize(): Promise<boolean> {
@@ -164,96 +165,3 @@ export class MidiController {
     return instruments;
   };
 }
-
-// // MIDI Learn types
-// interface MidiControlMapping {
-//   type: 'cc' | 'note' | 'pitchbend';
-//   cc?: number; // Control Change number (0-127), undefined for non-CC types
-//   channel: number; // MIDI channel (0-15)
-//   min?: number; // Minimum value for parameter mapping
-//   max?: number; // Maximum value for parameter mapping
-// }
-
-// interface LearnableParameter {
-//   nodeId: string;
-//   instrument: any; // just SamplePlayer for now
-//   paramName: string;
-//   min: number;
-//   max: number;
-//   defaultValue: number;
-// }
-
-// #midiLearnActive: boolean = false;
-// #paramBeingLearned: LearnableParameter | null = null;
-// #midiMappings = new Map<string, MidiControlMapping>(); // paramKey -> MidiControlMapping
-
-//   activateMidiLearn(paramKey: LearnableParameter) {
-//   this.#midiLearnActive = true;
-//   this.#paramBeingLearned = paramKey;
-// }
-
-// deactivateMidiLearn() {
-//   this.#midiLearnActive = false;
-//   this.#paramBeingLearned = null;
-// }
-
-// #handleMidiLearn(
-//   command: number,
-//   channel: number,
-//   cc: number,
-//   velocity?: number
-// ): void {
-//   if (!this.#paramBeingLearned) return;
-
-//   // Only learn from Control Change messages for now (0xB0)
-//   if (command === 0xb0) {
-//     const paramKey = `${this.#paramBeingLearned.nodeId}.${this.#paramBeingLearned.paramName}`;
-
-//     const mapping: MidiControlMapping = {
-//       type: 'cc',
-//       cc,
-//       channel,
-//       min: this.#paramBeingLearned.min,
-//       max: this.#paramBeingLearned.max,
-//     };
-
-//     this.#midiMappings.set(paramKey, mapping);
-
-//     console.log(
-//       `MIDI Learn: Mapped CC${cc} on channel ${channel + 1} to ${paramKey}`
-//     );
-
-//     this.deactivateMidiLearn();
-//   }
-// }
-
-//  // Handle MIDI learn if active
-//   if (this.#midiLearnActive && this.#paramBeingLearned) {
-//     this.#handleMidiLearn(command, channel, note, velocity);
-//     return; // Exit early when learning
-//   }
-
-// // Ignore: Active Sensing (FE), Timing Clock, Start, Stop, Continue, etc. (F8-FF)
-// if (status >= 0xf8) {
-//   return;
-// }
-
-// // Ignore: System Exclusive (sysex)
-// if (status === 0xf0) {
-//   return;
-// }
-
-// // Ignore: Other System Common messages (Song Position Pointer, etc.)
-// if (status >= 0xf0) {
-//   return;
-// }
-
-// // Early return for Control Change messages (0xB0-0xBF)
-// // except for sustain pedal (CC 64) which we handle below
-// if (command === 0xb0) {
-//   const ccNumber = data[1];
-//   if (ccNumber !== 64) {
-//     return; // Not sustain pedal, let UI controller handle it
-//   }
-//   // If it IS CC 64 (sustain), continue to our existing handler below
-// }

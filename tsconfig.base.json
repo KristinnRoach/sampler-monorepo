@@ -18,7 +18,8 @@
     "strict": true,
     "target": "ES2022",
     "paths": {
-      "@repo/audiolib": ["packages/audiolib/src/index.ts"]
+      "@repo/audiolib": ["packages/audiolib/src/index.ts"],
+      "@repo/input-controller": ["packages/input-controller/src/index.ts"]
     }
   }
 }

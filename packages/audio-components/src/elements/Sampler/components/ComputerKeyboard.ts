@@ -83,7 +83,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     sampler.setHoldEnabled?.(holdEnabled.val);
 
     const midiNote = currentKeymap.val[e.code];
-    if (!midiNote) return;
+    if (!midiNote || pressedKeys.has(e.code)) return;
 
     if (!e.metaKey) e.preventDefault(); // Prevent default unless Meta key is pressed (to allow shortcuts)
 
