@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import dts from 'vite-plugin-dts';
 import solidPlugin from 'vite-plugin-solid';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   build: {
@@ -14,17 +15,30 @@ export default defineConfig({
           __dirname,
           'src/frameworks/solidjs/solidjsEntry.ts'
         ),
+        // React
+        'frameworks/react/reactEntry': resolve(
+          __dirname,
+          'src/frameworks/react/reactEntry.ts'
+        ),
       },
       name: 'AudioWebComponents',
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['@repo/audiolib', 'solid-js', 'solid-js/web'],
+      external: [
+        '@repo/audiolib',
+        'solid-js',
+        'solid-js/web',
+        'react',
+        'react-dom',
+      ],
       output: {
         globals: {
           '@repo/audiolib': 'audiolib',
           'solid-js': 'solid',
           'solid-js/web': 'solidWeb',
+          react: 'React',
+          'react-dom': 'ReactDOM',
         },
         // Ensure CSS is extracted to a separate file
         assetFileNames: (assetInfo) => {
@@ -40,6 +54,7 @@ export default defineConfig({
   },
   plugins: [
     solidPlugin(),
+    react(),
     // SEPARATE DTS INSTANCES FOR EACH ENTRY
     // dts({
     //   include: ['src/index.ts', 'src/elements/**/*', 'src/shared/**/*'],

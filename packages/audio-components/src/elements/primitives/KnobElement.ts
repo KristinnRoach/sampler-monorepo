@@ -51,7 +51,7 @@ export function createKnobElement(
     minValue = 0,
     maxValue = 100,
     defaultValue = 0,
-    snapIncrement = 1,
+    snapIncrement = 0, // Default to 0 (no snapping) instead of 1
     width,
     height,
     color,

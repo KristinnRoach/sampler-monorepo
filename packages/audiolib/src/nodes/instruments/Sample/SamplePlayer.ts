@@ -105,7 +105,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #recordInputSource: InputSource = 'microphone';
 
-  // TODO: move to input controller
+  // ? move to input controller ?
   #sustainedNotes = new Set<MidiValue>();
 
   constructor(
@@ -610,11 +610,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.outBus.noteOn(transposedMidiNote, safeVelocity, 0, glideTime);
 
-    // If sustain pedal is pressed when note starts, mark it as sustained
-    if (this.#sustainPedalPressed) {
-      this.#sustainedNotes.add(transposedMidiNote);
-    }
-
     return this.voicePool.noteOn(
       transposedMidiNote,
       safeVelocity,
@@ -628,8 +623,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     const transposedMidiNote = midiNote + this.#transposedBySemitones;
 
-    // If sustain pedal is pressed, don't release the note immediately
-    // Instead, mark it for sustain
     if (this.#sustainPedalPressed) {
       this.#sustainedNotes.add(transposedMidiNote);
       return this;
@@ -644,6 +637,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   releaseAll(releaseTime?: number): this {
+    this.#sustainedNotes.clear();
     this.voicePool.allNotesOff(releaseTime);
     return this;
   }
@@ -805,17 +799,13 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.setHoldEnabled(pressed);
     }
 
-    // Handle per-note sustain behavior
     if (!pressed) {
-      // When sustain pedal is released, release all sustained notes
       for (const note of this.#sustainedNotes) {
         this.voicePool.noteOff(note);
         this.sendUpstreamMessage('note:off', { transposedMidiNote: note });
       }
       this.#sustainedNotes.clear();
     }
-    // When sustain pedal is pressed, currently playing notes will be
-    // automatically sustained by the logic in the release method
 
     return this;
   }
