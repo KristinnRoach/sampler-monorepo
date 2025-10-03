@@ -105,6 +105,9 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #recordInputSource: InputSource = 'microphone';
 
+  // TODO: move to input controller
+  #sustainedNotes = new Set<MidiValue>();
+
   constructor(
     context: AudioContext,
     polyphony: number = 16,
@@ -607,10 +610,15 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.outBus.noteOn(transposedMidiNote, safeVelocity, 0, glideTime);
 
+    // If sustain pedal is pressed when note starts, mark it as sustained
+    if (this.#sustainPedalPressed) {
+      this.#sustainedNotes.add(transposedMidiNote);
+    }
+
     return this.voicePool.noteOn(
       transposedMidiNote,
       safeVelocity,
-      0, // zero delay
+      0,
       glideTime
     );
   }
@@ -619,6 +627,17 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (this.holdEnabled || this.#holdLocked) return this;
 
     const transposedMidiNote = midiNote + this.#transposedBySemitones;
+
+    // If sustain pedal is pressed, don't release the note immediately
+    // Instead, mark it for sustain
+    if (this.#sustainPedalPressed) {
+      this.#sustainedNotes.add(transposedMidiNote);
+      return this;
+    }
+
+    // Remove from sustained notes if it was there
+    this.#sustainedNotes.delete(transposedMidiNote);
+
     this.voicePool.noteOff(transposedMidiNote);
     this.sendUpstreamMessage('note:off', { transposedMidiNote });
     return this;
@@ -785,6 +804,18 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (!this.#holdLocked) {
       this.setHoldEnabled(pressed);
     }
+
+    // Handle per-note sustain behavior
+    if (!pressed) {
+      // When sustain pedal is released, release all sustained notes
+      for (const note of this.#sustainedNotes) {
+        this.voicePool.noteOff(note);
+        this.sendUpstreamMessage('note:off', { transposedMidiNote: note });
+      }
+      this.#sustainedNotes.clear();
+    }
+    // When sustain pedal is pressed, currently playing notes will be
+    // automatically sustained by the logic in the release method
 
     return this;
   }
@@ -1356,6 +1387,9 @@ export class SamplePlayer implements ILibInstrumentNode {
   dispose(): void {
     try {
       this.releaseAll();
+
+      // Clear sustained notes
+      this.#sustainedNotes.clear();
 
       if (this.voicePool) {
         this.voicePool.dispose();

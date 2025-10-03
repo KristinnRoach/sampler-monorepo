@@ -36,6 +36,15 @@ body {
   interpolate-size: allow-keywords;
 }
 
+.knob-container {
+  padding: 0.5rem;
+}
+
+.knob-container .knob-label {
+  font-size: 0.8rem;
+  user-select: none;
+}
+
 .modal {
   width: fit-content;
   padding: 1rem;

@@ -685,7 +685,7 @@ export class KnobElement extends HTMLElement {
 
   // Public API
   public setValue(value: number): void {
-    // todo: animate: boolean = false
+    // todo: animate?: boolean
     if (!this.valueToRotation || !this.pathElement) return;
 
     this.currentValue = KnobElement.clamp(
@@ -706,7 +706,7 @@ export class KnobElement extends HTMLElement {
    * @param normalizedValue - Value between 0 and 1
    */
   public setValueNormalized(normalizedValue: number): void {
-    const { minValue, maxValue, minRotation, maxRotation } = this.config;
+    const { minRotation, maxRotation } = this.config;
 
     const clamped = Math.max(0, Math.min(1, normalizedValue));
 
@@ -715,6 +715,18 @@ export class KnobElement extends HTMLElement {
     const value = this.rotationToValue(rotation);
 
     this.setValue(value);
+  }
+
+  /**
+   * Gets the current knob value as a normalized 0-1 value, accounting for
+   * the knob's range and curve. Inverse of setValueNormalized().
+   * @returns Normalized value between 0 and 1
+   */
+  public getValueNormalized(): number {
+    return (
+      (this.currentRotation - this.config.minRotation) /
+      (this.config.maxRotation - this.config.minRotation)
+    );
   }
 
   public resetToDefault(): void {
@@ -757,24 +769,6 @@ export class KnobElement extends HTMLElement {
       100,
       this.currentValue
     );
-  }
-
-  /**
-   * Gets the current knob value as a normalized 0-1 value, accounting for
-   * the knob's range and curve. Inverse of setValueNormalized().
-   * @returns Normalized value between 0 and 1
-   */
-  public getValueNormalized(): number {
-    const { minValue, maxValue, curve = 1 } = this.config;
-
-    // Convert current value to 0-1 range
-    const linearPosition =
-      (this.currentValue - minValue) / (maxValue - minValue);
-
-    // Apply curve to get the normalized position
-    const normalizedValue = Math.pow(linearPosition, curve);
-
-    return Math.max(0, Math.min(1, normalizedValue));
   }
 
   // Property getters/setters for easier JS usage

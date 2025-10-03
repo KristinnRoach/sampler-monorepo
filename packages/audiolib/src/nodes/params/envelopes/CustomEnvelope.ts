@@ -275,6 +275,37 @@ export class CustomEnvelope implements LibNode {
       midiNote?: number;
     } = { baseValue: 1, playbackRate: 1 }
   ) {
+    // Firefox fallback - use extremely simple envelope behavior
+    if (this.#isFirefox) {
+      try {
+        const now = this.#context.currentTime;
+        const safeStart = Math.max(now + 0.001, startTime);
+
+        // Cancel all previous scheduling
+        audioParam.cancelScheduledValues(now);
+
+        // Simple attack and decay
+        audioParam.setValueAtTime(audioParam.value, now);
+        audioParam.linearRampToValueAtTime(
+          options.baseValue * 0.8,
+          safeStart + 0.01
+        );
+        audioParam.linearRampToValueAtTime(
+          options.baseValue * 0.5,
+          safeStart + 0.1
+        );
+
+        console.debug('Firefox trigger envelope - simple linear ramps');
+      } catch (error) {
+        console.debug('Firefox trigger envelope failed silently:', error);
+      }
+
+      // Still track state for release
+      this.#isReleased = false;
+      this.#currentPlaybackRate = options.playbackRate;
+      return;
+    }
+
     this.#isReleased = false;
     this.#currentPlaybackRate = options.playbackRate;
 
@@ -613,6 +644,9 @@ export class CustomEnvelope implements LibNode {
     scheduleNext();
   }
 
+  // Temp fix for Firefox - fixed release
+  #isFirefox = navigator.userAgent.includes('Firefox');
+
   releaseEnvelope(
     audioParam: AudioParam,
     startTime: number,
@@ -629,6 +663,46 @@ export class CustomEnvelope implements LibNode {
 
     this.#isReleased = true;
     this.#activeEnvelope = null; // Clear active envelope state
+
+    if (this.#isFirefox) {
+      try {
+        const now = this.#context.currentTime;
+
+        // For Firefox, we need to be very aggressive about clearing the timeline
+        audioParam.cancelScheduledValues(now);
+
+        // Use setTimeout to delay the release ramp to avoid conflicts
+        setTimeout(() => {
+          try {
+            const delayedNow = this.#context.currentTime;
+            audioParam.cancelScheduledValues(delayedNow);
+            audioParam.setValueAtTime(audioParam.value, delayedNow);
+            audioParam.linearRampToValueAtTime(0, delayedNow + 0.1);
+            console.debug(
+              'Firefox delayed release envelope - linear ramp to 0'
+            );
+          } catch (delayedError) {
+            console.debug('Firefox delayed release also failed:', delayedError);
+          }
+        }, 10); // 10ms delay to let any curves finish
+      } catch (error) {
+        console.debug('Firefox immediate release failed:', error);
+        // Try an even more delayed approach
+        setTimeout(() => {
+          try {
+            const veryDelayedNow = this.#context.currentTime;
+            audioParam.setValueAtTime(0, veryDelayedNow + 0.05);
+          } catch (veryDelayedError) {
+            console.debug(
+              'Firefox very delayed release failed:',
+              veryDelayedError
+            );
+          }
+        }, 50);
+      }
+
+      return; // Don't call #continueFromPoint if using fallback
+    }
 
     this.#continueFromPoint(audioParam, startTime, this.releasePointIndex, {
       baseValue: audioParam.value,

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MIDI Browser Support Test</title>
+  </head>
+  <body>
+    <h1>MIDI Browser Support Test</h1>
+    <p>Open the browser console to see the test results.</p>
+
+    <script type="module">
+      // Inline the MIDI support detection functions to avoid TypeScript import issues
+
+      /**
+       * Check if Web MIDI API is supported in the current browser
+       */
+      function isMidiSupported() {
+        return (
+          typeof navigator !== 'undefined' &&
+          typeof navigator.requestMIDIAccess === 'function'
+        );
+      }
+
+      /**
+       * Get browser-specific MIDI support information
+       */
+      function getMidiSupportInfo() {
+        const userAgent = navigator.userAgent;
+        const isChrome =
+          /Chrome/.test(userAgent) && /Google Inc/.test(navigator.vendor || '');
+        const isEdge = /Edg/.test(userAgent);
+        const isOpera = /OPR/.test(userAgent);
+        const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
+        const isFirefox = /Firefox/.test(userAgent);
+
+        let browserName = 'Unknown';
+        if (isChrome) browserName = 'Chrome';
+        else if (isEdge) browserName = 'Edge';
+        else if (isOpera) browserName = 'Opera';
+        else if (isSafari) browserName = 'Safari';
+        else if (isFirefox) browserName = 'Firefox';
+
+        const supported = isMidiSupported();
+
+        let message = '';
+        if (!supported) {
+          if (isSafari) {
+            message =
+              "Safari doesn't support Web MIDI API. Use Chrome, Edge, or Opera for MIDI functionality.";
+          } else if (isFirefox) {
+            message =
+              'Firefox has limited Web MIDI API support. Use Chrome, Edge, or Opera for full MIDI functionality.';
+          } else {
+            message = 'Web MIDI API not supported in this browser.';
+          }
+        }
+
+        return { supported, browserName, message };
+      }
+
+      console.log('=== MIDI Browser Support Test ===');
+      console.log('MIDI Supported:', isMidiSupported());
+      console.log('Support Info:', getMidiSupportInfo());
+      console.log(
+        'Navigator has requestMIDIAccess:',
+        'requestMIDIAccess' in navigator
+      );
+      console.log('User Agent:', navigator.userAgent);
+
+      // Also display results on the page
+      const supportInfo = getMidiSupportInfo();
+      document.body.innerHTML += `
+            <div style="font-family: monospace; margin-top: 20px; background: #f5f5f5; padding: 15px; border-radius: 5px;">
+                <h2>Test Results:</h2>
+                <p><strong>MIDI Supported:</strong> <span style="color: ${supportInfo.supported ? 'green' : 'red'}">${supportInfo.supported}</span></p>
+                <p><strong>Browser:</strong> ${supportInfo.browserName}</p>
+                <p><strong>Message:</strong> ${supportInfo.message || 'MIDI is supported!'}</p>
+                <p><strong>Has requestMIDIAccess:</strong> ${'requestMIDIAccess' in navigator}</p>
+                <p><strong>User Agent:</strong> ${navigator.userAgent}</p>
+            </div>
+        `;
+    </script>
+  </body>
+</html>
