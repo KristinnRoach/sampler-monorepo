@@ -24,8 +24,9 @@
     },
     "declaration": true,
     "declarationDir": "./dist",
-    "experimentalDecorators": true
-    // ??? "composite": true
+    "experimentalDecorators": true,
+
+    "composite": true // ??? Check what exactly this does
   },
   "include": ["src/**/*"],
   "references": [{ "path": "../audiolib" }]
