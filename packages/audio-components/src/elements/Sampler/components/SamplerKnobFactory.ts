@@ -2,7 +2,6 @@
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSampler } from '../SamplerRegistry';
-import { SamplePlayer } from '@repo/audiolib';
 import { createKnobForTarget } from '../component-utils';
 import { KnobConfig } from '../../primitives/createKnob';
 
@@ -15,9 +14,7 @@ const volumeConfig: KnobConfig = {
   onConnect: (sampler, state) => {
     setTimeout(() => {
       van.derive(() => {
-        if (sampler?.volume !== undefined) {
-          sampler.volume = state.val;
-        }
+        sampler.setVolume(state.val);
       });
     }, 0);
   },
@@ -459,7 +456,6 @@ const tempoKnobConfig: KnobConfig = {
   curve: 1,
   snapIncrement: 1,
   valueFormatter: (v: number) => `${v.toFixed(0)} BPM`,
-  color: '#333',
   onConnect: (sampler, state) => {
     van.derive(() => {
       sampler.setTempo(state.val);

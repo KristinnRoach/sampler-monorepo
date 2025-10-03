@@ -20,6 +20,7 @@ const feedbackKnobProps: KnobComponentProps = {
   maxValue: 1,
   snapIncrement: 0.001,
   curve: 2.5,
+  valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const distortionKnobProps: KnobComponentProps = {
@@ -51,6 +52,7 @@ const glideKnobProps: KnobComponentProps = {
   maxValue: 1,
   snapIncrement: 0.001,
   curve: 1,
+  valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const feedbackPitchKnobProps: KnobComponentProps = {
@@ -76,6 +78,7 @@ const feedbackLpfKnobProps: KnobComponentProps = {
   minValue: 400,
   maxValue: 16000,
   curve: 5,
+  valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,
 };
 
 const delayTimeKnobProps: KnobComponentProps = {
@@ -84,6 +87,7 @@ const delayTimeKnobProps: KnobComponentProps = {
   minValue: 0.005,
   maxValue: 1.5,
   curve: 2,
+  valueFormatter: (v: number) => `${v.toFixed(3)} s`,
 };
 
 const delayFBKnobProps: KnobComponentProps = {
@@ -92,6 +96,7 @@ const delayFBKnobProps: KnobComponentProps = {
   minValue: 0,
   maxValue: 1,
   curve: 1.5,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
 };
 
 const delaySendKnobProps: KnobComponentProps = {
@@ -100,6 +105,7 @@ const delaySendKnobProps: KnobComponentProps = {
   minValue: 0,
   maxValue: 1,
   curve: 2,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
 };
 
 const gainLFORateKnobProps: KnobComponentProps = {
@@ -134,6 +140,7 @@ const reverbSendKnobProps: KnobComponentProps = {
   minValue: 0,
   maxValue: 1,
   curve: 1,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
 };
 
 const reverbSizeKnobProps: KnobComponentProps = {
@@ -149,6 +156,7 @@ const loopDurationDriftKnobProps: KnobComponentProps = {
   maxValue: 1,
   curve: 0.5,
   snapIncrement: 0.001,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
 };
 
 const lowpassFilterKnobProps: KnobComponentProps = {
@@ -157,6 +165,7 @@ const lowpassFilterKnobProps: KnobComponentProps = {
   minValue: 40,
   maxValue: 20000,
   curve: 5,
+  valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,
 };
 
 const highpassFilterKnobProps: KnobComponentProps = {
@@ -179,12 +188,14 @@ const trimStartKnobProps: KnobComponentProps = {
   label: 'Start',
   defaultValue: 0,
   snapIncrement: 0.001,
+  valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const trimEndKnobProps: KnobComponentProps = {
   label: 'End',
   defaultValue: 1,
   snapIncrement: 0.001,
+  valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const loopStartKnobProps: KnobComponentProps = {
@@ -192,6 +203,7 @@ const loopStartKnobProps: KnobComponentProps = {
   defaultValue: 0,
   minValue: 0,
   snapIncrement: 0.001,
+  valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const loopDurationKnobProps: KnobComponentProps = {
@@ -210,6 +222,7 @@ const tempoKnobProps: KnobComponentProps = {
   maxValue: 300,
   curve: 1,
   snapIncrement: 1,
+  valueFormatter: (v: number) => `${v.toFixed(0)} BPM`,
 };
 
 // Export all KnobPresetProps as an object for easy import

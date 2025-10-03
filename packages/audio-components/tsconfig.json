@@ -27,6 +27,6 @@
     "experimentalDecorators": true
     // ??? "composite": true
   },
-  "include": ["src/**/*", "src/global.d.ts"],
+  "include": ["src/**/*"],
   "references": [{ "path": "../audiolib" }]
 }

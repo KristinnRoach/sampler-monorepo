@@ -10,33 +10,112 @@ import './styles/midi-learn.css';
 
 import { addExpandCollapseListeners } from './utils/expandCollapse';
 import { addPreventScrollOnSpacebarListener } from './utils/preventScrollOnSpacebar';
-import { showNotification, cleanupNotifications } from './utils/notifications';
-import { getLayoutFromWidth, type LayoutType } from './utils/layout';
-import { useSampleSelection } from './hooks/useSampleSelection';
-import { enableSamplePlayerMidi, disableSamplePlayerMidi } from './io/MidiMan';
-import { getMidiSupportInfo } from '@repo/input-controller';
+import { restoreInstrumentState } from './utils/instrumentState';
+import { SavedSample } from './db/samplelib/sampleIdb';
+import {
+  enableSamplePlayerMidi,
+  disableSamplePlayerMidi,
+} from './io/InputController';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
 import Sidebar from './components/Sidebar';
 import SidebarToggle from './components/SidebarToggle';
-import RowCollapseIcons from './components/RowCollapseIcons';
 
 const App: Component = () => {
-  const [layout, setLayout] = createSignal<LayoutType>('desktop');
+  const [layout, setLayout] = createSignal<'desktop' | 'tablet' | 'mobile'>(
+    'desktop'
+  );
 
   let samplerElementRef: SamplerElement | undefined;
   let samplePlayerRef: SamplePlayer | null = null;
+
+  let notificationEl: HTMLDivElement | undefined;
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
 
-  const { handleSampleSelect } = useSampleSelection(
-    () => samplePlayerRef,
-    setSidebarOpen
-  );
+  // Helper function to show temporary notifications
+  const showNotification = (message: string, duration = 3000) => {
+    if (!notificationEl) {
+      // Create notification element if it doesn't exist yet
+      notificationEl = document.createElement('div');
+      notificationEl.className = 'midi-notification';
+      notificationEl.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 4px;
+        font-size: 14px;
+        z-index: 1000;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: opacity 0.3s, transform 0.3s;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      `;
+      document.body.appendChild(notificationEl);
+    }
+
+    notificationEl.innerHTML = message;
+
+    notificationEl.style.opacity = '1';
+    notificationEl.style.transform = 'translateY(0)';
+
+    setTimeout(() => {
+      if (notificationEl) {
+        notificationEl.style.opacity = '0';
+        notificationEl.style.transform = 'translateY(20px)';
+      }
+    }, duration);
+  };
+
+  const handleSampleSelect = async (sample: SavedSample) => {
+    try {
+      if (!samplePlayerRef) return;
+
+      const arrayBuffer = sample.audioData;
+
+      await samplePlayerRef.loadSample(arrayBuffer, undefined, {
+        skipPreProcessing: true,
+      });
+
+      // Restore envelope settings using direct method call
+      if (sample.settings?.envelopes) {
+        // Wait a bit for the sample-loaded event to complete and envelopes to be created
+        setTimeout(() => {
+          const envelopeSwitcherElement = document.querySelector(
+            'envelope-switcher[target-node-id="test-sampler"]'
+          ) as any;
+          if (
+            envelopeSwitcherElement &&
+            envelopeSwitcherElement.restoreEnvelopeSettings
+          ) {
+            envelopeSwitcherElement.restoreEnvelopeSettings(
+              sample.settings.envelopes
+            );
+          }
+        }, 100);
+      }
+
+      // Restore other settings (non-envelope) after a delay
+      if (sample.settings) {
+        setTimeout(() => {
+          const settingsWithoutEnvelopes = { ...sample.settings };
+          delete settingsWithoutEnvelopes.envelopes;
+          restoreInstrumentState(settingsWithoutEnvelopes);
+        }, 500);
+      }
+
+      setSidebarOpen(false);
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+    }
+  };
 
   onMount(() => {
     const handleSampleLoaded = () => {
@@ -53,7 +132,15 @@ const App: Component = () => {
 
     // Simple responsive layout detection
     const updateLayout = () => {
-      setLayout(getLayoutFromWidth(window.innerWidth));
+      const width = window.innerWidth;
+
+      if (width < 800) {
+        setLayout('mobile');
+      } else if (width < 1200) {
+        setLayout('tablet');
+      } else {
+        setLayout('desktop');
+      }
     };
 
     document.addEventListener('sample-loaded', handleSampleLoaded);
@@ -69,21 +156,8 @@ const App: Component = () => {
         { cc: 73, selector: 'lowpass-filter-knob', name: 'LPF' },
       ],
     }).then((success) => {
-      if (success) {
-        showNotification(
-          'MIDI enabled - Press Cmd+Shift+M to access MIDI Learn'
-        );
-      } else {
-        const { supported, message } = getMidiSupportInfo();
-
-        if (!supported) {
-          showNotification(`MIDI not available - ${message}`, 5000);
-        } else {
-          showNotification(
-            'MIDI initialization failed - Check if MIDI devices are connected',
-            4000
-          );
-        }
+      showNotification('MIDI enabled - Press Cmd+Shift+M to access MIDI Learn');
+      if (!success) {
         console.warn('MIDI initialization failed');
       }
     });
@@ -122,7 +196,11 @@ const App: Component = () => {
         e: CustomEvent
       ) => {}) as EventListener);
 
-      cleanupNotifications();
+      // Clean up notification element
+      if (notificationEl && notificationEl.parentNode) {
+        notificationEl.parentNode.removeChild(notificationEl);
+      }
+      notificationEl = undefined;
 
       // Clean up MIDI
       disableSamplePlayerMidi();
@@ -151,11 +229,14 @@ const App: Component = () => {
             defaultTheme='light'
           />
 
-          {/* <tempo-knob
-          target-node-id='test-sampler'
-          label=' '
-          class={`left-side-button ${sidebarOpen() ? 'open' : ''} `}
-        /> */}
+          {/* <KnobComponent
+            preset='tempo'
+            label=' '
+            class={`left-side-button ${sidebarOpen() ? 'open' : ''} `}
+            onChange={(detail: KnobChangeEventDetail) =>
+              samplePlayerRef?.setTempo(detail.value)
+            }
+          /> */}
         </div>
         <Sidebar
           isOpen={sidebarOpen()}
@@ -178,24 +259,6 @@ const App: Component = () => {
                   bg-color='var(--envelope-bg)'
                   target-node-id='test-sampler'
                 />
-                {/* <div class='flex-row'>
-                <trim-start-knob target-node-id='test-sampler' />
-                <trim-end-knob target-node-id='test-sampler' />
-
-                <loop-start-knob
-                  target-node-id='test-sampler'
-                  label='Loop Start'
-                />
-                <loop-duration-knob
-                  target-node-id='test-sampler'
-                  label='Loop Duration'
-                />
-                <loop-duration-drift-knob
-                  target-node-id='test-sampler'
-                  label='Loop Drift'
-                />
-                <pan-drift-toggle target-node-id='test-sampler' />
-              </div> */}
               </div>
             </div>
           </fieldset>
@@ -203,7 +266,12 @@ const App: Component = () => {
           <fieldset id='sample-group' class='control-group sample-group'>
             <legend class='expandable-legend'>Sample</legend>
             <div class='expandable-content'>
-              <volume-knob target-node-id='test-sampler' />
+              <KnobComponent
+                preset='volume'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setVolume(detail.value)
+                }
+              />
               <div class='flex-col'>
                 <record-button
                   target-node-id='test-sampler'
@@ -239,60 +307,114 @@ const App: Component = () => {
           <fieldset id='space-group' class='control-group space-group'>
             <legend class='expandable-legend'>Space</legend>
             <div class='expandable-content'>
-              <dry-wet-knob target-node-id='test-sampler' />
-              <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
-              <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
-              <delay-send-knob label='Delay' target-node-id='test-sampler' />
-              <delay-time-knob label='Time' target-node-id='test-sampler' />
-              <delay-feedback-knob label='FB' target-node-id='test-sampler' />
+              <KnobComponent
+                preset='dryWet'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setDryWetMix({
+                    dry: 1 - detail.value,
+                    wet: detail.value,
+                  })
+                }
+              />
+              <KnobComponent
+                preset='reverbSend'
+                label='RevSend'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.sendToFx?.('reverb', detail.value)
+                }
+              />
+              <KnobComponent
+                preset='reverbSize'
+                label='RevSize'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setReverbAmount(detail.value)
+                }
+              />
+              <KnobComponent
+                preset='delaySend'
+                label='Delay'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.sendToFx?.('delay', detail.value)
+                }
+              />
+              <KnobComponent
+                preset='delayTime'
+                label='Time'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.outputBus?.setDelayTime(detail.value)
+                }
+              />
+              <KnobComponent
+                preset='delayFeedback'
+                label='FB'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.outputBus?.setDelayFeedback(detail.value)
+                }
+              />
             </div>
           </fieldset>
 
           <fieldset class='control-group filter-group'>
             <legend class='expandable-legend'>Filters</legend>
             <div class='expandable-content'>
-              <highpass-filter-knob target-node-id='test-sampler' />
-              <lowpass-filter-knob target-node-id='test-sampler' />
-
-              {/* <KnobComponent
+              <KnobComponent
                 preset='highpassFilter'
-                displayValue={true}
-                size={45}
                 onChange={(detail: KnobChangeEventDetail) =>
                   samplePlayerRef?.setHpfCutoff(detail.value)
                 }
               />
               <KnobComponent
                 preset='lowpassFilter'
-                displayValue={true}
-                size={45}
                 onChange={(detail: KnobChangeEventDetail) =>
                   samplePlayerRef?.setLpfCutoff(detail.value)
                 }
-              /> */}
+              />
             </div>
           </fieldset>
 
           <fieldset class='control-group misc-group'>
             <legend class='expandable-legend'>Dirt</legend>
             <div class='expandable-content'>
-              <distortion-knob target-node-id='test-sampler' />
-              <am-modulation label='AM' target-node-id='test-sampler' />
+              <KnobComponent
+                preset='distortion'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.outputBus?.setDistortionMacro(detail.value)
+                }
+              />
+              <KnobComponent
+                preset='amplitudeMod'
+                label='AM'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setModulationAmount('AM', detail.value)
+                }
+              />
             </div>
           </fieldset>
 
           <fieldset class='control-group loop-group'>
             <legend class='expandable-legend'>Loop</legend>
             <div class='expandable-content'>
-              <loop-start-knob target-node-id='test-sampler' label='Start' />
-              <loop-duration-knob
-                target-node-id='test-sampler'
+              <KnobComponent
+                preset='loopStart'
+                label='Start'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setLoopStart(detail.value)
+                }
+              />
+              <KnobComponent
+                preset='loopDuration'
                 label='Duration'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setLoopDuration(detail.value)
+                }
               />
               <div class='flex-col'>
-                <loop-duration-drift-knob
-                  target-node-id='test-sampler'
+                <KnobComponent
+                  preset='loopDurationDrift'
                   label='Drift'
+                  onChange={(detail: KnobChangeEventDetail) =>
+                    samplePlayerRef?.setLoopDurationDriftAmount(detail.value)
+                  }
                 />
                 <pan-drift-toggle target-node-id='test-sampler' />
               </div>
@@ -302,28 +424,53 @@ const App: Component = () => {
           <fieldset class='control-group trim-group'>
             <legend class='expandable-legend'>Trim</legend>
             <div class='expandable-content'>
-              <trim-start-knob target-node-id='test-sampler' />
-              <trim-end-knob target-node-id='test-sampler' />
+              <KnobComponent
+                preset='trimStart'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setSampleStartPoint(detail.value)
+                }
+              />
+              <KnobComponent
+                preset='trimEnd'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setSampleEndPoint(detail.value)
+                }
+              />
             </div>
           </fieldset>
 
           <fieldset class='control-group feedback-group'>
             <legend class='expandable-legend'>Feedback</legend>
             <div class='expandable-content'>
-              <feedback-knob target-node-id='test-sampler' label='Amount' />
-              <feedback-pitch-knob
-                target-node-id='test-sampler'
-                label='Pitch'
+              <KnobComponent
+                preset='feedback'
+                label='Amount'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setFeedbackAmount(detail.value)
+                }
               />
-              <feedback-lpf-knob
+              <KnobComponent
+                preset='feedbackPitch'
+                label='Pitch'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setFeedbackPitchScale(detail.value)
+                }
+              />
+              <KnobComponent
+                preset='feedbackLpf'
                 label='Lowpass'
                 class='fb-lpf-knob'
-                target-node-id='test-sampler'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setFeedbackLowpassCutoff(detail.value)
+                }
               />
 
-              <feedback-decay-knob
-                target-node-id='test-sampler'
+              <KnobComponent
+                preset='feedbackDecay'
                 label='Decay'
+                onChange={(detail: KnobChangeEventDetail) =>
+                  samplePlayerRef?.setFeedbackDecay(detail.value)
+                }
               />
 
               <feedback-mode-toggle target-node-id='test-sampler' label='' />
@@ -336,18 +483,25 @@ const App: Component = () => {
               <legend class='expandable-legend'>Amp LFO</legend>
               <div class='expandable-content'>
                 <div class='flex-col'>
-                  <gain-lfo-rate-knob
-                    target-node-id='test-sampler'
+                  <KnobComponent
+                    preset='gainLFORate'
                     label='Rate'
+                    onChange={(detail: KnobChangeEventDetail) => {
+                      const freqHz = detail.value * 100 + 0.1;
+                      samplePlayerRef?.gainLFO?.setFrequency(freqHz);
+                    }}
                   />
                   <gain-lfo-sync-toggle
                     target-node-id='test-sampler'
                     label=''
                   />
                 </div>
-                <gain-lfo-depth-knob
-                  target-node-id='test-sampler'
+                <KnobComponent
+                  preset='gainLFODepth'
                   label='Depth'
+                  onChange={(detail: KnobChangeEventDetail) =>
+                    samplePlayerRef?.gainLFO?.setDepth(detail.value)
+                  }
                 />
               </div>
             </fieldset>
@@ -356,18 +510,26 @@ const App: Component = () => {
               <legend class='expandable-legend'>Pitch LFO</legend>
               <div class='expandable-content'>
                 <div class='flex-col'>
-                  <pitch-lfo-rate-knob
-                    target-node-id='test-sampler'
+                  <KnobComponent
+                    preset='pitchLFORate'
                     label='Rate'
+                    onChange={(detail: KnobChangeEventDetail) => {
+                      const freqHz = detail.value * 100 + 0.1;
+                      samplePlayerRef?.pitchLFO?.setFrequency(freqHz);
+                    }}
                   />
                   <pitch-lfo-sync-toggle
                     target-node-id='test-sampler'
                     label=''
                   />
                 </div>
-                <pitch-lfo-depth-knob
-                  target-node-id='test-sampler'
+                <KnobComponent
+                  preset='pitchLFODepth'
                   label='Depth'
+                  onChange={(detail: KnobChangeEventDetail) => {
+                    const scaledDepth = detail.value / 10;
+                    samplePlayerRef?.pitchLFO?.setDepth(scaledDepth);
+                  }}
                 />
               </div>
             </fieldset>
@@ -408,12 +570,32 @@ const App: Component = () => {
                   />
                 </div>
 
-                <glide-knob target-node-id='test-sampler' />
+                <KnobComponent
+                  preset='glide'
+                  onChange={(detail: KnobChangeEventDetail) =>
+                    samplePlayerRef?.setGlideTime(detail.value)
+                  }
+                />
               </div>
             </div>
           </fieldset>
 
-          <RowCollapseIcons />
+          <div
+            class='row-collapse-icon'
+            data-row='1'
+            style='grid-area: space'
+          />
+          <div
+            class='row-collapse-icon'
+            data-row='2'
+            style='grid-area: feedback'
+          />
+          <div class='row-collapse-icon' data-row='3' style='grid-area: lfo' />
+          <div
+            class='row-collapse-icon'
+            data-row='4'
+            style='grid-area: keyboard'
+          />
         </div>
       </div>
     </>

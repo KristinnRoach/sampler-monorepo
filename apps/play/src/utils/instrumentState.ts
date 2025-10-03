@@ -292,8 +292,9 @@ export function restoreInstrumentState(settings: InstrumentSettings): void {
               // Apply the state to the sampler based on the toggle type
               switch (tagName) {
                 case 'midi-toggle':
-                  if (value === 'midi_on') sampler.enableMIDI();
-                  else sampler.disableMIDI();
+                  // TODO: work or remove
+                  // if (value === 'midi_on') sampler.enableMIDI();
+                  // else sampler.disableMIDI();
                   break;
                 case 'playback-direction-toggle':
                   sampler.setPlaybackDirection(

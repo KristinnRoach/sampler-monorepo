@@ -1,7 +1,6 @@
 // SamplePlayer.ts - Refactored with Composition Pattern
 
 import { getAudioContext } from '@/context';
-import { MidiController } from '@/io';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { clamp, findClosestNote, ROOT_NOTES } from '@/utils';
@@ -66,7 +65,6 @@ export class SamplePlayer implements ILibInstrumentNode {
   #isLoaded = false;
   #polyphony: number;
   #initialAudioBuffer: AudioBuffer | null = null;
-  #midiController: MidiController | null = null;
 
   #connections = new Set<NodeID>();
   #incoming = new Set<NodeID>();
@@ -107,18 +105,19 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   #recordInputSource: InputSource = 'microphone';
 
+  // TODO: move to input controller
+  #sustainedNotes = new Set<MidiValue>();
+
   constructor(
     context: AudioContext,
     polyphony: number = 16,
-    audioBuffer?: AudioBuffer,
-    midiController?: MidiController
+    audioBuffer?: AudioBuffer
   ) {
     this.nodeId = registerNode('sample-player', this);
     this.context = context;
 
     // Synchronus setup
     this.#messages = createMessageBus<Message>(this.nodeId);
-    this.#midiController = midiController || null;
 
     this.#masterOut = new GainNode(this.context, { gain: 0.5 });
 
@@ -611,10 +610,15 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.outBus.noteOn(transposedMidiNote, safeVelocity, 0, glideTime);
 
+    // If sustain pedal is pressed when note starts, mark it as sustained
+    if (this.#sustainPedalPressed) {
+      this.#sustainedNotes.add(transposedMidiNote);
+    }
+
     return this.voicePool.noteOn(
       transposedMidiNote,
       safeVelocity,
-      0, // zero delay
+      0,
       glideTime
     );
   }
@@ -623,6 +627,17 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (this.holdEnabled || this.#holdLocked) return this;
 
     const transposedMidiNote = midiNote + this.#transposedBySemitones;
+
+    // If sustain pedal is pressed, don't release the note immediately
+    // Instead, mark it for sustain
+    if (this.#sustainPedalPressed) {
+      this.#sustainedNotes.add(transposedMidiNote);
+      return this;
+    }
+
+    // Remove from sustained notes if it was there
+    this.#sustainedNotes.delete(transposedMidiNote);
+
     this.voicePool.noteOff(transposedMidiNote);
     this.sendUpstreamMessage('note:off', { transposedMidiNote });
     return this;
@@ -789,6 +804,18 @@ export class SamplePlayer implements ILibInstrumentNode {
     if (!this.#holdLocked) {
       this.setHoldEnabled(pressed);
     }
+
+    // Handle per-note sustain behavior
+    if (!pressed) {
+      // When sustain pedal is released, release all sustained notes
+      for (const note of this.#sustainedNotes) {
+        this.voicePool.noteOff(note);
+        this.sendUpstreamMessage('note:off', { transposedMidiNote: note });
+      }
+      this.#sustainedNotes.clear();
+    }
+    // When sustain pedal is pressed, currently playing notes will be
+    // automatically sustained by the logic in the release method
 
     return this;
   }
@@ -1240,66 +1267,66 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === I/O === */
 
-  async initMidiController(): Promise<boolean> {
-    if (this.#midiController?.isInitialized) {
-      return true;
-    }
+  // async initMidiController(): Promise<boolean> {
+  //   if (this.#midiController?.isInitialized) {
+  //     return true;
+  //   }
 
-    if (!this.#midiController) {
-      this.#midiController = new MidiController();
-    }
+  //   if (!this.#midiController) {
+  //     this.#midiController = new MidiController();
+  //   }
 
-    assert(
-      this.#midiController,
-      `SamplePlayer: Failed to create MIDI controller`
-    );
+  //   assert(
+  //     this.#midiController,
+  //     `SamplePlayer: Failed to create MIDI controller`
+  //   );
 
-    const result = await tryCatch(() => this.#midiController!.initialize());
-    assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
-    return result.data;
-  }
+  //   const result = await tryCatch(() => this.#midiController!.initialize());
+  //   assert(!result.error, `SamplePlayer: Failed to initialize MIDI`);
+  //   return result.data;
+  // }
 
-  setMidiController(midiController: MidiController): this {
-    this.#midiController = midiController;
-    return this;
-  }
+  // setMidiController(midiController: MidiController): this {
+  //   this.#midiController = midiController;
+  //   return this;
+  // }
 
-  async enableMIDI(
-    midiController?: MidiController,
-    channel: number | 'all' = 'all'
-  ): Promise<this> {
-    if (!midiController) {
-      midiController = new MidiController();
-      await midiController.initialize();
-    }
+  // async enableMIDI(
+  //   midiController?: MidiController,
+  //   channel: number | 'all' = 'all'
+  // ): Promise<this> {
+  //   if (!midiController) {
+  //     midiController = new MidiController();
+  //     await midiController.initialize();
+  //   }
 
-    if (midiController.isInitialized) {
-      this.#midiController = midiController;
-      midiController.connectInstrument(this, channel);
+  //   if (midiController.isInitialized) {
+  //     this.#midiController = midiController;
+  //     midiController.connectInstrument(this, channel);
 
-      this.sendUpstreamMessage('midi:enabled', { channel });
-    }
-    return this;
-  }
+  //     this.sendUpstreamMessage('midi:enabled', { channel });
+  //   }
+  //   return this;
+  // }
 
-  disableMIDI(
-    midiController?: MidiController,
-    channel: number | 'all' = 'all'
-  ): this {
-    const controller = midiController || this.#midiController;
-    controller?.disconnectInstrument(this, channel);
-    if (controller === this.#midiController) {
-      this.#midiController = null;
-    }
+  // disableMIDI(
+  //   midiController?: MidiController,
+  //   channel: number | 'all' = 'all'
+  // ): this {
+  //   const controller = midiController || this.#midiController;
+  //   controller?.disconnectInstrument(this, channel);
+  //   if (controller === this.#midiController) {
+  //     this.#midiController = null;
+  //   }
 
-    this.sendUpstreamMessage('midi:disabled', { channel });
+  //   this.sendUpstreamMessage('midi:disabled', { channel });
 
-    return this;
-  }
+  //   return this;
+  // }
 
-  switchMIDIChannel(channel: number | 'all') {
-    this.#midiController?.switchInstrumentChannel(this, channel);
-  }
+  // switchMIDIChannel(channel: number | 'all') {
+  //   this.#midiController?.switchInstrumentChannel(this, channel);
+  // }
 
   /* === PUBLIC GETTERS === */
 
@@ -1361,6 +1388,9 @@ export class SamplePlayer implements ILibInstrumentNode {
     try {
       this.releaseAll();
 
+      // Clear sustained notes
+      this.#sustainedNotes.clear();
+
       if (this.voicePool) {
         this.voicePool.dispose();
         this.voicePool = null as unknown as SampleVoicePool;
@@ -1380,7 +1410,6 @@ export class SamplePlayer implements ILibInstrumentNode {
       this.#pitchLFO?.dispose();
 
       this.disconnect();
-      this.disableMIDI();
 
       // Reset state variables
       this.#bufferDuration = 0;

@@ -56,14 +56,21 @@ export default defineConfig({
     //   rollupTypes: true,
     // }),
 
-    // OR SHARED DTS
+    // Single DTS instance with proper configuration
     dts({
       include: ['src/**/*'],
-      exclude: ['**/*.test.ts', '**/__tests__/**'],
+      exclude: [
+        '**/*.test.ts',
+        '**/__tests__/**',
+        // Exclude problematic files that cause build issues
+        'src/shared/utils/icons/**/*',
+        'src/elements/controls/envelope/env-playheads.ts',
+        'src/elements/controls/envelope/EnvelopeSVG.ts',
+        'src/elements/primitives/createSVGButton.ts',
+      ],
       outDir: 'dist',
       entryRoot: 'src',
-      rollupTypes: true,
-      insertTypesEntry: true,
+      rollupTypes: false, // Keep individual files for better IntelliSense
     }),
   ],
 
