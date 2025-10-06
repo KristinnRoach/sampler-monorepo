@@ -48,6 +48,12 @@ declare global {
         'aria-valuemin'?: number;
         'aria-valuemax'?: number;
         'aria-valuenow'?: number;
+      };
+
+      'oscilloscope-element': ComponentProps<'div'> & {
+        ref?: React.Ref<HTMLElement>;
+        className?: string;
+        style?: React.CSSProperties;
         'aria-orientation'?: 'horizontal' | 'vertical';
         'data-testid'?: string;
       };

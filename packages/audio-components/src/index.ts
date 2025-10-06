@@ -31,6 +31,9 @@ export {
 // Knob components
 export { KnobElement } from './elements/primitives/KnobElement';
 
+// Oscilloscope components
+export { OscilloscopeElement } from './elements/OscilloscopeElement';
+
 export {
   DryWetKnob,
   FeedbackKnob,

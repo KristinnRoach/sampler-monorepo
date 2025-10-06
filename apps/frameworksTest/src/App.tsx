@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   KnobComponent,
   KnobChangeEventDetail,
+  OscilloscopeComponent,
 } from '@repo/audio-components/react';
 import '@repo/audio-components/style';
 import './App.css';
@@ -24,6 +25,19 @@ function App() {
   const [feedbackValue, setFeedbackValue] = useState(0.2);
   const [customValue, setCustomValue] = useState(0.3);
   const [steppedValue, setSteppedValue] = useState(5);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [oscillator, setOscillator] = useState<OscillatorNode | null>(null);
+
+  const startAudio = () => {
+    if (audioContext) return; // Already started
+
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 440;
+    osc.start();
+    setAudioContext(ctx);
+    setOscillator(osc);
+  };
 
   const handleBasicChange = (detail: KnobChangeEventDetail) => {
     setBasicValue(detail.value);
@@ -126,6 +140,17 @@ function App() {
             color='#4CAF50'
           />
           <p>Value: {steppedValue}</p>
+        </div>
+
+        <div className='knob-section'>
+          <h2>Oscilloscope</h2>
+          {!audioContext && <button onClick={startAudio}>Start Audio</button>}
+          {audioContext && (
+            <OscilloscopeComponent
+              audioContext={audioContext || undefined}
+              inputNode={oscillator || undefined}
+            />
+          )}
         </div>
         {/*  TODO: Implement Pan Control Knob
         <div className='knob-section'>

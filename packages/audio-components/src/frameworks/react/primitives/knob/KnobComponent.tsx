@@ -10,10 +10,7 @@ import {
   createKnobElement,
 } from '../../../../elements/primitives/KnobElement';
 
-import {
-  KnobPresetProps,
-  KnobPresetKey,
-} from '../../../solidjs/primitives/knob/KnobPresets';
+import { KnobPresetProps, KnobPresetKey } from '../../../shared/KnobPresets';
 
 export interface KnobComponentProps extends Partial<KnobConfig> {
   preset?: KnobPresetKey;

@@ -1,12 +1,8 @@
-// import { LibInstrument, SampleVoice, KarplusVoice } from '@/nodes';
-// // temp type until voices sorted
-// type LibVoice = SampleVoice | KarplusVoice;
-
 export class Oscilloscope {
   private node: AnalyserNode;
 
   private canvas: HTMLCanvasElement;
-  private canvasCtx: CanvasRenderingContext2D; // | null = null;
+  private canvasCtx: CanvasRenderingContext2D;
 
   private get width() {
     return this.canvas.width;
@@ -15,10 +11,10 @@ export class Oscilloscope {
     return this.canvas.height;
   }
 
-  constructor(engine: any, canvas: HTMLCanvasElement) {
-    this.node = engine.context.createAnalyser();
+  constructor(ctx: AudioContext, input: AudioNode, canvas: HTMLCanvasElement) {
+    this.node = ctx.createAnalyser();
     this.node.fftSize = 2048;
-    engine.output.node.connect(this.node);
+    input.connect(this.node);
     this.node.smoothingTimeConstant = 0.2;
 
     this.canvas = canvas;
@@ -126,5 +122,8 @@ export class Oscilloscope {
   }
 }
 
-export const createOscilloscope = (engine: any, canvas: HTMLCanvasElement) =>
-  new Oscilloscope(engine, canvas);
+export const createOscilloscope = (
+  ctx: AudioContext,
+  input: AudioNode,
+  canvas: HTMLCanvasElement
+) => new Oscilloscope(ctx, input, canvas);
