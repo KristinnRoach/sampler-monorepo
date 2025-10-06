@@ -11,7 +11,7 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
-import { assert, clamp, mapToRange } from '@/utils';
+import { assert, cancelScheduledParamValues, clamp, mapToRange } from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -282,10 +282,9 @@ export class CustomEnvelope implements LibNode {
         const safeStart = Math.max(now + 0.001, startTime);
 
         // Cancel all previous scheduling
-        audioParam.cancelScheduledValues(now);
+        cancelScheduledParamValues(audioParam, safeStart);
 
         // Simple attack and decay
-        audioParam.setValueAtTime(audioParam.value, now);
         audioParam.linearRampToValueAtTime(
           options.baseValue * 0.8,
           safeStart + 0.01
@@ -403,8 +402,7 @@ export class CustomEnvelope implements LibNode {
     }
 
     try {
-      // audioParam.cancelScheduledValues(timestamp);
-      // audioParam.setValueAtTime(curve[0], timestamp);
+      cancelScheduledParamValues(audioParam, safeStart);
       audioParam.setValueCurveAtTime(curve, safeStart, scaledDuration);
 
       // Clear active envelope state when envelope completes (if not sustained)
@@ -419,8 +417,8 @@ export class CustomEnvelope implements LibNode {
     } catch (error) {
       console.debug('Failed to apply envelope curve due to rapid fire.');
       try {
-        // audioParam.cancelScheduledValues(safeStart);
-        // audioParam.setValueAtTime(audioParam.value, safeStart);
+        cancelScheduledParamValues(audioParam, safeStart);
+
         audioParam.linearRampToValueAtTime(
           curve[curve.length - 1],
           safeStart + scaledDuration
@@ -675,8 +673,7 @@ export class CustomEnvelope implements LibNode {
         setTimeout(() => {
           try {
             const delayedNow = this.#context.currentTime;
-            audioParam.cancelScheduledValues(delayedNow);
-            audioParam.setValueAtTime(audioParam.value, delayedNow);
+            cancelScheduledParamValues(audioParam, delayedNow);
             audioParam.linearRampToValueAtTime(0, delayedNow + 0.1);
             console.debug(
               'Firefox delayed release envelope - linear ramp to 0'
@@ -778,8 +775,7 @@ export class CustomEnvelope implements LibNode {
 
     try {
       // ! Needs testing specifically for Firefox ( and Safari )
-      // audioParam.cancelScheduledValues(safeStart);
-      // audioParam.setValueAtTime(currentValue, safeStart);
+      cancelScheduledParamValues(audioParam, safeStart);
 
       // Adjust curve to start from currentValue instead of envelope's release point
       const adjustedCurve = new Float32Array(curve.length);
@@ -799,8 +795,8 @@ export class CustomEnvelope implements LibNode {
 
       try {
         // Fallback to simple linear ramp
-        audioParam.cancelScheduledValues(safeStart);
-        audioParam.setValueAtTime(currentValue, safeStart);
+        cancelScheduledParamValues(audioParam, safeStart);
+
         audioParam.linearRampToValueAtTime(
           targetEndValue,
           safeStart + scaledRemainingDuration
@@ -871,11 +867,7 @@ export class CustomEnvelope implements LibNode {
 
     try {
       // Cancel current scheduling
-      audioParam.cancelScheduledValues(currentTime);
-
-      // Get current audio param value for seamless transition
-      const currentValue = audioParam.value;
-      audioParam.setValueAtTime(currentValue, currentTime);
+      cancelScheduledParamValues(audioParam, currentTime);
 
       // Calculate remaining duration to sustain point
       const remainingTimeToSustain = sustainPoint.time - scaledElapsedTime;
@@ -892,7 +884,7 @@ export class CustomEnvelope implements LibNode {
             ...options,
             minValue: audioParam.minValue,
             maxValue: audioParam.maxValue,
-            startFromValue: currentValue,
+            startFromValue: audioParam.value,
           }
         );
 

@@ -1,4 +1,4 @@
-import { KnobComponentProps } from './KnobComponent';
+import { KnobComponentProps } from '../solidjs/primitives/knob/KnobComponent';
 // import { KnobChangeEventDetail } from '../../types';
 
 // ===== KNOB CONFIGURATIONS (KnobComponent-compatible) =====

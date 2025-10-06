@@ -4,6 +4,7 @@ import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
 import {
   KnobComponent,
   type KnobChangeEventDetail,
+  Oscilloscope,
 } from '@repo/audio-components/solidjs';
 
 import './styles/midi-learn.css';
@@ -51,7 +52,6 @@ const App: Component = () => {
       setSampleLoaded(true);
     };
 
-    // Simple responsive layout detection
     const updateLayout = () => {
       setLayout(getLayoutFromWidth(window.innerWidth));
     };
@@ -105,16 +105,13 @@ const App: Component = () => {
       }
     }) as EventListener);
 
-    updateLayout(); // Initial check
-
-    // Add expand/collapse listeners
+    updateLayout();
     addExpandCollapseListeners();
 
     onCleanup(() => {
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       window.removeEventListener('resize', updateLayout);
 
-      // Remove MIDI notification event listeners
       document.removeEventListener('midi:learn', ((
         e: CustomEvent
       ) => {}) as EventListener);
@@ -123,8 +120,6 @@ const App: Component = () => {
       ) => {}) as EventListener);
 
       cleanupNotifications();
-
-      // Clean up MIDI
       disableSamplePlayerMidi();
     });
   });
@@ -162,6 +157,9 @@ const App: Component = () => {
           onClose={() => setSidebarOpen(false)}
           onSampleSelect={handleSampleSelect}
         />
+
+        {/* <Oscilloscope ctx={} input={} /> */}
+
         <div class={`control-grid layout-${layout()}`} id='sampler-container'>
           <sampler-element
             ref={samplerElementRef}

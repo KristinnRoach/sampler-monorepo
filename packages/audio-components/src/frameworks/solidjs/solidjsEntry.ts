@@ -8,8 +8,8 @@ export { KnobComponent } from './primitives/knob/KnobComponent';
 
 // Export types for consumers
 export type { KnobComponentProps } from './primitives/knob/KnobComponent';
-export type { KnobPresetKey } from './primitives/knob/KnobPresets';
-export { KnobPresetProps } from './primitives/knob/KnobPresets';
+export type { KnobPresetKey } from '../shared/KnobPresets';
+export { KnobPresetProps } from '../shared/KnobPresets';
 
 export type {
   KnobConfig,
@@ -18,3 +18,7 @@ export type {
 
 // Re-export the core element class for advanced usage
 export { KnobElement } from '../../elements/primitives/KnobElement';
+
+export { Oscilloscope } from './OscilloScopeComponent';
+export type { OscilloscopeProps } from './OscilloScopeComponent';
+export { OscilloscopeElement } from '../../elements/OscilloscopeElement';
