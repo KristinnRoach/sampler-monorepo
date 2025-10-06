@@ -1,19 +1,19 @@
-import { KnobComponentProps } from '../solidjs/primitives/knob/KnobComponent';
+import { SharedKnobComponentProps } from './types';
 // import { KnobChangeEventDetail } from '../../types';
 
-// ===== KNOB CONFIGURATIONS (KnobComponent-compatible) =====
+// ===== KNOB CONFIGURATIONS (Framework-agnostic) =====
 
-const volumeKnobProps: KnobComponentProps = {
+const volumeKnobProps: SharedKnobComponentProps = {
   label: 'Volume',
   defaultValue: 0.75,
 };
 
-const dryWetKnobProps: KnobComponentProps = {
+const dryWetKnobProps: SharedKnobComponentProps = {
   label: 'Dry/Wet',
   defaultValue: 0.5,
 };
 
-const feedbackKnobProps: KnobComponentProps = {
+const feedbackKnobProps: SharedKnobComponentProps = {
   label: 'Feedback',
   defaultValue: 0.0,
   minValue: 0,
@@ -23,7 +23,7 @@ const feedbackKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
-const distortionKnobProps: KnobComponentProps = {
+const distortionKnobProps: SharedKnobComponentProps = {
   label: 'Distortion',
   defaultValue: 0.0,
   minValue: 0,
@@ -31,21 +31,21 @@ const distortionKnobProps: KnobComponentProps = {
   curve: 1.5,
 };
 
-const driveKnobProps: KnobComponentProps = {
+const driveKnobProps: SharedKnobComponentProps = {
   label: 'Drive',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
 };
 
-const clippingKnobProps: KnobComponentProps = {
+const clippingKnobProps: SharedKnobComponentProps = {
   label: 'Clipping',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
 };
 
-const glideKnobProps: KnobComponentProps = {
+const glideKnobProps: SharedKnobComponentProps = {
   label: 'Glide',
   defaultValue: 0.0,
   minValue: 0,
@@ -55,7 +55,7 @@ const glideKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
-const feedbackPitchKnobProps: KnobComponentProps = {
+const feedbackPitchKnobProps: SharedKnobComponentProps = {
   label: 'FB-Pitch',
   defaultValue: 1.0,
   minValue: 0.25,
@@ -64,7 +64,7 @@ const feedbackPitchKnobProps: KnobComponentProps = {
   curve: 2,
 };
 
-const feedbackDecayKnobProps: KnobComponentProps = {
+const feedbackDecayKnobProps: SharedKnobComponentProps = {
   label: 'FB-Decay',
   defaultValue: 0.75,
   minValue: 0.01,
@@ -72,7 +72,7 @@ const feedbackDecayKnobProps: KnobComponentProps = {
   curve: 1.5,
 };
 
-const feedbackLpfKnobProps: KnobComponentProps = {
+const feedbackLpfKnobProps: SharedKnobComponentProps = {
   label: 'FB-LPF',
   defaultValue: 10000,
   minValue: 400,
@@ -81,7 +81,7 @@ const feedbackLpfKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,
 };
 
-const delayTimeKnobProps: KnobComponentProps = {
+const delayTimeKnobProps: SharedKnobComponentProps = {
   label: 'Delay',
   defaultValue: 0.1,
   minValue: 0.005,
@@ -90,7 +90,7 @@ const delayTimeKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${v.toFixed(3)} s`,
 };
 
-const delayFBKnobProps: KnobComponentProps = {
+const delayFBKnobProps: SharedKnobComponentProps = {
   label: 'Delay Feedback',
   defaultValue: 0.25,
   minValue: 0,
@@ -99,7 +99,7 @@ const delayFBKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
 };
 
-const delaySendKnobProps: KnobComponentProps = {
+const delaySendKnobProps: SharedKnobComponentProps = {
   label: 'Delay Send',
   defaultValue: 0,
   minValue: 0,
@@ -108,33 +108,33 @@ const delaySendKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
 };
 
-const gainLFORateKnobProps: KnobComponentProps = {
+const gainLFORateKnobProps: SharedKnobComponentProps = {
   label: 'Amp LFO Rate',
   defaultValue: 0.1,
   curve: 5,
   snapIncrement: 0,
 };
 
-const gainLFODepthKnobProps: KnobComponentProps = {
+const gainLFODepthKnobProps: SharedKnobComponentProps = {
   label: 'Amp LFO Depth',
   defaultValue: 0.0,
   curve: 1.5,
 };
 
-const pitchLFORateKnobProps: KnobComponentProps = {
+const pitchLFORateKnobProps: SharedKnobComponentProps = {
   label: 'Pitch LFO Rate',
   defaultValue: 0.01,
   curve: 5,
   snapIncrement: 0,
 };
 
-const pitchLFODepthKnobProps: KnobComponentProps = {
+const pitchLFODepthKnobProps: SharedKnobComponentProps = {
   label: 'Pitch LFO Depth',
   defaultValue: 0.0,
   curve: 1.5,
 };
 
-const reverbSendKnobProps: KnobComponentProps = {
+const reverbSendKnobProps: SharedKnobComponentProps = {
   label: 'Reverb Send',
   defaultValue: 0,
   minValue: 0,
@@ -143,13 +143,13 @@ const reverbSendKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
 };
 
-const reverbSizeKnobProps: KnobComponentProps = {
+const reverbSizeKnobProps: SharedKnobComponentProps = {
   label: 'Reverb Size',
   defaultValue: 0.7,
   curve: 1,
 };
 
-const loopDurationDriftKnobProps: KnobComponentProps = {
+const loopDurationDriftKnobProps: SharedKnobComponentProps = {
   label: 'Loop Drift',
   defaultValue: 0.3,
   minValue: 0,
@@ -159,7 +159,7 @@ const loopDurationDriftKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
 };
 
-const lowpassFilterKnobProps: KnobComponentProps = {
+const lowpassFilterKnobProps: SharedKnobComponentProps = {
   label: 'LPF',
   defaultValue: 20000,
   minValue: 40,
@@ -168,7 +168,7 @@ const lowpassFilterKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => `${v.toFixed(0)} Hz`,
 };
 
-const highpassFilterKnobProps: KnobComponentProps = {
+const highpassFilterKnobProps: SharedKnobComponentProps = {
   label: 'HPF',
   defaultValue: 40,
   minValue: 20,
@@ -176,7 +176,7 @@ const highpassFilterKnobProps: KnobComponentProps = {
   curve: 5,
 };
 
-const amplitudeModKnobProps: KnobComponentProps = {
+const amplitudeModKnobProps: SharedKnobComponentProps = {
   label: 'AM',
   defaultValue: 0,
   minValue: 0,
@@ -184,21 +184,21 @@ const amplitudeModKnobProps: KnobComponentProps = {
   curve: 1,
 };
 
-const trimStartKnobProps: KnobComponentProps = {
+const trimStartKnobProps: SharedKnobComponentProps = {
   label: 'Start',
   defaultValue: 0,
   snapIncrement: 0.001,
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
-const trimEndKnobProps: KnobComponentProps = {
+const trimEndKnobProps: SharedKnobComponentProps = {
   label: 'End',
   defaultValue: 1,
   snapIncrement: 0.001,
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
-const loopStartKnobProps: KnobComponentProps = {
+const loopStartKnobProps: SharedKnobComponentProps = {
   label: 'Loop Start',
   defaultValue: 0,
   minValue: 0,
@@ -206,7 +206,7 @@ const loopStartKnobProps: KnobComponentProps = {
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
-const loopDurationKnobProps: KnobComponentProps = {
+const loopDurationKnobProps: SharedKnobComponentProps = {
   label: 'Loop Length',
   defaultValue: 1,
   minValue: 0,
@@ -215,7 +215,7 @@ const loopDurationKnobProps: KnobComponentProps = {
   snapIncrement: 0,
 };
 
-const tempoKnobProps: KnobComponentProps = {
+const tempoKnobProps: SharedKnobComponentProps = {
   label: 'Tempo',
   defaultValue: 120,
   minValue: 20,

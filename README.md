@@ -46,10 +46,6 @@ pnpm watch
 pnpm build
 ```
 
-## Development
-
-Built as a final project for my BS in Computer Science at the University of Iceland, and further developed post-graduation to create a production-ready web application.
-
 ## License
 
 MIT
