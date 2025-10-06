@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/Hljóð-Smali_Light_Screensho_0925.jpeg" alt="Hljóð-Smali Light Theme" width="100%">
+  <img src="assets/screenshots/Hljóð-Smali_Light_Screenshot_0925.jpeg" alt="Hljóð-Smali Light Theme" width="100%">
   <br>
   <em>Light theme showing the same interface</em>
 </p>
