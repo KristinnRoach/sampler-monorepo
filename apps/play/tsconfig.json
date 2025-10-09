@@ -17,11 +17,13 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-
     "allowJs": true,
+
+    "baseUrl": "./",
     "paths": {
+      "@/*": ["./src/*"],
       "@repo/input-controller": ["../../packages/input-controller/src/index.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "src/types"]
 }

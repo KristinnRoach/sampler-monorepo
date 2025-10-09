@@ -2,12 +2,14 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { VitePWA } from 'vite-plugin-pwa';
 import solidPlugin from 'vite-plugin-solid';
+import solidSvg from 'vite-plugin-solid-svg';
 
 export default defineConfig({
   base: './',
 
   plugins: [
     solidPlugin(),
+    solidSvg(),
     VitePWA({
       registerType: 'autoUpdate', // Automatically update the service worker
       includeAssets: [
