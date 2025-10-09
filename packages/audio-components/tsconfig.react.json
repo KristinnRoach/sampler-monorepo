@@ -5,6 +5,12 @@
     "jsxImportSource": "react",
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
+  "include": [
+    "src/frameworks/react/**/*",
+    "src/elements/**/*",
+    "src/frameworks/shared/**/*",
+    "src/types/**/*",
+    "src/index.ts"
+  ],
   "exclude": ["src/frameworks/solidjs/**/*", "**/*.test.ts", "**/__tests__/**"]
 }
