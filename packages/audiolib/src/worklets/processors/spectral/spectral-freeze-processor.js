@@ -17,6 +17,8 @@ class SpectralFreezeProcessor extends AudioWorkletProcessor {
     this.frozenSpectrum = null; // stored frozen complex bins
     this.hasLoggedFFT = false; // To log FFT only once
     this.fftCaptureCount = 0; // Track how many FFTs we've captured
+    // Preallocate analysis buffer for windowed frame
+    this._frameWindowed = new Float32Array(this.fftSize);
 
     // Check if FFT library is available
     console.log(
@@ -77,16 +79,19 @@ class SpectralFreezeProcessor extends AudioWorkletProcessor {
       if (input[0] && input[0].length > 0) {
         // Just keep the last received block
         this.inputBuffer.fill(0);
-        const copyLength = Math.min(input[0].length, this.fftSize);
+        const in0 = input[0];
+        const copyLength = Math.min(in0.length, this.fftSize);
+        let maxVal = 0.0;
         for (let i = 0; i < copyLength; i++) {
-          this.inputBuffer[i] = input[0][i];
+          const v = in0[i];
+          this.inputBuffer[i] = v;
+          const absV = Math.abs(v);
+          if (absV > maxVal) maxVal = absV;
         }
 
-        // Check if this has audio content
-        const maxVal = Math.max(...Array.from(input[0]).map(Math.abs));
         if (maxVal > 0.01) {
-          // Compute FFT for this frame
-          let frameWindowed = new Array(this.fftSize);
+          // Reuse a preallocated analysis buffer
+          const frameWindowed = this._frameWindowed;
           for (let j = 0; j < this.fftSize; j++) {
             frameWindowed[j] = this.inputBuffer[j] * this.window[j];
           }
@@ -95,12 +100,12 @@ class SpectralFreezeProcessor extends AudioWorkletProcessor {
             this.frozenSpectrum = fft(frameWindowed);
             this.fftCaptureCount++;
 
-            if (this.fftCaptureCount % 10 === 0) {
-              console.log(
-                `[SpectralFreeze] Updated spectrum #${this.fftCaptureCount}, max:`,
-                maxVal.toFixed(4)
-              );
-            }
+            // if (this.fftCaptureCount % 10 === 0) {
+            //   console.debug(
+            //     `[SpectralFreeze] Updated spectrum #${this.fftCaptureCount}, max:`,
+            //     maxVal.toFixed(4)
+            //   );
+            // }
           } catch (error) {
             console.error('[SpectralFreeze] FFT error:', error);
           }

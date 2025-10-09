@@ -56,24 +56,24 @@ const App: Component = () => {
       setLayout(getLayoutFromWidth(window.innerWidth));
     };
 
-    // !TEST Listener, remove later
-    document.body.addEventListener('keydown', (e) => {
-      if (e.repeat) return;
+    // ! Only for testing. Remove when freeze implemented.
+    // document.body.addEventListener('keydown', (e) => {
+    //   if (e.repeat) return;
 
-      if (e.code === 'IntlBackslash') {
-        e.preventDefault();
-        console.log('Freezing active voices');
-        samplePlayerRef?.freezeActiveVoices(true);
-      }
-    });
-    document.body.addEventListener('keyup', (e) => {
-      if (e.code === 'IntlBackslash') {
-        e.preventDefault();
-        console.log('Unfreezing active voices');
-        samplePlayerRef?.freezeActiveVoices(false);
-      }
-    });
-    // !TEST Listener, remove later
+    //   if (e.code === 'IntlBackslash') {
+    //     e.preventDefault();
+    //     console.log('Freezing active voices');
+    //     samplePlayerRef?.freezeActiveVoices(true);
+    //   }
+    // });
+    // document.body.addEventListener('keyup', (e) => {
+    //   if (e.code === 'IntlBackslash') {
+    //     e.preventDefault();
+    //     console.log('Unfreezing active voices');
+    //     samplePlayerRef?.freezeActiveVoices(false);
+    //   }
+    // });
+    // ! END - TEST Listener
 
     document.addEventListener('sample-loaded', handleSampleLoaded);
     window.addEventListener('resize', updateLayout);
