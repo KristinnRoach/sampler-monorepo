@@ -27,7 +27,7 @@
 
 ## Overview
 
-**Hljóð-Smali** (Icelandic for "Sound-Sampler") is a browser-based audio sampler that lets you record audio samples and play them back like a musical instrument. Built as a TypeScript monorepo, it demonstrates practical applications of Web Audio API, Audio Worklets, and modern web component architecture.
+**Hljóð-Smali** (Icelandic for "Sound-Shepherd") is a browser-based audio sampler that lets you record audio samples and play them back like a musical instrument. Built as a TypeScript monorepo, it demonstrates practical applications of Web Audio API, Audio Worklets, and modern web component architecture.
 
 ### Why I Built This
 
