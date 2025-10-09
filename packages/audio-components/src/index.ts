@@ -102,6 +102,3 @@ export { SamplerStatusElement } from './elements/Sampler/components/SamplerStatu
 
 // Old all-in-one version (for reference):
 // export { defineSamplerMonolith } from './elements/monoliths/sampler/SamplerMonolith';
-
-// Framework wrappers // TODO: Move to separate entry point (was a hassle)
-export * from './frameworks/solidjs/solidjsEntry';
