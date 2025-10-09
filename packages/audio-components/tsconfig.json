@@ -7,17 +7,15 @@
 
     "skipLibCheck": true,
     "moduleResolution": "bundler",
-    // "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
     "strict": true,
-    // "noUnusedLocals": true,
-    // "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    "allowJs": true,
 
-    // JSX Configuration - using preserve for framework-agnostic setup
-    "jsx": "preserve",
+    // "noUnusedLocals": true, // Uncomment to clean up unused variables, functions, classes, etc.
+    // "noUnusedParameters": true, // Uncomment to clean up unused function params
 
     "paths": {
       "@/*": ["./src/*"]
@@ -26,9 +24,9 @@
     "declarationDir": "./dist",
     "experimentalDecorators": true,
 
-    "composite": true // ??? Check what exactly this does
+    "composite": true // Only needed if using project references
   },
-  "include": ["src/**/*.ts", "src/**/*.js"],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "**/*.test.ts",
     "**/__tests__/**",
@@ -38,6 +36,5 @@
     "src/frameworks/react/**/*.ts",
     "src/frameworks/solidjs/**/*.tsx",
     "src/frameworks/solidjs/**/*.ts"
-  ],
-  "references": [{ "path": "../audiolib" }]
+  ]
 }

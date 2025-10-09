@@ -10,6 +10,8 @@
     "src/elements/**/*",
     "src/frameworks/shared/**/*",
     "src/types/**/*",
+    "src/shared/**/*",
+    "src/elementRegistry.ts",
     "src/index.ts"
   ],
   "exclude": ["src/frameworks/solidjs/**/*", "**/*.test.ts", "**/__tests__/**"]
