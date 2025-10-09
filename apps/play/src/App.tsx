@@ -1,11 +1,14 @@
+// src/App.tsx
 import { Component, onMount, createSignal, onCleanup } from 'solid-js';
 
 import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
-import {
-  KnobComponent,
-  type KnobChangeEventDetail,
-  Oscilloscope,
-} from '@repo/audio-components/solidjs';
+// import {
+//   KnobComponent,
+//   type KnobChangeEventDetail,
+//   Oscilloscope,
+// } from '@repo/audio-components/solidjs';
+
+import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 
 import './styles/midi-learn.css';
 
@@ -20,7 +23,9 @@ import { getMidiSupportInfo } from '@repo/input-controller';
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
 import Sidebar from './components/Sidebar';
-import SidebarToggle from './components/SidebarToggle';
+import Accordion from './components/Accordion';
+import SampleListSection from './components/SampleListSection';
+import BaseButton from './components/Button';
 import RowCollapseIcons from './components/RowCollapseIcons';
 
 const App: Component = () => {
@@ -33,6 +38,9 @@ const App: Component = () => {
     createSignal<AudioBuffer | null>(null);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
+  const [sidebarSection, setSidebarSection] = createSignal<'menu' | 'samples'>(
+    'samples'
+  );
 
   const { handleSampleSelect } = useSampleSelection(
     () => samplePlayerRef,
@@ -55,25 +63,6 @@ const App: Component = () => {
     const updateLayout = () => {
       setLayout(getLayoutFromWidth(window.innerWidth));
     };
-
-    // ! Only for testing. Remove when freeze implemented.
-    // document.body.addEventListener('keydown', (e) => {
-    //   if (e.repeat) return;
-
-    //   if (e.code === 'IntlBackslash') {
-    //     e.preventDefault();
-    //     console.log('Freezing active voices');
-    //     samplePlayerRef?.freezeActiveVoices(true);
-    //   }
-    // });
-    // document.body.addEventListener('keyup', (e) => {
-    //   if (e.code === 'IntlBackslash') {
-    //     e.preventDefault();
-    //     console.log('Unfreezing active voices');
-    //     samplePlayerRef?.freezeActiveVoices(false);
-    //   }
-    // });
-    // ! END - TEST Listener
 
     document.addEventListener('sample-loaded', handleSampleLoaded);
     window.addEventListener('resize', updateLayout);
@@ -107,6 +96,9 @@ const App: Component = () => {
       }
     });
 
+    updateLayout();
+    addExpandCollapseListeners();
+
     // Listen for MIDI-related custom events
     document.addEventListener('midi:learn', ((
       e: CustomEvent<{ message: string }>
@@ -116,25 +108,11 @@ const App: Component = () => {
       }
     }) as EventListener);
 
-    document.addEventListener('midi:mapping', ((
-      e: CustomEvent<{ message: string }>
-    ) => {
-      if (e.detail?.message) {
-        showNotification(e.detail.message);
-      }
-    }) as EventListener);
-
-    updateLayout();
-    addExpandCollapseListeners();
-
     onCleanup(() => {
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       window.removeEventListener('resize', updateLayout);
 
       document.removeEventListener('midi:learn', ((
-        e: CustomEvent
-      ) => {}) as EventListener);
-      document.removeEventListener('midi:mapping', ((
         e: CustomEvent
       ) => {}) as EventListener);
 
@@ -147,11 +125,37 @@ const App: Component = () => {
     <>
       <div id='page-wrapper' class='page-wrapper'>
         <div class='pre-sidebar-buttons'>
-          <SidebarToggle
-            onclick={() => setSidebarOpen(!sidebarOpen())}
-            isOpen={sidebarOpen()}
-            class='left-side-button'
-          />
+          <BaseButton
+            title='Toggle sidebar menu'
+            onclick={() => {
+              setSidebarSection('menu');
+              setSidebarOpen(true);
+            }}
+            conditionalClass={[{ condition: sidebarOpen(), className: 'open' }]}
+            class='left-side-button sidebar-menu-toggle main-menu-button'
+          >
+            <svg width='20' height='20' viewBox='0 0 24 24' fill='currentColor'>
+              <path d='M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z' />
+            </svg>
+          </BaseButton>
+
+          <BaseButton
+            title='View saved samples'
+            onclick={() => {
+              setSidebarSection('samples');
+              setSidebarOpen(true);
+            }}
+            conditionalClass={[{ condition: sidebarOpen(), className: 'open' }]}
+            class='left-side-button sidebar-menu-toggle samplelib-button'
+          >
+            <SampleWaveformFilled
+              fill={'white'}
+              stroke={'white'}
+              stroke-width={8}
+              width={60}
+              height={60}
+            />
+          </BaseButton>
 
           <SaveButton
             audioBuffer={currentAudioBuffer()}
@@ -174,8 +178,42 @@ const App: Component = () => {
         <Sidebar
           isOpen={sidebarOpen()}
           onClose={() => setSidebarOpen(false)}
-          onSampleSelect={handleSampleSelect}
-        />
+          title='Sidebar Menu'
+        >
+          <Accordion
+            sections={[
+              {
+                id: 'menu',
+                title: 'Menu',
+                content: (
+                  <ul class='mock-menu-list'>
+                    <li>
+                      <button>Home</button>
+                    </li>
+                    <li>
+                      <button>Settings</button>
+                    </li>
+                    <li>
+                      <button>About</button>
+                    </li>
+                    <li>
+                      <button>Help</button>
+                    </li>
+                  </ul>
+                ),
+              },
+              {
+                id: 'samples',
+                title: 'Saved Samples',
+                content: (
+                  <SampleListSection onSampleSelect={handleSampleSelect} />
+                ),
+              },
+            ]}
+            openSectionId={sidebarSection()}
+            onSectionChange={setSidebarSection}
+          />
+        </Sidebar>
 
         {/* <Oscilloscope ctx={} input={} /> */}
 
@@ -438,3 +476,22 @@ const App: Component = () => {
 };
 
 export default App;
+
+// ! Only for testing. Remove when freeze implemented.
+// document.body.addEventListener('keydown', (e) => {
+//   if (e.repeat) return;
+
+//   if (e.code === 'IntlBackslash') {
+//     e.preventDefault();
+//     console.log('Freezing active voices');
+//     samplePlayerRef?.freezeActiveVoices(true);
+//   }
+// });
+// document.body.addEventListener('keyup', (e) => {
+//   if (e.code === 'IntlBackslash') {
+//     e.preventDefault();
+//     console.log('Unfreezing active voices');
+//     samplePlayerRef?.freezeActiveVoices(false);
+//   }
+// });
+// ! END - TEST Listener
