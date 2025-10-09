@@ -1,4 +1,4 @@
-import { Oscilloscope } from '../../../audiolib/src/nodes/drafts/OscilloScope';
+import { Oscilloscope } from '@repo/audiolib';
 
 export class OscilloscopeElement extends HTMLElement {
   private oscilloscope?: Oscilloscope;

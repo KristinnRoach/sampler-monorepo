@@ -26,8 +26,14 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm clean && vite build",
-    "watch": "vite build --watch",
+    "build": "pnpm clean && pnpm build:vanilla && pnpm build:react && pnpm build:solid",
+    "build:vanilla": "vite build --config vite.config.vanilla.ts",
+    "build:react": "vite build --config vite.config.react.ts",
+    "build:solid": "vite build --config vite.config.solid.ts",
+    "watch": "concurrently \"pnpm:watch:*\"",
+    "watch:vanilla": "vite build --watch --config vite.config.vanilla.ts",
+    "watch:react": "vite build --watch --config vite.config.react.ts",
+    "watch:solid": "vite build --watch --config vite.config.solid.ts",
     "clean": "rm -rf dist",
     "clean:deps": "rm -rf node_modules && pnpm install",
     "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune"

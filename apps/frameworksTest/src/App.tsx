@@ -41,27 +41,22 @@ function App() {
 
   const handleBasicChange = (detail: KnobChangeEventDetail) => {
     setBasicValue(detail.value);
-    console.log('Basic knob:', detail);
   };
 
   const handleVolumeChange = (detail: KnobChangeEventDetail) => {
     setVolumeValue(detail.value);
-    console.log('Volume knob:', detail);
   };
 
   const handleFeedbackChange = (detail: KnobChangeEventDetail) => {
     setFeedbackValue(detail.value);
-    console.log('Feedback knob:', detail);
   };
 
   const handleCustomChange = (detail: KnobChangeEventDetail) => {
     setCustomValue(detail.value);
-    console.log('Custom knob:', detail);
   };
 
   const handleSteppedChange = (detail: KnobChangeEventDetail) => {
     setSteppedValue(detail.value);
-    console.log('Stepped knob:', detail);
   };
 
   return (

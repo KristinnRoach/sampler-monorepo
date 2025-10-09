@@ -1,5 +1,4 @@
-import { SharedKnobComponentProps } from './types';
-// import { KnobChangeEventDetail } from '../../types';
+import { SharedKnobComponentProps } from './knob-types';
 
 // ===== KNOB CONFIGURATIONS (Framework-agnostic) =====
 

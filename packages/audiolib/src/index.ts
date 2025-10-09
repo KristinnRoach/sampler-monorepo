@@ -4,6 +4,7 @@ export { createAudioRecorder } from './nodes/recorder';
 
 // =*=*= Classes =*=*= \\
 export { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
+export { Oscilloscope } from './nodes/drafts/OscilloScope';
 
 // =*=*=  Types =*=*= \\
 export type { Recorder } from './nodes/recorder';
