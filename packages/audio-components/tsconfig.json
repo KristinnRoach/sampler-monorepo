@@ -4,6 +4,7 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     // "allowImportingTsExtensions": true,
@@ -15,9 +16,8 @@
     // "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    // JSX Configuration for SolidJS
+    // JSX Configuration - using preserve for framework-agnostic setup
     "jsx": "preserve",
-    "jsxImportSource": "solid-js",
 
     "paths": {
       "@/*": ["./src/*"]
@@ -28,14 +28,16 @@
 
     "composite": true // ??? Check what exactly this does
   },
-  "include": [
-    "src/**/*",
-    "src/shared/utils/icons/unicodes.ts",
-    "src/elements/controls/envelope/env-playheads.ts",
-    "src/elements/controls/envelope/EnvelopeSVG.ts",
-    "src/shared/utils/icons/createWaveformIcons.ts",
-    "src/elements/primitives/createSVGButton.ts",
-    "src/shared/utils/icons/createSvgIcon.ts"
+  "include": ["src/**/*.ts", "src/**/*.js"],
+  "exclude": [
+    "**/*.test.ts",
+    "**/__tests__/**",
+
+    // Framework-specific code
+    "src/frameworks/react/**/*.tsx",
+    "src/frameworks/react/**/*.ts",
+    "src/frameworks/solidjs/**/*.tsx",
+    "src/frameworks/solidjs/**/*.ts"
   ],
   "references": [{ "path": "../audiolib" }]
 }

@@ -1,7 +1,10 @@
 // src/frameworks/solidjs/index.ts
 
-// Import types to ensure they're registered
+// Import solidjs types to ensure they're registered
 import './types';
+
+// Import svg, gsap, etc. types
+import '../../types/modules.d';
 
 // Export the main component
 export { KnobComponent } from './primitives/knob/KnobComponent';

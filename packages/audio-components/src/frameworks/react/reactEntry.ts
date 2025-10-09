@@ -1,7 +1,9 @@
 // src/frameworks/react/reactEntry.ts
 
-// Import types to ensure they're registered
+// Import react types to ensure they're registered
 import './types';
+// Import svg, gsap, etc. types
+import '../../types/modules.d';
 
 // Force import of custom elements to ensure they're registered
 import '../../elements/OscilloscopeElement';

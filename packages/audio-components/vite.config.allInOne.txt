@@ -53,35 +53,18 @@ export default defineConfig({
     cssCodeSplit: false,
   },
   plugins: [
-    solidPlugin(),
-    react(),
-    // SEPARATE DTS INSTANCES FOR EACH ENTRY
-    // dts({
-    //   include: ['src/index.ts', 'src/elements/**/*', 'src/shared/**/*'],
-    //   exclude: ['**/*.test.ts', '**/__tests__/**', 'src/frameworks/**'],
-    //   outDir: 'dist',
-    //   entryRoot: 'src',
-    //   rollupTypes: true,
-    // }),
-    // dts({
-    //   include: ['src/frameworks/solidjs/**/*'],
-    //   exclude: ['**/*.test.ts', '**/__tests__/**'],
-    //   outDir: 'dist',
-    //   entryRoot: 'src',
-    //   rollupTypes: true,
-    // }),
+    solidPlugin({
+      include: 'src/frameworks/solidjs/**/*',
+      exclude: 'src/frameworks/react/**/*',
+    }),
+    react({
+      include: ['src/frameworks/react/**/*'],
+      exclude: ['src/frameworks/solidjs/**/*'],
+    }),
 
-    // Single DTS instance with proper configuration
     // DTS for vanilla entry
     dts({
       tsconfigPath: 'tsconfig.json',
-      include: ['src/**/*'],
-      exclude: [
-        '**/*.test.ts',
-        '**/__tests__/**',
-        'src/frameworks/react/**/*',
-        'src/frameworks/solidjs/**/*',
-      ],
       outDir: 'dist',
       entryRoot: 'src',
       rollupTypes: false,
@@ -89,15 +72,13 @@ export default defineConfig({
     // DTS for React entry
     dts({
       tsconfigPath: 'tsconfig.react.json',
-      include: ['src/frameworks/react/**/*'],
       outDir: 'dist/frameworks/react',
       entryRoot: 'src/frameworks/react',
       rollupTypes: false,
     }),
     // DTS for SolidJS entry
     dts({
-      tsconfigPath: 'tsconfig.solidjs.json',
-      include: ['src/frameworks/solidjs/**/*'],
+      tsconfigPath: 'tsconfig.solid.json',
       outDir: 'dist/frameworks/solidjs',
       entryRoot: 'src/frameworks/solidjs',
       rollupTypes: false,
