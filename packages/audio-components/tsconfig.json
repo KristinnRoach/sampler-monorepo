@@ -28,6 +28,14 @@
 
     "composite": true // ??? Check what exactly this does
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "src/shared/utils/icons/unicodes.ts",
+    "src/elements/controls/envelope/env-playheads.ts",
+    "src/elements/controls/envelope/EnvelopeSVG.ts",
+    "src/shared/utils/icons/createWaveformIcons.ts",
+    "src/elements/primitives/createSVGButton.ts",
+    "src/shared/utils/icons/createSvgIcon.ts"
+  ],
   "references": [{ "path": "../audiolib" }]
 }

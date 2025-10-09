@@ -72,20 +72,35 @@ export default defineConfig({
     // }),
 
     // Single DTS instance with proper configuration
+    // DTS for vanilla entry
     dts({
+      tsconfigPath: 'tsconfig.json',
       include: ['src/**/*'],
       exclude: [
         '**/*.test.ts',
         '**/__tests__/**',
-        // Exclude problematic files that cause build issues
-        'src/shared/utils/icons/**/*',
-        'src/elements/controls/envelope/env-playheads.ts',
-        'src/elements/controls/envelope/EnvelopeSVG.ts',
-        'src/elements/primitives/createSVGButton.ts',
+        'src/frameworks/react/**/*',
+        'src/frameworks/solidjs/**/*',
       ],
       outDir: 'dist',
       entryRoot: 'src',
-      rollupTypes: false, // Keep individual files for better IntelliSense
+      rollupTypes: false,
+    }),
+    // DTS for React entry
+    dts({
+      tsconfigPath: 'tsconfig.react.json',
+      include: ['src/frameworks/react/**/*'],
+      outDir: 'dist/frameworks/react',
+      entryRoot: 'src/frameworks/react',
+      rollupTypes: false,
+    }),
+    // DTS for SolidJS entry
+    dts({
+      tsconfigPath: 'tsconfig.solidjs.json',
+      include: ['src/frameworks/solidjs/**/*'],
+      outDir: 'dist/frameworks/solidjs',
+      entryRoot: 'src/frameworks/solidjs',
+      rollupTypes: false,
     }),
   ],
 
