@@ -34,7 +34,8 @@
     "test:all": "npm run test && npm run test:browser"
   },
   "dependencies": {
-    "dexie": "^4.0.11"
+    "dexie": "^4.0.11",
+    "fft-js": "^0.0.12"
   },
   "devDependencies": {
     "@types/audioworklet": "^0.0.72",
@@ -44,10 +45,10 @@
     "concurrently": "^9.1.2",
     "jsdom": "^26.0.0",
     "playwright": "^1.53.2",
+    "rimraf": "^5.0.1",
     "typescript": "^5.8.0",
     "vite": "^6.0.0",
     "vite-plugin-dts": "^4.5.3",
-    "vitest": "^3.2.4",
-    "rimraf": "^5.0.1"
+    "vitest": "^3.2.4"
   }
 }

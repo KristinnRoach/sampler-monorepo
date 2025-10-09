@@ -1,7 +1,7 @@
 // delay-processor.js
 
 import { DelayBuffer } from './DelayBuffer';
-import { compressSingleSample } from '../shared/utils/compress-utils';
+import { compressSingleSample } from '../../shared/utils/compress-utils';
 
 const DEFAULT_DELAY_CONFIG = {
   CHARACTER: ['filtered'], // 'clean' | 'bitCrushed' | 'filtered' or combo

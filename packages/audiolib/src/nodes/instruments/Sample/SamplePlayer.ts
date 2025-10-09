@@ -482,6 +482,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     });
   }
 
+  freezeActiveVoices(freeze: boolean): this {
+    console.info(
+      `SamplePlayer: freezeActiveVoices(${freeze}). Spectral freeze not implemented yet`
+    );
+    // this.voicePool.applyToActiveVoices((voice) => voice.freeze(freeze));
+    return this;
+  }
+
   /* === LOAD / RESET === */
 
   async loadSample(

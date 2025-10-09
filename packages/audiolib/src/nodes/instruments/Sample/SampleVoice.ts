@@ -40,7 +40,7 @@ export class SampleVoice {
   #initPromise: Promise<void> | null = null;
 
   #outputNode: GainNode;
-  #worklet: AudioWorkletNode;
+  #playerWorklet: AudioWorkletNode;
 
   #am_lfo: LFO | null = null;
   #am_gain: GainNode | null = null;
@@ -84,12 +84,18 @@ export class SampleVoice {
 
     this.#outputNode = new GainNode(context, { gain: 1 });
 
-    this.#worklet = new AudioWorkletNode(context, 'sample-player-processor', {
-      numberOfInputs: 0,
-      numberOfOutputs: 1,
-      outputChannelCount: [2], // Force stereo output
-      processorOptions: options.processorOptions || {},
-    });
+    this.#playerWorklet = new AudioWorkletNode(
+      context,
+      'sample-player-processor',
+      {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2], // Force stereo output
+        processorOptions: options.processorOptions || {},
+      }
+    );
+
+    // Connections are made in #connectAudioChain() during init()
   }
 
   async init(): Promise<void> {
@@ -121,7 +127,7 @@ export class SampleVoice {
 
         // Setup message handling
         this.#setupWorkletMessageHandling();
-        this.#worklet.port.start();
+        this.#playerWorklet.port.start();
       } catch (error) {
         this.dispose();
         this.#initPromise = null;
@@ -138,15 +144,15 @@ export class SampleVoice {
     if (this.#filtersEnabled) {
       assert(this.#hpf && this.#lpf, 'SampleVoice: Filters not initialized!');
 
-      // Connect: worklet -> AM mod gain -> feedback -> hpf -> lpf
-      this.#worklet.connect(this.#am_gain);
-      this.#am_gain.connect(this.#feedback.input);
-      this.#feedback.output.connect(this.#hpf);
+      // Connect: worklet -> feedback -> AM mod gain -> hpf -> lpf
+      this.#playerWorklet.connect(this.#feedback.input);
+      this.#feedback.output.connect(this.#am_gain);
+      this.#am_gain.connect(this.#hpf);
       this.#hpf.connect(this.#lpf);
       this.#lpf.connect(this.#outputNode);
     } else {
       // Without filters
-      this.#worklet.connect(this.#feedback.input);
+      this.#playerWorklet.connect(this.#feedback.input);
       this.#feedback.output.connect(this.#am_gain);
       this.#am_gain.connect(this.#outputNode);
     }
@@ -203,10 +209,10 @@ export class SampleVoice {
     this.#setupEnvelopeMessageHandling();
   }
 
-  logAvailableParams = () => {
+  #logAvailableParams = () => {
     console.table(
       'Available worklet params:',
-      Array.from(this.#worklet.parameters.keys())
+      Array.from(this.#playerWorklet.parameters.keys())
     );
   };
 
@@ -243,6 +249,19 @@ export class SampleVoice {
     }
 
     return true;
+  }
+
+  freeze(freeze: boolean): this {
+    console.info(
+      `SampleVoice: freeze(${freeze}) called. 
+      Spectral freeze not implemented yet`
+    );
+    // if (this.#isFrozen === freeze) return this; // idempotent
+    // this.#isFrozen = freeze;
+    // this.#spectralFreezeWorklet.port.postMessage(
+    //   freeze ? 'freeze' : 'unfreeze'
+    // );
+    return this;
   }
 
   #setZeroCrossings(zeroCrossings: number[]): this {
@@ -851,7 +870,7 @@ export class SampleVoice {
   }
 
   sendToProcessor(data: any): this {
-    this.#worklet.port.postMessage(data);
+    this.#playerWorklet.port.postMessage(data);
     return this;
   }
 
@@ -880,7 +899,7 @@ export class SampleVoice {
   }
 
   #setupWorkletMessageHandling() {
-    this.#worklet.port.onmessage = (event: MessageEvent) => {
+    this.#playerWorklet.port.onmessage = (event: MessageEvent) => {
       let { type, ...data } = event.data;
 
       switch (type) {
@@ -1049,7 +1068,7 @@ export class SampleVoice {
   // Setters
 
   setMasterGain(gain: number) {
-    const param = this.#worklet.parameters.get('masterGain')!;
+    const param = this.#playerWorklet.parameters.get('masterGain')!;
     param.cancelScheduledValues(this.context.currentTime);
     param.setTargetAtTime(gain, this.context.currentTime, 0.006);
   }
@@ -1186,14 +1205,14 @@ export class SampleVoice {
     this.disconnect();
     this.#cleanupAmpModLFO();
     this.#envelopes.forEach((env) => env.dispose());
-    this.#worklet.port.close();
+    this.#playerWorklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
     unregisterNode(this.nodeId);
   }
 
   getParam(name: string): AudioParam | null {
-    if (this.#worklet && this.#worklet.parameters.has(name)) {
-      return this.#worklet.parameters.get(name) ?? null;
+    if (this.#playerWorklet && this.#playerWorklet.parameters.has(name)) {
+      return this.#playerWorklet.parameters.get(name) ?? null;
     }
 
     // Special case for filter parameters if they exist

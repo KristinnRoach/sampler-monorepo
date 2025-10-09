@@ -1,6 +1,6 @@
 // FeedbackDelay.js
 
-import { compressSingleSample } from '../shared/utils/compress-utils';
+import { compressSingleSample } from '../../shared/utils/compress-utils';
 import { DelayBuffer } from './DelayBuffer';
 
 const AUTO_GAIN_THRESHOLD = 0.8;
