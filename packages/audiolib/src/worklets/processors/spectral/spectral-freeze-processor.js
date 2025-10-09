@@ -81,16 +81,17 @@ class SpectralFreezeProcessor extends AudioWorkletProcessor {
         const in0 = input[0];
         const copyLength = Math.min(in0.length, this.fftSize);
         let maxVal = 0.0;
-        // Copy new data and find maxVal
+
+        // Copy new data
+        this.inputBuffer.set(in0.subarray(0, copyLength));
+        // Find maxVal in the new data
         for (let i = 0; i < copyLength; i++) {
-          const v = in0[i];
-          this.inputBuffer[i] = v;
-          const absV = Math.abs(v);
+          const absV = Math.abs(this.inputBuffer[i]);
           if (absV > maxVal) maxVal = absV;
         }
         // Clear the rest of the buffer to remove stale data
-        for (let i = copyLength; i < this.fftSize; i++) {
-          this.inputBuffer[i] = 0;
+        if (copyLength < this.fftSize) {
+          this.inputBuffer.fill(0, copyLength);
         }
 
         if (maxVal > 0.01) {
