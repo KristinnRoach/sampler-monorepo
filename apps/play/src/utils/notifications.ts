@@ -30,6 +30,7 @@ export const showNotification = (message: string, duration = 3000) => {
     if (notificationElement) {
       notificationElement.style.opacity = '0';
       notificationElement.style.transform = 'translateY(20px)';
+      cleanupNotifications(); // Important cleanup!
     }
   }, duration);
 };

@@ -10,13 +10,26 @@ interface SaveButtonProps {
   isOpen?: boolean;
   disabled?: boolean;
   class?: string;
+  onSavedCallback?: () => unknown;
 }
+
+// TODO: replace with dumb ui compenent e.g. BaseButton
 
 const SaveButton: Component<SaveButtonProps> = (props) => {
   const [saving, setSaving] = createSignal(false);
   const [showPrompt, setShowPrompt] = createSignal(false);
   const [name, setName] = createSignal('');
   let inputRef: HTMLInputElement | undefined;
+  let saveBtnWrapperRef: HTMLInputElement | undefined;
+
+  createEffect(() => {
+    if (props.isOpen === true || props.isOpen === false) {
+      if (saveBtnWrapperRef !== undefined) {
+        if (props.isOpen) saveBtnWrapperRef.classList.add('--sidebar-open');
+        else saveBtnWrapperRef.classList.remove('--sidebar-open');
+      }
+    }
+  }, [props.isOpen]);
 
   const handleClick = () => {
     if (!props.audioBuffer) return;
@@ -53,6 +66,9 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       console.error('Save failed:', error);
     } finally {
       setSaving(false);
+      props.onSavedCallback?.();
+
+      document.dispatchEvent(new CustomEvent('sample:saved'));
     }
   };
 
@@ -72,47 +88,32 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     }
   });
 
-  const saveCancelButtonStyle = `
-  font-size: 0.7rem; 
-  max-width: fit-content;
-  border-radius: 10%;
-  `;
-
   return (
     <>
       <save-button
-        class={`${props.class ? props.class : ''} save-button ${props.isOpen ? 'open' : ''}`}
+        class={`${props.class ? props.class : ''} save-button ${showPrompt() ? 'open' : ''}`}
         disabled={props.disabled || saving()}
         onclick={handleClick}
         title='Save sample'
       ></save-button>
       {showPrompt() && (
-        <div class='modal'>
-          <label style={'font-size: 0.85rem; overflow-x: visible;'}>
-            Name:
-            <input
-              ref={inputRef}
-              type='text'
-              value={name()}
-              onInput={(e) => setName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              style='max-width: 5rem;'
-            />
-          </label>
-          <div class='flex-row'>
-            <button
-              onClick={handleSave}
-              disabled={saving()}
-              style={saveCancelButtonStyle}
-            >
+        <div class='save-popup'>
+          <span class='save-popup-header'>Save Sample</span>
+
+          <input
+            title={`Sample Name`}
+            ref={inputRef}
+            type='text'
+            placeholder={`Sample Name`}
+            value={name()}
+            onInput={(e) => setName(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <div class='save-popup-buttons'>
+            <button onClick={handleSave} disabled={saving()}>
               {saving() ? 'Saving...' : 'Save'}
             </button>
-            <button
-              onClick={() => setShowPrompt(false)}
-              style={saveCancelButtonStyle}
-            >
-              Cancel
-            </button>
+            <button onClick={() => setShowPrompt(false)}>Cancel</button>
           </div>
         </div>
       )}

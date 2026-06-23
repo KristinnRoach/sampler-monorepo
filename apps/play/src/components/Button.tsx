@@ -14,7 +14,7 @@ const BaseButton: Component<BaseButtonProps> = (props) => {
   return (
     <button
       type={props.type || 'button'}
-      class={`base-button ${props.class ? props.class : ''} ${
+      class={`${props.class ? props.class : 'base-button'} ${
         props.conditionalClass
           ? props.conditionalClass
               .filter((c) => c.condition)

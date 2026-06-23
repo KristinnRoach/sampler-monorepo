@@ -1,6 +1,7 @@
 // components/SampleListSection.tsx
 import { Component, createSignal, For } from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
+import SaveButton from './SaveButton';
 
 interface SampleListSectionProps {
   onSampleSelect: (sample: SavedSample) => void;
@@ -24,6 +25,9 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
       setLoading(false);
     }
   };
+
+  // Refresh list when new sample saved
+  document.addEventListener('sample:saved', async () => await loadSamples());
 
   const handleDelete = async (sample: SavedSample, event: Event) => {
     event.stopPropagation();

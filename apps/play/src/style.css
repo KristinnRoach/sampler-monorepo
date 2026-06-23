@@ -14,26 +14,38 @@ body {
 
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 
   background-color: var(--bg-color-1);
   color: var(--color-text);
 
   /* Temp fix for light theme readability - outline effect */
   text-shadow:
-    -1px -1px 0 rgba(0, 0, 0, 0.5),
-    1px -1px 0 rgba(0, 0, 0, 0.5),
-    -1px 1px 0 rgba(0, 0, 0, 0.5),
-    1px 1px 0 rgba(0, 0, 0, 0.5);
-
-  interpolate-size: allow-keywords;
-
-  height: clamp(100dvh, 100dvh, 100dvh);
-  width: clamp(100dvw, 100dvw, 100dvw);
+    -1px -1px 0 rgba(0, 0, 0, 0.3),
+    1px -1px 0 rgba(0, 0, 0, 0.3),
+    -1px 1px 0 rgba(0, 0, 0, 0.3),
+    1px 1px 0 rgba(0, 0, 0, 0.3);
 }
 
 :root {
   interpolate-size: allow-keywords;
+}
+
+/* DEBUG */
+
+/* * {
+  outline: 2px lime solid;
+} */
+
+/* Utils / els / misc */
+
+gain-lfo-sync-toggle,
+pitch-lfo-sync-toggle,
+feedback-mode-toggle,
+pan-drift-toggle {
+  color: var(--color-text);
+  height: fit-content;
+  padding: 0;
+  margin: 0;
 }
 
 .knob-container {
@@ -42,19 +54,8 @@ body {
 
 .knob-container .knob-label {
   font-size: 0.8rem;
+  -webkit-user-select: none;
   user-select: none;
-}
-
-.modal {
-  width: fit-content;
-  padding: 1rem;
-
-  text-align: center;
-  place-items: center;
-
-  color: black;
-
-  z-index: 1000;
 }
 
 select,
@@ -88,38 +89,34 @@ option:checked {
   color: #d6d6d6;
 }
 
-gain-lfo-sync-toggle,
-pitch-lfo-sync-toggle,
-feedback-mode-toggle,
-pan-drift-toggle {
-  color: var(--color-text);
-  height: fit-content;
-  padding: 0;
-  margin: 0;
-}
+/* === LAYOUT START === */
 
-.page-wrapper {
-  overflow-x: auto;
-  overflow-y: auto;
-  margin: 0 auto;
+.content-wrapper {
+  position: relative;
+  padding: clamp(2px, 0.5em, 4rem);
 }
 
 .control-grid {
   display: grid;
   position: relative;
-  margin: 1rem;
+  margin-inline: auto;
+  inset: 0;
   padding: 1rem;
   padding-right: 2.5rem; /* extra for row-collapse icons */
+
+  width: fit-content;
+  max-width: clamp(300px, fit-content, calc(100svw - 3rem));
+  height: fit-content;
+
   row-gap: 1rem;
   column-gap: 1rem;
-  justify-self: center;
   grid-auto-rows: min-content;
   border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
   background-color: var(--bg-color-2);
 
+  -webkit-user-select: none;
   user-select: none;
-
   will-change: grid-template-areas, width;
   transition:
     grid-template-areas 0.2s ease,
@@ -133,17 +130,11 @@ pan-drift-toggle {
     'env env filter feedback'
     'loop trim misc lfo'
     'toggle keyboard keyboard keyboard';
-  max-width: 100dvw;
 }
 
 .control-grid.layout-mobile {
   grid-template-columns: 1fr;
-  margin: 0.5rem;
-  padding: 0.5rem;
-  max-width: calc(100dvw - 1rem);
 
-  box-sizing: border-box;
-  overflow-x: hidden;
   grid-template-areas:
     'sample'
     'env'
@@ -606,6 +597,7 @@ piano-keyboard.visible {
 
   font-size: 0.8rem;
   color: #dedede;
+  -webkit-user-select: none;
   user-select: none;
   z-index: 10;
 }
@@ -656,49 +648,111 @@ piano-keyboard.visible {
 
 /* SAMPLELIB SIDEBAR */
 
-.sidebar-menu-toggle {
-  background-color: #444 !important;
-}
-
-.pre-sidebar-buttons {
+.toolbar-wrapper {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 1001;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 10px;
-  margin-right: 10px;
-}
+  top: 0.5em;
+  left: 0.5em;
 
-.pre-sidebar-buttons > * {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.pre-sidebar-buttons button,
-.pre-sidebar-buttons .save-button {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-
-  padding: 8px;
-  width: 40px;
-  height: 40px;
-  background-color: #333;
+  background: var(--sidebar-bg);
   border: solid 2px #000;
+  -webkit-box-shadow: 10px 10px 20px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: 10px 10px 20px 5px rgba(0, 0, 0, 0.2);
   border-radius: 8px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2px;
+
+  z-index: 1001;
+  pointer-events: auto;
+  transform: translateX(0);
+  opacity: 1;
+
+  will-change: opacity, transform;
+
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+
+  &.__sidebar-open {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-150px);
+  }
 }
 
-.pre-sidebar-buttons .save-button {
+.toolbar-wrapper > .expandable-width {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  gap: 10px;
+  overflow: hidden;
+
+  height: 0;
+  overflow: clip;
+  transition:
+    height 0.3s ease,
+    transform 0.3s ease;
+}
+
+.toolbar-wrapper > .expandable-width.__toolbar-open {
+  height: max-content;
+}
+
+.toolbar-wrapper > .toolbar-toggle,
+.toolbar-wrapper > .expandable-width > .toolbar-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+
+  height: 36px;
+  width: 36px;
+
+  z-index: 1000;
+  cursor: pointer;
+
+  background: transparent;
+  border: none;
+  color: white;
+
+  transform: scale(1);
+  opacity: 1;
+
+  &:hover {
+    transform: scale(1.2);
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.toolbar-wrapper > .expandable-width > .toolbar-btn {
+  visibility: visible;
+}
+
+.toolbar-wrapper .save-button:not([hidden]) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 0px !important;
-  max-width: 38px !important;
-  max-height: 38px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+  & > * {
+    border: none !important;
+  }
+  &:hover {
+    transform: scale(1.1) !important;
+  }
+}
+
+.theme-toggle {
+  font-size: 20px;
 }
 
 .theme-select select {
@@ -709,56 +763,6 @@ piano-keyboard.visible {
   padding: 0;
   cursor: pointer;
   outline: none;
-}
-
-.theme-toggle {
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  font-size: 18px;
-  transition: all 0.2s ease;
-  opacity: 0.8;
-
-  width: 40px;
-}
-
-.left-side-button {
-  background: var(--bg-color-2, #333);
-  color: white;
-  padding: 10px;
-  border-radius: 4px;
-  border: none;
-}
-
-.left-side-button,
-.theme-toggle {
-  z-index: 1000;
-  cursor: pointer;
-  background: #333;
-  opacity: 1;
-
-  will-change: opacity, transform;
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
-
-  &.open {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(-50px);
-  }
-
-  &.hover {
-    transform: scale(1.1);
-    background: #444;
-    opacity: 1;
-  }
-
-  &.active {
-    transform: scale(0.9);
-    opacity: 1;
-  }
 }
 
 tempo-knob {
@@ -791,9 +795,12 @@ tempo-knob > div knob-element {
   left: 0;
   height: 100dvh;
   width: max(20dvw, 300px);
-  background: var(--sidebar-bg, #222);
-  color: white;
+  background: var(--sidebar-bg);
+  color: var(--color-text);
   z-index: 999;
+  will-change: transform;
+  transition: transform 0.3s ease;
+
   transform: translateX(-100%);
   transition: transform 0.3s ease;
 }
@@ -813,7 +820,7 @@ tempo-knob > div knob-element {
 .close-button {
   background: none;
   border: none;
-  color: white;
+  color: var(--color-text);
   font-size: 24px;
   cursor: pointer;
 }
@@ -916,4 +923,64 @@ tempo-knob > div knob-element {
 .kb-accordion .accordion-content {
   padding: 0.5rem 1rem;
   background: var(--bg-color-2, #222);
+}
+
+/* Save Popup */
+.save-popup {
+  position: absolute;
+  left: 50px;
+  top: 50px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 1.2rem;
+  padding: 1.2rem;
+  background-color: black;
+
+  border: solid 1px whitesmoke;
+  box-shadow: 10px 5px 5px black;
+  border-radius: 8px;
+  z-index: 1000;
+
+  & .save-popup-header {
+    color: beige;
+    align-self: flex-start;
+  }
+
+  & input {
+    width: 120px;
+    max-width: 250px;
+    align-self: flex-start;
+  }
+
+  & .save-popup-buttons {
+    display: flex;
+    gap: 1rem;
+
+    & button {
+      color: white;
+      background-color: #444;
+      height: auto;
+      width: auto;
+      padding: 4px 8px;
+
+      transform: scale(1);
+      opacity: 1;
+      will-change: opacity, transform;
+      transition:
+        opacity 0.3s ease,
+        transform 0.3s ease;
+
+      &:hover {
+        transform: scale(1.1) !important;
+        opacity: 1;
+      }
+
+      &:active {
+        transform: scale(0.9);
+        opacity: 1;
+      }
+    }
+  }
 }

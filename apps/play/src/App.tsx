@@ -2,11 +2,7 @@
 import { Component, onMount, createSignal, onCleanup } from 'solid-js';
 
 import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
-// import {
-//   KnobComponent,
-//   type KnobChangeEventDetail,
-//   Oscilloscope,
-// } from '@repo/audio-components/solidjs';
+// import { KnobComponent, type KnobChangeEventDetail, Oscilloscope } from '@repo/audio-components/solidjs';
 
 import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 
@@ -38,6 +34,7 @@ const App: Component = () => {
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
+  const [toolbarOpen, setToolbarOpen] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
   const [sidebarSection, setSidebarSection] = createSignal<'menu' | 'samples'>(
     'samples',
@@ -128,16 +125,18 @@ const App: Component = () => {
 
   return (
     <>
-      <div id='page-wrapper' class='page-wrapper'>
-        <div class='pre-sidebar-buttons'>
+      <div class='content-wrapper'>
+        {/* // ! START TEST sidebar ! */}
+        <div
+          class={`toolbar-wrapper ${toolbarOpen() ? '__toolbar-open' : ''} ${sidebarOpen() ? '__sidebar-open' : ''}`}
+        >
           <BaseButton
-            title='Toggle sidebar menu'
-            onclick={() => {
-              setSidebarSection('menu');
-              setSidebarOpen(true);
-            }}
-            conditionalClass={[{ condition: sidebarOpen(), className: 'open' }]}
-            class='left-side-button sidebar-menu-toggle main-menu-button'
+            title='Toggle Toolbar'
+            onclick={() => setToolbarOpen(!toolbarOpen())}
+            conditionalClass={[
+              { condition: sidebarOpen(), className: '__toolbar-open' },
+            ]}
+            class='toolbar-toggle'
           >
             <svg
               width='20'
@@ -150,42 +149,49 @@ const App: Component = () => {
             </svg>
           </BaseButton>
 
-          <BaseButton
-            title='View saved samples'
-            onclick={() => {
-              setSidebarSection('samples');
-              setSidebarOpen(true);
-            }}
-            conditionalClass={[{ condition: sidebarOpen(), className: 'open' }]}
-            class='left-side-button sidebar-menu-toggle samplelib-button'
+          <div
+            class={`expandable-width ${toolbarOpen() ? '__toolbar-open' : ''}`}
           >
-            <SampleWaveformFilled
-              fill={'white'}
-              stroke={'white'}
-              stroke-width={6}
-              width={30}
-              height={30}
+            <BaseButton
+              title='View saved samples'
+              onclick={() => {
+                setSidebarSection('samples');
+                setSidebarOpen(true);
+              }}
+              conditionalClass={[
+                { condition: sidebarOpen(), className: '__toolbar-open' },
+              ]}
+              class='toolbar-btn samplelib-button'
+            >
+              <SampleWaveformFilled
+                fill={'white'}
+                stroke={'white'}
+                stroke-width={6}
+                width={30}
+                height={30}
+              />
+            </BaseButton>
+
+            <SaveButton
+              audioBuffer={currentAudioBuffer()}
+              disabled={!sampleLoaded()}
+              isOpen={sidebarOpen()}
+              class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
             />
-          </BaseButton>
 
-          <SaveButton
-            audioBuffer={currentAudioBuffer()}
-            disabled={!sampleLoaded()}
-            isOpen={sidebarOpen()}
-            class='left-side-button'
-          />
+            <ThemeToggle
+              class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
+              defaultTheme='light'
+            />
 
-          <ThemeToggle
-            class={sidebarOpen() ? 'open' : ''}
-            defaultTheme='light'
-          />
-
-          {/* <tempo-knob
+            {/* <tempo-knob
           target-node-id='test-sampler'
           label=' '
           class={`left-side-button ${sidebarOpen() ? 'open' : ''} `}
         /> */}
+          </div>
         </div>
+
         <Sidebar
           isOpen={sidebarOpen()}
           onClose={() => setSidebarOpen(false)}
@@ -193,26 +199,6 @@ const App: Component = () => {
         >
           <Accordion
             sections={[
-              // {
-              //   id: 'menu',
-              //   title: 'Menu',
-              //   content: (
-              //     <ul class='mock-menu-list'>
-              //       <li>
-              //         <button>Home</button>
-              //       </li>
-              //       <li>
-              //         <button>Settings</button>
-              //       </li>
-              //       <li>
-              //         <button>About</button>
-              //       </li>
-              //       <li>
-              //         <button>Help</button>
-              //       </li>
-              //     </ul>
-              //   ),
-              // },
               {
                 id: 'samples',
                 title: '',
@@ -225,9 +211,9 @@ const App: Component = () => {
             onSectionChange={setSidebarSection}
           />
         </Sidebar>
-
         {/* <Oscilloscope ctx={} input={} /> */}
 
+        {/* // ! END TEST sidebar ! */}
         <div class={`control-grid layout-${layout()}`} id='sampler-container'>
           <sampler-element
             ref={samplerElementRef}
