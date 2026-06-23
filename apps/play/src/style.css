@@ -142,7 +142,7 @@ pan-drift-toggle {
   grid-template-columns: 1fr;
   margin: 0.5rem;
   padding: 0.5rem;
-  max-width: calc(100vw - 1rem);
+  max-width: calc(100dvw - 1rem);
 
   box-sizing: border-box;
   overflow-x: hidden;
@@ -210,7 +210,7 @@ pan-drift-toggle {
 
 .control-grid.layout-tablet piano-keyboard webaudio-keyboard {
   width: 100%;
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100dvw - 2rem);
 }
 
 /* Mobile */
@@ -251,7 +251,7 @@ pan-drift-toggle {
 
 .control-grid.layout-mobile piano-keyboard webaudio-keyboard {
   width: 100%;
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100dvw - 2rem);
 }
 
 /* ____ */
@@ -347,7 +347,7 @@ pan-drift-toggle {
   gap: 0.5rem;
   align-items: flex-start;
 
-  max-height: 60vh;
+  max-height: 60dvh;
   overflow: hidden;
   opacity: 1;
   transition:
@@ -357,6 +357,7 @@ pan-drift-toggle {
 
 .expandable-legend {
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
 }
 
