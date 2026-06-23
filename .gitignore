@@ -1,22 +1,16 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-.vscode
-WARP.md
-Repo_Improvements.md
-
-
-
-# trash to be cleaned up
-**/trash
-**/*trash.txt
-mcp-proxy.js
-
-# Dependencies
+# Build
 node_modules
-.pnp
-.pnp.js
+build
+dist
 
-# Local env files
+# Local infra
+.vscode
+.turbo
+.vercel
+WARP.md
+
+
+# Local env
 .env
 .env.local
 .env.development.local
@@ -27,25 +21,17 @@ node_modules
 coverage
 playwright-report/
 test-results/
-.qodo
 
-# Turbo
-.turbo
 
-# Vercel
-.vercel
-
-# Build Outputs
-.next/
-out/
-build
-dist
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Trash
+**/trash
+**/*trash.txt
 
 # Misc
 .DS_Store
 *.pem
+mcp-proxy.js
+
+# Local wip notes
+**/*kidnote.txt
+Repo_Improvements.md
