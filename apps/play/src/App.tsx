@@ -40,12 +40,12 @@ const App: Component = () => {
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
   const [sidebarSection, setSidebarSection] = createSignal<'menu' | 'samples'>(
-    'samples'
+    'samples',
   );
 
   const { handleSampleSelect } = useSampleSelection(
     () => samplePlayerRef,
-    setSidebarOpen
+    setSidebarOpen,
   );
 
   onMount(() => {
@@ -90,7 +90,7 @@ const App: Component = () => {
     }).then((success) => {
       if (success) {
         showNotification(
-          'MIDI enabled - Press Cmd+Shift+M to access MIDI Learn'
+          'MIDI enabled - Press Cmd+Shift+M to access MIDI Learn',
         );
       } else {
         const { supported, message } = getMidiSupportInfo();
@@ -100,7 +100,7 @@ const App: Component = () => {
         } else {
           showNotification(
             'MIDI initialization failed - Check if MIDI devices are connected',
-            4000
+            4000,
           );
         }
         console.warn('MIDI initialization failed');
@@ -109,7 +109,7 @@ const App: Component = () => {
 
     // Listen for MIDI-related custom events
     document.addEventListener('midi:learn', ((
-      e: CustomEvent<{ message: string }>
+      e: CustomEvent<{ message: string }>,
     ) => {
       if (e.detail?.message) {
         showNotification(e.detail.message);
@@ -121,7 +121,7 @@ const App: Component = () => {
       window.removeEventListener('resize', updateLayout);
 
       document.removeEventListener('midi:learn', ((
-        e: CustomEvent
+        e: CustomEvent,
       ) => {}) as EventListener);
 
       cleanupNotifications();
@@ -133,7 +133,7 @@ const App: Component = () => {
     <>
       <div id='page-wrapper' class='page-wrapper'>
         <div class='pre-sidebar-buttons'>
-          {/* <BaseButton
+          <BaseButton
             title='Toggle sidebar menu'
             onclick={() => {
               setSidebarSection('menu');
@@ -151,7 +151,7 @@ const App: Component = () => {
             >
               <path d='M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z' />
             </svg>
-          </BaseButton> */}
+          </BaseButton>
 
           <BaseButton
             title='View saved samples'
@@ -165,9 +165,9 @@ const App: Component = () => {
             <SampleWaveformFilled
               fill={'white'}
               stroke={'white'}
-              stroke-width={10}
-              width={100}
-              height={100}
+              stroke-width={6}
+              width={30}
+              height={30}
             />
           </BaseButton>
 
