@@ -38,13 +38,15 @@ const Accordion: Component<AccordionProps> = (props) => {
       <For each={props.sections}>
         {(section) => (
           <div class='accordion-section'>
-            <button
-              class={`accordion-header${openId() === section.id ? ' open' : ''}`}
-              onClick={() => handleToggle(section.id)}
-              aria-expanded={openId() === section.id}
-            >
-              {section.title}
-            </button>
+            {section.title && (
+              <button
+                class={`accordion-header${openId() === section.id ? ' open' : ''}`}
+                onClick={() => handleToggle(section.id)}
+                aria-expanded={openId() === section.id}
+              >
+                {section.title}
+              </button>
+            )}
             <div
               class={`accordion-panel${openId() === section.id ? ' open' : ''}`}
               style={{ display: openId() === section.id ? 'block' : 'none' }}

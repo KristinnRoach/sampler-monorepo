@@ -30,6 +30,7 @@ import RowCollapseIcons from './components/RowCollapseIcons';
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
+  const [envHeight, setEnvHeight] = createSignal<number>(225);
 
   let samplerElementRef: SamplerElement | undefined;
   let samplePlayerRef: SamplePlayer | null = null;
@@ -61,12 +62,22 @@ const App: Component = () => {
     };
 
     const updateLayout = () => {
-      setLayout(getLayoutFromWidth(window.innerWidth));
+      const layoutType = getLayoutFromWidth(window.innerWidth);
+      if (layoutType === 'mobile') {
+        setEnvHeight(100);
+      } else {
+        setEnvHeight(225);
+      }
+
+      setLayout(layoutType);
     };
 
-    document.addEventListener('sample-loaded', handleSampleLoaded);
-    window.addEventListener('resize', updateLayout);
+    updateLayout();
+    addExpandCollapseListeners();
     addPreventScrollOnSpacebarListener();
+    window.addEventListener('resize', updateLayout);
+
+    document.addEventListener('sample-loaded', handleSampleLoaded);
 
     enableSamplePlayerMidi({
       getSamplePlayer: () => samplePlayerRef,
@@ -96,9 +107,6 @@ const App: Component = () => {
       }
     });
 
-    updateLayout();
-    addExpandCollapseListeners();
-
     // Listen for MIDI-related custom events
     document.addEventListener('midi:learn', ((
       e: CustomEvent<{ message: string }>
@@ -125,7 +133,7 @@ const App: Component = () => {
     <>
       <div id='page-wrapper' class='page-wrapper'>
         <div class='pre-sidebar-buttons'>
-          <BaseButton
+          {/* <BaseButton
             title='Toggle sidebar menu'
             onclick={() => {
               setSidebarSection('menu');
@@ -134,10 +142,16 @@ const App: Component = () => {
             conditionalClass={[{ condition: sidebarOpen(), className: 'open' }]}
             class='left-side-button sidebar-menu-toggle main-menu-button'
           >
-            <svg width='20' height='20' viewBox='0 0 24 24' fill='currentColor'>
+            <svg
+              width='20'
+              height='20'
+              stroke='10'
+              viewBox='0 0 24 24'
+              fill='currentColor'
+            >
               <path d='M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z' />
             </svg>
-          </BaseButton>
+          </BaseButton> */}
 
           <BaseButton
             title='View saved samples'
@@ -151,9 +165,9 @@ const App: Component = () => {
             <SampleWaveformFilled
               fill={'white'}
               stroke={'white'}
-              stroke-width={8}
-              width={60}
-              height={60}
+              stroke-width={10}
+              width={100}
+              height={100}
             />
           </BaseButton>
 
@@ -178,33 +192,33 @@ const App: Component = () => {
         <Sidebar
           isOpen={sidebarOpen()}
           onClose={() => setSidebarOpen(false)}
-          title='Sidebar Menu'
+          title='Sample Library'
         >
           <Accordion
             sections={[
-              {
-                id: 'menu',
-                title: 'Menu',
-                content: (
-                  <ul class='mock-menu-list'>
-                    <li>
-                      <button>Home</button>
-                    </li>
-                    <li>
-                      <button>Settings</button>
-                    </li>
-                    <li>
-                      <button>About</button>
-                    </li>
-                    <li>
-                      <button>Help</button>
-                    </li>
-                  </ul>
-                ),
-              },
+              // {
+              //   id: 'menu',
+              //   title: 'Menu',
+              //   content: (
+              //     <ul class='mock-menu-list'>
+              //       <li>
+              //         <button>Home</button>
+              //       </li>
+              //       <li>
+              //         <button>Settings</button>
+              //       </li>
+              //       <li>
+              //         <button>About</button>
+              //       </li>
+              //       <li>
+              //         <button>Help</button>
+              //       </li>
+              //     </ul>
+              //   ),
+              // },
               {
                 id: 'samples',
-                title: 'Saved Samples',
+                title: '',
                 content: (
                   <SampleListSection onSampleSelect={handleSampleSelect} />
                 ),
@@ -229,7 +243,7 @@ const App: Component = () => {
             <div class='expandable-content'>
               <div class='flex-col'>
                 <envelope-switcher
-                  height='225px'
+                  height={envHeight()}
                   bg-color='var(--envelope-bg)'
                   target-node-id='test-sampler'
                 />
@@ -448,7 +462,6 @@ const App: Component = () => {
                 id='piano-keyboard'
                 class='piano-keyboard'
                 target-node-id='test-sampler'
-                width='700'
                 height='80'
               />
               <div class='keyboard-controls'>
