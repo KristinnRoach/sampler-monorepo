@@ -23,7 +23,7 @@
     "sortablejs": "^1.15.6",
     "swapy": "^1.0.5",
     "swapy-solid": "^0.1.0",
-    "tailwind-merge": "^2.7.0"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/sortablejs": "^1.15.8",
