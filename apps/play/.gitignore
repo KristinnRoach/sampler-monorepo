@@ -1,3 +1,7 @@
 
 dev-dist
 exp
+.turbo
+node_modules
+dist
+**kidnote.txt

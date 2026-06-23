@@ -1,6 +1,13 @@
+// src/types/global.d.ts
+
 import 'solid-js';
 import { KnobElement } from '@repo/audio-components';
 declare module 'solid-js' {
+  declare module '*.svg' {
+    import { Component, JSX } from 'solid-js';
+    const content: Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
+    export default content;
+  }
   namespace JSX {
     interface IntrinsicElements {
       // Sampler core

@@ -16,12 +16,14 @@
   "dependencies": {
     "@repo/audio-components": "workspace:*",
     "@repo/input-controller": "workspace:*",
+    "clsx": "^2.1.1",
     "dexie": "^4.0.11",
     "gsap": "^3.13.0",
     "solid-js": "^1.9.9",
     "sortablejs": "^1.15.6",
     "swapy": "^1.0.5",
-    "swapy-solid": "^0.1.0"
+    "swapy-solid": "^0.1.0",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/sortablejs": "^1.15.8",
@@ -30,6 +32,7 @@
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^1.0.2",
     "vite-plugin-solid": "^2.11.0",
+    "vite-plugin-solid-svg": "^0.8.1",
     "vitest": "^3.2.4"
   }
 }

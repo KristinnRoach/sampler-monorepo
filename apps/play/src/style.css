@@ -101,6 +101,7 @@ pan-drift-toggle {
 .page-wrapper {
   overflow-x: auto;
   overflow-y: auto;
+  margin: 0 auto;
 }
 
 .control-grid {
@@ -109,17 +110,13 @@ pan-drift-toggle {
   margin: 1rem;
   padding: 1rem;
   padding-right: 2.5rem; /* extra for row-collapse icons */
-  /* width: 98dvw; */
-  min-width: max-content;
   row-gap: 1rem;
   column-gap: 1rem;
   justify-self: center;
   grid-auto-rows: min-content;
   border: 1px solid #a8a6a692;
   border-radius: 0.5rem;
-  /* background-color: #29552f; */
   background-color: var(--bg-color-2);
-  /* background-color: #111; */
 
   user-select: none;
 
@@ -136,20 +133,14 @@ pan-drift-toggle {
     'env env filter feedback'
     'loop trim misc lfo'
     'toggle keyboard keyboard keyboard';
-
-  width: 1200px;
-
-  max-width: 1200px;
-  max-height: 800px;
+  max-width: 100dvw;
 }
 
 .control-grid.layout-mobile {
   grid-template-columns: 1fr;
   margin: 0.5rem;
   padding: 0.5rem;
-  width: calc(100vw - 1rem);
-  max-width: 100%;
-  /* min-width: 300px; */
+  max-width: calc(100dvw - 1rem);
 
   box-sizing: border-box;
   overflow-x: hidden;
@@ -189,10 +180,8 @@ pan-drift-toggle {
 .control-grid.layout-tablet .control-group {
   box-sizing: border-box;
   overflow: hidden;
-
-  max-width: 95dvw;
+  max-width: 100%;
   min-width: 0;
-
   justify-content: center;
 }
 
@@ -217,10 +206,16 @@ pan-drift-toggle {
 
 .control-grid.layout-tablet piano-keyboard webaudio-keyboard {
   width: 100%;
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100dvw - 2rem);
 }
 
 /* Mobile */
+
+.control-grid.layout-mobile {
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .control-grid.layout-mobile .row-collapse-icon {
   display: none;
   pointer-events: none;
@@ -229,11 +224,8 @@ pan-drift-toggle {
 .control-grid.layout-mobile .control-group {
   box-sizing: border-box;
   overflow: hidden;
-
-  width: 90dvw;
-  max-width: 95dvw;
+  max-width: 100%;
   min-width: 0;
-
   justify-content: center;
 }
 
@@ -251,15 +243,9 @@ pan-drift-toggle {
   overflow-x: auto;
 }
 
-/* Override component dimensions for mobile */
-.control-grid.layout-mobile envelope-switcher {
-  max-width: 100%;
-  overflow: hidden;
-}
-
 .control-grid.layout-mobile piano-keyboard webaudio-keyboard {
   width: 100%;
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100dvw - 2rem);
 }
 
 /* ____ */
@@ -355,7 +341,7 @@ pan-drift-toggle {
   gap: 0.5rem;
   align-items: flex-start;
 
-  max-height: 60vh;
+  max-height: 60dvh;
   overflow: hidden;
   opacity: 1;
   transition:
@@ -365,6 +351,7 @@ pan-drift-toggle {
 
 .expandable-legend {
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -569,7 +556,8 @@ piano-keyboard.visible {
   left: 2px;
   right: 2px;
   bottom: 2px;
-  background-image: linear-gradient(
+  background-image:
+    linear-gradient(
       90deg,
       transparent 2px,
       var(--ac-color-bg-primary) 2px,
@@ -668,19 +656,20 @@ piano-keyboard.visible {
 
 /* SAMPLELIB SIDEBAR */
 
+.sidebar-menu-toggle {
+  background-color: #444 !important;
+}
+
 .pre-sidebar-buttons {
-  position: fixed;
+  position: absolute;
   top: 20px;
   left: 20px;
   z-index: 1001;
-
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-
   gap: 10px;
-
   margin-right: 10px;
 }
 
@@ -689,17 +678,27 @@ piano-keyboard.visible {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+.pre-sidebar-buttons button,
+.pre-sidebar-buttons .save-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  padding: 8px;
   width: 40px;
   height: 40px;
+  background-color: #333;
+  border: solid 2px #000;
+  border-radius: 8px;
 }
 
 .pre-sidebar-buttons .save-button {
   padding: 0px !important;
-}
-
-.pre-sidebar-buttons .save-button button {
-  border-radius: 4px;
-  border: none !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
 }
 
 .theme-select select {
@@ -791,7 +790,7 @@ tempo-knob > div knob-element {
   top: 0;
   left: 0;
   height: 100dvh;
-  width: 20dvw;
+  width: max(20dvw, 300px);
   background: var(--sidebar-bg, #222);
   color: white;
   z-index: 999;
@@ -892,4 +891,29 @@ tempo-knob > div knob-element {
 .sortable-drag {
   opacity: 1;
   transform: rotate(5deg);
+}
+
+/* Example: Accordion custom styles */
+.kb-accordion,
+.kb-accordion .accordion-item {
+  background: var(--bg-color-2, #222);
+  color: var(--color-text, #fff);
+  border-bottom: 1px solid #444;
+}
+
+.kb-accordion .accordion-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+}
+
+.kb-accordion .accordion-content {
+  padding: 0.5rem 1rem;
+  background: var(--bg-color-2, #222);
 }

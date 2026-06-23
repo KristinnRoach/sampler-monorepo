@@ -1,7 +1,8 @@
 /* @refresh reload */
 import { render } from 'solid-js/web';
-import { defineSampler } from '@repo/audio-components';
 import App from './App';
+
+import { defineSampler } from '@repo/audio-components';
 import './styles/themes.css';
 import './style.css';
 
