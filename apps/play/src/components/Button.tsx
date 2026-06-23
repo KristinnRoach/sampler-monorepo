@@ -7,11 +7,13 @@ interface BaseButtonProps {
   class?: string;
   conditionalClass?: { condition: boolean; className: string }[];
   children?: any;
+  type?: 'button' | 'submit' | 'reset';
 }
 
 const BaseButton: Component<BaseButtonProps> = (props) => {
   return (
     <button
+      type={props.type || 'button'}
       class={`base-button ${props.class ? props.class : ''} ${
         props.conditionalClass
           ? props.conditionalClass

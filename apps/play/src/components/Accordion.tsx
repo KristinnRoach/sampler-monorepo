@@ -40,6 +40,7 @@ const Accordion: Component<AccordionProps> = (props) => {
           <div class='accordion-section'>
             {section.title && (
               <button
+                type="button"
                 class={`accordion-header${openId() === section.id ? ' open' : ''}`}
                 onClick={() => handleToggle(section.id)}
                 aria-expanded={openId() === section.id}

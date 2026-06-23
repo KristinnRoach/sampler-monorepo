@@ -35,6 +35,13 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
     }
   };
 
+  const handleKeyDown = (sample: SavedSample, event: KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      props.onSampleSelect(sample);
+    }
+  };
+
   // Load samples on mount
   loadSamples();
 
@@ -47,7 +54,10 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
           {(sample) => (
             <div
               class='sample-item'
+              role='button'
+              tabindex='0'
               onclick={() => props.onSampleSelect(sample)}
+              onkeydown={(e) => handleKeyDown(sample, e)}
             >
               <div class='sample-info'>
                 <div class='sample-name'>{sample.name}</div>
@@ -56,15 +66,18 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
                 </div>
               </div>
               <button
+                type='button'
                 class='delete-button'
                 onclick={(e) => handleDelete(sample, e)}
                 title={`Delete ${sample.name}`}
+                aria-label={`Delete ${sample.name}`}
               >
                 <svg
                   width='16'
                   height='16'
                   viewBox='0 0 24 24'
                   fill='currentColor'
+                  aria-hidden='true'
                 >
                   <path d='M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z' />
                 </svg>
