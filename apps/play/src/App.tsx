@@ -107,22 +107,19 @@ const App: Component = () => {
       }
     });
 
-    // Listen for MIDI-related custom events
-    document.addEventListener('midi:learn', ((
-      e: CustomEvent<{ message: string }>,
-    ) => {
+    const handleMidiLearn = ((e: CustomEvent<{ message: string }>) => {
       if (e.detail?.message) {
         showNotification(e.detail.message);
       }
-    }) as EventListener);
+    }) as EventListener;
+
+    // Listen for MIDI-related custom events
+    document.addEventListener('midi:learn', handleMidiLearn);
 
     onCleanup(() => {
-      document.removeEventListener('sample-loaded', handleSampleLoaded);
       window.removeEventListener('resize', updateLayout);
-
-      document.removeEventListener('midi:learn', ((
-        e: CustomEvent,
-      ) => {}) as EventListener);
+      document.removeEventListener('sample-loaded', handleSampleLoaded);
+      document.removeEventListener('midi:learn', handleMidiLearn);
 
       cleanupNotifications();
       disableSamplePlayerMidi();
