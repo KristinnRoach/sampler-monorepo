@@ -23,6 +23,7 @@ import Accordion from './components/Accordion';
 import SampleListSection from './components/SampleListSection';
 import BaseButton from './components/Button';
 import RowCollapseIcons from './components/RowCollapseIcons';
+import OutputDeviceSelect from './components/OutputDeviceSelect';
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
@@ -182,6 +183,10 @@ const App: Component = () => {
             <ThemeToggle
               class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
               defaultTheme='light'
+            />
+
+            <OutputDeviceSelect
+              class={`toolbar-btn output-device-select ${toolbarOpen() ? '__toolbar-open' : ''}`}
             />
 
             {/* <tempo-knob

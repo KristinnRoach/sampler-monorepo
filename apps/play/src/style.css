@@ -751,6 +751,20 @@ piano-keyboard.visible {
   }
 }
 
+.toolbar-wrapper > .expandable-width > .output-device-select {
+  width: auto;
+  max-width: 160px;
+  background-color: inherit;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  font-size: 12px;
+
+  & option {
+    color: black;
+  }
+}
+
 .theme-toggle {
   font-size: 20px;
 }
