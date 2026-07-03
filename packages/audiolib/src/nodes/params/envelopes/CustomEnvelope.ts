@@ -744,8 +744,6 @@ export class CustomEnvelope implements LibNode {
       return;
     }
 
-    const currentValue = audioParam.value;
-
     // Generate the release curve shape from sustain point to end
     const sampleRate = this.#getCurveSamplingRate(scaledRemainingDuration);
     const numSamples = Math.max(
@@ -779,6 +777,7 @@ export class CustomEnvelope implements LibNode {
     try {
       // ! Needs testing specifically for Firefox ( and Safari )
       cancelScheduledParamValues(audioParam, safeStart);
+      const currentValue = audioParam.value;
 
       // Adjust curve to start from currentValue instead of envelope's release point
       const adjustedCurve = new Float32Array(curve.length);
