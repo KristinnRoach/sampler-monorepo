@@ -81,9 +81,15 @@ function setupAutoResume(): Promise<void> {
 // --- Output device selection ---
 
 type SinkCapableContext = AudioContext & {
-  setSinkId(id: string): Promise<void>;
-  sinkId: string;
+  setSinkId(id: AudioContextSinkId): Promise<void>;
+  sinkId: AudioContextSinkId;
 };
+
+type AudioSinkInfo = {
+  readonly type: 'none';
+};
+
+type AudioContextSinkId = string | AudioSinkInfo;
 
 /** False in Safari — AudioContext.setSinkId is Chromium/Firefox only */
 export function canSetOutputDevice(): boolean {
@@ -112,7 +118,14 @@ export async function setAudioOutputDevice(deviceId: string): Promise<void> {
 
 export function getCurrentOutputDeviceId(): string {
   const ctx = getAudioContext() as Partial<SinkCapableContext>;
-  return typeof ctx.sinkId === 'string' ? ctx.sinkId : '';
+  const { sinkId } = ctx;
+  if (typeof sinkId === 'string') {
+    return sinkId;
+  }
+  if (sinkId?.type === 'none') {
+    return '';
+  }
+  return '';
 }
 
 export async function decodeAudioData(
