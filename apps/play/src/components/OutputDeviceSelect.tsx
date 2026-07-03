@@ -1,5 +1,13 @@
 // components/OutputDeviceSelect.tsx
-import { Component, For, Show, createSignal, onCleanup, onMount } from 'solid-js';
+import {
+  Component,
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from 'solid-js';
 import {
   canSetOutputDevice,
   getAudioOutputDevices,
@@ -39,7 +47,15 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
     refresh();
     navigator.mediaDevices.addEventListener('devicechange', refresh);
     onCleanup(() =>
-      navigator.mediaDevices.removeEventListener('devicechange', refresh)
+      navigator.mediaDevices.removeEventListener('devicechange', refresh),
+    );
+  });
+
+  const selectedLabel = createMemo(() => {
+    if (!selected()) return 'System Default Output';
+    return (
+      devices().find((d) => d.deviceId === selected())?.label ||
+      'Audio output device'
     );
   });
 
@@ -55,16 +71,36 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
   return (
     <Show when={canSetOutputDevice()}>
       <select
-        title='Audio output device'
+        aria-label='Audio output device'
+        title={selectedLabel()}
         class={props.class}
         value={selected()}
         onfocus={refreshWithPermission}
         onchange={(e) => onChange(e.currentTarget.value)}
       >
-        <option value=''>System Default Output</option>
+        <button type='button'>
+          <svg
+            aria-hidden='true'
+            viewBox='0 0 24 24'
+            width='20'
+            height='20'
+            fill='none'
+            stroke='currentColor'
+            stroke-width='2'
+            stroke-linecap='round'
+            stroke-linejoin='round'
+          >
+            <path d='M11 5 6 9H3v6h3l5 4z' />
+            <path d='M15.5 8.5a5 5 0 0 1 0 7' />
+            <path d='M18.5 5.5a9 9 0 0 1 0 13' />
+          </svg>
+        </button>
+        <option value='' selected={!selected()}>System Default Output</option>
         <For each={devices().filter((d) => d.deviceId !== 'default')}>
           {(d, i) => (
-            <option value={d.deviceId}>{d.label || `Output ${i() + 1}`}</option>
+            <option value={d.deviceId} selected={selected() === d.deviceId}>
+              {d.label || `Output ${i() + 1}`}
+            </option>
           )}
         </For>
       </select>

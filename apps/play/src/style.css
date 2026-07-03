@@ -724,7 +724,7 @@ piano-keyboard.visible {
   opacity: 1;
 
   &:hover {
-    transform: scale(1.2);
+    transform: scale(1.1);
   }
 
   &:active {
@@ -747,21 +747,35 @@ piano-keyboard.visible {
     border: none !important;
   }
   &:hover {
-    transform: scale(1.1) !important;
+    transform: scale(1.05) !important;
   }
 }
 
 .toolbar-wrapper > .expandable-width > .output-device-select {
-  width: auto;
-  max-width: 160px;
-  background-color: inherit;
+  appearance: base-select;
+  max-width: 36px;
+  white-space: nowrap;
+  overflow: hidden;
   color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  font-size: 12px;
+
+  &:open {
+    transform: scale(0.9);
+    color: rgb(85, 136, 255);
+  }
 
   & option {
-    color: black;
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  & option:checked {
+    color: rgb(85, 136, 255);
+    background: rgba(0, 0, 0, 0.529);
+    outline: 1px solid rgb(85, 136, 255);
+  }
+
+  &::picker-icon {
+    display: none;
   }
 }
 
