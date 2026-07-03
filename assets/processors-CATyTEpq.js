@@ -621,9 +621,13 @@ getSafeParam_fn = function(paramArray, index, isConstant) {
   return isConstant ? paramArray[0] : paramArray[Math.min(index, paramArray.length - 1)];
 };
 getConstantFlags_fn = function(parameters) {
-  return Object.fromEntries(
-    Object.keys(parameters).map((key) => [key, parameters[key].length === 1])
-  );
+  this.constantFlags ?? (this.constantFlags = {
+    envGain: true,
+    playbackRate: true
+  });
+  this.constantFlags.envGain = parameters.envGain.length === 1;
+  this.constantFlags.playbackRate = parameters.playbackRate.length === 1;
+  return this.constantFlags;
 };
 /**
  * Generate a new drift amount for the current loop iteration
