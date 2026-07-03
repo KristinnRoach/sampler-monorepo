@@ -108,6 +108,14 @@ export async function setAudioOutputDevice(deviceId: string): Promise<void> {
   );
   const ctx = (await ensureAudioCtx()) as SinkCapableContext;
   await ctx.setSinkId(deviceId === 'default' ? '' : deviceId);
+
+  // TEMP DEBUG: volume tracing — remove after gain staging is fixed
+  const dest = ctx.destination;
+  console.log(
+    `[sink] sinkId="${ctx.sinkId}" sampleRate=${ctx.sampleRate} ` +
+      `dest.channelCount=${dest.channelCount} dest.maxChannelCount=${dest.maxChannelCount} ` +
+      `state=${ctx.state} baseLatency=${ctx.baseLatency}`
+  );
 }
 
 export function getCurrentOutputDeviceId(): string {

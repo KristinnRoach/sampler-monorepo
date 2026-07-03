@@ -183,6 +183,37 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.connect(this.outBus.input);
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(this.context.destination);
+
+    // TEMP DEBUG: volume tracing — remove after gain staging is fixed
+    this.#tapLevel('A post-busInput (voices x0.5)', this.outBus.input);
+    this.#tapLevel('B post-busChain', this.outBus.output);
+    this.#tapLevel('C final (post volume knob)', this.#masterOut);
+  }
+
+  // TEMP DEBUG: logs peak dBFS at a point in the chain while signal is present
+  #tapLevel(label: string, node: AudioNode) {
+    // fftSize 32768 = ~683ms window @48k, polled every 400ms -> gapless peak coverage
+    const an = new AnalyserNode(this.context, { fftSize: 32768 });
+    node.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    let notePeak = 0;
+    setInterval(() => {
+      an.getFloatTimeDomainData(buf);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const a = Math.abs(buf[i]);
+        if (a > peak) peak = a;
+      }
+      if (peak > 1e-4) {
+        notePeak = Math.max(notePeak, peak);
+        console.log(
+          `[level] ${label}: ${(20 * Math.log10(peak)).toFixed(1)} dBFS ` +
+            `(note peak so far: ${(20 * Math.log10(notePeak)).toFixed(1)})`
+        );
+      } else {
+        notePeak = 0; // silence resets per-note peak
+      }
+    }, 400);
   }
 
   setRecorderInputSource(source: InputSource) {

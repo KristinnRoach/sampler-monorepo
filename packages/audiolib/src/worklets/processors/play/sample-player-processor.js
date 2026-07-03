@@ -257,7 +257,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.isReleasing = false;
     this.loopEnabled = false;
     this.transpositionPlaybackrate = 1;
-    this.velocitySensitivity = 0.5;
+    this.velocitySensitivity = 1.0; // full velocity = unity gain
 
     this.reversePlayback = false;
     this.playbackPosition = 0;

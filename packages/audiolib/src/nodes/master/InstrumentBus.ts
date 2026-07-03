@@ -101,7 +101,7 @@ export class InstrumentBus implements ILibAudioNode {
     this.#initPromise = (async () => {
       try {
         // Create nodes
-        const input = this.createGainNode(this.#context, { initialGain: 0.5 });
+        const input = this.createGainNode(this.#context, { initialGain: 1 });
         const dryMix = this.createGainNode(this.#context, { initialGain: 1 });
         const wetMix = this.createGainNode(this.#context, { initialGain: 1 });
         const output = this.createGainNode(this.#context, { initialGain: 1 });
