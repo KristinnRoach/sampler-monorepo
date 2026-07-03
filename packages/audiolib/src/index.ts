@@ -18,6 +18,12 @@ export type {
 
 // =*=*= Utilities =*=*= \\
 export { getAudioContext, ensureAudioCtx } from './context';
+export {
+  canSetOutputDevice,
+  getAudioOutputDevices,
+  setAudioOutputDevice,
+  getCurrentOutputDeviceId,
+} from './context';
 
 // =*=*= Constants =*=*= \\
 export { SUPPORTED_WAVEFORMS } from './utils';

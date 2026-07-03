@@ -78,6 +78,56 @@ function setupAutoResume(): Promise<void> {
   });
 }
 
+// --- Output device selection ---
+
+type SinkCapableContext = AudioContext & {
+  setSinkId(id: AudioContextSinkId): Promise<void>;
+  sinkId: AudioContextSinkId;
+};
+
+type AudioSinkInfo = {
+  readonly type: 'none';
+};
+
+type AudioContextSinkId = string | AudioSinkInfo;
+
+/** False in Safari — AudioContext.setSinkId is Chromium/Firefox only */
+export function canSetOutputDevice(): boolean {
+  return (
+    typeof AudioContext !== 'undefined' &&
+    'setSinkId' in AudioContext.prototype
+  );
+}
+
+/** Device labels are only populated once mic permission has been granted */
+export async function getAudioOutputDevices(): Promise<MediaDeviceInfo[]> {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((d) => d.kind === 'audiooutput');
+}
+
+/** Routes the global AudioContext (all audiolib output) to the given output device.
+ *  Pass '' or 'default' to restore the system default output. */
+export async function setAudioOutputDevice(deviceId: string): Promise<void> {
+  assert(
+    canSetOutputDevice(),
+    'AudioContext.setSinkId is not supported in this browser'
+  );
+  const ctx = (await ensureAudioCtx()) as SinkCapableContext;
+  await ctx.setSinkId(deviceId === 'default' ? '' : deviceId);
+}
+
+export function getCurrentOutputDeviceId(): string {
+  const ctx = getAudioContext() as Partial<SinkCapableContext>;
+  const { sinkId } = ctx;
+  if (typeof sinkId === 'string') {
+    return sinkId;
+  }
+  if (sinkId?.type === 'none') {
+    return '';
+  }
+  return '';
+}
+
 export async function decodeAudioData(
   arrayBuffer: ArrayBuffer,
   config?: AudioContextConfig
