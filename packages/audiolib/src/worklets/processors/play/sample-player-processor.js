@@ -175,7 +175,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       case 'voice:setZeroCrossings':
         this.zeroCrossings = (zeroCrossings || []).map(
-          (timeSec) => timeSec * sampleRate
+          (timeSec) => timeSec * sampleRate,
         );
 
         // Set min/max zero crossings for parameter constraints
@@ -470,7 +470,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     playbackRange,
     driftAmount = 0,
     tempo = 120,
-    playbackRate = 1
+    playbackRate = 1,
   ) {
     const lpStart = params.loopStartSamples;
     const lpEnd = params.loopEndSamples;
@@ -491,7 +491,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       const quantizedDuration = this.#quantizeLoopDuration(
         baseDuration,
         tempo,
-        playbackRate
+        playbackRate,
       );
       calcLoopEnd = calcLoopStart + quantizedDuration;
 
@@ -514,7 +514,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           baseDuration <= this.PITCH_PRESERVATION_THRESHOLD
             ? Math.max(
                 1,
-                Math.floor(this.PITCH_PRESERVATION_THRESHOLD / baseDuration)
+                Math.floor(this.PITCH_PRESERVATION_THRESHOLD / baseDuration),
               )
             : 1;
 
@@ -524,7 +524,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         if (shouldUpdateDrift) {
           this.currentLoopDrift = this.#generateLoopDrift(
             driftAmount,
-            baseDuration
+            baseDuration,
           );
 
           if (this.panDriftEnabled && driftAmount > 0 && this.loopCount > 0) {
@@ -546,7 +546,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       const minLoopDuration = Math.max(1, Math.floor(baseDuration * 0.1)); // At least 10% of original duration
       calcLoopEnd = Math.max(
         calcLoopStart + minLoopDuration,
-        Math.min(playbackRange.endSamples, driftedLoopEnd)
+        Math.min(playbackRange.endSamples, driftedLoopEnd),
       );
     } else {
       // Ensure pan drift is set to zero if no loopDrift applied
@@ -569,9 +569,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   #getConstantFlags(parameters) {
-    return Object.fromEntries(
-      Object.keys(parameters).map((key) => [key, parameters[key].length === 1])
-    );
+    this.constantFlags ??= {
+      envGain: true,
+      playbackRate: true,
+    };
+
+    this.constantFlags.envGain = parameters.envGain.length === 1;
+    this.constantFlags.playbackRate = parameters.playbackRate.length === 1;
+
+    return this.constantFlags;
   }
 
   /**
@@ -710,13 +716,13 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       playbackRange,
       parameters.loopDurationDriftAmount[0],
       tempo,
-      basePlaybackRate
+      basePlaybackRate,
     );
 
     // Calculate amplitude compensation for short loops
     const amplitudeGain = this.#analyzeLoopAmplitude(
       loopRange.loopStartSamples,
-      loopRange.loopEndSamples
+      loopRange.loopEndSamples,
     );
 
     const velocityGain =
@@ -769,13 +775,13 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       const envelopeGain = this.#getSafeParam(
         parameters.envGain,
         sample,
-        isConstant.envGain
+        isConstant.envGain,
       );
 
       const baseRate = this.#getSafeParam(
         parameters.playbackRate,
         sample,
-        isConstant.playbackRate
+        isConstant.playbackRate,
       );
 
       const effectiveRate = this.reversePlayback
@@ -853,13 +859,13 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       if (this.reversePlayback) {
         nextPosition = Math.max(
           currentPosition - 1,
-          playbackRange.startSamples
+          playbackRange.startSamples,
         );
         interpWeight = 1 - positionOffset; // Reverse: weight toward previous sample
       } else {
         nextPosition = Math.min(
           currentPosition + 1,
-          playbackRange.endSamples - 1
+          playbackRange.endSamples - 1,
         );
         interpWeight = positionOffset; // Forward: weight toward next sample
       }
@@ -870,7 +876,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         if (!outputChannels[channel]) {
           console.warn(
             `Output channel ${channel} does not exist. Available channels:`,
-            outputChannels.length
+            outputChannels.length,
           );
           continue;
         }
@@ -923,7 +929,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         // Basic hard limiting
         outputChannels[channel][sample] = Math.max(
           -1,
-          Math.min(1, isFinite(panAdjustedSample) ? panAdjustedSample : 0)
+          Math.min(1, isFinite(panAdjustedSample) ? panAdjustedSample : 0),
         );
       }
 
@@ -933,7 +939,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Send position updates if requested
     if (this.usePlaybackPosition) {
       const normalizedPosition = this.#samplesToNormalized(
-        this.playbackPosition
+        this.playbackPosition,
       );
       this.port.postMessage({
         type: 'voice:position',

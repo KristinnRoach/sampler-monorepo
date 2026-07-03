@@ -11,7 +11,13 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
-import { assert, cancelScheduledParamValues, clamp, mapToRange } from '@/utils';
+import {
+  assert,
+  cancelAndPinParamValue,
+  cancelScheduledParamValues,
+  clamp,
+  mapToRange,
+} from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -42,7 +48,7 @@ export class CustomEnvelope implements LibNode {
     initialPoints: EnvelopePoint[] = [],
     envPointValueRange: [number, number] = [0, 1],
     durationSeconds = 1,
-    initEnable = true
+    initEnable = true,
   ) {
     this.envelopeType = envelopeType;
     this.nodeType = envelopeType;
@@ -66,7 +72,7 @@ export class CustomEnvelope implements LibNode {
         break;
       default:
         console.error(
-          `CustomEnvelope not implemented for type: ${envelopeType}`
+          `CustomEnvelope not implemented for type: ${envelopeType}`,
         );
         this.#paramName = 'default';
         break;
@@ -88,7 +94,7 @@ export class CustomEnvelope implements LibNode {
   addPoint = (
     time: number,
     value: number,
-    curve?: 'linear' | 'exponential'
+    curve?: 'linear' | 'exponential',
   ): void => {
     this.#data.addPoint(time, value, curve);
     if (this.#isCurrentlyLooping) this.#loopUpdateFlag = true;
@@ -174,7 +180,7 @@ export class CustomEnvelope implements LibNode {
     fromIdx = this.#data.startPointIndex,
     toIdx = this.#data.endPointIndex,
     playbackRate = this.#currentPlaybackRate,
-    timeScale = this.#timeScale
+    timeScale = this.#timeScale,
   ): number {
     if (
       fromIdx < this.#data.startPointIndex ||
@@ -224,7 +230,7 @@ export class CustomEnvelope implements LibNode {
       maxValue: number;
       playbackRate?: number;
       startFromValue?: number;
-    }
+    },
   ): Float32Array {
     const sampleRate = this.#getCurveSamplingRate(scaledDuration);
     const numSamples = Math.max(2, Math.floor(scaledDuration * sampleRate));
@@ -273,7 +279,7 @@ export class CustomEnvelope implements LibNode {
       playbackRate: number;
       voiceId?: string;
       midiNote?: number;
-    } = { baseValue: 1, playbackRate: 1 }
+    } = { baseValue: 1, playbackRate: 1 },
   ) {
     // Firefox fallback - use extremely simple envelope behavior
     if (this.#isFirefox) {
@@ -287,11 +293,11 @@ export class CustomEnvelope implements LibNode {
         // Simple attack and decay
         audioParam.linearRampToValueAtTime(
           options.baseValue * 0.8,
-          safeStart + 0.01
+          safeStart + 0.01,
         );
         audioParam.linearRampToValueAtTime(
           options.baseValue * 0.5,
-          safeStart + 0.1
+          safeStart + 0.1,
         );
 
         console.debug('Firefox trigger envelope - simple linear ramps');
@@ -351,7 +357,7 @@ export class CustomEnvelope implements LibNode {
       playbackRate: number;
       voiceId?: string;
       midiNote?: number;
-    }
+    },
   ) {
     const endIdx = this.sustainEnabled
       ? (this.sustainPointIndex ?? this.points.length - 1)
@@ -361,7 +367,7 @@ export class CustomEnvelope implements LibNode {
       0,
       endIdx,
       options.playbackRate,
-      this.#timeScale
+      this.#timeScale,
     );
 
     const curve = this.#generateCurve(
@@ -374,7 +380,7 @@ export class CustomEnvelope implements LibNode {
         minValue: audioParam.minValue,
         maxValue: audioParam.maxValue,
         startFromValue: audioParam.value,
-      }
+      },
     );
 
     if (options.voiceId !== undefined) {
@@ -396,7 +402,7 @@ export class CustomEnvelope implements LibNode {
     if (scaledDuration < 0.005) {
       audioParam.linearRampToValueAtTime(
         curve[curve.length - 1],
-        safeStart + scaledDuration
+        safeStart + scaledDuration,
       );
       return;
     }
@@ -411,7 +417,7 @@ export class CustomEnvelope implements LibNode {
           () => {
             this.#activeEnvelope = null;
           },
-          scaledDuration * 1000 + 100
+          scaledDuration * 1000 + 100,
         ); // Small buffer to ensure completion
       }
     } catch (error) {
@@ -421,7 +427,7 @@ export class CustomEnvelope implements LibNode {
 
         audioParam.linearRampToValueAtTime(
           curve[curve.length - 1],
-          safeStart + scaledDuration
+          safeStart + scaledDuration,
         );
 
         // Clear active envelope state for fallback case too
@@ -430,7 +436,7 @@ export class CustomEnvelope implements LibNode {
             () => {
               this.#activeEnvelope = null;
             },
-            scaledDuration * 1000 + 100
+            scaledDuration * 1000 + 100,
           );
         }
       } catch (fallbackError) {
@@ -472,7 +478,7 @@ export class CustomEnvelope implements LibNode {
       midiNote?: number;
       minValue?: number;
       maxValue?: number;
-    }
+    },
   ) {
     if (!this.#shouldLoop()) {
       this.#isCurrentlyLooping = false;
@@ -483,7 +489,7 @@ export class CustomEnvelope implements LibNode {
       this.#data.startPointIndex,
       this.#data.endPointIndex,
       options.playbackRate,
-      this.#timeScale
+      this.#timeScale,
     );
 
     let cachedCurve = this.#generateCurve(cachedDuration, this.baseDuration, {
@@ -538,7 +544,7 @@ export class CustomEnvelope implements LibNode {
             this.#data.startPointIndex,
             this.#data.endPointIndex,
             options.playbackRate,
-            this.#timeScale
+            this.#timeScale,
           );
 
           cachedCurve = this.#generateCurve(cachedDuration, this.baseDuration, {
@@ -568,7 +574,7 @@ export class CustomEnvelope implements LibNode {
             audioParam.setValueCurveAtTime(
               cachedCurve,
               phase,
-              safeCurveDuration
+              safeCurveDuration,
             );
           } catch (error) {
             // Curve overlap, advance phase
@@ -576,7 +582,7 @@ export class CustomEnvelope implements LibNode {
             if (debugOverlapCount >= 100) {
               console.debug(
                 `Multiple curve overlaps in looping envelope, nr of overlaps: ${debugOverlapCount} 
-                (loop duration: ${cachedDuration.toFixed(3)}s, buffer: ${safetyBuffer})`
+                (loop duration: ${cachedDuration.toFixed(3)}s, buffer: ${safetyBuffer})`,
               );
               debugOverlapCount = 0;
             }
@@ -645,6 +651,22 @@ export class CustomEnvelope implements LibNode {
   // Temp fix for Firefox - fixed release
   #isFirefox = navigator.userAgent.includes('Firefox');
 
+  // release-click diagnostic
+  #debugRelease(data: {
+    audioParamValue: number;
+    elapsedSeconds?: number;
+    envelopeTime?: number;
+    releaseStartValue?: number;
+    safeStart: number;
+    startTime: number;
+    activeStartTime?: number;
+  }) {
+    console.debug('CustomEnvelope release debug:', {
+      envelopeType: this.envelopeType,
+      ...data,
+    });
+  }
+
   releaseEnvelope(
     audioParam: AudioParam,
     startTime: number,
@@ -655,10 +677,12 @@ export class CustomEnvelope implements LibNode {
       midiNote?: number;
       minValue?: number;
       maxValue?: number;
-    }
+    },
+    debugLog: boolean = false,
   ) {
     if (this.#isReleased) return;
 
+    const activeEnvelope = this.#activeEnvelope;
     this.#isReleased = true;
     this.#activeEnvelope = null; // Clear active envelope state
 
@@ -676,7 +700,7 @@ export class CustomEnvelope implements LibNode {
             cancelScheduledParamValues(audioParam, delayedNow);
             audioParam.linearRampToValueAtTime(0, delayedNow + 0.1);
             console.debug(
-              'Firefox delayed release envelope - linear ramp to 0'
+              'Firefox delayed release envelope - linear ramp to 0',
             );
           } catch (delayedError) {
             console.debug('Firefox delayed release also failed:', delayedError);
@@ -692,7 +716,7 @@ export class CustomEnvelope implements LibNode {
           } catch (veryDelayedError) {
             console.debug(
               'Firefox very delayed release failed:',
-              veryDelayedError
+              veryDelayedError,
             );
           }
         }, 50);
@@ -701,9 +725,54 @@ export class CustomEnvelope implements LibNode {
       return; // Don't call #continueFromPoint if using fallback
     }
 
+    const safeStart = Math.max(this.#context.currentTime, startTime);
+    const elapsedSeconds = activeEnvelope
+      ? Math.max(0, safeStart - activeEnvelope.startTime)
+      : undefined;
+    const envelopeTime =
+      elapsedSeconds !== undefined
+        ? Math.min(
+            this.baseDuration,
+            elapsedSeconds *
+              (this.#syncedToPlaybackRate
+                ? activeEnvelope!.options.playbackRate
+                : 1) *
+              this.#timeScale,
+          )
+        : undefined;
+    const releaseStartValue =
+      this.envelopeType === 'amp-env' &&
+      activeEnvelope?.audioParam === audioParam &&
+      envelopeTime !== undefined
+        ? this.#clampToPointValueRange(
+            this.#data.interpolateValueAtTime(envelopeTime) *
+              activeEnvelope.options.baseValue,
+          )
+        : undefined;
+
+    if (debugLog) {
+      this.#debugRelease({
+        audioParamValue: audioParam.value,
+        elapsedSeconds,
+        envelopeTime,
+        releaseStartValue,
+        safeStart,
+        startTime,
+        activeStartTime: activeEnvelope?.startTime,
+      });
+    }
+
     this.#continueFromPoint(audioParam, startTime, this.releasePointIndex, {
       baseValue: audioParam.value,
       playbackRate: this.#currentPlaybackRate,
+      releaseStartValue,
+      // Amp release curve must be scaled like releaseStartValue (velocity),
+      // otherwise it drifts toward the unscaled trajectory. Other envelope
+      // types map baseValue differently, so leave them unscaled.
+      curveScale:
+        this.envelopeType === 'amp-env'
+          ? activeEnvelope?.options.baseValue
+          : undefined,
       ...options,
     });
   }
@@ -715,11 +784,13 @@ export class CustomEnvelope implements LibNode {
     options: {
       baseValue: number;
       playbackRate: number;
+      releaseStartValue?: number;
+      curveScale?: number;
       voiceId?: string;
       midiNote?: number;
-    }
+    },
   ) {
-    const { baseValue = 1 } = options;
+    const curveScale = options.curveScale ?? 1;
 
     const fromPoint = this.points[fromPointIndex];
     const lastPoint = this.points[this.points.length - 1];
@@ -731,23 +802,24 @@ export class CustomEnvelope implements LibNode {
       fromPointIndex,
       this.points.length - 1,
       options.playbackRate,
-      this.#timeScale
+      this.#timeScale,
     );
-
-    // Return early if duration is too small to be meaningful for audio scheduling
-    if (scaledRemainingDuration <= 0.0001) return;
-
-    const currentValue = audioParam.value;
 
     const targetEndValue = this.#clampToPointValueRange(
-      this.#data.interpolateValueAtTime(lastPoint.time)
+      this.#data.interpolateValueAtTime(lastPoint.time) * curveScale,
     );
+
+    if (scaledRemainingDuration <= 0.0001) {
+      cancelAndPinParamValue(audioParam, safeStart, options.releaseStartValue);
+      audioParam.linearRampToValueAtTime(targetEndValue, safeStart + 0.005);
+      return;
+    }
 
     // Generate the release curve shape from sustain point to end
     const sampleRate = this.#getCurveSamplingRate(scaledRemainingDuration);
     const numSamples = Math.max(
       2,
-      Math.floor(scaledRemainingDuration * sampleRate)
+      Math.floor(scaledRemainingDuration * sampleRate),
     );
     const curve = new Float32Array(numSamples);
 
@@ -759,7 +831,7 @@ export class CustomEnvelope implements LibNode {
 
       // Get the envelope's original value at this time
       curve[i] = this.#clampToPointValueRange(
-        this.#data.interpolateValueAtTime(absoluteTime)
+        this.#data.interpolateValueAtTime(absoluteTime) * curveScale,
       );
     }
 
@@ -775,7 +847,10 @@ export class CustomEnvelope implements LibNode {
 
     try {
       // ! Needs testing specifically for Firefox ( and Safari )
-      cancelScheduledParamValues(audioParam, safeStart);
+      // Capture the handoff value BEFORE cancelling: cancel reverts
+      // audioParam.value to its pre-curve value (0 for amp env).
+      const currentValue = options.releaseStartValue ?? audioParam.value;
+      cancelAndPinParamValue(audioParam, safeStart, currentValue);
 
       // Adjust curve to start from currentValue instead of envelope's release point
       const adjustedCurve = new Float32Array(curve.length);
@@ -784,22 +859,27 @@ export class CustomEnvelope implements LibNode {
         // Blend from current value to target curve value
         adjustedCurve[i] = currentValue + progress * (curve[i] - currentValue);
       }
+      adjustedCurve[0] = currentValue;
 
       audioParam.setValueCurveAtTime(
         adjustedCurve,
-        safeStart,
-        scaledRemainingDuration
+        safeStart + 0.001,
+        scaledRemainingDuration,
       );
     } catch (error) {
       // Silent fallback - this is expected behavior for rapid envelope changes
 
       try {
         // Fallback to simple linear ramp
-        cancelScheduledParamValues(audioParam, safeStart);
+        cancelAndPinParamValue(
+          audioParam,
+          safeStart,
+          options.releaseStartValue,
+        );
 
         audioParam.linearRampToValueAtTime(
           targetEndValue,
-          safeStart + scaledRemainingDuration
+          safeStart + scaledRemainingDuration,
         );
       } catch (fallbackError) {
         console.warn('Fallback linear ramp also failed:', fallbackError);
@@ -822,11 +902,11 @@ export class CustomEnvelope implements LibNode {
 
   setLoopEnabled = (
     enabled: boolean,
-    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal',
   ) => {
     if (mode !== 'normal') {
       console.info(
-        `Only default env loop mode implemented. Other modes coming soon!`
+        `Only default env loop mode implemented. Other modes coming soon!`,
       );
     }
     this.#loopEnabled = enabled;
@@ -885,19 +965,19 @@ export class CustomEnvelope implements LibNode {
             minValue: audioParam.minValue,
             maxValue: audioParam.maxValue,
             startFromValue: audioParam.value,
-          }
+          },
         );
 
         audioParam.setValueCurveAtTime(
           curve,
           currentTime,
-          scaledRemainingDuration
+          scaledRemainingDuration,
         );
       }
     } catch (error) {
       // Silent fallback for rapid changes
       console.debug(
-        'Dynamic sustain reschedule failed, envelope will continue normally'
+        'Dynamic sustain reschedule failed, envelope will continue normally',
       );
     }
   }
@@ -976,7 +1056,7 @@ export class CustomEnvelope implements LibNode {
   hasVariation(): boolean {
     const firstValue = this.points[0]?.value ?? 0;
     return this.points.some(
-      (point) => Math.abs(point.value - firstValue) > 0.001
+      (point) => Math.abs(point.value - firstValue) > 0.001,
     );
   }
 
