@@ -766,6 +766,13 @@ export class CustomEnvelope implements LibNode {
       baseValue: audioParam.value,
       playbackRate: this.#currentPlaybackRate,
       releaseStartValue,
+      // Amp release curve must be scaled like releaseStartValue (velocity),
+      // otherwise it drifts toward the unscaled trajectory. Other envelope
+      // types map baseValue differently, so leave them unscaled.
+      curveScale:
+        this.envelopeType === 'amp-env'
+          ? activeEnvelope?.options.baseValue
+          : undefined,
       ...options,
     });
   }
@@ -778,11 +785,12 @@ export class CustomEnvelope implements LibNode {
       baseValue: number;
       playbackRate: number;
       releaseStartValue?: number;
+      curveScale?: number;
       voiceId?: string;
       midiNote?: number;
     },
   ) {
-    const { baseValue = 1 } = options;
+    const curveScale = options.curveScale ?? 1;
 
     const fromPoint = this.points[fromPointIndex];
     const lastPoint = this.points[this.points.length - 1];
@@ -798,7 +806,7 @@ export class CustomEnvelope implements LibNode {
     );
 
     const targetEndValue = this.#clampToPointValueRange(
-      this.#data.interpolateValueAtTime(lastPoint.time),
+      this.#data.interpolateValueAtTime(lastPoint.time) * curveScale,
     );
 
     if (scaledRemainingDuration <= 0.0001) {
@@ -823,7 +831,7 @@ export class CustomEnvelope implements LibNode {
 
       // Get the envelope's original value at this time
       curve[i] = this.#clampToPointValueRange(
-        this.#data.interpolateValueAtTime(absoluteTime),
+        this.#data.interpolateValueAtTime(absoluteTime) * curveScale,
       );
     }
 
