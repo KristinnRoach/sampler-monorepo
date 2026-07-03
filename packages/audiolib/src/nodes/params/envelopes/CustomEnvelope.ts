@@ -11,7 +11,13 @@ import {
 import { EnvelopePoint, EnvelopeType } from './env-types';
 import { EnvelopeData } from './EnvelopeData';
 import { LibNode } from '@/nodes/LibNode';
-import { assert, cancelScheduledParamValues, clamp, mapToRange } from '@/utils';
+import {
+  assert,
+  cancelAndPinParamValue,
+  cancelScheduledParamValues,
+  clamp,
+  mapToRange,
+} from '@/utils';
 
 // ===== CUSTOM ENVELOPE  =====
 export class CustomEnvelope implements LibNode {
@@ -794,7 +800,7 @@ export class CustomEnvelope implements LibNode {
     );
 
     if (scaledRemainingDuration <= 0.0001) {
-      cancelScheduledParamValues(audioParam, safeStart);
+      cancelAndPinParamValue(audioParam, safeStart, options.releaseStartValue);
       audioParam.linearRampToValueAtTime(targetEndValue, safeStart + 0.005);
       return;
     }
@@ -831,8 +837,10 @@ export class CustomEnvelope implements LibNode {
 
     try {
       // ! Needs testing specifically for Firefox ( and Safari )
-      cancelScheduledParamValues(audioParam, safeStart);
+      // Capture the handoff value BEFORE cancelling: cancel reverts
+      // audioParam.value to its pre-curve value (0 for amp env).
       const currentValue = options.releaseStartValue ?? audioParam.value;
+      cancelAndPinParamValue(audioParam, safeStart, currentValue);
 
       // Adjust curve to start from currentValue instead of envelope's release point
       const adjustedCurve = new Float32Array(curve.length);
@@ -843,7 +851,6 @@ export class CustomEnvelope implements LibNode {
       }
       adjustedCurve[0] = currentValue;
 
-      audioParam.setValueAtTime(currentValue, safeStart);
       audioParam.setValueCurveAtTime(
         adjustedCurve,
         safeStart + 0.001,
@@ -854,7 +861,7 @@ export class CustomEnvelope implements LibNode {
 
       try {
         // Fallback to simple linear ramp
-        cancelScheduledParamValues(audioParam, safeStart);
+        cancelAndPinParamValue(audioParam, safeStart, options.releaseStartValue);
 
         audioParam.linearRampToValueAtTime(
           targetEndValue,

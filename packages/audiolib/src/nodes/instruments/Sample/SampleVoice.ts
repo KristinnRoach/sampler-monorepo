@@ -13,7 +13,7 @@ import {
 import {
   assert,
   clamp,
-  cancelScheduledParamValues,
+  cancelAndPinParamValue,
   interpolateLinearToExp,
   mapToRange,
   midiToPlaybackRate,
@@ -507,7 +507,7 @@ export class SampleVoice {
     const stopAt = Math.max(timestamp, this.now);
     const envGain = this.getParam('envGain');
     if (envGain) {
-      cancelScheduledParamValues(envGain, stopAt);
+      cancelAndPinParamValue(envGain, stopAt);
       envGain.linearRampToValueAtTime(0, stopAt + deClickSeconds);
     }
 
