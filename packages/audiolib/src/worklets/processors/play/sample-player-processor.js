@@ -569,9 +569,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
   }
 
   #getConstantFlags(parameters) {
-    return Object.fromEntries(
-      Object.keys(parameters).map((key) => [key, parameters[key].length === 1]),
-    );
+    this.constantFlags ??= {
+      envGain: true,
+      playbackRate: true,
+    };
+
+    this.constantFlags.envGain = parameters.envGain.length === 1;
+    this.constantFlags.playbackRate = parameters.playbackRate.length === 1;
+
+    return this.constantFlags;
   }
 
   /**
