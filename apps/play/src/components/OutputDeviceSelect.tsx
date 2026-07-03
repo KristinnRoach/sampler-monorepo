@@ -23,7 +23,7 @@ interface OutputDeviceSelectProps {
  *  Hidden entirely on browsers without AudioContext.setSinkId (Safari). */
 const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
   const [devices, setDevices] = createSignal<MediaDeviceInfo[]>([]);
-  const [selected, setSelected] = createSignal(getCurrentOutputDeviceId());
+  const [selected, setSelected] = createSignal('');
 
   const refresh = async () => setDevices(await getAudioOutputDevices());
 
