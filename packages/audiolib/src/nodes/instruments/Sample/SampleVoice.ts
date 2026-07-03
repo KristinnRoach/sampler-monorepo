@@ -13,6 +13,7 @@ import {
 import {
   assert,
   clamp,
+  cancelScheduledParamValues,
   interpolateLinearToExp,
   mapToRange,
   midiToPlaybackRate,
@@ -430,6 +431,7 @@ export class SampleVoice {
   }
 
   #releaseTimeout: number | null = null;
+  #stopTimeout: number | null = null;
 
   release({ releaseTime = this.releaseTime, secondsFromNow = 0 }): this {
     if (this.#state === VoiceState.RELEASING) return this;
@@ -501,14 +503,22 @@ export class SampleVoice {
     }
     this.#state = VoiceState.STOPPING;
 
-    // Clear all scheduled values to prevent overlapping setValueCurveAtTime errors
-    this.setParam('envGain', 0, timestamp, {
-      cancelPrevious: true,
-      glideTime: 0,
-    });
+    const deClickSeconds = 0.005;
+    const stopAt = Math.max(timestamp, this.now);
+    const envGain = this.getParam('envGain');
+    if (envGain) {
+      cancelScheduledParamValues(envGain, stopAt);
+      envGain.linearRampToValueAtTime(0, stopAt + deClickSeconds);
+    }
 
-    this.sendToProcessor({ type: 'voice:stop', timestamp });
-    this.#state = VoiceState.STOPPED;
+    if (this.#stopTimeout) clearTimeout(this.#stopTimeout);
+    this.#stopTimeout = setTimeout(
+      () => {
+        this.sendToProcessor({ type: 'voice:stop', timestamp: stopAt });
+        this.#stopTimeout = null;
+      },
+      Math.max(0, (stopAt + deClickSeconds - this.now) * 1000)
+    );
     return this;
   }
 
@@ -1207,6 +1217,7 @@ export class SampleVoice {
     this.#envelopes.forEach((env) => env.dispose());
     this.#playerWorklet.port.close();
     if (this.#releaseTimeout) clearTimeout(this.#releaseTimeout);
+    if (this.#stopTimeout) clearTimeout(this.#stopTimeout);
     unregisterNode(this.nodeId);
   }
 
