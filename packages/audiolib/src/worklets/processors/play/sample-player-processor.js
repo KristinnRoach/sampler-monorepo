@@ -189,6 +189,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       case 'voice:start':
         this.isReleasing = false;
         this.isPlaying = true;
+        this.releaseDebugPending = false;
         this.loopCount = 0;
 
         // will be set in process() using parameters
@@ -202,6 +203,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       case 'voice:release':
         this.isReleasing = true;
+        this.releaseDebugPending = true;
 
         this.port.postMessage({
           type: 'voice:releasing',
@@ -255,6 +257,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
   #resetState() {
     this.isPlaying = false;
     this.isReleasing = false;
+    this.releaseDebugPending = false;
     this.loopEnabled = false;
     this.transpositionPlaybackrate = 1;
     this.velocitySensitivity = 1.0; // full velocity = unity gain
@@ -771,6 +774,19 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         sample,
         isConstant.envGain
       );
+      if (this.releaseDebugPending) {
+        this.releaseDebugPending = false;
+        this.port.postMessage({
+          type: 'debug:release',
+          currentTime,
+          playbackPosition: this.playbackPosition,
+          envGainFirst: parameters.envGain[0],
+          envGainLast: parameters.envGain[parameters.envGain.length - 1],
+          rawSample: this.buffer?.[0]?.[Math.floor(this.playbackPosition)] || 0,
+          loopEnabled: this.loopEnabled,
+          loopCount: this.loopCount,
+        });
+      }
 
       const baseRate = this.#getSafeParam(
         parameters.playbackRate,

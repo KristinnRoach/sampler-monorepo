@@ -645,6 +645,23 @@ export class CustomEnvelope implements LibNode {
   // Temp fix for Firefox - fixed release
   #isFirefox = navigator.userAgent.includes('Firefox');
 
+  // ponytail: temporary release-click diagnostic; remove after envGain handoff is fixed.
+  #debugRelease(data: {
+    audioParamValue: number;
+    elapsedSeconds?: number;
+    envelopeTime?: number;
+    releaseStartValue?: number;
+    safeStart: number;
+    startTime: number;
+    activeStartTime?: number;
+  }) {
+    if (this.envelopeType !== 'amp-env') return;
+    console.debug('CustomEnvelope release debug:', {
+      envelopeType: this.envelopeType,
+      ...data,
+    });
+  }
+
   releaseEnvelope(
     audioParam: AudioParam,
     startTime: number,
@@ -659,6 +676,7 @@ export class CustomEnvelope implements LibNode {
   ) {
     if (this.#isReleased) return;
 
+    const activeEnvelope = this.#activeEnvelope;
     this.#isReleased = true;
     this.#activeEnvelope = null; // Clear active envelope state
 
@@ -701,9 +719,45 @@ export class CustomEnvelope implements LibNode {
       return; // Don't call #continueFromPoint if using fallback
     }
 
+    const safeStart = Math.max(this.#context.currentTime, startTime);
+    const elapsedSeconds = activeEnvelope
+      ? Math.max(0, safeStart - activeEnvelope.startTime)
+      : undefined;
+    const envelopeTime =
+      elapsedSeconds !== undefined
+        ? Math.min(
+            this.baseDuration,
+            elapsedSeconds *
+              (this.#syncedToPlaybackRate
+                ? activeEnvelope!.options.playbackRate
+                : 1) *
+              this.#timeScale
+          )
+        : undefined;
+    const releaseStartValue =
+      this.envelopeType === 'amp-env' &&
+      activeEnvelope?.audioParam === audioParam &&
+      envelopeTime !== undefined
+        ? this.#clampToPointValueRange(
+            this.#data.interpolateValueAtTime(envelopeTime) *
+              activeEnvelope.options.baseValue
+          )
+        : undefined;
+
+    this.#debugRelease({
+      audioParamValue: audioParam.value,
+      elapsedSeconds,
+      envelopeTime,
+      releaseStartValue,
+      safeStart,
+      startTime,
+      activeStartTime: activeEnvelope?.startTime,
+    });
+
     this.#continueFromPoint(audioParam, startTime, this.releasePointIndex, {
       baseValue: audioParam.value,
       playbackRate: this.#currentPlaybackRate,
+      releaseStartValue,
       ...options,
     });
   }
@@ -715,6 +769,7 @@ export class CustomEnvelope implements LibNode {
     options: {
       baseValue: number;
       playbackRate: number;
+      releaseStartValue?: number;
       voiceId?: string;
       midiNote?: number;
     }
@@ -777,7 +832,7 @@ export class CustomEnvelope implements LibNode {
     try {
       // ! Needs testing specifically for Firefox ( and Safari )
       cancelScheduledParamValues(audioParam, safeStart);
-      const currentValue = audioParam.value;
+      const currentValue = options.releaseStartValue ?? audioParam.value;
 
       // Adjust curve to start from currentValue instead of envelope's release point
       const adjustedCurve = new Float32Array(curve.length);
@@ -786,10 +841,12 @@ export class CustomEnvelope implements LibNode {
         // Blend from current value to target curve value
         adjustedCurve[i] = currentValue + progress * (curve[i] - currentValue);
       }
+      adjustedCurve[0] = currentValue;
 
+      audioParam.setValueAtTime(currentValue, safeStart);
       audioParam.setValueCurveAtTime(
         adjustedCurve,
-        safeStart,
+        safeStart + 0.001,
         scaledRemainingDuration
       );
     } catch (error) {

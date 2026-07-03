@@ -990,6 +990,10 @@ export class SampleVoice {
           );
           break;
 
+        case 'debug:release':
+          console.debug('SampleVoice release debug:', data);
+          break;
+
         case 'debug:loop':
           console.log('Loop debug:', data);
           break;
