@@ -734,14 +734,17 @@ export class CustomEnvelope implements LibNode {
       this.#timeScale
     );
 
-    // Return early if duration is too small to be meaningful for audio scheduling
-    if (scaledRemainingDuration <= 0.0001) return;
-
-    const currentValue = audioParam.value;
-
     const targetEndValue = this.#clampToPointValueRange(
       this.#data.interpolateValueAtTime(lastPoint.time)
     );
+
+    if (scaledRemainingDuration <= 0.0001) {
+      cancelScheduledParamValues(audioParam, safeStart);
+      audioParam.linearRampToValueAtTime(targetEndValue, safeStart + 0.005);
+      return;
+    }
+
+    const currentValue = audioParam.value;
 
     // Generate the release curve shape from sustain point to end
     const sampleRate = this.#getCurveSamplingRate(scaledRemainingDuration);
