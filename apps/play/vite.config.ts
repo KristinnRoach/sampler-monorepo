@@ -12,6 +12,7 @@ export default defineConfig({
     solidSvg(),
     VitePWA({
       registerType: 'autoUpdate', // Automatically update the service worker
+      injectRegister: false,
       includeAssets: [
         'icons/favicon.svg',
         'icons/favicon.ico',

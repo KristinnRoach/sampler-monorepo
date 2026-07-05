@@ -5,6 +5,7 @@ import App from './App';
 import { defineSampler } from '@repo/audio-components';
 import './styles/themes.css';
 import './style.css';
+import './utils/pwa-utils/updateSW';
 
 defineSampler(); // Define all web components for the sampler
 
