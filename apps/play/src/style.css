@@ -93,7 +93,11 @@ option:checked {
 
 .content-wrapper {
   position: relative;
-  padding: clamp(2px, 0.5em, 4rem);
+  margin: 0;
+  padding: clamp(0, 0.5em, 4rem);
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .control-grid {
@@ -105,7 +109,7 @@ option:checked {
   padding-right: 2.5rem; /* extra for row-collapse icons */
 
   width: fit-content;
-  max-width: clamp(300px, fit-content, calc(100svw - 3rem));
+  width: clamp(300px, fit-content, calc(100svw - 2rem));
   height: fit-content;
 
   row-gap: 1rem;
@@ -134,7 +138,8 @@ option:checked {
 
 .control-grid.layout-mobile {
   grid-template-columns: 1fr;
-
+  width: clamp(350px, auto, 100%);
+  border: none;
   grid-template-areas:
     'sample'
     'env'
