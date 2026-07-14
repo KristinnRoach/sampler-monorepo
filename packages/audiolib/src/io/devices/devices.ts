@@ -35,12 +35,28 @@ export async function getMicrophone(
     echoCancellation: false,
     noiseSuppression: true, // ?
     autoGainControl: true, // ?
-  }
+  },
+  deviceId = ''
 ): Promise<MediaStream> {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: constraints,
-  });
-  return stream;
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: deviceId
+        ? {
+            ...constraints,
+            deviceId: { exact: deviceId },
+          }
+        : constraints,
+    });
+  } catch (error) {
+    // Selected device unplugged/disabled -> fall back to default input
+    if (deviceId && (error as DOMException).name === 'OverconstrainedError') {
+      console.warn(
+        'Requested audio input device unavailable, falling back to default'
+      );
+      return navigator.mediaDevices.getUserMedia({ audio: constraints });
+    }
+    throw error;
+  }
 }
 
 // Video Input (Camera)

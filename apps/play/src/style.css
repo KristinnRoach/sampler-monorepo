@@ -652,6 +652,33 @@ piano-keyboard.visible {
   border: 1px solid #aaa;
 }
 
+.input-device-select {
+  appearance: base-select;
+  max-width: 36px;
+  white-space: nowrap;
+  color: white;
+}
+
+.input-device-select:disabled {
+  color: gray;
+}
+
+.input-source-selection-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100px;
+  overflow-x: visible;
+
+}
+
+.ac-select {
+  /* -webkit-appearance: auto;
+  appearance: auto; */
+  font-size: 12px;
+}
+
 /* SAMPLELIB SIDEBAR */
 
 .toolbar-wrapper {
@@ -736,6 +763,10 @@ piano-keyboard.visible {
   &:active {
     transform: scale(0.9);
   }
+
+  &:disabled {
+    color: gray;
+  }
 }
 
 .toolbar-wrapper > .expandable-width > .toolbar-btn {
@@ -757,7 +788,8 @@ piano-keyboard.visible {
   }
 }
 
-.toolbar-wrapper > .expandable-width > .output-device-select {
+.toolbar-wrapper > .expandable-width > .output-device-select,
+.input-device-select {
   appearance: base-select;
   max-width: 36px;
   white-space: nowrap;

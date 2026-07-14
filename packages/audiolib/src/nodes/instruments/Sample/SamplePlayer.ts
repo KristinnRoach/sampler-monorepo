@@ -103,7 +103,8 @@ export class SamplePlayer implements ILibInstrumentNode {
   voicePool!: SampleVoicePool; // todo: fix use of '!'
   outBus!: InstrumentBus; // todo: fix use of '!'
 
-  #recordInputSource: InputSource = 'microphone';
+  #recordInputSource: InputSource = 'audio-input';
+  #recordInputDeviceId = '';
 
   // ? move to input controller ?
   #sustainedNotes = new Set<MidiValue>();
@@ -191,6 +192,14 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   getRecorderInputSource() {
     return this.#recordInputSource;
+  }
+
+  setRecorderInputDeviceId(deviceId: string) {
+    this.#recordInputDeviceId = deviceId === 'default' ? '' : deviceId;
+  }
+
+  getRecorderInputDeviceId() {
+    return this.#recordInputDeviceId;
   }
 
   // === MESSAGING ===

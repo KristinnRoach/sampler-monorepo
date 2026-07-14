@@ -70,6 +70,53 @@ describe('Device Access Utils', () => {
       );
     });
 
+    it('requests a specific audio input device when provided', async () => {
+      const stream = await getMicrophone(undefined, 'input-123');
+
+      expect(stream).toBe(mockStream);
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: true,
+          autoGainControl: true,
+          deviceId: { exact: 'input-123' },
+        },
+      });
+    });
+
+    it('falls back to default input when requested device is unavailable', async () => {
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const overconstrained = Object.assign(new Error('unavailable'), {
+        name: 'OverconstrainedError',
+      });
+      vi.mocked(navigator.mediaDevices.getUserMedia)
+        .mockRejectedValueOnce(overconstrained)
+        .mockResolvedValueOnce(mockStream);
+
+      const stream = await getMicrophone(undefined, 'gone-device');
+
+      expect(stream).toBe(mockStream);
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenLastCalledWith({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      consoleSpy.mockRestore();
+    });
+
+    it('rethrows non-OverconstrainedError failures', async () => {
+      const denied = Object.assign(new Error('denied'), {
+        name: 'NotAllowedError',
+      });
+      vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValue(denied);
+
+      await expect(getMicrophone(undefined, 'input-123')).rejects.toThrow(
+        'denied'
+      );
+    });
+
     it('gets camera access', async () => {
       const stream = await getCamera();
       expect(stream).toBe(mockStream);

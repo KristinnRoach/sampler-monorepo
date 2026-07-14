@@ -45,7 +45,7 @@ export const DEFAULT_MEDIA_REC_OPTIONS: MediaRecorderOptions = {
   mimeType: 'audio/webm',
 };
 
-export type InputSource = 'microphone' | 'browser' | 'resample';
+export type InputSource = 'audio-input' | 'browser' | 'resample';
 
 export type RecorderOptions = {
   mediaRecorderOptions: MediaRecorderOptions;
@@ -86,7 +86,8 @@ export class Recorder implements LibNode {
   #animationFrame: number | null = null;
   #silenceStartTime: number | null = null;
   #config: RecorderOptions | null = null;
-  #inputSource: InputSource = 'microphone';
+  #inputSource: InputSource = 'audio-input';
+  #inputDeviceId = '';
 
   #audioDestination: MediaStreamAudioDestinationNode | null = null;
   #connectedSamplePlayer: SamplePlayer | null = null;
@@ -162,10 +163,12 @@ export class Recorder implements LibNode {
         streamResult
       );
     } else {
-      streamResult = await tryCatch(() => getMicrophone());
+      streamResult = await tryCatch(() =>
+        getMicrophone(undefined, this.#inputDeviceId)
+      );
       assert(
         !streamResult.error,
-        `Failed to get microphone: ${streamResult.error}`,
+        `Failed to get audio input: ${streamResult.error}`,
         streamResult
       );
     }
@@ -218,6 +221,10 @@ export class Recorder implements LibNode {
 
   setInputSource(source: InputSource) {
     this.#inputSource = source;
+  }
+
+  setInputDeviceId(deviceId: string) {
+    this.#inputDeviceId = deviceId === 'default' ? '' : deviceId;
   }
 
   #startArmedRecording(): void {

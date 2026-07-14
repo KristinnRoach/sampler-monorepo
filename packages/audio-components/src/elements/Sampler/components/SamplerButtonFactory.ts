@@ -64,7 +64,7 @@ export const UploadButton = (attributes: ElementProps) => {
   return div(
     { style: COMPONENT_STYLE },
     uploadButton,
-    ...(showStatus.val === 'true' ? [div(() => status.val)] : [])
+    ...(showStatus.val === 'true' ? [div(() => status.val)] : []),
   );
 };
 
@@ -108,7 +108,8 @@ export const RecordButton = (attributes: ElementProps) => {
         return;
       }
 
-      recorderResult.setInputSource(inputSource ?? 'microphone');
+      recorderResult.setInputSource(inputSource ?? 'audio-input');
+      recorderResult.setInputDeviceId(sampler.getRecorderInputDeviceId());
 
       if (inputSource === 'resample') {
         recorderResult.connectResampleInputSource(sampler);
@@ -190,14 +191,14 @@ export const RecordButton = (attributes: ElementProps) => {
     'Record Sample',
     ['record_inactive', 'record_armed', 'record_recording'],
     {
-      size: 'md',
+      size: 'lg',
       onClick: handleClick,
       colors: {
         record_inactive: '#FFFFFF',
         record_armed: '#f59e0b',
         record_recording: '#ef4444',
       },
-    }
+    },
   );
 
   van.derive(() => {
@@ -224,6 +225,6 @@ export const RecordButton = (attributes: ElementProps) => {
   return div(
     { style: COMPONENT_STYLE },
     recordButton,
-    ...(showStatus.val === 'true' ? [div(() => status.val)] : [])
+    ...(showStatus.val === 'true' ? [div(() => status.val)] : []),
   );
 };

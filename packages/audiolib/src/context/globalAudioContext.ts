@@ -105,6 +105,12 @@ export async function getAudioOutputDevices(): Promise<MediaDeviceInfo[]> {
   return devices.filter((d) => d.kind === 'audiooutput');
 }
 
+/** Device labels are only populated once mic permission has been granted */
+export async function getAudioInputDevices(): Promise<MediaDeviceInfo[]> {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((d) => d.kind === 'audioinput');
+}
+
 /** Routes the global AudioContext (all audiolib output) to the given output device.
  *  Pass '' or 'default' to restore the system default output. */
 export async function setAudioOutputDevice(deviceId: string): Promise<void> {

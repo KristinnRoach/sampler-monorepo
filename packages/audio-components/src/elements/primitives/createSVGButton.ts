@@ -57,8 +57,7 @@ const icons = new Map<string, string>([
   [
     'record_recording',
     `<svg viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="12" cy="12" r="10" />
-      <circle cx="12" cy="12" r="6" fill="white" />
+      <circle cx="12" cy="12" r="12" />
     </svg>`,
   ],
 
@@ -207,7 +206,7 @@ const applySizeStyles = (button: HTMLButtonElement, size: ButtonSize): void => {
 export function createSVGButton(
   title: string,
   states: string | string[],
-  options: ButtonOptions = {}
+  options: ButtonOptions = {},
 ): HTMLButtonElement {
   const stateArray = Array.isArray(states) ? states : [states];
   let currentStateIndex = 0;
@@ -254,7 +253,7 @@ export function createSVGButton(
       if (stateArray.length > 1) {
         button.setAttribute(
           'aria-pressed',
-          currentStateIndex !== 0 ? 'true' : 'false'
+          currentStateIndex !== 0 ? 'true' : 'false',
         );
       }
     }
