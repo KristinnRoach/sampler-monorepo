@@ -35,10 +35,16 @@ export async function getMicrophone(
     echoCancellation: false,
     noiseSuppression: true, // ?
     autoGainControl: true, // ?
-  }
+  },
+  deviceId = ''
 ): Promise<MediaStream> {
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: constraints,
+    audio: deviceId
+      ? {
+          ...constraints,
+          deviceId: { exact: deviceId },
+        }
+      : constraints,
   });
   return stream;
 }

@@ -1,5 +1,11 @@
 // src/App.tsx
-import { Component, onMount, createSignal, onCleanup } from 'solid-js';
+import {
+  Component,
+  onMount,
+  createSignal,
+  createMemo,
+  onCleanup,
+} from 'solid-js';
 
 import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
 // import { KnobComponent, type KnobChangeEventDetail, Oscilloscope } from '@repo/audio-components/solidjs';
@@ -24,6 +30,7 @@ import SampleListSection from './components/SampleListSection';
 import BaseButton from './components/Button';
 import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
+import InputDeviceSelect from './components/InputDeviceSelect';
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
@@ -41,10 +48,25 @@ const App: Component = () => {
     'samples',
   );
 
+  let inputSourceSelectRef: HTMLElement | undefined;
+  const [inputSource, setInputSource] = createSignal('audio-input');
+  const inputDeviceSelectDisabled = createMemo(
+    () => inputSource() !== 'audio-input',
+  );
+
+  const [selectedInputDeviceId, setSelectedInputDeviceId] = createSignal('');
+  const handleInputDeviceChange = (deviceId: string) => {
+    getSamplePlayer()?.setRecorderInputDeviceId(deviceId);
+    setSelectedInputDeviceId(deviceId);
+  };
+
   const { handleSampleSelect } = useSampleSelection(
     () => samplePlayerRef,
     setSidebarOpen,
   );
+
+  const getSamplePlayer = () =>
+    samplePlayerRef || samplerElementRef?.getSamplePlayer?.() || null;
 
   onMount(() => {
     const handleSampleLoaded = () => {
@@ -57,6 +79,9 @@ const App: Component = () => {
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
+      setSelectedInputDeviceId(
+        samplePlayerRef?.getRecorderInputDeviceId() || '',
+      );
     };
 
     const updateLayout = () => {
@@ -74,6 +99,15 @@ const App: Component = () => {
     addExpandCollapseListeners();
     addPreventScrollOnSpacebarListener();
     window.addEventListener('resize', updateLayout);
+
+    const inputSourceSelect = inputSourceSelectRef?.querySelector('select');
+    setInputSource(inputSourceSelect?.value ?? 'audio-input');
+    const handleInputSourceChange = (e: Event) =>
+      setInputSource((e.target as HTMLSelectElement).value);
+    inputSourceSelect?.addEventListener('change', handleInputSourceChange);
+    onCleanup(() =>
+      inputSourceSelect?.removeEventListener('change', handleInputSourceChange),
+    );
 
     document.addEventListener('sample-loaded', handleSampleLoaded);
 
@@ -185,6 +219,13 @@ const App: Component = () => {
               defaultTheme='light'
             />
 
+            <InputDeviceSelect
+              class={`toolbar-btn input-device-select ${toolbarOpen() ? '__toolbar-open' : ''}`}
+              disabled={inputDeviceSelectDisabled()}
+              value={selectedInputDeviceId()}
+              onChange={handleInputDeviceChange}
+            />
+
             <OutputDeviceSelect
               class={`toolbar-btn output-device-select ${toolbarOpen() ? '__toolbar-open' : ''}`}
             />
@@ -266,7 +307,19 @@ const App: Component = () => {
                   target-node-id='test-sampler'
                   show-status='false'
                 />
-                <input-select target-node-id='test-sampler' />
+                <div class='input-source-selection-container'>
+                  <input-select
+                    ref={inputSourceSelectRef}
+                    target-node-id='test-sampler'
+                    class='input-source-select'
+                  />
+                  <InputDeviceSelect
+                    class='input-device-select'
+                    disabled={inputDeviceSelectDisabled()}
+                    value={selectedInputDeviceId()}
+                    onChange={handleInputDeviceChange}
+                  />
+                </div>
               </div>
               <load-button target-node-id='test-sampler' show-status='false' />
 

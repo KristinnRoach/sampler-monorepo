@@ -20,6 +20,7 @@ export type {
 export { getAudioContext, ensureAudioCtx } from './context';
 export {
   canSetOutputDevice,
+  getAudioInputDevices,
   getAudioOutputDevices,
   setAudioOutputDevice,
   getCurrentOutputDeviceId,

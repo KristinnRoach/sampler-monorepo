@@ -70,6 +70,20 @@ describe('Device Access Utils', () => {
       );
     });
 
+    it('requests a specific audio input device when provided', async () => {
+      const stream = await getMicrophone(undefined, 'input-123');
+
+      expect(stream).toBe(mockStream);
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: true,
+          autoGainControl: true,
+          deviceId: { exact: 'input-123' },
+        },
+      });
+    });
+
     it('gets camera access', async () => {
       const stream = await getCamera();
       expect(stream).toBe(mockStream);

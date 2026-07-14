@@ -37,7 +37,7 @@ export interface SelectConfig<T extends string = string> {
     target: any,
     state: State<T>,
     van: any,
-    targetNodeId: string
+    targetNodeId: string,
   ) => void;
 }
 
@@ -58,7 +58,7 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
     sampler: any,
     state: State<keyof typeof KeyMaps>,
     van: any,
-    targetNodeId: string
+    targetNodeId: string,
   ) => {
     van.derive(() => {
       const selectedKeymap = state.val;
@@ -72,7 +72,7 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
             selectedValue: state.val,
             targetNodeId: targetNodeId,
           },
-        })
+        }),
       );
     });
   },
@@ -114,7 +114,7 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
     sampler: any,
     state: State<SupportedWaveform>,
     van: any,
-    targetNodeId: string
+    targetNodeId: string,
   ) => {
     // Set up reactive binding to sampler method
     van.derive(() => {
@@ -151,7 +151,7 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
     sampler: any,
     state: State<RootNote>,
     van: any,
-    targetNodeId: string
+    targetNodeId: string,
   ) => {
     van.derive(() => {
       const safeRoot = ROOT_NOTES.includes(state.val)
@@ -165,21 +165,21 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
             rootNote: safeRoot,
             targetNodeId: targetNodeId,
           },
-        })
+        }),
       );
     });
   },
 };
 
 const inputSourceSelectConfig: SelectConfig<
-  'microphone' | 'browser' | 'resample'
+  'audio-input' | 'browser' | 'resample'
 > = {
   title: 'Select Audio Input Source',
-  defaultValue: 'microphone',
+  defaultValue: 'audio-input',
   options: [
     {
-      value: 'microphone',
-      label: 'Mic',
+      value: 'audio-input',
+      label: 'Device',
     },
     {
       value: 'browser',
@@ -192,9 +192,9 @@ const inputSourceSelectConfig: SelectConfig<
   ],
   onTargetConnect: (
     sampler: any,
-    state: State<'microphone' | 'browser' | 'resample'>,
+    state: State<'audio-input' | 'browser' | 'resample'>,
     van: any,
-    targetNodeId: string
+    targetNodeId: string,
   ) => {
     van.derive(() => {
       sampler.setRecorderInputSource(state.val);
@@ -209,7 +209,7 @@ const createSamplerSelect = <T extends string = string>(
   getSamplerFn: (nodeId: string) => any,
   van: any,
   componentStyle: string,
-  autoResize = true
+  autoResize = true,
 ) => {
   return (attributes: ElementProps) => {
     const targetNodeId: State<string> = attributes.attr('target-node-id', '');
@@ -230,11 +230,11 @@ const createSamplerSelect = <T extends string = string>(
           } catch (error) {
             console.error(
               `Failed to connect select "${config.label || 'unnamed'}":`,
-              error
+              error,
             );
           }
         }
-      }
+      },
     );
 
     attributes.mount(createMountHandler(attributes));
@@ -271,27 +271,27 @@ const createSamplerSelect = <T extends string = string>(
                     ? 'selected-option-label'
                     : 'option-label',
               },
-              opt.label && opt.label
-            )
-          )
-        )
+              opt.label && opt.label,
+            ),
+          ),
+        ),
       ),
       autoResize &&
         span({
           class: 'ac-select-measure',
           style:
             'visibility: hidden; position: absolute; white-space: pre; font: inherit;',
-        })
+        }),
     );
 
     if (autoResize) {
       setTimeout(() => {
         const container = SelectElement as HTMLElement;
         const select = container.querySelector(
-          '.ac-autoResizableSelect'
+          '.ac-autoResizableSelect',
         ) as HTMLSelectElement | null;
         const measure = container.querySelector(
-          '.ac-select-measure'
+          '.ac-select-measure',
         ) as HTMLSpanElement | null;
 
         const resizeSelect = () => {
@@ -303,7 +303,7 @@ const createSamplerSelect = <T extends string = string>(
           let svgWidth = 0;
           const selectedOption = select.options[select.selectedIndex];
           const optConfig = config.options.find(
-            (opt) => opt.value === selectedOption.value
+            (opt) => opt.value === selectedOption.value,
           );
           if (optConfig && optConfig.svg) {
             const svgEls = container.querySelectorAll('svg');
@@ -356,8 +356,8 @@ const createSamplerSelect = <T extends string = string>(
               letter-spacing: 0.5px;
             `,
           },
-          config.label
-        )
+          config.label,
+        ),
       );
     }
 
@@ -370,9 +370,9 @@ const createSamplerSelect = <T extends string = string>(
         {
           style: `font-size: var(--ac-font-size-sm, 12px); color: var(--ac-color-text-primary);`,
         },
-        `${config.label}:`
+        `${config.label}:`,
       ),
-      SelectElement
+      SelectElement,
     );
   };
 };
@@ -383,28 +383,28 @@ export const KeymapSelect = createSamplerSelect(
   keymapSelectConfig,
   getSampler,
   van,
-  COMPONENT_STYLE
+  COMPONENT_STYLE,
 );
 
 export const WaveformSelect = createSamplerSelect(
   waveformSelectConfig,
   getSampler,
   van,
-  COMPONENT_STYLE
+  COMPONENT_STYLE,
 );
 
 export const InputSourceSelect = createSamplerSelect(
   inputSourceSelectConfig,
   getSampler,
   van,
-  COMPONENT_STYLE
+  COMPONENT_STYLE,
 );
 
 export const RootNoteSelect = createSamplerSelect(
   rootNoteSelectConfig,
   getSampler,
   van,
-  COMPONENT_STYLE
+  COMPONENT_STYLE,
 );
 
 // ===== SHARED SELECT STATE REGISTRY =====
