@@ -55,16 +55,28 @@ const InputDeviceSelect: Component<InputDeviceSelectProps> = (props) => {
     props.onChange(deviceId === 'default' ? '' : deviceId);
 
   return (
-    <select
-      aria-label='Audio input device'
-      title={selectedLabel()}
-      class={props.class}
-      value={props.value}
-      disabled={props.disabled}
-      onfocus={refreshWithPermission}
-      onchange={(e) => onChange(e.currentTarget.value)}
-    >
-      <button type='button'>
+    <div class={props.class}>
+      <select
+        aria-label='Audio input device'
+        title={selectedLabel()}
+        class='icon-select'
+        value={props.value}
+        disabled={props.disabled}
+        onfocus={refreshWithPermission}
+        onchange={(e) => onChange(e.currentTarget.value)}
+      >
+        <option value='' selected={!props.value}>
+          System Default Input
+        </option>
+        <For each={devices().filter((d) => d.deviceId !== 'default')}>
+          {(d, i) => (
+            <option value={d.deviceId} selected={props.value === d.deviceId}>
+              {d.label || `Input ${i() + 1}`}
+            </option>
+          )}
+        </For>
+      </select>
+      <div class='icon-select-icon'>
         <svg
           aria-hidden='true'
           viewBox='0 0 24 24'
@@ -80,18 +92,8 @@ const InputDeviceSelect: Component<InputDeviceSelectProps> = (props) => {
           <path d='M19 10v2a7 7 0 0 1-14 0v-2' />
           <path d='M12 19v3' />
         </svg>
-      </button>
-      <option value='' selected={!props.value}>
-        System Default Input
-      </option>
-      <For each={devices().filter((d) => d.deviceId !== 'default')}>
-        {(d, i) => (
-          <option value={d.deviceId} selected={props.value === d.deviceId}>
-            {d.label || `Input ${i() + 1}`}
-          </option>
-        )}
-      </For>
-    </select>
+      </div>
+    </div>
   );
 };
 

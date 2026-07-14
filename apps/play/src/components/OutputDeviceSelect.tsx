@@ -70,15 +70,25 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
 
   return (
     <Show when={canSetOutputDevice()}>
-      <select
-        aria-label='Audio output device'
-        title={selectedLabel()}
-        class={props.class}
-        value={selected()}
-        onfocus={refreshWithPermission}
-        onchange={(e) => onChange(e.currentTarget.value)}
-      >
-        <button type='button'>
+      <div class={props.class}>
+        <select
+          aria-label='Audio output device'
+          title={selectedLabel()}
+          class='icon-select'
+          value={selected()}
+          onfocus={refreshWithPermission}
+          onchange={(e) => onChange(e.currentTarget.value)}
+        >
+          <option value='' selected={!selected()}>System Default Output</option>
+          <For each={devices().filter((d) => d.deviceId !== 'default')}>
+            {(d, i) => (
+              <option value={d.deviceId} selected={selected() === d.deviceId}>
+                {d.label || `Output ${i() + 1}`}
+              </option>
+            )}
+          </For>
+        </select>
+        <div class='icon-select-icon'>
           <svg
             aria-hidden='true'
             viewBox='0 0 24 24'
@@ -94,16 +104,8 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
             <path d='M15.5 8.5a5 5 0 0 1 0 7' />
             <path d='M18.5 5.5a9 9 0 0 1 0 13' />
           </svg>
-        </button>
-        <option value='' selected={!selected()}>System Default Output</option>
-        <For each={devices().filter((d) => d.deviceId !== 'default')}>
-          {(d, i) => (
-            <option value={d.deviceId} selected={selected() === d.deviceId}>
-              {d.label || `Output ${i() + 1}`}
-            </option>
-          )}
-        </For>
-      </select>
+        </div>
+      </div>
     </Show>
   );
 };

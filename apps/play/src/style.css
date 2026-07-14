@@ -652,15 +652,36 @@ piano-keyboard.visible {
   border: 1px solid #aaa;
 }
 
-.input-device-select {
-  appearance: base-select;
-  max-width: 36px;
-  white-space: nowrap;
+.input-device-select,
+.output-device-select {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  width: 36px;
   color: white;
+
+  &:has(select:disabled) {
+    color: gray;
+  }
 }
 
-.input-device-select:disabled {
-  color: gray;
+.icon-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.icon-select-icon {
+  position: absolute;
+  inset: 0;
+  padding: 0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .input-source-selection-container {
@@ -668,9 +689,8 @@ piano-keyboard.visible {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  width: 100px;
+  width: clamp(100px, 120px, 150px);
   overflow-x: visible;
-
 }
 
 .ac-select {
@@ -764,7 +784,8 @@ piano-keyboard.visible {
     transform: scale(0.9);
   }
 
-  &:disabled {
+  &:disabled,
+  &:has(select:disabled) {
     color: gray;
   }
 }
@@ -790,13 +811,12 @@ piano-keyboard.visible {
 
 .toolbar-wrapper > .expandable-width > .output-device-select,
 .input-device-select {
-  appearance: base-select;
   max-width: 36px;
   white-space: nowrap;
   overflow: hidden;
   color: white;
 
-  &:open {
+  &:has(select:open) {
     transform: scale(0.9);
     color: rgb(85, 136, 255);
   }
@@ -810,10 +830,6 @@ piano-keyboard.visible {
     color: rgb(85, 136, 255);
     background: rgba(0, 0, 0, 0.529);
     outline: 1px solid rgb(85, 136, 255);
-  }
-
-  &::picker-icon {
-    display: none;
   }
 }
 
