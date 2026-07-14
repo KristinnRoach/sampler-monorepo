@@ -18,6 +18,7 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "clean": "turbo run clean",
+    "deploy:gh": "pnpm --filter play deploy:gh",
     "dev": "turbo run dev",
     "watch": "pnpm install && pnpm run watch:sequential",
     "watch:clean": "pnpm clean && pnpm install && pnpm run watch:sequential",
