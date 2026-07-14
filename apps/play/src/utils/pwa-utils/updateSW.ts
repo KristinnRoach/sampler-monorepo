@@ -1,22 +1,16 @@
-if ('serviceWorker' in navigator) {
-  let refreshing = false;
+import { registerSW } from 'virtual:pwa-register';
 
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
+const intervalMS = 60 * 60 * 1000;
 
-  navigator.serviceWorker
-    .register('./sw.js', { scope: './' })
-    .then((registration) => {
-      registration.update();
-
-      // ponytail: installed PWAs can stay open for days without a navigation,
-      // so re-check periodically and whenever the app regains focus.
-      setInterval(() => registration.update(), 60 * 60 * 1000);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') registration.update();
-      });
+// registerType: 'autoUpdate' -> workbox-window sends SKIP_WAITING and
+// reloads only once the new worker has actually activated.
+registerSW({
+  immediate: true,
+  onRegistered(registration) {
+    if (!registration) return;
+    setInterval(() => registration.update(), intervalMS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') registration.update();
     });
-}
+  },
+});
