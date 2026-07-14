@@ -79,9 +79,15 @@ const App: Component = () => {
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
-      setSelectedInputDeviceId(
-        samplePlayerRef?.getRecorderInputDeviceId() || '',
-      );
+      // Preserve a device chosen before the player was ready
+      const chosenDeviceId = selectedInputDeviceId();
+      if (chosenDeviceId) {
+        samplePlayerRef?.setRecorderInputDeviceId(chosenDeviceId);
+      } else {
+        setSelectedInputDeviceId(
+          samplePlayerRef?.getRecorderInputDeviceId() || '',
+        );
+      }
     };
 
     const updateLayout = () => {

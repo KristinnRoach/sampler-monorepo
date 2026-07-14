@@ -671,12 +671,6 @@ piano-keyboard.visible {
   width: 100px;
   overflow-x: visible;
 
-  /* > .input-source-select {
-    max-width: 50px;
-  } */
-  /* > .input-device-select {
-    outline: lime 2px solid;
-  }*/
 }
 
 .ac-select {
