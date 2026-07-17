@@ -99,7 +99,9 @@ option:checked {
   padding: 0.5rem 0 0.5rem 0;
   border: none;
 
-  width: clamp(400px, auto, 1450px);
+  width: 100%;
+  max-width: 1450px;
+  margin-inline: auto;
 
   overflow: hidden;
 }
