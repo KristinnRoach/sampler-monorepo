@@ -12,6 +12,7 @@ import KeyMaps, {
 } from '@/shared/keyboard/keyboard-keymaps';
 
 const { div } = van.tags;
+const MOBILE_KEY_COUNT = 13;
 
 export const PianoKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
@@ -50,13 +51,17 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   const keyboard = document.createElement('webaudio-keyboard') as any;
 
   const getDisplayRange = () => {
+    const visibleKeys = window.matchMedia('(max-width: 600px)').matches
+      ? MOBILE_KEY_COUNT
+      : 25;
+
     // Get the actual note range from the current keymap
     const notes = Object.values(currentKeymap.val).filter(Boolean) as number[];
     const rootOffset = getRootNoteOffset(rootNote.val);
     if (notes.length === 0) {
       // Fallback to default range if no keymap
       const displayMin = 48 + octaveOffset.val * 12 + rootOffset; // C3 base + root
-      return { min: displayMin, keys: 25 };
+      return { min: displayMin, keys: visibleKeys };
     }
 
     // Use keymap range + octave offset + root note offset
@@ -65,7 +70,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     const displayMin = keymapMin + octaveOffset.val * 12 + rootOffset;
     const keymapSpan = keymapMax - keymapMin + 1;
 
-    return { min: displayMin, keys: Math.max(keymapSpan, 25) };
+    return { min: displayMin, keys: visibleKeys };
   };
 
   // Reactive updates

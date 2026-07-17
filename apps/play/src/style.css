@@ -95,12 +95,12 @@ option:checked {
 
 .content-wrapper {
   position: relative;
-  /* place-items: center; */
+  place-items: center;
   padding: 0.5rem 0 0.5rem 0;
   border: none;
 
   width: 100%;
-  max-width: 1450px;
+  max-width: 1400px;
   margin-inline: auto;
 
   overflow: hidden;
@@ -115,7 +115,7 @@ option:checked {
   padding: 1rem;
   padding-right: 2.5rem; /* extra for row-collapse icons */
 
-  max-width: 1400px;
+  max-width: 1350px;
 
   row-gap: 1rem;
   column-gap: 1rem;
@@ -189,14 +189,13 @@ option:checked {
   min-height: 150px;
 }
 
-.control-grid.layout-tablet .keyboard-group {
+/* .control-grid.layout-tablet .keyboard-group {
   overflow-x: auto;
   overflow-y: hidden;
-}
+} */
 
 .control-grid.layout-tablet piano-keyboard {
   max-width: 100%;
-  overflow-x: auto;
 }
 
 .control-grid.layout-tablet envelope-switcher {
@@ -238,18 +237,23 @@ option:checked {
   justify-content: center;
 }
 
+.control-grid.layout-mobile .keyboard-controls {
+  flex-direction: row;
+  gap: 0.5rem;
+}
+
 .control-grid.layout-mobile .env-group {
   min-height: 150px;
 }
 
-.control-grid.layout-mobile .keyboard-group {
+/* .control-grid.layout-mobile .keyboard-group {
   overflow-x: auto;
   overflow-y: hidden;
-}
+} */
 
 .control-grid.layout-mobile piano-keyboard {
   max-width: 100%;
-  overflow-x: auto;
+  /* overflow-x: auto; */
 }
 
 .control-grid.layout-mobile piano-keyboard webaudio-keyboard {
@@ -324,8 +328,6 @@ option:checked {
 .control-group.collapsed .expandable-content {
   max-height: 0;
   opacity: 0;
-  width: fit-content;
-
   pointer-events: none;
   overflow: hidden;
 }
@@ -342,11 +344,11 @@ option:checked {
 .expandable-content {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
   align-items: flex-start;
 
   max-height: 60dvh;
-  overflow: hidden;
   opacity: 1;
   transition:
     max-height 0.2s ease,
@@ -447,23 +449,30 @@ option:checked {
 
 .keyboard-group {
   grid-area: keyboard;
-
-  position: relative;
-
   min-height: fit-content;
   height: fit-content;
+  width: fit-content;
+  padding: 0.25rem;
 
   align-items: center;
   justify-content: center;
+
+  & .flex-row {
+    gap: 0.5rem;
+    padding: 0 0.5rem 0.25rem 0.5rem;
+    margin-inline: auto;
+  }
+
+  & glide-knob > * {
+    height: clamp(45px, 65px, 75px);
+  }
 }
 
 .keyboard-controls {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
   align-items: center;
   justify-content: center;
-  padding-right: 1rem;
 }
 
 piano-keyboard.hidden {
@@ -473,6 +482,17 @@ piano-keyboard.hidden {
 
 piano-keyboard.visible {
   opacity: 1;
+  margin-inline: auto;
+}
+
+piano-keyboard {
+  overflow-x: hidden;
+}
+
+piano-keyboard > * {
+  margin: 0 !important;
+  padding: 0 !important;
+  margin-inline: auto;
 }
 
 .keyboard-visual-toggle {
@@ -622,18 +642,14 @@ piano-keyboard.visible {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 20px;
-
+  stroke-width: 1rem;
   border: none;
   border-radius: 0.25rem;
 
   width: auto;
-  height: 2.5rem;
+  height: 2rem;
 
-  padding: 0.5rem;
   cursor: pointer;
-
-  margin-bottom: 1.3rem;
 }
 
 .input-device-select,
@@ -1070,10 +1086,6 @@ tempo-knob > div knob-element {
     opacity: 1;
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.35);
-  }
-
-  .reset-button:hover {
-    border: 1px solid #aaa;
   }
 
   .sample-item:hover {
