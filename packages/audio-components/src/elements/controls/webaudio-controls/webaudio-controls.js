@@ -58,8 +58,10 @@ if (window.customElements) {
 .webaudioctrl-context-menu__item:last-child {
   margin-bottom: 0;
 }
-.webaudioctrl-context-menu__item:hover {
-  background-color: #b8b8b8;
+@media (hover: hover) and (pointer: fine) {
+  .webaudioctrl-context-menu__item:hover {
+    background-color: #b8b8b8;
+  }
 }
 `;
   document.head.appendChild(styles);

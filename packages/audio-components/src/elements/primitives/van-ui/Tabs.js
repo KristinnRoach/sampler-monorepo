@@ -46,7 +46,9 @@ export const Tabs = (
   const id = 'vanui-tabs-' + ++tabsId;
   document.head.appendChild(
     van.tags['style'](`#${id} .vanui-tab-button { background-color: inherit }
-#${id} .vanui-tab-button:hover { background-color: ${tabButtonHoverColor} }
+@media (hover: hover) and (pointer: fine) {
+  #${id} .vanui-tab-button:hover { background-color: ${tabButtonHoverColor} }
+}
 #${id} .vanui-tab-button.active { background-color: ${tabButtonActiveColor} }`)
   );
   return div(

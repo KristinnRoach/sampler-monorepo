@@ -68,6 +68,7 @@ select,
 
 select {
   font-size: smaller;
+  outline: none;
 }
 
 selectedcontent,
@@ -805,7 +806,6 @@ piano-keyboard.visible {
   & option:checked {
     color: rgb(85, 136, 255);
     background: rgba(0, 0, 0, 0.529);
-    outline: 1px solid rgb(85, 136, 255);
   }
 }
 

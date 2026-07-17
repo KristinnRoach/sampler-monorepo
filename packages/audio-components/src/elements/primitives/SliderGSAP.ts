@@ -46,8 +46,10 @@ class SliderGSAP extends HTMLElement {
           stroke-width: 2;
         }
 
-        .slider-thumb:hover {
-          fill: #1976d2;
+        @media (hover: hover) and (pointer: fine) {
+          .slider-thumb:hover {
+            fill: #1976d2;
+          }
         }
 
         .slider-track {

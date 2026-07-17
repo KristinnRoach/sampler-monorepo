@@ -279,11 +279,6 @@ export class KnobElement extends HTMLElement {
         pointer-events: none; 
       }
     
-      
-      knob-element:hover {
-        /* something? */
-      }
-      
       knob-element:active {
         cursor: grabbing;
       }

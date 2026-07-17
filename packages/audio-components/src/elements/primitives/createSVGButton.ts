@@ -189,13 +189,15 @@ const applyBaseStyles = (button: HTMLButtonElement): void => {
   button.style.border = 'none';
   button.style.backgroundColor = DEFAULT_COLORS['background'];
 
-  button.addEventListener('mouseenter', () => {
-    button.style.border = `1px solid ${DEFAULT_COLORS['hover']}`; // '1px solid rgba(0,0,0,1.5)';
-  });
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    button.addEventListener('mouseenter', () => {
+      button.style.border = `1px solid ${DEFAULT_COLORS['hover']}`;
+    });
 
-  button.addEventListener('mouseleave', () => {
-    button.style.border = 'none';
-  });
+    button.addEventListener('mouseleave', () => {
+      button.style.border = 'none';
+    });
+  }
 };
 
 const applySizeStyles = (button: HTMLButtonElement, size: ButtonSize): void => {
