@@ -10,8 +10,10 @@ body.midi-learn-active knob-element {
   cursor: pointer;
 }
 
-body.midi-learn-active knob-element:hover {
-  outline: 1px dashed #00ffcc;
+@media (hover: hover) and (pointer: fine) {
+  body.midi-learn-active knob-element:hover {
+    outline: 1px dashed #00ffcc;
+  }
 }
 
 .midi-learn-status {

@@ -283,11 +283,6 @@ option:checked {
   background-color: #ddd;
 }
 
-.envelope-buttons > .button:hover {
-  background-color: #eee;
-  border: 1px solid rgb(0, 0, 0);
-}
-
 /* GROUPS */
 
 .control-group {
@@ -350,10 +345,6 @@ option:checked {
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
-}
-
-.expandable-legend:hover {
-  color: #fff;
 }
 
 .feedback-group {
@@ -485,11 +476,6 @@ piano-keyboard.visible {
   transition: all 0.2s ease;
 }
 
-.keyboard-visual-toggle:hover {
-  background: #555;
-  color: #fff;
-}
-
 .keyboard-visual-toggle:active {
   background: #333;
 }
@@ -536,10 +522,6 @@ piano-keyboard.visible {
 
 .drag-handle:focus-visible {
   outline: 2px solid var(--ac-color-accent, #09f);
-}
-
-.drag-handle:hover {
-  opacity: 1;
 }
 
 .drag-handle:active {
@@ -608,12 +590,6 @@ piano-keyboard.visible {
   z-index: 10;
 }
 
-.row-collapse-icon:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-}
-
 .row-collapse-icon::before {
   content: '﹀';
   font-weight: bold;
@@ -646,10 +622,6 @@ piano-keyboard.visible {
   cursor: pointer;
 
   margin-bottom: 1.3rem;
-}
-
-.reset-button:hover {
-  border: 1px solid #aaa;
 }
 
 .input-device-select,
@@ -776,8 +748,10 @@ piano-keyboard.visible {
   transform: scale(1);
   opacity: 1;
 
-  &:hover {
-    transform: scale(1.1);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: scale(1.1);
+    }
   }
 
   &:active {
@@ -804,8 +778,10 @@ piano-keyboard.visible {
   & > * {
     border: none !important;
   }
-  &:hover {
-    transform: scale(1.05) !important;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      transform: scale(1.05) !important;
+    }
   }
 }
 
@@ -922,10 +898,6 @@ tempo-knob > div knob-element {
   border-radius: 4px;
 }
 
-.sample-item:hover {
-  background: #333;
-}
-
 .sample-info {
   flex: 1;
 }
@@ -950,11 +922,6 @@ tempo-knob > div knob-element {
   align-items: center;
   justify-content: center;
   margin-left: 10px;
-}
-
-.delete-button:hover {
-  background: rgba(255, 107, 107, 0.2);
-  color: #ff5252;
 }
 
 .delete-button svg {
@@ -1054,9 +1021,11 @@ tempo-knob > div knob-element {
         opacity 0.3s ease,
         transform 0.3s ease;
 
-      &:hover {
-        transform: scale(1.1) !important;
-        opacity: 1;
+      @media (hover: hover) and (pointer: fine) {
+        &:hover {
+          transform: scale(1.1) !important;
+          opacity: 1;
+        }
       }
 
       &:active {
@@ -1064,5 +1033,44 @@ tempo-knob > div knob-element {
         opacity: 1;
       }
     }
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .envelope-buttons > .button:hover {
+    background-color: #eee;
+    border: 1px solid rgb(0, 0, 0);
+  }
+
+  .expandable-legend:hover {
+    color: #fff;
+  }
+
+  .keyboard-visual-toggle:hover {
+    background: #555;
+    color: #fff;
+  }
+
+  .drag-handle:hover {
+    opacity: 1;
+  }
+
+  .row-collapse-icon:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .reset-button:hover {
+    border: 1px solid #aaa;
+  }
+
+  .sample-item:hover {
+    background: #333;
+  }
+
+  .delete-button:hover {
+    background: rgba(255, 107, 107, 0.2);
+    color: #ff5252;
   }
 }
