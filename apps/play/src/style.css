@@ -141,7 +141,7 @@ option:checked {
 }
 
 .control-grid.layout-mobile {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   /* width: clamp(350px, auto, 100%);
   border: none; */
   grid-template-areas:
@@ -212,7 +212,10 @@ option:checked {
 /* Mobile */
 
 .control-grid.layout-mobile {
+  box-sizing: border-box;
+  width: 100%;
   max-width: 100%;
+  padding-right: 1rem;
   overflow: hidden;
 }
 
@@ -226,6 +229,12 @@ option:checked {
   overflow: hidden;
   max-width: 100%;
   min-width: 0;
+  justify-content: center;
+}
+
+.control-grid.layout-mobile .expandable-content,
+.control-grid.layout-mobile .lfo-container {
+  flex-wrap: wrap;
   justify-content: center;
 }
 
