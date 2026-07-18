@@ -502,7 +502,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         tempo,
         playbackRate,
       );
-      isTempoSynced = quantizedDuration === baseDuration;
+      isTempoSynced = quantizedDuration !== baseDuration;
 
       calcLoopEnd = calcLoopStart + quantizedDuration;
       // Ensure we don't exceed playback range
