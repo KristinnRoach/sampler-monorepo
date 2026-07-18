@@ -117,7 +117,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Keytrack loop: 0 = loop length fixed in samples (loop time shortens as you play higher).
     // 1 = loop length scales with playbackRate so real-time loop period stays constant across notes.
     // NOTE: Using keytrackLoopAmount > 0 means that audio-rate loop lengths no longer quantize to midinote
-    this.keytrackLoopAmount = 0;
+    this.keytrackLoopAmount = 1;
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
@@ -493,17 +493,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         : playbackRange.endSamples;
 
     let baseDuration = calcLoopEnd - calcLoopStart;
-
-    // Keytrack loop: scale sample-domain loop length by playbackRate so the real-time
-    // loop period stays constant across notes (amount=1); amount=0 leaves it fixed.
-    if (this.keytrackLoopAmount > 0) {
-      const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
-      baseDuration = Math.max(1, Math.floor(baseDuration * scale));
-      calcLoopEnd = Math.min(
-        playbackRange.endSamples,
-        calcLoopStart + baseDuration,
-      );
-    }
+    let isTempoSynced = false;
 
     // Apply tempo quantization if enabled
     if (this.syncLoopToTempo) {
@@ -512,10 +502,26 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         tempo,
         playbackRate,
       );
-      calcLoopEnd = calcLoopStart + quantizedDuration;
+      isTempoSynced = quantizedDuration === baseDuration;
 
+      calcLoopEnd = calcLoopStart + quantizedDuration;
       // Ensure we don't exceed playback range
       calcLoopEnd = Math.min(calcLoopEnd, playbackRange.endSamples);
+    }
+
+    // Keytrack loop: scale sample-domain loop length by playbackRate so the real-time
+    // loop period stays constant across notes (amount=1); amount=0 leaves it fixed.
+    if (
+      baseDuration > this.PITCH_PRESERVATION_THRESHOLD &&
+      this.keytrackLoopAmount > 0 &&
+      !isTempoSynced
+    ) {
+      const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
+      baseDuration = Math.max(1, Math.floor(baseDuration * scale));
+      calcLoopEnd = Math.min(
+        playbackRange.endSamples,
+        calcLoopStart + baseDuration,
+      );
     }
 
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
