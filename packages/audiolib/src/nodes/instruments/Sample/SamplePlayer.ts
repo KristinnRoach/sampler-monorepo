@@ -903,6 +903,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.applyToAllVoices((voice) => voice.syncLoopToTempo(enabled));
   }
 
+  // PoC: keytrack loop length to the played note (0 = fixed samples, 1 = constant loop time)
+  setKeytrackLoopAmount(amount: number) {
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.sendToProcessor({ type: 'setKeytrackLoopAmount', value: amount })
+    );
+    return this;
+  }
+
   get tempo() {
     return this.#tempo;
   }

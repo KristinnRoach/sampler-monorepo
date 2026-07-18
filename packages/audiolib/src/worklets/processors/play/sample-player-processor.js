@@ -114,6 +114,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableAdaptiveDrift = true; // Adaptive drift scaling based on loop duration
     this.enableAmplitudeCompensation = true; // Automatic makeup gain for short loops
     this.syncLoopToTempo = false; // Todo: add controls for interactive testing
+    // Keytrack loop: 0 = loop length fixed in samples (loop time shortens as you play higher).
+    // 1 = loop length scales with playbackRate so real-time loop period stays constant across notes.
+    // NOTE: Using keytrackLoopAmount > 0 means that audio-rate loop lengths no longer quantize to midinote
+    this.keytrackLoopAmount = 0;
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
@@ -246,6 +250,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           type: 'loop:syncToTempo',
           enabled: value,
         });
+        break;
+
+      case 'setKeytrackLoopAmount':
+        this.keytrackLoopAmount = Math.max(0, Math.min(1, value));
         break;
     }
   }
@@ -484,7 +492,18 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         ? lpEnd
         : playbackRange.endSamples;
 
-    const baseDuration = calcLoopEnd - calcLoopStart;
+    let baseDuration = calcLoopEnd - calcLoopStart;
+
+    // Keytrack loop: scale sample-domain loop length by playbackRate so the real-time
+    // loop period stays constant across notes (amount=1); amount=0 leaves it fixed.
+    if (this.keytrackLoopAmount > 0) {
+      const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
+      baseDuration = Math.max(1, Math.floor(baseDuration * scale));
+      calcLoopEnd = Math.min(
+        playbackRange.endSamples,
+        calcLoopStart + baseDuration,
+      );
+    }
 
     // Apply tempo quantization if enabled
     if (this.syncLoopToTempo) {
