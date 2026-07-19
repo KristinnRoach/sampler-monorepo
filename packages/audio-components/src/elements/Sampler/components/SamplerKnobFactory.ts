@@ -285,7 +285,8 @@ const keytrackLoopConfig: KnobConfig = {
   minValue: 0,
   maxValue: 1,
   curve: 1,
-  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+  // '—' at 0 signals "no effect" (also inert below audio-rate loop lengths — see loop knob)
+  valueFormatter: (v: number) => (v === 0 ? '—' : `${(v * 100).toFixed(0)}%`),
   onConnect: (sampler, state) => {
     van.derive(() => sampler.setKeytrackLoopAmount(state.val));
   },
@@ -424,6 +425,10 @@ const loopDurationConfig: KnobConfig = {
   maxValue: 1,
   curve: 4,
   snapIncrement: 0,
+  // Below ~61ms the loop is audio-rate (PITCH_PRESERVATION_THRESHOLD in the processor):
+  // its retrigger rate becomes the pitch, and keytrack has no effect here.
+  valueFormatter: (v: number) =>
+    v <= 0.061 ? `${(v * 1000).toFixed(0)} ms · audio-rate` : `${v.toFixed(2)} s`,
   onConnect: (sampler, state, knobElement) => {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;

@@ -410,6 +410,7 @@ const App: Component = () => {
               <keytrack-loop-knob
                 target-node-id='test-sampler'
                 label='KeyTrack'
+                title='Only affects loops longer than audiorate'
               />
               <div class='flex-col'>
                 <loop-duration-drift-knob
