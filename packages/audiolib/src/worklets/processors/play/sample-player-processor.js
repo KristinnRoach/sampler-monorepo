@@ -511,6 +511,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Keytrack loop: scale sample-domain loop length by playbackRate so the real-time
     // loop period stays constant across notes (amount=1); amount=0 leaves it fixed.
+    // Keytrack and tempo-sync both remap loop length as a function of playbackRate, in
+    // opposite directions (real-time vs. musical length). They are mutually exclusive:
+    // tempo-sync wins when it is active, so keytrack is skipped via !isTempoSynced.
     if (
       baseDuration > this.PITCH_PRESERVATION_THRESHOLD &&
       this.keytrackLoopAmount > 0 &&
