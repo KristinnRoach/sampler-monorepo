@@ -526,8 +526,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       calcLoopEnd = calcLoopStart + baseDuration;
     }
 
-    // Both branches above clamp calcLoopEnd, so re-derive the actual duration
-    // before drift uses it to size its minimum loop length.
+    // Both branches above adjust calcLoopEnd (tempo-sync clamps, keytrack may
+    // extend past the audio), so re-derive the actual duration before drift
+    // uses it to size its minimum loop length.
     baseDuration = calcLoopEnd - calcLoopStart;
 
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
