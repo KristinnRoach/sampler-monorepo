@@ -296,6 +296,19 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.port.postMessage({ type: 'voice:stopped' });
   }
 
+  // Arm click compensation for a loop-wrap discontinuity between the sample
+  // just emitted and the first sample of the next pass.
+  #smoothLoopWrap(lastLoopSample, newFirstSample) {
+    const discontinuity = lastLoopSample - newFirstSample;
+
+    if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
+      // Simple exponential smoothing
+      this.loopClickCompensation = discontinuity * 0.5;
+      this.compensationDecay = 0.9; // Smooth over ~32 samples
+      this.applyClickCompensation = true;
+    }
+  }
+
   #clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
   #clampZeroCrossing = (value) =>
@@ -853,20 +866,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           // Get the actual samples we're transitioning between
           // In the silent tail the buffer still holds audio we aren't outputting,
           // so the sample we actually just emitted is 0.
-          const lastLoopSample = silencePadTail
-            ? 0
-            : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
-          const newFirstSample =
-            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
-
-          const discontinuity = lastLoopSample - newFirstSample;
-
-          if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
-            // Simple exponential smoothing
-            this.loopClickCompensation = discontinuity * 0.5;
-            this.compensationDecay = 0.9; // Smooth over ~32 samples
-            this.applyClickCompensation = true;
-          }
+          this.#smoothLoopWrap(
+            silencePadTail
+              ? 0
+              : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0,
+            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0,
+          );
 
           this.playbackPosition = loopRange.loopStartSamples;
           this.loopCount++;
@@ -879,6 +884,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.reversePlayback &&
           this.playbackPosition <= loopRange.loopStartSamples
         ) {
+          // Mirror of the forward wrap: last emitted sample sits at the loop
+          // start, the next pass begins at the loop end (0 in the silent tail).
+          this.#smoothLoopWrap(
+            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0,
+            silencePadTail
+              ? 0
+              : this.buffer[0][Math.floor(loopRange.loopEndSamples) - 1] || 0,
+          );
+
           // Set to one sample before end to avoid immediate boundary trigger
           this.playbackPosition = loopRange.loopEndSamples - 1;
           this.loopCount++;
