@@ -276,6 +276,40 @@ const loopDurationDriftConfig: KnobConfig = {
   },
 };
 
+const keytrackLoopConfig: KnobConfig = {
+  label: 'KeyTrack',
+  // NOTE: double-persists — this knob's useLocalStorage AND SamplePlayer.storeParamValue
+  // both save it (knob store wins on reload). Matches loopDurationDrift; dedupe deferred.
+  useLocalStorage: true,
+  defaultValue: 0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+  onConnect: (sampler, state, knobElement) => {
+    van.derive(() => sampler.setKeytrackLoopAmount(state.val));
+
+    // Dim when keytrack has no effect: loop off, or loop audio-rate
+    // (<= PITCH_PRESERVATION_THRESHOLD). Stays live via loop:enabled / loop-points:updated.
+    // NOTE: the sampler.loopEnd/loopStart getters lag (macro ramps async); the message
+    // payload carries the authoritative target, so prefer it when present. loopEnabled
+    // getter is synchronous, so it's read directly.
+    const AUDIO_RATE_SECONDS = 0.061;
+    const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
+      if (!knobElement) return;
+      const loopStart = msg ? msg.loopStart : sampler.loopStart;
+      const loopEnd = msg ? msg.loopEnd : sampler.loopEnd;
+      const inactive =
+        !sampler.loopEnabled || loopEnd - loopStart <= AUDIO_RATE_SECONDS;
+      knobElement.style.opacity = inactive ? '0.4' : '';
+    };
+    updateHint();
+    sampler.onMessage('loop-points:updated', (msg: any) => updateHint(msg));
+    sampler.onMessage('loop:enabled', () => updateHint());
+    sampler.onMessage('sample:loaded', () => updateHint());
+  },
+};
+
 const lowpassFilterConfig: KnobConfig = {
   label: 'LPF',
   useLocalStorage: true,
@@ -409,6 +443,10 @@ const loopDurationConfig: KnobConfig = {
   maxValue: 1,
   curve: 4,
   snapIncrement: 0,
+  // Below ~61ms the loop is audio-rate (PITCH_PRESERVATION_THRESHOLD in the processor):
+  // switch to a compact ms readout as a subtle cue (keytrack has no effect here).
+  valueFormatter: (v: number) =>
+    v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`,
   onConnect: (sampler, state, knobElement) => {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
@@ -526,6 +564,11 @@ export const DelayFeedbackKnob = createKnobForTarget(delayFBConfig, getSampler);
 
 export const LoopDurationDriftKnob = createKnobForTarget(
   loopDurationDriftConfig,
+  getSampler
+);
+
+export const KeytrackLoopKnob = createKnobForTarget(
+  keytrackLoopConfig,
   getSampler
 );
 

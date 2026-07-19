@@ -114,6 +114,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableAdaptiveDrift = true; // Adaptive drift scaling based on loop duration
     this.enableAmplitudeCompensation = true; // Automatic makeup gain for short loops
     this.syncLoopToTempo = false; // Todo: add controls for interactive testing
+    // Keytrack loop: 0 = loop length fixed in samples (loop time shortens as you play higher).
+    // 1 = loop length scales with playbackRate so real-time loop period stays constant across notes.
+    // NOTE: Using keytrackLoopAmount > 0 means that audio-rate loop lengths no longer quantize to midinote
+    this.keytrackLoopAmount = 0;
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
@@ -246,6 +250,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           type: 'loop:syncToTempo',
           enabled: value,
         });
+        break;
+
+      case 'setKeytrackLoopAmount':
+        this.keytrackLoopAmount = Math.max(0, Math.min(1, value));
         break;
     }
   }
@@ -484,7 +492,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         ? lpEnd
         : playbackRange.endSamples;
 
-    const baseDuration = calcLoopEnd - calcLoopStart;
+    let baseDuration = calcLoopEnd - calcLoopStart;
 
     // Apply tempo quantization if enabled
     if (this.syncLoopToTempo) {
@@ -493,16 +501,38 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         tempo,
         playbackRate,
       );
-      calcLoopEnd = calcLoopStart + quantizedDuration;
 
+      calcLoopEnd = calcLoopStart + quantizedDuration;
       // Ensure we don't exceed playback range
       calcLoopEnd = Math.min(calcLoopEnd, playbackRange.endSamples);
     }
 
+    // Keytrack loop: scale sample-domain loop length by playbackRate so the real-time
+    // loop period stays constant across notes (amount=1); amount=0 leaves it fixed.
+    // Keytrack and tempo-sync both remap loop length as a function of playbackRate, in
+    // opposite directions (real-time vs. musical length). They are mutually exclusive:
+    // tempo-sync wins whenever it is enabled, even when quantization left the
+    // duration unchanged (already on-grid, or too short to quantize).
+    if (
+      baseDuration > this.PITCH_PRESERVATION_THRESHOLD &&
+      this.keytrackLoopAmount > 0 &&
+      !this.syncLoopToTempo
+    ) {
+      const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
+      baseDuration = Math.max(1, Math.floor(baseDuration * scale));
+      calcLoopEnd = Math.min(
+        playbackRange.endSamples,
+        calcLoopStart + baseDuration,
+      );
+    }
+
+    // Both branches above clamp calcLoopEnd, so re-derive the actual duration
+    // before drift uses it to size its minimum loop length.
+    baseDuration = calcLoopEnd - calcLoopStart;
+
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
     if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
       calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart, 'right');
-      calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd, 'left');
     }
 
     // Apply drift to loop end position
@@ -551,6 +581,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     } else {
       // Ensure pan drift is set to zero if no loopDrift applied
       this.currentPanDrift = 0;
+    }
+
+    // Snap the end last: drift moves the wrap point, so snapping before drift
+    // leaves the actual loop end off a zero crossing -> discontinuity click.
+    if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
+      calcLoopEnd = Math.max(
+        calcLoopStart + 1,
+        this.#findNearestZeroCrossing(calcLoopEnd, 'left'),
+      );
     }
 
     const loopDuration = calcLoopEnd - calcLoopStart;
@@ -707,7 +746,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const playbackRange = this.#calculatePlaybackRange(positionParams);
 
-    const basePlaybackRate = parameters.playbackRate[0];
+    // Playback advances at rate * transposition, so loop-length math must use both
+    const effectivePlaybackRate =
+      parameters.playbackRate[0] * this.transpositionPlaybackrate;
 
     const tempo = parameters.tempo[0];
 
@@ -716,7 +757,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       playbackRange,
       parameters.loopDurationDriftAmount[0],
       tempo,
-      basePlaybackRate,
+      effectivePlaybackRate,
     );
 
     // Calculate amplitude compensation for short loops

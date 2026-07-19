@@ -55,6 +55,7 @@ export {
   LoopStartKnob,
   LoopDurationKnob,
   LoopDurationDriftKnob,
+  KeytrackLoopKnob,
   AMModKnob,
   TrimStartKnob,
   TrimEndKnob,
