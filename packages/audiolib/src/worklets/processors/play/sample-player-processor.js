@@ -520,10 +520,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     ) {
       const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
       baseDuration = Math.max(1, Math.floor(baseDuration * scale));
-      calcLoopEnd = Math.min(
-        playbackRange.endSamples,
-        calcLoopStart + baseDuration,
-      );
+      // Deliberately unclamped: above the loop's root note the period is longer than
+      // the available audio. The tail is padded with silence in process() so the
+      // real-time period stays constant instead of collapsing to the buffer end.
+      calcLoopEnd = calcLoopStart + baseDuration;
     }
 
     // Both branches above clamp calcLoopEnd, so re-derive the actual duration
@@ -574,9 +574,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       // Clamp to stay within playback range and ensure minimum loop duration
       const minLoopDuration = Math.max(1, Math.floor(baseDuration * 0.1)); // At least 10% of original duration
+      // Ceiling is the keytracked end when it already reaches past the audio,
+      // otherwise drift would pull the silence-padded tail back in.
+      const maxLoopEnd = Math.max(playbackRange.endSamples, calcLoopEnd);
       calcLoopEnd = Math.max(
         calcLoopStart + minLoopDuration,
-        Math.min(playbackRange.endSamples, driftedLoopEnd),
+        Math.min(maxLoopEnd, driftedLoopEnd),
       );
     } else {
       // Ensure pan drift is set to zero if no loopDrift applied
@@ -585,7 +588,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Snap the end last: drift moves the wrap point, so snapping before drift
     // leaves the actual loop end off a zero crossing -> discontinuity click.
-    if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
+    // Skip the snap when the end sits in the silent tail: zero crossings only exist
+    // inside the buffer, so snapping there would erase the padding.
+    if (
+      baseDuration > this.PITCH_PRESERVATION_THRESHOLD &&
+      calcLoopEnd <= playbackRange.endSamples
+    ) {
       calcLoopEnd = Math.max(
         calcLoopStart + 1,
         this.#findNearestZeroCrossing(calcLoopEnd, 'left'),
@@ -801,6 +809,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const isConstant = this.#getConstantFlags(parameters);
 
+    // Keytracked loop longer than the available audio: pad the tail with silence so
+    // the loop period stays constant. Fade the last few ms so a sample ending on a
+    // non-zero value doesn't click into the silence.
+    const silencePadTail = loopRange.loopEndSamples > playbackRange.endSamples;
+    const TAIL_FADE_SAMPLES = 64;
+
     // ===== Init playback position =====
 
     if (this.playbackPosition === 0) {
@@ -836,8 +850,11 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.playbackPosition >= loopRange.loopEndSamples
         ) {
           // Get the actual samples we're transitioning between
-          const lastLoopSample =
-            this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
+          // In the silent tail the buffer still holds audio we aren't outputting,
+          // so the sample we actually just emitted is 0.
+          const lastLoopSample = silencePadTail
+            ? 0
+            : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
           const newFirstSample =
             this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
 
@@ -889,6 +906,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       ) {
         this.#stop();
         return true;
+      }
+
+      // 1 inside the audio, ramping to 0 at the audio end, 0 through the silent tail
+      let tailGain = 1;
+      if (silencePadTail) {
+        const distToEnd = playbackRange.endSamples - this.playbackPosition;
+        if (distToEnd < TAIL_FADE_SAMPLES) {
+          tailGain = Math.max(0, distToEnd / TAIL_FADE_SAMPLES);
+        }
       }
 
       // Sample interpolation
@@ -953,7 +979,8 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           velocityGain *
           envelopeGain *
           masterGain *
-          amplitudeGain;
+          amplitudeGain *
+          tailGain;
 
         // Apply pan (only affects stereo output)
         let panAdjustedSample = finalSample;
