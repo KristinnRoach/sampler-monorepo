@@ -27,6 +27,7 @@ import {
   LoopStartKnob,
   LoopDurationKnob,
   LoopDurationDriftKnob,
+  KeytrackLoopKnob,
   AMModKnob,
   TrimStartKnob,
   TrimEndKnob,
@@ -366,6 +367,7 @@ export {
   LoopStartKnob,
   LoopDurationKnob,
   LoopDurationDriftKnob,
+  KeytrackLoopKnob,
   AMModKnob,
   TrimStartKnob,
   TrimEndKnob,
@@ -448,6 +450,7 @@ export const defineSampler = () => {
   defineIfNotExists('loop-start-knob', LoopStartKnob, false);
   defineIfNotExists('loop-duration-knob', LoopDurationKnob, false);
   defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
+  defineIfNotExists('keytrack-loop-knob', KeytrackLoopKnob, false);
   defineIfNotExists('trim-start-knob', TrimStartKnob, false);
   defineIfNotExists('trim-end-knob', TrimEndKnob, false);
   defineIfNotExists('distortion-knob', DistortionKnob, false);

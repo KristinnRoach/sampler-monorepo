@@ -276,6 +276,21 @@ const loopDurationDriftConfig: KnobConfig = {
   },
 };
 
+const keytrackLoopConfig: KnobConfig = {
+  label: 'KeyTrack',
+  // NOTE: double-persists — this knob's useLocalStorage AND SamplePlayer.storeParamValue
+  // both save it (knob store wins on reload). Matches loopDurationDrift; dedupe deferred.
+  useLocalStorage: true,
+  defaultValue: 0,
+  minValue: 0,
+  maxValue: 1,
+  curve: 1,
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+  onConnect: (sampler, state) => {
+    van.derive(() => sampler.setKeytrackLoopAmount(state.val));
+  },
+};
+
 const lowpassFilterConfig: KnobConfig = {
   label: 'LPF',
   useLocalStorage: true,
@@ -526,6 +541,11 @@ export const DelayFeedbackKnob = createKnobForTarget(delayFBConfig, getSampler);
 
 export const LoopDurationDriftKnob = createKnobForTarget(
   loopDurationDriftConfig,
+  getSampler
+);
+
+export const KeytrackLoopKnob = createKnobForTarget(
+  keytrackLoopConfig,
   getSampler
 );
 

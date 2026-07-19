@@ -407,6 +407,10 @@ const App: Component = () => {
                 target-node-id='test-sampler'
                 label='Duration'
               />
+              <keytrack-loop-knob
+                target-node-id='test-sampler'
+                label='KeyTrack'
+              />
               <div class='flex-col'>
                 <loop-duration-drift-knob
                   target-node-id='test-sampler'

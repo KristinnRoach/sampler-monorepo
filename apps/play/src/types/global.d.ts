@@ -45,6 +45,7 @@ declare module 'solid-js' {
       'loop-start-knob': any;
       'loop-duration-knob': any;
       'loop-duration-drift-knob': any;
+      'keytrack-loop-knob': any;
       'am-modulation': any;
       'trim-start-knob': any;
       'trim-end-knob': any;
