@@ -117,7 +117,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Keytrack loop: 0 = loop length fixed in samples (loop time shortens as you play higher).
     // 1 = loop length scales with playbackRate so real-time loop period stays constant across notes.
     // NOTE: Using keytrackLoopAmount > 0 means that audio-rate loop lengths no longer quantize to midinote
-    this.keytrackLoopAmount = 1;
+    this.keytrackLoopAmount = 0;
 
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
