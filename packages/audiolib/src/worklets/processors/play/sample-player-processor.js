@@ -527,6 +527,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       );
     }
 
+    // Both branches above clamp calcLoopEnd, so re-derive the actual duration
+    // before drift uses it to size its minimum loop length.
+    baseDuration = calcLoopEnd - calcLoopStart;
+
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
     if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
       calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart, 'right');
@@ -735,7 +739,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const playbackRange = this.#calculatePlaybackRange(positionParams);
 
-    const basePlaybackRate = parameters.playbackRate[0];
+    // Playback advances at rate * transposition, so loop-length math must use both
+    const effectivePlaybackRate =
+      parameters.playbackRate[0] * this.transpositionPlaybackrate;
 
     const tempo = parameters.tempo[0];
 
@@ -744,7 +750,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       playbackRange,
       parameters.loopDurationDriftAmount[0],
       tempo,
-      basePlaybackRate,
+      effectivePlaybackRate,
     );
 
     // Calculate amplitude compensation for short loops
