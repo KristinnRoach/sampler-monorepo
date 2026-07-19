@@ -285,10 +285,25 @@ const keytrackLoopConfig: KnobConfig = {
   minValue: 0,
   maxValue: 1,
   curve: 1,
-  // '—' at 0 signals "no effect" (also inert below audio-rate loop lengths — see loop knob)
-  valueFormatter: (v: number) => (v === 0 ? '—' : `${(v * 100).toFixed(0)}%`),
-  onConnect: (sampler, state) => {
+  valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+  onConnect: (sampler, state, knobElement) => {
     van.derive(() => sampler.setKeytrackLoopAmount(state.val));
+
+    // Dim when the loop is audio-rate (<= PITCH_PRESERVATION_THRESHOLD), where keytrack
+    // has no effect. loop-points:updated fires on every loop change, so this stays live.
+    // NOTE: the sampler.loopEnd/loopStart getters lag (macro ramps async); the message
+    // payload carries the authoritative target, so prefer it when present.
+    const AUDIO_RATE_SECONDS = 0.061;
+    const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
+      if (!knobElement) return;
+      const loopStart = msg ? msg.loopStart : sampler.loopStart;
+      const loopEnd = msg ? msg.loopEnd : sampler.loopEnd;
+      knobElement.style.opacity =
+        loopEnd - loopStart <= AUDIO_RATE_SECONDS ? '0.4' : '';
+    };
+    updateHint();
+    sampler.onMessage('loop-points:updated', (msg: any) => updateHint(msg));
+    sampler.onMessage('sample:loaded', () => updateHint());
   },
 };
 
@@ -426,9 +441,9 @@ const loopDurationConfig: KnobConfig = {
   curve: 4,
   snapIncrement: 0,
   // Below ~61ms the loop is audio-rate (PITCH_PRESERVATION_THRESHOLD in the processor):
-  // its retrigger rate becomes the pitch, and keytrack has no effect here.
+  // switch to a compact ms readout as a subtle cue (keytrack has no effect here).
   valueFormatter: (v: number) =>
-    v <= 0.061 ? `${(v * 1000).toFixed(0)} ms · audio-rate` : `${v.toFixed(2)} s`,
+    v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`,
   onConnect: (sampler, state, knobElement) => {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
