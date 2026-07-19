@@ -62,6 +62,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableAdaptiveDrift = true;
     this.enableAmplitudeCompensation = true;
     this.syncLoopToTempo = false;
+    this.keytrackLoopAmount = 0;
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
     this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 16.35);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
@@ -183,9 +184,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const masterGain = parameters.masterGain[0];
     const positionParams = __privateMethod(this, _SamplePlayerProcessor_instances, extractPositionParams_fn).call(this, parameters);
     const playbackRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculatePlaybackRange_fn).call(this, positionParams);
-    const basePlaybackRate = parameters.playbackRate[0];
+    const effectivePlaybackRate = parameters.playbackRate[0] * this.transpositionPlaybackrate;
     const tempo = parameters.tempo[0];
-    const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters.loopDurationDriftAmount[0], tempo, basePlaybackRate);
+    const loopRange = __privateMethod(this, _SamplePlayerProcessor_instances, calculateLoopRange_fn).call(this, positionParams, playbackRange, parameters.loopDurationDriftAmount[0], tempo, effectivePlaybackRate);
     const amplitudeGain = __privateMethod(this, _SamplePlayerProcessor_instances, analyzeLoopAmplitude_fn).call(this, loopRange.loopStartSamples, loopRange.loopEndSamples);
     const velocityGain = __privateMethod(this, _SamplePlayerProcessor_instances, midiVelocityToGain_fn).call(this, parameters.velocity[0]) * this.velocitySensitivity;
     const basePan = parameters.pan[0];
@@ -206,6 +207,8 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     }
     const numChannels = outputChannels.length;
     const isConstant = __privateMethod(this, _SamplePlayerProcessor_instances, getConstantFlags_fn).call(this, parameters);
+    const silencePadTail = loopRange.loopEndSamples > playbackRange.endSamples;
+    const TAIL_FADE_SAMPLES = 64;
     if (this.playbackPosition === 0) {
       this.playbackPosition = this.reversePlayback ? playbackRange.endSamples - 1 : playbackRange.startSamples;
     }
@@ -215,7 +218,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       const effectiveRate = this.reversePlayback ? -Math.abs(baseRate) : Math.abs(baseRate);
       if (this.loopEnabled && this.loopCount < parameters.maxLoopCount[0]) {
         if (!this.reversePlayback && this.playbackPosition >= loopRange.loopEndSamples) {
-          const lastLoopSample = this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
+          const lastLoopSample = silencePadTail ? 0 : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
           const newFirstSample = this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
           const discontinuity = lastLoopSample - newFirstSample;
           if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
@@ -238,6 +241,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       if ((shouldStopForward || shouldStopReverse) && !(this.loopEnabled && isWithinLoop)) {
         __privateMethod(this, _SamplePlayerProcessor_instances, stop_fn).call(this);
         return true;
+      }
+      let tailGain = 1;
+      if (silencePadTail) {
+        const distToEnd = playbackRange.endSamples - this.playbackPosition;
+        if (distToEnd < TAIL_FADE_SAMPLES) {
+          tailGain = Math.max(0, distToEnd / TAIL_FADE_SAMPLES);
+        }
       }
       const currentPosition = Math.floor(this.playbackPosition);
       const positionOffset = this.playbackPosition - currentPosition;
@@ -279,7 +289,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
             this.applyClickCompensation = false;
           }
         }
-        const finalSample = interpolatedSample * velocityGain * envelopeGain * masterGain * amplitudeGain;
+        const finalSample = interpolatedSample * velocityGain * envelopeGain * masterGain * amplitudeGain * tailGain;
         let panAdjustedSample = finalSample;
         if (outputChannels.length === 2) {
           if (channel === 0) {
@@ -397,6 +407,9 @@ handleMessage_fn = function(event) {
         type: "loop:syncToTempo",
         enabled: value
       });
+      break;
+    case "setKeytrackLoopAmount":
+      this.keytrackLoopAmount = Math.max(0, Math.min(1, value));
       break;
   }
 };
@@ -572,15 +585,20 @@ calculateLoopRange_fn = function(params, playbackRange, driftAmount = 0, tempo =
   const lpEnd = params.loopEndSamples;
   let calcLoopStart = lpStart < lpEnd && lpStart >= 0 ? lpStart : playbackRange.startSamples;
   let calcLoopEnd = lpEnd > lpStart && lpEnd <= playbackRange.endSamples ? lpEnd : playbackRange.endSamples;
-  const baseDuration = calcLoopEnd - calcLoopStart;
+  let baseDuration = calcLoopEnd - calcLoopStart;
   if (this.syncLoopToTempo) {
     const quantizedDuration = __privateMethod(this, _SamplePlayerProcessor_instances, quantizeLoopDuration_fn).call(this, baseDuration, tempo, playbackRate);
     calcLoopEnd = calcLoopStart + quantizedDuration;
     calcLoopEnd = Math.min(calcLoopEnd, playbackRange.endSamples);
   }
+  if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD && this.keytrackLoopAmount > 0 && !this.syncLoopToTempo) {
+    const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
+    baseDuration = Math.max(1, Math.floor(baseDuration * scale));
+    calcLoopEnd = calcLoopStart + baseDuration;
+  }
+  baseDuration = calcLoopEnd - calcLoopStart;
   if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
     calcLoopStart = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopStart, "right");
-    calcLoopEnd = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopEnd, "left");
   }
   if (driftAmount > 0 && this.loopEnabled) {
     if (!this.nextDriftGenerated || this.loopCount === 0) {
@@ -603,12 +621,19 @@ calculateLoopRange_fn = function(params, playbackRange, driftAmount = 0, tempo =
     }
     const driftedLoopEnd = calcLoopEnd + this.currentLoopDrift;
     const minLoopDuration = Math.max(1, Math.floor(baseDuration * 0.1));
+    const maxLoopEnd = Math.max(playbackRange.endSamples, calcLoopEnd);
     calcLoopEnd = Math.max(
       calcLoopStart + minLoopDuration,
-      Math.min(playbackRange.endSamples, driftedLoopEnd)
+      Math.min(maxLoopEnd, driftedLoopEnd)
     );
   } else {
     this.currentPanDrift = 0;
+  }
+  if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD && calcLoopEnd <= playbackRange.endSamples) {
+    calcLoopEnd = Math.max(
+      calcLoopStart + 1,
+      __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, calcLoopEnd, "left")
+    );
   }
   const loopDuration = calcLoopEnd - calcLoopStart;
   return {
