@@ -534,7 +534,6 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
     if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
       calcLoopStart = this.#findNearestZeroCrossing(calcLoopStart, 'right');
-      calcLoopEnd = this.#findNearestZeroCrossing(calcLoopEnd, 'left');
     }
 
     // Apply drift to loop end position
@@ -583,6 +582,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     } else {
       // Ensure pan drift is set to zero if no loopDrift applied
       this.currentPanDrift = 0;
+    }
+
+    // Snap the end last: drift moves the wrap point, so snapping before drift
+    // leaves the actual loop end off a zero crossing -> discontinuity click.
+    if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
+      calcLoopEnd = Math.max(
+        calcLoopStart + 1,
+        this.#findNearestZeroCrossing(calcLoopEnd, 'left'),
+      );
     }
 
     const loopDuration = calcLoopEnd - calcLoopStart;
