@@ -906,15 +906,25 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   // Keytrack loop length to the played note (0 = fixed samples, 1 = constant loop time)
   setKeytrackLoopAmount(amount: number) {
+    const clamped = Math.max(0, Math.min(1, amount));
+    this.#keytrackLoopAmount = clamped;
     this.voicePool.applyToAllVoices((voice) =>
-      voice.setKeytrackLoopAmount(amount)
+      voice.setKeytrackLoopAmount(clamped)
     );
-    this.storeParamValue('keytrackLoopAmount', amount);
+    this.storeParamValue('keytrackLoopAmount', clamped);
     return this;
   }
 
-  getKeytrackLoopAmount = () =>
-    this.getStoredParamValue('keytrackLoopAmount', 0);
+  // storeParamValue is debounced, so keep the live value in memory for the getter
+  #keytrackLoopAmount: number | null = null;
+
+  getKeytrackLoopAmount = () => {
+    this.#keytrackLoopAmount ??= this.getStoredParamValue(
+      'keytrackLoopAmount',
+      0
+    );
+    return this.#keytrackLoopAmount;
+  };
 
   get tempo() {
     return this.#tempo;
