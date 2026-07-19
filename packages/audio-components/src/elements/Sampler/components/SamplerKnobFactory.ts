@@ -289,20 +289,23 @@ const keytrackLoopConfig: KnobConfig = {
   onConnect: (sampler, state, knobElement) => {
     van.derive(() => sampler.setKeytrackLoopAmount(state.val));
 
-    // Dim when the loop is audio-rate (<= PITCH_PRESERVATION_THRESHOLD), where keytrack
-    // has no effect. loop-points:updated fires on every loop change, so this stays live.
+    // Dim when keytrack has no effect: loop off, or loop audio-rate
+    // (<= PITCH_PRESERVATION_THRESHOLD). Stays live via loop:enabled / loop-points:updated.
     // NOTE: the sampler.loopEnd/loopStart getters lag (macro ramps async); the message
-    // payload carries the authoritative target, so prefer it when present.
+    // payload carries the authoritative target, so prefer it when present. loopEnabled
+    // getter is synchronous, so it's read directly.
     const AUDIO_RATE_SECONDS = 0.061;
     const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
       if (!knobElement) return;
       const loopStart = msg ? msg.loopStart : sampler.loopStart;
       const loopEnd = msg ? msg.loopEnd : sampler.loopEnd;
-      knobElement.style.opacity =
-        loopEnd - loopStart <= AUDIO_RATE_SECONDS ? '0.4' : '';
+      const inactive =
+        !sampler.loopEnabled || loopEnd - loopStart <= AUDIO_RATE_SECONDS;
+      knobElement.style.opacity = inactive ? '0.4' : '';
     };
     updateHint();
     sampler.onMessage('loop-points:updated', (msg: any) => updateHint(msg));
+    sampler.onMessage('loop:enabled', () => updateHint());
     sampler.onMessage('sample:loaded', () => updateHint());
   },
 };
