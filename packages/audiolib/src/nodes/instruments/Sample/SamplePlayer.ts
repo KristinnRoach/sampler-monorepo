@@ -112,7 +112,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   constructor(
     context: AudioContext,
     polyphony: number = 16,
-    audioBuffer?: AudioBuffer
+    audioBuffer?: AudioBuffer,
   ) {
     this.nodeId = registerNode('sample-player', this);
     this.context = context;
@@ -124,12 +124,12 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.#macroLoopStart = new MacroParam(
       this.context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_START
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_START,
     );
 
     this.#macroLoopEnd = new MacroParam(
       this.context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_END
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_END,
     );
 
     // Store configuration for async init
@@ -147,7 +147,7 @@ export class SamplePlayer implements ILibInstrumentNode {
         this.outBus = await createInstrumentBus(this.context); // WIP
         this.voicePool = await createSampleVoicePool(
           this.context,
-          this.#polyphony
+          this.#polyphony,
         );
 
         this.#resetMacros();
@@ -307,12 +307,12 @@ export class SamplePlayer implements ILibInstrumentNode {
   protected storeParamValue(
     paramId: string,
     value: any,
-    delay = this.#debounceMs
+    delay = this.#debounceMs,
   ): void {
     this.#debouncer.debounce(
       () => localStore.saveValue(this.getLocalStorageKey(paramId), value),
       delay,
-      paramId
+      paramId,
     )();
   }
 
@@ -321,7 +321,7 @@ export class SamplePlayer implements ILibInstrumentNode {
    */
   getStoredParamValue<T extends number | string>(
     paramId: string,
-    defaultValue: T
+    defaultValue: T,
   ): T {
     const key = this.getLocalStorageKey(paramId);
     return localStore.getValue(key, defaultValue);
@@ -434,16 +434,16 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setModulationAmount = (modType: 'AM' | 'FM', amount: number) =>
     this.voicePool.applyToAllVoices((v) =>
-      v.setModulationAmount(modType, amount)
+      v.setModulationAmount(modType, amount),
     );
 
   setModulationWaveform(
     modType: 'AM' | 'FM' = 'AM',
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
-    customWaveOptions: WaveformOptions = {}
+    customWaveOptions: WaveformOptions = {},
   ) {
     this.voicePool.applyToAllVoices((v) =>
-      v.setModulationWaveform(modType, waveform, customWaveOptions)
+      v.setModulationWaveform(modType, waveform, customWaveOptions),
     );
   }
 
@@ -493,7 +493,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   freezeActiveVoices(freeze: boolean): this {
     console.info(
-      `SamplePlayer: freezeActiveVoices(${freeze}). Spectral freeze not implemented yet`
+      `SamplePlayer: freezeActiveVoices(${freeze}). Spectral freeze not implemented yet`,
     );
     // this.voicePool.applyToActiveVoices((voice) => voice.freeze(freeze));
     return this;
@@ -504,7 +504,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
-    preprocessOptions?: Partial<PreProcessOptions>
+    preprocessOptions?: Partial<PreProcessOptions>,
   ): Promise<AudioBuffer | null> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
@@ -524,7 +524,7 @@ export class SamplePlayer implements ILibInstrumentNode {
         `sample rate mismatch, 
         buffer rate: ${buffer.sampleRate}, 
         context rate: ${this.context.sampleRate}
-        requested rate: ${modSampleRate}`
+        requested rate: ${modSampleRate}`,
       );
     }
 
@@ -539,7 +539,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       processed = await preProcessAudioBuffer(
         this.context,
         buffer,
-        preprocessOptions
+        preprocessOptions,
       );
       buffer = processed.audiobuffer;
 
@@ -597,7 +597,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   detectedPitchToTransposition(
     detectedMidiFloat: number,
-    targetMidiNote: number
+    targetMidiNote: number,
   ) {
     let transposeSemitones = targetMidiNote - detectedMidiFloat;
     // Wrap to nearest octave (-6 to +6 semitones)
@@ -611,7 +611,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   play(
     midiNote: MidiValue,
     velocity: MidiValue = 100,
-    glideTime = this.getGlideTime()
+    glideTime = this.getGlideTime(),
   ): MidiValue | null {
     const safeVelocity = isMidiValue(velocity) ? velocity : 100;
     const transposedMidiNote = midiNote + this.#transposedBySemitones;
@@ -631,7 +631,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       transposedMidiNote,
       safeVelocity,
       0,
-      glideTime
+      glideTime,
     );
   }
 
@@ -832,7 +832,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setPlaybackDirection(direction: 'forward' | 'reverse'): this {
     this.voicePool.applyToAllVoices((voice) =>
-      voice.setPlaybackDirection(direction)
+      voice.setPlaybackDirection(direction),
     );
 
     this.storeParamValue('playbackDirection', direction);
@@ -841,7 +841,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setLoopDurationDriftAmount(amount: number): this {
     this.voicePool.applyToAllVoices((voice) =>
-      voice.setLoopDurationDriftAmount(amount)
+      voice.setLoopDurationDriftAmount(amount),
     );
 
     this.storeParamValue('loopDurationDrift', amount);
@@ -850,7 +850,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setPanDriftEnabled = (enabled: boolean) => {
     this.voicePool.applyToAllVoices((voice) =>
-      voice.setPanDriftEnabled(enabled)
+      voice.setPanDriftEnabled(enabled),
     );
 
     this.storeParamValue('panDriftEnabled', enabled);
@@ -864,27 +864,27 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   setLoopStart = (
     seconds: number,
-    rampTime: number = this.getLoopRampDuration()
+    rampTime: number = this.getLoopRampDuration(),
   ) => {
     return this.setLoopPoint('start', seconds, this.loopEnd, rampTime);
   };
 
   setLoopEnd = (
     seconds: number,
-    rampTime: number = this.getLoopRampDuration()
+    rampTime: number = this.getLoopRampDuration(),
   ) => {
     return this.setLoopPoint('end', this.loopStart, seconds, rampTime);
   };
 
   setLoopDuration = (
     seconds: number,
-    rampTime: number = this.getLoopRampDuration()
+    rampTime: number = this.getLoopRampDuration(),
   ) =>
     this.setLoopPoint(
       'end',
       this.loopStart,
       this.loopStart + seconds,
-      rampTime
+      rampTime,
     );
 
   debugcounter = 0;
@@ -901,15 +901,20 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   syncLoopToTempo(enabled: boolean) {
     this.voicePool.applyToAllVoices((voice) => voice.syncLoopToTempo(enabled));
-  }
-
-  // PoC: keytrack loop length to the played note (0 = fixed samples, 1 = constant loop time)
-  setKeytrackLoopAmount(amount: number) {
-    this.voicePool.applyToAllVoices((voice) =>
-      voice.sendToProcessor({ type: 'setKeytrackLoopAmount', value: amount })
-    );
     return this;
   }
+
+  // Keytrack loop length to the played note (0 = fixed samples, 1 = constant loop time)
+  setKeytrackLoopAmount(amount: number) {
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.setKeytrackLoopAmount(amount)
+    );
+    this.storeParamValue('keytrackLoopAmount', amount);
+    return this;
+  }
+
+  getKeytrackLoopAmount = () =>
+    this.getStoredParamValue('keytrackLoopAmount', 0);
 
   get tempo() {
     return this.#tempo;
@@ -919,12 +924,12 @@ export class SamplePlayer implements ILibInstrumentNode {
     loopPoint: 'start' | 'end',
     loopStartSeconds: number,
     loopEndSeconds: number,
-    rampDuration: number = this.getLoopRampDuration()
+    rampDuration: number = this.getLoopRampDuration(),
   ) {
     let loopStart = clamp(
       loopStartSeconds,
       0 + this.MIN_LOOP_DURATION_SECONDS / 2,
-      loopEndSeconds
+      loopEndSeconds,
     );
 
     if (loopPoint === 'start' && loopStart === this.loopStart) return this;
@@ -932,7 +937,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     let loopEnd = clamp(
       loopEndSeconds,
       loopStart,
-      this.#bufferDuration - this.MIN_LOOP_DURATION_SECONDS / 2
+      this.#bufferDuration - this.MIN_LOOP_DURATION_SECONDS / 2,
     );
 
     if (loopPoint === 'end' && loopEnd === this.loopEnd) return this;
@@ -1028,21 +1033,21 @@ export class SamplePlayer implements ILibInstrumentNode {
   getStartPoint(): number {
     return this.getStoredParamValue(
       'startPoint',
-      DEFAULT_PARAM_DESCRIPTORS.START_POINT.defaultValue
+      DEFAULT_PARAM_DESCRIPTORS.START_POINT.defaultValue,
     );
   }
 
   getEndPoint(): number {
     return this.getStoredParamValue(
       'endPoint',
-      DEFAULT_PARAM_DESCRIPTORS.END_POINT.defaultValue
+      DEFAULT_PARAM_DESCRIPTORS.END_POINT.defaultValue,
     );
   }
 
   getLoopRampDuration(): number {
     return this.getStoredParamValue(
       'loopRampDuration',
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION.defaultValue
+      DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION.defaultValue,
     );
   }
 
@@ -1119,34 +1124,34 @@ export class SamplePlayer implements ILibInstrumentNode {
   setEnvelopeLoop = (
     envType: EnvelopeType,
     loop: boolean,
-    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal',
   ) => {
     this.voicePool.applyToAllVoices((v) =>
-      v.setEnvelopeLoop(envType, loop, mode)
+      v.setEnvelopeLoop(envType, loop, mode),
     );
   };
 
   setEnvelopeSync = (envType: EnvelopeType, sync: boolean) => {
     this.voicePool.applyToAllVoices((v) =>
-      v.syncEnvelopeToPlaybackRate(envType, sync)
+      v.syncEnvelopeToPlaybackRate(envType, sync),
     );
   };
 
   setEnvelopeTimeScale = (envType: EnvelopeType, timeScale: number) => {
     this.voicePool.applyToAllVoices((v) =>
-      v.setEnvelopeTimeScale(envType, timeScale)
+      v.setEnvelopeTimeScale(envType, timeScale),
     );
   };
 
   setEnvelopeSustainPoint(envType: EnvelopeType, index: number | null) {
     this.voicePool.applyToAllVoices((v) =>
-      v.setEnvelopeSustainPoint(envType, index)
+      v.setEnvelopeSustainPoint(envType, index),
     );
   }
 
   setEnvelopeReleasePoint(envType: EnvelopeType, index: number) {
     this.voicePool.applyToAllVoices((v) =>
-      v.setEnvelopeReleasePoint(envType, index)
+      v.setEnvelopeReleasePoint(envType, index),
     );
   }
 
@@ -1154,22 +1159,22 @@ export class SamplePlayer implements ILibInstrumentNode {
     envType: EnvelopeType,
     index: number,
     time: number,
-    value: number
+    value: number,
   ): void {
     this.voicePool.applyToAllVoices((v) =>
-      v.updateEnvelopePoint(envType, index, time, value)
+      v.updateEnvelopePoint(envType, index, time, value),
     );
   }
 
   addEnvelopePoint(envType: EnvelopeType, time: number, value: number): void {
     this.voicePool.applyToAllVoices((v) =>
-      v.addEnvelopePoint(envType, time, value)
+      v.addEnvelopePoint(envType, time, value),
     );
   }
 
   deleteEnvelopePoint(envType: EnvelopeType, index: number): void {
     this.voicePool.applyToAllVoices((v) =>
-      v.deleteEnvelopePoint(envType, index)
+      v.deleteEnvelopePoint(envType, index),
     );
   }
 

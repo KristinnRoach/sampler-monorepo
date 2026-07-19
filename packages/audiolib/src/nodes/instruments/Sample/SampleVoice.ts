@@ -791,6 +791,14 @@ export class SampleVoice {
     return this;
   }
 
+  setKeytrackLoopAmount(amount: number) {
+    this.sendToProcessor({
+      type: 'setKeytrackLoopAmount',
+      value: amount,
+    });
+    return this;
+  }
+
   setTempo(bpm: number) {
     this.setParam('tempo', bpm, this.now);
     return this;
