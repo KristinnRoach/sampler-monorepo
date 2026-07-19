@@ -493,7 +493,6 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         : playbackRange.endSamples;
 
     let baseDuration = calcLoopEnd - calcLoopStart;
-    let isTempoSynced = false;
 
     // Apply tempo quantization if enabled
     if (this.syncLoopToTempo) {
@@ -502,7 +501,6 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         tempo,
         playbackRate,
       );
-      isTempoSynced = quantizedDuration !== baseDuration;
 
       calcLoopEnd = calcLoopStart + quantizedDuration;
       // Ensure we don't exceed playback range
@@ -513,11 +511,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // loop period stays constant across notes (amount=1); amount=0 leaves it fixed.
     // Keytrack and tempo-sync both remap loop length as a function of playbackRate, in
     // opposite directions (real-time vs. musical length). They are mutually exclusive:
-    // tempo-sync wins when it is active, so keytrack is skipped via !isTempoSynced.
+    // tempo-sync wins whenever it is enabled, even when quantization left the
+    // duration unchanged (already on-grid, or too short to quantize).
     if (
       baseDuration > this.PITCH_PRESERVATION_THRESHOLD &&
       this.keytrackLoopAmount > 0 &&
-      !isTempoSynced
+      !this.syncLoopToTempo
     ) {
       const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
       baseDuration = Math.max(1, Math.floor(baseDuration * scale));
