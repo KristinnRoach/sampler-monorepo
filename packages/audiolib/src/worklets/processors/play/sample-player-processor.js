@@ -230,14 +230,22 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.panDriftEnabled = value;
         break;
 
-      case 'voice:setPlaybackDirection':
-        this.reversePlayback = playbackDirection === 'reverse' ? true : false;
+      case 'voice:setPlaybackDirection': {
+        const reverse = playbackDirection === 'reverse';
+
+        // Reverse interpolation reads ~1 sample behind forward at the same
+        // position; shift so the emitted value stays continuous across the flip.
+        if (reverse !== this.reversePlayback && this.playbackPosition > 0) {
+          this.playbackPosition += reverse ? 1 : -1;
+        }
+        this.reversePlayback = reverse;
 
         this.port.postMessage({
           type: 'voice:playbackDirectionChange',
           playbackDirection,
         });
         break;
+      }
 
       case 'voice:usePlaybackPosition':
         this.usePlaybackPosition = value;
@@ -893,8 +901,10 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
               : this.buffer[0][Math.floor(loopRange.loopEndSamples) - 1] || 0,
           );
 
-          // Set to one sample before end to avoid immediate boundary trigger
-          this.playbackPosition = loopRange.loopEndSamples - 1;
+          // Wrap to the loop end exactly so reverse travel matches forward
+          // (loopEnd - loopStart per pass); high-boundary checks are all
+          // guarded by !reversePlayback, so this cannot re-trigger anything.
+          this.playbackPosition = loopRange.loopEndSamples;
           this.loopCount++;
 
           // Reset drift flag to generate new drift for next loop iteration
