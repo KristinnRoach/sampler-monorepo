@@ -1,5 +1,3 @@
-import { fft, ifft, util } from 'fft-js';
-
 class SpectralFreezeProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -23,11 +21,11 @@ class SpectralFreezeProcessor extends AudioWorkletProcessor {
     // Check if FFT library is available
     console.log(
       '[SpectralFreeze] Constructor - fft available:',
-      typeof fft !== 'undefined'
+      typeof fft !== 'undefined',
     );
     console.log(
       '[SpectralFreeze] Constructor - ifft available:',
-      typeof ifft !== 'undefined'
+      typeof ifft !== 'undefined',
     );
 
     this.port.onmessage = (event) => {
@@ -36,7 +34,7 @@ class SpectralFreezeProcessor extends AudioWorkletProcessor {
         this.outputReadPos = this.hopSize; // Force refill on first freeze
         console.log(
           '[SpectralFreeze] Freeze activated, spectrum available:',
-          !!this.frozenSpectrum
+          !!this.frozenSpectrum,
         );
       } else if (event.data === 'unfreeze') {
         this.isFrozen = false;
