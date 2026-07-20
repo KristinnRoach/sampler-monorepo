@@ -2,13 +2,14 @@
 {
   "compilerOptions": {
     "strict": true,
+    "forceConsistentCasingInFileNames": true,
 
     "allowJs": true,
     "checkJs": false, // prevents type checking for JS files
 
     "target": "ES2022",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"], // ? , "WebWorker"], ?
 
     "declarationMap": true, // ?
@@ -27,7 +28,6 @@
 
     "declarationDir": "./dist",
     "outDir": "./dist",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
