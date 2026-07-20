@@ -230,14 +230,22 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         this.panDriftEnabled = value;
         break;
 
-      case 'voice:setPlaybackDirection':
-        this.reversePlayback = playbackDirection === 'reverse' ? true : false;
+      case 'voice:setPlaybackDirection': {
+        const reverse = playbackDirection === 'reverse';
+
+        // Reverse interpolation reads ~1 sample behind forward at the same
+        // position; shift so the emitted value stays continuous across the flip.
+        if (reverse !== this.reversePlayback && this.playbackPosition > 0) {
+          this.playbackPosition += reverse ? 1 : -1;
+        }
+        this.reversePlayback = reverse;
 
         this.port.postMessage({
           type: 'voice:playbackDirectionChange',
           playbackDirection,
         });
         break;
+      }
 
       case 'voice:usePlaybackPosition':
         this.usePlaybackPosition = value;
@@ -294,6 +302,19 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.isReleasing = false;
     this.playbackPosition = 0;
     this.port.postMessage({ type: 'voice:stopped' });
+  }
+
+  // Arm click compensation for a loop-wrap discontinuity between the sample
+  // just emitted and the first sample of the next pass.
+  #smoothLoopWrap(lastLoopSample, newFirstSample) {
+    const discontinuity = lastLoopSample - newFirstSample;
+
+    if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
+      // Simple exponential smoothing
+      this.loopClickCompensation = discontinuity * 0.5;
+      this.compensationDecay = 0.9; // Smooth over ~32 samples
+      this.applyClickCompensation = true;
+    }
   }
 
   #clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -520,14 +541,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     ) {
       const scale = 1 + this.keytrackLoopAmount * (Math.abs(playbackRate) - 1);
       baseDuration = Math.max(1, Math.floor(baseDuration * scale));
-      calcLoopEnd = Math.min(
-        playbackRange.endSamples,
-        calcLoopStart + baseDuration,
-      );
+      // Deliberately unclamped: above the loop's root note the period is longer than
+      // the available audio. The tail is padded with silence in process() so the
+      // real-time period stays constant instead of collapsing to the buffer end.
+      calcLoopEnd = calcLoopStart + baseDuration;
     }
 
-    // Both branches above clamp calcLoopEnd, so re-derive the actual duration
-    // before drift uses it to size its minimum loop length.
+    // Both branches above adjust calcLoopEnd (tempo-sync clamps, keytrack may
+    // extend past the audio), so re-derive the actual duration before drift
+    // uses it to size its minimum loop length.
     baseDuration = calcLoopEnd - calcLoopStart;
 
     // Only snap to zero crossing if it doesnt affect pitch (audio-rate loop duration)
@@ -574,9 +596,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       // Clamp to stay within playback range and ensure minimum loop duration
       const minLoopDuration = Math.max(1, Math.floor(baseDuration * 0.1)); // At least 10% of original duration
+      // Ceiling is the keytracked end when it already reaches past the audio,
+      // otherwise drift would pull the silence-padded tail back in.
+      const maxLoopEnd = Math.max(playbackRange.endSamples, calcLoopEnd);
       calcLoopEnd = Math.max(
         calcLoopStart + minLoopDuration,
-        Math.min(playbackRange.endSamples, driftedLoopEnd),
+        Math.min(maxLoopEnd, driftedLoopEnd),
       );
     } else {
       // Ensure pan drift is set to zero if no loopDrift applied
@@ -585,7 +610,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     // Snap the end last: drift moves the wrap point, so snapping before drift
     // leaves the actual loop end off a zero crossing -> discontinuity click.
-    if (baseDuration > this.PITCH_PRESERVATION_THRESHOLD) {
+    // Skip the snap when the end sits in the silent tail: zero crossings only exist
+    // inside the buffer, so snapping there would erase the padding.
+    if (
+      baseDuration > this.PITCH_PRESERVATION_THRESHOLD &&
+      calcLoopEnd <= playbackRange.endSamples
+    ) {
       calcLoopEnd = Math.max(
         calcLoopStart + 1,
         this.#findNearestZeroCrossing(calcLoopEnd, 'left'),
@@ -801,6 +831,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     const isConstant = this.#getConstantFlags(parameters);
 
+    // Keytracked loop longer than the available audio: pad the tail with silence so
+    // the loop period stays constant. Fade the last few ms so a sample ending on a
+    // non-zero value doesn't click into the silence.
+    const silencePadTail = loopRange.loopEndSamples > playbackRange.endSamples;
+    const TAIL_FADE_SAMPLES = 64;
+
     // ===== Init playback position =====
 
     if (this.playbackPosition === 0) {
@@ -836,19 +872,14 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.playbackPosition >= loopRange.loopEndSamples
         ) {
           // Get the actual samples we're transitioning between
-          const lastLoopSample =
-            this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
-          const newFirstSample =
-            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
-
-          const discontinuity = lastLoopSample - newFirstSample;
-
-          if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
-            // Simple exponential smoothing
-            this.loopClickCompensation = discontinuity * 0.5;
-            this.compensationDecay = 0.9; // Smooth over ~32 samples
-            this.applyClickCompensation = true;
-          }
+          // In the silent tail the buffer still holds audio we aren't outputting,
+          // so the sample we actually just emitted is 0.
+          this.#smoothLoopWrap(
+            silencePadTail
+              ? 0
+              : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0,
+            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0,
+          );
 
           this.playbackPosition = loopRange.loopStartSamples;
           this.loopCount++;
@@ -861,8 +892,19 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.reversePlayback &&
           this.playbackPosition <= loopRange.loopStartSamples
         ) {
-          // Set to one sample before end to avoid immediate boundary trigger
-          this.playbackPosition = loopRange.loopEndSamples - 1;
+          // Mirror of the forward wrap: last emitted sample sits at the loop
+          // start, the next pass begins at the loop end (0 in the silent tail).
+          this.#smoothLoopWrap(
+            this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0,
+            silencePadTail
+              ? 0
+              : this.buffer[0][Math.floor(loopRange.loopEndSamples) - 1] || 0,
+          );
+
+          // Wrap to the loop end exactly so reverse travel matches forward
+          // (loopEnd - loopStart per pass); high-boundary checks are all
+          // guarded by !reversePlayback, so this cannot re-trigger anything.
+          this.playbackPosition = loopRange.loopEndSamples;
           this.loopCount++;
 
           // Reset drift flag to generate new drift for next loop iteration
@@ -889,6 +931,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       ) {
         this.#stop();
         return true;
+      }
+
+      // 1 inside the audio, ramping to 0 at the audio end, 0 through the silent tail
+      let tailGain = 1;
+      if (silencePadTail) {
+        const distToEnd = playbackRange.endSamples - this.playbackPosition;
+        if (distToEnd < TAIL_FADE_SAMPLES) {
+          tailGain = Math.max(0, distToEnd / TAIL_FADE_SAMPLES);
+        }
       }
 
       // Sample interpolation
@@ -953,7 +1004,8 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
           velocityGain *
           envelopeGain *
           masterGain *
-          amplitudeGain;
+          amplitudeGain *
+          tailGain;
 
         // Apply pan (only affects stereo output)
         let panAdjustedSample = finalSample;
