@@ -6,11 +6,4 @@ runme:
 
 ## Audiolib
 
-Audiolib is an audio library (package) based on the web audio api, for use in my own projects.
-
-It is meant to provide a simple, intuitive API that is tailored to my own needs.
-
-The first feature I am focusing on is creating a musical 'Sampler' instrument.
-
-Todo: Define core architecture, control flow, events etc..
-TODO: "sideEffects": false,
+Audiolib is a WIP high-level API for creating musical instruments and tools, built on the web audio api.
