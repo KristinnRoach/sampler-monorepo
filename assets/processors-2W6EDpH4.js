@@ -5,7 +5,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, getMusicalNoteDurations_fn, quantizeLoopDuration_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, smoothLoopWrap_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, getMusicalNoteDurations_fn, quantizeLoopDuration_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
 function findClosestIdx(sortedArray, target, direction = "any", getValue = (x) => x, getDistance = (a, b) => Math.abs(a - b)) {
   if (sortedArray.length === 0) {
     throw new Error("Array cannot be empty");
@@ -218,19 +218,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
       const effectiveRate = this.reversePlayback ? -Math.abs(baseRate) : Math.abs(baseRate);
       if (this.loopEnabled && this.loopCount < parameters.maxLoopCount[0]) {
         if (!this.reversePlayback && this.playbackPosition >= loopRange.loopEndSamples) {
-          const lastLoopSample = silencePadTail ? 0 : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0;
-          const newFirstSample = this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0;
-          const discontinuity = lastLoopSample - newFirstSample;
-          if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
-            this.loopClickCompensation = discontinuity * 0.5;
-            this.compensationDecay = 0.9;
-            this.applyClickCompensation = true;
-          }
+          __privateMethod(this, _SamplePlayerProcessor_instances, smoothLoopWrap_fn).call(this, silencePadTail ? 0 : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0, this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0);
           this.playbackPosition = loopRange.loopStartSamples;
           this.loopCount++;
           this.nextDriftGenerated = false;
         } else if (this.reversePlayback && this.playbackPosition <= loopRange.loopStartSamples) {
-          this.playbackPosition = loopRange.loopEndSamples - 1;
+          __privateMethod(this, _SamplePlayerProcessor_instances, smoothLoopWrap_fn).call(this, this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0, silencePadTail ? 0 : this.buffer[0][Math.floor(loopRange.loopEndSamples) - 1] || 0);
+          this.playbackPosition = loopRange.loopEndSamples;
           this.loopCount++;
           this.nextDriftGenerated = false;
         }
@@ -391,13 +385,18 @@ handleMessage_fn = function(event) {
     case "setPanDriftEnabled":
       this.panDriftEnabled = value;
       break;
-    case "voice:setPlaybackDirection":
-      this.reversePlayback = playbackDirection === "reverse" ? true : false;
+    case "voice:setPlaybackDirection": {
+      const reverse = playbackDirection === "reverse";
+      if (reverse !== this.reversePlayback && this.playbackPosition > 0) {
+        this.playbackPosition += reverse ? 1 : -1;
+      }
+      this.reversePlayback = reverse;
       this.port.postMessage({
         type: "voice:playbackDirectionChange",
         playbackDirection
       });
       break;
+    }
     case "voice:usePlaybackPosition":
       this.usePlaybackPosition = value;
       break;
@@ -440,6 +439,16 @@ stop_fn = function() {
   this.isReleasing = false;
   this.playbackPosition = 0;
   this.port.postMessage({ type: "voice:stopped" });
+};
+// Arm click compensation for a loop-wrap discontinuity between the sample
+// just emitted and the first sample of the next pass.
+smoothLoopWrap_fn = function(lastLoopSample, newFirstSample) {
+  const discontinuity = lastLoopSample - newFirstSample;
+  if (this.enableLoopSmoothing && Math.abs(discontinuity) > 0.01) {
+    this.loopClickCompensation = discontinuity * 0.5;
+    this.compensationDecay = 0.9;
+    this.applyClickCompensation = true;
+  }
 };
 _clamp = new WeakMap();
 _clampZeroCrossing = new WeakMap();
