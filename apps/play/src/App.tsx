@@ -7,7 +7,8 @@ import {
   onCleanup,
 } from 'solid-js';
 
-import type { SamplerElement, SamplePlayer } from '@repo/audio-components';
+import type { SamplePlayer } from '@repo/audiolib';
+import { createSampler, type Sampler } from './utils/createSampler';
 // import { KnobComponent, type KnobChangeEventDetail, Oscilloscope } from '@repo/audio-components/solidjs';
 
 import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
@@ -36,7 +37,7 @@ const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
 
-  let samplerElementRef: SamplerElement | undefined;
+  let samplerRef: Sampler | undefined;
   let samplePlayerRef: SamplePlayer | null = null;
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
@@ -65,16 +66,19 @@ const App: Component = () => {
     setSidebarOpen,
   );
 
-  const getSamplePlayer = () =>
-    samplePlayerRef || samplerElementRef?.getSamplePlayer?.() || null;
+  const getSamplePlayer = () => samplePlayerRef;
 
   onMount(() => {
-    const handleSampleLoaded = () => {
-      if (!samplerElementRef) {
-        return;
-      }
+    createSampler({ nodeId: 'test-sampler' })
+      .then((sampler) => {
+        samplerRef = sampler;
+        samplePlayerRef = sampler.samplePlayer;
+      })
+      .catch(() => {
+        // Errors already logged and dispatched as 'sampler-error' by createSampler
+      });
 
-      samplePlayerRef = samplerElementRef.getSamplePlayer();
+    const handleSampleLoaded = () => {
       const audiobuffer = samplePlayerRef?.audiobuffer || null;
 
       setCurrentAudioBuffer(audiobuffer);
@@ -161,6 +165,7 @@ const App: Component = () => {
 
       cleanupNotifications();
       disableSamplePlayerMidi();
+      samplerRef?.dispose();
     });
   });
 
@@ -267,12 +272,6 @@ const App: Component = () => {
 
         {/* // ! END TEST sidebar ! */}
         <div class={`control-grid layout-${layout()}`} id='sampler-container'>
-          <sampler-element
-            ref={samplerElementRef}
-            node-id='test-sampler'
-            debug-mode='false'
-          />
-
           <fieldset class='control-group env-group'>
             <legend class='expandable-legend'>Envelopes</legend>
             <div class='expandable-content'>
