@@ -26,6 +26,23 @@ export {
   getCurrentOutputDeviceId,
 } from './context';
 
+// =*=*= Parameter descriptors =*=*= \\
+export { samplerParams } from './nodes/instruments/Sample/sampler-params';
+export type {
+  SamplerParamKey,
+  SamplerParamDescriptor,
+} from './nodes/instruments/Sample/sampler-params';
+
+// =*=*= Keyboard mapping =*=*= \\
+export {
+  defaultKeymap,
+  generateKeymap,
+  keymaps,
+  DEFAULT_KEYMAP_KEY,
+} from './io/mapping/keymap';
+export type { KeymapKey } from './io/mapping/keymap';
+export type { KeyMap } from './io/types';
+
 // =*=*= Constants =*=*= \\
 export { SUPPORTED_WAVEFORMS } from './utils';
 export type { SupportedWaveform } from './utils';
