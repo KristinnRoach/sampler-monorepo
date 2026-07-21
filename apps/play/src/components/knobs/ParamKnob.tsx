@@ -88,13 +88,22 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     knobEl.setValue(initialValue);
   });
 
-  // On player ready: apply the initial value and wire up dynamic max
-  // (sample-length-relative params) to follow the loaded sample.
+  // Keep the player parameter in sync with the knob value.
   createEffect(() => {
     const player = props.player;
     if (!player) return;
 
     desc.apply(player, value());
+  });
+
+  // On player ready, wire up dynamic max (sample-length-relative params) to
+  // follow the loaded sample. These listeners must not be recreated when the
+  // knob value changes.
+  createEffect(() => {
+    const player = props.player;
+    if (!player) return;
+
+    const unsubscribe: Array<() => void> = [];
 
     if (desc.getMax) {
       const updateMax = (durationSeconds: number) => {
@@ -108,8 +117,10 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
       };
 
       updateMax(desc.getMax(player));
-      player.onMessage('sample:loaded', (msg: any) =>
-        updateMax(msg.durationSeconds),
+      unsubscribe.push(
+        player.onMessage('sample:loaded', (msg: any) =>
+          updateMax(msg.durationSeconds),
+        ),
       );
     }
 
@@ -127,10 +138,14 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
         );
       };
       updateHint();
-      player.onMessage('loop-points:updated', (msg: any) => updateHint(msg));
-      player.onMessage('loop:enabled', () => updateHint());
-      player.onMessage('sample:loaded', () => updateHint());
+      unsubscribe.push(
+        player.onMessage('loop-points:updated', (msg: any) => updateHint(msg)),
+        player.onMessage('loop:enabled', () => updateHint()),
+        player.onMessage('sample:loaded', () => updateHint()),
+      );
     }
+
+    onCleanup(() => unsubscribe.forEach((stop) => stop()));
   });
 
   onCleanup(() => {
