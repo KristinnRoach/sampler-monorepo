@@ -81,8 +81,12 @@ export async function createSampler(
     let initSample: ArrayBuffer | undefined;
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored?.length) {
-      const arrayBuffer = base64ToArrayBuffer(stored);
-      if (validateWavBuffer(arrayBuffer)) initSample = arrayBuffer;
+      try {
+        const arrayBuffer = base64ToArrayBuffer(stored);
+        if (validateWavBuffer(arrayBuffer)) initSample = arrayBuffer;
+      } catch {
+        // Ignore malformed persisted state and create a fresh sampler.
+      }
     }
 
     const samplePlayer = await createSamplePlayer(
