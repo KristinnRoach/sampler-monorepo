@@ -45,6 +45,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
 
   const initialValue = storedValue() ?? desc.defaultValue;
   const [value, setValue] = createSignal(initialValue);
+  const [dimmed, setDimmed] = createSignal(false);
 
   let containerRef: HTMLDivElement | undefined;
   let knobEl: KnobElement | undefined;
@@ -111,6 +112,25 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
         updateMax(msg.durationSeconds),
       );
     }
+
+    // Keytrack has no audible effect when the loop is off or audio-rate
+    // (<= PITCH_PRESERVATION_THRESHOLD in the processor): dim as a hint.
+    // The loopStart/loopEnd getters lag (macro ramps async), so prefer the
+    // message payload's target values when present.
+    if (props.param === 'keytrackLoop') {
+      const AUDIO_RATE_SECONDS = 0.061;
+      const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
+        const loopStart = msg ? msg.loopStart : player.loopStart;
+        const loopEnd = msg ? msg.loopEnd : player.loopEnd;
+        setDimmed(
+          !player.loopEnabled || loopEnd - loopStart <= AUDIO_RATE_SECONDS,
+        );
+      };
+      updateHint();
+      player.onMessage('loop-points:updated', (msg: any) => updateHint(msg));
+      player.onMessage('loop:enabled', () => updateHint());
+      player.onMessage('sample:loaded', () => updateHint());
+    }
   });
 
   onCleanup(() => {
@@ -126,6 +146,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
       data-param={props.param}
       class={`knob-container ${props.class ?? ''}`}
       title={props.title}
+      style={{ opacity: dimmed() ? '0.4' : '' }}
     >
       <div class='knob-label' style='text-align: center; margin-bottom: 4px;'>
         {label()}
