@@ -62,7 +62,9 @@ function validateWavBuffer(buffer: ArrayBuffer): boolean {
     if (bitsPerSample === 16) {
       sumAbs += Math.abs(view.getInt16(dataOffset + sampleIndex * sampleSize, true));
     } else if (bitsPerSample === 8) {
-      sumAbs += Math.abs(view.getInt8(dataOffset + sampleIndex * sampleSize));
+      sumAbs += Math.abs(
+        view.getUint8(dataOffset + sampleIndex * sampleSize) - 128,
+      );
     }
   }
   return sumAbs / samplesToCheck >= 0.08 * (1 << (bitsPerSample - 1));
@@ -83,9 +85,13 @@ export async function createSampler(
     if (stored?.length) {
       try {
         const arrayBuffer = base64ToArrayBuffer(stored);
-        if (validateWavBuffer(arrayBuffer)) initSample = arrayBuffer;
+        if (validateWavBuffer(arrayBuffer)) {
+          initSample = arrayBuffer;
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       } catch {
-        // Ignore malformed persisted state and create a fresh sampler.
+        localStorage.removeItem(STORAGE_KEY);
       }
     }
 

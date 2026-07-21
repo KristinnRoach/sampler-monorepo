@@ -65,6 +65,9 @@ export function generateKeymap(config: {
   scale: number[]; // Semitone intervals from base note
 }): KeyMap {
   const { baseNote, scale } = config;
+  if (scale.length === 0) {
+    throw new RangeError('scale must contain at least one interval');
+  }
 
   // prettier-ignore
   const rows = [

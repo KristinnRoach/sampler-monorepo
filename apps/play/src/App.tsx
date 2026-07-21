@@ -69,8 +69,14 @@ const App: Component = () => {
   const getSamplePlayer = () => samplePlayerRef;
 
   onMount(() => {
+    let disposed = false;
+
     createSampler({ nodeId: 'test-sampler' })
       .then((sampler) => {
+        if (disposed) {
+          sampler.dispose();
+          return;
+        }
         samplerRef = sampler;
         samplePlayerRef = sampler.samplePlayer;
       })
@@ -159,6 +165,7 @@ const App: Component = () => {
     document.addEventListener('midi:learn', handleMidiLearn);
 
     onCleanup(() => {
+      disposed = true;
       window.removeEventListener('resize', updateLayout);
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('midi:learn', handleMidiLearn);
