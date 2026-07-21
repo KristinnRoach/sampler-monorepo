@@ -9,6 +9,7 @@ import {
 
 import type { SamplePlayer } from '@repo/audiolib';
 import { createSampler, type Sampler } from './utils/createSampler';
+import ParamKnob from './components/knobs/ParamKnob';
 // import { KnobComponent, type KnobChangeEventDetail, Oscilloscope } from '@repo/audio-components/solidjs';
 
 import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
@@ -39,6 +40,9 @@ const App: Component = () => {
 
   let samplerRef: Sampler | undefined;
   let samplePlayerRef: SamplePlayer | null = null;
+  const [samplePlayer, setSamplePlayer] = createSignal<SamplePlayer | null>(
+    null,
+  );
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
@@ -79,6 +83,7 @@ const App: Component = () => {
         }
         samplerRef = sampler;
         samplePlayerRef = sampler.samplePlayer;
+        setSamplePlayer(sampler.samplePlayer);
       })
       .catch(() => {
         // Errors already logged and dispatched as 'sampler-error' by createSampler
@@ -132,8 +137,8 @@ const App: Component = () => {
       enableKnobMidi: true,
       midiLearnEnabled: true,
       knobMappings: [
-        { cc: 15, selector: 'highpass-filter-knob', name: 'HPF' },
-        { cc: 73, selector: 'lowpass-filter-knob', name: 'LPF' },
+        { cc: 15, selector: '[data-param="highpassFilter"]', name: 'HPF' },
+        { cc: 73, selector: '[data-param="lowpassFilter"]', name: 'LPF' },
       ],
     }).then((success) => {
       if (success) {
@@ -313,7 +318,7 @@ const App: Component = () => {
           <fieldset id='sample-group' class='control-group sample-group'>
             <legend class='expandable-legend'>Sample</legend>
             <div class='expandable-content'>
-              <volume-knob target-node-id='test-sampler' />
+              <ParamKnob param='volume' player={samplePlayer()} />
               <div class='flex-col'>
                 <record-button
                   target-node-id='test-sampler'
@@ -363,20 +368,20 @@ const App: Component = () => {
           <fieldset id='space-group' class='control-group space-group'>
             <legend class='expandable-legend'>Space</legend>
             <div class='expandable-content'>
-              <dry-wet-knob target-node-id='test-sampler' />
-              <reverb-send-knob label='RevSend' target-node-id='test-sampler' />
-              <reverb-size-knob label='RevSize' target-node-id='test-sampler' />
-              <delay-send-knob label='Delay' target-node-id='test-sampler' />
-              <delay-time-knob label='Time' target-node-id='test-sampler' />
-              <delay-feedback-knob label='FB' target-node-id='test-sampler' />
+              <ParamKnob param='dryWet' player={samplePlayer()} />
+              <ParamKnob param='reverbSend' label='RevSend' player={samplePlayer()} />
+              <ParamKnob param='reverbSize' label='RevSize' player={samplePlayer()} />
+              <ParamKnob param='delaySend' label='Delay' player={samplePlayer()} />
+              <ParamKnob param='delayTime' label='Time' player={samplePlayer()} />
+              <ParamKnob param='delayFeedback' label='FB' player={samplePlayer()} />
             </div>
           </fieldset>
 
           <fieldset class='control-group filter-group'>
             <legend class='expandable-legend'>Filters</legend>
             <div class='expandable-content'>
-              <highpass-filter-knob target-node-id='test-sampler' />
-              <lowpass-filter-knob target-node-id='test-sampler' />
+              <ParamKnob param='highpassFilter' player={samplePlayer()} />
+              <ParamKnob param='lowpassFilter' player={samplePlayer()} />
 
               {/* <KnobComponent
                 preset='highpassFilter'
@@ -400,7 +405,7 @@ const App: Component = () => {
           <fieldset class='control-group misc-group'>
             <legend class='expandable-legend'>Dirt</legend>
             <div class='expandable-content'>
-              <distortion-knob target-node-id='test-sampler' />
+              <ParamKnob param='distortion' player={samplePlayer()} />
               <am-modulation label='AM' target-node-id='test-sampler' />
             </div>
           </fieldset>
@@ -408,20 +413,23 @@ const App: Component = () => {
           <fieldset class='control-group loop-group'>
             <legend class='expandable-legend'>Loop</legend>
             <div class='expandable-content'>
-              <loop-start-knob target-node-id='test-sampler' label='Start' />
-              <loop-duration-knob
-                target-node-id='test-sampler'
+              <ParamKnob param='loopStart' label='Start' player={samplePlayer()} />
+              <ParamKnob
+                param='loopDuration'
                 label='Duration'
+                player={samplePlayer()}
               />
-              <keytrack-loop-knob
-                target-node-id='test-sampler'
+              <ParamKnob
+                param='keytrackLoop'
                 label='KeyTrack'
                 title='Only affects loops longer than audiorate'
+                player={samplePlayer()}
               />
               <div class='flex-col'>
-                <loop-duration-drift-knob
-                  target-node-id='test-sampler'
+                <ParamKnob
+                  param='loopDurationDrift'
                   label='Drift'
+                  player={samplePlayer()}
                 />
                 <pan-drift-toggle target-node-id='test-sampler' />
               </div>
@@ -431,28 +439,31 @@ const App: Component = () => {
           <fieldset class='control-group trim-group'>
             <legend class='expandable-legend'>Trim</legend>
             <div class='expandable-content'>
-              <trim-start-knob target-node-id='test-sampler' />
-              <trim-end-knob target-node-id='test-sampler' />
+              <ParamKnob param='trimStart' player={samplePlayer()} />
+              <ParamKnob param='trimEnd' player={samplePlayer()} />
             </div>
           </fieldset>
 
           <fieldset class='control-group feedback-group'>
             <legend class='expandable-legend'>Feedback</legend>
             <div class='expandable-content'>
-              <feedback-knob target-node-id='test-sampler' label='Amount' />
-              <feedback-pitch-knob
-                target-node-id='test-sampler'
+              <ParamKnob param='feedback' label='Amount' player={samplePlayer()} />
+              <ParamKnob
+                param='feedbackPitch'
                 label='Pitch'
+                player={samplePlayer()}
               />
-              <feedback-lpf-knob
+              <ParamKnob
+                param='feedbackLpf'
                 label='Lowpass'
                 class='fb-lpf-knob'
-                target-node-id='test-sampler'
+                player={samplePlayer()}
               />
 
-              <feedback-decay-knob
-                target-node-id='test-sampler'
+              <ParamKnob
+                param='feedbackDecay'
                 label='Decay'
+                player={samplePlayer()}
               />
 
               <feedback-mode-toggle target-node-id='test-sampler' label='' />
@@ -465,18 +476,20 @@ const App: Component = () => {
               <legend class='expandable-legend'>Amp LFO</legend>
               <div class='expandable-content'>
                 <div class='flex-col'>
-                  <gain-lfo-rate-knob
-                    target-node-id='test-sampler'
+                  <ParamKnob
+                    param='gainLFORate'
                     label='Rate'
+                    player={samplePlayer()}
                   />
                   <gain-lfo-sync-toggle
                     target-node-id='test-sampler'
                     label=''
                   />
                 </div>
-                <gain-lfo-depth-knob
-                  target-node-id='test-sampler'
+                <ParamKnob
+                  param='gainLFODepth'
                   label='Depth'
+                  player={samplePlayer()}
                 />
               </div>
             </fieldset>
@@ -485,18 +498,20 @@ const App: Component = () => {
               <legend class='expandable-legend'>Pitch LFO</legend>
               <div class='expandable-content'>
                 <div class='flex-col'>
-                  <pitch-lfo-rate-knob
-                    target-node-id='test-sampler'
+                  <ParamKnob
+                    param='pitchLFORate'
                     label='Rate'
+                    player={samplePlayer()}
                   />
                   <pitch-lfo-sync-toggle
                     target-node-id='test-sampler'
                     label=''
                   />
                 </div>
-                <pitch-lfo-depth-knob
-                  target-node-id='test-sampler'
+                <ParamKnob
+                  param='pitchLFODepth'
                   label='Depth'
+                  player={samplePlayer()}
                 />
               </div>
             </fieldset>
@@ -536,7 +551,7 @@ const App: Component = () => {
                   />
                 </div>
 
-                <glide-knob target-node-id='test-sampler' />
+                <ParamKnob param='glide' player={samplePlayer()} />
               </div>
             </div>
           </fieldset>

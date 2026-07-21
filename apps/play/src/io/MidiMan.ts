@@ -291,9 +291,7 @@ export async function enableSamplePlayerMidi(
     if (options.knobMappings) {
       setTimeout(() => {
         options.knobMappings!.forEach(({ cc, selector, name }) => {
-          const element = document.querySelector(
-            `${selector}[target-node-id="test-sampler"]`
-          );
+          const element = document.querySelector(selector);
           const knobElement = element?.querySelector(
             'knob-element'
           ) as KnobElement;
