@@ -206,7 +206,10 @@ describe('findClosest', () => {
       });
     });
 
-    it('demonstrates O(log n) vs O(n) complexity', () => {
+    // ponytail: wall-clock ratio assertions are noise on shared CI runners
+    // (observed naive "ratio" < 1 across a 10x size increase); kept for local
+    // benchmarking only.
+    it.skip('demonstrates O(log n) vs O(n) complexity', () => {
       const sizes = [1000, 10000, 100000];
       const times: number[] = [];
       const naiveTimes: number[] = [];
