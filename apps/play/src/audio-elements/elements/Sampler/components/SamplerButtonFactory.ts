@@ -92,10 +92,12 @@ export const RecordButton = (attributes: ElementProps) => {
     van.state('Record');
   const samplerAvailable = van.state(false);
 
+  const getId = findNodeId(attributes, targetNodeId);
+
   let recordButton: HTMLButtonElement & { setState?: (state: string) => void };
 
   const startRecording = async () => {
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSampler(getId());
     if (!sampler || recordBtnState.val === 'Recording') return;
 
     const inputSource = sampler.getRecorderInputSource();
