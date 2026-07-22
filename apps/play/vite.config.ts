@@ -103,12 +103,7 @@ export default defineConfig({
   // Resolve workspace dependencies
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(__dirname, 'src/audio-elements'),
     },
   },
 });
-
-// '@repo/audio-components': resolve(
-//   __dirname,
-//   '../../packages/audio-components'
-// ),

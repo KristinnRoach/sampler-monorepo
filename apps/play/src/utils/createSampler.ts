@@ -1,9 +1,12 @@
 // Replaces audio-components' <sampler-element>: creates the SamplePlayer,
 // restores/persists the current sample via localStorage, registers it in the
-// audio-components SamplerRegistry and dispatches the same DOM events, so the
+// app-local sampler registry and dispatches the same DOM events, so the
 // remaining web components (knobs, toggles, keyboards) keep working unchanged.
 import { createSamplePlayer, type SamplePlayer } from '@repo/audiolib';
-import { registerSampler, unregisterSampler } from '@repo/audio-components';
+import {
+  registerSampler,
+  unregisterSampler,
+} from '../audio-elements/elements/Sampler/SamplerRegistry';
 import { audioBufferToWav } from './audio/audioBufferToWav';
 
 const STORAGE_KEY = 'currentSample';

@@ -2,7 +2,6 @@
 import { Component, createSignal, createEffect } from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
 import { captureInstrumentState } from '../utils/instrumentState';
-// import { SaveButton as SaveSVGButton } from '@repo/audio-components';
 import { audioBufferToWav } from '../utils/audio/audioBufferToWav';
 
 interface SaveButtonProps {

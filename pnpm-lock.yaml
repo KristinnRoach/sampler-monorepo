@@ -56,15 +56,15 @@ importers:
 
   apps/play:
     dependencies:
-      '@repo/audio-components':
-        specifier: workspace:*
-        version: link:../../packages/audio-components
       '@repo/audiolib':
         specifier: workspace:*
         version: link:../../packages/audiolib
       '@repo/input-controller':
         specifier: workspace:*
         version: link:../../packages/input-controller
+      '@repo/vanjs-core':
+        specifier: workspace:*
+        version: link:../../packages/vanjs
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
