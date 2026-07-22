@@ -16,6 +16,11 @@ interface ButtonSize {
   iconSize: string;
 }
 
+export interface SVGButton extends HTMLButtonElement {
+  getState: () => string;
+  setState: (newState: string) => void;
+}
+
 const icons = new Map<string, string>([
   // [
   //   'download',
@@ -209,7 +214,7 @@ export function createSVGButton(
   title: string,
   states: string | string[],
   options: ButtonOptions = {},
-): HTMLButtonElement {
+): SVGButton {
   const stateArray = Array.isArray(states) ? states : [states];
   let currentStateIndex = 0;
 
@@ -218,7 +223,7 @@ export function createSVGButton(
     if (idx >= 0) currentStateIndex = idx;
   }
 
-  const button = document.createElement('button');
+  const button = document.createElement('button') as SVGButton;
   button.title = title;
   button.classList.add('svg-button');
 
@@ -263,9 +268,9 @@ export function createSVGButton(
 
   updateButton();
 
-  (button as any).getState = () => stateArray[currentStateIndex];
+  button.getState = () => stateArray[currentStateIndex];
 
-  (button as any).setState = (newState: string) => {
+  button.setState = (newState: string) => {
     const newIndex = stateArray.indexOf(newState);
     if (newIndex !== -1) {
       currentStateIndex = newIndex;

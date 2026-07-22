@@ -19,7 +19,7 @@ export const MidiToggle = (attributes: ElementProps) => {
       // TODO: Finish refacoring to use centralized input handling package
       // const sampler = getSampler(targetNodeId.val);
       // if (!sampler) return;
-      // const currentState = (toggleButton as any).getState();
+      // const currentState = toggleButton.getState();
       // if (currentState === 'midi_on') {
       //   sampler.enableMIDI();
       // } else {
@@ -44,7 +44,7 @@ export const PlaybackDirectionToggle = (attributes: ElementProps) => {
         const sampler = getSampler(targetNodeId.val);
         if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
+        const currentState = toggleButton.getState();
         const direction =
           currentState === 'direction_reverse' ? 'reverse' : 'forward';
         sampler.setPlaybackDirection(direction);
@@ -67,7 +67,7 @@ export const LoopLockToggle = (attributes: ElementProps) => {
         const sampler = getSampler(targetNodeId.val);
         if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
+        const currentState = toggleButton.getState();
         const shouldLock = currentState === 'loop_locked';
 
         sampler.setLoopLocked(shouldLock);
@@ -91,7 +91,7 @@ export const HoldLockToggle = (attributes: ElementProps) => {
         const sampler = getSampler(targetNodeId.val);
         if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
+        const currentState = toggleButton.getState();
         const shouldLock = currentState === 'hold_locked';
 
         sampler.setHoldLocked(shouldLock);
@@ -115,7 +115,7 @@ export const PitchToggle = (attributes: ElementProps) => {
         const sampler = getSampler(targetNodeId.val);
         if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
+        const currentState = toggleButton.getState();
 
         if (currentState === 'pitch_on') sampler.enablePitch();
         else if (currentState === 'pitch_off') sampler.disablePitch();

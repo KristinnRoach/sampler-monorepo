@@ -5,7 +5,10 @@ import { createAudioRecorder, type Recorder } from '@repo/audiolib';
 import { getSampler, onRegistryChange } from '../SamplerRegistry';
 import { findNodeId } from '../component-utils';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import { createSVGButton } from '../../primitives/createSVGButton';
+import {
+  createSVGButton,
+  type SVGButton,
+} from '../../primitives/createSVGButton';
 
 const { div } = van.tags;
 
@@ -94,7 +97,7 @@ export const RecordButton = (attributes: ElementProps) => {
 
   const getId = findNodeId(attributes, targetNodeId);
 
-  let recordButton: HTMLButtonElement & { setState?: (state: string) => void };
+  let recordButton: SVGButton;
 
   const startRecording = async () => {
     const sampler = getSampler(getId());
@@ -126,17 +129,17 @@ export const RecordButton = (attributes: ElementProps) => {
         switch (msg.state) {
           case 'ARMED':
             recordBtnState.val = 'Armed';
-            recordButton?.setState?.('record_armed');
+            recordButton.setState('record_armed');
             break;
           case 'RECORDING':
             recordBtnState.val = 'Recording';
-            recordButton?.setState?.('record_recording');
+            recordButton.setState('record_recording');
             break;
           case 'IDLE':
           case 'STOPPED':
           default:
             recordBtnState.val = 'Record';
-            recordButton?.setState?.('record_inactive');
+            recordButton.setState('record_inactive');
             break;
         }
       });
@@ -153,7 +156,7 @@ export const RecordButton = (attributes: ElementProps) => {
       status.val = `Recording error: ${error instanceof Error ? error.message : String(error)}`;
       currentRecorder.val = null;
       recordBtnState.val = 'Record';
-      recordButton?.setState?.('record_inactive');
+      recordButton.setState('record_inactive');
     }
   };
 
@@ -165,12 +168,12 @@ export const RecordButton = (attributes: ElementProps) => {
       currentRecorder.val.dispose();
       currentRecorder.val = null;
       recordBtnState.val = 'Record';
-      recordButton?.setState?.('record_inactive');
+      recordButton.setState('record_inactive');
       status.val = 'Recording stopped';
     } catch (error) {
       currentRecorder.val = null;
       recordBtnState.val = 'Record';
-      recordButton?.setState?.('record_inactive');
+      recordButton.setState('record_inactive');
       console.error('Failed to stop recording:', error);
       status.val = `Stop error: ${error instanceof Error ? error.message : String(error)}`;
     }
@@ -210,7 +213,7 @@ export const RecordButton = (attributes: ElementProps) => {
 
   attributes.mount(() => {
     const checkSampler = () =>
-      (samplerAvailable.val = !!getSampler(targetNodeId.val));
+      (samplerAvailable.val = !!getSampler(getId()));
 
     const cleanupSamplerCheck = onRegistryChange(checkSampler);
 

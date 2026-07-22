@@ -74,10 +74,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Reactive updates
   van.derive(() => {
     const { min, keys } = getDisplayRange();
-    keyboard.setAttribute('width', width.val);
-    keyboard.setAttribute('height', height.val);
-    keyboard.setAttribute('min', min.toString());
-    keyboard.setAttribute('keys', keys.toString());
+    keyboard.width = width.val;
+    keyboard.height = height.val;
+    keyboard.min = min;
+    keyboard.keys = keys;
   });
 
   // Handle mouse/touch events only

@@ -189,6 +189,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
           div(
             { style: HELP_TEXT_STYLE },
+            // TODO: This hint targets the Icelandic keyboard layout; update it when supporting other layouts.
             'CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave'
           ),
         ]
