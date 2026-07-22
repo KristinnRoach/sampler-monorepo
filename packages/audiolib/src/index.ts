@@ -49,3 +49,12 @@ export type { SupportedWaveform } from './utils';
 
 // =*=*= Storage =*=*= \\
 // export * as samplelib from './storage/idb'; // Removed to reduce bundle size
+
+// =*=*= UI =*=*= \\
+
+export { defineElement, KnobElement } from './components';
+export type {
+  AudiolibElement,
+  KnobElementOptions,
+  KnobChangeEventDetail,
+} from './components';

@@ -243,7 +243,7 @@ export const SamplerElement = (attributes: ElementProps) => {
 
         samplePlayer = await createSamplePlayer(
           initSample,
-          parseInt(polyphony.val)
+          parseInt(polyphony.val),
         );
 
         if (!nodeId.val) {
@@ -255,7 +255,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         document.dispatchEvent(
           new CustomEvent('sampler-initialized', {
             detail: { nodeId: nodeId.val },
-          })
+          }),
         );
 
         status.val = 'Initialized';
@@ -271,7 +271,7 @@ export const SamplerElement = (attributes: ElementProps) => {
                 buffer: audiobuffer,
                 durationSeconds: msg.durationSeconds,
               },
-            })
+            }),
           );
           if (audiobuffer?.length) {
             // Store as WAV for compatibility with decodeAudioData
@@ -298,7 +298,7 @@ export const SamplerElement = (attributes: ElementProps) => {
                 message:
                   'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
               },
-            })
+            }),
           );
         } else {
           const errText =
@@ -310,7 +310,7 @@ export const SamplerElement = (attributes: ElementProps) => {
                 nodeId: nodeId.val,
                 error: errText,
               },
-            })
+            }),
           );
         }
       }
@@ -334,7 +334,7 @@ export const SamplerElement = (attributes: ElementProps) => {
         style: `${COMPONENT_STYLE}`,
       },
       div(() => `Sampler: ${nodeId.val}`),
-      div(() => `Status: ${status.val}`)
+      div(() => `Status: ${status.val}`),
     );
   }
 
@@ -419,6 +419,12 @@ const defineIfNotExists = (name: string, elementFunc: any, options: any) => {
   }
 };
 
+/* NOTE! 
+  Phasing out audio-components:
+  commenting out already-migrated elements (and leaving rest of audio-components as is),
+  until all done.
+  */
+
 export const defineSampler = () => {
   // Core sampler
   defineIfNotExists('sampler-element', SamplerElement, false);
@@ -428,36 +434,35 @@ export const defineSampler = () => {
   defineIfNotExists('record-button', RecordButton, false);
   defineIfNotExists('save-button', SaveButton, false);
 
-  // Knob controls
-  defineIfNotExists('volume-knob', VolumeKnob, false);
-  defineIfNotExists('reverb-send-knob', ReverbSendKnob, false);
-  defineIfNotExists('reverb-size-knob', ReverbSizeKnob, false);
-  defineIfNotExists('lowpass-filter-knob', LowpassFilterKnob, false);
-  defineIfNotExists('highpass-filter-knob', HighpassFilterKnob, false);
-  defineIfNotExists('dry-wet-knob', DryWetKnob, false);
-  defineIfNotExists('feedback-knob', FeedbackKnob, false);
-  defineIfNotExists('drive-knob', DriveKnob, false);
-  defineIfNotExists('clipping-knob', ClippingKnob, false);
-  defineIfNotExists('glide-knob', GlideKnob, false);
-  defineIfNotExists('feedback-pitch-knob', FeedbackPitchKnob, false);
-  defineIfNotExists('feedback-decay-knob', FeedbackDecayKnob, false);
-  defineIfNotExists('feedback-lpf-knob', FeedbackLpfKnob, false);
-  defineIfNotExists('gain-lfo-rate-knob', GainLFORateKnob, false);
-  defineIfNotExists('gain-lfo-depth-knob', GainLFODepthKnob, false);
-  defineIfNotExists('pitch-lfo-rate-knob', PitchLFORateKnob, false);
-  defineIfNotExists('pitch-lfo-depth-knob', PitchLFODepthKnob, false);
-  defineIfNotExists('am-mod-knob', AMModKnob, false);
-  defineIfNotExists('loop-start-knob', LoopStartKnob, false);
-  defineIfNotExists('loop-duration-knob', LoopDurationKnob, false);
-  defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
-  defineIfNotExists('keytrack-loop-knob', KeytrackLoopKnob, false);
-  defineIfNotExists('trim-start-knob', TrimStartKnob, false);
-  defineIfNotExists('trim-end-knob', TrimEndKnob, false);
-  defineIfNotExists('distortion-knob', DistortionKnob, false);
-  defineIfNotExists('delay-send-knob', DelaySendKnob, false);
-  defineIfNotExists('delay-time-knob', DelayTimeKnob, false);
-  defineIfNotExists('delay-feedback-knob', DelayFeedbackKnob, false);
-  defineIfNotExists('tempo-knob', TempoKnob, false);
+  // defineIfNotExists('volume-knob', VolumeKnob, false);
+  // defineIfNotExists('reverb-send-knob', ReverbSendKnob, false);
+  // defineIfNotExists('reverb-size-knob', ReverbSizeKnob, false);
+  // defineIfNotExists('lowpass-filter-knob', LowpassFilterKnob, false);
+  // defineIfNotExists('highpass-filter-knob', HighpassFilterKnob, false);
+  // defineIfNotExists('dry-wet-knob', DryWetKnob, false);
+  // defineIfNotExists('feedback-knob', FeedbackKnob, false);
+  // defineIfNotExists('drive-knob', DriveKnob, false);
+  // defineIfNotExists('clipping-knob', ClippingKnob, false);
+  // defineIfNotExists('glide-knob', GlideKnob, false);
+  // defineIfNotExists('feedback-pitch-knob', FeedbackPitchKnob, false);
+  // defineIfNotExists('feedback-decay-knob', FeedbackDecayKnob, false);
+  // defineIfNotExists('feedback-lpf-knob', FeedbackLpfKnob, false);
+  // defineIfNotExists('gain-lfo-rate-knob', GainLFORateKnob, false);
+  // defineIfNotExists('gain-lfo-depth-knob', GainLFODepthKnob, false);
+  // defineIfNotExists('pitch-lfo-rate-knob', PitchLFORateKnob, false);
+  // defineIfNotExists('pitch-lfo-depth-knob', PitchLFODepthKnob, false);
+  // defineIfNotExists('am-mod-knob', AMModKnob, false);
+  // defineIfNotExists('loop-start-knob', LoopStartKnob, false);
+  // defineIfNotExists('loop-duration-knob', LoopDurationKnob, false);
+  // defineIfNotExists('loop-duration-drift-knob', LoopDurationDriftKnob, false);
+  // defineIfNotExists('keytrack-loop-knob', KeytrackLoopKnob, false);
+  // defineIfNotExists('trim-start-knob', TrimStartKnob, false);
+  // defineIfNotExists('trim-end-knob', TrimEndKnob, false);
+  // defineIfNotExists('distortion-knob', DistortionKnob, false);
+  // defineIfNotExists('delay-send-knob', DelaySendKnob, false);
+  // defineIfNotExists('delay-time-knob', DelayTimeKnob, false);
+  // defineIfNotExists('delay-feedback-knob', DelayFeedbackKnob, false);
+  // defineIfNotExists('tempo-knob', TempoKnob, false);
 
   // Toggle controls
   defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);
@@ -469,7 +474,7 @@ export const defineSampler = () => {
   defineIfNotExists(
     'playback-direction-toggle',
     PlaybackDirectionToggle,
-    false
+    false,
   );
   defineIfNotExists('pan-drift-toggle', PanDriftToggle, false);
   defineIfNotExists('pitch-toggle', PitchToggle, false);

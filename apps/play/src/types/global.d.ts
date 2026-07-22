@@ -1,7 +1,7 @@
 // src/types/global.d.ts
 
 import 'solid-js';
-import { KnobElement } from '@repo/audio-components';
+import type { KnobElement } from '@repo/audiolib';
 declare module 'solid-js' {
   declare module '*.svg' {
     import { Component, JSX } from 'solid-js';
