@@ -64,7 +64,11 @@ export const createSamplerConnection = (
 
       // Also try connecting periodically for timing issues
       const interval = setInterval(() => {
-        if (!connected) connect();
+        if (connected) {
+          clearInterval(interval);
+          return;
+        }
+        connect();
       }, 100);
 
       return () => {

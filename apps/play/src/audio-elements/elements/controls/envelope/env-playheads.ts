@@ -62,7 +62,7 @@ export const createPlayheads = (
     );
 
   // Listen to envelope messages
-  instrument.onMessage(`${envType}:trigger`, (msg: any) => {
+  const disposeTrigger = instrument.onMessage(`${envType}:trigger`, (msg: any) => {
     if (!msg.voiceId) return;
 
     const {
@@ -151,7 +151,7 @@ export const createPlayheads = (
   });
 
   // Loop iteration handler
-  instrument.onMessage(`${envType}:trigger:loop`, (msg: any) => {
+  const disposeLoopTrigger = instrument.onMessage(`${envType}:trigger:loop`, (msg: any) => {
     if (!msg.voiceId || !activeLoopingAnimations.has(msg.voiceId)) return;
 
     const loopTl = activeLoopingAnimations.get(msg.voiceId);
@@ -160,7 +160,7 @@ export const createPlayheads = (
     }
   });
 
-  instrument.onMessage(`${envType}:release`, (msg: any) => {
+  const disposeRelease = instrument.onMessage(`${envType}:release`, (msg: any) => {
     const { voiceId, remainingDuration, releasePoint } = msg;
     if (!voiceId || !remainingDuration || !releasePoint) return;
 
@@ -186,6 +186,11 @@ export const createPlayheads = (
 
       triggerTl.kill();
       const releaseTl = gsap.timeline();
+      const exitDuration = Math.max(
+        0,
+        Math.min(0.2, remainingDuration - 0.2),
+      );
+      const exitPosition = Math.max(0, remainingDuration - 0.2);
 
       // Phase 2: Continue from release point to end
       releaseTl
@@ -202,9 +207,9 @@ export const createPlayheads = (
             r: 0,
             strokeWidth: 0,
             opacity: 0.1,
-            duration: Math.min(0.2, remainingDuration - 0.2),
+            duration: exitDuration,
           },
-          remainingDuration - 0.2
+          exitPosition
         );
 
       activeAnimations.set(voiceId, releaseTl);
@@ -255,12 +260,16 @@ export const createPlayheads = (
     }
   };
 
-  instrument.onMessage('voice:stopped', (msg: any) => {
+  const disposeVoiceStopped = instrument.onMessage('voice:stopped', (msg: any) => {
     stopAnimation(msg.voiceId);
   });
 
   return {
     cleanup: () => {
+      disposeTrigger();
+      disposeLoopTrigger();
+      disposeRelease();
+      disposeVoiceStopped();
       [...activeAnimations.keys()].forEach(stopAnimation);
       [...activeLoopingAnimations.values()].forEach((tl) => tl.kill());
       [...activeExitAnimations.values()].forEach((tl) => tl.kill());

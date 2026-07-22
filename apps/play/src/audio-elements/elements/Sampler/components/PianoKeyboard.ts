@@ -66,9 +66,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     // Use keymap range + octave offset + root note offset
     const keymapMin = Math.min(...notes);
-    const keymapMax = Math.max(...notes);
     const displayMin = keymapMin + octaveOffset.val * 12 + rootOffset;
-    const keymapSpan = keymapMax - keymapMin + 1;
 
     return { min: displayMin, keys: visibleKeys };
   };

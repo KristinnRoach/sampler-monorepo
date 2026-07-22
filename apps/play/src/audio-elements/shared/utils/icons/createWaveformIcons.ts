@@ -20,7 +20,7 @@ import warmpadRaw from '../../assets/icons/svg/waveworm/warmpad.svg?raw';
 import whiteRaw from '../../assets/icons/svg/waveworm/white.svg?raw';
 
 // Map waveform names to their raw SVG imports
-const waveformRawMap: Record<SupportedWaveform, string | undefined> = {
+const waveformRawMap: Record<SupportedWaveform, string> = {
   sine: sineRaw,
   sawtooth: sawtoothRaw,
   triangle: triangleRaw,

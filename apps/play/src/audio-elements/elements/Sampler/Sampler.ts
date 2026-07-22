@@ -228,6 +228,8 @@ export const SamplerElement = (attributes: ElementProps) => {
   const status = van.state('Click to start');
 
   attributes.mount(() => {
+    let disposed = false;
+
     const initializeAudio = async () => {
       try {
         let initSample = undefined;
@@ -241,10 +243,17 @@ export const SamplerElement = (attributes: ElementProps) => {
           }
         }
 
-        samplePlayer = await createSamplePlayer(
+        const initializedSamplePlayer = await createSamplePlayer(
           initSample,
           parseInt(polyphony.val),
         );
+
+        if (disposed) {
+          initializedSamplePlayer.dispose();
+          return;
+        }
+
+        samplePlayer = initializedSamplePlayer;
 
         if (!nodeId.val) {
           nodeId.val = samplePlayer.nodeId;
@@ -277,7 +286,11 @@ export const SamplerElement = (attributes: ElementProps) => {
             // Store as WAV for compatibility with decodeAudioData
             const wavBuffer = audioBufferToWav(audiobuffer);
             const base64buffer = arrayBufferToBase64(wavBuffer);
-            localStorage.setItem('currentSample', base64buffer);
+            try {
+              localStorage.setItem('currentSample', base64buffer);
+            } catch (error) {
+              console.warn('Failed to persist sample to localStorage:', error);
+            }
           }
         });
 
@@ -319,6 +332,7 @@ export const SamplerElement = (attributes: ElementProps) => {
     initializeAudio();
 
     return () => {
+      disposed = true;
       if (samplePlayer && nodeId.val) {
         unregisterSampler(nodeId.val);
         samplePlayer.dispose();

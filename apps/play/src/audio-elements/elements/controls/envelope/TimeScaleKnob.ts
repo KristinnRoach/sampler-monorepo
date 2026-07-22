@@ -33,7 +33,6 @@ export const TimeScaleKnob = (
 
   const knob = createKnob({
     ...knobDefaults,
-    ...knobDefaults,
     ...knobConfig,
     title: 'Envelope speed',
     onChange: (timeScale) => onTimeScaleChange({ envelopeType, timeScale }),

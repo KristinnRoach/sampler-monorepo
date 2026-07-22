@@ -20,7 +20,7 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
 
   attributes.mount(() => {
     status.val = 'Click to start';
-    createMountHandler(attributes)();
+    const disposeConnection = createMountHandler(attributes)();
 
     // Additional listeners for sample-loaded and error events
     const handleSampleLoaded = (event: Event) => {
@@ -38,6 +38,7 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
     document.addEventListener('sample-loaded', handleSampleLoaded);
     document.addEventListener('sampler-error', handleSamplerError);
     return () => {
+      disposeConnection?.();
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('sampler-error', handleSamplerError);
     };
