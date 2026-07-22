@@ -20,6 +20,7 @@ export type KnobChangeEventDetail = {
   value: number;
   rotation: number;
   percentage: number;
+  source: 'user' | 'programmatic';
 };
 
 declare global {
@@ -96,9 +97,12 @@ export class KnobElement extends HTMLElement {
     this.render();
     this.updateColorFromAttribute();
 
+    // Sync init so values set by consumers right after appendChild aren't
+    // clobbered on the next tick. ?? (not ||) so a default of 0 is honored.
+    this.setValue(this.config.defaultValue ?? this.config.minValue);
+
     setTimeout(() => {
       this.createDraggable();
-      this.setValue(this.config.defaultValue || this.config.minValue);
     }, 0);
   }
 
@@ -514,7 +518,7 @@ export class KnobElement extends HTMLElement {
       }
 
       this.updateBorder();
-      this.dispatchChangeEvent();
+      this.dispatchChangeEvent('user');
       e.preventDefault();
     };
 
@@ -573,7 +577,7 @@ export class KnobElement extends HTMLElement {
     }
   }
 
-  private dispatchChangeEvent(): void {
+  private dispatchChangeEvent(source: 'user' | 'programmatic' = 'programmatic'): void {
     const percentage = KnobElement.mapRange(
       this.config.minValue,
       this.config.maxValue,
@@ -587,6 +591,7 @@ export class KnobElement extends HTMLElement {
         value: this.currentValue,
         rotation: this.currentRotation,
         percentage,
+        source,
       },
       bubbles: true,
     });
