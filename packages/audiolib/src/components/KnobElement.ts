@@ -308,7 +308,7 @@ export class KnobElement extends HTMLElement {
 
   private render(): void {
     this.innerHTML = `
-      <svg class="ac-knob" width="100%" height="100%" viewBox="0 0 100 100">
+      <svg class="knob-svg" width="100%" height="100%" viewBox="0 0 100 100">
           <path class="knob-path" 
                 fill="none" 
                 stroke="var(--knob-stroke)" 
