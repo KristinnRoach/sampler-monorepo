@@ -101,12 +101,10 @@ export function createKnobElement(
   // Append to container
   container.appendChild(knob);
 
-  // Set initial value if provided (different from default)
+  // Set initial value if provided (different from default).
+  // connectedCallback runs synchronously on append, so the knob is ready.
   if (value !== undefined && value !== defaultValue) {
-    // Use requestAnimationFrame to ensure element is fully initialized
-    requestAnimationFrame(() => {
-      knob.setValue(value);
-    });
+    knob.setValue(value);
   }
 
   return knob;
@@ -180,10 +178,8 @@ export class KnobElement extends HTMLElement {
     this.render();
     this.updateColorFromAttribute();
 
-    setTimeout(() => {
-      this.createDraggable();
-      this.setValue(this.config.defaultValue || this.config.minValue);
-    }, 0);
+    this.createDraggable();
+    this.setValue(this.config.defaultValue ?? this.config.minValue);
   }
 
   disconnectedCallback(): void {
@@ -248,6 +244,12 @@ export class KnobElement extends HTMLElement {
       if (name === 'curve') {
         this.createUtilityFunctions();
         this.setValue(this.currentValue); // Refresh with new curve
+        return;
+      }
+
+      if (name === 'value') {
+        const parsed = parseFloat(newValue);
+        if (!isNaN(parsed)) this.setValue(parsed);
         return;
       }
     }
@@ -502,8 +504,6 @@ export class KnobElement extends HTMLElement {
   private readonly DOUBLE_CLICK_THRESHOLD = 300;
 
   private createDraggable(): void {
-    if (this.config.disabled) return;
-
     const pointerLockSupported =
       'pointerLockElement' in document &&
       'requestPointerLock' in HTMLElement.prototype;
@@ -515,6 +515,9 @@ export class KnobElement extends HTMLElement {
     let isUsingPointerLock = false;
 
     const handleStart = (e: MouseEvent | TouchEvent) => {
+      // Checked per-interaction so toggling `disabled` works after creation
+      if (this.config.disabled) return;
+
       // Check if MIDI learn is active by looking at body class
       if (document.body.classList.contains('midi-learn-active')) {
         e.preventDefault();
