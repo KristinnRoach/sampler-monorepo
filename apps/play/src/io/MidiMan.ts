@@ -1,4 +1,4 @@
-import type { SamplePlayer, KnobElement } from '@repo/audio-components';
+import type { SamplePlayer, KnobElement } from '@repo/audiolib';
 import {
   inputController,
   type NoteEvent,

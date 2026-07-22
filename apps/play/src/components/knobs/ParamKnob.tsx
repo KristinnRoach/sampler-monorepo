@@ -1,13 +1,16 @@
 // Generic Solid knob for any SamplePlayer parameter, driven by audiolib's
 // samplerParams descriptors. Replaces the per-param web components
 // (volume-knob, feedback-knob, ...) from audio-components.
-//
-// Uses the knob-element primitive from audio-components' main entry directly;
-// the /solidjs entry can't be imported alongside it (both define
-// oscilloscope-element unguarded, which throws on double registration).
-import { Component, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-import type { KnobElement } from '@repo/audio-components';
 import {
+  Component,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from 'solid-js';
+import {
+  defineElement,
+  KnobElement,
   samplerParams,
   type SamplerParamKey,
   type SamplerParamDescriptor,
@@ -67,6 +70,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
 
   onMount(() => {
     const size = props.size ?? 45;
+    defineElement('knob-element', KnobElement);
     knobEl = document.createElement('knob-element') as KnobElement;
 
     const attrs: Record<string, string> = {
