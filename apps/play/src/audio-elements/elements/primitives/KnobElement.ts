@@ -503,6 +503,7 @@ export class KnobElement extends HTMLElement {
   private lastClickTime = 0;
   private readonly DOUBLE_CLICK_THRESHOLD = 300;
 
+  // TODO(audiolib): Add keyboard controls and slider ARIA semantics in the planned accessibility pass.
   private createDraggable(): void {
     const pointerLockSupported =
       'pointerLockElement' in document &&
