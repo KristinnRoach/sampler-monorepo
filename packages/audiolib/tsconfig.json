@@ -1,11 +1,10 @@
-// repo/packages/audiolib/tsconfig.json
 {
   "compilerOptions": {
     "strict": true,
     "forceConsistentCasingInFileNames": true,
 
     "allowJs": true,
-    "checkJs": false, // prevents type checking for JS files
+    "checkJs": false,
 
     "target": "ES2022",
     "module": "ESNext",
@@ -33,17 +32,6 @@
     },
     "composite": true
   },
-  "include": ["src"], // , "src/types/worklet.d.ts"
+  "include": ["src"],
   "exclude": ["node_modules", "dist", "src/test/*", "src/**/*.test*"]
 }
-
-// Under review:
-// "watch": true,
-// "resolveJsonModule": true,
-// "isolatedModules": true,
-// "esModuleInterop": true,
-// "noUnusedLocals": true,
-// "noUnusedParameters": true,
-
-
-// "noImplicitReturns": true,
