@@ -2,7 +2,8 @@
 import { render } from 'solid-js/web';
 import App from './App';
 
-import { defineSampler } from '@repo/audio-components';
+import { defineSampler } from './audio-elements/elements/Sampler/Sampler';
+import './audio-elements/shared/styles/audio-components.css';
 import './styles/themes.css';
 import './style.css';
 import './utils/pwa-utils/updateSW';

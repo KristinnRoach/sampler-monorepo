@@ -14,9 +14,9 @@
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
-    "@repo/audio-components": "workspace:*",
     "@repo/audiolib": "workspace:*",
     "@repo/input-controller": "workspace:*",
+    "@repo/vanjs-core": "workspace:*",
     "clsx": "^2.1.1",
     "dexie": "^4.0.11",
     "gsap": "^3.13.0",

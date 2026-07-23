@@ -1,4 +1,4 @@
-import type { SamplePlayer } from '@repo/audio-components';
+import type { SamplePlayer } from '@repo/audiolib';
 import { SavedSample } from '../db/samplelib/sampleIdb';
 import { restoreInstrumentState } from '../utils/instrumentState';
 
