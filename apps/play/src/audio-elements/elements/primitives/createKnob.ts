@@ -48,7 +48,7 @@ export interface KnobConfig {
 
 export const createKnob = (
   config: KnobConfig,
-  nodeId?: string
+  nodeId?: string,
 ): HTMLElement => {
   const {
     label,
@@ -105,13 +105,13 @@ export const createKnob = (
   if (config.snapThresholds) {
     knobElement.setAttribute(
       'snap-thresholds',
-      JSON.stringify(config.snapThresholds)
+      JSON.stringify(config.snapThresholds),
     );
   }
   if (config.allowedValues) {
     knobElement.setAttribute(
       'allowed-values',
-      JSON.stringify(config.allowedValues)
+      JSON.stringify(config.allowedValues),
     );
   }
 
@@ -128,8 +128,6 @@ export const createKnob = (
     const storageKey = getStorageKey();
     if (useLocalStorage && storageKey) {
       const stored = localStorage.getItem(storageKey);
-
-      if (config.label === 'Volume') console.log('stored', stored);
 
       if (stored) {
         const parsed = parseFloat(stored);
