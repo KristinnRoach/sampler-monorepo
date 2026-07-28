@@ -29,7 +29,6 @@ import {
   PreProcessOptions,
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
-import { SamplePlayer } from '../instruments';
 
 export const AudioRecorderState = {
   IDLE: 'IDLE',
@@ -45,8 +44,6 @@ export const DEFAULT_MEDIA_REC_OPTIONS: MediaRecorderOptions = {
   mimeType: 'audio/webm',
 };
 
-export type InputSource = 'audio-input' | 'browser' | 'resample';
-
 export type RecorderOptions = {
   mediaRecorderOptions: MediaRecorderOptions;
   useThreshold: boolean;
@@ -56,6 +53,15 @@ export type RecorderOptions = {
   silenceTimeoutMs: number;
   preprocess: boolean;
   preprocessOptions: object;
+};
+
+export type RecorderInput =
+  | { type: 'microphone'; deviceId?: string }
+  | { type: 'display' }
+  | { type: 'audio-node'; node: AudioNode };
+
+export type RecorderStartOptions = Partial<RecorderOptions> & {
+  input?: RecorderInput;
 };
 
 export const DEFAULT_RECORDER_OPTIONS: RecorderOptions = {
@@ -86,11 +92,9 @@ export class Recorder implements LibNode {
   #animationFrame: number | null = null;
   #silenceStartTime: number | null = null;
   #config: RecorderOptions | null = null;
-  #inputSource: InputSource = 'audio-input';
-  #inputDeviceId = '';
 
   #audioDestination: MediaStreamAudioDestinationNode | null = null;
-  #connectedSamplePlayer: SamplePlayer | null = null;
+  #connectedInputNode: AudioNode | null = null;
 
   constructor(context: AudioContext) {
     this.nodeId = registerNode(this.nodeType, this);
@@ -105,21 +109,15 @@ export class Recorder implements LibNode {
     return this;
   }
 
-  async #createResampleStream(): Promise<MediaStream> {
-    if (!this.#connectedSamplePlayer) {
-      throw new Error('No SamplePlayer connected for resampling');
-    }
-
-    // Create a destination that converts audio to MediaStream
+  async #createAudioNodeStream(node: AudioNode): Promise<MediaStream> {
     this.#audioDestination = this.#context.createMediaStreamDestination();
-
-    // Connect the SamplePlayer's output to our destination
-    this.#connectedSamplePlayer.output.connect(this.#audioDestination);
+    this.#connectedInputNode = node;
+    node.connect(this.#audioDestination);
 
     return this.#audioDestination.stream;
   }
 
-  async start(options?: Partial<RecorderOptions>): Promise<this> {
+  async start(options: RecorderStartOptions = {}): Promise<this> {
     if (this.#context.state === 'suspended') {
       await this.#context.resume();
     }
@@ -130,26 +128,27 @@ export class Recorder implements LibNode {
       this.#stream = null;
     }
 
-    // ? Use a lower threshold for browser input unless overridden
-    let config = { ...DEFAULT_RECORDER_OPTIONS, ...options };
+    const { input = { type: 'microphone' }, ...recorderOptions } = options;
 
-    if (
-      this.#inputSource === 'browser' &&
-      options?.startThreshold === undefined
-    ) {
+    // ? Use a lower threshold for browser input unless overridden
+    const config = { ...DEFAULT_RECORDER_OPTIONS, ...recorderOptions };
+
+    if (input.type === 'display' && options.startThreshold === undefined) {
       config.startThreshold = -60;
     }
     this.#config = config;
     let streamResult;
 
-    if (this.#inputSource === 'resample') {
-      streamResult = await tryCatch(() => this.#createResampleStream());
+    if (input.type === 'audio-node') {
+      streamResult = await tryCatch(() =>
+        this.#createAudioNodeStream(input.node),
+      );
       assert(
         !streamResult.error,
-        `Failed to create resample stream: ${streamResult.error}`,
+        `Failed to create audio-node stream: ${streamResult.error}`,
         streamResult
       );
-    } else if (this.#config && this.#inputSource === 'browser') {
+    } else if (input.type === 'display') {
       streamResult = await tryCatch(async () => {
         if (this.#context.state === 'suspended') {
           await this.#context.resume();
@@ -164,7 +163,7 @@ export class Recorder implements LibNode {
       );
     } else {
       streamResult = await tryCatch(() =>
-        getMicrophone(undefined, this.#inputDeviceId)
+        getMicrophone(undefined, input.deviceId)
       );
       assert(
         !streamResult.error,
@@ -217,14 +216,6 @@ export class Recorder implements LibNode {
 
     this.#startRecordingImmediate();
     return true;
-  }
-
-  setInputSource(source: InputSource) {
-    this.#inputSource = source;
-  }
-
-  setInputDeviceId(deviceId: string) {
-    this.#inputDeviceId = deviceId === 'default' ? '' : deviceId;
   }
 
   #startArmedRecording(): void {
@@ -390,16 +381,11 @@ export class Recorder implements LibNode {
     // Clean up - a new stream and recorder is created for each recording
     if (this.#stream) {
       this.#stream.getTracks().forEach((track) => track.stop());
-      // If inputSource is 'browser', also stop sharing
-      if (this.#inputSource === 'browser') {
-        this.#stream.getTracks().forEach((track) => track.stop());
-      }
     }
     this.#stream = null;
     this.#recorder = null;
 
-    // Clean up resample connection if used
-    this.#cleanupResampleConnection();
+    this.#cleanupAudioNodeConnection();
 
     return buffer;
   }
@@ -448,17 +434,11 @@ export class Recorder implements LibNode {
     return this;
   }
 
-  // Method to connect a SamplePlayer for resampling
-  connectResampleInputSource(samplePlayer: SamplePlayer): this {
-    this.#connectedSamplePlayer = samplePlayer;
-    return this;
-  }
-
-  // In stop() and dispose() methods
-  #cleanupResampleConnection(): void {
-    if (this.#audioDestination && this.#connectedSamplePlayer) {
-      this.#connectedSamplePlayer.output.disconnect(this.#audioDestination);
+  #cleanupAudioNodeConnection(): void {
+    if (this.#audioDestination && this.#connectedInputNode) {
+      this.#connectedInputNode.disconnect(this.#audioDestination);
       this.#audioDestination = null;
+      this.#connectedInputNode = null;
     }
   }
 
@@ -468,7 +448,7 @@ export class Recorder implements LibNode {
 
   dispose(): void {
     this.#cleanupMonitoring();
-    this.#cleanupResampleConnection();
+    this.#cleanupAudioNodeConnection();
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null;
     this.#recorder = null;

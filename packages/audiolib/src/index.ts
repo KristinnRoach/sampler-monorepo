@@ -7,7 +7,11 @@ export { SamplePlayer } from './nodes/instruments/Sample/SamplePlayer';
 export { Oscilloscope } from './nodes/drafts/OscilloScope';
 
 // =*=*=  Types =*=*= \\
-export type { Recorder } from './nodes/recorder';
+export type {
+  Recorder,
+  RecorderInput,
+  RecorderStartOptions,
+} from './nodes/recorder';
 export type { LibNode, LibAudioNode, SampleLoader } from './nodes';
 export type {
   CustomEnvelope,
