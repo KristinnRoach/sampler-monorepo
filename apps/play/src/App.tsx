@@ -40,7 +40,6 @@ const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
 
-  let samplerRef: Sampler | undefined;
   const [samplePlayer, setSamplePlayer] = createSignal<SamplePlayer | null>(
     null,
   );
@@ -82,7 +81,6 @@ const App: Component = () => {
           sampler.dispose();
           return;
         }
-        samplerRef = sampler;
         samplePlayerRef = sampler.samplePlayer;
         setSamplePlayer(sampler.samplePlayer);
         document.dispatchEvent(
@@ -183,7 +181,6 @@ const App: Component = () => {
 
       cleanupNotifications();
       disableSamplePlayerMidi();
-      samplerRef?.dispose();
     });
   });
 
