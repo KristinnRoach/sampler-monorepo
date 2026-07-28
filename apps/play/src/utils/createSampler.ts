@@ -57,7 +57,9 @@ function validateWavBuffer(buffer: ArrayBuffer): boolean {
   for (let i = 0; i < samplesToCheck; i++) {
     const sampleIndex = Math.floor((i * numSamples) / samplesToCheck);
     if (bitsPerSample === 16) {
-      sumAbs += Math.abs(view.getInt16(dataOffset + sampleIndex * sampleSize, true));
+      sumAbs += Math.abs(
+        view.getInt16(dataOffset + sampleIndex * sampleSize, true),
+      );
     } else if (bitsPerSample === 8) {
       sumAbs += Math.abs(
         view.getUint8(dataOffset + sampleIndex * sampleSize) - 128,
@@ -98,23 +100,42 @@ export async function createSampler(
     );
     const nodeId = options.nodeId || samplePlayer.nodeId;
 
-    samplePlayer.onMessage('sample:loaded', (msg: any) => {
-      const audiobuffer = samplePlayer.audiobuffer;
+    const dispatchSampleLoaded = (buffer: AudioBuffer, msg: any) => {
       document.dispatchEvent(
         new CustomEvent('sample-loaded', {
           detail: {
             nodeId,
-            buffer: audiobuffer,
+            buffer,
             durationSeconds: msg.durationSeconds,
           },
         }),
       );
-      if (audiobuffer?.length) {
-        localStorage.setItem(
-          STORAGE_KEY,
-          arrayBufferToBase64(audioBufferToWav(audiobuffer)),
-        );
+    };
+
+    const localStoreSample = (buffer: AudioBuffer) => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        arrayBufferToBase64(audioBufferToWav(buffer)),
+      );
+    };
+
+    // Currently initial sample loads in audiolib DURING createSamplePlayer's async init (to be reconsidered)
+    // Dispatch the initial load
+    if (samplePlayer.audiobuffer?.length) {
+      dispatchSampleLoaded(samplePlayer.audiobuffer, {
+        durationSeconds: samplePlayer.audiobuffer.duration,
+      });
+      localStoreSample(samplePlayer.audiobuffer);
+    }
+
+    samplePlayer.onMessage('sample:loaded', (msg: any) => {
+      const audiobuffer = samplePlayer.audiobuffer;
+      if (!audiobuffer?.length) {
+        console.error('sample:loaded fired without usable audiobuffer');
+        return;
       }
+      dispatchSampleLoaded(audiobuffer, msg);
+      localStoreSample(audiobuffer);
     });
 
     return {
