@@ -8,7 +8,7 @@ import './styles/themes.css';
 import './style.css';
 import './utils/pwa-utils/updateSW';
 
-defineSampler(); // Define all web components for the sampler
+defineSampler(); // Define the remaining vanilla controls
 
 const root = document.getElementById('root');
 
