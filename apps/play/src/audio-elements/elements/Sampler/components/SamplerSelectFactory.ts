@@ -17,6 +17,7 @@ import {
   SupportedWaveform,
 } from '@repo/audiolib';
 import { createWaveformIcon } from '@/shared/utils/icons/createWaveformIcons';
+import { setRecorderInputSource } from '../../../../utils/recorderSettings';
 
 const { div, select, option, span, button, selectedcontent, img } = van.tags;
 
@@ -197,7 +198,7 @@ const inputSourceSelectConfig: SelectConfig<
     targetNodeId: string,
   ) => {
     van.derive(() => {
-      sampler.setRecorderInputSource(state.val);
+      setRecorderInputSource(state.val);
     });
   },
 };

@@ -49,7 +49,6 @@ import {
   CustomLibWaveform,
   WaveformOptions,
 } from '@/utils/audiodata/generate/generateWaveform';
-import { InputSource } from '@/nodes/recorder/Recorder';
 import { createSampleVoicePool } from './createSampleVoicePool';
 
 export class SamplePlayer implements ILibInstrumentNode {
@@ -102,9 +101,6 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   voicePool!: SampleVoicePool; // todo: fix use of '!'
   outBus!: InstrumentBus; // todo: fix use of '!'
-
-  #recordInputSource: InputSource = 'audio-input';
-  #recordInputDeviceId = '';
 
   // ? move to input controller ?
   #sustainedNotes = new Set<MidiValue>();
@@ -184,22 +180,6 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.voicePool.connect(this.outBus.input);
     this.outBus.connect(this.#masterOut);
     this.#masterOut.connect(this.context.destination);
-  }
-
-  setRecorderInputSource(source: InputSource) {
-    this.#recordInputSource = source;
-  }
-
-  getRecorderInputSource() {
-    return this.#recordInputSource;
-  }
-
-  setRecorderInputDeviceId(deviceId: string) {
-    this.#recordInputDeviceId = deviceId === 'default' ? '' : deviceId;
-  }
-
-  getRecorderInputDeviceId() {
-    return this.#recordInputDeviceId;
   }
 
   // === MESSAGING ===

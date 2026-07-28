@@ -411,9 +411,6 @@ export function restoreInstrumentState(settings: InstrumentSettings): void {
                 // We'll let the select's change event handle this properly
                 // by not interfering with the natural flow
                 break;
-              case 'input-select':
-                sampler.setRecorderInputSource(value);
-                break;
             }
           }
         }

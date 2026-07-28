@@ -25,6 +25,11 @@ import {
   saveCurrentSample,
   loadDefaultSample,
 } from './utils/audio/currentSampleStorage';
+import {
+  recorderInputDeviceId,
+  recorderInputSource,
+  setRecorderInputDeviceId,
+} from './utils/recorderSettings';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -55,17 +60,9 @@ const App: Component = () => {
     'samples',
   );
 
-  let inputSourceSelectRef: HTMLElement | undefined;
-  const [inputSource, setInputSource] = createSignal('audio-input');
   const inputDeviceSelectDisabled = createMemo(
-    () => inputSource() !== 'audio-input',
+    () => recorderInputSource() !== 'audio-input',
   );
-
-  const [selectedInputDeviceId, setSelectedInputDeviceId] = createSignal('');
-  const handleInputDeviceChange = (deviceId: string) => {
-    getSamplePlayer()?.setRecorderInputDeviceId(deviceId);
-    setSelectedInputDeviceId(deviceId);
-  };
 
   const { handleSampleSelect } = useSampleSelection(
     getSamplePlayer,
@@ -98,14 +95,6 @@ const App: Component = () => {
           },
         }),
       );
-
-      // Preserve a device chosen before the player was ready
-      const chosenDeviceId = selectedInputDeviceId();
-      if (chosenDeviceId) {
-        samplePlayer.setRecorderInputDeviceId(chosenDeviceId);
-      } else {
-        setSelectedInputDeviceId(samplePlayer.getRecorderInputDeviceId() || '');
-      }
     };
 
     void (async () => {
@@ -171,15 +160,6 @@ const App: Component = () => {
     addExpandCollapseListeners();
     addPreventScrollOnSpacebarListener();
     window.addEventListener('resize', updateLayout);
-
-    const inputSourceSelect = inputSourceSelectRef?.querySelector('select');
-    setInputSource(inputSourceSelect?.value ?? 'audio-input');
-    const handleInputSourceChange = (e: Event) =>
-      setInputSource((e.target as HTMLSelectElement).value);
-    inputSourceSelect?.addEventListener('change', handleInputSourceChange);
-    onCleanup(() =>
-      inputSourceSelect?.removeEventListener('change', handleInputSourceChange),
-    );
 
     enableSamplePlayerMidi({
       getSamplePlayer,
@@ -298,8 +278,8 @@ const App: Component = () => {
             <InputDeviceSelect
               class={`toolbar-btn input-device-select ${toolbarOpen() ? '__toolbar-open' : ''}`}
               disabled={inputDeviceSelectDisabled()}
-              value={selectedInputDeviceId()}
-              onChange={handleInputDeviceChange}
+              value={recorderInputDeviceId()}
+              onChange={setRecorderInputDeviceId}
             />
 
             <OutputDeviceSelect
@@ -379,15 +359,14 @@ const App: Component = () => {
                 />
                 <div class='input-source-selection-container'>
                   <input-select
-                    ref={inputSourceSelectRef}
                     target-node-id='test-sampler'
                     class='input-source-select'
                   />
                   <InputDeviceSelect
                     class='input-device-select'
                     disabled={inputDeviceSelectDisabled()}
-                    value={selectedInputDeviceId()}
-                    onChange={handleInputDeviceChange}
+                    value={recorderInputDeviceId()}
+                    onChange={setRecorderInputDeviceId}
                   />
                 </div>
               </div>

@@ -8,6 +8,7 @@ import {
   createSVGButton,
   type SVGButton,
 } from '../../primitives/createSVGButton';
+import { getRecorderSettings } from '../../../../utils/recorderSettings';
 
 const { div } = van.tags;
 
@@ -90,7 +91,7 @@ export const RecordButton = (attributes: ElementProps) => {
     const sampler = getSamplePlayer();
     if (!sampler || recordBtnState.val === 'Recording') return;
 
-    const inputSource = sampler.getRecorderInputSource();
+    const { inputSource, inputDeviceId } = getRecorderSettings();
 
     try {
       const recorderResult = await createAudioRecorder(sampler.context);
@@ -101,7 +102,7 @@ export const RecordButton = (attributes: ElementProps) => {
       }
 
       recorderResult.setInputSource(inputSource ?? 'audio-input');
-      recorderResult.setInputDeviceId(sampler.getRecorderInputDeviceId());
+      recorderResult.setInputDeviceId(inputDeviceId);
 
       if (inputSource === 'resample') {
         recorderResult.connectResampleInputSource(sampler);
