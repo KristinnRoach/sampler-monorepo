@@ -13,6 +13,7 @@ import KeyMaps, {
 
 const { div } = van.tags;
 const MOBILE_KEY_COUNT = 13;
+const MOBILE_MIN_NOTE = 48; // C3
 
 export const PianoKeyboard = (attributes: ElementProps) => {
   const targetNodeId: State<string> = attributes.attr('target-node-id', '');
@@ -26,8 +27,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   const rootNote = van.state<
     'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B'
   >('C');
-  const MAX_OCT_SHIFT = 2;
-  const MIN_OCT_SHIFT = -2;
+  const mobileQuery = window.matchMedia('(max-width: 600px)');
+  const isMobile = van.state(mobileQuery.matches);
 
   // Helper: get semitone offset from C
   const getRootNoteOffset = (note: string) => {
@@ -51,22 +52,24 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   const keyboard = document.createElement('webaudio-keyboard') as any;
 
   const getDisplayRange = () => {
-    const visibleKeys = window.matchMedia('(max-width: 600px)').matches
-      ? MOBILE_KEY_COUNT
-      : 25;
+    const visibleKeys = isMobile.val ? MOBILE_KEY_COUNT : 25;
 
     // Get the actual note range from the current keymap
     const notes = Object.values(currentKeymap.val).filter(Boolean) as number[];
     const rootOffset = getRootNoteOffset(rootNote.val);
     if (notes.length === 0) {
       // Fallback to default range if no keymap
-      const displayMin = 48 + octaveOffset.val * 12 + rootOffset; // C3 base + root
+      const displayMin =
+        MOBILE_MIN_NOTE + octaveOffset.val * 12 + rootOffset;
       return { min: displayMin, keys: visibleKeys };
     }
 
-    // Use keymap range + octave offset + root note offset
+    // A compact keyboard should begin no lower than C3, irrespective of scale.
     const keymapMin = Math.min(...notes);
-    const displayMin = keymapMin + octaveOffset.val * 12 + rootOffset;
+    const baseNote = isMobile.val
+      ? Math.max(keymapMin, MOBILE_MIN_NOTE)
+      : keymapMin;
+    const displayMin = baseNote + octaveOffset.val * 12 + rootOffset;
 
     return { min: displayMin, keys: visibleKeys };
   };
@@ -87,20 +90,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     if (!sampler) return;
 
     const [noteState, noteNumber] = event.note;
-    const midiNote =
-      noteNumber + 12 * octaveOffset.val + getRootNoteOffset(rootNote.val);
-
     if (noteState === 1) {
-      sampler.play(midiNote);
+      sampler.play(noteNumber);
     } else {
-      sampler.release(midiNote);
-    }
-  };
-
-  const handleOctaveChange = (direction: number) => {
-    const newOct = octaveOffset.val + direction;
-    if (newOct >= MIN_OCT_SHIFT && newOct <= MAX_OCT_SHIFT) {
-      octaveOffset.val += direction;
+      sampler.release(noteNumber);
     }
   };
 
@@ -112,6 +105,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   });
 
   attributes.mount(() => {
+    const handleViewportChange = (event: MediaQueryListEvent) => {
+      isMobile.val = event.matches;
+    };
+
     // Sync octave changes from ComputerKeyboard
     const handleKeymapChange = (e: CustomEvent) => {
       if (
@@ -166,6 +163,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     document.addEventListener('keydown', handleKeyboardEvents);
     document.addEventListener('keyup', handleKeyboardEvents);
+    mobileQuery.addEventListener('change', handleViewportChange);
     document.addEventListener(
       'keymap-changed',
       handleKeymapChange as EventListener
@@ -178,6 +176,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       keyboard.removeEventListener('pointer', handlePianoClick);
       document.removeEventListener('keydown', handleKeyboardEvents);
       document.removeEventListener('keyup', handleKeyboardEvents);
+      mobileQuery.removeEventListener('change', handleViewportChange);
       document.removeEventListener(
         'keymap-changed',
         handleKeymapChange as EventListener
