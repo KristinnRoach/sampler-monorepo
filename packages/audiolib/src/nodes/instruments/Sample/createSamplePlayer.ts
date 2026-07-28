@@ -19,7 +19,7 @@ import { fetchInitSampleAsAudioBuffer } from '@/storage/assets/asset-utils';
 export async function createSamplePlayer(
   buffer?: AudioBuffer | ArrayBuffer,
   polyphony: number = 16,
-  context: AudioContext = getAudioContext()
+  context: AudioContext = getAudioContext(),
 ): Promise<SamplePlayer> {
   await ensureAudioCtx();
   assert(context, 'Audio context is not available');
@@ -30,7 +30,7 @@ export async function createSamplePlayer(
     // AudioWorklet is not supported on this browser
     throw new Error(
       'AudioWorklet is required but not supported on this browser. ' +
-        'Please use a modern desktop browser (Chrome, Firefox, Edge) or update your mobile browser.'
+        'Please use a modern desktop browser (Chrome, Firefox, Edge) or update your mobile browser.',
     );
   }
 
@@ -44,7 +44,7 @@ export async function createSamplePlayer(
     } catch (error) {
       console.error(
         'Failed to decode sample audiodata when creating SamplePlayer:',
-        error
+        error,
       );
       throw error;
     }
