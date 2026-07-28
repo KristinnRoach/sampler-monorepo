@@ -49,10 +49,11 @@ export function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
 }
 
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = '';
   const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
   return btoa(binary);
 }
@@ -90,7 +91,8 @@ export function validateWavBuffer(buffer: ArrayBuffer): boolean {
   const bitsPerSample = view.getUint16(34, true);
   const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
   const dataSize = view.getUint32(40, true);
-  if (dataSize === 0 || dataSize / byteRate < 0.2) return false;
+  if (dataSize === 0 || byteRate === 0 || dataSize / byteRate < 0.2)
+    return false;
 
   const dataOffset = 44;
   const sampleSize = bitsPerSample / 8;

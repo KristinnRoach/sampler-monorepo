@@ -27,8 +27,12 @@ export const loadCurrentSample = (): ArrayBuffer | undefined => {
 };
 
 export const saveCurrentSample = (buffer: AudioBuffer): void => {
-  localStorage.setItem(
-    STORAGE_KEY,
-    arrayBufferToBase64(audioBufferToWav(buffer)),
-  );
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      arrayBufferToBase64(audioBufferToWav(buffer)),
+    );
+  } catch (error) {
+    console.error('Failed to persist current sample:', error);
+  }
 };
