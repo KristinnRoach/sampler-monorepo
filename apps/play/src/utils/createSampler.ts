@@ -98,9 +98,6 @@ export async function createSampler(
     );
     const nodeId = options.nodeId || samplePlayer.nodeId;
 
-    // ponytail: global player store, single reference point for all controls.
-    // controls that need the player can import { getSamplePlayerInstance } and call it.
-    (window as any).__samplePlayerInstance = samplePlayer;
     document.dispatchEvent(
       new CustomEvent('sampler-initialized', { detail: { nodeId } }),
     );
@@ -128,9 +125,6 @@ export async function createSampler(
       nodeId,
       samplePlayer,
       dispose: () => {
-        if ((window as any).__samplePlayerInstance === samplePlayer) {
-          delete (window as any).__samplePlayerInstance;
-        }
         samplePlayer.dispose();
       },
     };

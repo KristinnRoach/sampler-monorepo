@@ -2,7 +2,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
-import { getSamplePlayerInstance } from '../component-utils';
+import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import {
   createSVGButton,
@@ -18,7 +18,7 @@ export const UploadButton = (attributes: ElementProps) => {
   const status = van.state('Ready');
 
   const loadSample = async () => {
-    const sampler = getSamplePlayerInstance();
+    const sampler = getSamplePlayer();
     if (!sampler) {
       status.val = 'Sampler not found';
       return;
@@ -87,7 +87,7 @@ export const RecordButton = (attributes: ElementProps) => {
   let recordButton: SVGButton;
 
   const startRecording = async () => {
-    const sampler = getSamplePlayerInstance();
+    const sampler = getSamplePlayer();
     if (!sampler || recordBtnState.val === 'Recording') return;
 
     const inputSource = sampler.getRecorderInputSource();
@@ -200,7 +200,7 @@ export const RecordButton = (attributes: ElementProps) => {
 
   attributes.mount(() => {
     const checkSampler = () =>
-      (samplerAvailable.val = !!getSamplePlayerInstance());
+      (samplerAvailable.val = !!getSamplePlayer());
 
     checkSampler();
     document.addEventListener('sampler-initialized', checkSampler);

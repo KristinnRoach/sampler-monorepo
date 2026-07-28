@@ -32,12 +32,15 @@ import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
 
+let samplePlayerRef: SamplePlayer | null = null;
+
+export const getSamplePlayer = () => samplePlayerRef;
+
 const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
 
   let samplerRef: Sampler | undefined;
-  let samplePlayerRef: SamplePlayer | null = null;
   const [samplePlayer, setSamplePlayer] = createSignal<SamplePlayer | null>(
     null,
   );

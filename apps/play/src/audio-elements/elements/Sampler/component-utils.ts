@@ -4,10 +4,7 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createKnob, KnobConfig } from '@/elements/primitives/createKnob';
 import { INLINE_COMPONENT_STYLE } from '../../shared/styles/component-styles';
-
-export const getSamplePlayerInstance = (): SamplePlayer | null => {
-  return (window as any).__samplePlayerInstance || null;
-};
+import { getSamplePlayer } from '../../../App';
 
 const { div } = van.tags;
 
@@ -22,7 +19,7 @@ export const createSamplerConnection = (
 
   const connect = () => {
     if (connected) return;
-    const sampler = getSamplePlayerInstance();
+    const sampler = getSamplePlayer();
     if (sampler) {
       connected = true;
       onConnect(sampler);
@@ -87,7 +84,7 @@ export const createToggleForTarget = (
 
     const connect = () => {
       if (connected) return;
-      const sampler = getSamplePlayerInstance();
+      const sampler = getSamplePlayer();
       if (sampler) {
         connected = true;
         config.onSamplerConnect?.(sampler, toggleState, van);
@@ -152,7 +149,7 @@ export const createKnobForTarget = (
 
     const connect = () => {
       if (connected) return;
-      const target = getSamplePlayerInstance();
+      const target = getSamplePlayer();
 
       if (target) {
         connected = true;

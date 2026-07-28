@@ -3,7 +3,7 @@ import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG, EnvelopeSettings } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
-import { getSamplePlayerInstance } from '../component-utils';
+import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 
 const { div, button } = van.tags;
@@ -33,7 +33,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   const createEnvelopes = () => {
     if (!samplerInitialized.val || !sampleLoaded.val) return;
 
-    const sampler = getSamplePlayerInstance();
+    const sampler = getSamplePlayer();
     if (!sampler) return;
 
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {

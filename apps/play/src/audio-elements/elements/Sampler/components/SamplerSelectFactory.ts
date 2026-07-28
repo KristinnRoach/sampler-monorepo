@@ -1,7 +1,8 @@
 // SamplerSelectFactory.ts - Select components for sampler controls
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSamplePlayerInstance, createSamplerConnection } from '../component-utils';
+import { getSamplePlayer } from '../../../../App';
+import { createSamplerConnection } from '../component-utils';
 import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
 } from '@/shared/keyboard/keyboard-keymaps';

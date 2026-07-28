@@ -1,7 +1,7 @@
 // SamplerToggleFactory.ts - Toggle and control components
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSamplePlayerInstance } from '../component-utils';
+import { getSamplePlayer } from '../../../../App';
 import { Toggle } from '../../primitives/VanToggle';
 import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import { createToggleForTarget, ToggleConfig } from '../component-utils';
@@ -17,7 +17,7 @@ export const MidiToggle = (attributes: ElementProps) => {
     size: 'md',
     onClick: () => {
       // TODO: Finish refacoring to use centralized input handling package
-      // const sampler = getSamplePlayerInstance();
+      // const sampler = getSamplePlayer();
       // if (!sampler) return;
       // const currentState = toggleButton.getState();
       // if (currentState === 'midi_on') {
@@ -41,7 +41,7 @@ export const PlaybackDirectionToggle = (attributes: ElementProps) => {
     {
       size: 'md',
       onClick: () => {
-        const sampler = getSamplePlayerInstance();
+        const sampler = getSamplePlayer();
         if (!sampler) return;
 
         const currentState = toggleButton.getState();
@@ -64,7 +64,7 @@ export const LoopLockToggle = (attributes: ElementProps) => {
     {
       size: 'md',
       onClick: () => {
-        const sampler = getSamplePlayerInstance();
+        const sampler = getSamplePlayer();
         if (!sampler) return;
 
         const currentState = toggleButton.getState();
@@ -88,7 +88,7 @@ export const HoldLockToggle = (attributes: ElementProps) => {
     {
       size: 'md',
       onClick: () => {
-        const sampler = getSamplePlayerInstance();
+        const sampler = getSamplePlayer();
         if (!sampler) return;
 
         const currentState = toggleButton.getState();
@@ -112,7 +112,7 @@ export const PitchToggle = (attributes: ElementProps) => {
     {
       size: 'md',
       onClick: () => {
-        const sampler = getSamplePlayerInstance();
+        const sampler = getSamplePlayer();
         if (!sampler) return;
 
         const currentState = toggleButton.getState();

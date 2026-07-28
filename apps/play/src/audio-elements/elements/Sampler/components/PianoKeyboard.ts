@@ -1,7 +1,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import '../../controls/webaudio-controls/webaudio-keyboard';
-import { getSamplePlayerInstance } from '../component-utils';
+import { getSamplePlayer } from '../../../../App';
 import {
   COMPONENT_STYLE,
   DISABLED_STYLE,
@@ -86,7 +86,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Handle mouse/touch events only
   const handlePianoClick = (event: any) => {
     if (!enabled.val) return;
-    const sampler = getSamplePlayerInstance();
+    const sampler = getSamplePlayer();
     if (!sampler) return;
 
     const [noteState, noteNumber] = event.note;

@@ -1,7 +1,8 @@
 // SamplerStatusElement.ts
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSamplePlayerInstance, createSamplerConnection } from '../component-utils';
+import { getSamplePlayer } from '../../../../App';
+import { createSamplerConnection } from '../component-utils';
 
 const { div } = van.tags;
 
