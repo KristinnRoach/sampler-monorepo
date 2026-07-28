@@ -32,17 +32,16 @@ import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
 
-let samplePlayerRef: SamplePlayer | null = null;
+export const [samplePlayer, setSamplePlayer] = createSignal<SamplePlayer | null>(
+  null,
+);
 
-export const getSamplePlayer = () => samplePlayerRef;
+// Untracked read for non-reactive consumers (web components, MidiMan, etc.)
+export const getSamplePlayer = () => samplePlayer();
 
 const App: Component = () => {
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
-
-  const [samplePlayer, setSamplePlayer] = createSignal<SamplePlayer | null>(
-    null,
-  );
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
@@ -66,11 +65,9 @@ const App: Component = () => {
   };
 
   const { handleSampleSelect } = useSampleSelection(
-    () => samplePlayerRef,
+    getSamplePlayer,
     setSidebarOpen,
   );
-
-  const getSamplePlayer = () => samplePlayerRef;
 
   onMount(() => {
     let disposed = false;
@@ -81,7 +78,6 @@ const App: Component = () => {
           sampler.dispose();
           return;
         }
-        samplePlayerRef = sampler.samplePlayer;
         setSamplePlayer(sampler.samplePlayer);
         document.dispatchEvent(
           new CustomEvent('sampler-initialized', {
@@ -94,17 +90,17 @@ const App: Component = () => {
       });
 
     const handleSampleLoaded = () => {
-      const audiobuffer = samplePlayerRef?.audiobuffer || null;
+      const audiobuffer = getSamplePlayer()?.audiobuffer || null;
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
       // Preserve a device chosen before the player was ready
       const chosenDeviceId = selectedInputDeviceId();
       if (chosenDeviceId) {
-        samplePlayerRef?.setRecorderInputDeviceId(chosenDeviceId);
+        getSamplePlayer()?.setRecorderInputDeviceId(chosenDeviceId);
       } else {
         setSelectedInputDeviceId(
-          samplePlayerRef?.getRecorderInputDeviceId() || '',
+          getSamplePlayer()?.getRecorderInputDeviceId() || '',
         );
       }
     };
@@ -137,7 +133,7 @@ const App: Component = () => {
     document.addEventListener('sample-loaded', handleSampleLoaded);
 
     enableSamplePlayerMidi({
-      getSamplePlayer: () => samplePlayerRef,
+      getSamplePlayer,
       enableKnobMidi: true,
       midiLearnEnabled: true,
       knobMappings: [
@@ -414,7 +410,7 @@ const App: Component = () => {
                 displayValue={true}
                 size={45}
                 onChange={(detail: KnobChangeEventDetail) =>
-                  samplePlayerRef?.setHpfCutoff(detail.value)
+                  getSamplePlayer()?.setHpfCutoff(detail.value)
                 }
               />
               <KnobComponent
@@ -422,7 +418,7 @@ const App: Component = () => {
                 displayValue={true}
                 size={45}
                 onChange={(detail: KnobChangeEventDetail) =>
-                  samplePlayerRef?.setLpfCutoff(detail.value)
+                  getSamplePlayer()?.setLpfCutoff(detail.value)
                 }
               /> */}
             </div>
@@ -606,14 +602,14 @@ export default App;
 //   if (e.code === 'IntlBackslash') {
 //     e.preventDefault();
 //     console.log('Freezing active voices');
-//     samplePlayerRef?.freezeActiveVoices(true);
+//     getSamplePlayer()?.freezeActiveVoices(true);
 //   }
 // });
 // document.body.addEventListener('keyup', (e) => {
 //   if (e.code === 'IntlBackslash') {
 //     e.preventDefault();
 //     console.log('Unfreezing active voices');
-//     samplePlayerRef?.freezeActiveVoices(false);
+//     getSamplePlayer()?.freezeActiveVoices(false);
 //   }
 // });
 // ! END - TEST Listener
