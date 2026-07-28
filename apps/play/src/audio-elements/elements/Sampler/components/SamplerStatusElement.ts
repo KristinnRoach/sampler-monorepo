@@ -16,7 +16,7 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
 
   attributes.mount(() => {
     status.val = 'Click to start';
-    const disposeConnection = createMountHandler();
+    const disposeConnection = createMountHandler()();
 
     // Additional listeners for sample-loaded and error events
     const handleSampleLoaded = () => {
