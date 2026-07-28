@@ -6,7 +6,7 @@
 
 ## Replace the registry + global DOM-event + polling handshake with one explicit player handle — very high value / medium effort.
 
-[x] Replaced registry lookup with a single app-level `__samplePlayerInstance` global. Removed 100ms polling intervals and simplified connection handlers. Vanilla controls now import `getSamplePlayerInstance()` directly from component-utils instead of doing target-node-id lookup → registry → retry. Kept `sampler-initialized` event for readiness signaling only, removed unused registry change callbacks.
+[x] Replaced registry lookup with a single module-scoped SolidJS signal in App.tsx. Vanilla controls import `getSamplePlayer()` directly from App.tsx (an untracked read of the signal) instead of doing target-node-id lookup → registry → retry. Removed 100ms polling intervals; kept `sampler-initialized` (now dispatched only after the signal is set) as the one readiness signal. Also disposed of dead `target-node-id` readiness gating left over from the registry in ComputerKeyboard/PianoKeyboard/EnvelopeDisplay/EnvelopeSwitcher, and restored sampler disposal on App unmount (dropped by mistake during registry cleanup).
 
 ## Unify sample persistence and loading — high value / low-medium effort.
 
@@ -26,4 +26,4 @@
 
 ## Remove leftover compatibility surface after migration — medium value / low effort.
 
-[ ] Clean up stale global typings, commented-out element registrations, legacy instrumentState selectors, duplicated CSS/imports, and the historical extraction scaffolding once the above paths are no longer used.
+[ ] Clean up stale global typings, commented-out element registrations, legacy instrumentState selectors, duplicated CSS/imports, and the historical extraction scaffolding once the above paths are no longer used. Known instances: unused `target-node-id` declarations in SamplerToggleFactory.ts (5x) and AMModulation.ts; large commented-out legacy implementation in EnvelopeDisplay.ts.
