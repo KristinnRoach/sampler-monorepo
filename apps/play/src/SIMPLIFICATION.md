@@ -16,14 +16,14 @@
 
 [ ] instrumentState.ts still searches for retired wrapper tags such as volume-knob and sampler-element, while the app now renders ParamKnob and direct Solid controls. Saved samples can therefore miss knob/envelope state or fail to restore it. Capture state from the player/descriptor model and explicit control references instead of querying legacy DOM wrappers.
 
-## 6. Make samplerParams the single parameter definition — high value / medium effort.
+## 5. Make samplerParams the single parameter definition — high value / medium effort.
 
 [ ] ParamKnob already uses audiolib’s descriptors, but SamplerKnobFactory.ts still contains a second large set of parameter ranges, defaults, formatting and setter mappings. Migrate any remaining parameter controls to samplerParams, then delete the duplicate knob factory/configuration path.
 
-## 7. Migrate remaining controls incrementally from custom elements to direct Solid components — high value / higher effort.
+## 6. Migrate remaining controls incrementally from custom elements to direct Solid components — high value / higher effort.
 
 [ ] Prioritize buttons, selects and toggles; leave the envelope editor/keyboard until later because they have the deepest VanJS and event dependencies. The goal is for controls to receive SamplePlayer directly and call its public API without target-node-id or document-level coordination.
 
-## 8. Remove leftover compatibility surface after migration — medium value / low effort.
+## 7. Remove leftover compatibility surface after migration — medium value / low effort.
 
 [ ] Clean up stale global typings, commented-out element registrations, legacy instrumentState selectors, duplicated CSS/imports, and the historical extraction scaffolding once the above paths are no longer used. Known instances: unused `target-node-id` declarations in SamplerToggleFactory.ts (5x) and AMModulation.ts; large commented-out legacy implementation in EnvelopeDisplay.ts.
