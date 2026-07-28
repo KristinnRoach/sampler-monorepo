@@ -2,8 +2,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createAudioRecorder, type Recorder } from '@repo/audiolib';
-import { getSampler, onRegistryChange } from '../SamplerRegistry';
-import { findNodeId } from '../component-utils';
+import { getSamplePlayerInstance } from '../component-utils';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import {
   createSVGButton,
@@ -15,19 +14,11 @@ const { div } = van.tags;
 // ===== UPLOAD BUTTON =====
 
 export const UploadButton = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const showStatus = attributes.attr('show-status', 'false');
   const status = van.state('Ready');
 
-  const getId = findNodeId(attributes, targetNodeId);
-
   const loadSample = async () => {
-    const nodeId = getId();
-    if (!nodeId) {
-      status.val = 'Sampler not found';
-      return;
-    }
-    const sampler = getSampler(nodeId);
+    const sampler = getSamplePlayerInstance();
     if (!sampler) {
       status.val = 'Sampler not found';
       return;
@@ -58,7 +49,6 @@ export const UploadButton = (attributes: ElementProps) => {
     fileInput.click();
   };
 
-  // Create SVG upload button using new function API
   const uploadButton = createSVGButton('Upload Sample', 'upload', {
     size: 'md',
     onClick: loadSample,
@@ -86,7 +76,6 @@ export const SaveButton = () => {
 // ===== RECORD BUTTON =====
 
 export const RecordButton = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const showStatus = attributes.attr('show-status', 'false');
   const status = van.state('Ready');
 
@@ -95,12 +84,10 @@ export const RecordButton = (attributes: ElementProps) => {
     van.state('Record');
   const samplerAvailable = van.state(false);
 
-  const getId = findNodeId(attributes, targetNodeId);
-
   let recordButton: SVGButton;
 
   const startRecording = async () => {
-    const sampler = getSampler(getId());
+    const sampler = getSamplePlayerInstance();
     if (!sampler || recordBtnState.val === 'Recording') return;
 
     const inputSource = sampler.getRecorderInputSource();
@@ -213,17 +200,17 @@ export const RecordButton = (attributes: ElementProps) => {
 
   attributes.mount(() => {
     const checkSampler = () =>
-      (samplerAvailable.val = !!getSampler(getId()));
+      (samplerAvailable.val = !!getSamplePlayerInstance());
 
-    const cleanupSamplerCheck = onRegistryChange(checkSampler);
-
+    checkSampler();
+    document.addEventListener('sampler-initialized', checkSampler);
     return () => {
       if (currentRecorder.val) {
         currentRecorder.val.dispose();
         currentRecorder.val = null;
         recordBtnState.val = 'Record';
       }
-      cleanupSamplerCheck();
+      document.removeEventListener('sampler-initialized', checkSampler);
     };
   });
 

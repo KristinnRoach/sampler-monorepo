@@ -1,12 +1,6 @@
 // Replaces audio-components' <sampler-element>: creates the SamplePlayer,
-// restores/persists the current sample via localStorage, registers it in the
-// app-local sampler registry and dispatches the same DOM events, so the
-// remaining web components (knobs, toggles, keyboards) keep working unchanged.
+// restores/persists the current sample via localStorage, and dispatches events.
 import { createSamplePlayer, type SamplePlayer } from '@repo/audiolib';
-import {
-  registerSampler,
-  unregisterSampler,
-} from '../audio-elements/elements/Sampler/SamplerRegistry';
 import { audioBufferToWav } from './audio/audioBufferToWav';
 
 const STORAGE_KEY = 'currentSample';
@@ -104,7 +98,9 @@ export async function createSampler(
     );
     const nodeId = options.nodeId || samplePlayer.nodeId;
 
-    registerSampler(nodeId, samplePlayer);
+    // ponytail: global player store, single reference point for all controls.
+    // controls that need the player can import { getSamplePlayerInstance } and call it.
+    (window as any).__samplePlayerInstance = samplePlayer;
     document.dispatchEvent(
       new CustomEvent('sampler-initialized', { detail: { nodeId } }),
     );
@@ -132,7 +128,9 @@ export async function createSampler(
       nodeId,
       samplePlayer,
       dispose: () => {
-        unregisterSampler(nodeId);
+        if ((window as any).__samplePlayerInstance === samplePlayer) {
+          delete (window as any).__samplePlayerInstance;
+        }
         samplePlayer.dispose();
       },
     };

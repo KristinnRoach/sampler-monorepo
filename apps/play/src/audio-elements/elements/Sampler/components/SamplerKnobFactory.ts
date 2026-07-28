@@ -1,7 +1,6 @@
 // KnobFactory.ts
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../SamplerRegistry';
 import { createKnobForTarget } from '../component-utils';
 import { KnobConfig } from '../../primitives/createKnob';
 
@@ -503,99 +502,63 @@ const tempoKnobConfig: KnobConfig = {
 
 // ===== EXPORTED KNOB COMPONENTS =====
 
-export const VolumeKnob = createKnobForTarget(volumeConfig, getSampler);
+export const VolumeKnob = createKnobForTarget(volumeConfig);
 
-export const DryWetKnob = createKnobForTarget(dryWetConfig, getSampler);
+export const DryWetKnob = createKnobForTarget(dryWetConfig);
 
-export const FeedbackKnob = createKnobForTarget(feedbackConfig, getSampler);
+export const FeedbackKnob = createKnobForTarget(feedbackConfig);
 
-export const DistortionKnob = createKnobForTarget(distortionConfig, getSampler);
+export const DistortionKnob = createKnobForTarget(distortionConfig);
 
-export const DriveKnob = createKnobForTarget(driveConfig, getSampler);
+export const DriveKnob = createKnobForTarget(driveConfig);
 
-export const ClippingKnob = createKnobForTarget(clippingConfig, getSampler);
+export const ClippingKnob = createKnobForTarget(clippingConfig);
 
-export const GlideKnob = createKnobForTarget(glideConfig, getSampler);
+export const GlideKnob = createKnobForTarget(glideConfig);
 
-export const FeedbackPitchKnob = createKnobForTarget(
-  feedbackPitchConfig,
-  getSampler
-);
+export const FeedbackPitchKnob = createKnobForTarget(feedbackPitchConfig);
 
-export const FeedbackDecayKnob = createKnobForTarget(
-  feedbackDecayConfig,
-  getSampler
-);
+export const FeedbackDecayKnob = createKnobForTarget(feedbackDecayConfig);
 
-export const FeedbackLpfKnob = createKnobForTarget(
-  feedbackLpfConfig,
-  getSampler
-);
+export const FeedbackLpfKnob = createKnobForTarget(feedbackLpfConfig);
 
-export const GainLFORateKnob = createKnobForTarget(
-  gainLFORateConfig,
-  getSampler
-);
+export const GainLFORateKnob = createKnobForTarget(gainLFORateConfig);
 
-export const GainLFODepthKnob = createKnobForTarget(
-  gainLFODepthConfig,
-  getSampler
-);
+export const GainLFODepthKnob = createKnobForTarget(gainLFODepthConfig);
 
-export const PitchLFORateKnob = createKnobForTarget(
-  pitchLFORateConfig,
-  getSampler
-);
+export const PitchLFORateKnob = createKnobForTarget(pitchLFORateConfig);
 
-export const PitchLFODepthKnob = createKnobForTarget(
-  pitchLFODepthConfig,
-  getSampler
-);
+export const PitchLFODepthKnob = createKnobForTarget(pitchLFODepthConfig);
 
-export const ReverbSendKnob = createKnobForTarget(reverbSendConfig, getSampler);
+export const ReverbSendKnob = createKnobForTarget(reverbSendConfig);
 
-export const ReverbSizeKnob = createKnobForTarget(reverbSizeConfig, getSampler);
+export const ReverbSizeKnob = createKnobForTarget(reverbSizeConfig);
 
-export const DelaySendKnob = createKnobForTarget(delaySendConfig, getSampler);
+export const DelaySendKnob = createKnobForTarget(delaySendConfig);
 
-export const DelayTimeKnob = createKnobForTarget(delayTimeConfig, getSampler);
+export const DelayTimeKnob = createKnobForTarget(delayTimeConfig);
 
-export const DelayFeedbackKnob = createKnobForTarget(delayFBConfig, getSampler);
+export const DelayFeedbackKnob = createKnobForTarget(delayFBConfig);
 
-export const LoopDurationDriftKnob = createKnobForTarget(
-  loopDurationDriftConfig,
-  getSampler
-);
+export const LoopDurationDriftKnob = createKnobForTarget(loopDurationDriftConfig);
 
-export const KeytrackLoopKnob = createKnobForTarget(
-  keytrackLoopConfig,
-  getSampler
-);
+export const KeytrackLoopKnob = createKnobForTarget(keytrackLoopConfig);
 
-export const LowpassFilterKnob = createKnobForTarget(
-  lowpassFilterConfig,
-  getSampler
-);
+export const LowpassFilterKnob = createKnobForTarget(lowpassFilterConfig);
 
-export const HighpassFilterKnob = createKnobForTarget(
-  highpassFilterConfig,
-  getSampler
-);
+export const HighpassFilterKnob = createKnobForTarget(highpassFilterConfig);
 
-export const AMModKnob = createKnobForTarget(amplitudeModConfig, getSampler);
+export const AMModKnob = createKnobForTarget(amplitudeModConfig);
 
-export const LoopStartKnob = createKnobForTarget(loopStartConfig, getSampler);
+export const LoopStartKnob = createKnobForTarget(loopStartConfig);
 
-export const LoopDurationKnob = createKnobForTarget(
-  loopDurationConfig,
-  getSampler
-);
+export const LoopDurationKnob = createKnobForTarget(loopDurationConfig);
 
-export const TrimStartKnob = createKnobForTarget(trimStartConfig, getSampler);
+export const TrimStartKnob = createKnobForTarget(trimStartConfig);
 
-export const TrimEndKnob = createKnobForTarget(trimEndConfig, getSampler);
+export const TrimEndKnob = createKnobForTarget(trimEndConfig);
 
-export const TempoKnob = createKnobForTarget(tempoKnobConfig, getSampler);
+export const TempoKnob = createKnobForTarget(tempoKnobConfig);
 
 // // ===== SHARED KNOB STATE REGISTRY =====
 // const knobStates = new Map<string, any>();

@@ -3,7 +3,7 @@ import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
-import { getSampler } from '../SamplerRegistry';
+import { getSamplePlayerInstance } from '../component-utils';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 
 const { div } = van.tags;
@@ -30,7 +30,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       return;
     }
 
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayerInstance();
     if (!sampler) {
       console.log('No sampler found for nodeId:', targetNodeId.val);
       return;
@@ -125,7 +125,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 
 //   const connect = () => {
 //     if (connected) return;
-//     const sampler = getSampler(targetNodeId.val);
+//     const sampler = getSamplePlayerInstance();
 //     if (!sampler) {
 //       console.log('No sampler found for nodeId:', targetNodeId.val);
 //       return;

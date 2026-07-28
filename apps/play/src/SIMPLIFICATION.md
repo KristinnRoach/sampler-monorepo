@@ -6,7 +6,7 @@
 
 ## Replace the registry + global DOM-event + polling handshake with one explicit player handle — very high value / medium effort.
 
-[ ] The combination of target-node-id, nearest-parent lookup, SamplerRegistry, sampler-initialized, and retry intervals is the main inherited indirection. Introduce one app-level SamplePlayer reference/provider or a single readiness promise for the remaining vanilla controls. Keep DOM events only where an actual cross-component notification is required.
+[x] Replaced registry lookup with a single app-level `__samplePlayerInstance` global. Removed 100ms polling intervals and simplified connection handlers. Vanilla controls now import `getSamplePlayerInstance()` directly from component-utils instead of doing target-node-id lookup → registry → retry. Kept `sampler-initialized` event for readiness signaling only, removed unused registry change callbacks.
 
 ## Unify sample persistence and loading — high value / low-medium effort.
 
