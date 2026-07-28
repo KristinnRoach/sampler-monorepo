@@ -85,6 +85,11 @@ const App: Component = () => {
         samplerRef = sampler;
         samplePlayerRef = sampler.samplePlayer;
         setSamplePlayer(sampler.samplePlayer);
+        document.dispatchEvent(
+          new CustomEvent('sampler-initialized', {
+            detail: { nodeId: sampler.nodeId },
+          }),
+        );
       })
       .catch(() => {
         // Errors already logged and dispatched as 'sampler-error' by createSampler

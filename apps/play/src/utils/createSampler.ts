@@ -98,10 +98,6 @@ export async function createSampler(
     );
     const nodeId = options.nodeId || samplePlayer.nodeId;
 
-    document.dispatchEvent(
-      new CustomEvent('sampler-initialized', { detail: { nodeId } }),
-    );
-
     samplePlayer.onMessage('sample:loaded', (msg: any) => {
       const audiobuffer = samplePlayer.audiobuffer;
       document.dispatchEvent(
