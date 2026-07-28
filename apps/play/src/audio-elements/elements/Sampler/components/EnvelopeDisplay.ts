@@ -3,13 +3,12 @@ import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
-import { getSampler } from '../SamplerRegistry';
+import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 
 const { div } = van.tags;
 
 export const EnvelopeDisplay = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
   const envelopeType = attributes.attr('envelope-type', 'amp-env');
   const width = attributes.attr('width', '100%');
   const height = attributes.attr('height', '200px');
@@ -30,9 +29,9 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       return;
     }
 
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayer();
     if (!sampler) {
-      console.log('No sampler found for nodeId:', targetNodeId.val);
+      console.log('No sampler found');
       return;
     }
 
@@ -60,20 +59,14 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   };
 
   attributes.mount(() => {
-    const handleSamplerInitialized = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        samplerInitialized.val = true; // Update state
-        tryCreateEnvelope();
-      }
+    const handleSamplerInitialized = () => {
+      samplerInitialized.val = true;
+      tryCreateEnvelope();
     };
 
-    const handleSampleLoaded = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        sampleLoaded.val = true; // Update state
-        tryCreateEnvelope();
-      }
+    const handleSampleLoaded = () => {
+      sampleLoaded.val = true;
+      tryCreateEnvelope();
     };
 
     document.addEventListener(
@@ -84,6 +77,16 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       'sample-loaded',
       handleSampleLoaded as EventListener
     );
+
+    // Hydrate immediately: the readiness events are one-shot and won't
+    // fire again if the sampler (and its initial sample) were already
+    // ready before this component mounted.
+    const sampler = getSamplePlayer();
+    if (sampler) {
+      samplerInitialized.val = true;
+      if (sampler.audiobuffer) sampleLoaded.val = true;
+      tryCreateEnvelope();
+    }
 
     return () => {
       if (envelopeInstance) {
@@ -125,7 +128,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 
 //   const connect = () => {
 //     if (connected) return;
-//     const sampler = getSampler(targetNodeId.val);
+//     const sampler = getSamplePlayer();
 //     if (!sampler) {
 //       console.log('No sampler found for nodeId:', targetNodeId.val);
 //       return;

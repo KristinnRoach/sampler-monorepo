@@ -1,11 +1,11 @@
 // SamplerSelectFactory.ts - Select components for sampler controls
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../SamplerRegistry';
+import { getSamplePlayer } from '../../../../App';
+import { createSamplerConnection } from '../component-utils';
 import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
 } from '@/shared/keyboard/keyboard-keymaps';
-import { findNodeId, createSamplerConnection } from '../component-utils';
 import {
   COMPONENT_STYLE,
   SELECT_STYLE,
@@ -206,27 +206,21 @@ const inputSourceSelectConfig: SelectConfig<
 
 const createSamplerSelect = <T extends string = string>(
   config: SelectConfig<T>,
-  getSamplerFn: (nodeId: string) => any,
   van: any,
   componentStyle: string,
   autoResize = true,
 ) => {
   return (attributes: ElementProps) => {
-    const targetNodeId: State<string> = attributes.attr('target-node-id', '');
     const showLabel = attributes.attr('show-label', 'false');
     const labelPosition = attributes.attr('label-position', 'inline'); // 'inline' or 'below'
     const state = van.state(config.defaultValue);
 
-    const getId = findNodeId(attributes, targetNodeId);
-
     // Use standardized connection utility
     const { createMountHandler } = createSamplerConnection(
-      getId,
-      getSamplerFn,
       (sampler: SamplePlayer) => {
         if (config.onTargetConnect) {
           try {
-            config.onTargetConnect(sampler, state, van, getId());
+            config.onTargetConnect(sampler, state, van, sampler.nodeId);
           } catch (error) {
             console.error(
               `Failed to connect select "${config.label || 'unnamed'}":`,
@@ -237,7 +231,7 @@ const createSamplerSelect = <T extends string = string>(
       },
     );
 
-    attributes.mount(createMountHandler(attributes));
+    attributes.mount(createMountHandler());
 
     const handleChange = (e: Event) => {
       const target = e.target as HTMLSelectElement;
@@ -381,28 +375,24 @@ const createSamplerSelect = <T extends string = string>(
 
 export const KeymapSelect = createSamplerSelect(
   keymapSelectConfig,
-  getSampler,
   van,
   COMPONENT_STYLE,
 );
 
 export const WaveformSelect = createSamplerSelect(
   waveformSelectConfig,
-  getSampler,
   van,
   COMPONENT_STYLE,
 );
 
 export const InputSourceSelect = createSamplerSelect(
   inputSourceSelectConfig,
-  getSampler,
   van,
   COMPONENT_STYLE,
 );
 
 export const RootNoteSelect = createSamplerSelect(
   rootNoteSelectConfig,
-  getSampler,
   van,
   COMPONENT_STYLE,
 );

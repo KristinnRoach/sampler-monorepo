@@ -10,7 +10,7 @@ import {
 import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
 } from '@/shared/keyboard/keyboard-keymaps';
-import { getSampler } from '../SamplerRegistry';
+import { getSamplePlayer } from '../../../../App';
 import {
   COMPONENT_STYLE,
   HELP_TEXT_STYLE,
@@ -61,7 +61,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
       else handleOctaveChange(-1);
     }
 
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayer();
     if (!sampler || !enabled.val) return;
 
     if (e.code === 'Space') {
@@ -99,7 +99,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text')
       return;
 
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayer();
     if (!sampler || !enabled.val) return;
 
     if (e.code === 'CapsLock') {
@@ -124,7 +124,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   };
 
   const updateKeyboardHandlers = () => {
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayer();
 
     if (sampler && enabled.val && !keyHandlersAttached) {
       document.addEventListener('keydown', keyDown);
@@ -141,24 +141,17 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     }
   };
 
-  van.derive(updateKeyboardHandlers);
-
-  const checkInterval = setInterval(() => {
-    if (targetNodeId.val && !keyHandlersAttached && enabled.val) {
-      updateKeyboardHandlers();
-    }
-  }, 500);
-
   attributes.mount(() => {
+    document.addEventListener('sampler-initialized', updateKeyboardHandlers);
     // Listen for keymap changes from the select component
     document.addEventListener(
       'keymap-changed',
       handleKeymapChange as EventListener
     );
 
-    setTimeout(updateKeyboardHandlers, 100);
+    updateKeyboardHandlers();
     return () => {
-      clearInterval(checkInterval);
+      document.removeEventListener('sampler-initialized', updateKeyboardHandlers);
       document.removeEventListener(
         'keymap-changed',
         handleKeymapChange as EventListener
@@ -166,7 +159,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
       if (keyHandlersAttached) {
         document.removeEventListener('keydown', keyDown);
         document.removeEventListener('keyup', keyUp);
-        const sampler = getSampler(targetNodeId.val);
+        const sampler = getSamplePlayer();
         if (sampler) disableComputerKeyboard(sampler.nodeId);
       }
     };

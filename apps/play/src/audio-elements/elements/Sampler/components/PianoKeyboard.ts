@@ -1,7 +1,7 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import '../../controls/webaudio-controls/webaudio-keyboard';
-import { getSampler } from '../SamplerRegistry';
+import { getSamplePlayer } from '../../../../App';
 import {
   COMPONENT_STYLE,
   DISABLED_STYLE,
@@ -86,7 +86,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Handle mouse/touch events only
   const handlePianoClick = (event: any) => {
     if (!enabled.val) return;
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayer();
     if (!sampler) return;
 
     const [noteState, noteNumber] = event.note;
@@ -139,8 +139,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     // Listen for computer keyboard events to sync visual feedback
     const handleKeyboardEvents = (e: KeyboardEvent) => {
-      // Early exit if component is disabled or targetNodeId is empty
-      if (!enabled.val || !targetNodeId.val) return;
+      if (!enabled.val) return;
       if (e.repeat) return;
 
       const midiNote = currentKeymap.val[e.code];

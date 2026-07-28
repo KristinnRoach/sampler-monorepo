@@ -3,7 +3,7 @@ import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG, EnvelopeSettings } from '@/elements/controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
-import { getSampler } from '../SamplerRegistry';
+import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 
 const { div, button } = van.tags;
@@ -12,7 +12,6 @@ const { div, button } = van.tags;
 type SupportedEnvelopeType = 'amp-env' | 'filter-env' | 'pitch-env';
 
 export const EnvelopeSwitcher = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
   const width = attributes.attr('width', '100%');
   const height = attributes.attr('height', '200px');
   const bgColor = attributes.attr('bg-color', '#1e1e1e');
@@ -33,7 +32,7 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   const createEnvelopes = () => {
     if (!samplerInitialized.val || !sampleLoaded.val) return;
 
-    const sampler = getSampler(targetNodeId.val);
+    const sampler = getSamplePlayer();
     if (!sampler) return;
 
     (Object.keys(envelopes) as SupportedEnvelopeType[]).forEach((envType) => {
@@ -89,36 +88,28 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   });
 
   attributes.mount(() => {
-    const handlesamplerInitialized = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        samplerInitialized.val = true;
-        if (sampleLoaded.val) {
-          createEnvelopes();
-        }
+    const handlesamplerInitialized = () => {
+      samplerInitialized.val = true;
+      if (sampleLoaded.val) {
+        createEnvelopes();
       }
     };
 
     const handleSampleLoaded = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        sampleLoaded.val = true;
-        // Store envelope settings if provided in the event
-        if (customEvent.detail.envelopeSettings) {
-          savedEnvelopeSettings = customEvent.detail.envelopeSettings;
-        }
-        if (samplerInitialized.val) {
-          createEnvelopes();
-        }
+      sampleLoaded.val = true;
+      // Store envelope settings if provided in the event
+      if (customEvent.detail.envelopeSettings) {
+        savedEnvelopeSettings = customEvent.detail.envelopeSettings;
+      }
+      if (samplerInitialized.val) {
+        createEnvelopes();
       }
     };
 
     const handleRestoreEnvelopes = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (
-        customEvent.detail.nodeId === targetNodeId.val &&
-        customEvent.detail.envelopeSettings
-      ) {
+      if (customEvent.detail.envelopeSettings) {
         restoreEnvelopeSettings(customEvent.detail.envelopeSettings);
       }
     };
@@ -135,6 +126,16 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       'restore-envelope-settings',
       handleRestoreEnvelopes as EventListener,
     );
+
+    // Hydrate immediately: the readiness events are one-shot and won't
+    // fire again if the sampler (and its initial sample) were already
+    // ready before this component mounted.
+    const sampler = getSamplePlayer();
+    if (sampler) {
+      samplerInitialized.val = true;
+      if (sampler.audiobuffer) sampleLoaded.val = true;
+      if (samplerInitialized.val && sampleLoaded.val) createEnvelopes();
+    }
 
     return () => {
       Object.values(envelopes).forEach((env) => {
