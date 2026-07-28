@@ -8,12 +8,24 @@ import {
 const STORAGE_KEY = 'currentSample';
 
 export const loadDefaultSample = async (): Promise<ArrayBuffer> => {
-  const res = await fetch('/audio/init_sample.webm');
+  const res = await fetch(`${import.meta.env.BASE_URL}audio/init_sample.webm`);
+  if (!res.ok) {
+    throw new Error(
+      `Failed to fetch app default sample: ${res.status} ${res.statusText}`,
+    );
+  }
   return res.arrayBuffer();
 };
 
 export const loadCurrentSample = (): ArrayBuffer | undefined => {
-  const stored = localStorage.getItem(STORAGE_KEY);
+  let stored: string | null;
+  try {
+    stored = localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Failed to read current sample:', error);
+    return;
+  }
+
   if (!stored?.length) return;
 
   try {
@@ -23,7 +35,11 @@ export const loadCurrentSample = (): ArrayBuffer | undefined => {
     // Remove corrupt or unreadable sample data below.
   }
 
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Failed to remove invalid current sample:', error);
+  }
 };
 
 export const saveCurrentSample = (buffer: AudioBuffer): void => {
