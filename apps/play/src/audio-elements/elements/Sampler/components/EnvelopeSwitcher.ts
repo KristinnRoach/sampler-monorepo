@@ -127,6 +127,16 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
       handleRestoreEnvelopes as EventListener,
     );
 
+    // Hydrate immediately: the readiness events are one-shot and won't
+    // fire again if the sampler (and its initial sample) were already
+    // ready before this component mounted.
+    const sampler = getSamplePlayer();
+    if (sampler) {
+      samplerInitialized.val = true;
+      if (sampler.audiobuffer) sampleLoaded.val = true;
+      if (samplerInitialized.val && sampleLoaded.val) createEnvelopes();
+    }
+
     return () => {
       Object.values(envelopes).forEach((env) => {
         if (env) env.cleanup();

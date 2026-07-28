@@ -78,6 +78,16 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       handleSampleLoaded as EventListener
     );
 
+    // Hydrate immediately: the readiness events are one-shot and won't
+    // fire again if the sampler (and its initial sample) were already
+    // ready before this component mounted.
+    const sampler = getSamplePlayer();
+    if (sampler) {
+      samplerInitialized.val = true;
+      if (sampler.audiobuffer) sampleLoaded.val = true;
+      tryCreateEnvelope();
+    }
+
     return () => {
       if (envelopeInstance) {
         envelopeInstance.cleanup();
