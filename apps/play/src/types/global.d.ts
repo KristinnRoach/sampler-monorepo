@@ -10,9 +10,6 @@ declare module 'solid-js' {
   }
   namespace JSX {
     interface IntrinsicElements {
-      // Sampler core
-      'sampler-element': any;
-
       // Envelope components
       'envelope-switcher': any;
       'envelope-display': any;
