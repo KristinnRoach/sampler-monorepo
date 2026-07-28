@@ -508,7 +508,9 @@ export class SamplePlayer implements ILibInstrumentNode {
   ): Promise<AudioBuffer | null> {
     if (buffer instanceof ArrayBuffer) {
       const ctx = getAudioContext();
-      buffer = await ctx.decodeAudioData(buffer);
+      // decodeAudioData detaches its input; copy so callers can safely
+      // reuse/re-pass the same ArrayBuffer (e.g. re-selecting a cached sample).
+      buffer = await ctx.decodeAudioData(buffer.slice(0));
     }
 
     if (!isValidAudioBuffer(buffer)) {
