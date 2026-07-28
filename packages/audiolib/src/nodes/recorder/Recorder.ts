@@ -127,6 +127,7 @@ export class Recorder implements LibNode {
       this.#stream.getTracks().forEach((track) => track.stop());
       this.#stream = null;
     }
+    this.#cleanupAudioNodeConnection();
 
     const { input = { type: 'microphone' }, ...recorderOptions } = options;
 
