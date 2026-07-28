@@ -202,15 +202,18 @@ export const RecordButton = (attributes: ElementProps) => {
     const checkSampler = () =>
       (samplerAvailable.val = !!getSamplePlayer());
 
-    checkSampler();
-    document.addEventListener('sampler-initialized', checkSampler);
+    // Only mark available after sampler-initialized fires, not immediately
+    const handleSamplerInitialized = () => {
+      checkSampler();
+    };
+    document.addEventListener('sampler-initialized', handleSamplerInitialized);
     return () => {
       if (currentRecorder.val) {
         currentRecorder.val.dispose();
         currentRecorder.val = null;
         recordBtnState.val = 'Record';
       }
-      document.removeEventListener('sampler-initialized', checkSampler);
+      document.removeEventListener('sampler-initialized', handleSamplerInitialized);
     };
   });
 
