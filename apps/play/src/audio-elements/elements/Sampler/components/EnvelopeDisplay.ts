@@ -9,7 +9,6 @@ import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 const { div } = van.tags;
 
 export const EnvelopeDisplay = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
   const envelopeType = attributes.attr('envelope-type', 'amp-env');
   const width = attributes.attr('width', '100%');
   const height = attributes.attr('height', '200px');
@@ -32,7 +31,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 
     const sampler = getSamplePlayer();
     if (!sampler) {
-      console.log('No sampler found for nodeId:', targetNodeId.val);
+      console.log('No sampler found');
       return;
     }
 
@@ -60,20 +59,14 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   };
 
   attributes.mount(() => {
-    const handleSamplerInitialized = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        samplerInitialized.val = true; // Update state
-        tryCreateEnvelope();
-      }
+    const handleSamplerInitialized = () => {
+      samplerInitialized.val = true;
+      tryCreateEnvelope();
     };
 
-    const handleSampleLoaded = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        sampleLoaded.val = true; // Update state
-        tryCreateEnvelope();
-      }
+    const handleSampleLoaded = () => {
+      sampleLoaded.val = true;
+      tryCreateEnvelope();
     };
 
     document.addEventListener(

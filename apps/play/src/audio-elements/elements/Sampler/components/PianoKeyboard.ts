@@ -139,8 +139,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     // Listen for computer keyboard events to sync visual feedback
     const handleKeyboardEvents = (e: KeyboardEvent) => {
-      // Early exit if component is disabled or targetNodeId is empty
-      if (!enabled.val || !targetNodeId.val) return;
+      if (!enabled.val) return;
       if (e.repeat) return;
 
       const midiNote = currentKeymap.val[e.code];

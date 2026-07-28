@@ -141,24 +141,17 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     }
   };
 
-  van.derive(updateKeyboardHandlers);
-
-  const checkInterval = setInterval(() => {
-    if (targetNodeId.val && !keyHandlersAttached && enabled.val) {
-      updateKeyboardHandlers();
-    }
-  }, 500);
-
   attributes.mount(() => {
+    document.addEventListener('sampler-initialized', updateKeyboardHandlers);
     // Listen for keymap changes from the select component
     document.addEventListener(
       'keymap-changed',
       handleKeymapChange as EventListener
     );
 
-    setTimeout(updateKeyboardHandlers, 100);
+    updateKeyboardHandlers();
     return () => {
-      clearInterval(checkInterval);
+      document.removeEventListener('sampler-initialized', updateKeyboardHandlers);
       document.removeEventListener(
         'keymap-changed',
         handleKeymapChange as EventListener

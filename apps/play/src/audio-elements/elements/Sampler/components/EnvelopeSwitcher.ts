@@ -12,7 +12,6 @@ const { div, button } = van.tags;
 type SupportedEnvelopeType = 'amp-env' | 'filter-env' | 'pitch-env';
 
 export const EnvelopeSwitcher = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
   const width = attributes.attr('width', '100%');
   const height = attributes.attr('height', '200px');
   const bgColor = attributes.attr('bg-color', '#1e1e1e');
@@ -89,36 +88,28 @@ export const EnvelopeSwitcher = (attributes: ElementProps) => {
   });
 
   attributes.mount(() => {
-    const handlesamplerInitialized = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        samplerInitialized.val = true;
-        if (sampleLoaded.val) {
-          createEnvelopes();
-        }
+    const handlesamplerInitialized = () => {
+      samplerInitialized.val = true;
+      if (sampleLoaded.val) {
+        createEnvelopes();
       }
     };
 
     const handleSampleLoaded = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (customEvent.detail.nodeId === targetNodeId.val) {
-        sampleLoaded.val = true;
-        // Store envelope settings if provided in the event
-        if (customEvent.detail.envelopeSettings) {
-          savedEnvelopeSettings = customEvent.detail.envelopeSettings;
-        }
-        if (samplerInitialized.val) {
-          createEnvelopes();
-        }
+      sampleLoaded.val = true;
+      // Store envelope settings if provided in the event
+      if (customEvent.detail.envelopeSettings) {
+        savedEnvelopeSettings = customEvent.detail.envelopeSettings;
+      }
+      if (samplerInitialized.val) {
+        createEnvelopes();
       }
     };
 
     const handleRestoreEnvelopes = (e: Event) => {
       const customEvent = e as CustomEvent;
-      if (
-        customEvent.detail.nodeId === targetNodeId.val &&
-        customEvent.detail.envelopeSettings
-      ) {
+      if (customEvent.detail.envelopeSettings) {
         restoreEnvelopeSettings(customEvent.detail.envelopeSettings);
       }
     };

@@ -71,6 +71,7 @@ const App: Component = () => {
 
   onMount(() => {
     let disposed = false;
+    let samplerHandle: Sampler | undefined;
 
     createSampler({ nodeId: 'test-sampler' })
       .then((sampler) => {
@@ -78,6 +79,7 @@ const App: Component = () => {
           sampler.dispose();
           return;
         }
+        samplerHandle = sampler;
         setSamplePlayer(sampler.samplePlayer);
         document.dispatchEvent(
           new CustomEvent('sampler-initialized', {
@@ -177,6 +179,11 @@ const App: Component = () => {
 
       cleanupNotifications();
       disableSamplePlayerMidi();
+
+      if (samplerHandle) {
+        samplerHandle.dispose();
+        setSamplePlayer(null);
+      }
     });
   });
 
