@@ -23,6 +23,7 @@ import { getMidiSupportInfo } from '@repo/input-controller';
 import {
   loadCurrentSample,
   saveCurrentSample,
+  loadDefaultSample,
 } from './utils/audio/currentSampleStorage';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
@@ -35,9 +36,8 @@ import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
 
-export const [samplePlayer, setSamplePlayer] = createSignal<SamplePlayer | null>(
-  null,
-);
+export const [samplePlayer, setSamplePlayer] =
+  createSignal<SamplePlayer | null>(null);
 
 // Untracked read for non-reactive consumers (web components, MidiMan, etc.)
 export const getSamplePlayer = () => samplePlayer();
@@ -110,7 +110,12 @@ const App: Component = () => {
 
     void (async () => {
       try {
-        const createdPlayer = await createSamplePlayer(loadCurrentSample(), 16);
+        const prevSample = loadCurrentSample();
+        const sample = prevSample ? prevSample : await loadDefaultSample();
+        if (!sample.byteLength)
+          console.warn('Failed to fetch app default sample');
+
+        const createdPlayer = await createSamplePlayer(sample, 16);
         if (disposed) {
           createdPlayer.dispose();
           return;

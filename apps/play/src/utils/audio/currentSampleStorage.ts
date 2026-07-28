@@ -7,6 +7,11 @@ import {
 
 const STORAGE_KEY = 'currentSample';
 
+export const loadDefaultSample = async (): Promise<ArrayBuffer> => {
+  const res = await fetch('/audio/init_sample.webm');
+  return res.arrayBuffer();
+};
+
 export const loadCurrentSample = (): ArrayBuffer | undefined => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored?.length) return;
