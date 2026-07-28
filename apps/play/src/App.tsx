@@ -7,8 +7,7 @@ import {
   onCleanup,
 } from 'solid-js';
 
-import type { SamplePlayer } from '@repo/audiolib';
-import { createSampler, type Sampler } from './utils/createSampler';
+import { createSamplePlayer, type SamplePlayer } from '@repo/audiolib';
 import ParamKnob from './components/knobs/ParamKnob';
 import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 
@@ -21,6 +20,10 @@ import { getLayoutFromWidth, type LayoutType } from './utils/layout';
 import { useSampleSelection } from './hooks/useSampleSelection';
 import { enableSamplePlayerMidi, disableSamplePlayerMidi } from './io/MidiMan';
 import { getMidiSupportInfo } from '@repo/input-controller';
+import {
+  loadCurrentSample,
+  saveCurrentSample,
+} from './utils/audio/currentSampleStorage';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -71,41 +74,82 @@ const App: Component = () => {
 
   onMount(() => {
     let disposed = false;
-    let samplerHandle: Sampler | undefined;
+    let player: SamplePlayer | undefined;
+    let unsubscribeSampleLoaded: (() => void) | undefined;
 
-    createSampler({ nodeId: 'test-sampler' })
-      .then((sampler) => {
-        if (disposed) {
-          sampler.dispose();
-          return;
-        }
-        samplerHandle = sampler;
-        setSamplePlayer(sampler.samplePlayer);
-        document.dispatchEvent(
-          new CustomEvent('sampler-initialized', {
-            detail: { nodeId: sampler.nodeId },
-          }),
-        );
-      })
-      .catch(() => {
-        // Errors already logged and dispatched as 'sampler-error' by createSampler
-      });
-
-    const handleSampleLoaded = () => {
-      const audiobuffer = getSamplePlayer()?.audiobuffer || null;
+    const handleSampleLoaded = (samplePlayer: SamplePlayer) => {
+      const audiobuffer = samplePlayer.audiobuffer;
+      if (!audiobuffer?.length) {
+        console.error('sample:loaded fired without usable audiobuffer');
+        return;
+      }
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
+      saveCurrentSample(audiobuffer);
+
+      // Temporary compatibility for the remaining vanilla controls.
+      document.dispatchEvent(
+        new CustomEvent('sample-loaded', {
+          detail: {
+            nodeId: 'test-sampler',
+            buffer: audiobuffer,
+            durationSeconds: audiobuffer.duration,
+          },
+        }),
+      );
+
       // Preserve a device chosen before the player was ready
       const chosenDeviceId = selectedInputDeviceId();
       if (chosenDeviceId) {
-        getSamplePlayer()?.setRecorderInputDeviceId(chosenDeviceId);
+        samplePlayer.setRecorderInputDeviceId(chosenDeviceId);
       } else {
-        setSelectedInputDeviceId(
-          getSamplePlayer()?.getRecorderInputDeviceId() || '',
-        );
+        setSelectedInputDeviceId(samplePlayer.getRecorderInputDeviceId() || '');
       }
     };
+
+    void (async () => {
+      try {
+        const createdPlayer = await createSamplePlayer(loadCurrentSample(), 16);
+        if (disposed) {
+          createdPlayer.dispose();
+          return;
+        }
+
+        player = createdPlayer;
+        setSamplePlayer(createdPlayer);
+        unsubscribeSampleLoaded = createdPlayer.onMessage('sample:loaded', () =>
+          handleSampleLoaded(createdPlayer),
+        );
+
+        // Temporary readiness signal for the remaining vanilla controls.
+        document.dispatchEvent(
+          new CustomEvent('sampler-initialized', {
+            detail: { nodeId: 'test-sampler' },
+          }),
+        );
+
+        // createSamplePlayer resolves after its initial sample has loaded.
+        handleSampleLoaded(createdPlayer);
+      } catch (error: any) {
+        const errText =
+          typeof error?.message === 'string' ? error.message : String(error);
+        console.error('Sampler initialization error:', error);
+        document.dispatchEvent(
+          new CustomEvent('sampler-error', {
+            detail: {
+              nodeId: 'test-sampler',
+              error: errText,
+              ...(errText.includes('AudioWorklet') && {
+                error: 'AudioWorklet not supported',
+                message:
+                  'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
+              }),
+            },
+          }),
+        );
+      }
+    })();
 
     const updateLayout = () => {
       const layoutType = getLayoutFromWidth(window.innerWidth);
@@ -131,8 +175,6 @@ const App: Component = () => {
     onCleanup(() =>
       inputSourceSelect?.removeEventListener('change', handleInputSourceChange),
     );
-
-    document.addEventListener('sample-loaded', handleSampleLoaded);
 
     enableSamplePlayerMidi({
       getSamplePlayer,
@@ -174,14 +216,14 @@ const App: Component = () => {
     onCleanup(() => {
       disposed = true;
       window.removeEventListener('resize', updateLayout);
-      document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('midi:learn', handleMidiLearn);
 
       cleanupNotifications();
       disableSamplePlayerMidi();
 
-      if (samplerHandle) {
-        samplerHandle.dispose();
+      unsubscribeSampleLoaded?.();
+      if (player) {
+        player.dispose();
         setSamplePlayer(null);
       }
     });

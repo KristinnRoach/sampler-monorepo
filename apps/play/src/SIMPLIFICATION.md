@@ -2,7 +2,7 @@
 
 ## 1. Remove the duplicate sampler engine first — high value / low effort.
 
-[x] Removed the unused <sampler-element> lifecycle from Sampler.ts. App now uses createSampler() as the sole SamplePlayer initialization path while retaining the remaining vanilla control registrations.
+[x] Removed the unused <sampler-element> lifecycle from Sampler.ts. App now owns the sole SamplePlayer initialization path while retaining the remaining vanilla control registrations.
 
 ## 2. Replace the registry + global DOM-event + polling handshake with one explicit player handle — very high value / medium effort.
 
@@ -10,7 +10,7 @@
 
 ## 3. Unify sample persistence and loading — high value / low-medium effort.
 
-[ ] createSampler still owns WAV encoding, base64 conversion, validation and currentSample persistence inline. Move this into one small app service and keep createSampler focused on player lifecycle and the sample:loaded subscription.
+[x] Moved current-sample persistence into a small storage service. App now owns the `SamplePlayer` lifecycle and one direct `sample:loaded` subscription, so the redundant `Sampler` handle and `createSampler()` wrapper are gone. The remaining document events are temporary compatibility signals for vanilla controls.
 
 ## 4. Fix and simplify instrument-state persistence — high value / medium effort.
 
