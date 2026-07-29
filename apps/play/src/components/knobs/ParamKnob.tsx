@@ -20,6 +20,7 @@ import {
   samplerParamValues,
   setSamplerParamValue,
 } from '../../utils/samplerParamState';
+import styles from './ParamKnob.module.css';
 
 interface ParamKnobProps {
   param: SamplerParamKey;
@@ -142,20 +143,13 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
   return (
     <div
       data-param={props.param}
-      class={`knob-container ${props.class ?? ''}`}
+      class={`${styles.knobContainer} ${props.class ?? ''}`}
       title={props.title}
       style={{ opacity: dimmed() ? '0.4' : '' }}
     >
-      <div class='knob-label' style='text-align: center; margin-bottom: 4px;'>
-        {label()}
-      </div>
+      <div class={styles.knobLabel}>{label()}</div>
       <div ref={containerRef} />
-      <div
-        class='knob-value'
-        style='font-size: 10px; text-align: center; color: #999; margin-top: 4px;'
-      >
-        {format(value())}
-      </div>
+      <div class={styles.knobValue}>{format(value())}</div>
     </div>
   );
 };

@@ -1,0 +1,34 @@
+.knobContainer {
+  --knob-font-size: 12px;
+  --knob-el-width: 45px;
+
+  line-height: 1.5;
+  font-size: var(--knob-font-size);
+
+  display: flex;
+  flex-direction: column;
+  width: calc(var(--knob-el-width) * 1.5);
+
+  .knobLabel {
+    display: flex;
+    justify-content: center;
+  }
+
+  knob-element {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-inline: auto;
+    margin-top: 0.5em;
+  }
+
+  .knobValue {
+    font-size: calc(var(--knob-font-size) * 0.8);
+    text-align: center;
+    color: #999;
+    margin-inline: center;
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+  }
+}

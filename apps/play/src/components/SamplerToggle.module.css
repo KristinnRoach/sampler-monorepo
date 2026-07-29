@@ -1,7 +1,11 @@
 .toggle {
+  --ac-toggle-height: 0.85rem;
+
   display: flex;
   align-items: center;
-  gap: var(--ac-spacing-sm);
+  justify-content: center;
+  gap: calc(var(--ac-toggle-height) / 2);
+  border-radius: var(--ac-border-radius, 4px);
 }
 
 .input {
@@ -33,19 +37,21 @@
   inset: 0;
   cursor: pointer;
   background: var(--ac-color-bg-secondary);
-  border: 1px solid var(--ac-color-border-primary);
-  border-radius: calc(var(--ac-toggle-height) / 2);
+  box-shadow: 0px 1px 4px 1px rgba(0, 0, 0, 0.25);
+  border: 1px transparent solid;
+  border-radius: 12px;
   transition: var(--ac-transition);
 }
 
 .switch::before {
   position: absolute;
-  bottom: 2px;
-  left: 2px;
+  inset: 0;
   width: calc(var(--ac-toggle-height) - 4px);
   height: calc(var(--ac-toggle-height) - 4px);
   content: '';
-  background: var(--ac-color-bg-primary);
+  background: white;
+  border: 1px solid transparent;
+  box-shadow: 0px 1px 4px 1px rgba(0, 0, 0, 0.25);
   border-radius: 50%;
   transition: var(--ac-transition);
 }
@@ -59,7 +65,9 @@
 }
 
 .label {
-  color: var(--ac-color-text-secondary);
+  color: var(--ac-color-text-primary);
+  font-family: var(--ac-font-family, system-ui, sans-serif);
+  font-size: var(--ac-font-size-sm, 14px);
   font-size: var(--ac-font-size-sm);
-  font-weight: 500;
+  font-weight: 350;
 }

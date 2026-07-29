@@ -539,7 +539,6 @@ const App: Component = () => {
               <ParamKnob
                 param='feedbackLpf'
                 label='Lowpass'
-                class='fb-lpf-knob'
                 player={samplePlayer()}
               />
 
