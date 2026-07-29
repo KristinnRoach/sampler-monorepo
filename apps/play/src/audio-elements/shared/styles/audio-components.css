@@ -56,7 +56,7 @@
   /* Component-specific */
   --ac-knob-size: 60px;
   --ac-button-padding: 0.5rem 1rem;
-  --ac-toggle-height: 24px;
+  --ac-toggle-height: 1rem;
   --ac-envelope-height: 200px;
   --ac-keyboard-height: 60px;
 }
