@@ -1,13 +1,18 @@
 // SamplerButtonFactory.ts -
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { createAudioRecorder, type Recorder } from '@repo/audiolib';
+import {
+  createAudioRecorder,
+  type Recorder,
+  type RecorderInput,
+} from '@repo/audiolib';
 import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
 import {
   createSVGButton,
   type SVGButton,
 } from '../../primitives/createSVGButton';
+import { getRecorderSettings } from '../../../../utils/recorderSettings';
 
 const { div } = van.tags;
 
@@ -90,7 +95,13 @@ export const RecordButton = (attributes: ElementProps) => {
     const sampler = getSamplePlayer();
     if (!sampler || recordBtnState.val === 'Recording') return;
 
-    const inputSource = sampler.getRecorderInputSource();
+    const { inputSource, inputDeviceId } = getRecorderSettings();
+    const input: RecorderInput =
+      inputSource === 'resample'
+        ? { type: 'audio-node', node: sampler.output }
+        : inputSource === 'browser'
+          ? { type: 'display' }
+          : { type: 'microphone', deviceId: inputDeviceId || undefined };
 
     try {
       const recorderResult = await createAudioRecorder(sampler.context);
@@ -98,13 +109,6 @@ export const RecordButton = (attributes: ElementProps) => {
       if (!recorderResult) {
         status.val = 'Failed to create recorder';
         return;
-      }
-
-      recorderResult.setInputSource(inputSource ?? 'audio-input');
-      recorderResult.setInputDeviceId(sampler.getRecorderInputDeviceId());
-
-      if (inputSource === 'resample') {
-        recorderResult.connectResampleInputSource(sampler);
       }
 
       currentRecorder.val = recorderResult;
@@ -132,6 +136,7 @@ export const RecordButton = (attributes: ElementProps) => {
       });
 
       await currentRecorder.val.start({
+        input,
         useThreshold: true,
         startThreshold: -30,
         autoStop: true,
