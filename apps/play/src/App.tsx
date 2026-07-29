@@ -318,8 +318,8 @@ const App: Component = () => {
               class={`toolbar-btn input-device-select ${toolbarOpen() ? '__toolbar-open' : ''}`}
             >
               <select
-                aria-label='MIDI input channel'
-                title='MIDI input channel'
+                aria-label='MIDI note channel'
+                title='MIDI note channel'
                 class='icon-select'
                 value={midiInputChannel()}
                 onchange={(event) => {
@@ -339,9 +339,9 @@ const App: Component = () => {
                   }
                 }}
               >
-                <option value='all'>MIDI: All channels</option>
+                <option value='all'>Notes: All channels</option>
                 {Array.from({ length: 16 }, (_, index) => (
-                  <option value={index + 1}>MIDI: Channel {index + 1}</option>
+                  <option value={index + 1}>Notes: Channel {index + 1}</option>
                 ))}
               </select>
               <div class='icon-select-icon'>

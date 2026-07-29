@@ -28,7 +28,9 @@ export default defineConfig({
       formats: ['es'],
       fileName: (_format, entryName) => `${entryName}.js`,
     },
-    rollupOptions: {}, // ??
+    rollupOptions: {
+      external: ['dexie', 'webmidi'],
+    },
     // output: { globals: {}, }, // skoða
   },
   resolve: {

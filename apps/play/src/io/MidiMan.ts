@@ -32,8 +32,6 @@ let enabled = false;
 let stateChangeCallback: ((enabled: boolean) => void) | undefined;
 let samplePlayerAccessor: SamplePlayerAccessor | null = null;
 
-// let sustainPedalActive = false;
-
 // MIDI Learn state
 let midiLearnActive = false;
 let knobsToLearn: KnobElement[] = [];
@@ -277,29 +275,6 @@ export async function enableSamplePlayerMidi(
   midiInputChannel = options.inputChannel || 'all';
   bindNoteAndSustainTargets();
 
-  // Sustain pedal routing is bound with note routing above.
-  // sustainPedalActive = false;
-  // const sustainUnsub = inputController.registerControlTarget(
-  //   {
-  //     onControlChange: (value: number, event: ControlChangeEvent) => {
-  //       const player = getSamplePlayer();
-  //       if (!player) return;
-
-  //       const pressed = value >= 0.5; // 64/127 ≈ 0.5
-  //       if (pressed === sustainPedalActive) return;
-
-  //       sustainPedalActive = pressed;
-
-  //       if (pressed) {
-  //         player.sustainPedalOn();
-  //       } else {
-  //         player.sustainPedalOff();
-  //       }
-  //     },
-  //   },
-  //   { controller: 64 }
-  // );
-
   // Initialize knob MIDI if requested
   if (options.enableKnobMidi) {
     // Set up default / initial knob mappings
@@ -416,7 +391,6 @@ export function disableSamplePlayerMidi(): void {
 
   console.log('MIDI disabled and cleaned up');
 
-  // sustainPedalActive = false;
   samplePlayerAccessor = null;
   enabled = false;
 
@@ -427,6 +401,13 @@ export function disableSamplePlayerMidi(): void {
 export function setSamplePlayerMidiInputChannel(
   channel: MidiInputChannel,
 ): void {
+  if (channel === midiInputChannel) return;
+
   midiInputChannel = channel;
-  if (enabled) bindNoteAndSustainTargets();
+  if (!enabled) return;
+
+  const player = samplePlayerAccessor?.();
+  player?.setSustainPedal(false);
+  player?.releaseAll();
+  bindNoteAndSustainTargets();
 }

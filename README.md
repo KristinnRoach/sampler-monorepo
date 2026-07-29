@@ -100,11 +100,9 @@ sampler-monorepo/
 │   │   ├── storage/           # IndexedDB integration
 │   │   └── utils/             # Audio utilities
 │   │
-│   ├── audio-components/      # Web components
+│   └── audio-components/      # Web components
 │   │   ├── elements/          # Vanilla components
 │   │   └── frameworks/        # React & SolidJS wrappers
-│   │
-│   └── input-controller/      # Keyboard input
 │
 └── apps/
     ├── play/                  # Main sampler app
