@@ -12,13 +12,13 @@
 
 [x] Moved current-sample persistence into a small storage service. App now owns the `SamplePlayer` lifecycle and one direct `sample:loaded` subscription, so the redundant `Sampler` handle and `createSampler()` wrapper are gone. The remaining document events are temporary compatibility signals for vanilla controls.
 
-## 4. Fix and simplify instrument-state persistence — high value / medium effort.
+## 4. Make samplerParams the single parameter contract — high value / medium effort.
 
-[ ] instrumentState.ts still searches for retired wrapper tags such as volume-knob and sampler-element, while the app now renders ParamKnob and direct Solid controls. Saved samples can therefore miss knob/envelope state or fail to restore it. Capture state from the player/descriptor model and explicit control references instead of querying legacy DOM wrappers.
+[ ] Treat audiolib’s exported parameter keys, defaults, value domains and apply mappings as the public contract. Move Play’s parameter values and local-storage ownership into one app-level state path, migrate the remaining parameter controls to it, and delete the duplicate SamplerKnobFactory definitions. Removing audiolib’s internal localStorage behavior is a separate follow-up.
 
-## 5. Make samplerParams the single parameter definition — high value / medium effort.
+## 5. Fix instrument-state persistence against that contract — high value / medium effort; same PR as step 4.
 
-[ ] ParamKnob already uses audiolib’s descriptors, but SamplerKnobFactory.ts still contains a second large set of parameter ranges, defaults, formatting and setter mappings. Migrate any remaining parameter controls to samplerParams, then delete the duplicate knob factory/configuration path.
+[ ] Save and restore parameters by SamplerParamKey through Play’s state path; capture engine state from SamplePlayer and app-only state through explicit references instead of retired DOM wrappers. Preserve best-effort compatibility with existing saved instruments. Steps 4 and 5 should land together but remain separately checkable.
 
 ## 6. Migrate remaining controls incrementally from custom elements to direct Solid components — high value / higher effort.
 
