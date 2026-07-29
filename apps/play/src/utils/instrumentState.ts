@@ -19,10 +19,11 @@ export interface EnvelopeSettings {
 }
 
 export interface InstrumentSettings {
-  params: SamplerParamValues;
-  toggles: Record<string, string>;
-  envelopes: Record<string, EnvelopeSettings>;
-  selects: Record<string, string>;
+  // Optional: rows read back from IndexedDB aren't guaranteed to match this shape.
+  params?: SamplerParamValues;
+  toggles?: Record<string, string>;
+  envelopes?: Record<string, EnvelopeSettings>;
+  selects?: Record<string, string>;
 }
 
 const envelopeTypes = ['amp-env', 'filter-env', 'pitch-env'] as const;
@@ -69,9 +70,9 @@ export function restoreInstrumentState(
   controlsRoot: ParentNode,
   settings: InstrumentSettings,
 ): void {
-  restoreSamplerParamValues(settings.params);
-  restoreToggles(player, controlsRoot, settings.toggles);
-  restoreSelects(player, controlsRoot, settings.selects);
+  restoreSamplerParamValues(settings.params ?? {});
+  restoreToggles(player, controlsRoot, settings.toggles ?? {});
+  restoreSelects(player, controlsRoot, settings.selects ?? {});
 
   const envelopeSwitcher = controlsRoot.querySelector('envelope-switcher') as
     | (HTMLElement & {
@@ -80,7 +81,7 @@ export function restoreInstrumentState(
         ) => void;
       })
     | null;
-  envelopeSwitcher?.restoreEnvelopeSettings?.(settings.envelopes);
+  envelopeSwitcher?.restoreEnvelopeSettings?.(settings.envelopes ?? {});
 }
 
 function captureToggles(
