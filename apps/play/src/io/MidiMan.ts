@@ -1,9 +1,5 @@
 import type { SamplePlayer, KnobElement } from '@repo/audiolib';
-import {
-  inputController,
-  type NoteEvent,
-  type ControlChangeEvent,
-} from '@repo/audiolib/io';
+import { inputController, type ControlChangeEvent } from '@repo/audiolib/io';
 
 type SamplePlayerAccessor = () => SamplePlayer | null | undefined;
 export type MidiInputChannel = number | 'all';
@@ -17,7 +13,6 @@ type KnobMapping = {
 type SetupOptions = {
   getSamplePlayer: SamplePlayerAccessor;
   onStateChange?: (enabled: boolean) => void;
-  velocityTransform?: (event: NoteEvent) => number;
   inputChannel?: MidiInputChannel;
   enableKnobMidi?: boolean;
   knobMappings?: KnobMapping[];
@@ -42,13 +37,7 @@ let ccMappings: Map<number, KnobElement[]> = new Map();
 // Track unsubscribe functions by CC number
 let ccUnsubscribes: Map<number, () => void> = new Map();
 
-const defaultVelocityTransform = (event: NoteEvent): number => {
-  const velocity = typeof event.velocity === 'number' ? event.velocity : 0;
-  return Math.max(0, Math.min(127, velocity));
-};
-
 let midiInputChannel: MidiInputChannel = 'all';
-let velocityTransform = defaultVelocityTransform;
 
 const bindNoteAndSustainTargets = () => {
   if (!samplePlayerAccessor) return;
@@ -63,11 +52,7 @@ const bindNoteAndSustainTargets = () => {
       play: (note: number, velocity?: number) => {
         const player = getSamplePlayer();
         if (!player) return;
-        const vel =
-          velocity !== undefined
-            ? velocityTransform({ note, velocity } as NoteEvent)
-            : 0;
-        player.play(note, vel);
+        player.play(note, Math.max(0, Math.min(127, velocity ?? 0)));
       },
       release: (note: number) => {
         const player = getSamplePlayer();
@@ -271,7 +256,6 @@ export async function enableSamplePlayerMidi(
 
   const getSamplePlayer = options.getSamplePlayer;
   samplePlayerAccessor = getSamplePlayer;
-  velocityTransform = options.velocityTransform || defaultVelocityTransform;
   midiInputChannel = options.inputChannel || 'all';
   bindNoteAndSustainTargets();
 
