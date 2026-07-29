@@ -1,14 +1,10 @@
 import { define } from '@repo/vanjs-core/element';
 
 import {
-  FeedbackModeToggle,
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
-  GainLFOSyncNoteToggle,
-  PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
-  PanDriftToggle,
   PitchToggle,
 } from './components/SamplerToggleFactory';
 
@@ -30,14 +26,10 @@ import {
 import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 export {
-  FeedbackModeToggle,
   MidiToggle,
   LoopLockToggle,
   HoldLockToggle,
-  GainLFOSyncNoteToggle,
-  PitchLFOSyncNoteToggle,
   PlaybackDirectionToggle,
-  PanDriftToggle,
   PitchToggle,
   ComputerKeyboard,
   PianoKeyboard,
@@ -64,18 +56,14 @@ export const defineSampler = () => {
   defineIfNotExists('record-button', RecordButton, false);
   defineIfNotExists('save-button', SaveButton, false);
 
-  defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);
   defineIfNotExists('midi-toggle', MidiToggle, false);
   defineIfNotExists('loop-lock-toggle', LoopLockToggle, false);
   defineIfNotExists('hold-lock-toggle', HoldLockToggle, false);
-  defineIfNotExists('gain-lfo-sync-toggle', GainLFOSyncNoteToggle, false);
-  defineIfNotExists('pitch-lfo-sync-toggle', PitchLFOSyncNoteToggle, false);
   defineIfNotExists(
     'playback-direction-toggle',
     PlaybackDirectionToggle,
     false,
   );
-  defineIfNotExists('pan-drift-toggle', PanDriftToggle, false);
   defineIfNotExists('pitch-toggle', PitchToggle, false);
 
   defineIfNotExists('envelope-display', EnvelopeDisplay, false);

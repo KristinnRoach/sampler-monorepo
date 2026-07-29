@@ -39,16 +39,6 @@ body {
 
 /* Utils / els / misc */
 
-gain-lfo-sync-toggle,
-pitch-lfo-sync-toggle,
-feedback-mode-toggle,
-pan-drift-toggle {
-  color: var(--color-text);
-  height: fit-content;
-  padding: 0;
-  margin: 0;
-}
-
 .knob-container {
   padding: 0.5rem;
 }

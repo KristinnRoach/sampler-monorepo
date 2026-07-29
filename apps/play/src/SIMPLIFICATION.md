@@ -18,7 +18,7 @@
 
 ## 5. Fix instrument-state persistence against that contract — high value / medium effort; same PR as step 4.
 
-[x] Save and restore parameters by SamplerParamKey through Play’s state path; capture engine state from SamplePlayer and app-only state through explicit references instead of retired DOM wrappers. Best-effort compatibility with existing saved instruments is preserved. Intentional saved-patch persistence remains distinct from the page-reload convenience. Steps 4 and 5 landed together and were manually verified.
+[x] Save and restore parameters by SamplerParamKey through Play’s state path; capture engine state from SamplePlayer and app-only state through explicit references instead of retired DOM wrappers. The unused legacy saved-instrument format shim was later removed so only the current explicit settings shape remains. Intentional saved-patch persistence remains distinct from the page-reload convenience. Steps 4 and 5 landed together and were manually verified.
 
 ## 6. Migrate remaining controls incrementally from custom elements to direct Solid components — high value / higher effort.
 
@@ -26,7 +26,7 @@
 
 ## 7. Remove leftover compatibility surface after migration — medium value / low effort.
 
-[ ] Clean up stale global typings, commented-out element registrations, legacy instrumentState selectors, duplicated CSS/imports, and the historical extraction scaffolding once the above paths are no longer used. Known instances: unused `target-node-id` declarations in SamplerToggleFactory.ts (5x) and AMModulation.ts; large commented-out legacy implementation in EnvelopeDisplay.ts.
+[ ] Clean up stale global typings, commented-out element registrations, duplicated CSS/imports, and the historical extraction scaffolding once the above paths are no longer used. Known instances: unused `target-node-id` declaration in AMModulation.ts and the large commented-out implementation in EnvelopeDisplay.ts.
 
 ## Deferred
 

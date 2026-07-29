@@ -1,18 +1,11 @@
 // SamplerToggleFactory.ts - Toggle and control components
-import van, { State } from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
+import van from '@repo/vanjs-core';
 import { getSamplePlayer } from '../../../../App';
-import { Toggle } from '../../primitives/VanToggle';
-import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import { createToggleForTarget, ToggleConfig } from '../component-utils';
-
 import { createSVGButton } from '../../primitives/createSVGButton';
 
 const { div } = van.tags;
 
-export const MidiToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-
+export const MidiToggle = () => {
   const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
     size: 'md',
     onClick: () => {
@@ -32,9 +25,7 @@ export const MidiToggle = (attributes: ElementProps) => {
   return div({ style: '' }, toggleButton);
 };
 
-export const PlaybackDirectionToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-
+export const PlaybackDirectionToggle = () => {
   const toggleButton = createSVGButton(
     'Toggle Playback Direction',
     ['direction_forward', 'direction_reverse'],
@@ -55,9 +46,7 @@ export const PlaybackDirectionToggle = (attributes: ElementProps) => {
   return div({ style: '' }, toggleButton);
 };
 
-export const LoopLockToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-
+export const LoopLockToggle = () => {
   const toggleButton = createSVGButton(
     'Toggle Loop Locked',
     ['loop_locked', 'loop_unlocked'],
@@ -79,9 +68,7 @@ export const LoopLockToggle = (attributes: ElementProps) => {
   return div({ style: '' }, toggleButton);
 };
 
-export const HoldLockToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-
+export const HoldLockToggle = () => {
   const toggleButton = createSVGButton(
     'Toggle Hold Locked',
     ['hold_locked', 'hold_unlocked'],
@@ -103,9 +90,7 @@ export const HoldLockToggle = (attributes: ElementProps) => {
   return div({ style: '' }, toggleButton);
 };
 
-export const PitchToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-
+export const PitchToggle = () => {
   const toggleButton = createSVGButton(
     'Toggle Pitch',
     ['pitch_on', 'pitch_off'],
@@ -125,222 +110,3 @@ export const PitchToggle = (attributes: ElementProps) => {
 
   return div({ style: '' }, toggleButton);
 };
-
-// ===== TOGGLE CONFIGURATIONS =====
-
-const feedbackModeConfig: ToggleConfig = {
-  label: 'FB-Mode',
-  title: 'Feedback Mode',
-  defaultValue: true, // false = monophonic, true = polyphonic
-  onColor: '#4CAF50',
-  offText: 'Mono',
-  onText: 'Poly',
-  onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => {
-      const mode = state.val ? 'polyphonic' : 'monophonic';
-      sampler.setFeedbackMode(mode);
-    });
-  },
-};
-
-const gainLFOSyncConfig: ToggleConfig = {
-  label: 'Amp LFO Sync',
-  title: 'Toggle Amp LFO Sync',
-  defaultValue: false,
-  onColor: '#ff9800',
-  offText: 'Free',
-  onText: 'Sync',
-  onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', state.val));
-  },
-};
-
-const pitchLFOSyncConfig: ToggleConfig = {
-  label: 'Pitch LFO',
-  title: 'Toggle Pitch LFO Sync',
-  defaultValue: false,
-  onColor: '#ff9800',
-  offText: 'Free',
-  onText: 'Sync',
-  onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', state.val));
-  },
-};
-
-const panDriftConfig: ToggleConfig = {
-  label: 'Pan drift',
-  title: 'Toggle Pan Drift enabled',
-  defaultValue: true,
-  onColor: '#ff9800',
-  offText: '○',
-  onText: '◐',
-  onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => {
-      sampler.setPanDriftEnabled(state.val);
-    });
-  },
-};
-
-// ===== TOGGLE COMPONENTS USING CONFIG =====
-
-export const FeedbackModeToggle = createToggleForTarget(
-  feedbackModeConfig,
-  Toggle,
-  van,
-  INLINE_COMPONENT_STYLE
-);
-
-export const GainLFOSyncNoteToggle = createToggleForTarget(
-  gainLFOSyncConfig,
-  Toggle,
-  van,
-  INLINE_COMPONENT_STYLE
-);
-
-export const PitchLFOSyncNoteToggle = createToggleForTarget(
-  pitchLFOSyncConfig,
-  Toggle,
-  van,
-  INLINE_COMPONENT_STYLE
-);
-
-export const PanDriftToggle = createToggleForTarget(
-  panDriftConfig,
-  Toggle,
-  van,
-  INLINE_COMPONENT_STYLE
-);
-
-// const midiConfig: ToggleConfig = {
-//   label: '',
-//   defaultValue: true,
-//   onColor: '#4CAF50',
-//   offText: 'MIDI off',
-//   onText: 'MIDI on',
-//   onSamplerConnect: (sampler, state, van) => {
-//     van.derive(() => {
-//       if (state.val) {
-//         if (
-//           sampler &&
-//           'enableMIDI' in sampler &&
-//           typeof sampler.enableMIDI === 'function'
-//         ) {
-//           sampler.enableMIDI();
-//         }
-//       } else {
-//         if (
-//           sampler &&
-//           'disableMIDI' in sampler &&
-//           typeof sampler.disableMIDI === 'function'
-//         ) {
-//           sampler.disableMIDI();
-//         }
-//       }
-//     });
-//   },
-// };
-
-// const pitchToggleConfig: ToggleConfig = {
-//   label: '',
-//   defaultValue: true,
-//   onColor: '#4CAF50',
-//   offText: 'Pitch off',
-//   onText: 'Pitch on',
-//   onSamplerConnect: (sampler, state, van) => {
-//     van.derive(() => {
-//       if (state.val) {
-//         if (
-//           sampler &&
-//           'enablePitch' in sampler &&
-//           typeof sampler.enablePitch === 'function'
-//         ) {
-//           sampler.enablePitch();
-//         }
-//       } else {
-//         if (
-//           sampler &&
-//           'disablePitch' in sampler &&
-//           typeof sampler.disablePitch === 'function'
-//         ) {
-//           sampler.disablePitch();
-//         }
-//       }
-//     });
-//   },
-// };
-
-// const holdLockConfig: ToggleConfig = {
-//   label: '',
-//   defaultValue: false,
-//   onColor: '#ff9800',
-//   offText: 'Hold 🔓',
-//   onText: 'Hold 🔒',
-//   onSamplerConnect: (sampler, state, van) => {
-//     van.derive(() => sampler.setHoldLocked(state.val));
-//   },
-// };
-
-// const loopLockConfig: ToggleConfig = {
-//   label: '',
-//   defaultValue: false,
-//   onColor: '#ff9800',
-//   offText: 'Loop 🔓',
-//   onText: 'Loop 🔒',
-//   onSamplerConnect: (sampler, state, van) => {
-//     van.derive(() => sampler.setLoopLocked(state.val));
-//   },
-// };
-
-// const playbackDirectionConfig: ToggleConfig = {
-//   label: '',
-//   defaultValue: false,
-//   onColor: '#ff9800',
-//   offText: 'Forward',
-//   onText: 'Reverse',
-//   onSamplerConnect: (sampler, state, van) => {
-//     van.derive(() => {
-//       const direction = state.val === true ? 'reverse' : 'forward';
-//       sampler.setPlaybackDirection(direction);
-//     });
-//   },
-// };
-
-// export const MidiToggle = createToggle(
-//   midiConfig,
-//   getSampler,
-//   Toggle,
-//   van,
-//   INLINE_COMPONENT_STYLE
-// );
-
-// export const PitchToggle = createToggle(
-//   pitchToggleConfig,
-//   getSampler,
-//   Toggle,
-//   van,
-//   INLINE_COMPONENT_STYLE
-// );
-
-// export const LoopLockToggle = createToggle(
-//   loopLockConfig,
-//   getSampler,
-//   Toggle,
-//   van,
-//   INLINE_COMPONENT_STYLE
-// );
-
-// export const HoldLockToggle = createToggle(
-//   holdLockConfig,
-//   getSampler,
-//   Toggle,
-//   van,
-//   INLINE_COMPONENT_STYLE
-// );
-
-// export const PlaybackDirectionToggle = createToggle(
-//   playbackDirectionConfig,
-//   getSampler,
-//   Toggle,
-//   van,
-//   INLINE_COMPONENT_STYLE
-// );

@@ -40,6 +40,7 @@ import BaseButton from './components/Button';
 import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
+import SamplerToggle from './components/SamplerToggle';
 
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
@@ -352,7 +353,6 @@ const App: Component = () => {
                   target-node-id='test-sampler'
                   label='Loop Drift'
                 />
-                <pan-drift-toggle target-node-id='test-sampler' />
               </div> */}
               </div>
             </div>
@@ -509,7 +509,7 @@ const App: Component = () => {
                   label='Drift'
                   player={samplePlayer()}
                 />
-                <pan-drift-toggle target-node-id='test-sampler' />
+                <SamplerToggle param='panDrift' player={samplePlayer()} />
               </div>
             </div>
           </fieldset>
@@ -538,7 +538,6 @@ const App: Component = () => {
               <ParamKnob
                 param='feedbackLpf'
                 label='Lowpass'
-                class='fb-lpf-knob'
                 player={samplePlayer()}
               />
 
@@ -548,7 +547,7 @@ const App: Component = () => {
                 player={samplePlayer()}
               />
 
-              <feedback-mode-toggle target-node-id='test-sampler' label='' />
+              <SamplerToggle param='feedbackMode' player={samplePlayer()} />
             </div>
           </fieldset>
 
@@ -563,10 +562,7 @@ const App: Component = () => {
                     label='Rate'
                     player={samplePlayer()}
                   />
-                  <gain-lfo-sync-toggle
-                    target-node-id='test-sampler'
-                    label=''
-                  />
+                  <SamplerToggle param='gainLFOSync' player={samplePlayer()} />
                 </div>
                 <ParamKnob
                   param='gainLFODepth'
@@ -585,10 +581,7 @@ const App: Component = () => {
                     label='Rate'
                     player={samplePlayer()}
                   />
-                  <pitch-lfo-sync-toggle
-                    target-node-id='test-sampler'
-                    label=''
-                  />
+                  <SamplerToggle param='pitchLFOSync' player={samplePlayer()} />
                 </div>
                 <ParamKnob
                   param='pitchLFODepth'
