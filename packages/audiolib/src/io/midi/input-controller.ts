@@ -366,7 +366,7 @@ export class InputController {
         (typeof event.velocity === 'number'
           ? event.velocity
           : (event.note?.attack ?? 0)),
-      channel: event.channel ?? 1,
+      channel: event.message?.channel ?? 1,
       raw: event,
     };
 
@@ -395,7 +395,7 @@ export class InputController {
           : typeof event.value === 'number'
             ? Math.round(event.value * 127)
             : 0,
-      channel: event.channel ?? 1,
+      channel: event.message?.channel ?? 1,
       raw: event,
     };
 
@@ -415,7 +415,7 @@ export class InputController {
     const payload: SustainPedalEvent = {
       type: 'sustainpedal',
       pressed: midiValue >= 64, // MIDI standard: >= 64 is "on"
-      channel: event.channel ?? 1,
+      channel: event.message?.channel ?? 1,
       raw: event,
     };
 
