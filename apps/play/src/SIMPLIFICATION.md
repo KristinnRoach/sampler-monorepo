@@ -27,3 +27,9 @@
 ## 7. Remove leftover compatibility surface after migration — medium value / low effort.
 
 [ ] Clean up stale global typings, commented-out element registrations, legacy instrumentState selectors, duplicated CSS/imports, and the historical extraction scaffolding once the above paths are no longer used. Known instances: unused `target-node-id` declarations in SamplerToggleFactory.ts (5x) and AMModulation.ts; large commented-out legacy implementation in EnvelopeDisplay.ts.
+
+## Deferred
+
+- [ ] Give audiolib `KnobElement` a silent-initialization or non-emitting setter path, preserving explicit programmatic-change events for existing consumers.
+- [ ] Decide whether audiolib or Play owns parameter localStorage, then remove the duplicate persistence path without changing saved-patch behavior.
+- [ ] After the remaining controls are migrated, delete the temporary document readiness/sample events and stale custom-element compatibility code.
