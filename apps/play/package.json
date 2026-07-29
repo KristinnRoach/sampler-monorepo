@@ -17,13 +17,9 @@
     "@repo/audiolib": "workspace:*",
     "@repo/input-controller": "workspace:*",
     "@repo/vanjs-core": "workspace:*",
-    "clsx": "^2.1.1",
     "dexie": "^4.0.11",
     "gsap": "^3.13.0",
-    "solid-js": "^1.9.9",
-    "swapy": "^1.0.5",
-    "swapy-solid": "^0.1.0",
-    "tailwind-merge": "^3.6.0"
+    "solid-js": "^1.9.9"
   },
   "devDependencies": {
     "@vite-pwa/assets-generator": "^1.0.0",

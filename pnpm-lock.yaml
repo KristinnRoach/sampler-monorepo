@@ -66,9 +66,6 @@ importers:
       '@repo/vanjs-core':
         specifier: workspace:*
         version: link:../../packages/vanjs
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       dexie:
         specifier: ^4.0.11
         version: 4.0.11
@@ -78,15 +75,6 @@ importers:
       solid-js:
         specifier: ^1.9.9
         version: 1.9.9
-      swapy:
-        specifier: ^1.0.5
-        version: 1.0.5
-      swapy-solid:
-        specifier: ^0.1.0
-        version: 0.1.0
-      tailwind-merge:
-        specifier: ^3.6.0
-        version: 3.6.0
     devDependencies:
       '@vite-pwa/assets-generator':
         specifier: ^1.0.0
@@ -2255,10 +2243,6 @@ packages:
     resolution: {integrity: sha512-BSeNnyus75C4//NQ9gQt1/csTXyo/8Sb+afLAkzAptFuMsod9HFokGNudZpi/oQV73hnVK+sR+5PVRMd+Dr7YQ==}
     engines: {node: '>=12'}
 
-  clsx@2.1.1:
-    resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
-    engines: {node: '>=6'}
-
   color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
     engines: {node: '>=7.0.0'}
@@ -3841,12 +3825,6 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  swapy-solid@0.1.0:
-    resolution: {integrity: sha512-2q8iQ1WZbxbOGHtPlZC+yghJcUDyuW9++n8UZjsBkXAK7I+wib8VfQK+wBTZqt6euTp4Zii31h1ZplIrbegdsA==}
-
-  swapy@1.0.5:
-    resolution: {integrity: sha512-XEzy5HCw7yESb7QajKTBJ+NA/BL0kAKlE7XhSMPZawF740X4ws/5CFtXRsVDQ+EztISC759a9+DJM9mxjz4hXg==}
-
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
@@ -3854,9 +3832,6 @@ packages:
     resolution: {integrity: sha512-kJ9VlRxNCsBD5pJAE29oXeBYbPLhEySQmK4HdpsLv81I6fcDDW17xeJqMwiU3H7/woAVsbgq25DJNS8BeiN5+w==}
     engines: {node: '>=18.18.0'}
     hasBin: true
-
-  tailwind-merge@3.6.0:
-    resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
 
   temp-dir@2.0.0:
     resolution: {integrity: sha512-aoBAniQmmwtcKp/7BzsH8Cxzv8OL736p7v1ihGb5e9DJ9kTwGWHrQrVB5+lfVDzfGrdRzXch+ig7LHaY1JTOrg==}
@@ -6420,8 +6395,6 @@ snapshots:
       strip-ansi: 6.0.1
       wrap-ansi: 7.0.0
 
-  clsx@2.1.1: {}
-
   color-convert@2.0.1:
     dependencies:
       color-name: 1.1.4
@@ -8229,10 +8202,6 @@ snapshots:
       csso: 5.0.5
       picocolors: 1.1.1
 
-  swapy-solid@0.1.0: {}
-
-  swapy@1.0.5: {}
-
   symbol-tree@3.2.4: {}
 
   syncpack@13.0.4(typescript@5.9.3):
@@ -8256,8 +8225,6 @@ snapshots:
       ts-toolbelt: 9.6.0
     transitivePeerDependencies:
       - typescript
-
-  tailwind-merge@3.6.0: {}
 
   temp-dir@2.0.0: {}
 
