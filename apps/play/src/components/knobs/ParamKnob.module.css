@@ -27,7 +27,7 @@
     font-size: calc(var(--knob-font-size) * 0.8);
     text-align: center;
     color: #999;
-    margin-inline: center;
+    margin-inline: auto;
     margin-top: 0.25em;
     margin-bottom: 0.25em;
   }
