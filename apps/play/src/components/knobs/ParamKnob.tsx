@@ -44,6 +44,9 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
 
   onMount(() => {
     const size = props.size ?? 45;
+    // Appending KnobElement synchronously emits its descriptor default. Keep
+    // the storage-backed shared value captured before that event updates state.
+    const initialValue = value();
     defineElement('knob-element', KnobElement);
     knobEl = document.createElement('knob-element') as KnobElement;
 
@@ -63,7 +66,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
 
     knobEl.addEventListener('knob-change', handleChange);
     containerRef!.appendChild(knobEl);
-    knobEl.setValue(value());
+    knobEl.setValue(initialValue);
   });
 
   // Keep the player and visible knob in sync with Play's parameter state.
