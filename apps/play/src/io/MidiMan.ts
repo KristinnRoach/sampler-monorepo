@@ -31,8 +31,6 @@ let midiLearnActive = false;
 let knobsToLearn: KnobElement[] = [];
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 
-// CC to knob mapping for MIDI learn
-let ccMappings: Map<number, KnobElement[]> = new Map();
 // Track unsubscribe functions by CC number
 let ccUnsubscribes: Map<number, () => void> = new Map();
 
@@ -98,9 +96,6 @@ function handleMidiLearnControlChange(event: ControlChangeEvent): void {
     if (existingUnsub) {
       existingUnsub();
     }
-
-    // Store new mapping
-    ccMappings.set(ccNumber, [...knobsToLearn]);
 
     // Register the new knobs
     const unsub = inputController.registerControlTarget(knobsToLearn, {
@@ -264,7 +259,6 @@ export async function enableSamplePlayerMidi(
           });
 
           knobControlUnsubs.push(unsub);
-          ccMappings.set(cc, [knobElement]);
           ccUnsubscribes.set(cc, unsub);
           console.log(`Mapped CC${cc} to ${name}`);
         }
@@ -354,7 +348,6 @@ export function disableSamplePlayerMidi(): void {
   }
 
   document.body.classList.remove('midi-learn-active');
-  ccMappings.clear();
   ccUnsubscribes.clear();
 
   console.log('MIDI disabled and cleaned up');
