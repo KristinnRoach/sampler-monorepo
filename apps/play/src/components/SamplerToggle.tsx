@@ -28,6 +28,7 @@ const SamplerToggle: Component<SamplerToggleProps> = (props) => {
       <input
         class={styles.input}
         type='checkbox'
+        aria-label={descriptor.label}
         checked={enabled()}
         disabled={!props.player}
         onInput={(event) => setEnabled(event.currentTarget.checked)}
