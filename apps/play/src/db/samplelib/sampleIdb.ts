@@ -1,5 +1,6 @@
 // db/sampleDatabase.ts
 import Dexie, { Table } from 'dexie';
+import type { InstrumentSettings } from '../../utils/instrumentState';
 
 export interface SavedSample {
   id?: number;
@@ -8,7 +9,7 @@ export interface SavedSample {
   sampleRate?: number;
   channels?: number;
   createdAt?: Date;
-  settings?: any; // Instrument settings (knobs, toggles, etc.)
+  settings?: InstrumentSettings;
 }
 
 export class SampleDatabase extends Dexie {

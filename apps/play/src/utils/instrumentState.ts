@@ -1,11 +1,11 @@
 import type {
-  SamplerParamKey,
   SamplePlayer,
   SupportedWaveform,
 } from '@repo/audiolib';
 import {
   restoreSamplerParamValues,
   snapshotSamplerParamValues,
+  type SamplerParamValues,
 } from './samplerParamState';
 
 export interface EnvelopeSettings {
@@ -19,44 +19,11 @@ export interface EnvelopeSettings {
 }
 
 export interface InstrumentSettings {
-  params?: Partial<Record<SamplerParamKey, number>>;
-  /** Legacy saved-instrument format, read for compatibility only. */
-  knobs?: Record<string, number>;
-  toggles?: Record<string, boolean | string>;
-  envelopes?: Record<string, EnvelopeSettings>;
-  selects?: Record<string, string>;
-  /** Legacy tempo field, now represented by params.tempo. */
-  tempo?: number;
+  params: SamplerParamValues;
+  toggles: Record<string, string>;
+  envelopes: Record<string, EnvelopeSettings>;
+  selects: Record<string, string>;
 }
-
-const legacyParamKeys: Record<string, SamplerParamKey> = {
-  'volume-knob': 'volume',
-  'dry-wet-knob': 'dryWet',
-  'reverb-send-knob': 'reverbSend',
-  'reverb-size-knob': 'reverbSize',
-  'delay-send-knob': 'delaySend',
-  'delay-time-knob': 'delayTime',
-  'delay-feedback-knob': 'delayFeedback',
-  'highpass-filter-knob': 'highpassFilter',
-  'lowpass-filter-knob': 'lowpassFilter',
-  'distortion-knob': 'distortion',
-  'am-modulation': 'amMod',
-  'loop-start-knob': 'loopStart',
-  'loop-duration-knob': 'loopDuration',
-  'loop-duration-drift-knob': 'loopDurationDrift',
-  'trim-start-knob': 'trimStart',
-  'trim-end-knob': 'trimEnd',
-  'feedback-knob': 'feedback',
-  'feedback-pitch-knob': 'feedbackPitch',
-  'feedback-lpf-knob': 'feedbackLpf',
-  'feedback-decay-knob': 'feedbackDecay',
-  'gain-lfo-rate-knob': 'gainLFORate',
-  'gain-lfo-depth-knob': 'gainLFODepth',
-  'pitch-lfo-rate-knob': 'pitchLFORate',
-  'pitch-lfo-depth-knob': 'pitchLFODepth',
-  'glide-knob': 'glide',
-  'tempo-knob': 'tempo',
-};
 
 const envelopeTypes = ['amp-env', 'filter-env', 'pitch-env'] as const;
 
@@ -102,21 +69,9 @@ export function restoreInstrumentState(
   controlsRoot: ParentNode,
   settings: InstrumentSettings,
 ): void {
-  const params: Partial<Record<SamplerParamKey, number>> = {
-    ...settings.params,
-  };
-
-  Object.entries(settings.knobs ?? {}).forEach(([legacyKey, value]) => {
-    const key = legacyParamKeys[legacyKey];
-    if (key && params[key] === undefined) params[key] = value;
-  });
-  if (settings.tempo !== undefined && params.tempo === undefined) {
-    params.tempo = settings.tempo;
-  }
-
-  restoreSamplerParamValues(params);
-  restoreToggles(player, controlsRoot, settings.toggles ?? {});
-  restoreSelects(player, controlsRoot, settings.selects ?? {});
+  restoreSamplerParamValues(settings.params);
+  restoreToggles(player, controlsRoot, settings.toggles);
+  restoreSelects(player, controlsRoot, settings.selects);
 
   const envelopeSwitcher = controlsRoot.querySelector('envelope-switcher') as
     | (HTMLElement & {
@@ -125,13 +80,13 @@ export function restoreInstrumentState(
         ) => void;
       })
     | null;
-  envelopeSwitcher?.restoreEnvelopeSettings?.(settings.envelopes ?? {});
+  envelopeSwitcher?.restoreEnvelopeSettings?.(settings.envelopes);
 }
 
 function captureToggles(
   controlsRoot: ParentNode,
-): Record<string, boolean | string> {
-  const toggles: Record<string, boolean | string> = {};
+): Record<string, string> {
+  const toggles: Record<string, string> = {};
   const svgToggleNames = [
     'playback-direction-toggle',
     'loop-lock-toggle',
@@ -152,11 +107,9 @@ function captureToggles(
 function restoreToggles(
   player: SamplePlayer,
   controlsRoot: ParentNode,
-  toggles: Record<string, boolean | string>,
+  toggles: Record<string, string>,
 ): void {
   Object.entries(toggles).forEach(([name, value]) => {
-    if (typeof value !== 'string') return;
-
     const button = controlsRoot.querySelector(`${name} button.svg-button`) as
       | (HTMLButtonElement & { setState?: (value: string) => void })
       | null;
