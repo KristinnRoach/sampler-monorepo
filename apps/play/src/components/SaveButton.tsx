@@ -67,13 +67,14 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       console.log('Sample saved successfully!');
       setShowPrompt(false);
       setName('');
-    } catch (error) {
-      console.error('Save failed:', error);
-    } finally {
-      setSaving(false);
       props.onSavedCallback?.();
 
       document.dispatchEvent(new CustomEvent('sample:saved'));
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Save failed. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -133,7 +133,6 @@ function captureToggles(
 ): Record<string, boolean | string> {
   const toggles: Record<string, boolean | string> = {};
   const svgToggleNames = [
-    'midi-toggle',
     'playback-direction-toggle',
     'loop-lock-toggle',
     'hold-lock-toggle',
