@@ -1,38 +1,6 @@
 import { define } from '@repo/vanjs-core/element';
 
 import {
-  DryWetKnob,
-  FeedbackKnob,
-  DriveKnob,
-  ClippingKnob,
-  GlideKnob,
-  FeedbackPitchKnob,
-  FeedbackDecayKnob,
-  GainLFORateKnob,
-  GainLFODepthKnob,
-  PitchLFORateKnob,
-  PitchLFODepthKnob,
-  VolumeKnob,
-  ReverbSendKnob,
-  ReverbSizeKnob,
-  LowpassFilterKnob,
-  HighpassFilterKnob,
-  LoopStartKnob,
-  LoopDurationKnob,
-  LoopDurationDriftKnob,
-  KeytrackLoopKnob,
-  AMModKnob,
-  TrimStartKnob,
-  TrimEndKnob,
-  DistortionKnob,
-  FeedbackLpfKnob,
-  DelaySendKnob,
-  DelayTimeKnob,
-  DelayFeedbackKnob,
-  TempoKnob,
-} from './components/SamplerKnobFactory';
-
-import {
   FeedbackModeToggle,
   MidiToggle,
   LoopLockToggle,
@@ -59,39 +27,9 @@ import {
   InputSourceSelect,
   RootNoteSelect,
 } from './components/SamplerSelectFactory';
-import { AMModulation } from './components/AMModulation';
 import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 export {
-  DryWetKnob,
-  FeedbackKnob,
-  DriveKnob,
-  ClippingKnob,
-  GlideKnob,
-  FeedbackPitchKnob,
-  FeedbackDecayKnob,
-  GainLFORateKnob,
-  GainLFODepthKnob,
-  PitchLFORateKnob,
-  PitchLFODepthKnob,
-  VolumeKnob,
-  ReverbSendKnob,
-  ReverbSizeKnob,
-  LowpassFilterKnob,
-  HighpassFilterKnob,
-  LoopStartKnob,
-  LoopDurationKnob,
-  LoopDurationDriftKnob,
-  KeytrackLoopKnob,
-  AMModKnob,
-  TrimStartKnob,
-  TrimEndKnob,
-  DistortionKnob,
-  FeedbackLpfKnob,
-  DelaySendKnob,
-  DelayTimeKnob,
-  DelayFeedbackKnob,
-  TempoKnob,
   FeedbackModeToggle,
   MidiToggle,
   LoopLockToggle,
@@ -110,7 +48,6 @@ export {
   WaveformSelect,
   InputSourceSelect,
   RootNoteSelect,
-  AMModulation,
   SamplerStatusElement,
   EnvelopeDisplay,
 };
@@ -152,6 +89,5 @@ export const defineSampler = () => {
   defineIfNotExists('input-select', InputSourceSelect, false);
   defineIfNotExists('rootnote-select', RootNoteSelect, false);
 
-  defineIfNotExists('am-modulation', AMModulation, false);
   defineIfNotExists('sampler-status', SamplerStatusElement, false);
 };

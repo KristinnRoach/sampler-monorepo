@@ -3,12 +3,15 @@ import { Component, createSignal, createEffect } from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
 import { captureInstrumentState } from '../utils/instrumentState';
 import { audioBufferToWav } from '../utils/audio/bufferUtils';
+import type { SamplePlayer } from '@repo/audiolib';
 
 interface SaveButtonProps {
   audioBuffer: AudioBuffer | null;
   isOpen?: boolean;
   disabled?: boolean;
   class?: string;
+  player: SamplePlayer | null;
+  controlsRoot: ParentNode | null;
   onSavedCallback?: () => unknown;
 }
 
@@ -45,8 +48,11 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     try {
       const wavData = audioBufferToWav(props.audioBuffer!);
 
-      // Capture current instrument settings
-      const settings = captureInstrumentState();
+      if (!props.player || !props.controlsRoot) {
+        throw new Error('Instrument controls are not ready');
+      }
+
+      const settings = captureInstrumentState(props.player, props.controlsRoot);
 
       const sample: SavedSample = {
         name: name(),

@@ -4,7 +4,8 @@ import { restoreInstrumentState } from '../utils/instrumentState';
 
 export const useSampleSelection = (
   getSamplePlayer: () => SamplePlayer | null,
-  setSidebarOpen: (value: boolean) => void
+  getControlsRoot: () => ParentNode | null,
+  setSidebarOpen: (value: boolean) => void,
 ) => {
   const handleSampleSelect = async (sample: SavedSample) => {
     try {
@@ -17,31 +18,15 @@ export const useSampleSelection = (
         skipPreProcessing: true,
       });
 
-      // Restore envelope settings using direct method call
-      if (sample.settings?.envelopes) {
-        // Wait a bit for the sample-loaded event to complete and envelopes to be created
-        setTimeout(() => {
-          const envelopeSwitcherElement = document.querySelector(
-            'envelope-switcher[target-node-id="test-sampler"]'
-          ) as any;
-          if (
-            envelopeSwitcherElement &&
-            envelopeSwitcherElement.restoreEnvelopeSettings
-          ) {
-            envelopeSwitcherElement.restoreEnvelopeSettings(
-              sample.settings.envelopes
-            );
-          }
-        }, 100);
-      }
-
-      // Restore other settings (non-envelope) after a delay
       if (sample.settings) {
-        setTimeout(() => {
-          const settingsWithoutEnvelopes = { ...sample.settings };
-          delete settingsWithoutEnvelopes.envelopes;
-          restoreInstrumentState(settingsWithoutEnvelopes);
-        }, 500);
+        const controlsRoot = getControlsRoot();
+        if (controlsRoot) {
+          restoreInstrumentState(
+            samplePlayerRef,
+            controlsRoot,
+            sample.settings,
+          );
+        }
       }
 
       setSidebarOpen(false);
