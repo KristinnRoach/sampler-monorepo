@@ -190,7 +190,6 @@ const App: Component = () => {
     enableSamplePlayerMidi({
       getSamplePlayer,
       inputChannel: midiInputChannel(),
-      enableKnobMidi: true,
       midiLearnEnabled: true,
       knobMappings: [
         { cc: 15, selector: '[data-param="highpassFilter"]', name: 'HPF' },

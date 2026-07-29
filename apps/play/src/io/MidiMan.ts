@@ -14,7 +14,6 @@ type SetupOptions = {
   getSamplePlayer: SamplePlayerAccessor;
   onStateChange?: (enabled: boolean) => void;
   inputChannel?: MidiInputChannel;
-  enableKnobMidi?: boolean;
   knobMappings?: KnobMapping[];
   midiLearnEnabled?: boolean;
 };
@@ -38,6 +37,11 @@ let ccMappings: Map<number, KnobElement[]> = new Map();
 let ccUnsubscribes: Map<number, () => void> = new Map();
 
 let midiInputChannel: MidiInputChannel = 'all';
+
+const clearKnobHighlights = () =>
+  document
+    .querySelectorAll('.midi-learn-highlight')
+    .forEach((el) => el.classList.remove('midi-learn-highlight'));
 
 const bindNoteAndSustainTargets = () => {
   if (!samplePlayerAccessor) return;
@@ -120,9 +124,7 @@ function handleMidiLearnControlChange(event: ControlChangeEvent): void {
     knobsToLearn = [];
 
     // Visual feedback: remove highlight from all knobs
-    document.querySelectorAll('.midi-learn-highlight').forEach((el) => {
-      el.classList.remove('midi-learn-highlight');
-    });
+    clearKnobHighlights();
 
     // Update status message to indicate user can select another knob
     updateMidiLearnStatus(true);
@@ -136,10 +138,7 @@ function toggleMidiLearn(): void {
     // Cancel learn mode
     knobsToLearn = [];
 
-    // Remove highlight from all knobs
-    document.querySelectorAll('.midi-learn-highlight').forEach((el) => {
-      el.classList.remove('midi-learn-highlight');
-    });
+    clearKnobHighlights();
     document.body.classList.remove('midi-learn-active');
     updateMidiLearnStatus(false);
     console.log('MIDI Learn mode deactivated');
@@ -207,26 +206,17 @@ function startMidiLearnForKnob(knob: KnobElement, isShiftKey = false): void {
     if (alreadySelected) {
       // If already selected, remove it (toggle behavior)
       knobsToLearn = knobsToLearn.filter((k) => k !== knob);
-      (knob as unknown as HTMLElement).classList.remove('midi-learn-highlight');
+      knob.classList.remove('midi-learn-highlight');
     } else {
       // Otherwise add to selection
       knobsToLearn.push(knob);
-      (knob as unknown as HTMLElement).classList.add('midi-learn-highlight');
+      knob.classList.add('midi-learn-highlight');
     }
   } else {
     // Without shift key, replace the selection
-
-    // Reset any previous selection
-    document.querySelectorAll('.midi-learn-highlight').forEach((el) => {
-      el.classList.remove('midi-learn-highlight');
-    });
-
-    // Start a new selection
+    clearKnobHighlights();
     knobsToLearn = [knob];
-
-    // Highlight the current knob
-    const knobElement = knob as unknown as HTMLElement;
-    knobElement.classList.add('midi-learn-highlight');
+    knob.classList.add('midi-learn-highlight');
   }
 
   // Update status message
@@ -259,63 +249,60 @@ export async function enableSamplePlayerMidi(
   midiInputChannel = options.inputChannel || 'all';
   bindNoteAndSustainTargets();
 
-  // Initialize knob MIDI if requested
-  if (options.enableKnobMidi) {
-    // Set up default / initial knob mappings
-    if (options.knobMappings) {
-      setTimeout(() => {
-        options.knobMappings!.forEach(({ cc, selector, name }) => {
-          const element = document.querySelector(selector);
-          const knobElement = element?.querySelector(
-            'knob-element',
-          ) as KnobElement;
+  // Set up default / initial knob mappings
+  if (options.knobMappings) {
+    setTimeout(() => {
+      options.knobMappings!.forEach(({ cc, selector, name }) => {
+        const element = document.querySelector(selector);
+        const knobElement = element?.querySelector(
+          'knob-element',
+        ) as KnobElement;
 
-          if (knobElement) {
-            const unsub = inputController.registerControlTarget(knobElement, {
-              controller: cc,
-            });
-
-            knobControlUnsubs.push(unsub);
-            ccMappings.set(cc, [knobElement]);
-            ccUnsubscribes.set(cc, unsub);
-            console.log(`Mapped CC${cc} to ${name}`);
-          }
-        });
-
-        // Add MIDI learn click handlers to all knobs if enabled
-        if (options.midiLearnEnabled) {
-          document.querySelectorAll('knob-element').forEach((knob) => {
-            knob.addEventListener('click', ((e: MouseEvent) => {
-              // Only activate if MIDI learn mode is active
-              if (midiLearnActive) {
-                const isShiftKey = e.shiftKey;
-                startMidiLearnForKnob(knob as KnobElement, isShiftKey);
-                e.stopPropagation();
-              }
-            }) as EventListener);
+        if (knobElement) {
+          const unsub = inputController.registerControlTarget(knobElement, {
+            controller: cc,
           });
+
+          knobControlUnsubs.push(unsub);
+          ccMappings.set(cc, [knobElement]);
+          ccUnsubscribes.set(cc, unsub);
+          console.log(`Mapped CC${cc} to ${name}`);
         }
-      }, 500); // Small delay to ensure knobs are ready
-    }
+      });
 
-    // Set up MIDI learn for incoming CC messages
-    if (options.midiLearnEnabled) {
-      const learnUnsub = inputController.onControlChange(
-        handleMidiLearnControlChange,
-      );
-      knobControlUnsubs.push(learnUnsub);
+      // Add MIDI learn click handlers to all knobs if enabled
+      if (options.midiLearnEnabled) {
+        document.querySelectorAll('knob-element').forEach((knob) => {
+          knob.addEventListener('click', ((e: MouseEvent) => {
+            // Only activate if MIDI learn mode is active
+            if (midiLearnActive) {
+              const isShiftKey = e.shiftKey;
+              startMidiLearnForKnob(knob as KnobElement, isShiftKey);
+              e.stopPropagation();
+            }
+          }) as EventListener);
+        });
+      }
+    }, 500); // Small delay to ensure knobs are ready
+  }
 
-      // Set up keyboard shortcut for MIDI learn (Command+Shift+M)
-      keydownHandler = (e: KeyboardEvent) => {
-        if (e.repeat) return;
+  // Set up MIDI learn for incoming CC messages
+  if (options.midiLearnEnabled) {
+    const learnUnsub = inputController.onControlChange(
+      handleMidiLearnControlChange,
+    );
+    knobControlUnsubs.push(learnUnsub);
 
-        if ((e.key === 'M' || e.key === 'm') && e.shiftKey && e.metaKey) {
-          e.preventDefault();
-          toggleMidiLearn();
-        }
-      };
-      document.addEventListener('keydown', keydownHandler);
-    }
+    // Set up keyboard shortcut for MIDI learn (Command+Shift+M)
+    keydownHandler = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+
+      if ((e.key === 'M' || e.key === 'm') && e.shiftKey && e.metaKey) {
+        e.preventDefault();
+        toggleMidiLearn();
+      }
+    };
+    document.addEventListener('keydown', keydownHandler);
   }
 
   enabled = true;
@@ -358,10 +345,7 @@ export function disableSamplePlayerMidi(): void {
   midiLearnActive = false;
   knobsToLearn = [];
 
-  // Remove highlight from all knobs
-  document.querySelectorAll('.midi-learn-highlight').forEach((el) => {
-    el.classList.remove('midi-learn-highlight');
-  });
+  clearKnobHighlights();
 
   // Remove status indicator
   const statusEl = document.querySelector('.midi-learn-status');
