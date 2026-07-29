@@ -119,8 +119,8 @@ Exports: `SamplePlayer`, `createSamplePlayer`, envelope generators, utility func
 **`@repo/audio-components`** - Framework-agnostic UI components  
 Exports: Knobs, waveform displays, envelope editors with React/SolidJS wrappers
 
-**`@repo/input-controller`** - Keyboard-to-MIDI mapping  
-Exports: Key mapping configurations and input handlers
+**`@repo/audiolib/io`** - Browser/MIDI input helpers
+Exports: Key mapping configurations and MIDI input handlers
 
 ---
 

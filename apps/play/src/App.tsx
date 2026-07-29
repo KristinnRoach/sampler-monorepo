@@ -19,7 +19,7 @@ import { showNotification, cleanupNotifications } from './utils/notifications';
 import { getLayoutFromWidth, type LayoutType } from './utils/layout';
 import { useSampleSelection } from './hooks/useSampleSelection';
 import { enableSamplePlayerMidi, disableSamplePlayerMidi } from './io/MidiMan';
-import { getMidiSupportInfo } from '@repo/input-controller';
+import { getMidiSupportInfo } from '@repo/audiolib/io';
 import {
   loadCurrentSample,
   saveCurrentSample,

@@ -3,7 +3,7 @@ import {
   inputController,
   type NoteEvent,
   type ControlChangeEvent,
-} from '@repo/input-controller';
+} from '@repo/audiolib/io';
 
 type SamplePlayerAccessor = () => SamplePlayer | null | undefined;
 
