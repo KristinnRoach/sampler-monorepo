@@ -1,11 +1,8 @@
 import type { SamplePlayer, KnobElement } from '@repo/audiolib';
-import {
-  inputController,
-  type NoteEvent,
-  type ControlChangeEvent,
-} from '@repo/input-controller';
+import { inputController, type ControlChangeEvent } from '@repo/audiolib/io';
 
 type SamplePlayerAccessor = () => SamplePlayer | null | undefined;
+export type MidiInputChannel = number | 'all';
 
 type KnobMapping = {
   cc: number;
@@ -16,7 +13,7 @@ type KnobMapping = {
 type SetupOptions = {
   getSamplePlayer: SamplePlayerAccessor;
   onStateChange?: (enabled: boolean) => void;
-  velocityTransform?: (event: NoteEvent) => number;
+  inputChannel?: MidiInputChannel;
   enableKnobMidi?: boolean;
   knobMappings?: KnobMapping[];
   midiLearnEnabled?: boolean;
@@ -30,8 +27,6 @@ let enabled = false;
 let stateChangeCallback: ((enabled: boolean) => void) | undefined;
 let samplePlayerAccessor: SamplePlayerAccessor | null = null;
 
-// let sustainPedalActive = false;
-
 // MIDI Learn state
 let midiLearnActive = false;
 let knobsToLearn: KnobElement[] = [];
@@ -42,9 +37,40 @@ let ccMappings: Map<number, KnobElement[]> = new Map();
 // Track unsubscribe functions by CC number
 let ccUnsubscribes: Map<number, () => void> = new Map();
 
-const defaultVelocityTransform = (event: NoteEvent): number => {
-  const velocity = typeof event.velocity === 'number' ? event.velocity : 0;
-  return Math.max(0, Math.min(127, velocity));
+let midiInputChannel: MidiInputChannel = 'all';
+
+const bindNoteAndSustainTargets = () => {
+  if (!samplePlayerAccessor) return;
+
+  midiNoteUnsub?.();
+  midiSustainUnsub?.();
+
+  const getSamplePlayer = samplePlayerAccessor;
+
+  midiNoteUnsub = inputController.registerNoteTarget(
+    {
+      play: (note: number, velocity?: number) => {
+        const player = getSamplePlayer();
+        if (!player) return;
+        player.play(note, Math.max(0, Math.min(127, velocity ?? 0)));
+      },
+      release: (note: number) => {
+        const player = getSamplePlayer();
+        if (player) player.release(note);
+      },
+    },
+    midiInputChannel,
+  );
+
+  midiSustainUnsub = inputController.registerSustainPedalTarget(
+    {
+      setSustainPedal: (pressed: boolean) => {
+        const player = getSamplePlayer();
+        if (player) player.setSustainPedal(pressed);
+      },
+    },
+    midiInputChannel,
+  );
 };
 
 // ============================================================================
@@ -87,7 +113,7 @@ function handleMidiLearnControlChange(event: ControlChangeEvent): void {
         detail: {
           message: `MIDI CC${ccNumber} mapped to ${knobNames}`,
         },
-      })
+      }),
     );
 
     // Reset the knob selection but keep MIDI learn mode active
@@ -122,13 +148,13 @@ function toggleMidiLearn(): void {
     document.dispatchEvent(
       new CustomEvent('midi:learn', {
         detail: { message: 'MIDI Learn mode deactivated' },
-      })
+      }),
     );
   } else {
     document.body.classList.add('midi-learn-active');
     updateMidiLearnStatus(true);
     console.log(
-      'MIDI Learn mode activated: Click on a knob to select it (hold Shift for multiple)'
+      'MIDI Learn mode activated: Click on a knob to select it (hold Shift for multiple)',
     );
 
     // Dispatch custom event for notification
@@ -138,7 +164,7 @@ function toggleMidiLearn(): void {
           message:
             'MIDI Learn mode activated - Click on a knob (hold Shift for multiple)',
         },
-      })
+      }),
     );
   }
 }
@@ -208,7 +234,7 @@ function startMidiLearnForKnob(knob: KnobElement, isShiftKey = false): void {
 
   const count = knobsToLearn.length;
   console.log(
-    `MIDI Learn active: ${count} knob${count !== 1 ? 's' : ''} selected. Move a controller knob to map it.`
+    `MIDI Learn active: ${count} knob${count !== 1 ? 's' : ''} selected. Move a controller knob to map it.`,
   );
 }
 
@@ -217,7 +243,7 @@ function startMidiLearnForKnob(knob: KnobElement, isShiftKey = false): void {
 // ============================================================================
 
 export async function enableSamplePlayerMidi(
-  options: SetupOptions
+  options: SetupOptions,
 ): Promise<boolean> {
   if (enabled) {
     return true;
@@ -230,60 +256,8 @@ export async function enableSamplePlayerMidi(
 
   const getSamplePlayer = options.getSamplePlayer;
   samplePlayerAccessor = getSamplePlayer;
-  const transformVelocity =
-    options.velocityTransform || defaultVelocityTransform;
-
-  // Register note handling using the package's registerNoteTarget
-  const noteUnsub = inputController.registerNoteTarget({
-    play: (note: number, velocity?: number) => {
-      const player = getSamplePlayer();
-      if (!player) return;
-      const vel =
-        velocity !== undefined
-          ? transformVelocity({ note, velocity } as NoteEvent)
-          : 0;
-      player.play(note, vel);
-    },
-    release: (note: number) => {
-      const player = getSamplePlayer();
-      if (!player) return;
-      player.release(note);
-    },
-  });
-  midiNoteUnsub = noteUnsub;
-
-  // Register sustain pedal (CC 64) using the package's registerControlTarget
-  // sustainPedalActive = false;
-  // const sustainUnsub = inputController.registerControlTarget(
-  //   {
-  //     onControlChange: (value: number, event: ControlChangeEvent) => {
-  //       const player = getSamplePlayer();
-  //       if (!player) return;
-
-  //       const pressed = value >= 0.5; // 64/127 ≈ 0.5
-  //       if (pressed === sustainPedalActive) return;
-
-  //       sustainPedalActive = pressed;
-
-  //       if (pressed) {
-  //         player.sustainPedalOn();
-  //       } else {
-  //         player.sustainPedalOff();
-  //       }
-  //     },
-  //   },
-  //   { controller: 64 }
-  // );
-
-  const sustainUnsub = inputController.registerSustainPedalTarget({
-    setSustainPedal: (pressed: boolean) => {
-      const player = getSamplePlayer();
-      if (!player) return;
-      player.setSustainPedal(pressed);
-    },
-  });
-
-  midiSustainUnsub = sustainUnsub;
+  midiInputChannel = options.inputChannel || 'all';
+  bindNoteAndSustainTargets();
 
   // Initialize knob MIDI if requested
   if (options.enableKnobMidi) {
@@ -293,7 +267,7 @@ export async function enableSamplePlayerMidi(
         options.knobMappings!.forEach(({ cc, selector, name }) => {
           const element = document.querySelector(selector);
           const knobElement = element?.querySelector(
-            'knob-element'
+            'knob-element',
           ) as KnobElement;
 
           if (knobElement) {
@@ -327,7 +301,7 @@ export async function enableSamplePlayerMidi(
     // Set up MIDI learn for incoming CC messages
     if (options.midiLearnEnabled) {
       const learnUnsub = inputController.onControlChange(
-        handleMidiLearnControlChange
+        handleMidiLearnControlChange,
       );
       knobControlUnsubs.push(learnUnsub);
 
@@ -401,7 +375,6 @@ export function disableSamplePlayerMidi(): void {
 
   console.log('MIDI disabled and cleaned up');
 
-  // sustainPedalActive = false;
   samplePlayerAccessor = null;
   enabled = false;
 
@@ -409,6 +382,16 @@ export function disableSamplePlayerMidi(): void {
   stateChangeCallback = undefined;
 }
 
-export function isSamplePlayerMidiEnabled(): boolean {
-  return enabled;
+export function setSamplePlayerMidiInputChannel(
+  channel: MidiInputChannel,
+): void {
+  if (channel === midiInputChannel) return;
+
+  midiInputChannel = channel;
+  if (!enabled) return;
+
+  const player = samplePlayerAccessor?.();
+  player?.setSustainPedal(false);
+  player?.releaseAll();
+  bindNoteAndSustainTargets();
 }

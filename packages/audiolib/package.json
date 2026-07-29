@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./io": {
+      "types": "./dist/io.d.ts",
+      "import": "./dist/io.js"
     }
   },
   "files": [
@@ -33,7 +37,8 @@
     "test:all": "npm run test && npm run test:browser"
   },
   "dependencies": {
-    "dexie": "^4.0.11"
+    "dexie": "^4.0.11",
+    "webmidi": "^3.1.13"
   },
   "devDependencies": {
     "@types/audioworklet": "^0.0.72",

@@ -22,7 +22,7 @@
 
     "paths": {
       "@/*": ["./src/audio-elements/*"],
-      "@repo/input-controller": ["../../packages/input-controller/src/index.ts"]
+      "@repo/audiolib/io": ["../../packages/audiolib/src/io/index.ts"]
     }
   },
   "include": ["src", "src/types"]

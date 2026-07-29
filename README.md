@@ -100,11 +100,9 @@ sampler-monorepo/
 │   │   ├── storage/           # IndexedDB integration
 │   │   └── utils/             # Audio utilities
 │   │
-│   ├── audio-components/      # Web components
+│   └── audio-components/      # Web components
 │   │   ├── elements/          # Vanilla components
 │   │   └── frameworks/        # React & SolidJS wrappers
-│   │
-│   └── input-controller/      # Keyboard input
 │
 └── apps/
     ├── play/                  # Main sampler app
@@ -119,8 +117,8 @@ Exports: `SamplePlayer`, `createSamplePlayer`, envelope generators, utility func
 **`@repo/audio-components`** - Framework-agnostic UI components  
 Exports: Knobs, waveform displays, envelope editors with React/SolidJS wrappers
 
-**`@repo/input-controller`** - Keyboard-to-MIDI mapping  
-Exports: Key mapping configurations and input handlers
+**`@repo/audiolib/io`** - Browser/MIDI input helpers
+Exports: Key mapping configurations and MIDI input handlers
 
 ---
 

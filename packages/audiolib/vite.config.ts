@@ -20,12 +20,17 @@ export default defineConfig({
     // assetsInlineLimit: 0, // Prevent inlining (not needed when using build-processors.js)
 
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        io: resolve(__dirname, 'src/io/index.ts'),
+      },
       name: '@repo/audiolib',
       formats: ['es'],
-      fileName: 'index', // skoða
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
-    rollupOptions: {}, // ??
+    rollupOptions: {
+      external: ['dexie', 'webmidi'],
+    },
     // output: { globals: {}, }, // skoða
   },
   resolve: {

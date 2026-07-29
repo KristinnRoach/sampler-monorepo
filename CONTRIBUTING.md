@@ -24,7 +24,7 @@ pnpm watch
 
 - `packages/audiolib` - Core audio processing
 - `packages/audio-components` - Web components
-- `packages/input-controller` - Keyboard input
+- `packages/audiolib/src/io` - Browser and MIDI input helpers
 - `apps/play` - Main sampler app
 
 ## Making Changes

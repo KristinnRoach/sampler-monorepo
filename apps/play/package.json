@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@repo/audiolib": "workspace:*",
-    "@repo/input-controller": "workspace:*",
     "@repo/vanjs-core": "workspace:*",
     "dexie": "^4.0.11",
     "gsap": "^3.13.0",
