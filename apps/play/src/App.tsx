@@ -353,7 +353,6 @@ const App: Component = () => {
                   target-node-id='test-sampler'
                   label='Loop Drift'
                 />
-                <pan-drift-toggle target-node-id='test-sampler' />
               </div> */}
               </div>
             </div>

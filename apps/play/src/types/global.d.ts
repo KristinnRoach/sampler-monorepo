@@ -53,14 +53,10 @@ declare module 'solid-js' {
       'tempo-knob': any;
 
       // Toggle components
-      'feedback-mode-toggle': any;
       'midi-toggle': any;
       'loop-lock-toggle': any;
       'hold-lock-toggle': any;
-      'gain-lfo-sync-toggle': any;
-      'pitch-lfo-sync-toggle': any;
       'playback-direction-toggle': any;
-      'pan-drift-toggle': any;
       'pitch-toggle': any;
 
       // Keyboard components

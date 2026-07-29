@@ -1,6 +1,6 @@
 // component-utils.ts - Shared utilities for components
 import { type SamplePlayer } from '@repo/audiolib';
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { createKnob, KnobConfig } from '@/elements/primitives/createKnob';
 import { INLINE_COMPONENT_STYLE } from '../../shared/styles/component-styles';
@@ -52,83 +52,6 @@ export const createSamplerConnection = (
   };
 
   return { connect, createMountHandler };
-};
-
-/**
- * Configuration for a toggle component
- */
-export interface ToggleConfig {
-  label?: string;
-  title?: string;
-  defaultValue: boolean;
-  onColor?: string;
-  offText: string;
-  onText: string;
-  onSamplerConnect?: (sampler: any, state: State<boolean>, van: any) => void;
-}
-
-/**
- * Generic factory for creating toggle components
- */
-export const createToggleForTarget = (
-  config: ToggleConfig,
-  Toggle: any,
-  van: any,
-  componentStyle?: string
-) => {
-  const { div } = van.tags;
-
-  return (attributes: ElementProps) => {
-    const toggleState = van.state(config.defaultValue);
-    let connected = false;
-
-    (attributes.$this as any).getValue = () => toggleState.val;
-    (attributes.$this as any).setValue = (value: boolean) => {
-      toggleState.val = value;
-    };
-
-    const connect = () => {
-      if (connected) return;
-      const sampler = getSamplePlayer();
-      if (sampler) {
-        connected = true;
-        config.onSamplerConnect?.(sampler, toggleState, van);
-      }
-    };
-
-    attributes.mount(() => {
-      connect();
-      if (!connected) {
-        const handleInitialized = () => {
-          connect();
-        };
-        document.addEventListener(
-          'sampler-initialized',
-          handleInitialized as EventListener
-        );
-        return () =>
-          document.removeEventListener(
-            'sampler-initialized',
-            handleInitialized as EventListener
-          );
-      }
-    });
-
-    return div(
-      {
-        style: componentStyle || '',
-        title: config.title || config.label || '',
-      },
-
-      Toggle({
-        on: toggleState.val,
-        size: 0.9,
-        onColor: config.onColor || '#4CAF50',
-        onChange: () => (toggleState.val = !toggleState.val),
-      }),
-      div(() => (toggleState.val ? config.onText : config.offText))
-    );
-  };
 };
 
 export const createKnobForTarget = (

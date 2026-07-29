@@ -138,26 +138,11 @@ function captureToggles(
     'hold-lock-toggle',
     'pitch-toggle',
   ];
-  const booleanToggleNames = [
-    'pan-drift-toggle',
-    'feedback-mode-toggle',
-    'gain-lfo-sync-toggle',
-    'pitch-lfo-sync-toggle',
-  ];
-
   svgToggleNames.forEach((name) => {
     const button = controlsRoot.querySelector(`${name} button.svg-button`) as
       | (HTMLButtonElement & { getState?: () => string })
       | null;
     const value = button?.getState?.();
-    if (value !== undefined) toggles[name] = value;
-  });
-
-  booleanToggleNames.forEach((name) => {
-    const control = controlsRoot.querySelector(name) as
-      | (HTMLElement & { getValue?: () => boolean })
-      | null;
-    const value = control?.getValue?.();
     if (value !== undefined) toggles[name] = value;
   });
 
@@ -170,13 +155,7 @@ function restoreToggles(
   toggles: Record<string, boolean | string>,
 ): void {
   Object.entries(toggles).forEach(([name, value]) => {
-    if (typeof value === 'boolean') {
-      const control = controlsRoot.querySelector(name) as
-        | (HTMLElement & { setValue?: (value: boolean) => void })
-        | null;
-      control?.setValue?.(value);
-      return;
-    }
+    if (typeof value !== 'string') return;
 
     const button = controlsRoot.querySelector(`${name} button.svg-button`) as
       | (HTMLButtonElement & { setState?: (value: string) => void })

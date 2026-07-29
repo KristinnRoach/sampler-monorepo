@@ -56,7 +56,6 @@
   /* Component-specific */
   --ac-knob-size: 60px;
   --ac-button-padding: 0.5rem 1rem;
-  --ac-toggle-height: 24px;
   --ac-envelope-height: 200px;
   --ac-keyboard-height: 60px;
 }
@@ -187,77 +186,6 @@
   color: var(--ac-color-text-primary);
   text-align: center;
   font-family: monospace;
-}
-
-/* Toggle component styles */
-.ac-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--ac-spacing-sm);
-}
-
-.ac-toggle__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.ac-toggle--disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.ac-toggle__input:focus-visible + .ac-toggle__container .ac-toggle__switch {
-  outline: 2px solid var(--ac-color-active);
-  outline-offset: 2px;
-}
-
-.ac-toggle__container {
-  position: relative;
-  display: inline-block;
-  width: calc(var(--ac-toggle-height) * 2);
-  height: var(--ac-toggle-height);
-}
-
-.ac-toggle__switch {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ac-color-bg-secondary);
-  border: 1px solid var(--ac-color-border-primary);
-  border-radius: calc(var(--ac-toggle-height) / 2);
-  cursor: pointer;
-  transition: var(--ac-transition);
-}
-
-.ac-toggle__switch::before {
-  content: '';
-  position: absolute;
-  height: calc(var(--ac-toggle-height) - 4px);
-  width: calc(var(--ac-toggle-height) - 4px);
-  left: 2px;
-  bottom: 2px;
-  background: var(--ac-color-bg-primary);
-  border-radius: 50%;
-  transition: var(--ac-transition);
-}
-
-.ac-toggle--on .ac-toggle__switch {
-  background: var(--ac-color-active);
-  border-color: var(--ac-color-active);
-}
-
-.ac-toggle--on .ac-toggle__switch::before {
-  transform: translateX(var(--ac-toggle-height));
-}
-
-.ac-toggle__label {
-  font-size: var(--ac-font-size-sm);
-  color: var(--ac-color-text-secondary);
-  font-weight: 500;
 }
 
 /* Envelope component styles */
