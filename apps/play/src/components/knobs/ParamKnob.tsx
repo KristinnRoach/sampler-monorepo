@@ -16,60 +16,37 @@ import {
   type SamplerParamDescriptor,
   type SamplePlayer,
 } from '@repo/audiolib';
+import {
+  samplerParamValues,
+  setSamplerParamValue,
+} from '../../utils/samplerParamState';
 
 interface ParamKnobProps {
   param: SamplerParamKey;
   player: SamplePlayer | null;
-  /** Part of the localStorage key; matches the old web-component format */
-  nodeId?: string;
   label?: string;
   size?: number;
   class?: string;
   title?: string;
 }
 
-const DEFAULT_NODE_ID = 'test-sampler';
-
 export const ParamKnob: Component<ParamKnobProps> = (props) => {
   const desc: SamplerParamDescriptor = samplerParams[props.param];
-
-  // Same key format as audio-components' createKnobForTarget, so previously
-  // stored values carry over.
-  const storageKey = `${desc.label}:nodeId:${props.nodeId ?? DEFAULT_NODE_ID}`;
-
-  const storedValue = () => {
-    const stored = localStorage.getItem(storageKey);
-    if (stored !== null) {
-      const parsed = parseFloat(stored);
-      if (!isNaN(parsed)) return parsed;
-    }
-    return undefined;
-  };
-
-  const initialValue = storedValue() ?? desc.defaultValue;
-  const [value, setValue] = createSignal(initialValue);
   const [dimmed, setDimmed] = createSignal(false);
+  const value = () => samplerParamValues()[props.param];
 
   let containerRef: HTMLDivElement | undefined;
   let knobEl: KnobElement | undefined;
-  let saveTimer: ReturnType<typeof setTimeout> | undefined;
-
   const handleChange = (e: Event) => {
     const val = (e as CustomEvent<{ value: number }>).detail.value;
-    setValue(val);
-    if (props.player) desc.apply(props.player, val);
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(storageKey, String(val));
-      } catch {
-        /* ignore quota/unavailable */
-      }
-    }, 200);
+    setSamplerParamValue(props.param, val);
   };
 
   onMount(() => {
     const size = props.size ?? 45;
+    // Appending KnobElement synchronously emits its descriptor default. Keep
+    // the storage-backed shared value captured before that event updates state.
+    const initialValue = value();
     defineElement('knob-element', KnobElement);
     knobEl = document.createElement('knob-element') as KnobElement;
 
@@ -92,12 +69,15 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     knobEl.setValue(initialValue);
   });
 
-  // Keep the player parameter in sync with the knob value.
+  // Keep the player and visible knob in sync with Play's parameter state.
   createEffect(() => {
+    const nextValue = value();
+    if (knobEl?.getValue() !== nextValue) knobEl?.setValue(nextValue);
+
     const player = props.player;
     if (!player) return;
 
-    desc.apply(player, value());
+    desc.apply(player, nextValue);
   });
 
   // On player ready, wire up dynamic max (sample-length-relative params) to
@@ -153,7 +133,6 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
   });
 
   onCleanup(() => {
-    clearTimeout(saveTimer);
     knobEl?.removeEventListener('knob-change', handleChange);
   });
 

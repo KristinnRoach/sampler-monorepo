@@ -48,6 +48,9 @@ export const [samplePlayer, setSamplePlayer] =
 export const getSamplePlayer = () => samplePlayer();
 
 const App: Component = () => {
+  const [controlsRoot, setControlsRoot] = createSignal<HTMLDivElement | null>(
+    null,
+  );
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
 
@@ -66,6 +69,7 @@ const App: Component = () => {
 
   const { handleSampleSelect } = useSampleSelection(
     getSamplePlayer,
+    controlsRoot,
     setSidebarOpen,
   );
 
@@ -265,6 +269,8 @@ const App: Component = () => {
 
             <SaveButton
               audioBuffer={currentAudioBuffer()}
+              player={samplePlayer()}
+              controlsRoot={controlsRoot()}
               disabled={!sampleLoaded()}
               isOpen={sidebarOpen()}
               class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
@@ -316,7 +322,11 @@ const App: Component = () => {
         {/* <Oscilloscope ctx={} input={} /> */}
 
         {/* // ! END TEST sidebar ! */}
-        <div class={`control-grid layout-${layout()}`} id='sampler-container'>
+        <div
+          ref={setControlsRoot}
+          class={`control-grid layout-${layout()}`}
+          id='sampler-container'
+        >
           <fieldset class='control-group env-group'>
             <legend class='expandable-legend'>Envelopes</legend>
             <div class='expandable-content'>
@@ -461,7 +471,16 @@ const App: Component = () => {
             <legend class='expandable-legend'>Dirt</legend>
             <div class='expandable-content'>
               <ParamKnob param='distortion' player={samplePlayer()} />
-              <am-modulation label='AM' target-node-id='test-sampler' />
+              <div
+                class='am-modulation-composite'
+                style='display: inline-flex; flex-direction: column; align-items: center; gap: 2px;'
+              >
+                <ParamKnob param='amMod' label='AM' player={samplePlayer()} />
+                <waveform-select
+                  target-node-id='test-sampler'
+                  show-label='false'
+                />
+              </div>
             </div>
           </fieldset>
 

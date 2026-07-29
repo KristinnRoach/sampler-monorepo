@@ -82,6 +82,11 @@ export const createToggleForTarget = (
     const toggleState = van.state(config.defaultValue);
     let connected = false;
 
+    (attributes.$this as any).getValue = () => toggleState.val;
+    (attributes.$this as any).setValue = (value: boolean) => {
+      toggleState.val = value;
+    };
+
     const connect = () => {
       if (connected) return;
       const sampler = getSamplePlayer();
