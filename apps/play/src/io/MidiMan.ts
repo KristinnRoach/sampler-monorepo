@@ -30,6 +30,10 @@ let samplePlayerAccessor: SamplePlayerAccessor | null = null;
 let midiLearnActive = false;
 let knobsToLearn: KnobElement[] = [];
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+// Deferred knob setup, cancelled if MIDI is disabled before it runs
+let knobSetupTimeout: ReturnType<typeof setTimeout> | null = null;
+// Removes every knob click listener in one call on teardown
+let knobClickListeners: AbortController | null = null;
 
 // Track unsubscribe functions by CC number
 let ccUnsubscribes: Map<number, () => void> = new Map();
@@ -246,7 +250,9 @@ export async function enableSamplePlayerMidi(
 
   // Set up default / initial knob mappings
   if (options.knobMappings) {
-    setTimeout(() => {
+    knobSetupTimeout = setTimeout(() => {
+      knobSetupTimeout = null;
+
       options.knobMappings!.forEach(({ cc, selector, name }) => {
         const element = document.querySelector(selector);
         const knobElement = element?.querySelector(
@@ -266,15 +272,21 @@ export async function enableSamplePlayerMidi(
 
       // Add MIDI learn click handlers to all knobs if enabled
       if (options.midiLearnEnabled) {
+        const controller = new AbortController();
+        knobClickListeners = controller;
         document.querySelectorAll('knob-element').forEach((knob) => {
-          knob.addEventListener('click', ((e: MouseEvent) => {
-            // Only activate if MIDI learn mode is active
-            if (midiLearnActive) {
-              const isShiftKey = e.shiftKey;
-              startMidiLearnForKnob(knob as KnobElement, isShiftKey);
-              e.stopPropagation();
-            }
-          }) as EventListener);
+          knob.addEventListener(
+            'click',
+            ((e: MouseEvent) => {
+              // Only activate if MIDI learn mode is active
+              if (midiLearnActive) {
+                const isShiftKey = e.shiftKey;
+                startMidiLearnForKnob(knob as KnobElement, isShiftKey);
+                e.stopPropagation();
+              }
+            }) as EventListener,
+            { signal: controller.signal },
+          );
         });
       }
     }, 500); // Small delay to ensure knobs are ready
@@ -326,9 +338,18 @@ export function disableSamplePlayerMidi(): void {
   //   player?.sustainPedalOff();
   // }
 
+  // Cancel pending knob setup so it can't register targets after teardown
+  if (knobSetupTimeout !== null) {
+    clearTimeout(knobSetupTimeout);
+    knobSetupTimeout = null;
+  }
+
   // Clean up knob MIDI resources
   knobControlUnsubs.forEach((unsub) => unsub());
   knobControlUnsubs = [];
+
+  knobClickListeners?.abort();
+  knobClickListeners = null;
 
   if (keydownHandler) {
     document.removeEventListener('keydown', keydownHandler);
