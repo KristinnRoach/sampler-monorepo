@@ -3,6 +3,7 @@
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
+import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { clamp, findClosestNote, ROOT_NOTES } from '@/utils';
 import { Debouncer } from '@/utils/Debouncer';
 
@@ -550,6 +551,38 @@ export class SamplePlayer implements ILibInstrumentNode {
     return buffer;
   }
 
+  async cropSample(
+    startSeconds = this.getStartPoint(),
+    endSeconds = this.getEndPoint(),
+    fadeMs = 4,
+  ): Promise<AudioBuffer | null> {
+    const buffer = this.#audiobuffer;
+    if (!buffer) return null;
+
+    const startSample = Math.max(
+      0,
+      Math.floor(startSeconds * buffer.sampleRate),
+    );
+    const endSample = Math.min(
+      buffer.length,
+      Math.ceil(endSeconds * buffer.sampleRate),
+    );
+
+    if (endSample <= startSample) return null;
+
+    const croppedBuffer = trimAudioBuffer(
+      this.context,
+      buffer,
+      startSample,
+      endSample,
+      fadeMs,
+    );
+
+    return this.loadSample(croppedBuffer, undefined, {
+      skipPreProcessing: true,
+    });
+  }
+
   async detectPitch(buffer: AudioBuffer) {
     const pitchSource = await detectSinglePitchAC(buffer);
     const targetNoteInfo = findClosestNote(pitchSource.frequency);
@@ -1031,18 +1064,13 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /** PARAM GETTERS  */
 
+  // TODO: Consider moving source of truth from SampleVoice to SamplePlayer, or convert to MacroParams, symmetrical with the loop start/end points
   getStartPoint(): number {
-    return this.getStoredParamValue(
-      'startPoint',
-      DEFAULT_PARAM_DESCRIPTORS.START_POINT.defaultValue,
-    );
+    return this.voicePool?.allVoices[0]?.startPoint ?? 0;
   }
 
   getEndPoint(): number {
-    return this.getStoredParamValue(
-      'endPoint',
-      DEFAULT_PARAM_DESCRIPTORS.END_POINT.defaultValue,
-    );
+    return this.voicePool?.allVoices[0]?.endPoint ?? this.sampleDuration;
   }
 
   getLoopRampDuration(): number {
