@@ -165,6 +165,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       case 'voice:setBuffer':
         this.#resetState();
+        this.zeroCrossings = [];
+        this.minZeroCrossing = 0;
+        this.maxZeroCrossing = 0;
         this.buffer = null;
         this.buffer = buffer;
 
@@ -709,10 +712,19 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
     this.playbackPosition = outgoingZero;
     state.resetPending = false;
-    return this.#findNearestZeroCrossing(state.timelinePosition);
+    return this.#findNearestZeroCrossing(
+      state.timelinePosition,
+      'any',
+      state.maxDriftSamples,
+    );
   }
 
-  #advanceDurationPreservingPlayback(playbackRate, resetTarget, loopRange) {
+  #advanceDurationPreservingPlayback(
+    playbackRate,
+    resetTarget,
+    loopRange,
+    canWrapLoop,
+  ) {
     const state = this.durationPreservation;
 
     this.playbackPosition =
@@ -722,13 +734,13 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       state.timelinePosition += playbackRate < 0 ? -1 : 1;
 
       if (
-        this.loopEnabled &&
+        canWrapLoop &&
         playbackRate >= 0 &&
         state.timelinePosition >= loopRange.loopEndSamples
       ) {
         state.timelinePosition = loopRange.loopStartSamples;
       } else if (
-        this.loopEnabled &&
+        canWrapLoop &&
         playbackRate < 0 &&
         state.timelinePosition <= loopRange.loopStartSamples
       ) {
@@ -956,7 +968,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       const playbackStep = effectiveRate * this.transpositionPlaybackrate;
 
       // Handle looping
-      if (this.loopEnabled && this.loopCount < parameters.maxLoopCount[0]) {
+      const canWrapLoop =
+        this.loopEnabled && this.loopCount < parameters.maxLoopCount[0];
+      if (canWrapLoop) {
         if (
           !this.reversePlayback &&
           this.playbackPosition >= loopRange.loopEndSamples
@@ -1129,6 +1143,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         playbackStep,
         durationResetTarget,
         loopRange,
+        canWrapLoop,
       );
     }
 
