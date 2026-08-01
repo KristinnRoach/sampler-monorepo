@@ -746,6 +746,8 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       ) {
         state.timelinePosition = loopRange.loopEndSamples - 1;
       }
+    } else {
+      this.#resetDurationPreservation(this.playbackPosition);
     }
   }
 
