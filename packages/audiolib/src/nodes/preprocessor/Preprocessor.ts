@@ -28,7 +28,7 @@ export const DEFAULT_PRE_PROCESS_OPTIONS: PreProcessOptions = {
   normalize: { enabled: true, maxAmplitudePeak: 0.99 }, // amplitude range [-1, 1]
   compress: { enabled: true },
   trimSilence: { enabled: true, threshold: 0.005 },
-  fadeInOutMs: 5, // milliseconds
+  fadeInOutMs: 1, // milliseconds
   tune: { detectPitch: true, autotune: true, targetMidiNote: 60 },
   hpf: { auto: true },
   getZeroCrossings: true,
@@ -47,7 +47,7 @@ export type PreProcessResults = {
 export async function preProcessAudioBuffer(
   ctx: AudioContext,
   buffer: AudioBuffer,
-  options: Partial<PreProcessOptions> = {}
+  options: Partial<PreProcessOptions> = {},
 ): Promise<PreProcessResults> {
   const {
     fadeInOutMs = DEFAULT_PRE_PROCESS_OPTIONS.fadeInOutMs,
@@ -88,7 +88,7 @@ export async function preProcessAudioBuffer(
   if (trimSilence?.enabled) {
     const { start, end } = detectThresholdCrossing(
       processed,
-      trimSilence.threshold ?? 0.01
+      trimSilence.threshold ?? 0.01,
     );
     processed = trimAudioBuffer(ctx, processed, start, end, fadeInOutMs);
   }
@@ -114,7 +114,7 @@ export async function preProcessAudioBuffer(
     processed = normalizeAudioBuffer(
       ctx,
       processed,
-      normalize.maxAmplitudePeak
+      normalize.maxAmplitudePeak,
     );
   }
 
@@ -147,7 +147,7 @@ export async function preProcessAudioBuffer(
         processed,
         settings.threshold,
         settings.ratio,
-        settings.makeupGain
+        settings.makeupGain,
       );
     }
   }
@@ -162,7 +162,7 @@ export async function preProcessAudioBuffer(
     const targetMidiNote = tune?.targetMidiNote || 60;
     const transposeSemitones = detectedPitchToTransposition(
       detectedPitch.midiFloat,
-      targetMidiNote
+      targetMidiNote,
     );
 
     results.detectedPitch = {
@@ -186,7 +186,7 @@ export async function preProcessAudioBuffer(
       processed = resampleForPitch(
         ctx,
         processed,
-        results.detectedPitch.transpositionSemitones
+        results.detectedPitch.transpositionSemitones,
       );
     }
   }
@@ -195,7 +195,7 @@ export async function preProcessAudioBuffer(
     processed = normalizeAudioBuffer(
       ctx,
       processed,
-      normalize.maxAmplitudePeak
+      normalize.maxAmplitudePeak,
     );
   }
 
@@ -222,7 +222,7 @@ export async function preProcessAudioBuffer(
 function resampleForPitch(
   ctx: AudioContext,
   buffer: AudioBuffer,
-  semitones: number
+  semitones: number,
 ): AudioBuffer {
   // Calculate playback rate based on semitone difference
   const playbackRate = Math.pow(2, semitones / 12);
@@ -235,7 +235,7 @@ function resampleForPitch(
   const newBuffer = ctx.createBuffer(
     buffer.numberOfChannels,
     newLength,
-    buffer.sampleRate
+    buffer.sampleRate,
   );
 
   // Resample each channel
@@ -291,7 +291,7 @@ async function detectPitch(buffer: AudioBuffer, logResults = false) {
 
 function detectedPitchToTransposition(
   detectedMidiFloat: number,
-  targetMidiNote: number
+  targetMidiNote: number,
 ) {
   let transposeSemitones = targetMidiNote - detectedMidiFloat;
   // Wrap to nearest octave (-6 to +6 semitones)
@@ -304,12 +304,12 @@ function detectedPitchToTransposition(
 async function applyHighPassFilter(
   buffer: AudioBuffer,
   cutoff: number,
-  q = 0.5 // Gentle slope, minimal resonance
+  q = 0.5, // Gentle slope, minimal resonance
 ): Promise<AudioBuffer> {
   const offlineCtx = new OfflineAudioContext(
     buffer.numberOfChannels,
     buffer.length,
-    buffer.sampleRate
+    buffer.sampleRate,
   );
 
   const source = offlineCtx.createBufferSource();
