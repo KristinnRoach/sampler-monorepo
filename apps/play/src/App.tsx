@@ -663,7 +663,12 @@ const App: Component = () => {
           <fieldset class='control-group toggle-group'>
             <legend class='expandable-legend'>Toggles</legend>
             <div class='expandable-content'>
-              <midi-toggle target-node-id='test-sampler' />
+              <SamplerToggle
+                param='timestretch'
+                player={samplePlayer()}
+                class='sampler-toggle-container'
+              />
+              {/* <midi-toggle target-node-id='test-sampler' /> */}
               <playback-direction-toggle target-node-id='test-sampler' />
               <loop-lock-toggle target-node-id='test-sampler' />
               <hold-lock-toggle target-node-id='test-sampler' />

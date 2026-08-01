@@ -122,7 +122,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // Experimental duration preservation. Kept as one feature state object so
     // it can be extracted from this processor cleanly later.
     this.durationPreservation = {
-      enabled: true,
+      enabled: false,
       maxDriftSamples: Math.floor(sampleRate * 0.04),
       timelinePosition: 0,
       resetPending: false,
@@ -702,8 +702,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     );
 
     if (
-      Math.abs(outgoingZero - this.playbackPosition) >
-      Math.abs(playbackRate)
+      Math.abs(outgoingZero - this.playbackPosition) > Math.abs(playbackRate)
     ) {
       return null;
     }
@@ -717,9 +716,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     const state = this.durationPreservation;
 
     this.playbackPosition =
-      resetTarget === null
-        ? this.playbackPosition + playbackRate
-        : resetTarget;
+      resetTarget === null ? this.playbackPosition + playbackRate : resetTarget;
 
     if (this.#isDurationPreservationActive(loopRange)) {
       state.timelinePosition += playbackRate < 0 ? -1 : 1;

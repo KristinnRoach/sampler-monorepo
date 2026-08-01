@@ -839,6 +839,15 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   };
 
+  setTimestretchEnabled = (enabled: boolean) => {
+    this.voicePool.applyToAllVoices((voice) =>
+      voice.setTimestretchEnabled(enabled),
+    );
+
+    this.storeParamValue('timestretchEnabled', enabled);
+    return this;
+  };
+
   isNormalized = (value: number, range = [0, 1]) =>
     value >= range[0] && value <= range[1];
 
@@ -891,7 +900,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     const clamped = Math.max(0, Math.min(1, amount));
     this.#keytrackLoopAmount = clamped;
     this.voicePool.applyToAllVoices((voice) =>
-      voice.setKeytrackLoopAmount(clamped)
+      voice.setKeytrackLoopAmount(clamped),
     );
     this.storeParamValue('keytrackLoopAmount', clamped);
     return this;
@@ -903,7 +912,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   getKeytrackLoopAmount = () => {
     this.#keytrackLoopAmount ??= this.getStoredParamValue(
       'keytrackLoopAmount',
-      0
+      0,
     );
     return this.#keytrackLoopAmount;
   };

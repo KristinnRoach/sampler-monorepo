@@ -8,6 +8,12 @@ export interface SamplerToggleDescriptor {
 }
 
 export const samplerToggles = {
+  timestretch: {
+    label: 'Timestretch',
+    defaultValue: false,
+    format: (enabled) => (enabled ? 'Warp' : 'RePitch'),
+    apply: (player, enabled) => player.setTimestretchEnabled(enabled),
+  },
   panDrift: {
     label: 'Pan drift',
     defaultValue: true,

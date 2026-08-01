@@ -25,25 +25,6 @@ import {
 } from './components/SamplerSelectFactory';
 import { SamplerStatusElement } from './components/SamplerStatusElement';
 
-export {
-  MidiToggle,
-  LoopLockToggle,
-  HoldLockToggle,
-  PlaybackDirectionToggle,
-  PitchToggle,
-  ComputerKeyboard,
-  PianoKeyboard,
-  RecordButton,
-  UploadButton,
-  SaveButton,
-  KeymapSelect,
-  WaveformSelect,
-  InputSourceSelect,
-  RootNoteSelect,
-  SamplerStatusElement,
-  EnvelopeDisplay,
-};
-
 const defineIfNotExists = (name: string, elementFunc: any, options: any) => {
   if (!customElements.get(name)) {
     define(name, elementFunc, options);
@@ -78,4 +59,23 @@ export const defineSampler = () => {
   defineIfNotExists('rootnote-select', RootNoteSelect, false);
 
   defineIfNotExists('sampler-status', SamplerStatusElement, false);
+};
+
+export {
+  MidiToggle,
+  LoopLockToggle,
+  HoldLockToggle,
+  PlaybackDirectionToggle,
+  PitchToggle,
+  ComputerKeyboard,
+  PianoKeyboard,
+  RecordButton,
+  UploadButton,
+  SaveButton,
+  KeymapSelect,
+  WaveformSelect,
+  InputSourceSelect,
+  RootNoteSelect,
+  SamplerStatusElement,
+  EnvelopeDisplay,
 };

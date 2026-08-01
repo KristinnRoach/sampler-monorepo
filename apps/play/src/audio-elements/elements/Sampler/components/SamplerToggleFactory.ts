@@ -40,7 +40,7 @@ export const PlaybackDirectionToggle = () => {
           currentState === 'direction_reverse' ? 'reverse' : 'forward';
         sampler.setPlaybackDirection(direction);
       },
-    }
+    },
   );
 
   return div({ style: '' }, toggleButton);
@@ -62,7 +62,7 @@ export const LoopLockToggle = () => {
         sampler.setLoopLocked(shouldLock);
       },
       initialState: 'loop_unlocked',
-    }
+    },
   );
 
   return div({ style: '' }, toggleButton);
@@ -84,7 +84,7 @@ export const HoldLockToggle = () => {
         sampler.setHoldLocked(shouldLock);
       },
       initialState: 'hold_unlocked',
-    }
+    },
   );
 
   return div({ style: '' }, toggleButton);
@@ -105,7 +105,7 @@ export const PitchToggle = () => {
         if (currentState === 'pitch_on') sampler.enablePitch();
         else if (currentState === 'pitch_off') sampler.disablePitch();
       },
-    }
+    },
   );
 
   return div({ style: '' }, toggleButton);
