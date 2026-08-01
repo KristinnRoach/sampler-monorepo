@@ -119,6 +119,15 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     // NOTE: Using keytrackLoopAmount > 0 means that audio-rate loop lengths no longer quantize to midinote
     this.keytrackLoopAmount = 0;
 
+    // Experimental duration preservation. Kept as one feature state object so
+    // it can be extracted from this processor cleanly later.
+    this.durationPreservation = {
+      enabled: false,
+      maxDriftSamples: Math.floor(sampleRate * 0.04),
+      timelinePosition: 0,
+      resetPending: false,
+    };
+
     // C0 (lowest piano note) = ~16.35 Hz
     // Period = 1/16.35 ≈ 0.061 seconds
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
@@ -156,6 +165,9 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
 
       case 'voice:setBuffer':
         this.#resetState();
+        this.zeroCrossings = [];
+        this.minZeroCrossing = 0;
+        this.maxZeroCrossing = 0;
         this.buffer = null;
         this.buffer = buffer;
 
@@ -263,6 +275,11 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       case 'setKeytrackLoopAmount':
         this.keytrackLoopAmount = Math.max(0, Math.min(1, value));
         break;
+
+      case 'setPreserveDuration':
+        this.durationPreservation.enabled = Boolean(value);
+        this.#resetDurationPreservation(this.playbackPosition);
+        break;
     }
   }
 
@@ -295,6 +312,8 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.loopAmplitudeGain = 1.0;
     this.lastAnalyzedLoopStart = -1;
     this.lastAnalyzedLoopEnd = -1;
+
+    this.#resetDurationPreservation();
   }
 
   #stop() {
@@ -649,6 +668,89 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
     return this.constantFlags;
   }
 
+  // ===== DURATION PRESERVATION =====
+
+  #resetDurationPreservation(position = 0) {
+    this.durationPreservation.timelinePosition = position;
+    this.durationPreservation.resetPending = false;
+  }
+
+  #isDurationPreservationActive(loopRange) {
+    return (
+      this.durationPreservation.enabled &&
+      Boolean(this.zeroCrossings?.length) &&
+      (!this.loopEnabled ||
+        loopRange.loopDurationSamples > this.PITCH_PRESERVATION_THRESHOLD)
+    );
+  }
+
+  #prepareDurationPreservingSample(playbackRate, loopRange) {
+    const state = this.durationPreservation;
+
+    if (!this.#isDurationPreservationActive(loopRange)) return null;
+
+    if (
+      Math.abs(this.playbackPosition - state.timelinePosition) >
+      state.maxDriftSamples
+    ) {
+      state.resetPending = true;
+    }
+
+    if (!state.resetPending) return null;
+
+    const direction = playbackRate < 0 ? 'left' : 'right';
+    const outgoingZero = this.#findNearestZeroCrossing(
+      this.playbackPosition,
+      direction,
+    );
+
+    if (
+      Math.abs(outgoingZero - this.playbackPosition) > Math.abs(playbackRate)
+    ) {
+      return null;
+    }
+
+    this.playbackPosition = outgoingZero;
+    state.resetPending = false;
+    return this.#findNearestZeroCrossing(
+      state.timelinePosition,
+      'any',
+      state.maxDriftSamples,
+    );
+  }
+
+  #advanceDurationPreservingPlayback(
+    playbackRate,
+    resetTarget,
+    loopRange,
+    canWrapLoop,
+  ) {
+    const state = this.durationPreservation;
+
+    this.playbackPosition =
+      resetTarget === null ? this.playbackPosition + playbackRate : resetTarget;
+
+    if (this.#isDurationPreservationActive(loopRange)) {
+      state.timelinePosition += playbackRate < 0 ? -1 : 1;
+
+      if (
+        canWrapLoop &&
+        playbackRate >= 0 &&
+        state.timelinePosition >= loopRange.loopEndSamples
+      ) {
+        state.timelinePosition = loopRange.loopStartSamples;
+      } else if (
+        canWrapLoop &&
+        playbackRate < 0 &&
+        state.timelinePosition <= loopRange.loopStartSamples
+      ) {
+        state.timelinePosition = loopRange.loopEndSamples - 1;
+      }
+    } else {
+      this.#resetDurationPreservation(this.playbackPosition);
+    }
+  }
+
   /**
    * Generate a new drift amount for the current loop iteration
    * @param {number} driftAmount - Maximum drift amount (0-1)
@@ -843,6 +945,7 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       this.playbackPosition = this.reversePlayback
         ? playbackRange.endSamples - 1
         : playbackRange.startSamples;
+      this.#resetDurationPreservation(this.playbackPosition);
     }
 
     // ===== AUDIO PROCESSING =====
@@ -864,9 +967,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
       const effectiveRate = this.reversePlayback
         ? -Math.abs(baseRate)
         : Math.abs(baseRate);
+      const playbackStep = effectiveRate * this.transpositionPlaybackrate;
 
       // Handle looping
-      if (this.loopEnabled && this.loopCount < parameters.maxLoopCount[0]) {
+      const canWrapLoop =
+        this.loopEnabled && this.loopCount < parameters.maxLoopCount[0];
+      if (canWrapLoop) {
         if (
           !this.reversePlayback &&
           this.playbackPosition >= loopRange.loopEndSamples
@@ -912,14 +1018,23 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         }
       }
 
+      const durationResetTarget = this.#prepareDurationPreservingSample(
+        playbackStep,
+        loopRange,
+      );
+
       // Check for end of playback range (forward & reversed)
       // Don't stop if we're looping and within the playback range
       const shouldStopForward =
         !this.reversePlayback &&
-        this.playbackPosition >= playbackRange.endSamples;
+        (this.#isDurationPreservationActive(loopRange)
+          ? this.durationPreservation.timelinePosition
+          : this.playbackPosition) >= playbackRange.endSamples;
       const shouldStopReverse =
         this.reversePlayback &&
-        this.playbackPosition <= playbackRange.startSamples;
+        (this.#isDurationPreservationActive(loopRange)
+          ? this.durationPreservation.timelinePosition
+          : this.playbackPosition) <= playbackRange.startSamples;
       const isWithinLoop =
         this.loopEnabled &&
         this.playbackPosition >= loopRange.loopStartSamples &&
@@ -1026,7 +1141,12 @@ export class SamplePlayerProcessor extends AudioWorkletProcessor {
         );
       }
 
-      this.playbackPosition += effectiveRate * this.transpositionPlaybackrate;
+      this.#advanceDurationPreservingPlayback(
+        playbackStep,
+        durationResetTarget,
+        loopRange,
+        canWrapLoop,
+      );
     }
 
     // Send position updates if requested

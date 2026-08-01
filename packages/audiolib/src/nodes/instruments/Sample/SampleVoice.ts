@@ -77,7 +77,7 @@ export class SampleVoice {
 
   constructor(
     private context: AudioContext = getAudioContext(),
-    options: { processorOptions?: any; enableFilters?: boolean } = {}
+    options: { processorOptions?: any; enableFilters?: boolean } = {},
   ) {
     this.nodeId = registerNode(this.nodeType, this);
     this.#messages = createMessageBus<Message>(this.nodeId);
@@ -93,7 +93,7 @@ export class SampleVoice {
         numberOfOutputs: 1,
         outputChannelCount: [2], // Force stereo output
         processorOptions: options.processorOptions || {},
-      }
+      },
     );
 
     // Connections are made in #connectAudioChain() during init()
@@ -213,25 +213,25 @@ export class SampleVoice {
   #logAvailableParams = () => {
     console.table(
       'Available worklet params:',
-      Array.from(this.#playerWorklet.parameters.keys())
+      Array.from(this.#playerWorklet.parameters.keys()),
     );
   };
 
   async loadBuffer(
     buffer: AudioBuffer,
-    zeroCrossings?: number[]
+    zeroCrossings?: number[],
   ): Promise<boolean> {
     this.#state = VoiceState.NOT_READY;
 
     if (buffer.sampleRate !== this.context.sampleRate) {
       console.warn(
-        `Sample rate mismatch - buffer: ${buffer.sampleRate}, context: ${this.context.sampleRate}`
+        `Sample rate mismatch - buffer: ${buffer.sampleRate}, context: ${this.context.sampleRate}`,
       );
       return false;
     }
 
     const bufferData = Array.from({ length: buffer.numberOfChannels }, (_, i) =>
-      buffer.getChannelData(i).slice()
+      buffer.getChannelData(i).slice(),
     );
 
     this.sendToProcessor({
@@ -255,7 +255,7 @@ export class SampleVoice {
   freeze(freeze: boolean): this {
     console.info(
       `SampleVoice: freeze(${freeze}) called. 
-      Spectral freeze not implemented yet`
+      Spectral freeze not implemented yet`,
     );
     // if (this.#isFrozen === freeze) return this; // idempotent
     // this.#isFrozen = freeze;
@@ -336,7 +336,7 @@ export class SampleVoice {
       this.getParam('playbackRate')!.setTargetAtTime(
         playbackRate,
         timestamp,
-        scaledGlideTime
+        scaledGlideTime,
       );
     } else {
       this.setParam('playbackRate', playbackRate, timestamp);
@@ -375,7 +375,7 @@ export class SampleVoice {
     timestamp: number,
     playbackRate: number,
     velocity?: number,
-    midiNote?: number
+    midiNote?: number,
   ) {
     this.#envelopes.forEach((env, envType) => {
       if (!env.isEnabled) return;
@@ -463,13 +463,13 @@ export class SampleVoice {
 
     // Get longest release time of enabled envelopes
     const enabledEnvelopes = Array.from(this.#envelopes.values()).filter(
-      (env) => env.isEnabled
+      (env) => env.isEnabled,
     );
 
     const effectiveReleaseTime =
       enabledEnvelopes.length > 0
         ? Math.max(
-            ...enabledEnvelopes.map((env) => env.effectiveReleaseDuration)
+            ...enabledEnvelopes.map((env) => env.effectiveReleaseDuration),
           )
         : releaseTime; // Fallback passed in release time
 
@@ -488,7 +488,7 @@ export class SampleVoice {
           this.#releaseTimeout = null;
         }
       },
-      effectiveReleaseTime * 1000 + 50
+      effectiveReleaseTime * 1000 + 50,
     ); // 50ms buffer
 
     return this;
@@ -517,7 +517,7 @@ export class SampleVoice {
         this.sendToProcessor({ type: 'voice:stop', timestamp: stopAt });
         this.#stopTimeout = null;
       },
-      Math.max(0, (stopAt + deClickSeconds - this.now) * 1000)
+      Math.max(0, (stopAt + deClickSeconds - this.now) * 1000),
     );
     return this;
   }
@@ -529,7 +529,7 @@ export class SampleVoice {
     options: {
       glideTime?: number;
       cancelPrevious?: boolean;
-    } = {}
+    } = {},
   ) {
     if (!this.#activeMidiNote || !this.#hpf || this.#keytrackHPFAmount <= 0) {
       return;
@@ -559,7 +559,7 @@ export class SampleVoice {
     options: {
       glideTime?: number;
       cancelPrevious?: boolean;
-    } = {}
+    } = {},
   ) {
     if (!this.#activeMidiNote || !this.#lpf || this.#keytrackLPFAmount <= 0) {
       return;
@@ -588,7 +588,7 @@ export class SampleVoice {
   #setupAmpModLFO(
     depth = 0,
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'square',
-    customWaveOptions: WaveformOptions = {}
+    customWaveOptions: WaveformOptions = {},
   ) {
     if (this.#am_lfo === null) {
       this.#am_lfo = new LFO(this.context);
@@ -634,7 +634,7 @@ export class SampleVoice {
   setModulationWaveform(
     modType: 'AM' | 'FM' = 'AM',
     waveform: CustomLibWaveform | OscillatorType | PeriodicWave = 'triangle',
-    customWaveOptions: WaveformOptions = {}
+    customWaveOptions: WaveformOptions = {},
   ) {
     if (modType === 'AM') {
       if (!this.#am_lfo) this.#setupAmpModLFO();
@@ -685,7 +685,7 @@ export class SampleVoice {
     envType: EnvelopeType,
     index: number,
     time?: number,
-    value?: number
+    value?: number,
   ) {
     const env = this.#envelopes.get(envType);
     if (env?.isEnabled) env.updatePoint(index, time, value);
@@ -719,7 +719,7 @@ export class SampleVoice {
     options: {
       glideTime?: number;
       cancelPrevious?: boolean;
-    } = {}
+    } = {},
   ): this {
     const param = this.getParam(name);
     if (!param || param.value === targetValue) return this;
@@ -733,7 +733,7 @@ export class SampleVoice {
     else
       param.linearRampToValueAtTime(
         targetValue,
-        timestamp + Math.max(glideTime, 0.001)
+        timestamp + Math.max(glideTime, 0.001),
       );
 
     return this;
@@ -745,10 +745,10 @@ export class SampleVoice {
     options: {
       glideTime?: number;
       cancelPrevious?: boolean;
-    } = {}
+    } = {},
   ): this {
     const validParams = paramsAndValues.filter(
-      (pv) => this.getParam(pv.name) !== null
+      (pv) => this.getParam(pv.name) !== null,
     );
     if (validParams.length === 0) return this;
 
@@ -763,7 +763,7 @@ export class SampleVoice {
     start: number,
     end: number,
     timestamp = this.now,
-    rampTime = 0
+    rampTime = 0,
   ): this {
     if (start >= end) return this;
 
@@ -820,7 +820,7 @@ export class SampleVoice {
 
     this.getParam('playbackRate')?.linearRampToValueAtTime(
       1,
-      timestamp + glideTime
+      timestamp + glideTime,
     );
 
     this.#updateHPFCutoffForPlaybackRate(1, timestamp, { glideTime });
@@ -836,7 +836,7 @@ export class SampleVoice {
       const rate = midiToPlaybackRate(this.#activeMidiNote);
       this.getParam('playbackRate')?.linearRampToValueAtTime(
         rate,
-        this.context.currentTime + 0.01
+        this.context.currentTime + 0.01,
       );
       this.#updateHPFCutoffForPlaybackRate(rate, timestamp, {
         glideTime,
@@ -852,7 +852,7 @@ export class SampleVoice {
   connect(
     destination: Destination,
     output?: number,
-    input?: number
+    input?: number,
   ): Destination {
     if (destination instanceof LibAudioNode) {
       this.out.connect(destination.input, output);
@@ -911,7 +911,7 @@ export class SampleVoice {
           ...msg,
           voiceId: this.nodeId,
           midiNote: this.#activeMidiNote,
-        })
+        }),
       );
     });
   }
@@ -984,7 +984,7 @@ export class SampleVoice {
         case 'voice:position':
           this.getParam('playbackPosition')?.setValueAtTime(
             data.position,
-            this.context.currentTime
+            this.context.currentTime,
           );
           break;
 
@@ -994,7 +994,7 @@ export class SampleVoice {
             { loopStart: data.loopStart },
             { loopStartSamples: data.loopStartSamples },
             { loopEnd: data.loopEnd },
-            { loopEndSamples: data.loopEndSamples }
+            { loopEndSamples: data.loopEndSamples },
           );
           break;
 
@@ -1117,7 +1117,7 @@ export class SampleVoice {
   setEnvelopeLoop = (
     envType: EnvelopeType,
     loop: boolean,
-    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal'
+    mode: 'normal' | 'ping-pong' | 'reverse' = 'normal',
   ) => {
     const env = this.#envelopes.get(envType);
     env?.setLoopEnabled(loop, mode);
@@ -1136,7 +1136,7 @@ export class SampleVoice {
     options?: {
       glideTime?: number;
       cancelPrevious?: boolean;
-    }
+    },
   ): this {
     this.setParam('playbackRate', rate, atTime, options);
     this.#updateHPFCutoffForPlaybackRate(rate, atTime, options);
@@ -1147,7 +1147,7 @@ export class SampleVoice {
   setHpfCutoff(
     hz: number,
     atTime: number = this.now,
-    options: { glideTime?: number; cancelPrevious?: boolean } = {}
+    options: { glideTime?: number; cancelPrevious?: boolean } = {},
   ) {
     const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.#hpfHz = safeHz;
@@ -1163,7 +1163,7 @@ export class SampleVoice {
   setLpfCutoff(
     hz: number,
     atTime: number = this.now,
-    options: { glideTime?: number; cancelPrevious?: boolean } = {}
+    options: { glideTime?: number; cancelPrevious?: boolean } = {},
   ) {
     const safeHz = clamp(hz, 20, this.context.sampleRate / 2 - 1000);
     this.#lpfHz = safeHz;
@@ -1212,6 +1212,9 @@ export class SampleVoice {
 
   setPanDriftEnabled = (enabled: boolean) =>
     this.sendToProcessor({ type: 'setPanDriftEnabled', value: enabled });
+
+  setTimestretchEnabled = (enabled: boolean) =>
+    this.sendToProcessor({ type: 'setPreserveDuration', value: enabled });
 
   debugDuration() {
     console.info(`
