@@ -587,6 +587,12 @@ const App: Component = () => {
             <div class='expandable-content'>
               <ParamKnob param='trimStart' player={samplePlayer()} />
               <ParamKnob param='trimEnd' player={samplePlayer()} />
+              <button
+                class='crop-button'
+                onClick={() => samplePlayer()?.cropSample()}
+              >
+                Crop
+              </button>
             </div>
           </fieldset>
 
