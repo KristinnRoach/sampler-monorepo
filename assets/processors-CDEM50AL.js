@@ -5,7 +5,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
-var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, smoothLoopWrap_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, getMusicalNoteDurations_fn, quantizeLoopDuration_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
+var _SamplePlayerProcessor_instances, handleMessage_fn, resetState_fn, stop_fn, smoothLoopWrap_fn, _clamp, _clampZeroCrossing, findNearestZeroCrossing_fn, normalizedToSamples_fn, samplesToNormalized_fn, midiVelocityToGain_fn, getBufferDurationSeconds_fn, getMusicalNoteDurations_fn, quantizeLoopDuration_fn, extractPositionParams_fn, calculatePlaybackRange_fn, calculateLoopRange_fn, getSafeParam_fn, getConstantFlags_fn, resetDurationPreservation_fn, isDurationPreservationActive_fn, prepareDurationPreservingSample_fn, advanceDurationPreservingPlayback_fn, generateLoopDrift_fn, analyzeLoopAmplitude_fn;
 function findClosestIdx(sortedArray, target, direction = "any", getValue = (x) => x, getDistance = (a, b) => Math.abs(a - b)) {
   if (sortedArray.length === 0) {
     throw new Error("Array cannot be empty");
@@ -63,6 +63,12 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     this.enableAmplitudeCompensation = true;
     this.syncLoopToTempo = false;
     this.keytrackLoopAmount = 0;
+    this.durationPreservation = {
+      enabled: false,
+      maxDriftSamples: Math.floor(sampleRate * 0.04),
+      timelinePosition: 0,
+      resetPending: false
+    };
     this.PITCH_PRESERVATION_THRESHOLD = Math.floor(sampleRate * 0.061);
     this.AMPLITUDE_COMPENSATION_THRESHOLD = Math.floor(sampleRate / 16.35);
     this.port.onmessage = __privateMethod(this, _SamplePlayerProcessor_instances, handleMessage_fn).bind(this);
@@ -211,11 +217,13 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
     const TAIL_FADE_SAMPLES = 64;
     if (this.playbackPosition === 0) {
       this.playbackPosition = this.reversePlayback ? playbackRange.endSamples - 1 : playbackRange.startSamples;
+      __privateMethod(this, _SamplePlayerProcessor_instances, resetDurationPreservation_fn).call(this, this.playbackPosition);
     }
     for (let sample = 0; sample < outputChannels[0].length; sample++) {
       const envelopeGain = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.envGain, sample, isConstant.envGain);
       const baseRate = __privateMethod(this, _SamplePlayerProcessor_instances, getSafeParam_fn).call(this, parameters.playbackRate, sample, isConstant.playbackRate);
       const effectiveRate = this.reversePlayback ? -Math.abs(baseRate) : Math.abs(baseRate);
+      const playbackStep = effectiveRate * this.transpositionPlaybackrate;
       if (this.loopEnabled && this.loopCount < parameters.maxLoopCount[0]) {
         if (!this.reversePlayback && this.playbackPosition >= loopRange.loopEndSamples) {
           __privateMethod(this, _SamplePlayerProcessor_instances, smoothLoopWrap_fn).call(this, silencePadTail ? 0 : this.buffer[0][Math.floor(this.playbackPosition - 1)] || 0, this.buffer[0][Math.floor(loopRange.loopStartSamples)] || 0);
@@ -229,8 +237,9 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           this.nextDriftGenerated = false;
         }
       }
-      const shouldStopForward = !this.reversePlayback && this.playbackPosition >= playbackRange.endSamples;
-      const shouldStopReverse = this.reversePlayback && this.playbackPosition <= playbackRange.startSamples;
+      const durationResetTarget = __privateMethod(this, _SamplePlayerProcessor_instances, prepareDurationPreservingSample_fn).call(this, playbackStep, loopRange);
+      const shouldStopForward = !this.reversePlayback && (__privateMethod(this, _SamplePlayerProcessor_instances, isDurationPreservationActive_fn).call(this, loopRange) ? this.durationPreservation.timelinePosition : this.playbackPosition) >= playbackRange.endSamples;
+      const shouldStopReverse = this.reversePlayback && (__privateMethod(this, _SamplePlayerProcessor_instances, isDurationPreservationActive_fn).call(this, loopRange) ? this.durationPreservation.timelinePosition : this.playbackPosition) <= playbackRange.startSamples;
       const isWithinLoop = this.loopEnabled && this.playbackPosition >= loopRange.loopStartSamples && this.playbackPosition <= loopRange.loopEndSamples;
       if ((shouldStopForward || shouldStopReverse) && !(this.loopEnabled && isWithinLoop)) {
         __privateMethod(this, _SamplePlayerProcessor_instances, stop_fn).call(this);
@@ -297,7 +306,7 @@ class SamplePlayerProcessor extends AudioWorkletProcessor {
           Math.min(1, isFinite(panAdjustedSample) ? panAdjustedSample : 0)
         );
       }
-      this.playbackPosition += effectiveRate * this.transpositionPlaybackrate;
+      __privateMethod(this, _SamplePlayerProcessor_instances, advanceDurationPreservingPlayback_fn).call(this, playbackStep, durationResetTarget, loopRange);
     }
     if (this.usePlaybackPosition) {
       const normalizedPosition = __privateMethod(this, _SamplePlayerProcessor_instances, samplesToNormalized_fn).call(this, this.playbackPosition);
@@ -410,6 +419,10 @@ handleMessage_fn = function(event) {
     case "setKeytrackLoopAmount":
       this.keytrackLoopAmount = Math.max(0, Math.min(1, value));
       break;
+    case "setPreserveDuration":
+      this.durationPreservation.enabled = Boolean(value);
+      __privateMethod(this, _SamplePlayerProcessor_instances, resetDurationPreservation_fn).call(this, this.playbackPosition);
+      break;
   }
 };
 // ===== METHODS =====
@@ -433,6 +446,7 @@ resetState_fn = function() {
   this.loopAmplitudeGain = 1;
   this.lastAnalyzedLoopStart = -1;
   this.lastAnalyzedLoopEnd = -1;
+  __privateMethod(this, _SamplePlayerProcessor_instances, resetDurationPreservation_fn).call(this);
 };
 stop_fn = function() {
   this.isPlaying = false;
@@ -662,6 +676,43 @@ getConstantFlags_fn = function(parameters) {
   this.constantFlags.envGain = parameters.envGain.length === 1;
   this.constantFlags.playbackRate = parameters.playbackRate.length === 1;
   return this.constantFlags;
+};
+// ===== DURATION PRESERVATION =====
+resetDurationPreservation_fn = function(position = 0) {
+  this.durationPreservation.timelinePosition = position;
+  this.durationPreservation.resetPending = false;
+};
+isDurationPreservationActive_fn = function(loopRange) {
+  var _a;
+  return this.durationPreservation.enabled && Boolean((_a = this.zeroCrossings) == null ? void 0 : _a.length) && (!this.loopEnabled || loopRange.loopDurationSamples > this.PITCH_PRESERVATION_THRESHOLD);
+};
+prepareDurationPreservingSample_fn = function(playbackRate, loopRange) {
+  const state = this.durationPreservation;
+  if (!__privateMethod(this, _SamplePlayerProcessor_instances, isDurationPreservationActive_fn).call(this, loopRange)) return null;
+  if (Math.abs(this.playbackPosition - state.timelinePosition) > state.maxDriftSamples) {
+    state.resetPending = true;
+  }
+  if (!state.resetPending) return null;
+  const direction = playbackRate < 0 ? "left" : "right";
+  const outgoingZero = __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, this.playbackPosition, direction);
+  if (Math.abs(outgoingZero - this.playbackPosition) > Math.abs(playbackRate)) {
+    return null;
+  }
+  this.playbackPosition = outgoingZero;
+  state.resetPending = false;
+  return __privateMethod(this, _SamplePlayerProcessor_instances, findNearestZeroCrossing_fn).call(this, state.timelinePosition);
+};
+advanceDurationPreservingPlayback_fn = function(playbackRate, resetTarget, loopRange) {
+  const state = this.durationPreservation;
+  this.playbackPosition = resetTarget === null ? this.playbackPosition + playbackRate : resetTarget;
+  if (__privateMethod(this, _SamplePlayerProcessor_instances, isDurationPreservationActive_fn).call(this, loopRange)) {
+    state.timelinePosition += playbackRate < 0 ? -1 : 1;
+    if (this.loopEnabled && playbackRate >= 0 && state.timelinePosition >= loopRange.loopEndSamples) {
+      state.timelinePosition = loopRange.loopStartSamples;
+    } else if (this.loopEnabled && playbackRate < 0 && state.timelinePosition <= loopRange.loopStartSamples) {
+      state.timelinePosition = loopRange.loopEndSamples - 1;
+    }
+  }
 };
 /**
  * Generate a new drift amount for the current loop iteration
