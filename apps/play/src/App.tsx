@@ -389,9 +389,7 @@ const App: Component = () => {
             onSectionChange={setSidebarSection}
           />
         </Sidebar>
-        {/* <Oscilloscope ctx={} input={} /> */}
 
-        {/* // ! END TEST sidebar ! */}
         <div
           ref={setControlsRoot}
           class={`control-grid layout-${layout()}`}
@@ -406,23 +404,6 @@ const App: Component = () => {
                   bg-color='var(--envelope-bg)'
                   target-node-id='test-sampler'
                 />
-                {/* <div class='flex-row'>
-                <trim-start-knob target-node-id='test-sampler' />
-                <trim-end-knob target-node-id='test-sampler' />
-
-                <loop-start-knob
-                  target-node-id='test-sampler'
-                  label='Loop Start'
-                />
-                <loop-duration-knob
-                  target-node-id='test-sampler'
-                  label='Loop Duration'
-                />
-                <loop-duration-drift-knob
-                  target-node-id='test-sampler'
-                  label='Loop Drift'
-                />
-              </div> */}
               </div>
             </div>
           </fieldset>
@@ -516,23 +497,6 @@ const App: Component = () => {
             <div class='expandable-content'>
               <ParamKnob param='highpassFilter' player={samplePlayer()} />
               <ParamKnob param='lowpassFilter' player={samplePlayer()} />
-
-              {/* <KnobComponent
-                preset='highpassFilter'
-                displayValue={true}
-                size={45}
-                onChange={(detail: KnobChangeEventDetail) =>
-                  getSamplePlayer()?.setHpfCutoff(detail.value)
-                }
-              />
-              <KnobComponent
-                preset='lowpassFilter'
-                displayValue={true}
-                size={45}
-                onChange={(detail: KnobChangeEventDetail) =>
-                  getSamplePlayer()?.setLpfCutoff(detail.value)
-                }
-              /> */}
             </div>
           </fieldset>
 
