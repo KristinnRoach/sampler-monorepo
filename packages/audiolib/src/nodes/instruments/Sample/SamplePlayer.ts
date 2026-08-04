@@ -482,73 +482,93 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === LOAD / RESET === */
 
+  #isLoading = false;
+
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     preprocessOptions?: Partial<PreProcessOptions>,
   ): Promise<AudioBuffer | null> {
-    if (buffer instanceof ArrayBuffer) {
-      const ctx = getAudioContext();
-      // decodeAudioData detaches its input; copy so callers can safely
-      // reuse/re-pass the same ArrayBuffer (e.g. re-selecting a cached sample).
-      buffer = await ctx.decodeAudioData(buffer.slice(0));
+    if (this.#isLoading) {
+      throw new Error('A sample load is already in progress');
     }
+    this.#isLoading = true;
+    let unsubscribe: (() => void) | undefined;
 
-    if (!isValidAudioBuffer(buffer)) {
-      console.error('Invalid AudioBuffer provided to loadSample');
-      return null;
-    }
-
-    if (
-      buffer.sampleRate !== this.context.sampleRate ||
-      (modSampleRate && this.context.sampleRate !== modSampleRate)
-    ) {
-      console.warn(
-        `sample rate mismatch, 
-        buffer rate: ${buffer.sampleRate}, 
-        context rate: ${this.context.sampleRate}
-        requested rate: ${modSampleRate}`,
-      );
-    }
-
-    this.releaseAll(0);
-    this.transposeSemitones = 0;
-    this.#isLoaded = false;
-    this.#audiobuffer = null;
-
-    let processed: PreProcessResults | undefined;
-
-    if (this.#preprocessAudio) {
-      processed = await preProcessAudioBuffer(
-        this.context,
-        buffer,
-        preprocessOptions,
-      );
-      buffer = processed.audiobuffer;
-
-      if (this.#useZeroCrossings && processed.zeroCrossings) {
-        this.#zeroCrossings = processed.zeroCrossings;
+    try {
+      if (buffer instanceof ArrayBuffer) {
+        const ctx = getAudioContext();
+        // decodeAudioData detaches its input; copy so callers can safely
+        // reuse/re-pass the same ArrayBuffer (e.g. re-selecting a cached sample).
+        buffer = await ctx.decodeAudioData(buffer.slice(0));
       }
+
+      if (!isValidAudioBuffer(buffer)) {
+        console.error('Invalid AudioBuffer provided to loadSample');
+        return null;
+      }
+
+      if (buffer.sampleRate !== this.context.sampleRate) {
+        throw new RangeError(
+          `Sample rate mismatch: buffer rate ${buffer.sampleRate}, context rate ${this.context.sampleRate}`,
+        );
+      }
+
+      if (modSampleRate && this.context.sampleRate !== modSampleRate) {
+        console.warn(
+          `Sample rate mismatch: buffer rate ${buffer.sampleRate}, context rate ${this.context.sampleRate}, requested rate ${modSampleRate}`,
+        );
+      }
+
+      this.releaseAll(0);
+      this.transposeSemitones = 0;
+      this.#isLoaded = false;
+      this.#audiobuffer = null;
+
+      let processed: PreProcessResults | undefined;
+
+      if (this.#preprocessAudio) {
+        processed = await preProcessAudioBuffer(
+          this.context,
+          buffer,
+          preprocessOptions,
+        );
+        buffer = processed.audiobuffer;
+
+        if (this.#useZeroCrossings && processed.zeroCrossings) {
+          this.#zeroCrossings = processed.zeroCrossings;
+        }
+      }
+
+      this.#audiobuffer = buffer;
+      this.#bufferDuration = buffer.duration;
+
+      const loadedPromise = new Promise<void>((resolve) => {
+        unsubscribe = this.voicePool.onMessage('sample:loaded', () => {
+          resolve();
+        });
+      });
+
+      this.voicePool.setBuffer(buffer, this.#zeroCrossings);
+      this.#resetMacros();
+
+      const defaultScaleOptions = {
+        rootNote: 'C' as keyof typeof ROOT_NOTES,
+        scale: [0],
+        lowestOctave: 0,
+        highestOctave: 5,
+        tuningOffset: 0,
+        normalize: false as NormalizeOptions | false,
+      };
+
+      this.setScale(defaultScaleOptions);
+
+      await loadedPromise;
+      return buffer;
+    } finally {
+      unsubscribe?.();
+      this.#isLoading = false;
     }
-
-    this.#audiobuffer = buffer;
-    this.#bufferDuration = buffer.duration;
-
-    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
-    this.#resetMacros();
-
-    const defaultScaleOptions = {
-      rootNote: 'C' as keyof typeof ROOT_NOTES,
-      scale: [0],
-      lowestOctave: 0,
-      highestOctave: 5,
-      tuningOffset: 0,
-      normalize: false as NormalizeOptions | false,
-    };
-
-    this.setScale(defaultScaleOptions);
-
-    return buffer;
   }
 
   async cropSample(
