@@ -497,10 +497,9 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     try {
       if (buffer instanceof ArrayBuffer) {
-        const ctx = getAudioContext();
         // decodeAudioData detaches its input; copy so callers can safely
         // reuse/re-pass the same ArrayBuffer (e.g. re-selecting a cached sample).
-        buffer = await ctx.decodeAudioData(buffer.slice(0));
+        buffer = await this.context.decodeAudioData(buffer.slice(0));
       }
 
       if (!isValidAudioBuffer(buffer)) {
@@ -516,7 +515,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
       if (modSampleRate && this.context.sampleRate !== modSampleRate) {
         console.warn(
-          `Sample rate mismatch: buffer rate ${buffer.sampleRate}, context rate ${this.context.sampleRate}, requested rate ${modSampleRate}`,
+          `Sample rate mismatch: context rate ${this.context.sampleRate}, requested rate ${modSampleRate}`,
         );
       }
 
