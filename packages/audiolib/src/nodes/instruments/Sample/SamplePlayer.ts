@@ -3,6 +3,7 @@
 import { getAudioContext } from '@/context';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
+import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
 import { clamp, findClosestNote, ROOT_NOTES } from '@/utils';
 import { Debouncer } from '@/utils/Debouncer';
 
@@ -481,73 +482,127 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /* === LOAD / RESET === */
 
+  #isLoading = false;
+
   async loadSample(
     buffer: AudioBuffer | ArrayBuffer,
     modSampleRate?: number,
     preprocessOptions?: Partial<PreProcessOptions>,
   ): Promise<AudioBuffer | null> {
-    if (buffer instanceof ArrayBuffer) {
-      const ctx = getAudioContext();
-      // decodeAudioData detaches its input; copy so callers can safely
-      // reuse/re-pass the same ArrayBuffer (e.g. re-selecting a cached sample).
-      buffer = await ctx.decodeAudioData(buffer.slice(0));
+    if (this.#isLoading) {
+      throw new Error('A sample load is already in progress');
     }
+    this.#isLoading = true;
+    let unsubscribe: (() => void) | undefined;
 
-    if (!isValidAudioBuffer(buffer)) {
-      console.error('Invalid AudioBuffer provided to loadSample');
+    try {
+      if (buffer instanceof ArrayBuffer) {
+        // decodeAudioData detaches its input; copy so callers can safely
+        // reuse/re-pass the same ArrayBuffer (e.g. re-selecting a cached sample).
+        buffer = await this.context.decodeAudioData(buffer.slice(0));
+      }
+
+      if (!isValidAudioBuffer(buffer)) {
+        console.error('Invalid AudioBuffer provided to loadSample');
+        return null;
+      }
+
+      if (buffer.sampleRate !== this.context.sampleRate) {
+        throw new RangeError(
+          `Sample rate mismatch: buffer rate ${buffer.sampleRate}, context rate ${this.context.sampleRate}`,
+        );
+      }
+
+      if (modSampleRate && this.context.sampleRate !== modSampleRate) {
+        console.warn(
+          `Sample rate mismatch: context rate ${this.context.sampleRate}, requested rate ${modSampleRate}`,
+        );
+      }
+
+      this.releaseAll(0);
+      this.transposeSemitones = 0;
+      this.#isLoaded = false;
+      this.#audiobuffer = null;
+
+      let processed: PreProcessResults | undefined;
+
+      if (this.#preprocessAudio) {
+        processed = await preProcessAudioBuffer(
+          this.context,
+          buffer,
+          preprocessOptions,
+        );
+        buffer = processed.audiobuffer;
+
+        if (this.#useZeroCrossings && processed.zeroCrossings) {
+          this.#zeroCrossings = processed.zeroCrossings;
+        }
+      }
+
+      this.#audiobuffer = buffer;
+      this.#bufferDuration = buffer.duration;
+
+      const loadedPromise = new Promise<void>((resolve) => {
+        unsubscribe = this.voicePool.onMessage('sample:loaded', () => {
+          resolve();
+        });
+      });
+
+      this.voicePool.setBuffer(buffer, this.#zeroCrossings);
+      this.#resetMacros();
+
+      const defaultScaleOptions = {
+        rootNote: 'C' as keyof typeof ROOT_NOTES,
+        scale: [0],
+        lowestOctave: 0,
+        highestOctave: 5,
+        tuningOffset: 0,
+        normalize: false as NormalizeOptions | false,
+      };
+
+      this.setScale(defaultScaleOptions);
+
+      await loadedPromise;
+      return buffer;
+    } finally {
+      unsubscribe?.();
+      this.#isLoading = false;
+    }
+  }
+
+  async cropSample(
+    startSeconds = this.getStartPoint(),
+    endSeconds = this.getEndPoint(),
+    fadeMs = 4,
+  ): Promise<AudioBuffer | null> {
+    const buffer = this.#audiobuffer;
+    if (!buffer) return null;
+    if (!Number.isFinite(startSeconds) || !Number.isFinite(endSeconds)) {
       return null;
     }
 
-    if (
-      buffer.sampleRate !== this.context.sampleRate ||
-      (modSampleRate && this.context.sampleRate !== modSampleRate)
-    ) {
-      console.warn(
-        `sample rate mismatch, 
-        buffer rate: ${buffer.sampleRate}, 
-        context rate: ${this.context.sampleRate}
-        requested rate: ${modSampleRate}`,
-      );
-    }
+    const startSample = Math.max(
+      0,
+      Math.floor(startSeconds * buffer.sampleRate),
+    );
+    const endSample = Math.min(
+      buffer.length,
+      Math.ceil(endSeconds * buffer.sampleRate),
+    );
 
-    this.releaseAll(0);
-    this.transposeSemitones = 0;
-    this.#isLoaded = false;
-    this.#audiobuffer = null;
+    if (endSample <= startSample) return null;
 
-    let processed: PreProcessResults | undefined;
+    const croppedBuffer = trimAudioBuffer(
+      this.context,
+      buffer,
+      startSample,
+      endSample,
+      fadeMs,
+    );
 
-    if (this.#preprocessAudio) {
-      processed = await preProcessAudioBuffer(
-        this.context,
-        buffer,
-        preprocessOptions,
-      );
-      buffer = processed.audiobuffer;
-
-      if (this.#useZeroCrossings && processed.zeroCrossings) {
-        this.#zeroCrossings = processed.zeroCrossings;
-      }
-    }
-
-    this.#audiobuffer = buffer;
-    this.#bufferDuration = buffer.duration;
-
-    this.voicePool.setBuffer(buffer, this.#zeroCrossings);
-    this.#resetMacros();
-
-    const defaultScaleOptions = {
-      rootNote: 'C' as keyof typeof ROOT_NOTES,
-      scale: [0],
-      lowestOctave: 0,
-      highestOctave: 5,
-      tuningOffset: 0,
-      normalize: false as NormalizeOptions | false,
-    };
-
-    this.setScale(defaultScaleOptions);
-
-    return buffer;
+    return this.loadSample(croppedBuffer, undefined, {
+      skipPreProcessing: true,
+    });
   }
 
   async detectPitch(buffer: AudioBuffer) {
@@ -1031,18 +1086,13 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /** PARAM GETTERS  */
 
+  // TODO: Consider moving source of truth from SampleVoice to SamplePlayer, or convert to MacroParams, symmetrical with the loop start/end points
   getStartPoint(): number {
-    return this.getStoredParamValue(
-      'startPoint',
-      DEFAULT_PARAM_DESCRIPTORS.START_POINT.defaultValue,
-    );
+    return this.voicePool?.allVoices[0]?.startPoint ?? 0;
   }
 
   getEndPoint(): number {
-    return this.getStoredParamValue(
-      'endPoint',
-      DEFAULT_PARAM_DESCRIPTORS.END_POINT.defaultValue,
-    );
+    return this.voicePool?.allVoices[0]?.endPoint ?? this.sampleDuration;
   }
 
   getLoopRampDuration(): number {

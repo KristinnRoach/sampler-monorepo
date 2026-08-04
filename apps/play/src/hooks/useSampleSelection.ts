@@ -18,16 +18,17 @@ export const useSampleSelection = (
         skipPreProcessing: true,
       });
 
-      if (sample.settings) {
-        const controlsRoot = getControlsRoot();
-        if (controlsRoot) {
-          restoreInstrumentState(
-            samplePlayerRef,
-            controlsRoot,
-            sample.settings,
-          );
-        }
-      }
+      // ! Disabled until audio-elements simplified and state contracts clarified
+      // if (sample.settings) {
+      //   const controlsRoot = getControlsRoot();
+      //   if (controlsRoot) {
+      //     restoreInstrumentState(
+      //       samplePlayerRef,
+      //       controlsRoot,
+      //       sample.settings,
+      //     );
+      //   }
+      // }
 
       setSidebarOpen(false);
     } catch (error) {

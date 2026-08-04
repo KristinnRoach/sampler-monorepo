@@ -35,6 +35,7 @@ import {
   recorderInputSource,
   setRecorderInputDeviceId,
 } from './utils/recorderSettings';
+import { setSamplerParamValue } from './utils/samplerParamState';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -587,6 +588,26 @@ const App: Component = () => {
             <div class='expandable-content'>
               <ParamKnob param='trimStart' player={samplePlayer()} />
               <ParamKnob param='trimEnd' player={samplePlayer()} />
+              <button
+                class='crop-button'
+                onClick={async () => {
+                  const player = samplePlayer();
+                  if (!player) return;
+
+                  try {
+                    const croppedBuffer = await player.cropSample();
+                    if (!croppedBuffer) return;
+
+                    setSamplerParamValue('trimStart', 0);
+                    setSamplerParamValue('trimEnd', croppedBuffer.duration);
+                  } catch (error) {
+                    console.error('Failed to crop sample:', error);
+                    showNotification('Failed to crop sample');
+                  }
+                }}
+              >
+                Crop
+              </button>
             </div>
           </fieldset>
 
