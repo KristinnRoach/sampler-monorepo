@@ -18,6 +18,7 @@ const storageKey = (key: SamplerParamKey) =>
 const loadValues = (): SamplerParamValues => {
   const values = { ...defaultValues };
 
+  /* ! Temp disable local storage
   try {
     (Object.keys(samplerParams) as SamplerParamKey[]).forEach((key) => {
       const stored = localStorage.getItem(storageKey(key));
@@ -29,6 +30,7 @@ const loadValues = (): SamplerParamValues => {
   } catch {
     // Storage may be unavailable; descriptor defaults remain authoritative.
   }
+  */
 
   return values;
 };
