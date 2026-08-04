@@ -558,6 +558,9 @@ export class SamplePlayer implements ILibInstrumentNode {
   ): Promise<AudioBuffer | null> {
     const buffer = this.#audiobuffer;
     if (!buffer) return null;
+    if (!Number.isFinite(startSeconds) || !Number.isFinite(endSeconds)) {
+      return null;
+    }
 
     const startSample = Math.max(
       0,

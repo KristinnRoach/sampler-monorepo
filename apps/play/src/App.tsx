@@ -591,11 +591,19 @@ const App: Component = () => {
               <button
                 class='crop-button'
                 onClick={async () => {
-                  const croppedBuffer = await samplePlayer()?.cropSample();
-                  if (!croppedBuffer) return;
+                  const player = samplePlayer();
+                  if (!player) return;
 
-                  setSamplerParamValue('trimStart', 0);
-                  setSamplerParamValue('trimEnd', croppedBuffer.duration);
+                  try {
+                    const croppedBuffer = await player.cropSample();
+                    if (!croppedBuffer) return;
+
+                    setSamplerParamValue('trimStart', 0);
+                    setSamplerParamValue('trimEnd', croppedBuffer.duration);
+                  } catch (error) {
+                    console.error('Failed to crop sample:', error);
+                    showNotification('Failed to crop sample');
+                  }
                 }}
               >
                 Crop
