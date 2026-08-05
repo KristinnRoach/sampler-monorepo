@@ -27,11 +27,7 @@ import {
   NormalizeOptions,
 } from '@/nodes/params';
 
-import { DEFAULT_PARAM_DESCRIPTORS } from './param-defaults'; // TODO: replace with SAMPLE_PLAYER_PARAM_DESCRIPTORS
-import {
-  SAMPLE_PLAYER_PARAM_DESCRIPTORS,
-  SAMPLE_PLAYER_PARAM_KEYS,
-} from '@/worklets/processors/play/sample-player-paramdescriptors';
+import { DEFAULT_PARAM_DESCRIPTORS } from './param-defaults';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
 import {

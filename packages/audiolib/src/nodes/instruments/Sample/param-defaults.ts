@@ -1,11 +1,25 @@
 import { LibParamDescriptor } from '../../params/param-types';
 import { DEFAULT_SAMPLE_RATE } from '@/constants/defaults/common';
+import { assert } from '@/utils';
+import {
+  SAMPLE_PLAYER_PARAM_DESCRIPTORS,
+  SamplePlayerParamKey,
+} from '@/worklets';
+
+// Worklet's parameterDescriptors are the source of truth for min/max/default/automationRate.
+const fromWorklet = (name: SamplePlayerParamKey) => {
+  const descriptor = SAMPLE_PLAYER_PARAM_DESCRIPTORS.find(
+    (d) => d.name === name
+  );
+  assert(descriptor, `No worklet param descriptor found for "${name}"`);
+  return descriptor as Required<typeof descriptor>;
+};
 
 // Allowed Hz range for native web audio filters is 10 to the Nyquist frequency (half the sample rate).
-export const getMaxFilterFreq = (ctxSampleRate: number) =>
+export const getMaxFilterFreq = (ctxSampleRate: number = DEFAULT_SAMPLE_RATE) =>
   Math.floor(ctxSampleRate / 2 - 1000);
 
-const MAX_HZ = getMaxFilterFreq(DEFAULT_SAMPLE_RATE); // Using default sample rate
+const MAX_HZ = getMaxFilterFreq(); // Using default sample rate
 const MIN_HZ = 20; // Minimum frequency for filters
 const DEFAULT_HPF_CUTOFF = 100;
 const DEFAULT_LPF_CUTOFF = MAX_HZ;
@@ -28,51 +42,39 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
   LibParamDescriptor
 > = {
   PLAYBACK_RATE: {
+    ...fromWorklet('playbackRate'),
     nodeId: 'playback-rate',
     name: 'playback-rate',
     dataType: 'number',
-    minValue: -4,
-    maxValue: 4,
     step: 0.0001,
-    defaultValue: 1,
     group: 'pitch',
-    automationRate: 'k-rate',
   },
 
   ENV_GAIN: {
+    ...fromWorklet('envGain'),
     nodeId: 'env-gain',
     name: 'env-gain',
     dataType: 'number',
-    minValue: 0,
-    maxValue: 1,
     step: 0.0001,
-    defaultValue: 0,
     group: 'amp-env',
-    automationRate: 'k-rate',
   },
 
   LOOP_START: {
+    ...fromWorklet('loopStart'),
     nodeId: 'loop-start',
     name: 'loop-start',
     dataType: 'number',
-    minValue: 0,
-    maxValue: 9999, // Max sample length in seconds
     step: 0.001,
-    defaultValue: 0,
     group: 'loop-points',
-    automationRate: 'k-rate',
   },
 
   LOOP_END: {
+    ...fromWorklet('loopEnd'),
     nodeId: 'loop-end',
     name: 'loop-end',
     dataType: 'number',
-    minValue: 0,
-    maxValue: 9999, // Max sample length in seconds
     step: 0.001,
-    defaultValue: 9999, // Will be set to actual buffer duration when loaded
     group: 'loop-points',
-    automationRate: 'k-rate',
   },
 
   LOOP_RAMP_DURATION: {
