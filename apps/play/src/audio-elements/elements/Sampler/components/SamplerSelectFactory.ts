@@ -397,9 +397,3 @@ export const RootNoteSelect = createSamplerSelect(
   van,
   COMPONENT_STYLE,
 );
-
-// ===== SHARED SELECT STATE REGISTRY =====
-// const selectStates = new Map<string, any>();
-// const getSelectState = (key: string) => selectStates.get(key);
-// const setSelectState = (key: string, state: any) =>
-//   selectStates.set(key, state);
