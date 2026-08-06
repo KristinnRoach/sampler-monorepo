@@ -158,7 +158,7 @@ export class DattorroReverb implements ILibAudioNode {
     this.#reverb.parameters.get(name)?.setValueAtTime(value, time);
   }
 
-  getParam(name: string): AudioParam | null {
+  getAudioParam(name: string): AudioParam | null {
     // Handle macro parameters
     if (name === 'diffusion') {
       // Return a mock AudioParam-like object for consistency
@@ -194,7 +194,7 @@ export class DattorroReverb implements ILibAudioNode {
     // console.table({ decay, excRate, excDepth, damping, preLPF, diffusion });
 
     this.setDiffusionMacro(diffusion);
-    this.getParam('decay')?.setTargetAtTime(decay, this.now, 0.1);
+    this.getAudioParam('decay')?.setTargetAtTime(decay, this.now, 0.1);
     this.setParam('excursionRate', excRate);
     this.setParam('excursionDepth', excDepth);
     this.setParam('damping', damping);
@@ -244,7 +244,7 @@ export class DattorroReverb implements ILibAudioNode {
 
   getDiffusionMacroValue(): number {
     // Return approximate macro value based on current inputDiffusion1
-    const fi = this.getParam('inputDiffusion1')?.value ?? 0.75;
+    const fi = this.getAudioParam('inputDiffusion1')?.value ?? 0.75;
     return (fi - 0.1) / (0.75 - 0.1); // Reverse the mapping
   }
 

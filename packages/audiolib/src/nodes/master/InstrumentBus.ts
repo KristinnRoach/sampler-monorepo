@@ -617,14 +617,14 @@ export class InstrumentBus implements ILibAudioNode {
     }
   }
 
-  getParam(name: string): AudioParam | null {
+  getAudioParam(name: string): AudioParam | null {
     switch (name) {
       case 'outputLevel':
-        return this.getNode('output').getParam('gain');
+        return this.getNode('output').getAudioParam('gain');
       case 'hpfCutoff':
-        return this.getNode('hpf')?.getParam('frequency') || null;
+        return this.getNode('hpf')?.getAudioParam('frequency') || null;
       case 'lpfCutoff':
-        return this.getNode('lpf')?.getParam('frequency') || null;
+        return this.getNode('lpf')?.getAudioParam('frequency') || null;
       default:
         return null;
     }
@@ -713,7 +713,7 @@ export class InstrumentBus implements ILibAudioNode {
   }
 
   get outputLevel(): number {
-    const param = this.getNode('output').getParam('gain');
+    const param = this.getNode('output').getAudioParam('gain');
     return param?.value || 0;
   }
 
@@ -724,14 +724,14 @@ export class InstrumentBus implements ILibAudioNode {
 
   get dryWetMix(): { dry: number; wet: number } {
     return {
-      dry: this.getNode('dryMix')?.getParam('gain')?.value || 0,
-      wet: this.getNode('wetMix')?.getParam('gain')?.value || 0,
+      dry: this.getNode('dryMix')?.getAudioParam('gain')?.value || 0,
+      wet: this.getNode('wetMix')?.getAudioParam('gain')?.value || 0,
     };
   }
 
   getSendAmount(effect: BusNodeName): number {
     const sendNode = this.#sendNodes.get(effect);
-    return sendNode?.getParam('gain')?.value ?? 0;
+    return sendNode?.getAudioParam('gain')?.value ?? 0;
   }
 
   // Debug methods

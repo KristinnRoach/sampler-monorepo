@@ -12,15 +12,9 @@ import {
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
-import {
-  isValidAudioBuffer,
-  isMidiValue,
-} from '@/utils';
+import { isValidAudioBuffer, isMidiValue } from '@/utils';
 
-import {
-  MacroParam,
-  NormalizeOptions,
-} from '@/nodes/params';
+import { MacroParam, NormalizeOptions } from '@/nodes/params';
 
 import { samplerParams } from './sampler-params';
 
@@ -230,25 +224,6 @@ export class SamplePlayer implements ILibInstrumentNode {
       outgoing: Array.from(this.#connections),
       incoming: Array.from(this.#incoming),
     };
-  }
-
-  // === PARAMS ===
-
-  setParam(name: string, value: number, timestamp = this.now): void {
-    // Delegate to existing parameter methods
-    this.setParameterValue(name, value);
-  }
-
-  getParam(name: string): AudioParam | null {
-    switch (name) {
-      case 'loopStart':
-        return this.#macroLoopStart.audioParam;
-      case 'loopEnd':
-        return this.#macroLoopEnd.audioParam;
-      default:
-        console.warn(`Parameter '${name}' not found on SamplePlayer`);
-        return null;
-    }
   }
 
   // === CONVENIENCE GETTERS ===
@@ -1049,7 +1024,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
-  setParameterValue(name: string, value: number): this {
+  setParam(name: string, value: number): this {
     switch (name) {
       case 'startPoint':
         this.setSampleStartPoint(value);
@@ -1076,6 +1051,18 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   /** PARAM GETTERS  */
+
+  getAudioParam(name: string): AudioParam | null {
+    switch (name) {
+      case 'loopStart':
+        return this.#macroLoopStart.audioParam;
+      case 'loopEnd':
+        return this.#macroLoopEnd.audioParam;
+      default:
+        console.warn(`Parameter '${name}' not found on SamplePlayer`);
+        return null;
+    }
+  }
 
   // TODO: Consider moving source of truth from SampleVoice to SamplePlayer, or convert to MacroParams, symmetrical with the loop start/end points
   getStartPoint(): number {
@@ -1123,8 +1110,6 @@ export class SamplePlayer implements ILibInstrumentNode {
         return undefined;
     }
   }
-
-
 
   /* === PITCH === */
 
