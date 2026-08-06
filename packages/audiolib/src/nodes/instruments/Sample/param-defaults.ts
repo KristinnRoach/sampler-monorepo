@@ -91,27 +91,21 @@ export const DEFAULT_PARAM_DESCRIPTORS: Record<
   },
 
   START_POINT: {
+    ...fromWorklet('startPoint'),
     nodeId: 'start-point',
     name: 'start-point',
     dataType: 'number',
-    minValue: 0,
-    maxValue: 9999, // Max sample length in seconds
     step: 0.001,
-    defaultValue: 0,
     group: 'trim-sample',
-    automationRate: 'k-rate',
   },
 
   END_POINT: {
+    ...fromWorklet('endPoint'),
     nodeId: 'end-point',
     name: 'end-point',
     dataType: 'number',
-    minValue: 0,
-    maxValue: 9999, // Max sample length in seconds
     step: 0.001,
-    defaultValue: 9999, // Will be set to actual buffer duration when loaded
     group: 'trim-sample',
-    automationRate: 'k-rate',
   },
 
   LOWPASS_CUTOFF: {
