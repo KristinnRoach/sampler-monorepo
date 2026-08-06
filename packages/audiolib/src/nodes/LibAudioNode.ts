@@ -18,7 +18,7 @@ export interface ILibAudioNode<
 
   // Parameter interface
   setParam(name: string, value: number, time?: number): void;
-  getParam(name: string): AudioParam | null;
+  getAudioParam(name: string): AudioParam | null;
 
   // Messaging
   onMessage?(type: string, handler: MessageHandler<Message>): () => void;
@@ -173,7 +173,7 @@ export class LibAudioNode<T extends AudioNode | AudioWorkletNode = AudioNode>
     console.warn(`Parameter '${name}' not found on node`);
   }
 
-  getParam(name: string): AudioParam | null {
+  getAudioParam(name: string): AudioParam | null {
     return (this.#audioNode as any)[name] || null;
   }
 

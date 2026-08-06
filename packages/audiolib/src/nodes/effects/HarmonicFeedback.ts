@@ -119,10 +119,10 @@ export class HarmonicFeedback implements ILibAudioNode {
     const clamped = clamp(scaled, this.#MIN_DELAY_TIME, this.#MAX_DELAY_TIME);
 
     if (glideTime === 0 || !isFinite(glideTime)) {
-      this.getParam('delayTime')!.setValueAtTime(clamped, timestamp);
+      this.getAudioParam('delayTime')!.setValueAtTime(clamped, timestamp);
       return this;
     } else {
-      this.getParam('delayTime')!.linearRampToValueAtTime(
+      this.getAudioParam('delayTime')!.linearRampToValueAtTime(
         clamped,
         timestamp + glideTime
       );
@@ -141,7 +141,7 @@ export class HarmonicFeedback implements ILibAudioNode {
       name: 'pitchDelayMultiplier',
     });
 
-    const delayParam = this.getParam('delayTime')!;
+    const delayParam = this.getAudioParam('delayTime')!;
 
     this.#pitchMultiplier = safeMultiplier;
 
@@ -192,7 +192,7 @@ export class HarmonicFeedback implements ILibAudioNode {
       this.#MIN_DECAY,
       this.#MAX_DECAY
     );
-    this.getParam('decay')!.setValueAtTime(mappedAmount, timestamp);
+    this.getAudioParam('decay')!.setValueAtTime(mappedAmount, timestamp);
     return this;
   }
 
@@ -202,7 +202,7 @@ export class HarmonicFeedback implements ILibAudioNode {
       return;
     }
 
-    this.getParam('lowpass')!.setTargetAtTime(freqHz, this.now, 0.1);
+    this.getAudioParam('lowpass')!.setTargetAtTime(freqHz, this.now, 0.1);
   }
 
   #triggerDecay(): this {
@@ -211,7 +211,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     }
 
     this.#decayActive = true;
-    const currentFeedbackAmount = this.getParam('feedbackAmount')!.value;
+    const currentFeedbackAmount = this.getAudioParam('feedbackAmount')!.value;
 
     this.#delay.port.postMessage({
       type: 'triggerDecay',
@@ -286,7 +286,7 @@ export class HarmonicFeedback implements ILibAudioNode {
     }
   }
 
-  getParam(name: string): AudioParam | null {
+  getAudioParam(name: string): AudioParam | null {
     switch (name) {
       default:
         return this.#delay.parameters.get(name) || null;

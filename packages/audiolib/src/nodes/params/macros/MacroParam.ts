@@ -1,4 +1,3 @@
-import { LibParamDescriptor } from '@/nodes/params';
 import {
   Message,
   MessageBus,
@@ -23,15 +22,8 @@ export class MacroParam {
   #paramType: string = '';
   #isReady: boolean = false;
 
-  descriptor: LibParamDescriptor;
-
-  constructor(context: BaseAudioContext, descriptor: LibParamDescriptor) {
-    this.descriptor = descriptor;
-
-    this.#controller = new AudioParamController(
-      context,
-      descriptor.defaultValue
-    );
+  constructor(context: BaseAudioContext, initialValue: number) {
+    this.#controller = new AudioParamController(context, initialValue);
     this.#snapper = new ValueSnapper();
     this.#debouncer = new Debouncer();
 

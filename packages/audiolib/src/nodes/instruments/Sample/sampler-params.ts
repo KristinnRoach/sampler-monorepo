@@ -260,8 +260,27 @@ export const samplerParams = {
     defaultValue: 1,
     curve: 4,
     getMax: (p) => p.sampleDuration,
-    format: (v) => (v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`),
+    format: (v) =>
+      v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`,
     apply: (p, v) => p.setLoopDuration(v),
+  },
+  // Todo: Decide whether all params should be returned or just those requested by app (add param?)
+  loopEnd: {
+    label: 'Loop End',
+    min: 0,
+    max: 1,
+    defaultValue: 1,
+    step: 0.001,
+    getMax: (p) => p.sampleDuration,
+    apply: (p, v) => p.setLoopEnd(v),
+  },
+  loopRampDuration: {
+    label: 'Loop Ramp',
+    min: 0.001,
+    max: 1,
+    defaultValue: 0.5,
+    step: 0.001,
+    apply: (p, v) => p.setLoopRampDuration(v),
   },
   loopDurationDrift: {
     label: 'Loop Drift',

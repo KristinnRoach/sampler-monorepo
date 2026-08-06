@@ -1,6 +1,5 @@
 // SamplePlayer.ts - Refactored with Composition Pattern
 
-import { getAudioContext } from '@/context';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
@@ -13,25 +12,11 @@ import {
   PreProcessResults,
 } from '@/nodes/preprocessor/Preprocessor';
 
-import {
-  assert,
-  tryCatch,
-  throttle,
-  isValidAudioBuffer,
-  isMidiValue,
-} from '@/utils';
+import { isValidAudioBuffer, isMidiValue } from '@/utils';
 
-import {
-  MacroParam,
-  LibParamDescriptor,
-  NormalizeOptions,
-} from '@/nodes/params';
+import { MacroParam, NormalizeOptions } from '@/nodes/params';
 
-import { DEFAULT_PARAM_DESCRIPTORS } from './param-defaults'; // TODO: replace with SAMPLE_PLAYER_PARAM_DESCRIPTORS
-import {
-  SAMPLE_PLAYER_PARAM_DESCRIPTORS,
-  SAMPLE_PLAYER_PARAM_KEYS,
-} from '@/worklets/processors/play/sample-player-paramdescriptors';
+import { samplerParams } from './sampler-params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
 import {
@@ -41,9 +26,9 @@ import {
 import { BusNodeName } from '@/nodes/master/InstrumentBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
-import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
+import { EnvelopeType } from '@/nodes/params/envelopes';
 import { localStore } from '@/storage/local';
-import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
+import { ILibInstrumentNode } from '@/nodes/LibAudioNode';
 import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
 import { createMessageBus, MessageBus } from '@/events';
 import {
@@ -121,12 +106,12 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.#macroLoopStart = new MacroParam(
       this.context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_START,
+      samplerParams.loopStart.defaultValue,
     );
 
     this.#macroLoopEnd = new MacroParam(
       this.context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_END,
+      samplerParams.loopEnd.defaultValue,
     );
 
     // Store configuration for async init
@@ -239,25 +224,6 @@ export class SamplePlayer implements ILibInstrumentNode {
       outgoing: Array.from(this.#connections),
       incoming: Array.from(this.#incoming),
     };
-  }
-
-  // === PARAMS ===
-
-  setParam(name: string, value: number, timestamp = this.now): void {
-    // Delegate to existing parameter methods
-    this.setParameterValue(name, value);
-  }
-
-  getParam(name: string): AudioParam | null {
-    switch (name) {
-      case 'loopStart':
-        return this.#macroLoopStart.audioParam;
-      case 'loopEnd':
-        return this.#macroLoopEnd.audioParam;
-      default:
-        console.warn(`Parameter '${name}' not found on SamplePlayer`);
-        return null;
-    }
   }
 
   // === CONVENIENCE GETTERS ===
@@ -1058,7 +1024,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     return this;
   }
 
-  setParameterValue(name: string, value: number): this {
+  setParam(name: string, value: number): this {
     switch (name) {
       case 'startPoint':
         this.setSampleStartPoint(value);
@@ -1086,6 +1052,18 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   /** PARAM GETTERS  */
 
+  getAudioParam(name: string): AudioParam | null {
+    switch (name) {
+      case 'loopStart':
+        return this.#macroLoopStart.audioParam;
+      case 'loopEnd':
+        return this.#macroLoopEnd.audioParam;
+      default:
+        console.warn(`Parameter '${name}' not found on SamplePlayer`);
+        return null;
+    }
+  }
+
   // TODO: Consider moving source of truth from SampleVoice to SamplePlayer, or convert to MacroParams, symmetrical with the loop start/end points
   getStartPoint(): number {
     return this.voicePool?.allVoices[0]?.startPoint ?? 0;
@@ -1098,7 +1076,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   getLoopRampDuration(): number {
     return this.getStoredParamValue(
       'loopRampDuration',
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION.defaultValue,
+      samplerParams.loopRampDuration.defaultValue,
     );
   }
 
@@ -1131,19 +1109,6 @@ export class SamplePlayer implements ILibInstrumentNode {
         console.warn(`Unknown parameter: ${name}`);
         return undefined;
     }
-  }
-
-  getParameterDescriptors(): Record<string, LibParamDescriptor> {
-    return {
-      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
-      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
-      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
-      loopStart: this.#macroLoopStart.descriptor,
-      loopEnd: this.#macroLoopEnd.descriptor,
-      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
-      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
-      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
-    };
   }
 
   /* === PITCH === */
