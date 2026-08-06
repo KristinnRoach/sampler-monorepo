@@ -45,7 +45,7 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'record_inactive',
+    'record_idle',
     `<svg viewBox="0 0 24 24" fill="red" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="8" />
     </svg>`,

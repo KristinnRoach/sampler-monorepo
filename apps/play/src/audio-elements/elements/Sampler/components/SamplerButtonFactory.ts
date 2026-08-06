@@ -85,8 +85,8 @@ export const RecordButton = (attributes: ElementProps) => {
   const status = van.state('Ready');
 
   const currentRecorder: State<Recorder | null> = van.state(null);
-  const recordBtnState: State<'Record' | 'Armed' | 'Recording'> =
-    van.state('Record');
+  const recordBtnState: State<'Idle' | 'Armed' | 'Recording'> =
+    van.state('Idle');
   const samplerAvailable = van.state(false);
 
   let recordButton: SVGButton;
@@ -129,8 +129,8 @@ export const RecordButton = (attributes: ElementProps) => {
           case 'IDLE':
           case 'STOPPED':
           default:
-            recordBtnState.val = 'Record';
-            recordButton.setState('record_inactive');
+            recordBtnState.val = 'Idle';
+            recordButton.setState('record_idle');
             break;
         }
       });
@@ -147,8 +147,8 @@ export const RecordButton = (attributes: ElementProps) => {
       console.error('Failed to start recording:', error);
       status.val = `Recording error: ${error instanceof Error ? error.message : String(error)}`;
       currentRecorder.val = null;
-      recordBtnState.val = 'Record';
-      recordButton.setState('record_inactive');
+      recordBtnState.val = 'Idle';
+      recordButton.setState('record_idle');
     }
   };
 
@@ -159,20 +159,30 @@ export const RecordButton = (attributes: ElementProps) => {
       await currentRecorder.val.stop();
       currentRecorder.val.dispose();
       currentRecorder.val = null;
-      recordBtnState.val = 'Record';
-      recordButton.setState('record_inactive');
+      recordBtnState.val = 'Idle';
+      recordButton.setState('record_idle');
       status.val = 'Recording stopped';
     } catch (error) {
       currentRecorder.val = null;
-      recordBtnState.val = 'Record';
-      recordButton.setState('record_inactive');
+      recordBtnState.val = 'Idle';
+      recordButton.setState('record_idle');
       console.error('Failed to stop recording:', error);
       status.val = `Stop error: ${error instanceof Error ? error.message : String(error)}`;
     }
   };
 
+  // Esc aborts an armed or in-progress recording, discarding any captured audio
+  const handleEscape = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || recordBtnState.val === 'Idle') return;
+
+    currentRecorder.val?.cancel();
+    currentRecorder.val?.dispose();
+    currentRecorder.val = null;
+    status.val = 'Recording cancelled';
+  };
+
   const handleClick = async () => {
-    if (recordBtnState.val === 'Record') {
+    if (recordBtnState.val === 'Idle') {
       await startRecording();
     } else if (recordBtnState.val === 'Armed') {
       if (currentRecorder.val) {
@@ -186,12 +196,12 @@ export const RecordButton = (attributes: ElementProps) => {
   // Create SVG record button using new function API
   recordButton = createSVGButton(
     'Record Sample',
-    ['record_inactive', 'record_armed', 'record_recording'],
+    ['record_idle', 'record_armed', 'record_recording'],
     {
       size: 'lg',
       onClick: handleClick,
       colors: {
-        record_inactive: '#FFFFFF',
+        record_idle: '#FFFFFF',
         record_armed: '#f59e0b',
         record_recording: '#ef4444',
       },
@@ -204,21 +214,25 @@ export const RecordButton = (attributes: ElementProps) => {
   });
 
   attributes.mount(() => {
-    const checkSampler = () =>
-      (samplerAvailable.val = !!getSamplePlayer());
+    const checkSampler = () => (samplerAvailable.val = !!getSamplePlayer());
 
     // Only mark available after sampler-initialized fires, not immediately
     const handleSamplerInitialized = () => {
       checkSampler();
     };
     document.addEventListener('sampler-initialized', handleSamplerInitialized);
+    document.addEventListener('keydown', handleEscape);
     return () => {
+      document.removeEventListener('keydown', handleEscape);
       if (currentRecorder.val) {
         currentRecorder.val.dispose();
         currentRecorder.val = null;
-        recordBtnState.val = 'Record';
+        recordBtnState.val = 'Idle';
       }
-      document.removeEventListener('sampler-initialized', handleSamplerInitialized);
+      document.removeEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized,
+      );
     };
   });
 

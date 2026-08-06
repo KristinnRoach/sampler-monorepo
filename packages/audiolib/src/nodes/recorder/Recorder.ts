@@ -335,17 +335,48 @@ export class Recorder implements LibNode {
     this.#silenceStartTime = null;
   }
 
+  /**
+   * Aborts an armed or in-progress recording without producing a buffer.
+   * Releases the input stream, so a new `start()` is required to record again.
+   *
+   * @returns true if a recording was cancelled, false if there was nothing to cancel.
+   */
+  cancel(): boolean {
+    if (
+      this.#state !== AudioRecorderState.ARMED &&
+      this.#state !== AudioRecorderState.RECORDING
+    ) {
+      return false;
+    }
+
+    this.#cleanupMonitoring();
+
+    if (this.#recorder && this.#recorder.state !== 'inactive') {
+      this.#recorder.stop(); // discards data - no 'dataavailable' listener attached
+    }
+
+    this.#state = AudioRecorderState.STOPPED;
+    console.info(`Recorder state: ${this.#state} (cancelled)`);
+
+    this.sendMessage('record:cancelled', {});
+    this.#releaseStream();
+
+    return true;
+  }
+
+  #releaseStream(): void {
+    this.#stream?.getTracks().forEach((track) => track.stop());
+    this.#stream = null;
+    this.#recorder = null;
+    this.#cleanupAudioNodeConnection();
+  }
+
   async stop(): Promise<AudioBuffer> {
     // TODO: return PreProcessResults
     if (!this.#recorder) throw new Error('Recorder not initialized');
 
     if (this.#state === AudioRecorderState.ARMED) {
-      this.#cleanupMonitoring();
-
-      this.#state = AudioRecorderState.STOPPED;
-      console.info(`Recorder state: ${this.#state}`);
-
-      this.sendMessage('record:cancelled', {});
+      this.cancel();
       throw new Error('Recording was armed but never triggered');
     }
 
@@ -380,13 +411,7 @@ export class Recorder implements LibNode {
     this.sendMessage('record:stop', { duration: buffer.duration });
 
     // Clean up - a new stream and recorder is created for each recording
-    if (this.#stream) {
-      this.#stream.getTracks().forEach((track) => track.stop());
-    }
-    this.#stream = null;
-    this.#recorder = null;
-
-    this.#cleanupAudioNodeConnection();
+    this.#releaseStream();
 
     return buffer;
   }
