@@ -7,7 +7,11 @@ import {
   onCleanup,
 } from 'solid-js';
 
-import { createSamplePlayer, type SamplePlayer } from '@repo/audiolib';
+import {
+  createSamplePlayer,
+  samplerParams,
+  type SamplePlayer,
+} from '@repo/audiolib';
 import ParamKnob from './components/knobs/ParamKnob';
 import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 
@@ -111,6 +115,13 @@ const App: Component = () => {
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
       saveCurrentSample(audiobuffer);
+
+      // SamplePlayer resets its loop/trim points to the full buffer on load,
+      // so reset the normalized controls to match instead of keeping the
+      // previous sample's fractions.
+      (['trimStart', 'trimEnd', 'loopStart', 'loopDuration'] as const).forEach(
+        (key) => setSamplerParamValue(key, samplerParams[key].defaultValue),
+      );
 
       // Temporary compatibility for the remaining vanilla controls.
       document.dispatchEvent(
