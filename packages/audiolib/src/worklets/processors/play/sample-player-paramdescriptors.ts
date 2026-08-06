@@ -1,9 +1,9 @@
-import { AudioParamDescriptor } from '@/nodes/params/param-types';
+import type { AudioParamDescriptor } from '../../../types/audio-param-descriptor';
 
 // Source of truth for SamplePlayerProcessor's parameterDescriptors.
 // Plain data (no AudioWorkletProcessor reference) so it's safe to import
 // from both the worklet processor and main-thread code.
-export const SAMPLE_PLAYER_PARAM_DESCRIPTORS: AudioParamDescriptor[] = [
+export const SAMPLE_PLAYER_PARAM_DESCRIPTORS = [
   {
     name: 'masterGain',
     defaultValue: 1,
@@ -96,7 +96,7 @@ export const SAMPLE_PLAYER_PARAM_DESCRIPTORS: AudioParamDescriptor[] = [
     maxValue: 300,
     automationRate: 'k-rate',
   },
-];
+] as const satisfies AudioParamDescriptor[];
 
 export const SAMPLE_PLAYER_PARAM_KEYS = SAMPLE_PLAYER_PARAM_DESCRIPTORS.map(
   (desc) => desc.name

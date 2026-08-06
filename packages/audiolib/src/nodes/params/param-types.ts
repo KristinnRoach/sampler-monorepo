@@ -1,10 +1,4 @@
-export interface AudioParamDescriptor {
-  name: string;
-  defaultValue?: number;
-  minValue?: number;
-  maxValue?: number;
-  automationRate: 'a-rate' | 'k-rate';
-}
+import type { AudioParamDescriptor } from '../../types/audio-param-descriptor';
 
 export interface LibParamDescriptor extends AudioParamDescriptor {
   nodeId: NodeID;
