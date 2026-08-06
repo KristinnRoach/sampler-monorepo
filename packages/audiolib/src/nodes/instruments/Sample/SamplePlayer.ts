@@ -104,15 +104,10 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.#masterOut = new GainNode(this.context, { gain: 0.5 });
 
-    this.#macroLoopStart = new MacroParam(
-      this.context,
-      samplerParams.loopStart.defaultValue,
-    );
-
-    this.#macroLoopEnd = new MacroParam(
-      this.context,
-      samplerParams.loopEnd.defaultValue,
-    );
+    // Seconds; the real loop range is set from the buffer duration in
+    // #resetMacros once a sample is loaded.
+    this.#macroLoopStart = new MacroParam(this.context, 0);
+    this.#macroLoopEnd = new MacroParam(this.context, 0);
 
     // Store configuration for async init
     this.#polyphony = polyphony;
