@@ -1,6 +1,5 @@
 // SamplePlayer.ts - Refactored with Composition Pattern
 
-import { getAudioContext } from '@/context';
 import { Message, MessageHandler } from '@/events';
 import { detectSinglePitchAC } from '@/utils/audiodata/pitchDetection';
 import { trimAudioBuffer } from '@/utils/audiodata/process/trimBuffer';
@@ -14,16 +13,12 @@ import {
 } from '@/nodes/preprocessor/Preprocessor';
 
 import {
-  assert,
-  tryCatch,
-  throttle,
   isValidAudioBuffer,
   isMidiValue,
 } from '@/utils';
 
 import {
   MacroParam,
-  LibParamDescriptor,
   NormalizeOptions,
 } from '@/nodes/params';
 
@@ -37,9 +32,9 @@ import {
 import { BusNodeName } from '@/nodes/master/InstrumentBus';
 import { SampleVoicePool } from './SampleVoicePool';
 import { CustomEnvelope } from '@/nodes/params';
-import { EnvelopeType, EnvelopeData } from '@/nodes/params/envelopes';
+import { EnvelopeType } from '@/nodes/params/envelopes';
 import { localStore } from '@/storage/local';
-import { ILibInstrumentNode, ILibAudioNode } from '@/nodes/LibAudioNode';
+import { ILibInstrumentNode } from '@/nodes/LibAudioNode';
 import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
 import { createMessageBus, MessageBus } from '@/events';
 import {
@@ -1129,18 +1124,7 @@ export class SamplePlayer implements ILibInstrumentNode {
     }
   }
 
-  getParameterDescriptors(): Record<string, LibParamDescriptor> {
-    return {
-      startPoint: DEFAULT_PARAM_DESCRIPTORS.START_POINT,
-      endPoint: DEFAULT_PARAM_DESCRIPTORS.END_POINT,
-      playbackRate: DEFAULT_PARAM_DESCRIPTORS.PLAYBACK_RATE,
-      loopStart: this.#macroLoopStart.descriptor,
-      loopEnd: this.#macroLoopEnd.descriptor,
-      loopRampDuration: DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION,
-      hpfCutoff: DEFAULT_PARAM_DESCRIPTORS.HIGHPASS_CUTOFF,
-      lpfCutoff: DEFAULT_PARAM_DESCRIPTORS.LOWPASS_CUTOFF,
-    };
-  }
+
 
   /* === PITCH === */
 

@@ -1,106 +1,104 @@
-import type { AudioParamDescriptor } from '../../../types/audio-param-descriptor';
+import type { AudioParamDescriptor } from "../../../types/audio-param-descriptor";
 
 // Source of truth for SamplePlayerProcessor's parameterDescriptors.
 // Plain data (no AudioWorkletProcessor reference) so it's safe to import
 // from both the worklet processor and main-thread code.
-export const SAMPLE_PLAYER_PARAM_DESCRIPTORS = [
-  {
-    name: 'masterGain',
+export const SAMPLE_PLAYER_PARAMS = {
+  masterGain: {
+    name: "masterGain",
     defaultValue: 1,
     minValue: 0,
     maxValue: 2,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'envGain',
+  envGain: {
+    name: "envGain",
     defaultValue: 0,
     minValue: 0,
     maxValue: 1,
-    automationRate: 'a-rate',
+    automationRate: "a-rate",
   },
-  {
-    name: 'velocity',
+  velocity: {
+    name: "velocity",
     defaultValue: 100,
     minValue: 0,
     maxValue: 127,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'pan',
+  pan: {
+    name: "pan",
     defaultValue: 0,
     minValue: -1, // -1 hard left
     maxValue: 1, // 1 hard right
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'playbackRate',
+  playbackRate: {
+    name: "playbackRate",
     defaultValue: 1,
     minValue: 0.1,
     maxValue: 24,
-    automationRate: 'a-rate',
+    automationRate: "a-rate",
   },
   // NOTE: Time based params use seconds
-  {
-    name: 'loopStart',
+  loopStart: {
+    name: "loopStart",
     defaultValue: 0,
     minValue: 0,
     maxValue: 99999, // Max sample length in seconds
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'loopEnd',
+  loopEnd: {
+    name: "loopEnd",
     defaultValue: 99999, // Will be set to actual buffer duration when loaded
     minValue: 0,
     maxValue: 99999,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'startPoint',
+  startPoint: {
+    name: "startPoint",
     defaultValue: 0,
     minValue: 0,
     maxValue: 9999, // Max sample length in seconds
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'endPoint',
+  endPoint: {
+    name: "endPoint",
     defaultValue: 9999, // Will be set to actual buffer duration when loaded
     minValue: 0,
     maxValue: 9999,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'playbackPosition',
+  playbackPosition: {
+    name: "playbackPosition",
     defaultValue: 0,
     minValue: 0,
     maxValue: 99999,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'loopDurationDriftAmount',
+  loopDurationDriftAmount: {
+    name: "loopDurationDriftAmount",
     defaultValue: 0,
     minValue: 0,
     maxValue: 1, // 0 = no drift, 1 = max drift (up to 100% of loop duration)
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'maxLoopCount',
+  maxLoopCount: {
+    name: "maxLoopCount",
     defaultValue: 999999,
     minValue: 1,
     maxValue: 999999,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-  {
-    name: 'tempo',
+  tempo: {
+    name: "tempo",
     defaultValue: 120,
     minValue: 20,
     maxValue: 300,
-    automationRate: 'k-rate',
+    automationRate: "k-rate",
   },
-] as const satisfies AudioParamDescriptor[];
+} as const satisfies Record<string, AudioParamDescriptor>;
 
-export const SAMPLE_PLAYER_PARAM_KEYS = SAMPLE_PLAYER_PARAM_DESCRIPTORS.map(
-  (desc) => desc.name
-);
+export const SAMPLE_PLAYER_PARAM_DESCRIPTORS =
+  Object.values(SAMPLE_PLAYER_PARAMS);
 
-// Get typesafe param keys
-export type SamplePlayerParamKey = (typeof SAMPLE_PLAYER_PARAM_KEYS)[number];
+export type SamplePlayerParamKey = keyof typeof SAMPLE_PLAYER_PARAMS;
