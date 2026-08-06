@@ -562,8 +562,9 @@ const App: Component = () => {
                     const croppedBuffer = await player.cropSample();
                     if (!croppedBuffer) return;
 
+                    // Trim points are normalized: the crop is the new full range.
                     setSamplerParamValue('trimStart', 0);
-                    setSamplerParamValue('trimEnd', croppedBuffer.duration);
+                    setSamplerParamValue('trimEnd', 1);
                   } catch (error) {
                     console.error('Failed to crop sample:', error);
                     showNotification('Failed to crop sample');

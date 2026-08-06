@@ -15,14 +15,14 @@ export interface SamplerParamDescriptor {
   step?: number;
   /** Discrete values only (e.g. pitch scale ratios) */
   allowedValues?: readonly number[];
-  format?: (value: number) => string;
-  /** Live max for sample-length-relative params (seconds). Overrides `max` once a sample is loaded. */
-  getMax?: (player: SamplePlayer) => number;
+  format?: (value: number, sampleDurationSeconds: number) => string;
   apply: (player: SamplePlayer, value: number) => void;
 }
 
 const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
 const hz = (v: number) => `${v.toFixed(0)} Hz`;
+/** Normalized position -> seconds readout */
+const seconds = (v: number, duration: number) => `${(v * duration).toFixed(2)} s`;
 
 export const samplerParams = {
   volume: {
@@ -225,15 +225,16 @@ export const samplerParams = {
     apply: (p, v) => p.pitchLFO?.setDepth(v / 10),
   },
 
-  // Trim / loop (seconds, max follows loaded sample duration)
+  // Trim / loop. Normalized 0..1 as a fraction of the loaded sample's duration:
+  // apply() converts to seconds, so the control range never depends on the sample.
   trimStart: {
     label: 'Start',
     min: 0,
     max: 1,
     defaultValue: 0,
     step: 0.001,
-    getMax: (p) => p.sampleDuration,
-    apply: (p, v) => p.setSampleStartPoint(v),
+    format: seconds,
+    apply: (p, v) => p.setSampleStartPoint(v * p.sampleDuration),
   },
   trimEnd: {
     label: 'End',
@@ -241,8 +242,8 @@ export const samplerParams = {
     max: 1,
     defaultValue: 1,
     step: 0.001,
-    getMax: (p) => p.sampleDuration,
-    apply: (p, v) => p.setSampleEndPoint(v),
+    format: seconds,
+    apply: (p, v) => p.setSampleEndPoint(v * p.sampleDuration),
   },
   loopStart: {
     label: 'Loop Start',
@@ -250,8 +251,8 @@ export const samplerParams = {
     max: 1,
     defaultValue: 0,
     step: 0.001,
-    getMax: (p) => p.sampleDuration,
-    apply: (p, v) => p.setLoopStart(v),
+    format: seconds,
+    apply: (p, v) => p.setLoopStart(v * p.sampleDuration),
   },
   loopDuration: {
     label: 'Loop Length',
@@ -259,10 +260,11 @@ export const samplerParams = {
     max: 1,
     defaultValue: 1,
     curve: 4,
-    getMax: (p) => p.sampleDuration,
-    format: (v) =>
-      v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`,
-    apply: (p, v) => p.setLoopDuration(v),
+    format: (v, duration) => {
+      const s = v * duration;
+      return s <= 0.061 ? `${(s * 1000).toFixed(0)}ms` : `${s.toFixed(2)} s`;
+    },
+    apply: (p, v) => p.setLoopDuration(v * p.sampleDuration),
   },
   // Todo: Decide whether all params should be returned or just those requested by app (add param?)
   loopEnd: {
@@ -271,8 +273,8 @@ export const samplerParams = {
     max: 1,
     defaultValue: 1,
     step: 0.001,
-    getMax: (p) => p.sampleDuration,
-    apply: (p, v) => p.setLoopEnd(v),
+    format: seconds,
+    apply: (p, v) => p.setLoopEnd(v * p.sampleDuration),
   },
   loopRampDuration: {
     label: 'Loop Ramp',

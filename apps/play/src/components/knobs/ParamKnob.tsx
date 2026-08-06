@@ -34,6 +34,7 @@ interface ParamKnobProps {
 export const ParamKnob: Component<ParamKnobProps> = (props) => {
   const desc: SamplerParamDescriptor = samplerParams[props.param];
   const [dimmed, setDimmed] = createSignal(false);
+  const [sampleDuration, setSampleDuration] = createSignal(0);
   const value = () => samplerParamValues()[props.param];
 
   let containerRef: HTMLDivElement | undefined;
@@ -81,33 +82,21 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     desc.apply(player, nextValue);
   });
 
-  // On player ready, wire up dynamic max (sample-length-relative params) to
-  // follow the loaded sample. These listeners must not be recreated when the
-  // knob value changes.
+  // On player ready, track the loaded sample's duration for the seconds
+  // readout of normalized params. These listeners must not be recreated when
+  // the knob value changes.
   createEffect(() => {
     const player = props.player;
     if (!player) return;
 
     const unsubscribe: Array<() => void> = [];
 
-    if (desc.getMax) {
-      const updateMax = (durationSeconds: number) => {
-        if (!knobEl || durationSeconds <= 0) return;
-        knobEl.setAttribute('max-value', durationSeconds.toString());
-        // Params whose default means "full sample length" (trimEnd,
-        // loopDuration) also track the duration as their default.
-        if (desc.defaultValue === desc.max) {
-          knobEl.setAttribute('default-value', durationSeconds.toString());
-        }
-      };
-
-      updateMax(desc.getMax(player));
-      unsubscribe.push(
-        player.onMessage('sample:loaded', (msg: any) =>
-          updateMax(msg.durationSeconds),
-        ),
-      );
-    }
+    setSampleDuration(player.sampleDuration);
+    unsubscribe.push(
+      player.onMessage('sample:loaded', (msg: any) =>
+        setSampleDuration(msg.durationSeconds),
+      ),
+    );
 
     // Keytrack has no audible effect when the loop is off or audio-rate
     // (<= PITCH_PRESERVATION_THRESHOLD in the processor): dim as a hint.
@@ -138,7 +127,9 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
   });
 
   const label = () => props.label ?? desc.label;
-  const format = desc.format ?? ((v: number) => v.toFixed(2));
+  const format =
+    desc.format ?? ((v: number, _duration: number) => v.toFixed(2));
+  const readout = () => format(value(), sampleDuration());
 
   return (
     <div
@@ -149,7 +140,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     >
       <div class={styles.knobLabel}>{label()}</div>
       <div ref={containerRef} />
-      <div class={styles.knobValue}>{format(value())}</div>
+      <div class={styles.knobValue}>{readout()}</div>
     </div>
   );
 };
