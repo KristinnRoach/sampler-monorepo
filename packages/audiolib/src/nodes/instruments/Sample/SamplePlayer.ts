@@ -22,7 +22,7 @@ import {
   NormalizeOptions,
 } from '@/nodes/params';
 
-import { DEFAULT_PARAM_DESCRIPTORS } from './param-defaults';
+import { samplerParams } from './sampler-params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
 import {
@@ -112,12 +112,12 @@ export class SamplePlayer implements ILibInstrumentNode {
 
     this.#macroLoopStart = new MacroParam(
       this.context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_START,
+      samplerParams.loopStart.defaultValue,
     );
 
     this.#macroLoopEnd = new MacroParam(
       this.context,
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_END,
+      samplerParams.loopEnd.defaultValue,
     );
 
     // Store configuration for async init
@@ -1089,7 +1089,7 @@ export class SamplePlayer implements ILibInstrumentNode {
   getLoopRampDuration(): number {
     return this.getStoredParamValue(
       'loopRampDuration',
-      DEFAULT_PARAM_DESCRIPTORS.LOOP_RAMP_DURATION.defaultValue,
+      samplerParams.loopRampDuration.defaultValue,
     );
   }
 
