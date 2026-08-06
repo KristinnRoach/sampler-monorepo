@@ -1,10 +1,10 @@
 import { findClosest } from '../../../utils/search/findClosest';
-import { SAMPLE_PLAYER_PARAM_DESCRIPTORS } from './sample-player-paramdescriptors.ts';
+import { SAMPLE_PLAYER_WORKLET_AUDIOPARAM_DESCRIPTORS } from './sample-player-paramdescriptors.ts';
 
 export class SamplePlayerProcessor extends AudioWorkletProcessor {
   // ===== PARAMETER DESCRIPTORS =====
   static get parameterDescriptors() {
-    return SAMPLE_PLAYER_PARAM_DESCRIPTORS;
+    return SAMPLE_PLAYER_WORKLET_AUDIOPARAM_DESCRIPTORS;
   }
 
   // ===== CONSTRUCTOR =====
