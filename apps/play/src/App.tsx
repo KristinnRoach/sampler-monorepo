@@ -39,7 +39,10 @@ import {
   recorderInputSource,
   setRecorderInputDeviceId,
 } from './utils/recorderSettings';
-import { setSamplerParamValue } from './utils/samplerParamState';
+import {
+  samplerParamValues,
+  setSamplerParamValue,
+} from './utils/samplerParamState';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -54,6 +57,11 @@ import SamplerToggle from './components/SamplerToggle';
 
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
+
+const LOOP_POINT_GAP = Math.max(
+  samplerParams.loopStart.step ?? 0,
+  samplerParams.loopEnd.step ?? 0,
+);
 
 // Untracked read for non-reactive consumers (web components, MidiMan, etc.)
 export const getSamplePlayer = () => samplePlayer();
@@ -535,8 +543,18 @@ const App: Component = () => {
                 param='loopStart'
                 label='Start'
                 player={samplePlayer()}
+                maxAllowed={() =>
+                  samplerParamValues().loopEnd - LOOP_POINT_GAP
+                }
               />
-              <ParamKnob param='loopEnd' label='End' player={samplePlayer()} />
+              <ParamKnob
+                param='loopEnd'
+                label='End'
+                player={samplePlayer()}
+                minAllowed={() =>
+                  samplerParamValues().loopStart + LOOP_POINT_GAP
+                }
+              />
               <ParamKnob
                 param='keytrackLoop'
                 label='KeyTrack'

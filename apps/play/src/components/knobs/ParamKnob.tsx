@@ -29,6 +29,8 @@ interface ParamKnobProps {
   size?: number;
   class?: string;
   title?: string;
+  minAllowed?: () => number;
+  maxAllowed?: () => number;
 }
 
 export const ParamKnob: Component<ParamKnobProps> = (props) => {
@@ -41,22 +43,12 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
   let knobEl: KnobElement | undefined;
   const handleChange = (e: Event) => {
     const requestedValue = (e as CustomEvent<{ value: number }>).detail.value;
-    const values = samplerParamValues();
-    const gap = desc.step ?? 0;
-
-    let clampedValue = requestedValue;
-    if (props.param === 'loopStart') {
-      clampedValue = Math.max(
-        desc.min,
-        Math.min(clampedValue, values.loopEnd - gap),
-      );
-    }
-    if (props.param === 'loopEnd') {
-      clampedValue = Math.min(
-        desc.max,
-        Math.max(clampedValue, values.loopStart + gap),
-      );
-    }
+    const minAllowed = Math.max(desc.min, props.minAllowed?.() ?? desc.min);
+    const maxAllowed = Math.min(desc.max, props.maxAllowed?.() ?? desc.max);
+    const clampedValue = Math.max(
+      minAllowed,
+      Math.min(requestedValue, maxAllowed),
+    );
 
     setSamplerParamValue(props.param, clampedValue);
     if (clampedValue !== requestedValue) knobEl?.setValue(clampedValue);
