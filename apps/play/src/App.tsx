@@ -565,7 +565,6 @@ const App: Component = () => {
               <ParamKnob
                 param='keytrackLoop'
                 label='KeyTrack'
-                title='Only affects loops longer than audiorate'
                 player={samplePlayer()}
               />
               <div class='flex-col'>

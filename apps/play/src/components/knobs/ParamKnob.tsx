@@ -28,14 +28,12 @@ interface ParamKnobProps {
   label?: string;
   size?: number;
   class?: string;
-  title?: string;
   minAllowed?: () => number;
   maxAllowed?: () => number;
 }
 
 export const ParamKnob: Component<ParamKnobProps> = (props) => {
   const desc: SamplerParamDescriptor = samplerParams[props.param];
-  const [dimmed, setDimmed] = createSignal(false);
   const [sampleDuration, setSampleDuration] = createSignal(0);
   const value = () => samplerParamValues()[props.param];
 
@@ -108,26 +106,6 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
       ),
     );
 
-    // Keytrack has no audible effect when the loop is off or audio-rate
-    // (<= PITCH_PRESERVATION_THRESHOLD in the processor): dim as a hint.
-    // The message keeps this hint reactive when either loop target changes.
-    if (props.param === 'keytrackLoop') {
-      const AUDIO_RATE_SECONDS = 0.061;
-      const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
-        const loopStart = msg ? msg.loopStart : player.loopStart;
-        const loopEnd = msg ? msg.loopEnd : player.loopEnd;
-        setDimmed(
-          !player.loopEnabled || loopEnd - loopStart <= AUDIO_RATE_SECONDS,
-        );
-      };
-      updateHint();
-      unsubscribe.push(
-        player.onMessage('loop-points:updated', (msg: any) => updateHint(msg)),
-        player.onMessage('loop:enabled', () => updateHint()),
-        player.onMessage('sample:loaded', () => updateHint()),
-      );
-    }
-
     onCleanup(() => unsubscribe.forEach((stop) => stop()));
   });
 
@@ -144,8 +122,6 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     <div
       data-param={props.param}
       class={`${styles.knobContainer} ${props.class ?? ''}`}
-      title={props.title}
-      style={{ opacity: dimmed() ? '0.4' : '' }}
     >
       <div class={styles.knobLabel}>{label()}</div>
       <div ref={containerRef} />
