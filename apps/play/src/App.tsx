@@ -58,10 +58,17 @@ import SamplerToggle from './components/SamplerToggle';
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
 
-const LOOP_POINT_GAP = Math.max(
-  samplerParams.loopStart.step ?? 0,
-  samplerParams.loopEnd.step ?? 0,
-);
+// Todo: Provide a simpler solution from audiolib's params API
+const getLoopPointGap = () => {
+  const step = Math.max(
+    samplerParams.loopStart.step ?? 0,
+    samplerParams.loopEnd.step ?? 0,
+  );
+  const player = getSamplePlayer();
+  const minLoopSec = player ? player.MIN_LOOP_DURATION_SECONDS : 1 / 523.25;
+  const duration = Math.max(player?.sampleDuration ?? 1, minLoopSec);
+  return Math.max(step, minLoopSec / duration);
+};
 
 // Untracked read for non-reactive consumers (web components, MidiMan, etc.)
 export const getSamplePlayer = () => samplePlayer();
@@ -544,7 +551,7 @@ const App: Component = () => {
                 label='Start'
                 player={samplePlayer()}
                 maxAllowed={() =>
-                  samplerParamValues().loopEnd - LOOP_POINT_GAP
+                  samplerParamValues().loopEnd - getLoopPointGap()
                 }
               />
               <ParamKnob
@@ -552,7 +559,7 @@ const App: Component = () => {
                 label='End'
                 player={samplePlayer()}
                 minAllowed={() =>
-                  samplerParamValues().loopStart + LOOP_POINT_GAP
+                  samplerParamValues().loopStart + getLoopPointGap()
                 }
               />
               <ParamKnob
