@@ -6,7 +6,8 @@ import {
 } from '@/events';
 import { ROOT_NOTES, SCALE_PATTERNS } from '@/utils/music-theory/constants';
 import { Debouncer } from '@/utils/Debouncer';
-import { AudioParamController, ValueSnapper } from '@/nodes/params';
+import { AudioParamController } from './AudioParamController';
+import { ValueSnapper } from '../helpers/ValueSnapper';
 import { assert } from '@/utils';
 import { NodeType } from '@/nodes/LibNode';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
@@ -40,13 +41,13 @@ export class MacroParam {
   addTarget(
     targetParam: AudioParam,
     paramType: string,
-    scaleFactor: number = 1
+    scaleFactor: number = 1,
   ): this {
     if (!this.#paramType) this.#paramType = paramType;
     assert(
       // todo: allow multiple types
       paramType === this.#paramType,
-      'Macros only support a single ParamType'
+      'Macros only support a single ParamType',
     );
 
     this.#controller.addTarget(targetParam, scaleFactor);
@@ -64,7 +65,7 @@ export class MacroParam {
       debounceMs?: number;
       onComplete?: () => void;
       onCompleteDelayMs?: number;
-    } = {}
+    } = {},
   ): this {
     if (targetValue === this.#currentTargetValue) return this;
 
@@ -97,7 +98,7 @@ export class MacroParam {
       const debounced = this.#debouncer.debounce(
         executeRamp,
         debounceMs,
-        this.nodeId // explicit key (can be omitted for auto-keying)
+        this.nodeId, // explicit key (can be omitted for auto-keying)
       );
       debounced();
     }
@@ -176,7 +177,7 @@ export class MacroParam {
   // Delegate configuration methods
   setAllowedParamValues(
     values: number[],
-    normalize: NormalizeOptions | false
+    normalize: NormalizeOptions | false,
   ): number[] {
     return this.#snapper.setAllowedValues(values, normalize);
   }
@@ -184,12 +185,12 @@ export class MacroParam {
   setAllowedPeriods(
     periods: number[],
     normalize: NormalizeOptions | false,
-    snapToZeroCrossings: number[] | false = false
+    snapToZeroCrossings: number[] | false = false,
   ): number[] {
     return this.#snapper.setAllowedPeriods(
       periods,
       normalize,
-      snapToZeroCrossings
+      snapToZeroCrossings,
     );
   }
 
@@ -219,7 +220,7 @@ export class MacroParam {
       lowestOctave,
       highestOctave,
       options.normalize,
-      options.snapToZeroCrossings
+      options.snapToZeroCrossings,
     );
   }
 
@@ -299,7 +300,7 @@ export class MacroParam {
     constant: number,
     targetPeriod: number,
     quantizedPeriod: number,
-    result: number
+    result: number,
   ) => {
     console.debug(
       'adjusting param: ',
@@ -313,7 +314,7 @@ export class MacroParam {
       'quantizedPeriod',
       quantizedPeriod,
       'result',
-      result
+      result,
     );
   };
 
