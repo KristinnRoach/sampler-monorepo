@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createStore } from 'solid-js/store';
 import { samplerParams, type SamplerParamKey } from '@repo/audiolib';
 
 export type SamplerParamValues = Record<SamplerParamKey, number>;
@@ -33,8 +33,10 @@ const loadValues = (): SamplerParamValues => {
   return values;
 };
 
-export const [samplerParamValues, setSamplerParamValues] =
-  createSignal<SamplerParamValues>(loadValues());
+const [paramValues, setParamValues] =
+  createStore<SamplerParamValues>(loadValues());
+
+export const samplerParamValues = () => paramValues;
 
 const saveTimers = new Map<SamplerParamKey, ReturnType<typeof setTimeout>>();
 
@@ -57,11 +59,9 @@ export const setSamplerParamValue = (
   key: SamplerParamKey,
   value: number,
 ): void => {
-  if (!Number.isFinite(value)) return;
+  if (!Number.isFinite(value) || paramValues[key] === value) return;
 
-  setSamplerParamValues((current) =>
-    current[key] === value ? current : { ...current, [key]: value },
-  );
+  setParamValues(key, value);
 
   persistValue(key, value);
 };
