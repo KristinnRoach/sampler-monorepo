@@ -22,6 +22,7 @@ export class MacroParam {
   #messages: MessageBus<Message>;
   #paramType: string = '';
   #isReady: boolean = false;
+  #currentTargetValue: number;
 
   constructor(context: BaseAudioContext, initialValue: number) {
     this.#controller = new AudioParamController(context, initialValue);
@@ -30,6 +31,7 @@ export class MacroParam {
 
     this.#messages = createMessageBus(this.#controller.nodeId);
     this.nodeId = this.#controller.nodeId;
+    this.#currentTargetValue = initialValue;
 
     this.#isReady = true;
   }
@@ -54,8 +56,6 @@ export class MacroParam {
     return this;
   }
 
-  #currentTargetValue = 0;
-
   ramp(
     targetValue: number,
     duration: number,
@@ -67,13 +67,14 @@ export class MacroParam {
       onCompleteDelayMs?: number;
     } = {},
   ): this {
-    if (targetValue === this.#currentTargetValue) return this;
+    const processedValue = this.#processValue(targetValue, constant);
+    if (processedValue === this.#currentTargetValue) return this;
 
     // const direction =
-    //   targetValue > this.#currentTargetValue ? 'increment' : 'decrement';
+    //   processedValue > this.#currentTargetValue ? 'increment' : 'decrement';
     // console.debug(this.#paramType, direction);
 
-    this.#currentTargetValue = targetValue;
+    this.#currentTargetValue = processedValue;
 
     const {
       method = 'exponential',
@@ -83,8 +84,6 @@ export class MacroParam {
     } = options;
 
     const executeRamp = () => {
-      let processedValue = this.#processValue(targetValue, constant);
-
       this.#controller.ramp(processedValue, duration, method, true);
 
       if (onComplete) {
@@ -232,6 +231,10 @@ export class MacroParam {
   }
 
   getValue = (): number => this.#controller.value;
+
+  get targetValue(): number {
+    return this.#currentTargetValue;
+  }
 
   get targets() {
     return this.#controller.targets;

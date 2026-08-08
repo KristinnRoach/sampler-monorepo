@@ -291,9 +291,8 @@ const keytrackLoopConfig: KnobConfig = {
 
     // Dim when keytrack has no effect: loop off, or loop audio-rate
     // (<= PITCH_PRESERVATION_THRESHOLD). Stays live via loop:enabled / loop-points:updated.
-    // NOTE: the sampler.loopEnd/loopStart getters lag (macro ramps async); the message
-    // payload carries the authoritative target, so prefer it when present. loopEnabled
-    // getter is synchronous, so it's read directly.
+    // Prefer the message payload so this hint updates reactively with loop targets.
+    // loopEnabled is read directly because its getter is synchronous.
     const AUDIO_RATE_SECONDS = 0.061;
     const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
       if (!knobElement) return;

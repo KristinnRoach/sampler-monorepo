@@ -974,17 +974,12 @@ export class SamplePlayer implements ILibInstrumentNode {
         loopStart = loopEnd - numBeats * beatDuration;
       }
 
-      const storeLoopStart = () => this.storeParamValue('loopStart', loopStart);
-
       if (targetLoopDuration < this.MIN_LOOP_DURATION_SECONDS) {
         loopStart = loopEnd - this.MIN_LOOP_DURATION_SECONDS;
       }
 
-      this.#macroLoopStart.ramp(loopStart, scaledRampTime, loopEnd, {
-        onComplete: () => {
-          storeLoopStart();
-        },
-      });
+      this.#macroLoopStart.ramp(loopStart, scaledRampTime, loopEnd);
+      this.storeParamValue('loopStart', this.loopStart);
     } else if (loopPoint === 'end' && loopEnd !== this.loopEnd) {
       // handle tempo loop sync for loop end
       if (this.#loopTempoSync) {
@@ -993,20 +988,18 @@ export class SamplePlayer implements ILibInstrumentNode {
         loopEnd = loopStart + numBeats * beatDuration;
       }
 
-      const storeLoopEnd = () => this.storeParamValue('loopEnd', loopEnd);
-
       if (targetLoopDuration < this.MIN_LOOP_DURATION_SECONDS) {
         loopEnd = loopStart + this.MIN_LOOP_DURATION_SECONDS;
       }
 
-      this.#macroLoopEnd.ramp(loopEnd, scaledRampTime, loopStart, {
-        onComplete: () => {
-          storeLoopEnd();
-        },
-      });
+      this.#macroLoopEnd.ramp(loopEnd, scaledRampTime, loopStart);
+      this.storeParamValue('loopEnd', this.loopEnd);
     }
 
-    this.sendUpstreamMessage('loop-points:updated', { loopStart, loopEnd });
+    this.sendUpstreamMessage('loop-points:updated', {
+      loopStart: this.loopStart,
+      loopEnd: this.loopEnd,
+    });
 
     return this;
   }
@@ -1401,11 +1394,11 @@ export class SamplePlayer implements ILibInstrumentNode {
   }
 
   get loopStart(): number {
-    return this.#macroLoopStart.getValue();
+    return this.#macroLoopStart.targetValue;
   }
 
   get loopEnd(): number {
-    return this.#macroLoopEnd.getValue();
+    return this.#macroLoopEnd.targetValue;
   }
 
   get isLoaded() {
