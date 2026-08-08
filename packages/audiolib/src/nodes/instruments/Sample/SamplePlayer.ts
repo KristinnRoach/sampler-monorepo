@@ -943,11 +943,14 @@ export class SamplePlayer implements ILibInstrumentNode {
     loopEndSeconds: number,
     rampDuration: number = this.getLoopRampDuration(),
   ) {
-    let loopStart = clamp(
-      loopStartSeconds,
-      0 + this.MIN_LOOP_DURATION_SECONDS / 2,
-      loopEndSeconds,
-    );
+    let loopStart =
+      loopPoint === 'start'
+        ? clamp(
+            loopStartSeconds,
+            this.MIN_LOOP_DURATION_SECONDS / 2,
+            loopEndSeconds,
+          )
+        : loopStartSeconds;
 
     if (loopPoint === 'start' && loopStart === this.loopStart) return this;
 
