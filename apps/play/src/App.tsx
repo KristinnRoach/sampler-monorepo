@@ -39,7 +39,10 @@ import {
   recorderInputSource,
   setRecorderInputDeviceId,
 } from './utils/recorderSettings';
-import { setSamplerParamValue } from './utils/samplerParamState';
+import {
+  samplerParamValues,
+  setSamplerParamValue,
+} from './utils/samplerParamState';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -54,6 +57,18 @@ import SamplerToggle from './components/SamplerToggle';
 
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
+
+// Todo: Provide a simpler solution from audiolib's params API
+const getLoopPointGap = () => {
+  const step = Math.max(
+    samplerParams.loopStart.step ?? 0,
+    samplerParams.loopEnd.step ?? 0,
+  );
+  const player = getSamplePlayer();
+  const minLoopSec = player ? player.MIN_LOOP_DURATION_SECONDS : 1 / 523.25;
+  const duration = Math.max(player?.sampleDuration ?? 1, minLoopSec);
+  return Math.max(step, minLoopSec / duration);
+};
 
 // Untracked read for non-reactive consumers (web components, MidiMan, etc.)
 export const getSamplePlayer = () => samplePlayer();
@@ -119,7 +134,7 @@ const App: Component = () => {
       // SamplePlayer resets its loop/trim points to the full buffer on load,
       // so reset the normalized controls to match instead of keeping the
       // previous sample's fractions.
-      (['trimStart', 'trimEnd', 'loopStart', 'loopDuration'] as const).forEach(
+      (['trimStart', 'trimEnd', 'loopStart', 'loopEnd'] as const).forEach(
         (key) => setSamplerParamValue(key, samplerParams[key].defaultValue),
       );
 
@@ -535,11 +550,17 @@ const App: Component = () => {
                 param='loopStart'
                 label='Start'
                 player={samplePlayer()}
+                maxAllowed={() =>
+                  samplerParamValues().loopEnd - getLoopPointGap()
+                }
               />
               <ParamKnob
-                param='loopDuration'
-                label='Duration'
+                param='loopEnd'
+                label='End'
                 player={samplePlayer()}
+                minAllowed={() =>
+                  samplerParamValues().loopStart + getLoopPointGap()
+                }
               />
               <ParamKnob
                 param='keytrackLoop'

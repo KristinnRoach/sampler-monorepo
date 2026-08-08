@@ -6,7 +6,8 @@ import {
 } from '@/events';
 import { ROOT_NOTES, SCALE_PATTERNS } from '@/utils/music-theory/constants';
 import { Debouncer } from '@/utils/Debouncer';
-import { AudioParamController, ValueSnapper } from '@/nodes/params';
+import { AudioParamController } from './AudioParamController';
+import { ValueSnapper } from '../helpers/ValueSnapper';
 import { assert } from '@/utils';
 import { NodeType } from '@/nodes/LibNode';
 import type { NormalizeOptions } from '@/nodes/params/param-types';
@@ -21,6 +22,7 @@ export class MacroParam {
   #messages: MessageBus<Message>;
   #paramType: string = '';
   #isReady: boolean = false;
+  #currentTargetValue: number;
 
   constructor(context: BaseAudioContext, initialValue: number) {
     this.#controller = new AudioParamController(context, initialValue);
@@ -29,6 +31,7 @@ export class MacroParam {
 
     this.#messages = createMessageBus(this.#controller.nodeId);
     this.nodeId = this.#controller.nodeId;
+    this.#currentTargetValue = initialValue;
 
     this.#isReady = true;
   }
@@ -40,20 +43,18 @@ export class MacroParam {
   addTarget(
     targetParam: AudioParam,
     paramType: string,
-    scaleFactor: number = 1
+    scaleFactor: number = 1,
   ): this {
     if (!this.#paramType) this.#paramType = paramType;
     assert(
       // todo: allow multiple types
       paramType === this.#paramType,
-      'Macros only support a single ParamType'
+      'Macros only support a single ParamType',
     );
 
     this.#controller.addTarget(targetParam, scaleFactor);
     return this;
   }
-
-  #currentTargetValue = 0;
 
   ramp(
     targetValue: number,
@@ -64,15 +65,16 @@ export class MacroParam {
       debounceMs?: number;
       onComplete?: () => void;
       onCompleteDelayMs?: number;
-    } = {}
+    } = {},
   ): this {
-    if (targetValue === this.#currentTargetValue) return this;
+    const processedValue = this.#processValue(targetValue, constant);
+    if (processedValue === this.#currentTargetValue) return this;
 
     // const direction =
-    //   targetValue > this.#currentTargetValue ? 'increment' : 'decrement';
+    //   processedValue > this.#currentTargetValue ? 'increment' : 'decrement';
     // console.debug(this.#paramType, direction);
 
-    this.#currentTargetValue = targetValue;
+    this.#currentTargetValue = processedValue;
 
     const {
       method = 'exponential',
@@ -82,8 +84,6 @@ export class MacroParam {
     } = options;
 
     const executeRamp = () => {
-      let processedValue = this.#processValue(targetValue, constant);
-
       this.#controller.ramp(processedValue, duration, method, true);
 
       if (onComplete) {
@@ -97,7 +97,7 @@ export class MacroParam {
       const debounced = this.#debouncer.debounce(
         executeRamp,
         debounceMs,
-        this.nodeId // explicit key (can be omitted for auto-keying)
+        this.nodeId, // explicit key (can be omitted for auto-keying)
       );
       debounced();
     }
@@ -176,7 +176,7 @@ export class MacroParam {
   // Delegate configuration methods
   setAllowedParamValues(
     values: number[],
-    normalize: NormalizeOptions | false
+    normalize: NormalizeOptions | false,
   ): number[] {
     return this.#snapper.setAllowedValues(values, normalize);
   }
@@ -184,12 +184,12 @@ export class MacroParam {
   setAllowedPeriods(
     periods: number[],
     normalize: NormalizeOptions | false,
-    snapToZeroCrossings: number[] | false = false
+    snapToZeroCrossings: number[] | false = false,
   ): number[] {
     return this.#snapper.setAllowedPeriods(
       periods,
       normalize,
-      snapToZeroCrossings
+      snapToZeroCrossings,
     );
   }
 
@@ -219,7 +219,7 @@ export class MacroParam {
       lowestOctave,
       highestOctave,
       options.normalize,
-      options.snapToZeroCrossings
+      options.snapToZeroCrossings,
     );
   }
 
@@ -231,6 +231,10 @@ export class MacroParam {
   }
 
   getValue = (): number => this.#controller.value;
+
+  get targetValue(): number {
+    return this.#currentTargetValue;
+  }
 
   get targets() {
     return this.#controller.targets;
@@ -299,7 +303,7 @@ export class MacroParam {
     constant: number,
     targetPeriod: number,
     quantizedPeriod: number,
-    result: number
+    result: number,
   ) => {
     console.debug(
       'adjusting param: ',
@@ -313,7 +317,7 @@ export class MacroParam {
       'quantizedPeriod',
       quantizedPeriod,
       'result',
-      result
+      result,
     );
   };
 

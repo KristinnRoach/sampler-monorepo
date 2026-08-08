@@ -29,6 +29,8 @@ interface ParamKnobProps {
   size?: number;
   class?: string;
   title?: string;
+  minAllowed?: () => number;
+  maxAllowed?: () => number;
 }
 
 export const ParamKnob: Component<ParamKnobProps> = (props) => {
@@ -40,8 +42,16 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
   let knobEl: KnobElement | undefined;
   const handleChange = (e: Event) => {
-    const val = (e as CustomEvent<{ value: number }>).detail.value;
-    setSamplerParamValue(props.param, val);
+    const requestedValue = (e as CustomEvent<{ value: number }>).detail.value;
+    const minAllowed = Math.max(desc.min, props.minAllowed?.() ?? desc.min);
+    const maxAllowed = Math.min(desc.max, props.maxAllowed?.() ?? desc.max);
+    const clampedValue = Math.max(
+      minAllowed,
+      Math.min(requestedValue, maxAllowed),
+    );
+
+    setSamplerParamValue(props.param, clampedValue);
+    if (clampedValue !== requestedValue) knobEl?.setValue(clampedValue);
   };
 
   onMount(() => {
@@ -100,8 +110,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
 
     // Keytrack has no audible effect when the loop is off or audio-rate
     // (<= PITCH_PRESERVATION_THRESHOLD in the processor): dim as a hint.
-    // The loopStart/loopEnd getters lag (macro ramps async), so prefer the
-    // message payload's target values when present.
+    // The message keeps this hint reactive when either loop target changes.
     if (props.param === 'keytrackLoop') {
       const AUDIO_RATE_SECONDS = 0.061;
       const updateHint = (msg?: { loopStart: number; loopEnd: number }) => {
