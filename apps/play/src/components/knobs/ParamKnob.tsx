@@ -40,18 +40,26 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
   let containerRef: HTMLDivElement | undefined;
   let knobEl: KnobElement | undefined;
   const handleChange = (e: Event) => {
-    let val = (e as CustomEvent<{ value: number }>).detail.value;
+    const requestedValue = (e as CustomEvent<{ value: number }>).detail.value;
     const values = samplerParamValues();
     const gap = desc.step ?? 0;
 
+    let clampedValue = requestedValue;
     if (props.param === 'loopStart') {
-      val = Math.max(desc.min, Math.min(val, values.loopEnd - gap));
+      clampedValue = Math.max(
+        desc.min,
+        Math.min(clampedValue, values.loopEnd - gap),
+      );
     }
     if (props.param === 'loopEnd') {
-      val = Math.min(desc.max, Math.max(val, values.loopStart + gap));
+      clampedValue = Math.min(
+        desc.max,
+        Math.max(clampedValue, values.loopStart + gap),
+      );
     }
 
-    setSamplerParamValue(props.param, val);
+    setSamplerParamValue(props.param, clampedValue);
+    if (clampedValue !== requestedValue) knobEl?.setValue(clampedValue);
   };
 
   onMount(() => {
