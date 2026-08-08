@@ -119,7 +119,7 @@ const App: Component = () => {
       // SamplePlayer resets its loop/trim points to the full buffer on load,
       // so reset the normalized controls to match instead of keeping the
       // previous sample's fractions.
-      (['trimStart', 'trimEnd', 'loopStart', 'loopDuration'] as const).forEach(
+      (['trimStart', 'trimEnd', 'loopStart', 'loopEnd'] as const).forEach(
         (key) => setSamplerParamValue(key, samplerParams[key].defaultValue),
       );
 
@@ -536,11 +536,7 @@ const App: Component = () => {
                 label='Start'
                 player={samplePlayer()}
               />
-              <ParamKnob
-                param='loopDuration'
-                label='Duration'
-                player={samplePlayer()}
-              />
+              <ParamKnob param='loopEnd' label='End' player={samplePlayer()} />
               <ParamKnob
                 param='keytrackLoop'
                 label='KeyTrack'
