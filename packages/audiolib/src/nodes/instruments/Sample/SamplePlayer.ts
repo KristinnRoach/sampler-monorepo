@@ -1012,6 +1012,11 @@ export class SamplePlayer implements ILibInstrumentNode {
     this.storeParamValue('loopStart', loopStart);
     this.storeParamValue('loopEnd', loopEnd);
 
+    this.sendUpstreamMessage('loop-points:updated', {
+      loopStart: this.loopStart,
+      loopEnd: this.loopEnd,
+    });
+
     return this;
   }
 
