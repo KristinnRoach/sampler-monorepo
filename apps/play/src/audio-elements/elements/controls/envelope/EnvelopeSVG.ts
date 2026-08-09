@@ -39,7 +39,7 @@ export interface EnvelopeSettings {
 function applyEnvelopeStateToInstrument(
   instrument: SamplePlayer,
   envType: EnvelopeType,
-  state: EnvelopeSettings
+  state: EnvelopeSettings,
 ) {
   // Clear existing points first
   const currentEnv = instrument.getEnvelope(envType);
@@ -99,7 +99,7 @@ export const EnvelopeSVG = (
   snapThreshold = 0.025,
   multiColorPlayheads = true,
   restoreSavedSettings?: EnvelopeSettings,
-  bgColor?: string
+  bgColor?: string,
 ): EnvelopeSVG => {
   // If saved state is provided, apply it to the instrument BEFORE getting envelope info
   if (restoreSavedSettings) {
@@ -115,7 +115,7 @@ export const EnvelopeSVG = (
       {
         style: `width: ${width}; height: ${height}; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #666;`,
       },
-      'Record or load a sample to start'
+      'Record or load a sample to start',
     );
 
     const result: EnvelopeSVG = {
@@ -151,7 +151,7 @@ export const EnvelopeSVG = (
   const enabled = van.state<boolean>(envelopeInfo.isEnabled);
   const envLoopEnabled = van.state<boolean>(envelopeInfo.loopEnabled);
   const syncedToPlaybackRate = van.state<boolean>(
-    envelopeInfo.syncedToPlaybackRate
+    envelopeInfo.syncedToPlaybackRate,
   );
 
   const selectedPoint = van.state<number | null>(null);
@@ -223,7 +223,7 @@ export const EnvelopeSVG = (
       ) {
         instrument.setEnvelopeReleasePoint(
           envType,
-          envelopeInfo.sustainPointIndex
+          envelopeInfo.sustainPointIndex,
         );
       } else {
         instrument.setEnvelopeReleasePoint(envType, index);
@@ -365,7 +365,7 @@ export const EnvelopeSVG = (
     pts.forEach((point, index) => {
       const circle = document.createElementNS(
         'http://www.w3.org/2000/svg',
-        'circle'
+        'circle',
       );
 
       circle.setAttribute(
@@ -374,15 +374,15 @@ export const EnvelopeSVG = (
           secondsToScreenX(
             point.time,
             envelopeInfo.baseDuration,
-            SVG_WIDTH - 2 * CIRCLE_PADDING
+            SVG_WIDTH - 2 * CIRCLE_PADDING,
           ) + CIRCLE_PADDING
-        ).toString()
+        ).toString(),
       );
 
       // Convert absolute value to normalized for Y positioning (use absolute point.value everywhere else)
       const normalizedValue = absoluteValueToNormalized(
         point.value,
-        envelopeInfo.envPointValueRange
+        envelopeInfo.envPointValueRange,
       );
 
       circle.setAttribute(
@@ -392,7 +392,7 @@ export const EnvelopeSVG = (
             (SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING) +
           CIRCLE_PADDING +
           TOP_BTNS_PADDING
-        ).toString()
+        ).toString(),
       );
 
       circle.setAttribute('r', '4');
@@ -408,7 +408,7 @@ export const EnvelopeSVG = (
       if (index === envelopeInfo.sustainPointIndex) {
         circle.setAttribute(
           'fill',
-          envelopeInfo.isEnabled ? '#ff2211' : '#666'
+          envelopeInfo.isEnabled ? '#ff2211' : '#666',
         );
         circle.setAttribute('r', '6');
       }
@@ -449,7 +449,7 @@ export const EnvelopeSVG = (
         (e: TouchEvent) => {
           handlePointMouseDown(e, index);
         },
-        { passive: false }
+        { passive: false },
       );
 
       pointsGroup.appendChild(circle);
@@ -466,7 +466,7 @@ export const EnvelopeSVG = (
   const controlButtons = EnvToggleButtons(
     enabled,
     envLoopEnabled,
-    syncedToPlaybackRate
+    syncedToPlaybackRate,
   );
 
   // Add time scale knob if callback provided
@@ -489,12 +489,12 @@ export const EnvelopeSVG = (
       {
         style: 'position: absolute; top: 4px; right: 65px; z-index: 10;',
       },
-      timeScaleKnob
+      timeScaleKnob,
     ),
     // Control buttons keep their absolute positioning
     controlButtons.enabledToggle,
     controlButtons.loopToggle,
-    controlButtons.syncToggle
+    controlButtons.syncToggle,
   );
 
   // Minimal tooltip element
@@ -532,8 +532,8 @@ export const EnvelopeSVG = (
         envelopeInfo.envPointValueRange,
         'linear',
         CIRCLE_PADDING,
-        CIRCLE_PADDING + TOP_BTNS_PADDING
-      )
+        CIRCLE_PADDING + TOP_BTNS_PADDING,
+      ),
     );
   }
 
@@ -558,7 +558,7 @@ export const EnvelopeSVG = (
     instrument,
     envelopeType,
     SVG_WIDTH,
-    SVG_HEIGHT
+    SVG_HEIGHT,
   );
 
   // === WAVEFORM ===
@@ -576,7 +576,7 @@ export const EnvelopeSVG = (
       audiobuffer,
       paddedWidth,
       paddedHeight,
-      offsetY
+      offsetY,
     );
 
     waveformPath = path({
@@ -665,11 +665,11 @@ export const EnvelopeSVG = (
   const createSimpleIndicator = (color: string = '#ff0000'): SVGLineElement => {
     const lineElement = document.createElementNS(
       'http://www.w3.org/2000/svg',
-      'line'
+      'line',
     );
     lineElement.setAttribute(
       'y1',
-      (CIRCLE_PADDING + TOP_BTNS_PADDING).toString()
+      (CIRCLE_PADDING + TOP_BTNS_PADDING).toString(),
     );
     lineElement.setAttribute('y2', (SVG_HEIGHT - CIRCLE_PADDING).toString());
     lineElement.setAttribute('stroke', color);
@@ -684,7 +684,7 @@ export const EnvelopeSVG = (
 
   const makeIndicatorDraggable = (
     line: SVGLineElement,
-    label: 'loop-start' | 'loop-end' | 'start' | 'end'
+    label: 'loop-start' | 'loop-end' | 'start' | 'end',
   ): (() => void) => {
     let isDragging = false;
 
@@ -725,14 +725,14 @@ export const EnvelopeSVG = (
       const x = e.clientX - rect.left;
       const clampedX = Math.max(
         CIRCLE_PADDING,
-        Math.min(x, SVG_WIDTH - CIRCLE_PADDING)
+        Math.min(x, SVG_WIDTH - CIRCLE_PADDING),
       );
       line.setAttribute('x1', clampedX.toString());
       line.setAttribute('x2', clampedX.toString());
       const seconds = screenXToSeconds(
         clampedX - CIRCLE_PADDING,
         paddedWidth,
-        envelopeInfo.baseDuration
+        envelopeInfo.baseDuration,
       );
       if (label === 'loop-start') {
         instrument.setLoopStart(seconds);
@@ -784,7 +784,7 @@ export const EnvelopeSVG = (
     (msg: any) => {
       loopStartSeconds.val = msg.loopStart;
       loopEndSeconds.val = msg.loopEnd;
-    }
+    },
   );
 
   // Add loop region background
@@ -793,15 +793,15 @@ export const EnvelopeSVG = (
   // Create the background rectangle
   loopRegionRect = document.createElementNS(
     'http://www.w3.org/2000/svg',
-    'rect'
+    'rect',
   );
   loopRegionRect.setAttribute(
     'y',
-    (CIRCLE_PADDING + TOP_BTNS_PADDING).toString()
+    (CIRCLE_PADDING + TOP_BTNS_PADDING).toString(),
   );
   loopRegionRect.setAttribute(
     'height',
-    (SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING).toString()
+    (SVG_HEIGHT - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING).toString(),
   );
   loopRegionRect.setAttribute('fill', 'rgba(255, 255, 255, 0.05)'); // Subtle bright overlay
   loopRegionRect.style.pointerEvents = 'none';
@@ -866,20 +866,20 @@ export const EnvelopeSVG = (
       let time = screenXToSeconds(
         coords.x - rect.left - CIRCLE_PADDING,
         rect.width - 2 * CIRCLE_PADDING,
-        envelopeInfo.baseDuration
+        envelopeInfo.baseDuration,
       );
 
       let value = screenYToAbsoluteValue(
         coords.y - rect.top - CIRCLE_PADDING - TOP_BTNS_PADDING,
         rect.height - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
-        envelopeInfo.envPointValueRange
+        envelopeInfo.envPointValueRange,
       );
 
       value = applySnappingAbsolute(
         value,
         snapToValues.y,
         snapThreshold,
-        envelopeInfo.envPointValueRange
+        envelopeInfo.envPointValueRange,
       );
 
       // Handle fixed start/end times
@@ -895,7 +895,7 @@ export const EnvelopeSVG = (
         envelopeType,
         selectedPoint.val,
         time,
-        value
+        value,
       );
 
       updateControlPoints();
@@ -935,13 +935,13 @@ export const EnvelopeSVG = (
     let time = screenXToSeconds(
       coords.x - rect.left - CIRCLE_PADDING,
       rect.width - 2 * CIRCLE_PADDING,
-      envelopeInfo.baseDuration
+      envelopeInfo.baseDuration,
     );
 
     let value = screenYToAbsoluteValue(
       coords.y - rect.top - CIRCLE_PADDING - TOP_BTNS_PADDING,
       rect.height - 2 * CIRCLE_PADDING - TOP_BTNS_PADDING,
-      envelopeInfo.envPointValueRange
+      envelopeInfo.envPointValueRange,
     );
 
     // Apply snapping for consistency with drag behavior
@@ -949,7 +949,7 @@ export const EnvelopeSVG = (
       value,
       snapToValues.y,
       snapThreshold,
-      envelopeInfo.envPointValueRange
+      envelopeInfo.envPointValueRange,
     );
 
     time = applySnapping(time, snapToValues.x, snapThreshold);
@@ -1009,6 +1009,11 @@ export const EnvelopeSVG = (
   svgElement.appendChild(envelopePath);
   svgElement.appendChild(pointsGroup);
 
+  if (instrument.audiobuffer) {
+    // Should be in onMount if refactored to a framework
+    drawWaveform(instrument.audiobuffer);
+  }
+
   const animateIntro = () => {
     let tl = gsap.timeline();
     tl.from(
@@ -1019,7 +1024,7 @@ export const EnvelopeSVG = (
         ease: 'none',
         stagger: 0.1,
       },
-      0.1
+      0.1,
     )
       .from(
         envelopePath,
@@ -1028,7 +1033,7 @@ export const EnvelopeSVG = (
           drawSVG: 0,
           ease: 'none',
         },
-        0.2
+        0.2,
       )
       .from(
         pointsGroup,
@@ -1037,7 +1042,7 @@ export const EnvelopeSVG = (
           duration: 0.25,
           ease: 'none',
         },
-        '-=0.2'
+        '-=0.2',
       );
   };
 
@@ -1066,7 +1071,7 @@ export const EnvelopeSVG = (
     `${envType}:created`,
     () => {
       refresh();
-    }
+    },
   );
 
   // Listen for sample loaded to redraw waveform
@@ -1086,12 +1091,12 @@ export const EnvelopeSVG = (
   // Listen for start/end point updates
   const startPointMessageCleanup = instrument.onMessage(
     'start-point:updated',
-    (msg: any) => (sampleStartSeconds.val = msg.startPoint)
+    (msg: any) => (sampleStartSeconds.val = msg.startPoint),
   );
 
   const endPointMessageCleanup = instrument.onMessage(
     'end-point:updated',
-    (msg: any) => (sampleEndSeconds.val = msg.endPoint)
+    (msg: any) => (sampleEndSeconds.val = msg.endPoint),
   );
 
   let momentarySustainForLoop = false;
@@ -1121,7 +1126,7 @@ export const EnvelopeSVG = (
           updateEnvelopePath();
         }
       }
-    }
+    },
   );
 
   van.derive(() => {
@@ -1152,11 +1157,11 @@ export const EnvelopeSVG = (
   });
 
   van.derive(() =>
-    instrument.setEnvelopeLoop(envelopeType, envLoopEnabled.val)
+    instrument.setEnvelopeLoop(envelopeType, envLoopEnabled.val),
   );
 
   van.derive(() =>
-    instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val)
+    instrument.setEnvelopeSync(envelopeType, syncedToPlaybackRate.val),
   );
 
   return {

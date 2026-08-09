@@ -1,7 +1,7 @@
 // EnvelopeSwitcher.ts
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { EnvelopeSVG, EnvelopeSettings } from '@/elements/controls/envelope';
+import { EnvelopeSVG, EnvelopeSettings } from '../../controls/envelope';
 import { EnvelopeType } from '@repo/audiolib';
 import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
