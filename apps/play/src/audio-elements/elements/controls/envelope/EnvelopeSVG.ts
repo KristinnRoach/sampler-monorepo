@@ -1,10 +1,18 @@
 // EnvelopeSVG.ts
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
+
+import { gsap } from 'gsap';
+import { MotionPathPlugin } from 'gsap/MotionPathPlugin';
+import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
+import { CustomEase } from 'gsap/CustomEase';
+
 import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
-import { gsap, MotionPathPlugin, DrawSVGPlugin, CustomEase } from 'gsap/all';
 
 import { TimeScaleKnob } from './TimeScaleKnob';
-
+import { EnvToggleButtons } from './env-buttons';
+import { createGrid } from './env-grid';
+import { getWaveformSVGData } from '../../../shared/utils/visual/waveform-utils';
+import { createPlayheads, type PlayheadManager } from './env-playheads';
 import {
   applySnapping,
   screenXToSeconds,
@@ -14,12 +22,6 @@ import {
   absoluteValueToNormalized,
   generateSVGPath,
 } from './env-utils';
-
-import { EnvToggleButtons } from './env-buttons';
-import { createGrid } from './env-grid';
-import { getWaveformSVGData } from '../../../shared/utils/visual/waveform-utils';
-
-import { createPlayheads, type PlayheadManager } from './env-playheads';
 
 gsap.registerPlugin(MotionPathPlugin, DrawSVGPlugin, CustomEase);
 
