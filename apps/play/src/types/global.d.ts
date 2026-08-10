@@ -60,11 +60,9 @@ declare module 'solid-js' {
       'pitch-toggle': any;
 
       // Keyboard components
-      'computer-keyboard': any;
       'piano-keyboard': any;
 
       // Select components
-      'keymap-select': any;
       'waveform-select': any;
       'input-source-select': any;
       'rootnote-select': any;

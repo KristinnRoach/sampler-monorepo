@@ -55,6 +55,12 @@ import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
 import SamplerToggle from './components/SamplerToggle';
+import KeymapSelect from './components/KeymapSelect';
+import { useComputerKeyboard } from './hooks/useComputerKeyboard';
+import KeyMaps, {
+  DEFAULT_KEYMAP_KEY,
+  type KeymapKey,
+} from '@/shared/keyboard/keyboard-keymaps';
 
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
@@ -93,6 +99,30 @@ const App: Component = () => {
   );
   const [midiInputChannel, setMidiInputChannel] =
     createSignal<MidiInputChannel>(loadMidiInputChannel());
+  const [keymapKey, setKeymapKey] = createSignal<KeymapKey>(DEFAULT_KEYMAP_KEY);
+  const [keyboardOctaveOffset, setKeyboardOctaveOffset] = createSignal(0);
+
+  const keymap = createMemo(() => KeyMaps[keymapKey()]);
+
+  useComputerKeyboard({
+    player: samplePlayer,
+    keymap,
+    octaveOffset: keyboardOctaveOffset,
+    setOctaveOffset: setKeyboardOctaveOffset,
+  });
+
+  // Temporary bridge for the remaining vanilla piano keyboard.
+  createEffect(() => {
+    document.dispatchEvent(
+      new CustomEvent('keymap-changed', {
+        detail: {
+          keymap: keymap(),
+          selectedValue: keymapKey(),
+          octaveOffset: keyboardOctaveOffset(),
+        },
+      }),
+    );
+  });
 
   const inputDeviceSelectDisabled = createMemo(
     () => recorderInputSource() !== 'audio-input',
@@ -685,7 +715,6 @@ const App: Component = () => {
 
           <fieldset class='control-group keyboard-group'>
             <legend class='expandable-legend'>Keyboard</legend>
-            <computer-keyboard />
             <div class='expandable-content'>
               <piano-keyboard
                 id='piano-keyboard'
@@ -697,8 +726,9 @@ const App: Component = () => {
                   <rootnote-select
                     show-label='false'
                   />
-                  <keymap-select
-                    show-label='false'
+                  <KeymapSelect
+                    value={keymapKey()}
+                    onChange={setKeymapKey}
                   />
                 </div>
 

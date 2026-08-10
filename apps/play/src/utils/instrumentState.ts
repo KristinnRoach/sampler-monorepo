@@ -139,10 +139,12 @@ function restoreToggles(
 function captureSelects(controlsRoot: ParentNode): Record<string, string> {
   const selects: Record<string, string> = {};
 
-  ['rootnote-select', 'keymap-select', 'waveform-select'].forEach((name) => {
-    const select = controlsRoot.querySelector(
-      `${name} select`,
-    ) as HTMLSelectElement | null;
+  [
+    { name: 'rootnote-select', selector: 'rootnote-select select' },
+    { name: 'keymap-select', selector: '.keymap-select select' },
+    { name: 'waveform-select', selector: 'waveform-select select' },
+  ].forEach(({ name, selector }) => {
+    const select = controlsRoot.querySelector(selector) as HTMLSelectElement | null;
     if (select) selects[name] = select.value;
   });
 
@@ -155,9 +157,9 @@ function restoreSelects(
   selects: Record<string, string>,
 ): void {
   Object.entries(selects).forEach(([name, value]) => {
-    const select = controlsRoot.querySelector(
-      `${name} select`,
-    ) as HTMLSelectElement | null;
+    const selector =
+      name === 'keymap-select' ? '.keymap-select select' : `${name} select`;
+    const select = controlsRoot.querySelector(selector) as HTMLSelectElement | null;
     if (!select) return;
 
     select.value = value;

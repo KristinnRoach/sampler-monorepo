@@ -108,7 +108,7 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       isMobile.val = event.matches;
     };
 
-    // Sync octave changes from ComputerKeyboard
+    // Sync keymap and octave changes from the Solid keyboard controls.
     const handleKeymapChange = (e: CustomEvent) => {
       // Sync keymap and octave offset
       if (e.detail.keymap) {

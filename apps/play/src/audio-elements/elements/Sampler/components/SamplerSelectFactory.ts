@@ -3,9 +3,6 @@ import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSamplePlayer } from '../../../../App';
 import { createSamplerConnection } from '../component-utils';
-import KeyMaps, {
-  DEFAULT_KEYMAP_KEY,
-} from '@/shared/keyboard/keyboard-keymaps';
 import {
   COMPONENT_STYLE,
   SELECT_STYLE,
@@ -42,39 +39,6 @@ export interface SelectConfig<T extends string = string> {
 }
 
 // ===== SELECT CONFIGURATIONS =====
-
-const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
-  label: 'KeyMap',
-  title: 'Select Keyboard Keymap',
-  defaultValue: DEFAULT_KEYMAP_KEY,
-  options: [
-    { value: 'piano', label: 'Piano' },
-    { value: 'major', label: 'Major' },
-    { value: 'minor', label: 'Minor' },
-    { value: 'pentatonic', label: 'Pentatonic' },
-    { value: 'chromatic', label: 'Chromatic' },
-  ],
-  onTargetConnect: (
-    sampler: any,
-    state: State<keyof typeof KeyMaps>,
-    van: any,
-  ) => {
-    van.derive(() => {
-      const selectedKeymap = state.val;
-      const keymap = KeyMaps[selectedKeymap] || KeyMaps[DEFAULT_KEYMAP_KEY];
-
-      // Broadcast keymap changes for keyboard components
-      document.dispatchEvent(
-        new CustomEvent('keymap-changed', {
-          detail: {
-            keymap,
-            selectedValue: state.val,
-          },
-        }),
-      );
-    });
-  },
-};
 
 // Helper to create short labels for waveforms
 const getWaveformLabel = (waveform: SupportedWaveform): string => {
@@ -366,12 +330,6 @@ const createSamplerSelect = <T extends string = string>(
 };
 
 // ===== EXPORTED SELECT COMPONENTS =====
-
-export const KeymapSelect = createSamplerSelect(
-  keymapSelectConfig,
-  van,
-  COMPONENT_STYLE,
-);
 
 export const WaveformSelect = createSamplerSelect(
   waveformSelectConfig,

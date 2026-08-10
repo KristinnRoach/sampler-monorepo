@@ -8,6 +8,7 @@ export const addPreventScrollOnSpacebarListener = (
       !(
         keyboardEvent.target instanceof HTMLInputElement ||
         keyboardEvent.target instanceof HTMLTextAreaElement ||
+        keyboardEvent.target instanceof HTMLSelectElement ||
         (keyboardEvent.target instanceof HTMLElement &&
           keyboardEvent.target.isContentEditable)
       )
