@@ -3,6 +3,7 @@ import {
   Component,
   onMount,
   createSignal,
+  createEffect,
   createMemo,
   onCleanup,
 } from 'solid-js';
@@ -253,6 +254,18 @@ const App: Component = () => {
         setSamplePlayer(null);
       }
     });
+  });
+
+  createEffect(() => {
+    const values = samplerParamValues();
+
+    if (values.trimStart > values.loopStart) {
+      setSamplerParamValue('loopStart', values.trimStart);
+    }
+
+    if (values.trimEnd < values.loopEnd) {
+      setSamplerParamValue('loopEnd', values.trimEnd);
+    }
   });
 
   return (
@@ -567,8 +580,8 @@ const App: Component = () => {
           <fieldset class='control-group trim-group'>
             <legend class='expandable-legend'>Trim</legend>
             <div class='expandable-content'>
-              <ParamKnob param='trimStart' player={samplePlayer()} />
-              <ParamKnob param='trimEnd' player={samplePlayer()} />
+              <ParamKnob param='trimStart' player={samplePlayer()} maxAllowed={() => samplerParamValues().trimEnd}/>
+              <ParamKnob param='trimEnd' player={samplePlayer()} minAllowed={() => samplerParamValues().trimStart}/>
               <button
                 class='crop-button'
                 onClick={async () => {
