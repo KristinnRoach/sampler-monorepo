@@ -9,14 +9,6 @@ const MOBILE_KEY_COUNT = 13;
 const DESKTOP_KEY_COUNT = 25;
 const MOBILE_MIN_NOTE = 48;
 
-type WebAudioKeyboardElement = HTMLElement & {
-  width: number;
-  height: number;
-  min: number;
-  keys: number;
-  setNote: (state: 0 | 1, note: number) => void;
-};
-
 type PianoPointerEvent = Event & { note: [0 | 1, number] };
 
 type PianoKeyboardProps = {
