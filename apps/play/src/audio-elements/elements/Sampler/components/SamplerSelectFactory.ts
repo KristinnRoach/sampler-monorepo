@@ -38,7 +38,6 @@ export interface SelectConfig<T extends string = string> {
     target: any,
     state: State<T>,
     van: any,
-    targetNodeId: string,
   ) => void;
 }
 
@@ -59,7 +58,6 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
     sampler: any,
     state: State<keyof typeof KeyMaps>,
     van: any,
-    targetNodeId: string,
   ) => {
     van.derive(() => {
       const selectedKeymap = state.val;
@@ -71,7 +69,6 @@ const keymapSelectConfig: SelectConfig<keyof typeof KeyMaps> = {
           detail: {
             keymap,
             selectedValue: state.val,
-            targetNodeId: targetNodeId,
           },
         }),
       );
@@ -115,7 +112,6 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
     sampler: any,
     state: State<SupportedWaveform>,
     van: any,
-    targetNodeId: string,
   ) => {
     // Set up reactive binding to sampler method
     van.derive(() => {
@@ -152,7 +148,6 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
     sampler: any,
     state: State<RootNote>,
     van: any,
-    targetNodeId: string,
   ) => {
     van.derive(() => {
       const safeRoot = ROOT_NOTES.includes(state.val)
@@ -164,7 +159,6 @@ const rootNoteSelectConfig: SelectConfig<RootNote> = {
         new CustomEvent('rootnote-changed', {
           detail: {
             rootNote: safeRoot,
-            targetNodeId: targetNodeId,
           },
         }),
       );
@@ -195,7 +189,6 @@ const inputSourceSelectConfig: SelectConfig<
     sampler: any,
     state: State<'audio-input' | 'browser' | 'resample'>,
     van: any,
-    targetNodeId: string,
   ) => {
     van.derive(() => {
       setRecorderInputSource(state.val);
@@ -221,7 +214,7 @@ const createSamplerSelect = <T extends string = string>(
       (sampler: SamplePlayer) => {
         if (config.onTargetConnect) {
           try {
-            config.onTargetConnect(sampler, state, van, sampler.nodeId);
+            config.onTargetConnect(sampler, state, van);
           } catch (error) {
             console.error(
               `Failed to connect select "${config.label || 'unnamed'}":`,

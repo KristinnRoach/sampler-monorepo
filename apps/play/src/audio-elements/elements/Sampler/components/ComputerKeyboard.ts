@@ -1,5 +1,5 @@
 // ComputerKeyboard.ts
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import {
   keyboardEnabledInstruments,
@@ -19,7 +19,6 @@ import {
 const { div } = van.tags;
 
 export const ComputerKeyboard = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const enabled = van.state(true);
   const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]);
   const octaveOffset = van.state(0);
@@ -34,9 +33,7 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
   // Listen for keymap changes from the select component
   const handleKeymapChange = (e: CustomEvent) => {
-    if (e.detail.targetNodeId === targetNodeId.val) {
-      currentKeymap.val = e.detail.keymap;
-    }
+    currentKeymap.val = e.detail.keymap;
   };
 
   const handleOctaveChange = (direction: number) => {
