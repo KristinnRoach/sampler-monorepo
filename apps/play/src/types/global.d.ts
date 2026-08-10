@@ -2,6 +2,17 @@
 
 import 'solid-js';
 import type { KnobElement } from '@repo/audiolib';
+
+declare global {
+  interface WebAudioKeyboardElement extends HTMLElement {
+    width: number;
+    height: number;
+    min: number;
+    keys: number;
+    setNote: (state: 0 | 1, note: number) => void;
+  }
+}
+
 declare module 'solid-js' {
   declare module '*.svg' {
     import { Component, JSX } from 'solid-js';
@@ -59,15 +70,12 @@ declare module 'solid-js' {
       'playback-direction-toggle': any;
       'pitch-toggle': any;
 
-      // Keyboard components
-      'computer-keyboard': any;
-      'piano-keyboard': any;
+      // Leaf keyboard control
+      'webaudio-keyboard': HTMLAttributes<WebAudioKeyboardElement>;
 
       // Select components
-      'keymap-select': any;
       'waveform-select': any;
       'input-source-select': any;
-      'rootnote-select': any;
 
       // Status
       'sampler-status': any;

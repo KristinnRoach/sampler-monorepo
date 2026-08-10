@@ -10,18 +10,14 @@ import {
 
 import { EnvelopeDisplay } from './components/EnvelopeDisplay';
 import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
-import { ComputerKeyboard } from './components/ComputerKeyboard';
-import { PianoKeyboard } from './components/PianoKeyboard';
 import {
   RecordButton,
   UploadButton,
   SaveButton,
 } from './components/SamplerButtonFactory';
 import {
-  KeymapSelect,
   WaveformSelect,
   InputSourceSelect,
-  RootNoteSelect,
 } from './components/SamplerSelectFactory';
 import { SamplerStatusElement } from './components/SamplerStatusElement';
 
@@ -50,13 +46,8 @@ export const defineSampler = () => {
   defineIfNotExists('envelope-display', EnvelopeDisplay, false);
   defineIfNotExists('envelope-switcher', EnvelopeSwitcher, false);
 
-  defineIfNotExists('computer-keyboard', ComputerKeyboard, false);
-  defineIfNotExists('piano-keyboard', PianoKeyboard, false);
-
-  defineIfNotExists('keymap-select', KeymapSelect, false);
   defineIfNotExists('waveform-select', WaveformSelect, false);
   defineIfNotExists('input-select', InputSourceSelect, false);
-  defineIfNotExists('rootnote-select', RootNoteSelect, false);
 
   defineIfNotExists('sampler-status', SamplerStatusElement, false);
 };
@@ -67,15 +58,11 @@ export {
   HoldLockToggle,
   PlaybackDirectionToggle,
   PitchToggle,
-  ComputerKeyboard,
-  PianoKeyboard,
   RecordButton,
   UploadButton,
   SaveButton,
-  KeymapSelect,
   WaveformSelect,
   InputSourceSelect,
-  RootNoteSelect,
   SamplerStatusElement,
   EnvelopeDisplay,
 };

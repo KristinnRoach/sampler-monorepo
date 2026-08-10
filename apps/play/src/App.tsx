@@ -10,7 +10,10 @@ import {
 
 import {
   createSamplePlayer,
+  keymaps,
+  DEFAULT_KEYMAP_KEY,
   samplerParams,
+  type KeymapKey,
   type SamplePlayer,
 } from '@repo/audiolib';
 import ParamKnob from './components/knobs/ParamKnob';
@@ -19,7 +22,6 @@ import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 import './styles/midi-learn.css';
 
 import { addExpandCollapseListeners } from './utils/expandCollapse';
-import { addPreventScrollOnSpacebarListener } from './utils/preventScrollOnSpacebar';
 import { showNotification, cleanupNotifications } from './utils/notifications';
 import { getLayoutFromWidth, type LayoutType } from './utils/layout';
 import { useSampleSelection } from './hooks/useSampleSelection';
@@ -55,6 +57,12 @@ import RowCollapseIcons from './components/RowCollapseIcons';
 import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
 import SamplerToggle from './components/SamplerToggle';
+import KeymapSelect from './components/KeymapSelect';
+import PianoKeyboard from './components/PianoKeyboard';
+import RootNoteSelect, {
+  type RootNote,
+} from './components/RootNoteSelect';
+import { useComputerKeyboard } from './hooks/useComputerKeyboard';
 
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
@@ -93,6 +101,22 @@ const App: Component = () => {
   );
   const [midiInputChannel, setMidiInputChannel] =
     createSignal<MidiInputChannel>(loadMidiInputChannel());
+  const [keymapKey, setKeymapKey] = createSignal<KeymapKey>(DEFAULT_KEYMAP_KEY);
+  const [keyboardOctaveOffset, setKeyboardOctaveOffset] = createSignal(0);
+  const [rootNote, setRootNote] = createSignal<RootNote>('C');
+
+  const keymap = createMemo(() => keymaps[keymapKey()]);
+
+  const pressedKeyboardNotes = useComputerKeyboard({
+    player: samplePlayer,
+    keymap,
+    octaveOffset: keyboardOctaveOffset,
+    setOctaveOffset: setKeyboardOctaveOffset,
+  });
+
+  createEffect(() => {
+    samplePlayer()?.setRootNote(rootNote());
+  });
 
   const inputDeviceSelectDisabled = createMemo(
     () => recorderInputSource() !== 'audio-input',
@@ -196,7 +220,6 @@ const App: Component = () => {
 
     updateLayout();
     addExpandCollapseListeners();
-    addPreventScrollOnSpacebarListener();
     window.addEventListener('resize', updateLayout);
 
     enableSamplePlayerMidi({
@@ -685,20 +708,24 @@ const App: Component = () => {
 
           <fieldset class='control-group keyboard-group'>
             <legend class='expandable-legend'>Keyboard</legend>
-            <computer-keyboard />
             <div class='expandable-content'>
-              <piano-keyboard
-                id='piano-keyboard'
-                class='piano-keyboard'
-                height='80'
+              <PianoKeyboard
+                player={samplePlayer()}
+                keymap={keymap()}
+                octaveOffset={keyboardOctaveOffset()}
+                rootNote={rootNote()}
+                pressedNotes={pressedKeyboardNotes()}
+                height={80}
               />
               <div class='keyboard-controls'>
                 <div class='flex-row'>
-                  <rootnote-select
-                    show-label='false'
+                  <RootNoteSelect
+                    value={rootNote()}
+                    onChange={setRootNote}
                   />
-                  <keymap-select
-                    show-label='false'
+                  <KeymapSelect
+                    value={keymapKey()}
+                    onChange={setKeymapKey}
                   />
                 </div>
 
