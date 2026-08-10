@@ -10,7 +10,10 @@ import {
 
 import {
   createSamplePlayer,
+  keymaps,
+  DEFAULT_KEYMAP_KEY,
   samplerParams,
+  type KeymapKey,
   type SamplePlayer,
 } from '@repo/audiolib';
 import ParamKnob from './components/knobs/ParamKnob';
@@ -60,10 +63,6 @@ import RootNoteSelect, {
   type RootNote,
 } from './components/RootNoteSelect';
 import { useComputerKeyboard } from './hooks/useComputerKeyboard';
-import KeyMaps, {
-  DEFAULT_KEYMAP_KEY,
-  type KeymapKey,
-} from '@/shared/keyboard/keyboard-keymaps';
 
 export const [samplePlayer, setSamplePlayer] =
   createSignal<SamplePlayer | null>(null);
@@ -106,7 +105,7 @@ const App: Component = () => {
   const [keyboardOctaveOffset, setKeyboardOctaveOffset] = createSignal(0);
   const [rootNote, setRootNote] = createSignal<RootNote>('C');
 
-  const keymap = createMemo(() => KeyMaps[keymapKey()]);
+  const keymap = createMemo(() => keymaps[keymapKey()]);
 
   const pressedKeyboardNotes = useComputerKeyboard({
     player: samplePlayer,

@@ -5,8 +5,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
-import type { SamplePlayer } from '@repo/audiolib';
-import type { KeyMap } from '@/shared/keyboard/keyboard-types';
+import type { KeyMap, SamplePlayer } from '@repo/audiolib';
 
 const MIN_OCTAVE_OFFSET = -3;
 const MAX_OCTAVE_OFFSET = 3;

@@ -1,5 +1,5 @@
 import { For } from 'solid-js';
-import type { KeymapKey } from '@/shared/keyboard/keyboard-keymaps';
+import type { KeymapKey } from '@repo/audiolib';
 
 type KeymapSelectProps = {
   value: KeymapKey;
