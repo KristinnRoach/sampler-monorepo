@@ -131,7 +131,6 @@ const App: Component = () => {
       document.dispatchEvent(
         new CustomEvent('sample-loaded', {
           detail: {
-            nodeId: 'test-sampler',
             buffer: audiobuffer,
             durationSeconds: audiobuffer.duration,
           },
@@ -160,9 +159,7 @@ const App: Component = () => {
 
         // Temporary readiness signal for the remaining vanilla controls.
         document.dispatchEvent(
-          new CustomEvent('sampler-initialized', {
-            detail: { nodeId: 'test-sampler' },
-          }),
+          new CustomEvent('sampler-initialized'),
         );
 
         // createSamplePlayer resolves after its initial sample has loaded.
@@ -174,7 +171,6 @@ const App: Component = () => {
         document.dispatchEvent(
           new CustomEvent('sampler-error', {
             detail: {
-              nodeId: 'test-sampler',
               error: errText,
               ...(errText.includes('AudioWorklet') && {
                 error: 'AudioWorklet not supported',
