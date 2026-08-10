@@ -1,4 +1,4 @@
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import '../../controls/webaudio-controls/webaudio-keyboard';
 import { getSamplePlayer } from '../../../../App';
@@ -16,7 +16,6 @@ const MOBILE_KEY_COUNT = 13;
 const MOBILE_MIN_NOTE = 48; // C3
 
 export const PianoKeyboard = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
   const width = attributes.attr('width', '300');
   const height = attributes.attr('height', '60');
   const enabled = van.state(true);
@@ -111,29 +110,19 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     // Sync octave changes from ComputerKeyboard
     const handleKeymapChange = (e: CustomEvent) => {
-      if (
-        e.detail.targetNodeId === targetNodeId.val ||
-        !e.detail.targetNodeId
-      ) {
-        // Sync keymap and octave offset
-        if (e.detail.keymap) {
-          currentKeymap.val = e.detail.keymap;
-        }
-        if (e.detail.octaveOffset !== undefined) {
-          octaveOffset.val = e.detail.octaveOffset;
-        }
+      // Sync keymap and octave offset
+      if (e.detail.keymap) {
+        currentKeymap.val = e.detail.keymap;
+      }
+      if (e.detail.octaveOffset !== undefined) {
+        octaveOffset.val = e.detail.octaveOffset;
       }
     };
 
     // Listen for root note changes
     const handleRootNoteChange = (e: CustomEvent) => {
-      if (
-        e.detail.targetNodeId === targetNodeId.val ||
-        !e.detail.targetNodeId
-      ) {
-        if (e.detail.rootNote) {
-          rootNote.val = e.detail.rootNote;
-        }
+      if (e.detail.rootNote) {
+        rootNote.val = e.detail.rootNote;
       }
     };
 

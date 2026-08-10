@@ -390,7 +390,6 @@ const App: Component = () => {
             </div>
 
             {/* <tempo-knob
-          target-node-id='test-sampler'
           label=' '
           class={`left-side-button ${sidebarOpen() ? 'open' : ''} `}
         /> */}
@@ -429,7 +428,6 @@ const App: Component = () => {
                 <envelope-switcher
                   height={envHeight()}
                   bg-color='var(--envelope-bg)'
-                  target-node-id='test-sampler'
                 />
               </div>
             </div>
@@ -441,12 +439,10 @@ const App: Component = () => {
               <ParamKnob param='volume' player={samplePlayer()} />
               <div class='flex-col'>
                 <record-button
-                  target-node-id='test-sampler'
                   show-status='false'
                 />
                 <div class='input-source-selection-container'>
                   <input-select
-                    target-node-id='test-sampler'
                     class='input-source-select'
                   />
                   <InputDeviceSelect
@@ -459,7 +455,6 @@ const App: Component = () => {
               </div>
               <div class='flex-col'>
                 <load-button
-                  target-node-id='test-sampler'
                   show-status='false'
                 />
 
@@ -537,7 +532,6 @@ const App: Component = () => {
               >
                 <ParamKnob param='amMod' label='AM' player={samplePlayer()} />
                 <waveform-select
-                  target-node-id='test-sampler'
                   show-label='false'
                 />
               </div>
@@ -684,34 +678,31 @@ const App: Component = () => {
                 player={samplePlayer()}
                 class='sampler-toggle-container'
               />
-              {/* <midi-toggle target-node-id='test-sampler' /> */}
-              <playback-direction-toggle target-node-id='test-sampler' />
-              <loop-lock-toggle target-node-id='test-sampler' />
-              <hold-lock-toggle target-node-id='test-sampler' />
-              <pitch-toggle target-node-id='test-sampler' />
-              <sampler-status target-node-id='test-sampler' />
+              {/* <midi-toggle /> */}
+              <playback-direction-toggle />
+              <loop-lock-toggle />
+              <hold-lock-toggle />
+              <pitch-toggle />
+              <sampler-status />
             </div>
           </fieldset>
 
           <fieldset class='control-group keyboard-group'>
             <legend class='expandable-legend'>Keyboard</legend>
-            <computer-keyboard target-node-id='test-sampler' />
+            <computer-keyboard />
             <div class='expandable-content'>
               <piano-keyboard
                 id='piano-keyboard'
                 class='piano-keyboard'
-                target-node-id='test-sampler'
                 height='80'
               />
               <div class='keyboard-controls'>
                 <div class='flex-row'>
                   <rootnote-select
                     show-label='false'
-                    target-node-id='test-sampler'
                   />
                   <keymap-select
                     show-label='false'
-                    target-node-id='test-sampler'
                   />
                 </div>
 
