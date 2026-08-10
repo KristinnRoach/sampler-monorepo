@@ -156,7 +156,7 @@ ${this.basestyle}
             get: () => this._min,
             set: (v) => {
               this._min = +v;
-              this.redraw();
+              this.setupImage();
             },
           });
 

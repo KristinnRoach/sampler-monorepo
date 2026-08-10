@@ -56,6 +56,10 @@ import OutputDeviceSelect from './components/OutputDeviceSelect';
 import InputDeviceSelect from './components/InputDeviceSelect';
 import SamplerToggle from './components/SamplerToggle';
 import KeymapSelect from './components/KeymapSelect';
+import PianoKeyboard from './components/PianoKeyboard';
+import RootNoteSelect, {
+  type RootNote,
+} from './components/RootNoteSelect';
 import { useComputerKeyboard } from './hooks/useComputerKeyboard';
 import KeyMaps, {
   DEFAULT_KEYMAP_KEY,
@@ -101,27 +105,19 @@ const App: Component = () => {
     createSignal<MidiInputChannel>(loadMidiInputChannel());
   const [keymapKey, setKeymapKey] = createSignal<KeymapKey>(DEFAULT_KEYMAP_KEY);
   const [keyboardOctaveOffset, setKeyboardOctaveOffset] = createSignal(0);
+  const [rootNote, setRootNote] = createSignal<RootNote>('C');
 
   const keymap = createMemo(() => KeyMaps[keymapKey()]);
 
-  useComputerKeyboard({
+  const pressedKeyboardNotes = useComputerKeyboard({
     player: samplePlayer,
     keymap,
     octaveOffset: keyboardOctaveOffset,
     setOctaveOffset: setKeyboardOctaveOffset,
   });
 
-  // Temporary bridge for the remaining vanilla piano keyboard.
   createEffect(() => {
-    document.dispatchEvent(
-      new CustomEvent('keymap-changed', {
-        detail: {
-          keymap: keymap(),
-          selectedValue: keymapKey(),
-          octaveOffset: keyboardOctaveOffset(),
-        },
-      }),
-    );
+    samplePlayer()?.setRootNote(rootNote());
   });
 
   const inputDeviceSelectDisabled = createMemo(
@@ -716,15 +712,19 @@ const App: Component = () => {
           <fieldset class='control-group keyboard-group'>
             <legend class='expandable-legend'>Keyboard</legend>
             <div class='expandable-content'>
-              <piano-keyboard
-                id='piano-keyboard'
-                class='piano-keyboard'
-                height='80'
+              <PianoKeyboard
+                player={samplePlayer()}
+                keymap={keymap()}
+                octaveOffset={keyboardOctaveOffset()}
+                rootNote={rootNote()}
+                pressedNotes={pressedKeyboardNotes()}
+                height={80}
               />
               <div class='keyboard-controls'>
                 <div class='flex-row'>
-                  <rootnote-select
-                    show-label='false'
+                  <RootNoteSelect
+                    value={rootNote()}
+                    onChange={setRootNote}
                   />
                   <KeymapSelect
                     value={keymapKey()}

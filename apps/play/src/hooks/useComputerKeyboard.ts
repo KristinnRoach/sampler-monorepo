@@ -1,4 +1,10 @@
-import { type Accessor, type Setter, onCleanup, onMount } from 'solid-js';
+import {
+  type Accessor,
+  type Setter,
+  createSignal,
+  onCleanup,
+  onMount,
+} from 'solid-js';
 import type { SamplePlayer } from '@repo/audiolib';
 import type { KeyMap } from '@/shared/keyboard/keyboard-types';
 
@@ -22,17 +28,23 @@ export const useComputerKeyboard = ({
   octaveOffset,
   setOctaveOffset,
 }: ComputerKeyboardOptions) => {
-  const pressedNotes = new Map<
+  const [pressedNotes, setPressedNotes] =
+    createSignal<ReadonlySet<number>>(new Set());
+  const pressedKeys = new Map<
     string,
     { note: number; player: SamplePlayer }
   >();
   let spacePressed = false;
 
+  const syncPressedNotes = () => {
+    setPressedNotes(new Set([...pressedKeys.values()].map(({ note }) => note)));
+  };
+
   const releasePressedNotes = () => {
     const players = new Set<SamplePlayer>();
     const activePlayer = player();
     if (activePlayer) players.add(activePlayer);
-    for (const pressed of pressedNotes.values()) players.add(pressed.player);
+    for (const pressed of pressedKeys.values()) players.add(pressed.player);
 
     for (const activePlayer of players) {
       activePlayer.setLoopEnabled(false);
@@ -40,7 +52,8 @@ export const useComputerKeyboard = ({
       activePlayer.releaseAll();
     }
 
-    pressedNotes.clear();
+    pressedKeys.clear();
+    syncPressedNotes();
     spacePressed = false;
   };
 
@@ -84,23 +97,25 @@ export const useComputerKeyboard = ({
     activePlayer.setHoldEnabled(holdEnabled);
 
     const midiNote = keymap()[event.code];
-    if (midiNote === undefined || pressedNotes.has(event.code)) return;
+    if (midiNote === undefined || pressedKeys.has(event.code)) return;
 
     event.preventDefault();
     const adjustedMidiNote = midiNote + octaveOffset() * 12;
 
-    pressedNotes.set(event.code, {
+    pressedKeys.set(event.code, {
       note: adjustedMidiNote,
       player: activePlayer,
     });
+    syncPressedNotes();
     activePlayer.play(adjustedMidiNote);
   };
 
   const handleKeyUp = (event: KeyboardEvent) => {
-    const pressed = pressedNotes.get(event.code);
+    const pressed = pressedKeys.get(event.code);
     if (pressed) {
       pressed.player.release(pressed.note);
-      pressedNotes.delete(event.code);
+      pressedKeys.delete(event.code);
+      syncPressedNotes();
     }
 
     if (isEditableTarget(event.target)) return;
@@ -129,4 +144,6 @@ export const useComputerKeyboard = ({
     window.removeEventListener('blur', releasePressedNotes);
     releasePressedNotes();
   });
+
+  return pressedNotes;
 };

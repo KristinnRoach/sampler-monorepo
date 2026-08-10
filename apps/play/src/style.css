@@ -184,7 +184,7 @@ option:checked {
   overflow-y: hidden;
 } */
 
-.control-grid.layout-tablet piano-keyboard {
+.control-grid.layout-tablet .piano-keyboard {
   max-width: 100%;
 }
 
@@ -193,7 +193,7 @@ option:checked {
   overflow: hidden;
 }
 
-.control-grid.layout-tablet piano-keyboard webaudio-keyboard {
+.control-grid.layout-tablet .piano-keyboard webaudio-keyboard {
   width: 100%;
   max-width: calc(100dvw - 2rem);
 }
@@ -241,11 +241,11 @@ option:checked {
   overflow-y: hidden;
 } */
 
-.control-grid.layout-mobile piano-keyboard {
+.control-grid.layout-mobile .piano-keyboard {
   max-width: 100%;
 }
 
-.control-grid.layout-mobile piano-keyboard webaudio-keyboard {
+.control-grid.layout-mobile .piano-keyboard webaudio-keyboard {
   max-width: 100%;
 }
 
@@ -471,20 +471,20 @@ option:checked {
   justify-content: center;
 }
 
-piano-keyboard.hidden {
+.piano-keyboard.hidden {
   opacity: 0;
   pointer-events: none;
 }
 
-piano-keyboard.visible {
+.piano-keyboard.visible {
   opacity: 1;
 }
 
-piano-keyboard {
+.piano-keyboard {
   overflow-x: hidden;
 }
 
-piano-keyboard > * {
+.piano-keyboard > * {
   margin: 0 !important;
   padding: 0 !important;
   /* margin-inline: auto; */

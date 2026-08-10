@@ -84,52 +84,6 @@ const waveformSelectConfig: SelectConfig<SupportedWaveform> = {
   },
 };
 
-const ROOT_NOTES = [
-  'C',
-  'C#',
-  'D',
-  'D#',
-  'E',
-  'F',
-  'F#',
-  'G',
-  'G#',
-  'A',
-  'A#',
-  'B',
-] as const;
-type RootNote = (typeof ROOT_NOTES)[number];
-
-const rootNoteSelectConfig: SelectConfig<RootNote> = {
-  label: 'Root',
-  title: 'Select Scale Root Note',
-  defaultValue: 'C',
-  options: ROOT_NOTES.map((note) => ({
-    value: note,
-    label: note,
-  })),
-  onTargetConnect: (
-    sampler: any,
-    state: State<RootNote>,
-    van: any,
-  ) => {
-    van.derive(() => {
-      const safeRoot = ROOT_NOTES.includes(state.val)
-        ? state.val
-        : ('C' as RootNote);
-      sampler.setRootNote(safeRoot);
-      // Dispatch rootnote-changed event for PianoKeyboard
-      document.dispatchEvent(
-        new CustomEvent('rootnote-changed', {
-          detail: {
-            rootNote: safeRoot,
-          },
-        }),
-      );
-    });
-  },
-};
-
 const inputSourceSelectConfig: SelectConfig<
   'audio-input' | 'browser' | 'resample'
 > = {
@@ -339,12 +293,6 @@ export const WaveformSelect = createSamplerSelect(
 
 export const InputSourceSelect = createSamplerSelect(
   inputSourceSelectConfig,
-  van,
-  COMPONENT_STYLE,
-);
-
-export const RootNoteSelect = createSamplerSelect(
-  rootNoteSelectConfig,
   van,
   COMPONENT_STYLE,
 );

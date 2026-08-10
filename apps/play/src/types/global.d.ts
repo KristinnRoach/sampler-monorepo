@@ -59,13 +59,12 @@ declare module 'solid-js' {
       'playback-direction-toggle': any;
       'pitch-toggle': any;
 
-      // Keyboard components
-      'piano-keyboard': any;
+      // Leaf keyboard control
+      'webaudio-keyboard': any;
 
       // Select components
       'waveform-select': any;
       'input-source-select': any;
-      'rootnote-select': any;
 
       // Status
       'sampler-status': any;

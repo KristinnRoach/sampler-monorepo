@@ -140,7 +140,7 @@ function captureSelects(controlsRoot: ParentNode): Record<string, string> {
   const selects: Record<string, string> = {};
 
   [
-    { name: 'rootnote-select', selector: 'rootnote-select select' },
+    { name: 'rootnote-select', selector: '.rootnote-select select' },
     { name: 'keymap-select', selector: '.keymap-select select' },
     { name: 'waveform-select', selector: 'waveform-select select' },
   ].forEach(({ name, selector }) => {
@@ -158,7 +158,9 @@ function restoreSelects(
 ): void {
   Object.entries(selects).forEach(([name, value]) => {
     const selector =
-      name === 'keymap-select' ? '.keymap-select select' : `${name} select`;
+      name === 'keymap-select' || name === 'rootnote-select'
+        ? `.${name} select`
+        : `${name} select`;
     const select = controlsRoot.querySelector(selector) as HTMLSelectElement | null;
     if (!select) return;
 
