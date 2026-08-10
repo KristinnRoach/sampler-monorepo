@@ -19,7 +19,6 @@ import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 import './styles/midi-learn.css';
 
 import { addExpandCollapseListeners } from './utils/expandCollapse';
-import { addPreventScrollOnSpacebarListener } from './utils/preventScrollOnSpacebar';
 import { showNotification, cleanupNotifications } from './utils/notifications';
 import { getLayoutFromWidth, type LayoutType } from './utils/layout';
 import { useSampleSelection } from './hooks/useSampleSelection';
@@ -222,7 +221,6 @@ const App: Component = () => {
 
     updateLayout();
     addExpandCollapseListeners();
-    addPreventScrollOnSpacebarListener();
     window.addEventListener('resize', updateLayout);
 
     enableSamplePlayerMidi({
