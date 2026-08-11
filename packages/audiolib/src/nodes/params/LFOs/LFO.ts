@@ -10,7 +10,6 @@ export class LFO {
   #oscillator: OscillatorNode;
   #gain: GainNode;
   #targets: Set<AudioParam> = new Set();
-  #initialized = false;
 
   #storedValues: { rate: number; depth?: number } | null = null;
 
@@ -23,24 +22,7 @@ export class LFO {
     this.#gain.gain.value = 0; // No mod
 
     this.#oscillator.connect(this.#gain);
-
-    // Hook into user gesture to avoid audio context warnings
-    document.addEventListener('click', this.initOnUserGesture.bind(this), {
-      once: true,
-    });
-  }
-
-  initOnUserGesture() {
-    if (this.#initialized) return;
-
-    if (this.#context.state === 'suspended') {
-      this.#context.resume().then(() => {
-        this.#oscillator.start();
-      });
-    } else {
-      this.#oscillator.start();
-    }
-    this.#initialized = true;
+    this.#oscillator.start();
   }
 
   setFrequency(hz: number, timestamp = this.now) {
@@ -161,14 +143,7 @@ export class LFO {
   }
 
   dispose() {
-    if (this.#initialized) {
-      try {
-        this.#oscillator.stop();
-      } catch {
-        /* ignore */
-      }
-    }
-    this.#initialized = false;
+    this.#oscillator.stop();
     this.#targets.clear();
     this.#storedValues = null;
     this.disconnect();
