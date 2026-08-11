@@ -1,7 +1,3 @@
-import { gsap, MorphSVGPlugin } from 'gsap/all';
-
-gsap.registerPlugin(MorphSVGPlugin);
-
 interface ButtonOptions {
   initialState?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -33,15 +29,15 @@ const icons = new Map<string, string>([
     // ! SCALED version. TODO: verify that this is correct before using (otherwise use above version)
     'download',
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
-    <path d="M 12.5 16 L 12.5 0 M 5.8 9.3 L 12.5 16 L 19.2 9.3 M 24.5 16 L 24.5 21.3 C 24.5 22.8 23.4 24 21.9 24 L 3.1 24 C 1.6 24 0.5 22.8 0.5 21.3 L 0.5 16" />
-  </svg>`,
+      <path d="M 12.5 16 L 12.5 0 M 5.8 9.3 L 12.5 16 L 19.2 9.3 M 24.5 16 L 24.5 21.3 C 24.5 22.8 23.4 24 21.9 24 L 3.1 24 C 1.6 24 0.5 22.8 0.5 21.3 L 0.5 16" />
+    </svg>`,
   ],
 
   [
     'upload',
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
-    <path d="M 12 0.75 L 12 16.084 M 24 15.334 L 24 20.444 C 24 21.856 22.857 23 21.444 23 L 2.667 23 C 1.254 23 0 21.856 0 20.444 L 0 15.334 M 5.339 7.14 L 12 0.75 L 18.661 7.14" />
-  </svg>`,
+      <path d="M 12 0.75 L 12 16.084 M 24 15.334 L 24 20.444 C 24 21.856 22.857 23 21.444 23 L 2.667 23 C 1.254 23 0 21.856 0 20.444 L 0 15.334 M 5.339 7.14 L 12 0.75 L 18.661 7.14" />
+    </svg>`,
   ],
 
   [
@@ -290,31 +286,4 @@ export function createSVGButton(
   });
 
   return button;
-}
-
-/** Helper to check if two SVGs can morph (both have single path with d attribute) */
-function canMorph(fromSvg: string, toSvg: string): boolean {
-  const parser = new DOMParser();
-  const fromDoc = parser.parseFromString(fromSvg, 'image/svg+xml');
-  const toDoc = parser.parseFromString(toSvg, 'image/svg+xml');
-
-  if (
-    fromDoc.querySelector('parsererror') ||
-    toDoc.querySelector('parsererror')
-  ) {
-    return false;
-  }
-
-  const fromPaths = fromDoc.querySelectorAll('path[d]');
-  const toPaths = toDoc.querySelectorAll('path[d]');
-
-  return fromPaths.length === 1 && toPaths.length === 1;
-}
-
-/** Extract path d attribute from SVG string */
-function getPathData(svgString: string): string | null {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const path = doc.querySelector('path[d]');
-  return path?.getAttribute('d') || null;
 }
