@@ -476,7 +476,6 @@ export class KnobElement extends HTMLElement {
         isUsingPointerLock = false;
       }
 
-      e.preventDefault();
     };
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
