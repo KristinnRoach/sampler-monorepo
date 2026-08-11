@@ -1,5 +1,7 @@
 ## Usage Example: `tryCatch`
 
+`fn` may return a value, `void`, or a `Promise`. On success, the returned or resolved value is stored in `data`.
+
 ### For Synchronous Functions
 
 ```typescript

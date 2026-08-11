@@ -11,10 +11,12 @@ function isPromiseLike<T>(value: any): value is PromiseLike<T> {
 }
 
 /**
- * Handles error handling for functions that may return sync or async values.
+ * Runs a sync or async function and returns `{ data, error }`.
+ * On success, the function's return value or resolved value is stored in `data`.
+ * If the function only performs side effects, it may return `void`.
  * Always returns a Promise and must be awaited.
  *
- * @param fn A function that returns a value or a Promise
+ * @param fn Function to execute. May return a value, `void`, or a Promise.
  * @param errorMessage Optional custom error message
  * @param logError Whether to log the error to console (defaults to true)
  * @returns A Promise resolving to a Result object
