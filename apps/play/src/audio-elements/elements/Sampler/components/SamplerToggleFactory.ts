@@ -5,26 +5,6 @@ import { createSVGButton } from '../../primitives/createSVGButton';
 
 const { div } = van.tags;
 
-export const MidiToggle = () => {
-  const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
-    size: 'md',
-    onClick: () => {
-      // TODO: Finish refacoring to use centralized input handling package
-      // const sampler = getSamplePlayer();
-      // if (!sampler) return;
-      // const currentState = toggleButton.getState();
-      // if (currentState === 'midi_on') {
-      //   sampler.enableMIDI();
-      // } else {
-      //   sampler.disableMIDI();
-      // }
-    },
-    initialState: 'midi_on',
-  });
-
-  return div({ style: '' }, toggleButton);
-};
-
 export const PlaybackDirectionToggle = () => {
   const toggleButton = createSVGButton(
     'Toggle Playback Direction',
@@ -107,6 +87,27 @@ export const PitchToggle = () => {
       },
     },
   );
+
+  return div({ style: '' }, toggleButton);
+};
+
+
+// TODO: Deferred until next MIDI slice: Deciding whether to delete this toggle or finish (same for the MIDI svg icons)
+export const MidiToggle = () => {
+  const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
+    size: 'md',
+    onClick: () => {
+      // const sampler = getSamplePlayer();
+      // if (!sampler) return;
+      // const currentState = toggleButton.getState();
+      // if (currentState === 'midi_on') {
+      //   sampler.enableMIDI();
+      // } else {
+      //   sampler.disableMIDI();
+      // }
+    },
+    initialState: 'midi_on',
+  });
 
   return div({ style: '' }, toggleButton);
 };
