@@ -434,7 +434,7 @@ option:checked {
   height: 100%;
 }
 
-.toggle-group sampler-status {
+.toggle-group .sampler-status {
   display: flex;
   align-items: center;
 

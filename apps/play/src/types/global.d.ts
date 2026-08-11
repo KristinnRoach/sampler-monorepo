@@ -77,8 +77,6 @@ declare module 'solid-js' {
       'waveform-select': any;
       'input-source-select': any;
 
-      // Status
-      'sampler-status': any;
     }
   }
 }

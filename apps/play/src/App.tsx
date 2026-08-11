@@ -62,6 +62,7 @@ import PianoKeyboard from './components/PianoKeyboard';
 import RootNoteSelect, {
   type RootNote,
 } from './components/RootNoteSelect';
+import SamplerStatus from './components/SamplerStatus';
 import { useComputerKeyboard } from './hooks/useComputerKeyboard';
 
 export const [samplePlayer, setSamplePlayer] =
@@ -93,7 +94,9 @@ const App: Component = () => {
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
+  const [audioInitialized, setAudioInitialized] = createSignal(false);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
+  const [samplerError, setSamplerError] = createSignal<string | null>(null);
   const [toolbarOpen, setToolbarOpen] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
   const [sidebarSection, setSidebarSection] = createSignal<'menu' | 'samples'>(
@@ -151,7 +154,7 @@ const App: Component = () => {
         (key) => setSamplerParamValue(key, samplerParams[key].defaultValue),
       );
 
-      // Temporary compatibility for the remaining vanilla controls.
+      // Compatibility signal for the remaining vanilla controls.
       document.dispatchEvent(
         new CustomEvent('sample-loaded', {
           detail: {
@@ -177,14 +180,14 @@ const App: Component = () => {
 
         player = createdPlayer;
         setSamplePlayer(createdPlayer);
+        setAudioInitialized(true);
+        setSamplerError(null);
         unsubscribeSampleLoaded = createdPlayer.onMessage('sample:loaded', () =>
           handleSampleLoaded(createdPlayer),
         );
 
-        // Temporary readiness signal for the remaining vanilla controls.
-        document.dispatchEvent(
-          new CustomEvent('sampler-initialized'),
-        );
+        // Compatibility signal for the remaining vanilla controls.
+        document.dispatchEvent(new CustomEvent('sampler-initialized'));
 
         // createSamplePlayer resolves after its initial sample has loaded.
         handleSampleLoaded(createdPlayer);
@@ -192,17 +195,10 @@ const App: Component = () => {
         const errText =
           typeof error?.message === 'string' ? error.message : String(error);
         console.error('Sampler initialization error:', error);
-        document.dispatchEvent(
-          new CustomEvent('sampler-error', {
-            detail: {
-              error: errText,
-              ...(errText.includes('AudioWorklet') && {
-                error: 'AudioWorklet not supported',
-                message:
-                  'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
-              }),
-            },
-          }),
+        setSamplerError(
+          errText.includes('AudioWorklet')
+            ? 'AudioWorklet not supported'
+            : errText,
         );
       }
     })();
@@ -702,7 +698,11 @@ const App: Component = () => {
               <loop-lock-toggle />
               <hold-lock-toggle />
               <pitch-toggle />
-              <sampler-status />
+              <SamplerStatus
+                audioInitialized={audioInitialized()}
+                sampleLoaded={sampleLoaded()}
+                error={samplerError()}
+              />
             </div>
           </fieldset>
 

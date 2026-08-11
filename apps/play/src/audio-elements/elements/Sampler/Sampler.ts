@@ -19,7 +19,6 @@ import {
   WaveformSelect,
   InputSourceSelect,
 } from './components/SamplerSelectFactory';
-import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 const defineIfNotExists = (name: string, elementFunc: any, options: any) => {
   if (!customElements.get(name)) {
@@ -49,7 +48,6 @@ export const defineSampler = () => {
   defineIfNotExists('waveform-select', WaveformSelect, false);
   defineIfNotExists('input-select', InputSourceSelect, false);
 
-  defineIfNotExists('sampler-status', SamplerStatusElement, false);
 };
 
 export {
@@ -63,6 +61,5 @@ export {
   SaveButton,
   WaveformSelect,
   InputSourceSelect,
-  SamplerStatusElement,
   EnvelopeDisplay,
 };
