@@ -8,7 +8,6 @@ import {
   PitchToggle,
 } from './components/SamplerToggleFactory';
 
-import { EnvelopeDisplay } from './components/EnvelopeDisplay';
 import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
 import {
   RecordButton,
@@ -42,7 +41,6 @@ export const defineSampler = () => {
   );
   defineIfNotExists('pitch-toggle', PitchToggle, false);
 
-  defineIfNotExists('envelope-display', EnvelopeDisplay, false);
   defineIfNotExists('envelope-switcher', EnvelopeSwitcher, false);
 
   defineIfNotExists('waveform-select', WaveformSelect, false);
@@ -61,5 +59,4 @@ export {
   SaveButton,
   WaveformSelect,
   InputSourceSelect,
-  EnvelopeDisplay,
 };

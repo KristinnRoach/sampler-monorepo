@@ -6,7 +6,7 @@ import { EnvelopeType } from '@repo/audiolib';
 import { getSamplePlayer } from '../../../../App';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 
-const { div, button } = van.tags;
+const { div } = van.tags;
 
 // Define the envelope types we actually support
 type SupportedEnvelopeType = 'amp-env' | 'filter-env' | 'pitch-env';
