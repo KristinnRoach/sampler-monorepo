@@ -28,23 +28,8 @@ export class AudioParamController implements LibNode {
     );
 
     this.#value = initialValue;
+    this.#constantSignal.start();
 
-    // Hook into user gesture to avoid audio context warnings
-    document.addEventListener('click', this.initOnUserGesture.bind(this), {
-      once: true,
-    });
-  }
-
-  initOnUserGesture() {
-    if (this.#initialized) return;
-
-    if (this.#context.state === 'suspended') {
-      this.#context.resume().then(() => {
-        this.#constantSignal.start();
-      });
-    } else {
-      this.#constantSignal.start();
-    }
     this.#initialized = true;
   }
 
@@ -122,8 +107,12 @@ export class AudioParamController implements LibNode {
   }
 
   dispose(): void {
-    // this.#constantSignal.stop();
-    this.#constantSignal.disconnect();
+    this.#initialized = false;
+    try {
+      this.#constantSignal.stop(); 
+      this.#constantSignal.disconnect(); 
+      this.#targets.forEach(({ scaler }) => scaler && scaler.disconnect());
+    } catch {}
     unregisterNode(this.nodeId);
   }
 }
