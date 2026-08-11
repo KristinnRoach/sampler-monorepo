@@ -1,4 +1,5 @@
-import type { SamplePlayer, KnobElement } from '@repo/audiolib';
+import type { SamplePlayer } from '@repo/audiolib';
+import type { KnobElement } from '../audio-elements/elements/primitives/KnobElement';
 import { inputController, type ControlChangeEvent } from '@repo/audiolib/io';
 
 type SamplePlayerAccessor = () => SamplePlayer | null | undefined;

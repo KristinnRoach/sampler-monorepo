@@ -1,7 +1,4 @@
-// KnobElement.ts
-import { defineElement } from '../../elementRegistry';
-
-export interface KnobConfig {
+export type KnobElementOptions = {
   minValue: number;
   maxValue: number;
   defaultValue: number;
@@ -13,13 +10,18 @@ export interface KnobConfig {
   snapThresholds?: Array<{ maxValue: number; increment: number }>;
   disabled?: boolean;
   borderStyle?: 'currentState' | 'fullCircle';
-}
+  width?: number;
+  height?: number;
+  color?: string;
+  value?: number; // initial value (if different from default)
+};
 
-export interface KnobChangeEventDetail {
+export type KnobChangeEventDetail = {
   value: number;
   rotation: number;
   percentage: number;
-}
+  source: 'user' | 'programmatic';
+};
 
 declare global {
   interface HTMLElementEventMap {
@@ -27,95 +29,12 @@ declare global {
   }
 }
 
-export interface KnobFactoryOptions extends Partial<KnobConfig> {
-  width?: number;
-  height?: number;
-  color?: string;
-  value?: number;
-}
-
-/**
- * Creates and configures a KnobElement with sensible defaults
- * @param container - Parent element to append the knob to
- * @param options - Configuration options for the knob
- * @returns The created KnobElement instance
- */
-export function createKnobElement(
-  container: HTMLElement,
-  options: KnobFactoryOptions = {}
-): KnobElement {
-  const knob = document.createElement('knob-element') as KnobElement;
-
-  // Apply configuration via attributes
-  const {
-    minValue = 0,
-    maxValue = 100,
-    defaultValue = 0,
-    snapIncrement = 0, // Default to 0 (no snapping) instead of 1
-    width,
-    height,
-    color,
-    value,
-    disabled = false,
-    ...otherOptions
-  } = options;
-
-  // Set core attributes
-  knob.setAttribute('min-value', minValue.toString());
-  knob.setAttribute('max-value', maxValue.toString());
-  knob.setAttribute('default-value', defaultValue.toString());
-  knob.setAttribute('snap-increment', snapIncrement.toString());
-
-  // Set optional attributes
-  if (width) knob.setAttribute('width', width.toString());
-  if (height) knob.setAttribute('height', height.toString());
-  if (color) knob.setAttribute('color', color);
-  if (disabled) knob.setAttribute('disabled', '');
-
-  // Handle complex attributes that need JSON serialization
-  if (otherOptions.allowedValues) {
-    knob.setAttribute(
-      'allowed-values',
-      JSON.stringify(otherOptions.allowedValues)
-    );
-  }
-  if (otherOptions.snapThresholds) {
-    knob.setAttribute(
-      'snap-thresholds',
-      JSON.stringify(otherOptions.snapThresholds)
-    );
-  }
-  if (otherOptions.curve !== undefined) {
-    knob.setAttribute('curve', otherOptions.curve.toString());
-  }
-  if (otherOptions.minRotation !== undefined) {
-    knob.setAttribute('min-rotation', otherOptions.minRotation.toString());
-  }
-  if (otherOptions.maxRotation !== undefined) {
-    knob.setAttribute('max-rotation', otherOptions.maxRotation.toString());
-  }
-  if (otherOptions.borderStyle) {
-    knob.setAttribute('border-style', otherOptions.borderStyle);
-  }
-
-  // Append to container
-  container.appendChild(knob);
-
-  // Set initial value if provided (different from default).
-  // connectedCallback runs synchronously on append, so the knob is ready.
-  if (value !== undefined && value !== defaultValue) {
-    knob.setValue(value);
-  }
-
-  return knob;
-}
-
 export class KnobElement extends HTMLElement {
   private pathElement!: SVGPathElement;
 
   private static stylesInjected = false;
 
-  private config: KnobConfig = {
+  private config: KnobElementOptions = {
     minValue: 0,
     maxValue: 100,
     defaultValue: 0,
@@ -138,7 +57,7 @@ export class KnobElement extends HTMLElement {
     inMax: number,
     outMin: number,
     outMax: number,
-    value: number
+    value: number,
   ): number {
     if (inMax === inMin) return outMin;
     return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
@@ -178,8 +97,8 @@ export class KnobElement extends HTMLElement {
     this.render();
     this.updateColorFromAttribute();
 
-    this.createDraggable();
     this.setValue(this.config.defaultValue ?? this.config.minValue);
+    this.createDraggable();
   }
 
   disconnectedCallback(): void {
@@ -244,12 +163,6 @@ export class KnobElement extends HTMLElement {
       if (name === 'curve') {
         this.createUtilityFunctions();
         this.setValue(this.currentValue); // Refresh with new curve
-        return;
-      }
-
-      if (name === 'value') {
-        const parsed = parseFloat(newValue);
-        if (!isNaN(parsed)) this.setValue(parsed);
         return;
       }
     }
@@ -602,7 +515,7 @@ export class KnobElement extends HTMLElement {
       }
 
       this.updateBorder();
-      this.dispatchChangeEvent();
+      this.dispatchChangeEvent('user');
       e.preventDefault();
     };
 
@@ -661,7 +574,9 @@ export class KnobElement extends HTMLElement {
     }
   }
 
-  private dispatchChangeEvent(): void {
+  private dispatchChangeEvent(
+    source: 'user' | 'programmatic' = 'programmatic',
+  ): void {
     const percentage = KnobElement.mapRange(
       this.config.minValue,
       this.config.maxValue,
@@ -675,6 +590,7 @@ export class KnobElement extends HTMLElement {
         value: this.currentValue,
         rotation: this.currentRotation,
         percentage,
+        source,
       },
       bubbles: true,
     });
@@ -789,5 +705,3 @@ export class KnobElement extends HTMLElement {
 }
 
 export default KnobElement;
-
-defineElement('knob-element', KnobElement);

@@ -8,18 +8,22 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
+
 import {
-  defineElement,
-  KnobElement,
   samplerParams,
   type SamplerParamKey,
   type SamplerParamDescriptor,
   type SamplePlayer,
 } from '@repo/audiolib';
+
+import { KnobElement } from '../../audio-elements/elements/primitives/KnobElement';
+import { defineElement } from '../../audio-elements/elementRegistry';
+
 import {
   samplerParamValues,
   setSamplerParamValue,
 } from '../../utils/samplerParamState';
+
 import styles from './ParamKnob.module.css';
 
 interface ParamKnobProps {
