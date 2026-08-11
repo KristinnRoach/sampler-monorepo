@@ -2,14 +2,12 @@
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSamplePlayer } from '../../../../App';
-import { createSamplerConnection } from '../component-utils';
 import {
   COMPONENT_STYLE,
   SELECT_STYLE,
 } from '../../../shared/styles/component-styles';
 
 import {
-  type SamplePlayer,
   SUPPORTED_WAVEFORMS,
   SupportedWaveform,
 } from '@repo/audiolib';
@@ -127,9 +125,15 @@ const createSamplerSelect = <T extends string = string>(
     const labelPosition = attributes.attr('label-position', 'inline'); // 'inline' or 'below'
     const state = van.state(config.defaultValue);
 
-    // Use standardized connection utility
-    const { createMountHandler } = createSamplerConnection(
-      (sampler: SamplePlayer) => {
+    attributes.mount(() => {
+      let connected = false;
+
+      const connect = () => {
+        if (connected) return;
+        const sampler = getSamplePlayer();
+        if (!sampler) return;
+
+        connected = true;
         if (config.onTargetConnect) {
           try {
             config.onTargetConnect(sampler, state, van);
@@ -140,10 +144,28 @@ const createSamplerSelect = <T extends string = string>(
             );
           }
         }
-      },
-    );
+      };
 
-    attributes.mount(createMountHandler());
+      connect();
+
+      if (connected) return;
+
+      const handleSamplerInitialized = () => {
+        connect();
+      };
+
+      document.addEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener,
+      );
+
+      return () => {
+        document.removeEventListener(
+          'sampler-initialized',
+          handleSamplerInitialized as EventListener,
+        );
+      };
+    });
 
     const handleChange = (e: Event) => {
       const target = e.target as HTMLSelectElement;

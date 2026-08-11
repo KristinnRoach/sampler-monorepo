@@ -1,22 +1,37 @@
 // SamplerStatusElement.ts
-import van, { State } from '@repo/vanjs-core';
+import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { getSamplePlayer } from '../../../../App';
-import { createSamplerConnection } from '../component-utils';
 
 const { div } = van.tags;
 
 export const SamplerStatusElement = (attributes: ElementProps) => {
   const status = van.state('No sampler found');
 
-  // Use standardized connection utility for initial status
-  const { createMountHandler } = createSamplerConnection(
-    () => (status.val = 'Initialized')
-  );
-
   attributes.mount(() => {
     status.val = 'Click to start';
-    const disposeConnection = createMountHandler()();
+    let connected = false;
+
+    const connect = () => {
+      if (connected) return;
+      const sampler = getSamplePlayer();
+      if (!sampler) return;
+      connected = true;
+      status.val = 'Initialized';
+    };
+
+    connect();
+
+    const handleSamplerInitialized = () => {
+      connect();
+    };
+
+    if (!connected) {
+      document.addEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener,
+      );
+    }
 
     // Additional listeners for sample-loaded and error events
     const handleSampleLoaded = () => {
@@ -29,7 +44,10 @@ export const SamplerStatusElement = (attributes: ElementProps) => {
     document.addEventListener('sample-loaded', handleSampleLoaded);
     document.addEventListener('sampler-error', handleSamplerError);
     return () => {
-      disposeConnection?.();
+      document.removeEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener,
+      );
       document.removeEventListener('sample-loaded', handleSampleLoaded);
       document.removeEventListener('sampler-error', handleSamplerError);
     };
