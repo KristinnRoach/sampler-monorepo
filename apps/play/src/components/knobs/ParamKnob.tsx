@@ -8,18 +8,20 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
+
 import {
-  defineElement,
-  KnobElement,
   samplerParams,
   type SamplerParamKey,
   type SamplerParamDescriptor,
   type SamplePlayer,
 } from '@repo/audiolib';
+import { KnobElement, registerKnobElement } from '@repo/audiolib/components';
+
 import {
   samplerParamValues,
   setSamplerParamValue,
 } from '../../utils/samplerParamState';
+
 import styles from './ParamKnob.module.css';
 
 interface ParamKnobProps {
@@ -57,7 +59,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     // Appending KnobElement synchronously emits its descriptor default. Keep
     // the storage-backed shared value captured before that event updates state.
     const initialValue = value();
-    defineElement('knob-element', KnobElement);
+    registerKnobElement();
     knobEl = document.createElement('knob-element') as KnobElement;
 
     const attrs: Record<string, string> = {

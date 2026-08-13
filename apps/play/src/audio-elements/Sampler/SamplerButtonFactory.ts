@@ -6,13 +6,10 @@ import {
   type Recorder,
   type RecorderInput,
 } from '@repo/audiolib';
-import { getSamplePlayer } from '../../../../App';
-import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import {
-  createSVGButton,
-  type SVGButton,
-} from '../../primitives/createSVGButton';
-import { getRecorderSettings } from '../../../../utils/recorderSettings';
+import { getSamplePlayer } from '../../App';
+import { COMPONENT_STYLE } from '../shared/styles/component-styles';
+import { createSVGButton, type SVGButton } from '../createSVGButton';
+import { getRecorderSettings } from '../../utils/recorderSettings';
 
 const { div } = van.tags;
 

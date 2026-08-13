@@ -11,7 +11,7 @@ import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
 import { TimeScaleKnob } from './TimeScaleKnob';
 import { EnvToggleButtons } from './env-buttons';
 import { createGrid } from './env-grid';
-import { getWaveformSVGData } from '../../../shared/utils/visual/waveform-utils';
+import { getWaveformSVGData } from '../shared/utils/visual/waveform-utils';
 import { createPlayheads, type PlayheadManager } from './env-playheads';
 import {
   applySnapping,
@@ -473,12 +473,9 @@ export const EnvelopeSVG = (
 
   // Add time scale knob if callback provided
   const timeScaleKnob = TimeScaleKnob({
-    label: 'Env Speed',
     onChange: ({ envelopeType, timeScale }) =>
       instrument.setEnvelopeTimeScale(envelopeType, timeScale),
     envelopeType,
-    height: 25,
-    width: 25,
   });
 
   // Create container div with control buttons and timescale knob at the top
@@ -489,7 +486,7 @@ export const EnvelopeSVG = (
     // Timescale knob positioned to the left of control buttons
     div(
       {
-        style: 'position: absolute; top: 4px; right: 65px; z-index: 10;',
+        style: 'position: absolute; top: 4px; right: 55px; z-index: 10;',
       },
       timeScaleKnob,
     ),

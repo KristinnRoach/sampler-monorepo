@@ -154,7 +154,7 @@ ${this.basestyle}
 
         this._colors = this.getAttr(
           'colors',
-          '#222;#eee;#ccc;#333;#000;#e88;#c44;#c33;#800'
+          '#222;#eee;#ccc;#333;#000;#e88;#c44;#c33;#800',
         );
         if (!this.hasOwnProperty('colors'))
           Object.defineProperty(this, 'colors', {
@@ -270,7 +270,7 @@ ${this.basestyle}
                 this.height - 2,
                 r,
                 this.coltab[5],
-                this.coltab[6]
+                this.coltab[6],
               );
             else
               rrect(
@@ -281,7 +281,7 @@ ${this.basestyle}
                 this.height - 2,
                 r,
                 this.coltab[1],
-                this.coltab[2]
+                this.coltab[2],
               );
           }
         }
@@ -303,7 +303,7 @@ ${this.basestyle}
                 h2,
                 r,
                 this.coltab[7],
-                this.coltab[8]
+                this.coltab[8],
               );
             else
               rrect(
@@ -314,7 +314,7 @@ ${this.basestyle}
                 h2,
                 r,
                 this.coltab[3],
-                this.coltab[4]
+                this.coltab[4],
               );
             this.ctx.strokeStyle = this.coltab[0];
             this.ctx.stroke();
@@ -337,7 +337,7 @@ ${this.basestyle}
 
       setValue(v, f) {
         if (this._setValue(v) && f)
-          this.sendEvent('input'), this.sendEvent('change');
+          (this.sendEvent('input'), this.sendEvent('change'));
       }
 
       wheel(e) {}
@@ -478,6 +478,6 @@ ${this.basestyle}
           this.redraw();
         }
       }
-    }
+    },
   );
 }

@@ -12,7 +12,7 @@ export const createGrid = (
     offsetX?: number;
     offsetY?: number;
     includeTopBottom?: boolean;
-  } = {}
+  } = {},
 ): SVGGElement => {
   const { offsetX = 0, offsetY = 0, includeTopBottom = false } = options;
 
@@ -64,6 +64,6 @@ export const createGrid = (
   return g(
     { class: 'envelope-grid' },
     ...verticalLines,
-    ...horizontalLines
+    ...horizontalLines,
   ) as SVGGElement;
 };

@@ -23,6 +23,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
         io: resolve(__dirname, 'src/io/index.ts'),
+        components: resolve(__dirname, 'src/components/index.ts'),
       },
       name: '@repo/audiolib',
       formats: ['es'],

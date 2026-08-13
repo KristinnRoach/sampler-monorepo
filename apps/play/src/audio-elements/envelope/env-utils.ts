@@ -8,7 +8,7 @@ const LOG_SAFETY_MIN = 0.1;
  */
 export const linearToLogarithmic = (
   linearValue: number,
-  valueRange: [number, number]
+  valueRange: [number, number],
 ): number => {
   const [min, max] = valueRange;
   const normalized = (linearValue - min) / (max - min);
@@ -23,7 +23,7 @@ export const linearToLogarithmic = (
 export const secondsToScreenX = (
   timeInSeconds: number,
   maxDurationSeconds: number,
-  svgWidth: number
+  svgWidth: number,
 ): number => {
   return (timeInSeconds / maxDurationSeconds) * svgWidth;
 };
@@ -34,7 +34,7 @@ export const secondsToScreenX = (
 export const screenXToSeconds = (
   screenX: number,
   svgWidth: number,
-  maxDurationSeconds: number
+  maxDurationSeconds: number,
 ): number => {
   return (screenX / svgWidth) * maxDurationSeconds;
 };
@@ -45,7 +45,7 @@ export const screenXToSeconds = (
  */
 export const screenYToNormalizedValue = (
   screenY: number,
-  svgHeight: number
+  svgHeight: number,
 ): number => {
   return Math.max(0, Math.min(1, 1 - screenY / svgHeight));
 };
@@ -57,7 +57,7 @@ export const screenYToAbsoluteValue = (
   screenY: number,
   svgHeight: number,
   valueRange: [number, number],
-  scaling: 'linear' | 'logarithmic' = 'linear'
+  scaling: 'linear' | 'logarithmic' = 'linear',
 ): number => {
   const normalized = screenYToNormalizedValue(screenY, svgHeight);
   const [min, max] = valueRange;
@@ -79,7 +79,7 @@ export const screenYToAbsoluteValue = (
 export const absoluteValueToNormalized = (
   value: number,
   valueRange: [number, number],
-  scaling: 'linear' | 'logarithmic' = 'linear'
+  scaling: 'linear' | 'logarithmic' = 'linear',
 ): number => {
   const [min, max] = valueRange;
 
@@ -101,7 +101,7 @@ export const absoluteValueToNormalized = (
 export const applySnapping = (
   value: number,
   snapValues: number[] | undefined,
-  threshold: number
+  threshold: number,
 ): number => {
   if (!snapValues) return value;
   const closest = snapValues.find((v) => Math.abs(v - value) < threshold);
@@ -115,7 +115,7 @@ export const applySnappingAbsolute = (
   absoluteValue: number,
   normalizedSnapValues: number[] | undefined,
   threshold: number,
-  valueRange: [number, number]
+  valueRange: [number, number],
 ): number => {
   if (!normalizedSnapValues) return absoluteValue;
 
@@ -141,7 +141,7 @@ export const generateSVGPath = (
   valueRange: [number, number],
   scaling: 'linear' | 'logarithmic' = 'linear',
   offsetX: number = 0,
-  offsetY: number = 0
+  offsetY: number = 0,
 ): string => {
   if (points.length < 2)
     return `M${offsetX},${svgHeight + offsetY} L${svgWidth + offsetX},${svgHeight + offsetY}`;
@@ -152,7 +152,7 @@ export const generateSVGPath = (
   const firstNormalized = absoluteValueToNormalized(
     sortedPoints[0].value,
     valueRange,
-    scaling
+    scaling,
   );
   let path = `M${secondsToScreenX(sortedPoints[0].time, baseDurationSeconds, svgWidth) + offsetX},${(1 - firstNormalized) * svgHeight + offsetY}`;
 
@@ -165,7 +165,7 @@ export const generateSVGPath = (
     const normalizedY = absoluteValueToNormalized(
       point.value,
       valueRange,
-      scaling
+      scaling,
     );
     const y = (1 - normalizedY) * svgHeight + offsetY;
 
@@ -176,7 +176,7 @@ export const generateSVGPath = (
       const prevNormalizedY = absoluteValueToNormalized(
         prevPoint.value,
         valueRange,
-        scaling
+        scaling,
       );
       const prevY = (1 - prevNormalizedY) * svgHeight + offsetY;
       const cp1X = prevX + (x - prevX) * 0.3;

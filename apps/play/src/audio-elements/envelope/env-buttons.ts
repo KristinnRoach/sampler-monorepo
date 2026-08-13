@@ -8,7 +8,7 @@ const { button } = van.tags;
 export const EnvToggleButtons = (
   enabled: State<boolean>,
   loopEnabled: State<boolean>,
-  syncedToPlaybackRate: State<boolean>
+  syncedToPlaybackRate: State<boolean>,
 ) => {
   const enabledToggle = button({
     style: () => `

@@ -2,7 +2,7 @@ import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import type { KeyMap, SamplePlayer } from '@repo/audiolib';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 import { ROOT_NOTES, type RootNote } from './RootNoteSelect';
-import '@/elements/controls/webaudio-controls/webaudio-keyboard';
+import '../audio-elements/webaudio-keyboard';
 
 const MOBILE_KEY_COUNT = 13;
 const DESKTOP_KEY_COUNT = 25;

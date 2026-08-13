@@ -6,18 +6,11 @@ import {
   HoldLockToggle,
   PlaybackDirectionToggle,
   PitchToggle,
-} from './components/SamplerToggleFactory';
+} from './SamplerToggleFactory';
 
-import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
-import {
-  RecordButton,
-  UploadButton,
-  SaveButton,
-} from './components/SamplerButtonFactory';
-import {
-  WaveformSelect,
-  InputSourceSelect,
-} from './components/SamplerSelectFactory';
+import { EnvelopeSwitcher } from './EnvelopeSwitcher';
+import { RecordButton, UploadButton, SaveButton } from './SamplerButtonFactory';
+import { WaveformSelect, InputSourceSelect } from './SamplerSelectFactory';
 
 const defineIfNotExists = (name: string, elementFunc: any, options: any) => {
   if (!customElements.get(name)) {
@@ -45,7 +38,6 @@ export const defineSampler = () => {
 
   defineIfNotExists('waveform-select', WaveformSelect, false);
   defineIfNotExists('input-select', InputSourceSelect, false);
-
 };
 
 export {

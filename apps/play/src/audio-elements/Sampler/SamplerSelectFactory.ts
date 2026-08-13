@@ -1,18 +1,15 @@
 // SamplerSelectFactory.ts - Select components for sampler controls
 import van, { State } from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
-import { getSamplePlayer } from '../../../../App';
+import { getSamplePlayer } from '../../App';
 import {
   COMPONENT_STYLE,
   SELECT_STYLE,
-} from '../../../shared/styles/component-styles';
+} from '../shared/styles/component-styles';
 
-import {
-  SUPPORTED_WAVEFORMS,
-  SupportedWaveform,
-} from '@repo/audiolib';
+import { SUPPORTED_WAVEFORMS, SupportedWaveform } from '@repo/audiolib';
 import { createWaveformIcon } from '@/shared/utils/icons/createWaveformIcons';
-import { setRecorderInputSource } from '../../../../utils/recorderSettings';
+import { setRecorderInputSource } from '../../utils/recorderSettings';
 
 const { div, select, option, span, button, selectedcontent, img } = van.tags;
 
@@ -29,11 +26,7 @@ export interface SelectConfig<T extends string = string> {
   title?: string;
   defaultValue: T;
   options: SelectOption<T>[];
-  onTargetConnect?: (
-    target: any,
-    state: State<T>,
-    van: any,
-  ) => void;
+  onTargetConnect?: (target: any, state: State<T>, van: any) => void;
 }
 
 // ===== SELECT CONFIGURATIONS =====

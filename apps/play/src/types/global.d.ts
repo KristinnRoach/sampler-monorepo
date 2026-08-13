@@ -1,7 +1,7 @@
 // src/types/global.d.ts
 
 import 'solid-js';
-import type { KnobElement } from '@repo/audiolib';
+import type { KnobElement } from '@repo/audiolib/components';
 
 declare global {
   interface WebAudioKeyboardElement extends HTMLElement {

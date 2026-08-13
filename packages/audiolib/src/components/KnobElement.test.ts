@@ -44,8 +44,7 @@ describe('KnobElement init', () => {
     expect(knob.getValue()).toBe(0);
   });
 
-  it('does not clobber a value set right after appendChild', async () => {
-    vi.useFakeTimers();
+  it('does not clobber a value set right after appendChild', () => {
     const knob = createKnob({
       'min-value': '0',
       'max-value': '100',
@@ -53,8 +52,82 @@ describe('KnobElement init', () => {
     });
     document.body.appendChild(knob);
     knob.setValue(80); // consumer restores persisted value
-    vi.runAllTimers(); // deferred createDraggable fires
     expect(knob.getValue()).toBe(80);
-    vi.useRealTimers();
+  });
+
+  it('becomes interactive after being initially disabled', () => {
+    const knob = createKnob({
+      'min-value': '0',
+      'max-value': '100',
+      'default-value': '25',
+      disabled: '',
+    });
+    document.body.appendChild(knob);
+
+    knob.setDisabled(false);
+    knob.dispatchEvent(new MouseEvent('mousedown', { clientY: 100 }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientY: 90 }));
+    document.dispatchEvent(new MouseEvent('mouseup'));
+
+    expect(knob.getValue()).toBeGreaterThan(25);
+  });
+
+  it('uses normal dragging when pointer lock is rejected', async () => {
+    const originalRequest = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'requestPointerLock',
+    );
+    const originalPointerLockElement = Object.getOwnPropertyDescriptor(
+      document,
+      'pointerLockElement',
+    );
+    const requestPointerLock = vi
+      .fn()
+      .mockRejectedValue(new DOMException('Pointer lock throttled'));
+
+    Object.defineProperty(HTMLElement.prototype, 'requestPointerLock', {
+      configurable: true,
+      value: requestPointerLock,
+    });
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      value: null,
+    });
+
+    try {
+      const knob = createKnob({
+        'min-value': '0',
+        'max-value': '100',
+        'default-value': '25',
+      });
+      document.body.appendChild(knob);
+      knob.dispatchEvent(new MouseEvent('mousedown', { clientY: 100 }));
+      await Promise.resolve();
+      document.dispatchEvent(new MouseEvent('mousemove', { clientY: 90 }));
+      document.dispatchEvent(new MouseEvent('mouseup'));
+
+      expect(requestPointerLock).toHaveBeenCalledOnce();
+      expect(knob.getValue()).toBeGreaterThan(25);
+    } finally {
+      if (originalRequest) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'requestPointerLock',
+          originalRequest,
+        );
+      } else {
+        delete (HTMLElement.prototype as Partial<HTMLElement>)
+          .requestPointerLock;
+      }
+      if (originalPointerLockElement) {
+        Object.defineProperty(
+          document,
+          'pointerLockElement',
+          originalPointerLockElement,
+        );
+      } else {
+        Reflect.deleteProperty(document, 'pointerLockElement');
+      }
+    }
   });
 });

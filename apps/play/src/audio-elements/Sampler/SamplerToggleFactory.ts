@@ -1,7 +1,7 @@
 // SamplerToggleFactory.ts - Toggle and control components
 import van from '@repo/vanjs-core';
-import { getSamplePlayer } from '../../../../App';
-import { createSVGButton } from '../../primitives/createSVGButton';
+import { getSamplePlayer } from '../../App';
+import { createSVGButton } from '../createSVGButton';
 
 const { div } = van.tags;
 
@@ -90,7 +90,6 @@ export const PitchToggle = () => {
 
   return div({ style: '' }, toggleButton);
 };
-
 
 // TODO: Deferred until next MIDI slice: Deciding whether to delete this toggle or finish (same for the MIDI svg icons)
 export const MidiToggle = () => {

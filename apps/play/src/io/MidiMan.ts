@@ -1,4 +1,5 @@
-import type { SamplePlayer, KnobElement } from '@repo/audiolib';
+import type { SamplePlayer } from '@repo/audiolib';
+import type { KnobElement } from '@repo/audiolib/components';
 import { inputController, type ControlChangeEvent } from '@repo/audiolib/io';
 
 type SamplePlayerAccessor = () => SamplePlayer | null | undefined;
@@ -32,8 +33,8 @@ let knobsToLearn: KnobElement[] = [];
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 // Deferred knob setup, cancelled if MIDI is disabled before it runs
 let knobSetupTimeout: ReturnType<typeof setTimeout> | null = null;
-// Removes every knob click listener in one call on teardown
-let knobClickListeners: AbortController | null = null;
+// Removes every knob MIDI-learn listener in one call on teardown
+let midiLearnKnobListeners: AbortController | null = null;
 
 // Track unsubscribe functions by CC number
 let ccUnsubscribes: Map<number, () => void> = new Map();
@@ -44,6 +45,14 @@ const clearKnobHighlights = () =>
   document
     .querySelectorAll('.midi-learn-highlight')
     .forEach((el) => el.classList.remove('midi-learn-highlight'));
+
+const stopKnobDragDuringMidiLearn = (event: Event) => {
+  if (!midiLearnActive) return;
+  if (!(event.target instanceof Element)) return;
+  if (!event.target.closest('knob-element')) return;
+
+  event.stopPropagation();
+};
 
 const bindNoteAndSustainTargets = () => {
   if (!samplePlayerAccessor) return;
@@ -248,12 +257,12 @@ export async function enableSamplePlayerMidi(
   midiInputChannel = options.inputChannel || 'all';
   bindNoteAndSustainTargets();
 
-  // Set up default / initial knob mappings
-  if (options.knobMappings) {
+  // Set up default mappings and MIDI Learn listeners after knobs render
+  if (options.knobMappings || options.midiLearnEnabled) {
     knobSetupTimeout = setTimeout(() => {
       knobSetupTimeout = null;
 
-      options.knobMappings!.forEach(({ cc, selector, name }) => {
+      options.knobMappings?.forEach(({ cc, selector, name }) => {
         const element = document.querySelector(selector);
         const knobElement = element?.querySelector(
           'knob-element',
@@ -273,7 +282,15 @@ export async function enableSamplePlayerMidi(
       // Add MIDI learn click handlers to all knobs if enabled
       if (options.midiLearnEnabled) {
         const controller = new AbortController();
-        knobClickListeners = controller;
+        midiLearnKnobListeners = controller;
+        document.addEventListener('mousedown', stopKnobDragDuringMidiLearn, {
+          capture: true,
+          signal: controller.signal,
+        });
+        document.addEventListener('touchstart', stopKnobDragDuringMidiLearn, {
+          capture: true,
+          signal: controller.signal,
+        });
         document.querySelectorAll('knob-element').forEach((knob) => {
           knob.addEventListener(
             'click',
@@ -306,6 +323,9 @@ export async function enableSamplePlayerMidi(
       if ((e.key === 'M' || e.key === 'm') && e.shiftKey && e.metaKey) {
         e.preventDefault();
         toggleMidiLearn();
+      }
+      else if (e.key === 'Escape' && midiLearnActive) {
+       toggleMidiLearn();
       }
     };
     document.addEventListener('keydown', keydownHandler);
@@ -348,8 +368,8 @@ export function disableSamplePlayerMidi(): void {
   knobControlUnsubs.forEach((unsub) => unsub());
   knobControlUnsubs = [];
 
-  knobClickListeners?.abort();
-  knobClickListeners = null;
+  midiLearnKnobListeners?.abort();
+  midiLearnKnobListeners = null;
 
   if (keydownHandler) {
     document.removeEventListener('keydown', keydownHandler);

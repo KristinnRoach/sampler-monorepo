@@ -97,13 +97,10 @@ export class KnobElement extends HTMLElement {
     this.render();
     this.updateColorFromAttribute();
 
-    // Sync init so values set by consumers right after appendChild aren't
-    // clobbered on the next tick. ?? (not ||) so a default of 0 is honored.
+    // Initialize before wiring interactions. ?? (not ||) honors a default of 0.
     this.setValue(this.config.defaultValue ?? this.config.minValue);
 
-    setTimeout(() => {
-      this.createDraggable();
-    }, 0);
+    this.createDraggable();
   }
 
   disconnectedCallback(): void {
@@ -312,7 +309,7 @@ export class KnobElement extends HTMLElement {
 
   private render(): void {
     this.innerHTML = `
-      <svg class="knob-svg" width="100%" height="100%" viewBox="0 0 100 100">
+      <svg class="ac-knob" width="100%" height="100%" viewBox="0 0 100 100">
           <path class="knob-path" 
                 fill="none" 
                 stroke="var(--knob-stroke)" 
@@ -421,9 +418,8 @@ export class KnobElement extends HTMLElement {
   private lastClickTime = 0;
   private readonly DOUBLE_CLICK_THRESHOLD = 300;
 
+  // TODO(audiolib): Add keyboard controls and slider ARIA semantics in the planned accessibility pass.
   private createDraggable(): void {
-    if (this.config.disabled) return;
-
     const pointerLockSupported =
       'pointerLockElement' in document &&
       'requestPointerLock' in HTMLElement.prototype;
@@ -434,21 +430,25 @@ export class KnobElement extends HTMLElement {
     let totalDeltaY = 0;
     let isUsingPointerLock = false;
 
-    const handleStart = (e: MouseEvent | TouchEvent) => {
-      // Check if MIDI learn is active by looking at body class
-      if (document.body.classList.contains('midi-learn-active')) {
-        e.preventDefault();
-        e.stopPropagation();
+    const requestPointerLockOrUseDragFallback = (event: MouseEvent) => {
+      startY = event.clientY;
+      isUsingPointerLock = document.pointerLockElement === this;
 
-        // ? Seems to work fine without dispatching. // Todo: remove commented out code after testing diff envs // Dispatch custom event that KnobMidiController listens to
-        // this.dispatchEvent(
-        //   new CustomEvent('knob-midi-learn-request', {
-        //     bubbles: true,
-        //     detail: { knob: this },
-        //   })
-        // );
-        return;
-      }
+      if (!pointerLockSupported || document.pointerLockElement) return;
+
+      void this.requestPointerLock().then(
+        () => {
+          isUsingPointerLock = document.pointerLockElement === this;
+        },
+        () => {
+          isUsingPointerLock = false;
+        },
+      );
+    };
+
+    const handleStart = (e: MouseEvent | TouchEvent) => {
+      // Checked per-interaction so toggling `disabled` works after creation.
+      if (this.config.disabled) return;
 
       const now = Date.now();
       const timeDiff = now - this.lastClickTime;
@@ -470,16 +470,9 @@ export class KnobElement extends HTMLElement {
       if (isTouchEvent) {
         startY = e.touches[0].clientY;
         isUsingPointerLock = false;
-      } else if (pointerLockSupported) {
-        // Try to use pointer lock for mouse
-        this.requestPointerLock();
-        isUsingPointerLock = true;
       } else {
-        startY = (e as MouseEvent).clientY;
-        isUsingPointerLock = false;
+        requestPointerLockOrUseDragFallback(e as MouseEvent);
       }
-
-      e.preventDefault();
     };
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
@@ -577,7 +570,9 @@ export class KnobElement extends HTMLElement {
     }
   }
 
-  private dispatchChangeEvent(source: 'user' | 'programmatic' = 'programmatic'): void {
+  private dispatchChangeEvent(
+    source: 'user' | 'programmatic' = 'programmatic',
+  ): void {
     const percentage = KnobElement.mapRange(
       this.config.minValue,
       this.config.maxValue,
