@@ -36,7 +36,7 @@ export const createPlayheads = (
       'http://www.w3.org/2000/svg',
       'circle',
     );
-    const color = midiNote ? colors[midiNote] : '#bb0000';
+    const color = midiNote !== undefined ? colors[midiNote] : '#bb0000';
     circle.setAttribute('fill', color);
     circle.setAttribute('pointer-events', 'none');
     circle.setAttribute('stroke', '#fff');
