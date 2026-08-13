@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-import dts from "vite-plugin-dts";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import dts from 'vite-plugin-dts';
+import react from '@vitejs/plugin-react';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,18 +11,21 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        "frameworks/react/reactEntry": resolve(__dirname, "src/frameworks/react/reactEntry.ts"),
+        'frameworks/react/reactEntry': resolve(
+          __dirname,
+          'src/frameworks/react/reactEntry.ts'
+        ),
       },
-      name: "AudioWebComponentsReact",
-      formats: ["es"],
+      name: 'AudioWebComponentsReact',
+      formats: ['es'],
     },
     rollupOptions: {
-      external: ["@repo/audiolib", "react", "react-dom"],
+      external: ['@repo/audiolib', 'react', 'react-dom'],
       output: {
         globals: {
-          "@repo/audiolib": "audiolib",
-          react: "React",
-          "react-dom": "ReactDOM",
+          '@repo/audiolib': 'audiolib',
+          react: 'React',
+          'react-dom': 'ReactDOM',
         },
       },
     },
@@ -34,15 +37,15 @@ export default defineConfig({
     react(),
     // DTS for React entry
     dts({
-      tsconfigPath: "tsconfig.react.json",
-      outDir: "dist",
-      entryRoot: "src",
+      tsconfigPath: 'tsconfig.react.json',
+      outDir: 'dist',
+      entryRoot: 'src',
       rollupTypes: false,
     }),
   ],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src"),
+      '@': resolve(__dirname, './src'),
     },
   },
 });

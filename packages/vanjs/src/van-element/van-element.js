@@ -1,7 +1,7 @@
-import van from "../van.js";
+import van from '../van.js';
 
 // Short prop names because class props are not minified.
-function define(name, element, options = { mode: "open" }) {
+function define(name, element, options = { mode: 'open' }) {
   window.customElements.define(
     name,
     class extends HTMLElement {
@@ -23,7 +23,8 @@ function define(name, element, options = { mode: "open" }) {
         van.add(
           options ? this.attachShadow(options) : this,
           element({
-            attr: (i, v) => (this.a[i] ??= van.state(this.getAttribute(i) ?? v)),
+            attr: (i, v) =>
+              (this.a[i] ??= van.state(this.getAttribute(i) ?? v)),
 
             prop: (i, v) => {
               if (!this.p.has(i)) {
@@ -45,7 +46,7 @@ function define(name, element, options = { mode: "open" }) {
               };
             },
             $this: this,
-          }),
+          })
         );
         // Dismount
         this.d = mount?.();
@@ -69,7 +70,7 @@ function define(name, element, options = { mode: "open" }) {
       getProp(name) {
         return this.p.has(name) ? this.p.get(name).val : undefined;
       }
-    },
+    }
   );
 }
 

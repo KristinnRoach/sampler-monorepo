@@ -1,19 +1,19 @@
-import { SharedKnobComponentProps } from "./knob-types";
+import { SharedKnobComponentProps } from './knob-types';
 
 // ===== KNOB CONFIGURATIONS (Framework-agnostic) =====
 
 const volumeKnobProps: SharedKnobComponentProps = {
-  label: "Volume",
+  label: 'Volume',
   defaultValue: 0.75,
 };
 
 const dryWetKnobProps: SharedKnobComponentProps = {
-  label: "Dry/Wet",
+  label: 'Dry/Wet',
   defaultValue: 0.5,
 };
 
 const feedbackKnobProps: SharedKnobComponentProps = {
-  label: "Feedback",
+  label: 'Feedback',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
@@ -23,7 +23,7 @@ const feedbackKnobProps: SharedKnobComponentProps = {
 };
 
 const distortionKnobProps: SharedKnobComponentProps = {
-  label: "Distortion",
+  label: 'Distortion',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
@@ -31,21 +31,21 @@ const distortionKnobProps: SharedKnobComponentProps = {
 };
 
 const driveKnobProps: SharedKnobComponentProps = {
-  label: "Drive",
+  label: 'Drive',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
 };
 
 const clippingKnobProps: SharedKnobComponentProps = {
-  label: "Clipping",
+  label: 'Clipping',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
 };
 
 const glideKnobProps: SharedKnobComponentProps = {
-  label: "Glide",
+  label: 'Glide',
   defaultValue: 0.0,
   minValue: 0,
   maxValue: 1,
@@ -55,7 +55,7 @@ const glideKnobProps: SharedKnobComponentProps = {
 };
 
 const feedbackPitchKnobProps: SharedKnobComponentProps = {
-  label: "FB-Pitch",
+  label: 'FB-Pitch',
   defaultValue: 1.0,
   minValue: 0.25,
   maxValue: 4,
@@ -64,7 +64,7 @@ const feedbackPitchKnobProps: SharedKnobComponentProps = {
 };
 
 const feedbackDecayKnobProps: SharedKnobComponentProps = {
-  label: "FB-Decay",
+  label: 'FB-Decay',
   defaultValue: 0.75,
   minValue: 0.01,
   maxValue: 1,
@@ -72,7 +72,7 @@ const feedbackDecayKnobProps: SharedKnobComponentProps = {
 };
 
 const feedbackLpfKnobProps: SharedKnobComponentProps = {
-  label: "FB-LPF",
+  label: 'FB-LPF',
   defaultValue: 10000,
   minValue: 400,
   maxValue: 16000,
@@ -81,7 +81,7 @@ const feedbackLpfKnobProps: SharedKnobComponentProps = {
 };
 
 const delayTimeKnobProps: SharedKnobComponentProps = {
-  label: "Delay",
+  label: 'Delay',
   defaultValue: 0.1,
   minValue: 0.005,
   maxValue: 1.5,
@@ -90,7 +90,7 @@ const delayTimeKnobProps: SharedKnobComponentProps = {
 };
 
 const delayFBKnobProps: SharedKnobComponentProps = {
-  label: "Delay Feedback",
+  label: 'Delay Feedback',
   defaultValue: 0.25,
   minValue: 0,
   maxValue: 1,
@@ -99,7 +99,7 @@ const delayFBKnobProps: SharedKnobComponentProps = {
 };
 
 const delaySendKnobProps: SharedKnobComponentProps = {
-  label: "Delay Send",
+  label: 'Delay Send',
   defaultValue: 0,
   minValue: 0,
   maxValue: 1,
@@ -108,33 +108,33 @@ const delaySendKnobProps: SharedKnobComponentProps = {
 };
 
 const gainLFORateKnobProps: SharedKnobComponentProps = {
-  label: "Amp LFO Rate",
+  label: 'Amp LFO Rate',
   defaultValue: 0.1,
   curve: 5,
   snapIncrement: 0,
 };
 
 const gainLFODepthKnobProps: SharedKnobComponentProps = {
-  label: "Amp LFO Depth",
+  label: 'Amp LFO Depth',
   defaultValue: 0.0,
   curve: 1.5,
 };
 
 const pitchLFORateKnobProps: SharedKnobComponentProps = {
-  label: "Pitch LFO Rate",
+  label: 'Pitch LFO Rate',
   defaultValue: 0.01,
   curve: 5,
   snapIncrement: 0,
 };
 
 const pitchLFODepthKnobProps: SharedKnobComponentProps = {
-  label: "Pitch LFO Depth",
+  label: 'Pitch LFO Depth',
   defaultValue: 0.0,
   curve: 1.5,
 };
 
 const reverbSendKnobProps: SharedKnobComponentProps = {
-  label: "Reverb Send",
+  label: 'Reverb Send',
   defaultValue: 0,
   minValue: 0,
   maxValue: 1,
@@ -143,13 +143,13 @@ const reverbSendKnobProps: SharedKnobComponentProps = {
 };
 
 const reverbSizeKnobProps: SharedKnobComponentProps = {
-  label: "Reverb Size",
+  label: 'Reverb Size',
   defaultValue: 0.7,
   curve: 1,
 };
 
 const loopDurationDriftKnobProps: SharedKnobComponentProps = {
-  label: "Loop Drift",
+  label: 'Loop Drift',
   defaultValue: 0.3,
   minValue: 0,
   maxValue: 1,
@@ -159,7 +159,7 @@ const loopDurationDriftKnobProps: SharedKnobComponentProps = {
 };
 
 const lowpassFilterKnobProps: SharedKnobComponentProps = {
-  label: "LPF",
+  label: 'LPF',
   defaultValue: 20000,
   minValue: 40,
   maxValue: 20000,
@@ -168,7 +168,7 @@ const lowpassFilterKnobProps: SharedKnobComponentProps = {
 };
 
 const highpassFilterKnobProps: SharedKnobComponentProps = {
-  label: "HPF",
+  label: 'HPF',
   defaultValue: 40,
   minValue: 20,
   maxValue: 20000,
@@ -176,7 +176,7 @@ const highpassFilterKnobProps: SharedKnobComponentProps = {
 };
 
 const amplitudeModKnobProps: SharedKnobComponentProps = {
-  label: "AM",
+  label: 'AM',
   defaultValue: 0,
   minValue: 0,
   maxValue: 1,
@@ -184,21 +184,21 @@ const amplitudeModKnobProps: SharedKnobComponentProps = {
 };
 
 const trimStartKnobProps: SharedKnobComponentProps = {
-  label: "Start",
+  label: 'Start',
   defaultValue: 0,
   snapIncrement: 0.001,
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const trimEndKnobProps: SharedKnobComponentProps = {
-  label: "End",
+  label: 'End',
   defaultValue: 1,
   snapIncrement: 0.001,
   valueFormatter: (v: number) => v.toFixed(3),
 };
 
 const loopStartKnobProps: SharedKnobComponentProps = {
-  label: "Loop Start",
+  label: 'Loop Start',
   defaultValue: 0,
   minValue: 0,
   snapIncrement: 0.001,
@@ -206,7 +206,7 @@ const loopStartKnobProps: SharedKnobComponentProps = {
 };
 
 const loopDurationKnobProps: SharedKnobComponentProps = {
-  label: "Loop Length",
+  label: 'Loop Length',
   defaultValue: 1,
   minValue: 0,
   maxValue: 1,
@@ -215,7 +215,7 @@ const loopDurationKnobProps: SharedKnobComponentProps = {
 };
 
 const tempoKnobProps: SharedKnobComponentProps = {
-  label: "Tempo",
+  label: 'Tempo',
   defaultValue: 120,
   minValue: 20,
   maxValue: 300,

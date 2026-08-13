@@ -1,21 +1,21 @@
 export class ToggleButton extends HTMLElement {
-  static observedAttributes = ["active", "disabled", "label-on", "label-off"];
+  static observedAttributes = ['active', 'disabled', 'label-on', 'label-off'];
 
   #active: boolean = false;
   #disabled: boolean = false;
-  #labelOn: string = "On";
-  #labelOff: string = "Off";
+  #labelOn: string = 'On';
+  #labelOff: string = 'Off';
   button: HTMLButtonElement | null = null;
 
   constructor() {
     super();
 
     // Create button element
-    this.button = document.createElement("button");
+    this.button = document.createElement('button');
     this.appendChild(this.button);
 
     // Set up event listener
-    this.button.addEventListener("click", this.toggle.bind(this));
+    this.button.addEventListener('click', this.toggle.bind(this));
   }
 
   connectedCallback(): void {
@@ -23,21 +23,25 @@ export class ToggleButton extends HTMLElement {
     this.updateButtonState();
   }
 
-  attributeChangedCallback(name: string, oldValue: string, newValue: string): void {
+  attributeChangedCallback(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ): void {
     if (oldValue === newValue) return;
 
     switch (name) {
-      case "active":
+      case 'active':
         this.#active = newValue !== null;
         break;
-      case "disabled":
+      case 'disabled':
         this.#disabled = newValue !== null;
         break;
-      case "label-on":
-        this.#labelOn = newValue || "On";
+      case 'label-on':
+        this.#labelOn = newValue || 'On';
         break;
-      case "label-off":
-        this.#labelOff = newValue || "Off";
+      case 'label-off':
+        this.#labelOff = newValue || 'Off';
         break;
     }
 
@@ -54,19 +58,19 @@ export class ToggleButton extends HTMLElement {
     this.#active = !this.#active;
 
     if (this.#active) {
-      this.setAttribute("active", "");
+      this.setAttribute('active', '');
     } else {
-      this.removeAttribute("active");
+      this.removeAttribute('active');
     }
 
     this.updateButtonState();
 
     // Dispatch custom event
     this.dispatchEvent(
-      new CustomEvent("toggle", {
+      new CustomEvent('toggle', {
         bubbles: true,
         detail: { active: this.#active },
-      }),
+      })
     );
   }
 
@@ -75,7 +79,7 @@ export class ToggleButton extends HTMLElement {
 
     this.button.textContent = this.#active ? this.#labelOn : this.#labelOff;
     this.button.disabled = this.#disabled;
-    this.button.classList.toggle("active", this.#active);
+    this.button.classList.toggle('active', this.#active);
   }
 
   // Public API
@@ -87,9 +91,9 @@ export class ToggleButton extends HTMLElement {
     if (value === this.#active) return;
 
     if (value) {
-      this.setAttribute("active", "");
+      this.setAttribute('active', '');
     } else {
-      this.removeAttribute("active");
+      this.removeAttribute('active');
     }
   }
 
@@ -101,17 +105,17 @@ export class ToggleButton extends HTMLElement {
     if (value === this.#disabled) return;
 
     if (value) {
-      this.setAttribute("disabled", "");
+      this.setAttribute('disabled', '');
     } else {
-      this.removeAttribute("disabled");
+      this.removeAttribute('disabled');
     }
   }
 }
 
-customElements.define("toggle-button", ToggleButton);
+customElements.define('toggle-button', ToggleButton);
 
 declare global {
   interface HTMLElementTagNameMap {
-    "toggle-button": ToggleButton;
+    'toggle-button': ToggleButton;
   }
 }

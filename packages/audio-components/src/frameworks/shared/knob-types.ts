@@ -1,5 +1,5 @@
 // src/frameworks/shared/types.ts
-import { KnobConfig } from "../../elements/primitives/KnobElement";
+import { KnobConfig } from '../../elements/primitives/KnobElement';
 
 /**
  * Framework-agnostic props interface for knob presets and shared components.
@@ -36,4 +36,4 @@ export type {
   KnobConfig,
   KnobChangeEventDetail,
   KnobFactoryOptions,
-} from "../../elements/primitives/KnobElement";
+} from '../../elements/primitives/KnobElement';

@@ -7,7 +7,9 @@
   </head>
   <body style="padding: 20px; font-family: Arial, sans-serif">
     <h3>MotionPath + CustomEase Time Correction</h3>
-    <p>Both dots should move in sync horizontally (same x-position = same time)</p>
+    <p>
+      Both dots should move in sync horizontally (same x-position = same time)
+    </p>
 
     <svg
       id="envelope"
@@ -23,16 +25,65 @@
       <!-- Grid -->
       <g id="grid">
         <line x1="0" y1="0" x2="0" y2="200" stroke="#333" stroke-width="1" />
-        <line x1="100" y1="0" x2="100" y2="200" stroke="#333" stroke-width="1" />
-        <line x1="200" y1="0" x2="200" y2="200" stroke="#333" stroke-width="1" />
-        <line x1="300" y1="0" x2="300" y2="200" stroke="#333" stroke-width="1" />
-        <line x1="400" y1="0" x2="400" y2="200" stroke="#333" stroke-width="1" />
+        <line
+          x1="100"
+          y1="0"
+          x2="100"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="200"
+          y1="0"
+          x2="200"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="300"
+          y1="0"
+          x2="300"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="400"
+          y1="0"
+          x2="400"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
 
         <line x1="0" y1="0" x2="400" y2="0" stroke="#333" stroke-width="1" />
         <line x1="0" y1="50" x2="400" y2="50" stroke="#333" stroke-width="1" />
-        <line x1="0" y1="100" x2="400" y2="100" stroke="#333" stroke-width="1" />
-        <line x1="0" y1="150" x2="400" y2="150" stroke="#333" stroke-width="1" />
-        <line x1="0" y1="200" x2="400" y2="200" stroke="#333" stroke-width="1" />
+        <line
+          x1="0"
+          y1="100"
+          x2="400"
+          y2="100"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="0"
+          y1="150"
+          x2="400"
+          y2="150"
+          stroke="#333"
+          stroke-width="1"
+        />
+        <line
+          x1="0"
+          y1="200"
+          x2="400"
+          y2="200"
+          stroke="#333"
+          stroke-width="1"
+        />
       </g>
 
       <!-- Complex envelope path with curves -->
@@ -45,10 +96,24 @@
       />
 
       <!-- Reference linear movement -->
-      <circle id="linearPlayhead" cx="0" cy="180" r="4" fill="blue" opacity="0.8" />
+      <circle
+        id="linearPlayhead"
+        cx="0"
+        cy="180"
+        r="4"
+        fill="blue"
+        opacity="0.8"
+      />
 
       <!-- MotionPath with time-corrected ease -->
-      <circle id="correctedPlayhead" cx="0" cy="150" r="5" fill="red" opacity="0.8" />
+      <circle
+        id="correctedPlayhead"
+        cx="0"
+        cy="150"
+        r="5"
+        fill="red"
+        opacity="0.8"
+      />
     </svg>
 
     <div style="margin: 20px 0">
@@ -58,13 +123,22 @@
     </div>
 
     <div style="margin: 10px 0">
-      <div style="color: blue">🔵 Blue = Linear time reference (moves at constant speed)</div>
-      <div style="color: red">🔴 Red = MotionPath + CustomEase (should stay aligned with blue)</div>
+      <div style="color: blue">
+        🔵 Blue = Linear time reference (moves at constant speed)
+      </div>
+      <div style="color: red">
+        🔴 Red = MotionPath + CustomEase (should stay aligned with blue)
+      </div>
     </div>
 
     <div
       id="debug"
-      style="font-family: monospace; font-size: 12px; color: #666; margin-top: 20px"
+      style="
+        font-family: monospace;
+        font-size: 12px;
+        color: #666;
+        margin-top: 20px;
+      "
     ></div>
 
     <script>
@@ -84,10 +158,10 @@
 
       // Function to sample the path and determine time distribution
       function precomputeTimeBasedEase() {
-        const envelopePath = document.getElementById("envelopePath");
+        const envelopePath = document.getElementById('envelopePath');
         const pathLength = envelopePath.getTotalLength();
 
-        console.log("Path length:", pathLength);
+        console.log('Path length:', pathLength);
 
         // Sample points along the path
         const samples = [];
@@ -105,7 +179,7 @@
         }
 
         // Debug: show some samples
-        console.log("Sample points:", samples.slice(0, 10));
+        console.log('Sample points:', samples.slice(0, 10));
 
         // Create ease string from samples
         // We need to invert this: given a time, what should the path progress be?
@@ -129,7 +203,7 @@
           easePoints.push(closestSample.progress);
         }
 
-        console.log("Ease points:", easePoints);
+        console.log('Ease points:', easePoints);
 
         // Convert to CustomEase path format
         // CustomEase expects: x = time input (0-1), y = progress output (0-1)
@@ -141,17 +215,17 @@
           pathData += ` L${x},${y}`;
         }
 
-        console.log("CustomEase path:", pathData);
+        console.log('CustomEase path:', pathData);
 
         // Create the custom ease
-        timeBasedEase = CustomEase.create("timeCorrection", pathData);
+        timeBasedEase = CustomEase.create('timeCorrection', pathData);
 
-        document.getElementById("debug").innerHTML = `
+        document.getElementById('debug').innerHTML = `
                 <strong>Debug Info:</strong><br>
                 Path Length: ${pathLength.toFixed(2)}<br>
                 Samples: ${samples.length}<br>
                 Ease Points: ${easePoints.length}<br>
-                CustomEase Created: ${timeBasedEase ? "Yes" : "No"}
+                CustomEase Created: ${timeBasedEase ? 'Yes' : 'No'}
             `;
 
         return timeBasedEase;
@@ -164,19 +238,19 @@
           precomputeTimeBasedEase();
         }
 
-        const linearPlayhead = document.getElementById("linearPlayhead");
-        const correctedPlayhead = document.getElementById("correctedPlayhead");
-        const envelopePath = document.getElementById("envelopePath");
+        const linearPlayhead = document.getElementById('linearPlayhead');
+        const correctedPlayhead = document.getElementById('correctedPlayhead');
+        const envelopePath = document.getElementById('envelopePath');
 
         // Reset positions
-        linearPlayhead.setAttribute("cx", "0");
-        correctedPlayhead.setAttribute("cx", "0");
+        linearPlayhead.setAttribute('cx', '0');
+        correctedPlayhead.setAttribute('cx', '0');
 
         // Linear reference animation
         linearTween = gsap.to(linearPlayhead, {
           attr: { cx: 400 },
           duration: 4,
-          ease: "none",
+          ease: 'none',
         });
 
         // MotionPath with time-corrected ease
@@ -187,7 +261,7 @@
             alignOrigin: [0.5, 0.5],
           },
           duration: 4,
-          ease: timeBasedEase || "none",
+          ease: timeBasedEase || 'none',
         });
       }
 
@@ -201,7 +275,7 @@
       }
 
       // Auto-precompute on load
-      window.addEventListener("load", () => {
+      window.addEventListener('load', () => {
         setTimeout(precomputeTimeBasedEase, 100);
       });
     </script>

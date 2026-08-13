@@ -1,19 +1,28 @@
 // Generic Solid knob for any SamplePlayer parameter, driven by audiolib's
 // samplerParams descriptors. Replaces the per-param web components
 // (volume-knob, feedback-knob, ...) from audio-components.
-import { Component, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  Component,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from 'solid-js';
 
 import {
   samplerParams,
   type SamplerParamKey,
   type SamplerParamDescriptor,
   type SamplePlayer,
-} from "@repo/audiolib";
-import { KnobElement, registerKnobElement } from "@repo/audiolib/components";
+} from '@repo/audiolib';
+import { KnobElement, registerKnobElement } from '@repo/audiolib/components';
 
-import { samplerParamValues, setSamplerParamValue } from "../../utils/samplerParamState";
+import {
+  samplerParamValues,
+  setSamplerParamValue,
+} from '../../utils/samplerParamState';
 
-import styles from "./ParamKnob.module.css";
+import styles from './ParamKnob.module.css';
 
 interface ParamKnobProps {
   param: SamplerParamKey;
@@ -36,7 +45,10 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     const requestedValue = (e as CustomEvent<{ value: number }>).detail.value;
     const minAllowed = Math.max(desc.min, props.minAllowed?.() ?? desc.min);
     const maxAllowed = Math.min(desc.max, props.maxAllowed?.() ?? desc.max);
-    const clampedValue = Math.max(minAllowed, Math.min(requestedValue, maxAllowed));
+    const clampedValue = Math.max(
+      minAllowed,
+      Math.min(requestedValue, maxAllowed),
+    );
 
     setSamplerParamValue(props.param, clampedValue);
     if (clampedValue !== requestedValue) knobEl?.setValue(clampedValue);
@@ -48,23 +60,23 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     // the storage-backed shared value captured before that event updates state.
     const initialValue = value();
     registerKnobElement();
-    knobEl = document.createElement("knob-element") as KnobElement;
+    knobEl = document.createElement('knob-element') as KnobElement;
 
     const attrs: Record<string, string> = {
-      "min-value": String(desc.min),
-      "max-value": String(desc.max),
-      "default-value": String(desc.defaultValue),
-      "snap-increment": String(desc.step ?? 0),
+      'min-value': String(desc.min),
+      'max-value': String(desc.max),
+      'default-value': String(desc.defaultValue),
+      'snap-increment': String(desc.step ?? 0),
       curve: String(desc.curve ?? 1),
       width: String(size),
       height: String(size),
     };
     if (desc.allowedValues) {
-      attrs["allowed-values"] = JSON.stringify(desc.allowedValues);
+      attrs['allowed-values'] = JSON.stringify(desc.allowedValues);
     }
     Object.entries(attrs).forEach(([k, v]) => knobEl!.setAttribute(k, v));
 
-    knobEl.addEventListener("knob-change", handleChange);
+    knobEl.addEventListener('knob-change', handleChange);
     containerRef!.appendChild(knobEl);
     knobEl.setValue(initialValue);
   });
@@ -91,22 +103,28 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
 
     setSampleDuration(player.sampleDuration);
     unsubscribe.push(
-      player.onMessage("sample:loaded", (msg: any) => setSampleDuration(msg.durationSeconds)),
+      player.onMessage('sample:loaded', (msg: any) =>
+        setSampleDuration(msg.durationSeconds),
+      ),
     );
 
     onCleanup(() => unsubscribe.forEach((stop) => stop()));
   });
 
   onCleanup(() => {
-    knobEl?.removeEventListener("knob-change", handleChange);
+    knobEl?.removeEventListener('knob-change', handleChange);
   });
 
   const label = () => props.label ?? desc.label;
-  const format = desc.format ?? ((v: number, _duration: number) => v.toFixed(2));
+  const format =
+    desc.format ?? ((v: number, _duration: number) => v.toFixed(2));
   const readout = () => format(value(), sampleDuration());
 
   return (
-    <div data-param={props.param} class={`${styles.knobContainer} ${props.class ?? ""}`}>
+    <div
+      data-param={props.param}
+      class={`${styles.knobContainer} ${props.class ?? ''}`}
+    >
       <div class={styles.knobLabel}>{label()}</div>
       <div ref={containerRef} />
       <div class={styles.knobValue}>{readout()}</div>

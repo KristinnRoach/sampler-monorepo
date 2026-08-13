@@ -2,7 +2,7 @@ const DEFAULT_THRESHOLD = 0.0001;
 
 export function findWaveCycles(
   audioBuffer: AudioBuffer,
-  threshold: number = DEFAULT_THRESHOLD,
+  threshold: number = DEFAULT_THRESHOLD
 ): Array<{
   startTime: number;
   endTime: number;
@@ -65,7 +65,10 @@ export function findWaveCycles(
   return cycles;
 }
 
-export function duplicateWaveCycles(audioBuffer: AudioBuffer, numCycles: number): AudioBuffer {
+export function duplicateWaveCycles(
+  audioBuffer: AudioBuffer,
+  numCycles: number
+): AudioBuffer {
   // Find all wave cycles in the original buffer
   const cycles = findWaveCycles(audioBuffer);
 
@@ -103,7 +106,10 @@ export function duplicateWaveCycles(audioBuffer: AudioBuffer, numCycles: number)
       for (let duplication = 0; duplication < numCycles; duplication++) {
         // Copy the cycle data
         for (let i = 0; i < cycleLength; i++) {
-          if (writeIndex < targetData.length && cycle.startSample + i < sourceData.length) {
+          if (
+            writeIndex < targetData.length &&
+            cycle.startSample + i < sourceData.length
+          ) {
             targetData[writeIndex] = sourceData[cycle.startSample + i];
             writeIndex++;
           }

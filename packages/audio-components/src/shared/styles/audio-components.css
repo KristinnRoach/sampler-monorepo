@@ -217,7 +217,7 @@
 }
 
 .ac-toggle__switch::before {
-  content: "";
+  content: '';
   position: absolute;
   height: calc(var(--ac-toggle-height) - 4px);
   width: calc(var(--ac-toggle-height) - 4px);

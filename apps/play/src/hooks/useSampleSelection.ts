@@ -1,6 +1,6 @@
-import type { SamplePlayer } from "@repo/audiolib";
-import { SavedSample } from "../db/samplelib/sampleIdb";
-import { restoreInstrumentState } from "../utils/instrumentState";
+import type { SamplePlayer } from '@repo/audiolib';
+import { SavedSample } from '../db/samplelib/sampleIdb';
+import { restoreInstrumentState } from '../utils/instrumentState';
 
 export const useSampleSelection = (
   getSamplePlayer: () => SamplePlayer | null,
@@ -32,7 +32,7 @@ export const useSampleSelection = (
 
       setSidebarOpen(false);
     } catch (error) {
-      console.error("Failed to load sample:", error);
+      console.error('Failed to load sample:', error);
     }
   };
 

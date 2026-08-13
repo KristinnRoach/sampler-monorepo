@@ -1,11 +1,11 @@
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      "webaudio-knob": any;
-      "webaudio-slider": any;
-      "webaudio-switch": any;
-      "webaudio-param": any;
-      "webaudio-keyboard": any;
+      'webaudio-knob': any;
+      'webaudio-slider': any;
+      'webaudio-switch': any;
+      'webaudio-param': any;
+      'webaudio-keyboard': any;
     }
   }
 }
@@ -13,9 +13,9 @@ declare global {
 // For direct element access
 declare global {
   interface HTMLElementTagNameMap {
-    "webaudio-knob": HTMLElement;
-    "webaudio-slider": HTMLElement;
-    "webaudio-switch": HTMLElement;
+    'webaudio-knob': HTMLElement;
+    'webaudio-slider': HTMLElement;
+    'webaudio-switch': HTMLElement;
   }
 }
 

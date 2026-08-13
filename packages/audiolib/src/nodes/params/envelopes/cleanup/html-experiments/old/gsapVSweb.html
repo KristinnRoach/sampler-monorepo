@@ -118,7 +118,8 @@
         <h3>🎯 Experiment Goal</h3>
         <p>
           Compare timing precision between Web Audio API's
-          <code>setValueCurveAtTime</code> (audio thread) and GSAP animation (main thread).
+          <code>setValueCurveAtTime</code> (audio thread) and GSAP animation
+          (main thread).
         </p>
       </div>
 
@@ -134,7 +135,14 @@
 
         <div class="control-group">
           <label for="duration">Duration</label>
-          <input type="range" id="duration" min="1" max="4" value="2" step="0.5" />
+          <input
+            type="range"
+            id="duration"
+            min="1"
+            max="4"
+            value="2"
+            step="0.5"
+          />
           <span id="durationValue">2.0s</span>
         </div>
       </div>
@@ -149,9 +157,12 @@
 
       <div class="comparison">
         <strong>Listen for the difference:</strong><br />
-        • <strong>Web Audio API:</strong> Precise timing, scheduled on audio thread<br />
-        • <strong>GSAP:</strong> ~60fps updates from main thread, may have slight irregularities<br />
-        • Try opening dev tools or creating CPU load while GSAP plays to hear the difference
+        • <strong>Web Audio API:</strong> Precise timing, scheduled on audio
+        thread<br />
+        • <strong>GSAP:</strong> ~60fps updates from main thread, may have
+        slight irregularities<br />
+        • Try opening dev tools or creating CPU load while GSAP plays to hear
+        the difference
       </div>
     </div>
 
@@ -171,28 +182,34 @@
 
         async initAudio() {
           if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)();
           }
 
-          if (this.audioContext.state === "suspended") {
+          if (this.audioContext.state === 'suspended') {
             await this.audioContext.resume();
           }
         }
 
         setupEventListeners() {
           document
-            .getElementById("playWebAudioBtn")
-            .addEventListener("click", () => this.playWebAudio());
-          document.getElementById("playGsapBtn").addEventListener("click", () => this.playGsap());
-          document.getElementById("stopBtn").addEventListener("click", () => this.stop());
+            .getElementById('playWebAudioBtn')
+            .addEventListener('click', () => this.playWebAudio());
+          document
+            .getElementById('playGsapBtn')
+            .addEventListener('click', () => this.playGsap());
+          document
+            .getElementById('stopBtn')
+            .addEventListener('click', () => this.stop());
 
-          document.getElementById("duration").addEventListener("input", (e) => {
-            document.getElementById("durationValue").textContent = e.target.value + "s";
+          document.getElementById('duration').addEventListener('input', (e) => {
+            document.getElementById('durationValue').textContent =
+              e.target.value + 's';
           });
         }
 
         generateCurve() {
-          const curveType = document.getElementById("curveType").value;
+          const curveType = document.getElementById('curveType').value;
           const baseFreq = 440;
           const numPoints = 200;
           const curve = new Float32Array(numPoints);
@@ -201,14 +218,15 @@
             const t = i / (numPoints - 1);
 
             switch (curveType) {
-              case "linear":
+              case 'linear':
                 curve[i] = baseFreq + baseFreq * t;
                 break;
-              case "exponential":
+              case 'exponential':
                 curve[i] = baseFreq * Math.pow(2, t * 2);
                 break;
-              case "sine":
-                curve[i] = baseFreq + baseFreq * 0.5 * Math.sin(t * Math.PI * 4);
+              case 'sine':
+                curve[i] =
+                  baseFreq + baseFreq * 0.5 * Math.sin(t * Math.PI * 4);
                 break;
             }
           }
@@ -227,23 +245,29 @@
             this.oscillator.connect(this.gainNode);
             this.gainNode.connect(this.audioContext.destination);
 
-            const duration = parseFloat(document.getElementById("duration").value);
+            const duration = parseFloat(
+              document.getElementById('duration').value
+            );
             const curve = this.generateCurve();
 
             this.oscillator.frequency.value = 440;
             this.gainNode.gain.value = 0.2;
 
             const startTime = this.audioContext.currentTime + 0.01;
-            this.oscillator.frequency.setValueCurveAtTime(curve, startTime, duration);
+            this.oscillator.frequency.setValueCurveAtTime(
+              curve,
+              startTime,
+              duration
+            );
 
             this.oscillator.start(startTime);
             this.oscillator.stop(startTime + duration + 0.1);
 
-            this.updateUI("Web Audio API", duration);
+            this.updateUI('Web Audio API', duration);
 
             setTimeout(() => this.stop(), (duration + 0.1) * 1000);
           } catch (error) {
-            console.error("Web Audio error:", error);
+            console.error('Web Audio error:', error);
           }
         }
 
@@ -258,8 +282,10 @@
             this.oscillator.connect(this.gainNode);
             this.gainNode.connect(this.audioContext.destination);
 
-            const duration = parseFloat(document.getElementById("duration").value);
-            const curveType = document.getElementById("curveType").value;
+            const duration = parseFloat(
+              document.getElementById('duration').value
+            );
+            const curveType = document.getElementById('curveType').value;
 
             this.oscillator.frequency.value = 440;
             this.gainNode.gain.value = 0.2;
@@ -267,7 +293,10 @@
             const startTime = this.audioContext.currentTime + 0.01;
             this.oscillator.start(startTime);
 
-            const syncDelay = Math.max(0, (startTime - this.audioContext.currentTime) * 1000);
+            const syncDelay = Math.max(
+              0,
+              (startTime - this.audioContext.currentTime) * 1000
+            );
 
             // Generate the same curve data that Web Audio uses
             const curve = this.generateCurve();
@@ -298,38 +327,43 @@
                     }
                   },
                 },
-                timeOffset,
+                timeOffset
               );
             }
 
-            this.gsapTween.call(() => this.stop(), [], syncDelay / 1000 + duration);
+            this.gsapTween.call(
+              () => this.stop(),
+              [],
+              syncDelay / 1000 + duration
+            );
 
-            this.updateUI("GSAP", duration);
+            this.updateUI('GSAP', duration);
           } catch (error) {
-            console.error("GSAP error:", error);
+            console.error('GSAP error:', error);
           }
         }
 
         getGsapEase(curveType) {
           switch (curveType) {
-            case "linear":
-              return "none";
-            case "exponential":
-              return "power2.out";
-            case "sine":
-              return "sine.inOut";
+            case 'linear':
+              return 'none';
+            case 'exponential':
+              return 'power2.out';
+            case 'sine':
+              return 'sine.inOut';
             default:
-              return "none";
+              return 'none';
           }
         }
 
         updateUI(method, duration) {
           this.isPlaying = true;
-          document.getElementById("playWebAudioBtn").disabled = true;
-          document.getElementById("playGsapBtn").disabled = true;
-          document.getElementById("stopBtn").disabled = false;
-          document.getElementById("status").textContent = `Playing ${method} for ${duration}s`;
-          document.getElementById("status").className = "status playing";
+          document.getElementById('playWebAudioBtn').disabled = true;
+          document.getElementById('playGsapBtn').disabled = true;
+          document.getElementById('stopBtn').disabled = false;
+          document.getElementById('status').textContent =
+            `Playing ${method} for ${duration}s`;
+          document.getElementById('status').className = 'status playing';
         }
 
         stop() {
@@ -348,15 +382,15 @@
           }
 
           this.isPlaying = false;
-          document.getElementById("playWebAudioBtn").disabled = false;
-          document.getElementById("playGsapBtn").disabled = false;
-          document.getElementById("stopBtn").disabled = true;
-          document.getElementById("status").textContent = "Ready to compare";
-          document.getElementById("status").className = "status stopped";
+          document.getElementById('playWebAudioBtn').disabled = false;
+          document.getElementById('playGsapBtn').disabled = false;
+          document.getElementById('stopBtn').disabled = true;
+          document.getElementById('status').textContent = 'Ready to compare';
+          document.getElementById('status').className = 'status stopped';
         }
       }
 
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener('DOMContentLoaded', () => {
         new TimingComparison();
       });
     </script>

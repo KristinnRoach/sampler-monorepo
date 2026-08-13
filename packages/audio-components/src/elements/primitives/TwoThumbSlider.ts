@@ -1,5 +1,12 @@
 export class TwoThumbSlider extends HTMLElement {
-  static observedAttributes = ["min", "max", "step", "minimum-gap", "value-min", "value-max"];
+  static observedAttributes = [
+    'min',
+    'max',
+    'step',
+    'minimum-gap',
+    'value-min',
+    'value-max',
+  ];
 
   min: number;
   max: number;
@@ -7,7 +14,7 @@ export class TwoThumbSlider extends HTMLElement {
   minimumGap: number;
   valueMin: number;
   valueMax: number;
-  activeThumb: "min" | "max" | null;
+  activeThumb: 'min' | 'max' | null;
 
   constructor() {
     super();
@@ -26,28 +33,32 @@ export class TwoThumbSlider extends HTMLElement {
     this.updateSlider();
   }
 
-  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+  attributeChangedCallback(
+    name: string,
+    oldValue: string | null,
+    newValue: string | null
+  ): void {
     if (oldValue === newValue) return;
     if (newValue === null) return;
 
     const value = parseFloat(newValue);
     switch (name) {
-      case "min":
+      case 'min':
         this.min = value;
         break;
-      case "max":
+      case 'max':
         this.max = value;
         break;
-      case "step":
+      case 'step':
         this.step = value;
         break;
-      case "minimum-gap":
+      case 'minimum-gap':
         this.minimumGap = value;
         break;
-      case "value-min":
+      case 'value-min':
         this.valueMin = value;
         break;
-      case "value-max":
+      case 'value-max':
         this.valueMax = value;
         break;
     }
@@ -68,20 +79,20 @@ export class TwoThumbSlider extends HTMLElement {
   }
 
   setupEventListeners(): void {
-    const thumbMin = this.querySelector(".thumb-min") as HTMLElement;
-    const thumbMax = this.querySelector(".thumb-max") as HTMLElement;
+    const thumbMin = this.querySelector('.thumb-min') as HTMLElement;
+    const thumbMax = this.querySelector('.thumb-max') as HTMLElement;
 
-    thumbMin.addEventListener("mousedown", (e) => this.startDrag(e, "min"));
-    thumbMax.addEventListener("mousedown", (e) => this.startDrag(e, "max"));
-    thumbMin.addEventListener("touchstart", (e) => this.startDrag(e, "min"), {
+    thumbMin.addEventListener('mousedown', (e) => this.startDrag(e, 'min'));
+    thumbMax.addEventListener('mousedown', (e) => this.startDrag(e, 'max'));
+    thumbMin.addEventListener('touchstart', (e) => this.startDrag(e, 'min'), {
       passive: false,
     });
-    thumbMax.addEventListener("touchstart", (e) => this.startDrag(e, "max"), {
+    thumbMax.addEventListener('touchstart', (e) => this.startDrag(e, 'max'), {
       passive: false,
     });
   }
 
-  startDrag(e: MouseEvent | TouchEvent, thumb: "min" | "max"): void {
+  startDrag(e: MouseEvent | TouchEvent, thumb: 'min' | 'max'): void {
     e.stopPropagation();
     e.preventDefault();
     this.activeThumb = thumb;
@@ -89,12 +100,12 @@ export class TwoThumbSlider extends HTMLElement {
     const handleMove = (e: MouseEvent | TouchEvent) => this.handleDrag(e);
     const handleEnd = () => this.stopDrag(handleMove, handleEnd);
 
-    document.addEventListener("mousemove", handleMove);
-    document.addEventListener("mouseup", handleEnd);
-    document.addEventListener("touchmove", handleMove, {
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, {
       passive: false,
     });
-    document.addEventListener("touchend", handleEnd);
+    document.addEventListener('touchend', handleEnd);
   }
 
   handleDrag(e: MouseEvent | TouchEvent): void {
@@ -102,8 +113,10 @@ export class TwoThumbSlider extends HTMLElement {
 
     e.preventDefault();
     const clientX =
-      "touches" in e && e.touches[0] ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const track = this.querySelector(".slider-track") as HTMLElement;
+      'touches' in e && e.touches[0]
+        ? e.touches[0].clientX
+        : (e as MouseEvent).clientX;
+    const track = this.querySelector('.slider-track') as HTMLElement;
     const rect = track.getBoundingClientRect();
 
     let position = Math.max(0, Math.min(clientX - rect.left, rect.width));
@@ -116,7 +129,7 @@ export class TwoThumbSlider extends HTMLElement {
     value = Math.round(value / this.step) * this.step;
 
     // Apply minimum gap constraint
-    if (this.activeThumb === "min") {
+    if (this.activeThumb === 'min') {
       value = Math.min(value, this.valueMax - this.minimumGap);
       this.valueMin = Math.max(value, this.min);
     } else {
@@ -128,24 +141,31 @@ export class TwoThumbSlider extends HTMLElement {
     this.dispatchChange();
   }
 
-  stopDrag(handleMove: (e: MouseEvent | TouchEvent) => void, handleEnd: () => void): void {
+  stopDrag(
+    handleMove: (e: MouseEvent | TouchEvent) => void,
+    handleEnd: () => void
+  ): void {
     this.activeThumb = null;
-    document.removeEventListener("mousemove", handleMove);
-    document.removeEventListener("mouseup", handleEnd);
-    document.removeEventListener("touchmove", handleMove);
-    document.removeEventListener("touchend", handleEnd);
+    document.removeEventListener('mousemove', handleMove);
+    document.removeEventListener('mouseup', handleEnd);
+    document.removeEventListener('touchmove', handleMove);
+    document.removeEventListener('touchend', handleEnd);
   }
 
   updateSlider(): void {
-    const rangeElement = this.querySelector(".slider-range") as HTMLElement | null;
-    const thumbMin = this.querySelector(".thumb-min") as HTMLElement | null;
-    const thumbMax = this.querySelector(".thumb-max") as HTMLElement | null;
+    const rangeElement = this.querySelector(
+      '.slider-range'
+    ) as HTMLElement | null;
+    const thumbMin = this.querySelector('.thumb-min') as HTMLElement | null;
+    const thumbMax = this.querySelector('.thumb-max') as HTMLElement | null;
 
     if (!rangeElement || !thumbMin || !thumbMax) return;
 
     // Calculate positions as percentages
-    const percentMin = ((this.valueMin - this.min) / (this.max - this.min)) * 100;
-    const percentMax = ((this.valueMax - this.min) / (this.max - this.min)) * 100;
+    const percentMin =
+      ((this.valueMin - this.min) / (this.max - this.min)) * 100;
+    const percentMax =
+      ((this.valueMax - this.min) / (this.max - this.min)) * 100;
 
     // Add visual padding when thumbs are too close
     const minVisualGap = 2; // Minimum visual gap in percentage points
@@ -170,13 +190,13 @@ export class TwoThumbSlider extends HTMLElement {
 
   dispatchChange(): void {
     this.dispatchEvent(
-      new CustomEvent("range-change", {
+      new CustomEvent('range-change', {
         detail: {
           min: this.valueMin,
           max: this.valueMax,
         },
         bubbles: true,
-      }),
+      })
     );
   }
 
@@ -194,15 +214,15 @@ export class TwoThumbSlider extends HTMLElement {
   }
 }
 
-customElements.define("two-thumb-slider", TwoThumbSlider);
+customElements.define('two-thumb-slider', TwoThumbSlider);
 
 declare global {
   interface HTMLElementTagNameMap {
-    "two-thumb-slider": TwoThumbSlider;
+    'two-thumb-slider': TwoThumbSlider;
   }
 }
 
-const style = document.createElement("style");
+const style = document.createElement('style');
 style.textContent = `
 two-thumb-slider {
   height: 20px;

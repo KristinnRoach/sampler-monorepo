@@ -1,3 +1,3 @@
-import van from "./van.js";
+import van from './van.js';
 
 window.van = van;

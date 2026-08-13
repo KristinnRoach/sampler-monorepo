@@ -1,11 +1,11 @@
 // Sampler.ts
-import van, { State } from "@repo/vanjs-core";
-import { define, ElementProps } from "@repo/vanjs-core/element";
-import { SamplePlayer, createSamplePlayer } from "@repo/audiolib";
+import van, { State } from '@repo/vanjs-core';
+import { define, ElementProps } from '@repo/vanjs-core/element';
+import { SamplePlayer, createSamplePlayer } from '@repo/audiolib';
 
-import { registerSampler, unregisterSampler } from "./SamplerRegistry";
+import { registerSampler, unregisterSampler } from './SamplerRegistry';
 
-import { COMPONENT_STYLE } from "../../shared/styles/component-styles";
+import { COMPONENT_STYLE } from '../../shared/styles/component-styles';
 
 import {
   DryWetKnob,
@@ -37,7 +37,7 @@ import {
   DelayTimeKnob,
   DelayFeedbackKnob,
   TempoKnob,
-} from "./components/SamplerKnobFactory";
+} from './components/SamplerKnobFactory';
 
 import {
   FeedbackModeToggle,
@@ -49,21 +49,25 @@ import {
   PlaybackDirectionToggle,
   PanDriftToggle,
   PitchToggle,
-} from "./components/SamplerToggleFactory";
+} from './components/SamplerToggleFactory';
 
-import { EnvelopeDisplay } from "./components/EnvelopeDisplay";
-import { EnvelopeSwitcher } from "./components/EnvelopeSwitcher";
-import { ComputerKeyboard } from "./components/ComputerKeyboard";
-import { PianoKeyboard } from "./components/PianoKeyboard";
-import { RecordButton, UploadButton, SaveButton } from "./components/SamplerButtonFactory";
+import { EnvelopeDisplay } from './components/EnvelopeDisplay';
+import { EnvelopeSwitcher } from './components/EnvelopeSwitcher';
+import { ComputerKeyboard } from './components/ComputerKeyboard';
+import { PianoKeyboard } from './components/PianoKeyboard';
+import {
+  RecordButton,
+  UploadButton,
+  SaveButton,
+} from './components/SamplerButtonFactory';
 import {
   KeymapSelect,
   WaveformSelect,
   InputSourceSelect,
   RootNoteSelect,
-} from "./components/SamplerSelectFactory";
-import { AMModulation } from "./components/AMModulation";
-import { SamplerStatusElement } from "./components/SamplerStatusElement";
+} from './components/SamplerSelectFactory';
+import { AMModulation } from './components/AMModulation';
+import { SamplerStatusElement } from './components/SamplerStatusElement';
 
 const { div } = van.tags;
 
@@ -87,11 +91,11 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
       view.setUint8(offset++, str.charCodeAt(i));
     }
   }
-  writeString("RIFF");
+  writeString('RIFF');
   view.setUint32(offset, 36 + dataSize, true);
   offset += 4;
-  writeString("WAVE");
-  writeString("fmt ");
+  writeString('WAVE');
+  writeString('fmt ');
   view.setUint32(offset, 16, true);
   offset += 4; // PCM chunk size
   view.setUint16(offset, 1, true);
@@ -106,7 +110,7 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
   offset += 2;
   view.setUint16(offset, 16, true);
   offset += 2; // bits per sample
-  writeString("data");
+  writeString('data');
   view.setUint32(offset, dataSize, true);
   offset += 4;
 
@@ -127,7 +131,7 @@ function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
-  let binary = "";
+  let binary = '';
   const bytes = new Uint8Array(buffer);
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
@@ -218,16 +222,16 @@ export interface SamplerElement extends HTMLElement {
 export const SamplerElement = (attributes: ElementProps) => {
   let samplePlayer: SamplePlayer | null = null;
 
-  const nodeId: State<string> = attributes.attr("node-id", "");
-  const polyphony = attributes.attr("polyphony", "16");
-  const debugMode = attributes.attr("debug-mode", "false");
-  const status = van.state("Click to start");
+  const nodeId: State<string> = attributes.attr('node-id', '');
+  const polyphony = attributes.attr('polyphony', '16');
+  const debugMode = attributes.attr('debug-mode', 'false');
+  const status = van.state('Click to start');
 
   attributes.mount(() => {
     const initializeAudio = async () => {
       try {
         let initSample = undefined;
-        const storedBuffer = localStorage.getItem("currentSample");
+        const storedBuffer = localStorage.getItem('currentSample');
 
         if (storedBuffer?.length) {
           const arrayBuffer = base64ToArrayBuffer(storedBuffer);
@@ -237,7 +241,10 @@ export const SamplerElement = (attributes: ElementProps) => {
           }
         }
 
-        samplePlayer = await createSamplePlayer(initSample, parseInt(polyphony.val));
+        samplePlayer = await createSamplePlayer(
+          initSample,
+          parseInt(polyphony.val),
+        );
 
         if (!nodeId.val) {
           nodeId.val = samplePlayer.nodeId;
@@ -246,19 +253,19 @@ export const SamplerElement = (attributes: ElementProps) => {
         registerSampler(nodeId.val, samplePlayer);
 
         document.dispatchEvent(
-          new CustomEvent("sampler-initialized", {
+          new CustomEvent('sampler-initialized', {
             detail: { nodeId: nodeId.val },
           }),
         );
 
-        status.val = "Initialized";
+        status.val = 'Initialized';
 
-        samplePlayer.onMessage("sample:loaded", (msg: any) => {
-          status.val = "Loaded";
+        samplePlayer.onMessage('sample:loaded', (msg: any) => {
+          status.val = 'Loaded';
           const audiobuffer = samplePlayer?.audiobuffer;
 
           document.dispatchEvent(
-            new CustomEvent("sample-loaded", {
+            new CustomEvent('sample-loaded', {
               detail: {
                 nodeId: nodeId.val,
                 buffer: audiobuffer,
@@ -270,7 +277,7 @@ export const SamplerElement = (attributes: ElementProps) => {
             // Store as WAV for compatibility with decodeAudioData
             const wavBuffer = audioBufferToWav(audiobuffer);
             const base64buffer = arrayBufferToBase64(wavBuffer);
-            localStorage.setItem("currentSample", base64buffer);
+            localStorage.setItem('currentSample', base64buffer);
           }
         });
 
@@ -280,24 +287,25 @@ export const SamplerElement = (attributes: ElementProps) => {
           getSampleBuffer: () => samplePlayer?.audiobuffer || null,
         });
       } catch (error: any) {
-        console.error("Sampler initialization error:", error);
-        if (error?.message?.includes("AudioWorklet")) {
-          status.val = "Browser not supported";
+        console.error('Sampler initialization error:', error);
+        if (error?.message?.includes('AudioWorklet')) {
+          status.val = 'Browser not supported';
           document.dispatchEvent(
-            new CustomEvent("sampler-error", {
+            new CustomEvent('sampler-error', {
               detail: {
                 nodeId: nodeId.val,
-                error: "AudioWorklet not supported",
+                error: 'AudioWorklet not supported',
                 message:
-                  "This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.",
+                  'This browser does not fully support Web Audio. Please use Chrome, Firefox, or Edge on desktop, or update your mobile browser.',
               },
             }),
           );
         } else {
-          const errText = typeof error?.message === "string" ? error.message : String(error);
+          const errText =
+            typeof error?.message === 'string' ? error.message : String(error);
           status.val = `Error: ${errText}`;
           document.dispatchEvent(
-            new CustomEvent("sampler-error", {
+            new CustomEvent('sampler-error', {
               detail: {
                 nodeId: nodeId.val,
                 error: errText,
@@ -319,10 +327,10 @@ export const SamplerElement = (attributes: ElementProps) => {
   });
 
   // Render debug information, only if debug-mode attribute is present
-  if (debugMode.val === "true" || debugMode.val === "") {
+  if (debugMode.val === 'true' || debugMode.val === '') {
     return div(
       {
-        "node-id": () => nodeId.val,
+        'node-id': () => nodeId.val,
         style: `${COMPONENT_STYLE}`,
       },
       div(() => `Sampler: ${nodeId.val}`),
@@ -332,8 +340,8 @@ export const SamplerElement = (attributes: ElementProps) => {
 
   // Return invisible element
   return div({
-    "node-id": () => nodeId.val,
-    style: "display: none;",
+    'node-id': () => nodeId.val,
+    style: 'display: none;',
   });
 };
 
@@ -411,7 +419,7 @@ const defineIfNotExists = (name: string, elementFunc: any, options: any) => {
   }
 };
 
-/* NOTE!
+/* NOTE! 
   Phasing out audio-components:
   commenting out already-migrated elements (and leaving rest of audio-components as is),
   until all done.
@@ -419,12 +427,12 @@ const defineIfNotExists = (name: string, elementFunc: any, options: any) => {
 
 export const defineSampler = () => {
   // Core sampler
-  defineIfNotExists("sampler-element", SamplerElement, false);
+  defineIfNotExists('sampler-element', SamplerElement, false);
 
   // Basic controls
-  defineIfNotExists("load-button", UploadButton, false);
-  defineIfNotExists("record-button", RecordButton, false);
-  defineIfNotExists("save-button", SaveButton, false);
+  defineIfNotExists('load-button', UploadButton, false);
+  defineIfNotExists('record-button', RecordButton, false);
+  defineIfNotExists('save-button', SaveButton, false);
 
   // defineIfNotExists('volume-knob', VolumeKnob, false);
   // defineIfNotExists('reverb-send-knob', ReverbSendKnob, false);
@@ -457,35 +465,39 @@ export const defineSampler = () => {
   // defineIfNotExists('tempo-knob', TempoKnob, false);
 
   // Toggle controls
-  defineIfNotExists("feedback-mode-toggle", FeedbackModeToggle, false);
-  defineIfNotExists("midi-toggle", MidiToggle, false);
-  defineIfNotExists("loop-lock-toggle", LoopLockToggle, false);
-  defineIfNotExists("hold-lock-toggle", HoldLockToggle, false);
-  defineIfNotExists("gain-lfo-sync-toggle", GainLFOSyncNoteToggle, false);
-  defineIfNotExists("pitch-lfo-sync-toggle", PitchLFOSyncNoteToggle, false);
-  defineIfNotExists("playback-direction-toggle", PlaybackDirectionToggle, false);
-  defineIfNotExists("pan-drift-toggle", PanDriftToggle, false);
-  defineIfNotExists("pitch-toggle", PitchToggle, false);
+  defineIfNotExists('feedback-mode-toggle', FeedbackModeToggle, false);
+  defineIfNotExists('midi-toggle', MidiToggle, false);
+  defineIfNotExists('loop-lock-toggle', LoopLockToggle, false);
+  defineIfNotExists('hold-lock-toggle', HoldLockToggle, false);
+  defineIfNotExists('gain-lfo-sync-toggle', GainLFOSyncNoteToggle, false);
+  defineIfNotExists('pitch-lfo-sync-toggle', PitchLFOSyncNoteToggle, false);
+  defineIfNotExists(
+    'playback-direction-toggle',
+    PlaybackDirectionToggle,
+    false,
+  );
+  defineIfNotExists('pan-drift-toggle', PanDriftToggle, false);
+  defineIfNotExists('pitch-toggle', PitchToggle, false);
 
   // Envelopes
-  defineIfNotExists("envelope-display", EnvelopeDisplay, false);
-  defineIfNotExists("envelope-switcher", EnvelopeSwitcher, false);
+  defineIfNotExists('envelope-display', EnvelopeDisplay, false);
+  defineIfNotExists('envelope-switcher', EnvelopeSwitcher, false);
 
   // Input controls
-  defineIfNotExists("computer-keyboard", ComputerKeyboard, false);
-  defineIfNotExists("piano-keyboard", PianoKeyboard, false);
+  defineIfNotExists('computer-keyboard', ComputerKeyboard, false);
+  defineIfNotExists('piano-keyboard', PianoKeyboard, false);
 
   // Select controls
-  defineIfNotExists("keymap-select", KeymapSelect, false);
-  defineIfNotExists("waveform-select", WaveformSelect, false);
-  defineIfNotExists("input-select", InputSourceSelect, false);
-  defineIfNotExists("rootnote-select", RootNoteSelect, false);
+  defineIfNotExists('keymap-select', KeymapSelect, false);
+  defineIfNotExists('waveform-select', WaveformSelect, false);
+  defineIfNotExists('input-select', InputSourceSelect, false);
+  defineIfNotExists('rootnote-select', RootNoteSelect, false);
 
   // Composite controls
-  defineIfNotExists("am-modulation", AMModulation, false);
+  defineIfNotExists('am-modulation', AMModulation, false);
 
   // Status display
-  defineIfNotExists("sampler-status", SamplerStatusElement, false);
+  defineIfNotExists('sampler-status', SamplerStatusElement, false);
 };
 
 defineSampler();

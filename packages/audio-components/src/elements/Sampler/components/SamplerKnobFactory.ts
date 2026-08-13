@@ -1,14 +1,14 @@
 // KnobFactory.ts
-import van from "@repo/vanjs-core";
-import { ElementProps } from "@repo/vanjs-core/element";
-import { getSampler } from "../SamplerRegistry";
-import { createKnobForTarget } from "../component-utils";
-import { KnobConfig } from "../../primitives/createKnob";
+import van from '@repo/vanjs-core';
+import { ElementProps } from '@repo/vanjs-core/element';
+import { getSampler } from '../SamplerRegistry';
+import { createKnobForTarget } from '../component-utils';
+import { KnobConfig } from '../../primitives/createKnob';
 
 // ===== KNOB CONFIGURATIONS =====
 
 const volumeConfig: KnobConfig = {
-  label: "Volume",
+  label: 'Volume',
   defaultValue: 0.75,
   useLocalStorage: true,
   onConnect: (sampler, state) => {
@@ -21,7 +21,7 @@ const volumeConfig: KnobConfig = {
 };
 
 const dryWetConfig: KnobConfig = {
-  label: "Dry/Wet",
+  label: 'Dry/Wet',
   useLocalStorage: true,
   defaultValue: 0.5,
   onConnect: (sampler, state) => {
@@ -32,7 +32,7 @@ const dryWetConfig: KnobConfig = {
 };
 
 const feedbackConfig: KnobConfig = {
-  label: "Feedback",
+  label: 'Feedback',
   useLocalStorage: true,
   defaultValue: 0.0,
   minValue: 0,
@@ -46,7 +46,7 @@ const feedbackConfig: KnobConfig = {
 };
 
 const distortionConfig: KnobConfig = {
-  label: "Distortion",
+  label: 'Distortion',
   useLocalStorage: true,
   defaultValue: 0.0,
   minValue: 0,
@@ -58,7 +58,7 @@ const distortionConfig: KnobConfig = {
 };
 
 const driveConfig: KnobConfig = {
-  label: "Drive",
+  label: 'Drive',
   useLocalStorage: true,
   defaultValue: 0.0,
   minValue: 0,
@@ -69,7 +69,7 @@ const driveConfig: KnobConfig = {
 };
 
 const clippingConfig: KnobConfig = {
-  label: "Clipping",
+  label: 'Clipping',
   useLocalStorage: true,
   defaultValue: 0.0,
   minValue: 0,
@@ -80,7 +80,7 @@ const clippingConfig: KnobConfig = {
 };
 
 const glideConfig: KnobConfig = {
-  label: "Glide",
+  label: 'Glide',
   useLocalStorage: true,
   defaultValue: 0.0,
   minValue: 0,
@@ -94,7 +94,7 @@ const glideConfig: KnobConfig = {
 };
 
 const feedbackPitchConfig: KnobConfig = {
-  label: "FB-Pitch",
+  label: 'FB-Pitch',
   useLocalStorage: true,
   defaultValue: 1.0,
   minValue: 0.25,
@@ -107,7 +107,7 @@ const feedbackPitchConfig: KnobConfig = {
 };
 
 const feedbackDecayConfig: KnobConfig = {
-  label: "FB-Decay",
+  label: 'FB-Decay',
   useLocalStorage: true,
   defaultValue: 0.75,
   minValue: 0.01,
@@ -119,7 +119,7 @@ const feedbackDecayConfig: KnobConfig = {
 };
 
 const feedbackLpfConfig: KnobConfig = {
-  label: "FB-LPF",
+  label: 'FB-LPF',
   useLocalStorage: true,
   defaultValue: 10000,
   minValue: 400,
@@ -132,7 +132,7 @@ const feedbackLpfConfig: KnobConfig = {
 };
 
 const delayTimeConfig: KnobConfig = {
-  label: "Delay",
+  label: 'Delay',
   useLocalStorage: true,
   defaultValue: 0.1,
   minValue: 0.005,
@@ -145,7 +145,7 @@ const delayTimeConfig: KnobConfig = {
 };
 
 const delayFBConfig: KnobConfig = {
-  label: "Delay Feedback",
+  label: 'Delay Feedback',
   useLocalStorage: true,
   defaultValue: 0.25,
   minValue: 0,
@@ -158,7 +158,7 @@ const delayFBConfig: KnobConfig = {
 };
 
 const delaySendConfig: KnobConfig = {
-  label: "Delay Send",
+  label: 'Delay Send',
   useLocalStorage: true,
   defaultValue: 0,
   minValue: 0,
@@ -167,11 +167,11 @@ const delaySendConfig: KnobConfig = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(0)}%`,
   onConnect: (sampler, state) => {
     van.derive(() => {
-      if (sampler && typeof sampler.sendToFx === "function") {
+      if (sampler && typeof sampler.sendToFx === 'function') {
         try {
-          sampler.sendToFx("delay", state.val);
+          sampler.sendToFx('delay', state.val);
         } catch (err) {
-          console.debug("Unable to set delay send:", err);
+          console.debug('Unable to set delay send:', err);
         }
       }
     });
@@ -179,7 +179,7 @@ const delaySendConfig: KnobConfig = {
 };
 
 const gainLFORateConfig: KnobConfig = {
-  label: "Amp LFO Rate",
+  label: 'Amp LFO Rate',
   useLocalStorage: true,
   defaultValue: 0.1,
   curve: 5,
@@ -193,7 +193,7 @@ const gainLFORateConfig: KnobConfig = {
 };
 
 const gainLFODepthConfig: KnobConfig = {
-  label: "Amp LFO Depth",
+  label: 'Amp LFO Depth',
   useLocalStorage: true,
   defaultValue: 0.0,
   curve: 1.5,
@@ -203,7 +203,7 @@ const gainLFODepthConfig: KnobConfig = {
 };
 
 const pitchLFORateConfig: KnobConfig = {
-  label: "Pitch LFO Rate",
+  label: 'Pitch LFO Rate',
   useLocalStorage: true,
   defaultValue: 0.01,
   curve: 5,
@@ -217,7 +217,7 @@ const pitchLFORateConfig: KnobConfig = {
 };
 
 const pitchLFODepthConfig: KnobConfig = {
-  label: "Pitch LFO Depth",
+  label: 'Pitch LFO Depth',
   useLocalStorage: true,
   defaultValue: 0.0,
   curve: 1.5,
@@ -230,7 +230,7 @@ const pitchLFODepthConfig: KnobConfig = {
 };
 
 const reverbSendConfig: KnobConfig = {
-  label: "Reverb Send",
+  label: 'Reverb Send',
   useLocalStorage: true,
   defaultValue: 0,
   minValue: 0,
@@ -239,11 +239,11 @@ const reverbSendConfig: KnobConfig = {
   valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%`,
   onConnect: (sampler, state) => {
     van.derive(() => {
-      if (sampler && typeof sampler.sendToFx === "function") {
+      if (sampler && typeof sampler.sendToFx === 'function') {
         try {
-          sampler.sendToFx("reverb", state.val);
+          sampler.sendToFx('reverb', state.val);
         } catch (err) {
-          console.debug("Unable to set reverb send:", err);
+          console.debug('Unable to set reverb send:', err);
         }
       }
     });
@@ -251,7 +251,7 @@ const reverbSendConfig: KnobConfig = {
 };
 
 const reverbSizeConfig: KnobConfig = {
-  label: "Reverb Size",
+  label: 'Reverb Size',
   useLocalStorage: true,
   defaultValue: 0.7,
   curve: 1,
@@ -263,7 +263,7 @@ const reverbSizeConfig: KnobConfig = {
 };
 
 const loopDurationDriftConfig: KnobConfig = {
-  label: "Loop Drift",
+  label: 'Loop Drift',
   useLocalStorage: true,
   defaultValue: 0.3,
   minValue: 0,
@@ -277,7 +277,7 @@ const loopDurationDriftConfig: KnobConfig = {
 };
 
 const keytrackLoopConfig: KnobConfig = {
-  label: "KeyTrack",
+  label: 'KeyTrack',
   // NOTE: double-persists — this knob's useLocalStorage AND SamplePlayer.storeParamValue
   // both save it (knob store wins on reload). Matches loopDurationDrift; dedupe deferred.
   useLocalStorage: true,
@@ -298,18 +298,19 @@ const keytrackLoopConfig: KnobConfig = {
       if (!knobElement) return;
       const loopStart = msg ? msg.loopStart : sampler.loopStart;
       const loopEnd = msg ? msg.loopEnd : sampler.loopEnd;
-      const inactive = !sampler.loopEnabled || loopEnd - loopStart <= AUDIO_RATE_SECONDS;
-      knobElement.style.opacity = inactive ? "0.4" : "";
+      const inactive =
+        !sampler.loopEnabled || loopEnd - loopStart <= AUDIO_RATE_SECONDS;
+      knobElement.style.opacity = inactive ? '0.4' : '';
     };
     updateHint();
-    sampler.onMessage("loop-points:updated", (msg: any) => updateHint(msg));
-    sampler.onMessage("loop:enabled", () => updateHint());
-    sampler.onMessage("sample:loaded", () => updateHint());
+    sampler.onMessage('loop-points:updated', (msg: any) => updateHint(msg));
+    sampler.onMessage('loop:enabled', () => updateHint());
+    sampler.onMessage('sample:loaded', () => updateHint());
   },
 };
 
 const lowpassFilterConfig: KnobConfig = {
-  label: "LPF",
+  label: 'LPF',
   useLocalStorage: true,
   defaultValue: 20000,
   minValue: 40,
@@ -322,7 +323,7 @@ const lowpassFilterConfig: KnobConfig = {
 };
 
 const highpassFilterConfig: KnobConfig = {
-  label: "HPF",
+  label: 'HPF',
   useLocalStorage: true,
   defaultValue: 40,
   minValue: 20,
@@ -334,19 +335,19 @@ const highpassFilterConfig: KnobConfig = {
 };
 
 const amplitudeModConfig: KnobConfig = {
-  label: "AM",
+  label: 'AM',
   useLocalStorage: true,
   defaultValue: 0,
   minValue: 0,
   maxValue: 1,
   curve: 1,
   onConnect: (sampler, state) => {
-    van.derive(() => sampler.setModulationAmount("AM", state.val));
+    van.derive(() => sampler.setModulationAmount('AM', state.val));
   },
 };
 
 const trimStartConfig: KnobConfig = {
-  label: "Start",
+  label: 'Start',
   useLocalStorage: true,
   defaultValue: 0,
   snapIncrement: 0.001,
@@ -354,11 +355,11 @@ const trimStartConfig: KnobConfig = {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
       if (currentDuration > 0) {
-        knobElement.setAttribute("max-value", currentDuration.toString());
+        knobElement.setAttribute('max-value', currentDuration.toString());
       }
 
-      sampler.onMessage("sample:loaded", (msg: any) => {
-        knobElement.setAttribute("max-value", msg.durationSeconds.toString());
+      sampler.onMessage('sample:loaded', (msg: any) => {
+        knobElement.setAttribute('max-value', msg.durationSeconds.toString());
         if (state.val > msg.durationSeconds) {
           state.val = 0;
           knobElement.setValue(0);
@@ -373,7 +374,7 @@ const trimStartConfig: KnobConfig = {
 };
 
 const trimEndConfig: KnobConfig = {
-  label: "End",
+  label: 'End',
   useLocalStorage: true,
   defaultValue: 1,
   snapIncrement: 0.001,
@@ -381,13 +382,16 @@ const trimEndConfig: KnobConfig = {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
       if (currentDuration > 0) {
-        knobElement.setAttribute("max-value", currentDuration.toString());
-        knobElement.setAttribute("default-value", currentDuration.toString());
+        knobElement.setAttribute('max-value', currentDuration.toString());
+        knobElement.setAttribute('default-value', currentDuration.toString());
       }
 
-      sampler.onMessage("sample:loaded", (msg: any) => {
-        knobElement.setAttribute("max-value", msg.durationSeconds.toString());
-        knobElement.setAttribute("default-value", msg.durationSeconds.toString());
+      sampler.onMessage('sample:loaded', (msg: any) => {
+        knobElement.setAttribute('max-value', msg.durationSeconds.toString());
+        knobElement.setAttribute(
+          'default-value',
+          msg.durationSeconds.toString()
+        );
         if (state.val > msg.durationSeconds) {
           state.val = msg.durationSeconds;
           knobElement.setValue(msg.durationSeconds);
@@ -402,7 +406,7 @@ const trimEndConfig: KnobConfig = {
 };
 
 const loopStartConfig: KnobConfig = {
-  label: "Loop Start",
+  label: 'Loop Start',
   useLocalStorage: true,
   defaultValue: 0,
   minValue: 0,
@@ -411,11 +415,11 @@ const loopStartConfig: KnobConfig = {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
       if (currentDuration > 0) {
-        knobElement.setAttribute("max-value", currentDuration.toString());
+        knobElement.setAttribute('max-value', currentDuration.toString());
       }
 
-      sampler.onMessage("sample:loaded", (msg: any) => {
-        knobElement.setAttribute("max-value", msg.durationSeconds.toString());
+      sampler.onMessage('sample:loaded', (msg: any) => {
+        knobElement.setAttribute('max-value', msg.durationSeconds.toString());
 
         if (state.val > msg.durationSeconds) {
           state.val = 0;
@@ -431,7 +435,7 @@ const loopStartConfig: KnobConfig = {
 };
 
 const loopDurationConfig: KnobConfig = {
-  label: "Loop Length",
+  label: 'Loop Length',
   useLocalStorage: true,
   defaultValue: 1,
   minValue: 0,
@@ -440,26 +444,33 @@ const loopDurationConfig: KnobConfig = {
   snapIncrement: 0,
   // Below ~61ms the loop is audio-rate (PITCH_PRESERVATION_THRESHOLD in the processor):
   // switch to a compact ms readout as a subtle cue (keytrack has no effect here).
-  valueFormatter: (v: number) => (v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`),
+  valueFormatter: (v: number) =>
+    v <= 0.061 ? `${(v * 1000).toFixed(0)}ms` : `${v.toFixed(2)} s`,
   onConnect: (sampler, state, knobElement) => {
     if (knobElement) {
       const currentDuration = sampler.sampleDuration;
 
       if (currentDuration > 0) {
-        knobElement.setAttribute("max-value", currentDuration.toString());
-        knobElement.setAttribute("default-value", currentDuration.toString());
+        knobElement.setAttribute('max-value', currentDuration.toString());
+        knobElement.setAttribute('default-value', currentDuration.toString());
       }
 
-      const storedLoopEnd = Number(localStorage.getItem("loopEnd"));
-      const storedLoopStart = Number(localStorage.getItem("loopStart"));
+      const storedLoopEnd = Number(localStorage.getItem('loopEnd'));
+      const storedLoopStart = Number(localStorage.getItem('loopStart'));
       const storedLoopDuration = storedLoopEnd - storedLoopStart;
-      if (storedLoopDuration > 0 && storedLoopDuration <= currentDuration - storedLoopStart) {
+      if (
+        storedLoopDuration > 0 &&
+        storedLoopDuration <= currentDuration - storedLoopStart
+      ) {
         knobElement.setValue(storedLoopDuration);
       }
 
-      sampler.onMessage("sample:loaded", (msg: any) => {
-        knobElement.setAttribute("max-value", msg.durationSeconds.toString());
-        knobElement.setAttribute("default-value", msg.durationSeconds.toString());
+      sampler.onMessage('sample:loaded', (msg: any) => {
+        knobElement.setAttribute('max-value', msg.durationSeconds.toString());
+        knobElement.setAttribute(
+          'default-value',
+          msg.durationSeconds.toString()
+        );
         if (state.val > msg.durationSeconds) {
           state.val = msg.durationSeconds;
           knobElement.setValue(msg.durationSeconds);
@@ -474,7 +485,7 @@ const loopDurationConfig: KnobConfig = {
 };
 
 const tempoKnobConfig: KnobConfig = {
-  label: "Tempo",
+  label: 'Tempo',
   useLocalStorage: true,
   defaultValue: 120,
   minValue: 20,
@@ -505,19 +516,40 @@ export const ClippingKnob = createKnobForTarget(clippingConfig, getSampler);
 
 export const GlideKnob = createKnobForTarget(glideConfig, getSampler);
 
-export const FeedbackPitchKnob = createKnobForTarget(feedbackPitchConfig, getSampler);
+export const FeedbackPitchKnob = createKnobForTarget(
+  feedbackPitchConfig,
+  getSampler
+);
 
-export const FeedbackDecayKnob = createKnobForTarget(feedbackDecayConfig, getSampler);
+export const FeedbackDecayKnob = createKnobForTarget(
+  feedbackDecayConfig,
+  getSampler
+);
 
-export const FeedbackLpfKnob = createKnobForTarget(feedbackLpfConfig, getSampler);
+export const FeedbackLpfKnob = createKnobForTarget(
+  feedbackLpfConfig,
+  getSampler
+);
 
-export const GainLFORateKnob = createKnobForTarget(gainLFORateConfig, getSampler);
+export const GainLFORateKnob = createKnobForTarget(
+  gainLFORateConfig,
+  getSampler
+);
 
-export const GainLFODepthKnob = createKnobForTarget(gainLFODepthConfig, getSampler);
+export const GainLFODepthKnob = createKnobForTarget(
+  gainLFODepthConfig,
+  getSampler
+);
 
-export const PitchLFORateKnob = createKnobForTarget(pitchLFORateConfig, getSampler);
+export const PitchLFORateKnob = createKnobForTarget(
+  pitchLFORateConfig,
+  getSampler
+);
 
-export const PitchLFODepthKnob = createKnobForTarget(pitchLFODepthConfig, getSampler);
+export const PitchLFODepthKnob = createKnobForTarget(
+  pitchLFODepthConfig,
+  getSampler
+);
 
 export const ReverbSendKnob = createKnobForTarget(reverbSendConfig, getSampler);
 
@@ -529,19 +561,34 @@ export const DelayTimeKnob = createKnobForTarget(delayTimeConfig, getSampler);
 
 export const DelayFeedbackKnob = createKnobForTarget(delayFBConfig, getSampler);
 
-export const LoopDurationDriftKnob = createKnobForTarget(loopDurationDriftConfig, getSampler);
+export const LoopDurationDriftKnob = createKnobForTarget(
+  loopDurationDriftConfig,
+  getSampler
+);
 
-export const KeytrackLoopKnob = createKnobForTarget(keytrackLoopConfig, getSampler);
+export const KeytrackLoopKnob = createKnobForTarget(
+  keytrackLoopConfig,
+  getSampler
+);
 
-export const LowpassFilterKnob = createKnobForTarget(lowpassFilterConfig, getSampler);
+export const LowpassFilterKnob = createKnobForTarget(
+  lowpassFilterConfig,
+  getSampler
+);
 
-export const HighpassFilterKnob = createKnobForTarget(highpassFilterConfig, getSampler);
+export const HighpassFilterKnob = createKnobForTarget(
+  highpassFilterConfig,
+  getSampler
+);
 
 export const AMModKnob = createKnobForTarget(amplitudeModConfig, getSampler);
 
 export const LoopStartKnob = createKnobForTarget(loopStartConfig, getSampler);
 
-export const LoopDurationKnob = createKnobForTarget(loopDurationConfig, getSampler);
+export const LoopDurationKnob = createKnobForTarget(
+  loopDurationConfig,
+  getSampler
+);
 
 export const TrimStartKnob = createKnobForTarget(trimStartConfig, getSampler);
 

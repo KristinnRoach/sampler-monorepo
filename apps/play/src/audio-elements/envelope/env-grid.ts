@@ -1,6 +1,6 @@
-import van from "@repo/vanjs-core";
+import van from '@repo/vanjs-core';
 
-const { g, line } = van.tags("http://www.w3.org/2000/svg");
+const { g, line } = van.tags('http://www.w3.org/2000/svg');
 
 /**
  * Creates SVG grid lines for the envelope background
@@ -26,8 +26,8 @@ export const createGrid = (
       y1: 0 + offsetY,
       x2: x + offsetX,
       y2: height + offsetY,
-      stroke: "rgba(90, 90, 90, 0.5)",
-      "stroke-width": 0.5,
+      stroke: 'rgba(90, 90, 90, 0.5)',
+      'stroke-width': 0.5,
     });
   }).filter(Boolean);
 
@@ -41,8 +41,8 @@ export const createGrid = (
         y1: y + offsetY,
         x2: width + offsetX,
         y2: y + offsetY,
-        stroke: "#333",
-        "stroke-width": 0.5,
+        stroke: '#333',
+        'stroke-width': 0.5,
       });
     });
   } else {
@@ -55,11 +55,15 @@ export const createGrid = (
         y1: y + offsetY,
         x2: width + offsetX,
         y2: y + offsetY,
-        stroke: "#333",
-        "stroke-width": 1,
+        stroke: '#333',
+        'stroke-width': 1,
       });
     });
   }
 
-  return g({ class: "envelope-grid" }, ...verticalLines, ...horizontalLines) as SVGGElement;
+  return g(
+    { class: 'envelope-grid' },
+    ...verticalLines,
+    ...horizontalLines,
+  ) as SVGGElement;
 };

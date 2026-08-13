@@ -1,9 +1,9 @@
 // component-utils.ts - Shared utilities for components
-import { type SamplePlayer } from "@repo/audiolib";
-import van, { State } from "@repo/vanjs-core";
-import { ElementProps } from "@repo/vanjs-core/element";
-import { createKnob, KnobConfig } from "@/elements/primitives/createKnob";
-import { INLINE_COMPONENT_STYLE } from "../../shared/styles/component-styles";
+import { type SamplePlayer } from '@repo/audiolib';
+import van, { State } from '@repo/vanjs-core';
+import { ElementProps } from '@repo/vanjs-core/element';
+import { createKnob, KnobConfig } from '@/elements/primitives/createKnob';
+import { INLINE_COMPONENT_STYLE } from '../../shared/styles/component-styles';
 
 const { div } = van.tags;
 
@@ -11,20 +11,21 @@ const { div } = van.tags;
  * Find the target node ID for a component.
  * Follows the priority: explicit target-node-id > parent sampler > nearest sampler
  */
-export const findNodeId = (attributes: ElementProps, targetNodeId: State<string>) => () => {
-  if (targetNodeId.val) return targetNodeId.val;
+export const findNodeId =
+  (attributes: ElementProps, targetNodeId: State<string>) => () => {
+    if (targetNodeId.val) return targetNodeId.val;
 
-  // Find parent sampler-element
-  const parent = attributes.$this.closest("sampler-element") as any;
-  if (parent?.nodeId) return parent.nodeId;
+    // Find parent sampler-element
+    const parent = attributes.$this.closest('sampler-element') as any;
+    if (parent?.nodeId) return parent.nodeId;
 
-  // Find nearest sampler-element and check both nodeId property and node-id attribute
-  const nearest = document.querySelector("sampler-element") as any;
-  if (nearest?.nodeId) return nearest.nodeId;
+    // Find nearest sampler-element and check both nodeId property and node-id attribute
+    const nearest = document.querySelector('sampler-element') as any;
+    if (nearest?.nodeId) return nearest.nodeId;
 
-  // Fallback to node-id attribute
-  return nearest?.getAttribute("node-id") || "";
-};
+    // Fallback to node-id attribute
+    return nearest?.getAttribute('node-id') || '';
+  };
 
 /**
  * Creates a reusable connection handler for sampler components
@@ -32,7 +33,7 @@ export const findNodeId = (attributes: ElementProps, targetNodeId: State<string>
 export const createSamplerConnection = (
   findNodeId: () => string,
   getSampler: (nodeId: string) => any,
-  onConnect: (sampler: SamplePlayer) => void,
+  onConnect: (sampler: SamplePlayer) => void
 ) => {
   let connected = false;
 
@@ -56,7 +57,10 @@ export const createSamplerConnection = (
       const handleSamplerInitialized = (e: CustomEvent) => {
         if (e.detail.nodeId === findNodeId()) connect();
       };
-      document.addEventListener("sampler-initialized", handleSamplerInitialized as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleSamplerInitialized as EventListener
+      );
 
       // Also try connecting periodically for timing issues
       const interval = setInterval(() => {
@@ -65,8 +69,8 @@ export const createSamplerConnection = (
 
       return () => {
         document.removeEventListener(
-          "sampler-initialized",
-          handleSamplerInitialized as EventListener,
+          'sampler-initialized',
+          handleSamplerInitialized as EventListener
         );
         clearInterval(interval);
       };
@@ -97,12 +101,12 @@ export const createToggleForTarget = (
   getTargetNode: (nodeId: string) => any,
   Toggle: any,
   van: any,
-  componentStyle?: string,
+  componentStyle?: string
 ) => {
   const { div } = van.tags;
 
   return (attributes: ElementProps) => {
-    const targetNodeId: State<string> = attributes.attr("target-node-id", "");
+    const targetNodeId: State<string> = attributes.attr('target-node-id', '');
     const toggleState = van.state(config.defaultValue);
     let connected = false;
 
@@ -124,9 +128,15 @@ export const createToggleForTarget = (
       const handleInitialized = (e: CustomEvent) => {
         if (e.detail.nodeId === findId()) connect();
       };
-      document.addEventListener("sampler-initialized", handleInitialized as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleInitialized as EventListener
+      );
       return () =>
-        document.removeEventListener("sampler-initialized", handleInitialized as EventListener);
+        document.removeEventListener(
+          'sampler-initialized',
+          handleInitialized as EventListener
+        );
     });
 
     // // Check if label attribute was explicitly provided (even if empty)
@@ -140,35 +150,37 @@ export const createToggleForTarget = (
 
     return div(
       {
-        style: componentStyle || "",
-        title: config.title || config.label || "",
+        style: componentStyle || '',
+        title: config.title || config.label || '',
       },
 
       Toggle({
         on: toggleState.val,
         size: 0.9,
-        onColor: config.onColor || "#4CAF50",
+        onColor: config.onColor || '#4CAF50',
         onChange: () => (toggleState.val = !toggleState.val),
       }),
-      div(() => (toggleState.val ? config.onText : config.offText)),
+      div(() => (toggleState.val ? config.onText : config.offText))
     );
   };
 };
 
 export const createKnobForTarget = (
   config: KnobConfig,
-  getTarget: (nodeId: string) => SamplePlayer | null,
+  getTarget: (nodeId: string) => SamplePlayer | null
 ) => {
   return (attributes: ElementProps) => {
-    const targetNodeId = attributes.attr("target-node-id", "");
+    const targetNodeId = attributes.attr('target-node-id', '');
     const findId = findNodeId(attributes, targetNodeId);
 
     // Initialize state with default value
     const state = van.state(config.defaultValue ?? 0);
 
     // Check if label attribute was explicitly provided (even if empty)
-    const hasLabelAttribute = attributes.$this.hasAttribute("label");
-    const rawLabel = hasLabelAttribute ? attributes.$this.getAttribute("label") : undefined;
+    const hasLabelAttribute = attributes.$this.hasAttribute('label');
+    const rawLabel = hasLabelAttribute
+      ? attributes.$this.getAttribute('label')
+      : undefined;
     const labelOverride = rawLabel === null ? undefined : rawLabel;
 
     // Use label attribute if provided (including empty string), otherwise fall back to config label
@@ -180,7 +192,7 @@ export const createKnobForTarget = (
 
     // Storage functions
     const getStorageKey = (nodeId: string) => {
-      const key = config.paramName || config.label || "unknown";
+      const key = config.paramName || config.label || 'unknown';
       return `${key}:nodeId:${nodeId}`;
     };
 
@@ -196,7 +208,9 @@ export const createKnobForTarget = (
           state.val = parsed;
 
           // Update the knob element
-          const knobElement = knobContainer?.querySelector("knob-element") as any;
+          const knobElement = knobContainer?.querySelector(
+            'knob-element'
+          ) as any;
           if (knobElement?.setValue) {
             knobElement.setValue(parsed);
           }
@@ -216,7 +230,7 @@ export const createKnobForTarget = (
         const storageKey = getStorageKey(nodeId);
         localStorage.setItem(storageKey, String(value));
       } catch (error) {
-        console.warn("Failed to save knob value to localStorage:", error);
+        console.warn('Failed to save knob value to localStorage:', error);
       }
     };
 
@@ -225,7 +239,7 @@ export const createKnobForTarget = (
       const nodeId = findId();
 
       if (!nodeId) {
-        console.debug("❌ No nodeId found, cannot connect");
+        console.debug('❌ No nodeId found, cannot connect');
         return;
       }
 
@@ -237,7 +251,7 @@ export const createKnobForTarget = (
 
         connected = true;
 
-        const knobElement = knobContainer?.querySelector("knob-element");
+        const knobElement = knobContainer?.querySelector('knob-element');
         config.onConnect?.(target, state, knobElement);
 
         // Now that we're connected, allow saving
@@ -259,10 +273,16 @@ export const createKnobForTarget = (
         }
       };
 
-      document.addEventListener("sampler-initialized", handleInit as EventListener);
+      document.addEventListener(
+        'sampler-initialized',
+        handleInit as EventListener
+      );
 
       return () => {
-        document.removeEventListener("sampler-initialized", handleInit as EventListener);
+        document.removeEventListener(
+          'sampler-initialized',
+          handleInit as EventListener
+        );
       };
     });
 
@@ -285,9 +305,9 @@ export const createKnobForTarget = (
           config.onChange?.(value);
         },
       },
-      "", // Empty nodeId since we handle storage ourselves
+      '' // Empty nodeId since we handle storage ourselves
     );
 
-    return div({ style: INLINE_COMPONENT_STYLE || "" }, knobContainer);
+    return div({ style: INLINE_COMPONENT_STYLE || '' }, knobContainer);
   };
 };

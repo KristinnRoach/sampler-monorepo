@@ -39,7 +39,7 @@ Components use Van.js reactive state for:
 
 ```typescript
 const knobConfig: KnobConfig = {
-  label: "Volume",
+  label: 'Volume',
   defaultValue: 0.75,
   minValue: 0,
   maxValue: 1,
@@ -56,10 +56,10 @@ const knobConfig: KnobConfig = {
 
 ```typescript
 const toggleConfig: ToggleConfig = {
-  label: "Loop Lock",
+  label: 'Loop Lock',
   defaultValue: false,
-  offText: "○",
-  onText: "🔒",
+  offText: '○',
+  onText: '🔒',
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => sampler.setLoopLocked(state.val));
   },
@@ -73,11 +73,11 @@ const toggleConfig: ToggleConfig = {
 
 ```typescript
 const selectConfig: SelectConfig<T> = {
-  label: "Waveform",
-  defaultValue: "sine",
+  label: 'Waveform',
+  defaultValue: 'sine',
   options: [
-    { value: "sine", label: "Sine" },
-    { value: "square", label: "Square" },
+    { value: 'sine', label: 'Sine' },
+    { value: 'square', label: 'Square' },
   ],
   onTargetConnect: (sampler, state, van) => {
     van.derive(() => sampler.setWaveform(state.val));
@@ -96,7 +96,7 @@ const selectConfig: SelectConfig<T> = {
 
 ```typescript
 const myConfig: KnobConfig = {
-  label: "My Control",
+  label: 'My Control',
   defaultValue: 0.5,
   minValue: 0,
   maxValue: 1,
@@ -117,7 +117,7 @@ export const MyKnob = createKnob(
   getSampler, // Registry function
   createLabeledKnob, // UI creator
   van, // Van.js instance
-  COMPONENT_STYLE, // Style constant
+  COMPONENT_STYLE // Style constant
 );
 ```
 
@@ -127,7 +127,7 @@ Add to `Sampler.ts`:
 
 ```typescript
 // In defineSampler()
-defineIfNotExists("my-knob", MyKnob, false);
+defineIfNotExists('my-knob', MyKnob, false);
 ```
 
 ## Connection Flow
@@ -173,9 +173,9 @@ van.derive(() => {
 Some components register their state for cross-component access:
 
 ```typescript
-setKnobState("loopStart", state);
+setKnobState('loopStart', state);
 // Other components can access:
-const loopStartState = getKnobState("loopStart");
+const loopStartState = getKnobState('loopStart');
 ```
 
 ## Best Practices
@@ -278,9 +278,9 @@ Sampler/
 ### Programmatic Access
 
 ```javascript
-const samplerEl = document.querySelector("sampler-element");
-const volumeKnob = document.createElement("volume-knob");
-volumeKnob.setAttribute("target-node-id", samplerEl.nodeId);
+const samplerEl = document.querySelector('sampler-element');
+const volumeKnob = document.createElement('volume-knob');
+volumeKnob.setAttribute('target-node-id', samplerEl.nodeId);
 document.body.appendChild(volumeKnob);
 ```
 

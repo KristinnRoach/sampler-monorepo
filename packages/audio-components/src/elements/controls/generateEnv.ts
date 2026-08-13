@@ -1,6 +1,9 @@
-import gsap from "gsap";
+import gsap from 'gsap';
 
-export function generateGSAPEnvelope(type: "bounce" | "wiggle" | "elastic", params: any) {
+export function generateGSAPEnvelope(
+  type: 'bounce' | 'wiggle' | 'elastic',
+  params: any
+) {
   const timeline = gsap.timeline();
   const dummyObject = { value: 0 };
   const capturedValues: number[] = [];
@@ -9,7 +12,7 @@ export function generateGSAPEnvelope(type: "bounce" | "wiggle" | "elastic", para
   timeline.to(dummyObject, {
     value: 1,
     duration: 1, // Normalized to 1 second
-    ease: "bounce.out", // or "wiggle(10, 0.5)" etc
+    ease: 'bounce.out', // or "wiggle(10, 0.5)" etc
     // onUpdate: () => capturedValues.push(dummyObject.value)
   });
 

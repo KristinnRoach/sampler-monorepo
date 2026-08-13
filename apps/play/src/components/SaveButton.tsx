@@ -1,9 +1,9 @@
 // components/SaveButton.tsx
-import { Component, createSignal, createEffect } from "solid-js";
-import { db, SavedSample } from "../db/samplelib/sampleIdb";
-import { captureInstrumentState } from "../utils/instrumentState";
-import { audioBufferToWav } from "../utils/audio/bufferUtils";
-import type { SamplePlayer } from "@repo/audiolib";
+import { Component, createSignal, createEffect } from 'solid-js';
+import { db, SavedSample } from '../db/samplelib/sampleIdb';
+import { captureInstrumentState } from '../utils/instrumentState';
+import { audioBufferToWav } from '../utils/audio/bufferUtils';
+import type { SamplePlayer } from '@repo/audiolib';
 
 interface SaveButtonProps {
   audioBuffer: AudioBuffer | null;
@@ -20,15 +20,15 @@ interface SaveButtonProps {
 const SaveButton: Component<SaveButtonProps> = (props) => {
   const [saving, setSaving] = createSignal(false);
   const [showPrompt, setShowPrompt] = createSignal(false);
-  const [name, setName] = createSignal("");
+  const [name, setName] = createSignal('');
   let inputRef: HTMLInputElement | undefined;
   let saveBtnWrapperRef: HTMLInputElement | undefined;
 
   createEffect(() => {
     if (props.isOpen === true || props.isOpen === false) {
       if (saveBtnWrapperRef !== undefined) {
-        if (props.isOpen) saveBtnWrapperRef.classList.add("--sidebar-open");
-        else saveBtnWrapperRef.classList.remove("--sidebar-open");
+        if (props.isOpen) saveBtnWrapperRef.classList.add('--sidebar-open');
+        else saveBtnWrapperRef.classList.remove('--sidebar-open');
       }
     }
   }, [props.isOpen]);
@@ -40,7 +40,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
 
   const handleSave = async () => {
     if (name().trim().length === 0) {
-      alert("Please enter a name.");
+      alert('Please enter a name.');
       return;
     }
 
@@ -49,7 +49,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       const wavData = audioBufferToWav(props.audioBuffer!);
 
       if (!props.player || !props.controlsRoot) {
-        throw new Error("Instrument controls are not ready");
+        throw new Error('Instrument controls are not ready');
       }
 
       const settings = captureInstrumentState(props.player, props.controlsRoot);
@@ -64,15 +64,15 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       };
 
       await db.samples.add(sample);
-      console.log("Sample saved successfully!");
+      console.log('Sample saved successfully!');
       setShowPrompt(false);
-      setName("");
+      setName('');
       props.onSavedCallback?.();
 
-      document.dispatchEvent(new CustomEvent("sample:saved"));
+      document.dispatchEvent(new CustomEvent('sample:saved'));
     } catch (error) {
-      console.error("Save failed:", error);
-      alert("Save failed. Please try again.");
+      console.error('Save failed:', error);
+      alert('Save failed. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -80,11 +80,11 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
 
   const handleKeyDown = (e: KeyboardEvent) => {
     e.stopPropagation();
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       handleSave();
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       setShowPrompt(false);
-      setName("");
+      setName('');
     }
   };
 
@@ -97,27 +97,27 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
   return (
     <>
       <save-button
-        class={`${props.class ? props.class : ""} save-button ${showPrompt() ? "open" : ""}`}
+        class={`${props.class ? props.class : ''} save-button ${showPrompt() ? 'open' : ''}`}
         disabled={props.disabled || saving()}
         onclick={handleClick}
-        title="Save sample"
+        title='Save sample'
       ></save-button>
       {showPrompt() && (
-        <div class="save-popup">
-          <span class="save-popup-header">Save Sample</span>
+        <div class='save-popup'>
+          <span class='save-popup-header'>Save Sample</span>
 
           <input
             title={`Sample Name`}
             ref={inputRef}
-            type="text"
+            type='text'
             placeholder={`Sample Name`}
             value={name()}
             onInput={(e) => setName(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <div class="save-popup-buttons">
+          <div class='save-popup-buttons'>
             <button onClick={handleSave} disabled={saving()}>
-              {saving() ? "Saving..." : "Save"}
+              {saving() ? 'Saving...' : 'Save'}
             </button>
             <button onClick={() => setShowPrompt(false)}>Cancel</button>
           </div>

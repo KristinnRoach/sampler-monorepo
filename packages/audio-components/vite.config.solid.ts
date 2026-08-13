@@ -1,8 +1,8 @@
-import { defineConfig } from "vite";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-import dts from "vite-plugin-dts";
-import solidPlugin from "vite-plugin-solid";
+import { defineConfig } from 'vite';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import dts from 'vite-plugin-dts';
+import solidPlugin from 'vite-plugin-solid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,21 +11,21 @@ export default defineConfig({
   build: {
     lib: {
       entry: {
-        "frameworks/solidjs/solidjsEntry": resolve(
+        'frameworks/solidjs/solidjsEntry': resolve(
           __dirname,
-          "src/frameworks/solidjs/solidjsEntry.ts",
+          'src/frameworks/solidjs/solidjsEntry.ts'
         ),
       },
-      name: "AudioWebComponentsSolid",
-      formats: ["es"],
+      name: 'AudioWebComponentsSolid',
+      formats: ['es'],
     },
     rollupOptions: {
-      external: ["@repo/audiolib", "solid-js", "solid-js/web"],
+      external: ['@repo/audiolib', 'solid-js', 'solid-js/web'],
       output: {
         globals: {
-          "@repo/audiolib": "audiolib",
-          "solid-js": "solid",
-          "solid-js/web": "solidWeb",
+          '@repo/audiolib': 'audiolib',
+          'solid-js': 'solid',
+          'solid-js/web': 'solidWeb',
         },
       },
     },
@@ -37,15 +37,15 @@ export default defineConfig({
     solidPlugin(),
     // DTS for SolidJS entry
     dts({
-      tsconfigPath: "tsconfig.solid.json",
-      outDir: "dist",
-      entryRoot: "src",
+      tsconfigPath: 'tsconfig.solid.json',
+      outDir: 'dist',
+      entryRoot: 'src',
       rollupTypes: false,
     }),
   ],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src"),
+      '@': resolve(__dirname, './src'),
     },
   },
 });

@@ -164,13 +164,13 @@ pnpm --filter @repo/audiolib test
 ### Creating a Sample Player
 
 ```typescript
-import { createSamplePlayer, getAudioContext } from "@repo/audiolib";
+import { createSamplePlayer, getAudioContext } from '@repo/audiolib';
 
 const ctx = getAudioContext();
 const sampler = await createSamplePlayer(ctx);
 
 // Load and assign sample
-const response = await fetch("/audio/sample.wav");
+const response = await fetch('/audio/sample.wav');
 const arrayBuffer = await response.arrayBuffer();
 const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
@@ -184,7 +184,7 @@ sampler.stopNote(60);
 ### Using Components in React
 
 ```tsx
-import { KnobComponent } from "@repo/audio-components/react";
+import { KnobComponent } from '@repo/audio-components/react';
 
 function VolumeControl() {
   return (
@@ -192,7 +192,7 @@ function VolumeControl() {
       min={0}
       max={100}
       value={50}
-      label="Volume"
+      label='Volume'
       onChange={(value) => console.log(value)}
     />
   );

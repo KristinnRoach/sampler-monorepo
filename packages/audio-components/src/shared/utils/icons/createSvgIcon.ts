@@ -15,28 +15,28 @@ export function createSvgIcon(
     width?: string;
     height?: string;
     color?: string;
-  } = {},
+  } = {}
 ): SVGElement | null {
   try {
-    const container = document.createElement("div");
+    const container = document.createElement('div');
     container.innerHTML = svgString;
-    const svgElement = container.querySelector("svg");
-    const { width = "2rem", height = "2rem", color = "currentColor" } = options;
+    const svgElement = container.querySelector('svg');
+    const { width = '2rem', height = '2rem', color = 'currentColor' } = options;
 
     if (svgElement) {
-      svgElement.setAttribute("width", width);
-      svgElement.setAttribute("height", height);
-      svgElement.setAttribute("fill", color);
-      svgElement.style.verticalAlign = "middle";
+      svgElement.setAttribute('width', width);
+      svgElement.setAttribute('height', height);
+      svgElement.setAttribute('fill', color);
+      svgElement.style.verticalAlign = 'middle';
 
-      if (color === "white") {
-        svgElement.style.filter = "brightness(0) invert(1)";
+      if (color === 'white') {
+        svgElement.style.filter = 'brightness(0) invert(1)';
       } else {
         const fillableElements = svgElement.querySelectorAll(
-          "path, circle, rect, polygon, ellipse",
+          'path, circle, rect, polygon, ellipse'
         );
         fillableElements.forEach((el) => {
-          el.setAttribute("fill", color);
+          el.setAttribute('fill', color);
         });
       }
 
@@ -44,7 +44,7 @@ export function createSvgIcon(
     }
     return null;
   } catch (error) {
-    console.debug("Failed to create SVG icon:", error);
+    console.debug('Failed to create SVG icon:', error);
     return null;
   }
 }

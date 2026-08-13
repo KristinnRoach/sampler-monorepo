@@ -1,14 +1,19 @@
-import { SampleVoice } from "./SampleVoice";
-import { registerNode, unregisterNode, NodeID } from "@/nodes/node-store";
-import { pop } from "@/utils";
-import { VoiceState } from "../VoiceState";
-import { Message, MessageHandler, MessageBus, createMessageBus } from "@/events";
-import { LibNode } from "@/nodes/LibNode";
-import { createSampleVoices } from "./createSampleVoice";
+import { SampleVoice } from './SampleVoice';
+import { registerNode, unregisterNode, NodeID } from '@/nodes/node-store';
+import { pop } from '@/utils';
+import { VoiceState } from '../VoiceState';
+import {
+  Message,
+  MessageHandler,
+  MessageBus,
+  createMessageBus,
+} from '@/events';
+import { LibNode } from '@/nodes/LibNode';
+import { createSampleVoices } from './createSampleVoice';
 
 export class SampleVoicePool implements LibNode {
   readonly nodeId: NodeID;
-  readonly nodeType = "pool";
+  readonly nodeType = 'pool';
   #messages: MessageBus<Message>;
   #context: AudioContext;
   #initialized = false;
@@ -39,7 +44,10 @@ export class SampleVoicePool implements LibNode {
 
     this.#initPromise = (async () => {
       try {
-        this.#allVoices = await createSampleVoices(this.#polyphony, this.#context);
+        this.#allVoices = await createSampleVoices(
+          this.#polyphony,
+          this.#context
+        );
 
         this.#allVoices.forEach((voice) => {
           this.#available.add(voice);
@@ -52,7 +60,8 @@ export class SampleVoicePool implements LibNode {
         this.#available.clear();
         this.#initPromise = null;
 
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         throw new Error(`Failed to initialize SamplePlayer: ${errorMessage}`);
       }
     })();
@@ -87,7 +96,7 @@ export class SampleVoicePool implements LibNode {
   #envelopeCreatedMap = new Map<string, Set<SampleVoice>>();
 
   #setupMessageHandling(voice: SampleVoice) {
-    voice.onMessage("voice:started", (msg: Message) => {
+    voice.onMessage('voice:started', (msg: Message) => {
       // Ensure mutual exlusion (idempotent delete)
       this.#available.delete(msg.voice);
       this.#releasing.delete(msg.voice);
@@ -98,7 +107,7 @@ export class SampleVoicePool implements LibNode {
       this.#playingMidiVoiceMap.set(msg.midiNote, msg.voice);
     });
 
-    voice.onMessage("voice:releasing", (msg: Message) => {
+    voice.onMessage('voice:releasing', (msg: Message) => {
       // Ensure mutual exlusion
       this.#available.delete(msg.voice);
       this.#playing.delete(msg.voice);
@@ -111,7 +120,7 @@ export class SampleVoicePool implements LibNode {
       // }
     });
 
-    voice.onMessage("voice:stopped", (msg: Message) => {
+    voice.onMessage('voice:stopped', (msg: Message) => {
       // Ensure mutual exlusion
       this.#playing.delete(msg.voice);
       this.#releasing.delete(msg.voice);
@@ -129,19 +138,19 @@ export class SampleVoicePool implements LibNode {
       }
     });
 
-    voice.onMessage("voice:initialized", (msg: Message) => {
+    voice.onMessage('voice:initialized', (msg: Message) => {
       this.#initializedVoices.add(msg.voice);
 
       if (this.#initializedVoices.size === this.#allVoices.length) {
         // All voices initialized message
-        this.sendUpstreamMessage("voice-pool:initialized", {
+        this.sendUpstreamMessage('voice-pool:initialized', {
           voiceCount: this.#allVoices.length,
         });
       }
     });
 
     // Envelope creation tracking
-    const envelopeTypes = ["amp-env", "pitch-env", "filter-env"];
+    const envelopeTypes = ['amp-env', 'pitch-env', 'filter-env'];
     envelopeTypes.forEach((envType) => {
       voice.onMessage(`${envType}:created`, (msg: Message) => {
         if (!this.#envelopeCreatedMap.has(envType)) {
@@ -162,38 +171,38 @@ export class SampleVoicePool implements LibNode {
     this.#messages.forwardFrom(
       voice,
       [
-        "voice:initialized",
-        "voice:started",
-        "voice:stopped",
-        "voice:releasing",
-        "voice:loaded",
+        'voice:initialized',
+        'voice:started',
+        'voice:stopped',
+        'voice:releasing',
+        'voice:loaded',
 
-        "amp-env:trigger",
-        "amp-env:trigger:loop",
-        "amp-env:release",
-        "pitch-env:trigger",
-        "pitch-env:trigger:loop",
-        "pitch-env:release",
-        "filter-env:trigger",
-        "filter-env:trigger:loop",
-        "filter-env:release",
+        'amp-env:trigger',
+        'amp-env:trigger:loop',
+        'amp-env:release',
+        'pitch-env:trigger',
+        'pitch-env:trigger:loop',
+        'pitch-env:release',
+        'filter-env:trigger',
+        'filter-env:trigger:loop',
+        'filter-env:release',
         // Forward envelope created events
-        "amp-env:created",
-        "pitch-env:created",
-        "filter-env:created",
+        'amp-env:created',
+        'pitch-env:created',
+        'filter-env:created',
       ],
       (msg) => {
-        if (msg.type === "voice:loaded") {
+        if (msg.type === 'voice:loaded') {
           this.#loaded.add(msg.senderId);
 
           // Only send 'sample:loaded' when all voices are loaded
           if (this.#loaded.size === this.#allVoices.length) {
-            return { ...msg, type: "sample:loaded" };
+            return { ...msg, type: 'sample:loaded' };
           }
           return null;
         }
         return msg;
-      },
+      }
     );
   }
 
@@ -207,7 +216,7 @@ export class SampleVoicePool implements LibNode {
   // TODO: Remove or uncomment "playing" logic after testing
   allocate(
     available = this.#available,
-    releasing = this.#releasing,
+    releasing = this.#releasing
     // playing = this.#playing
   ): SampleVoice | undefined {
     let voice: SampleVoice | undefined = undefined;
@@ -224,7 +233,7 @@ export class SampleVoicePool implements LibNode {
     // }
 
     if (!voice) {
-      console.warn("Could not allocate voice");
+      console.warn('Could not allocate voice');
     }
 
     return voice;
@@ -236,10 +245,10 @@ export class SampleVoicePool implements LibNode {
     midiNote: MidiValue,
     velocity: MidiValue = 100,
     secondsFromNow = 0,
-    glideTime = 0,
+    glideTime = 0
   ): MidiValue | null {
     if (this.playingVoicesCount >= this.#polyphony) {
-      console.log("Pool noteON(): Max polyphony reached, cannot play new note");
+      console.log('Pool noteON(): Max polyphony reached, cannot play new note');
       return null;
     }
 
@@ -261,7 +270,11 @@ export class SampleVoicePool implements LibNode {
     }
   }
 
-  noteOff(midiNote: MidiValue, secondsFromNow: number = 0, releaseTime?: number) {
+  noteOff(
+    midiNote: MidiValue,
+    secondsFromNow: number = 0,
+    releaseTime?: number
+  ) {
     const voice = this.#playingMidiVoiceMap.get(midiNote);
     if (!voice) return;
 
@@ -335,7 +348,7 @@ export class SampleVoicePool implements LibNode {
       Sum: ${this.#releasing.size + this.#playing.size + this.#available.size}
       Sum should be: ${this.allVoicesCount}
       `,
-      { midiToVoiceMap: this.#playingMidiVoiceMap },
+      { midiToVoiceMap: this.#playingMidiVoiceMap }
     );
   }
 

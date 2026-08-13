@@ -1,21 +1,26 @@
-import { Message, MessageBus, MessageHandler, createMessageBus } from "@/events";
-import { ROOT_NOTES, SCALE_PATTERNS } from "@/utils/music-theory/constants";
-import { Debouncer } from "@/utils/Debouncer";
-import { AudioParamController } from "./AudioParamController";
-import { ValueSnapper } from "../helpers/ValueSnapper";
-import { assert } from "@/utils";
-import { NodeType } from "@/nodes/LibNode";
-import type { NormalizeOptions } from "@/nodes/params/param-types";
+import {
+  Message,
+  MessageBus,
+  MessageHandler,
+  createMessageBus,
+} from '@/events';
+import { ROOT_NOTES, SCALE_PATTERNS } from '@/utils/music-theory/constants';
+import { Debouncer } from '@/utils/Debouncer';
+import { AudioParamController } from './AudioParamController';
+import { ValueSnapper } from '../helpers/ValueSnapper';
+import { assert } from '@/utils';
+import { NodeType } from '@/nodes/LibNode';
+import type { NormalizeOptions } from '@/nodes/params/param-types';
 
 export class MacroParam {
-  readonly nodeType: string = "macro";
+  readonly nodeType: string = 'macro';
   readonly nodeId: NodeID;
 
   #controller: AudioParamController;
   #snapper: ValueSnapper;
   #debouncer: Debouncer;
   #messages: MessageBus<Message>;
-  #paramType: string = "";
+  #paramType: string = '';
   #isReady: boolean = false;
   #currentTargetValue: number;
 
@@ -35,12 +40,16 @@ export class MacroParam {
     // No-op for sync classes
   }
 
-  addTarget(targetParam: AudioParam, paramType: string, scaleFactor: number = 1): this {
+  addTarget(
+    targetParam: AudioParam,
+    paramType: string,
+    scaleFactor: number = 1,
+  ): this {
     if (!this.#paramType) this.#paramType = paramType;
     assert(
       // todo: allow multiple types
       paramType === this.#paramType,
-      "Macros only support a single ParamType",
+      'Macros only support a single ParamType',
     );
 
     this.#controller.addTarget(targetParam, scaleFactor);
@@ -52,7 +61,7 @@ export class MacroParam {
     duration: number,
     constant: number,
     options: {
-      method?: "exponential" | "linear";
+      method?: 'exponential' | 'linear';
       debounceMs?: number;
       onComplete?: () => void;
       onCompleteDelayMs?: number;
@@ -67,7 +76,12 @@ export class MacroParam {
 
     this.#currentTargetValue = processedValue;
 
-    const { method = "exponential", debounceMs = 20, onComplete, onCompleteDelayMs = 30 } = options;
+    const {
+      method = 'exponential',
+      debounceMs = 20,
+      onComplete,
+      onCompleteDelayMs = 30,
+    } = options;
 
     const executeRamp = () => {
       this.#controller.ramp(processedValue, duration, method, true);
@@ -92,7 +106,7 @@ export class MacroParam {
   }
 
   debugProcessVal(value: number, constant: number, targetPeriod: number) {
-    console.log("MacroParam.#processValue input:", {
+    console.log('MacroParam.#processValue input:', {
       value,
       constant,
       targetPeriod,
@@ -109,16 +123,19 @@ export class MacroParam {
 
     const targetPeriod = Math.abs(targetValue - constant);
 
-    if (this.#snapper.hasPeriodSnapping && targetPeriod < this.#snapper.longestPeriod) {
+    if (
+      this.#snapper.hasPeriodSnapping &&
+      targetPeriod < this.#snapper.longestPeriod
+    ) {
       const quantizedPeriod = this.#snapper.snapToMusicalPeriod(targetPeriod);
 
       let result;
 
-      if (this.#paramType === "loopEnd") {
+      if (this.#paramType === 'loopEnd') {
         result = constant + quantizedPeriod;
       }
 
-      if (this.#paramType === "loopStart") {
+      if (this.#paramType === 'loopStart') {
         // Ensure we don't go beyond bounds when quantizing
         result = Math.max(0, constant - quantizedPeriod);
 
@@ -157,7 +174,10 @@ export class MacroParam {
   }
 
   // Delegate configuration methods
-  setAllowedParamValues(values: number[], normalize: NormalizeOptions | false): number[] {
+  setAllowedParamValues(
+    values: number[],
+    normalize: NormalizeOptions | false,
+  ): number[] {
     return this.#snapper.setAllowedValues(values, normalize);
   }
 
@@ -166,7 +186,11 @@ export class MacroParam {
     normalize: NormalizeOptions | false,
     snapToZeroCrossings: number[] | false = false,
   ): number[] {
-    return this.#snapper.setAllowedPeriods(periods, normalize, snapToZeroCrossings);
+    return this.#snapper.setAllowedPeriods(
+      periods,
+      normalize,
+      snapToZeroCrossings,
+    );
   }
 
   setScale(options: {
@@ -178,7 +202,13 @@ export class MacroParam {
     snapToZeroCrossings: number[] | false;
     normalize: NormalizeOptions | false;
   }): number[] {
-    const { rootNote, scale, tuningOffset = 0, lowestOctave = 0, highestOctave = 8 } = options;
+    const {
+      rootNote,
+      scale,
+      tuningOffset = 0,
+      lowestOctave = 0,
+      highestOctave = 8,
+    } = options;
 
     const scalePattern = Array.isArray(scale) ? scale : SCALE_PATTERNS[scale];
 
@@ -231,7 +261,7 @@ export class MacroParam {
   }
 
   get now(): number {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 
   get audioParam(): AudioParam {
@@ -247,11 +277,11 @@ export class MacroParam {
   }
 
   onChange(callback: MessageHandler<Message>): () => void {
-    return this.onMessage("value:changed", callback);
+    return this.onMessage('value:changed', callback);
   }
 
   #sendValueChangedMessage(value: number): void {
-    this.#messages.sendMessage("value:changed", { value });
+    this.#messages.sendMessage('value:changed', { value });
   }
 
   // Message bus methods
@@ -276,17 +306,17 @@ export class MacroParam {
     result: number,
   ) => {
     console.debug(
-      "adjusting param: ",
+      'adjusting param: ',
       this.#paramType,
-      "targetValue",
+      'targetValue',
       targetValue,
-      "constant",
+      'constant',
       constant,
-      "targetPeriod",
+      'targetPeriod',
       targetPeriod,
-      "quantizedPeriod",
+      'quantizedPeriod',
       quantizedPeriod,
-      "result",
+      'result',
       result,
     );
   };
@@ -298,7 +328,7 @@ export class MacroParam {
   }
 
   disconnect(target?: AudioParam | TODO): void {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 }
 

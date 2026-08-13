@@ -37,7 +37,10 @@
 // Reusable components can be just pure vanilla JavaScript functions.
 // Here we capitalize the first letter to follow React conventions.
 const Hello = () =>
-  div(p("👋Hello"), ul(li("🗺️World"), li(a({ href: "https://vanjs.org/" }, "🍦VanJS"))));
+  div(
+    p('👋Hello'),
+    ul(li('🗺️World'), li(a({ href: 'https://vanjs.org/' }, '🍦VanJS')))
+  );
 
 van.add(document.body, Hello());
 // Alternatively, you can write:
@@ -54,11 +57,11 @@ You can convert any HTML or MD snippet into **VanJS** code with our online [conv
 const Counter = () => {
   const counter = van.state(0);
   return div(
-    "❤️ ",
+    '❤️ ',
     counter,
-    " ",
-    button({ onclick: () => ++counter.val }, "👍"),
-    button({ onclick: () => --counter.val }, "👎"),
+    ' ',
+    button({ onclick: () => ++counter.val }, '👍'),
+    button({ onclick: () => --counter.val }, '👎')
   );
 };
 

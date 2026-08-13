@@ -1,7 +1,7 @@
 // components/SampleListSection.tsx
-import { Component, createSignal, For } from "solid-js";
-import { db, SavedSample } from "../db/samplelib/sampleIdb";
-import SaveButton from "./SaveButton";
+import { Component, createSignal, For } from 'solid-js';
+import { db, SavedSample } from '../db/samplelib/sampleIdb';
+import SaveButton from './SaveButton';
 
 interface SampleListSectionProps {
   onSampleSelect: (sample: SavedSample) => void;
@@ -14,17 +14,20 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
   const loadSamples = async () => {
     setLoading(true);
     try {
-      const allSamples = await db.samples.orderBy("createdAt").reverse().toArray();
+      const allSamples = await db.samples
+        .orderBy('createdAt')
+        .reverse()
+        .toArray();
       setSamples(allSamples);
     } catch (error) {
-      console.error("Failed to load samples:", error);
+      console.error('Failed to load samples:', error);
     } finally {
       setLoading(false);
     }
   };
 
   // Refresh list when new sample saved
-  document.addEventListener("sample:saved", async () => await loadSamples());
+  document.addEventListener('sample:saved', async () => await loadSamples());
 
   const handleDelete = async (sample: SavedSample, event: Event) => {
     event.stopPropagation();
@@ -32,12 +35,12 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
       await db.samples.delete(sample.id!);
       loadSamples();
     } catch (error) {
-      console.error("Failed to delete sample:", error);
+      console.error('Failed to delete sample:', error);
     }
   };
 
   const handleKeyDown = (sample: SavedSample, event: KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
+    if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       props.onSampleSelect(sample);
     }
@@ -54,38 +57,42 @@ const SampleListSection: Component<SampleListSectionProps> = (props) => {
         <For each={samples()}>
           {(sample) => (
             <div
-              class="sample-item"
-              role="button"
-              tabindex="0"
+              class='sample-item'
+              role='button'
+              tabindex='0'
               onclick={() => props.onSampleSelect(sample)}
               onkeydown={(e) => handleKeyDown(sample, e)}
             >
-              <div class="sample-info">
-                <div class="sample-name">{sample.name}</div>
-                <div class="sample-date">{sample.createdAt?.toLocaleDateString()}</div>
+              <div class='sample-info'>
+                <div class='sample-name'>{sample.name}</div>
+                <div class='sample-date'>
+                  {sample.createdAt?.toLocaleDateString()}
+                </div>
               </div>
               <button
-                type="button"
-                class="delete-button"
+                type='button'
+                class='delete-button'
                 onclick={(e) => handleDelete(sample, e)}
                 title={`Delete ${sample.name}`}
                 aria-label={`Delete ${sample.name}`}
               >
                 <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
+                  width='16'
+                  height='16'
+                  viewBox='0 0 24 24'
+                  fill='currentColor'
+                  aria-hidden='true'
                 >
-                  <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                  <path d='M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z' />
                 </svg>
               </button>
             </div>
           )}
         </For>
       )}
-      {samples().length === 0 && !loading() && <div class="no-samples">No saved samples</div>}
+      {samples().length === 0 && !loading() && (
+        <div class='no-samples'>No saved samples</div>
+      )}
     </div>
   );
 };

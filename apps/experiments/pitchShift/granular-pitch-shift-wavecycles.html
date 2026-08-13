@@ -30,14 +30,14 @@
         margin: 8px 0;
         font-size: 14px;
       }
-      .controls input[type="range"] {
+      .controls input[type='range'] {
         width: 200px;
         margin: 0 10px;
       }
-      .controls input[type="checkbox"] {
+      .controls input[type='checkbox'] {
         margin-right: 8px;
       }
-      input[type="file"] {
+      input[type='file'] {
         margin: 10px 0;
         padding: 8px;
         border: 1px solid #ddd;
@@ -105,17 +105,38 @@
           ><br />
           <label>
             Base Grain Size:
-            <input type="range" id="grainSize" min="256" max="16384" value="2048" step="256" />
+            <input
+              type="range"
+              id="grainSize"
+              min="256"
+              max="16384"
+              value="2048"
+              step="256"
+            />
             <span id="grainSizeValue">2048</span> </label
           ><br />
           <label>
             Overlap:
-            <input type="range" id="overlap" min="1" max="16" value="8" step="1" />
+            <input
+              type="range"
+              id="overlap"
+              min="1"
+              max="16"
+              value="8"
+              step="1"
+            />
             <span id="overlapValue">8</span> </label
           ><br />
           <label>
             Window Shape:
-            <input type="range" id="windowTaper" min="0.1" max="0.5" value="0.25" step="0.05" />
+            <input
+              type="range"
+              id="windowTaper"
+              min="0.1"
+              max="0.5"
+              value="0.25"
+              step="0.05"
+            />
             <span id="windowTaperValue">0.25</span>
           </label>
 
@@ -136,13 +157,14 @@
       <div class="keyboard-help">
         <h3>Keyboard Controls:</h3>
         <p>
-          Press and hold keys to trigger notes polyphonically (up to 8 simultaneous notes). Root
-          note (C4) is mapped to Comma key.
+          Press and hold keys to trigger notes polyphonically (up to 8
+          simultaneous notes). Root note (C4) is mapped to Comma key.
         </p>
         <div class="keyboard-layout">
-          Lower Row (C3-C4): Z S X D C V G B H N J M , L . ; / C3 C#3D3 D#3E3 F3 F#3G3 G#3A3 A#3B3
-          C4 C#4D4 D#4E4 Upper Row (C4-G5): Q 2 W 3 E R 5 T 6 Y 7 U I 9 O 0 P [ = ] C4 C#4D4 D#4E4
-          F4 F#4G4 G#4A4 A#4B4 C5 C#5D5 D#5E5 F5 F#5G5
+          Lower Row (C3-C4): Z S X D C V G B H N J M , L . ; / C3 C#3D3 D#3E3 F3
+          F#3G3 G#3A3 A#3B3 C4 C#4D4 D#4E4 Upper Row (C4-G5): Q 2 W 3 E R 5 T 6
+          Y 7 U I 9 O 0 P [ = ] C4 C#4D4 D#4E4 F4 F#4G4 G#4A4 A#4B4 C5 C#5D5
+          D#5E5 F5 F#5G5
         </div>
       </div>
     </div>
@@ -284,7 +306,10 @@
             for (let duplication = 0; duplication < numCycles; duplication++) {
               // Copy the cycle data
               for (let i = 0; i < cycleLength; i++) {
-                if (writeIndex < targetData.length && cycle.startSample + i < sourceData.length) {
+                if (
+                  writeIndex < targetData.length &&
+                  cycle.startSample + i < sourceData.length
+                ) {
                   targetData[writeIndex] = sourceData[cycle.startSample + i];
                   writeIndex++;
                 }
@@ -644,74 +669,75 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
 
       // Create worklet processor as blob URL
       const blob = new Blob([processorCode], {
-        type: "application/javascript",
+        type: 'application/javascript',
       });
       const processorURL = URL.createObjectURL(blob);
 
       // DOM elements
-      const fileInput = document.getElementById("audioFile");
-      const startBtn = document.getElementById("startBtn");
-      const stopBtn = document.getElementById("stopBtn");
-      const status = document.getElementById("status");
+      const fileInput = document.getElementById('audioFile');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const status = document.getElementById('status');
 
       // Quality control elements
-      const randomizePhaseCheckbox = document.getElementById("randomizePhase");
-      const crossfadeGrainsCheckbox = document.getElementById("crossfadeGrains");
-      const grainSizeSlider = document.getElementById("grainSize");
-      const grainSizeValue = document.getElementById("grainSizeValue");
-      const overlapSlider = document.getElementById("overlap");
-      const overlapValue = document.getElementById("overlapValue");
-      const windowTaperSlider = document.getElementById("windowTaper");
-      const windowTaperValue = document.getElementById("windowTaperValue");
-      const voiceIndicator = document.getElementById("voiceIndicator");
+      const randomizePhaseCheckbox = document.getElementById('randomizePhase');
+      const crossfadeGrainsCheckbox =
+        document.getElementById('crossfadeGrains');
+      const grainSizeSlider = document.getElementById('grainSize');
+      const grainSizeValue = document.getElementById('grainSizeValue');
+      const overlapSlider = document.getElementById('overlap');
+      const overlapValue = document.getElementById('overlapValue');
+      const windowTaperSlider = document.getElementById('windowTaper');
+      const windowTaperValue = document.getElementById('windowTaperValue');
+      const voiceIndicator = document.getElementById('voiceIndicator');
 
       // Function to update voice indicator
       function updateVoiceIndicator() {
-        let indicator = "";
+        let indicator = '';
         for (let i = 0; i < MAX_VOICES; i++) {
           if (voices[i] && voices[i].active) {
-            indicator += "●"; // Active voice
+            indicator += '●'; // Active voice
           } else {
-            indicator += "○"; // Inactive voice
+            indicator += '○'; // Inactive voice
           }
         }
         voiceIndicator.textContent = indicator;
       }
 
       // Update display values
-      grainSizeSlider.addEventListener("input", () => {
+      grainSizeSlider.addEventListener('input', () => {
         grainSizeValue.textContent = grainSizeSlider.value;
         if (granularNode) {
           granularNode.port.postMessage({
-            type: "setParameter",
+            type: 'setParameter',
             data: {
-              parameter: "baseGrainSize",
+              parameter: 'baseGrainSize',
               value: parseInt(grainSizeSlider.value),
             },
           });
         }
       });
 
-      overlapSlider.addEventListener("input", () => {
+      overlapSlider.addEventListener('input', () => {
         overlapValue.textContent = overlapSlider.value;
         if (granularNode) {
           granularNode.port.postMessage({
-            type: "setParameter",
+            type: 'setParameter',
             data: {
-              parameter: "overlap",
+              parameter: 'overlap',
               value: parseInt(overlapSlider.value),
             },
           });
         }
       });
 
-      windowTaperSlider.addEventListener("input", () => {
+      windowTaperSlider.addEventListener('input', () => {
         windowTaperValue.textContent = windowTaperSlider.value;
         if (granularNode) {
           granularNode.port.postMessage({
-            type: "setParameter",
+            type: 'setParameter',
             data: {
-              parameter: "windowTaper",
+              parameter: 'windowTaper',
               value: parseFloat(windowTaperSlider.value),
             },
           });
@@ -719,24 +745,24 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
       });
 
       // Quality setting checkboxes
-      randomizePhaseCheckbox.addEventListener("change", () => {
+      randomizePhaseCheckbox.addEventListener('change', () => {
         if (granularNode) {
           granularNode.port.postMessage({
-            type: "setParameter",
+            type: 'setParameter',
             data: {
-              parameter: "randomizePhase",
+              parameter: 'randomizePhase',
               value: randomizePhaseCheckbox.checked,
             },
           });
         }
       });
 
-      crossfadeGrainsCheckbox.addEventListener("change", () => {
+      crossfadeGrainsCheckbox.addEventListener('change', () => {
         if (granularNode) {
           granularNode.port.postMessage({
-            type: "setParameter",
+            type: 'setParameter',
             data: {
-              parameter: "crossfadeGrains",
+              parameter: 'crossfadeGrains',
               value: crossfadeGrainsCheckbox.checked,
             },
           });
@@ -744,12 +770,12 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
       });
 
       // File upload handler
-      fileInput.addEventListener("change", async (event) => {
+      fileInput.addEventListener('change', async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
         try {
-          status.textContent = "Loading audio file...";
+          status.textContent = 'Loading audio file...';
           const arrayBuffer = await file.arrayBuffer();
 
           if (!audioContext) {
@@ -760,19 +786,19 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
           status.textContent = `Audio loaded: ${file.name} (${audioBuffer.duration.toFixed(1)}s)`;
           startBtn.disabled = false;
         } catch (error) {
-          status.textContent = "Error loading audio file: " + error.message;
+          status.textContent = 'Error loading audio file: ' + error.message;
           console.error(error);
         }
       });
 
       // Start button handler
-      startBtn.addEventListener("click", async () => {
+      startBtn.addEventListener('click', async () => {
         try {
           if (!audioContext) {
             audioContext = new AudioContext();
           }
 
-          if (audioContext.state === "suspended") {
+          if (audioContext.state === 'suspended') {
             await audioContext.resume();
           }
 
@@ -780,7 +806,10 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
           await audioContext.audioWorklet.addModule(processorURL);
 
           // Create worklet node
-          granularNode = new AudioWorkletNode(audioContext, "granular-pitch-processor");
+          granularNode = new AudioWorkletNode(
+            audioContext,
+            'granular-pitch-processor'
+          );
 
           gainNode = audioContext.createGain();
 
@@ -793,24 +822,24 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
           const waveCycles = findWaveCycles(audioBuffer);
 
           granularNode.port.postMessage({
-            type: "setAudioData",
+            type: 'setAudioData',
             data: {
               audioBuffer: channelData,
               waveCycles: waveCycles,
             },
           });
 
-          status.textContent = "Ready! Press keys to play notes.";
+          status.textContent = 'Ready! Press keys to play notes.';
           startBtn.disabled = true;
           stopBtn.disabled = false;
         } catch (error) {
-          status.textContent = "Error starting audio: " + error.message;
+          status.textContent = 'Error starting audio: ' + error.message;
           console.error(error);
         }
       });
 
       // Stop button handler
-      stopBtn.addEventListener("click", () => {
+      stopBtn.addEventListener('click', () => {
         if (granularNode) {
           granularNode.disconnect();
           granularNode = null;
@@ -818,7 +847,7 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
         activeKeys.clear();
         voices = [];
         voiceAssignments.clear();
-        status.textContent = "Stopped. Click Start to resume.";
+        status.textContent = 'Stopped. Click Start to resume.';
         startBtn.disabled = false;
         stopBtn.disabled = true;
       });
@@ -847,7 +876,7 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
       }
 
       // Keyboard event handlers
-      document.addEventListener("keydown", (event) => {
+      document.addEventListener('keydown', (event) => {
         if (!granularNode || activeKeys.has(event.code)) return;
 
         const midiNote = keyMap[event.code];
@@ -870,14 +899,14 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
           updateVoiceIndicator();
 
           granularNode.port.postMessage({
-            type: "noteOn",
+            type: 'noteOn',
             data: { note: midiNote, voiceId: voiceIndex },
           });
           event.preventDefault();
         }
       });
 
-      document.addEventListener("keyup", (event) => {
+      document.addEventListener('keyup', (event) => {
         if (!granularNode || !activeKeys.has(event.code)) return;
 
         const midiNote = keyMap[event.code];
@@ -896,7 +925,7 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
             updateVoiceIndicator();
 
             granularNode.port.postMessage({
-              type: "noteOff",
+              type: 'noteOff',
               data: { note: midiNote, voiceId: voiceIndex },
             });
           }
@@ -907,7 +936,7 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
       });
 
       // Prevent default behavior for mapped keys
-      document.addEventListener("keydown", (event) => {
+      document.addEventListener('keydown', (event) => {
         if (keyMap[event.code] !== undefined) {
           event.preventDefault();
         }

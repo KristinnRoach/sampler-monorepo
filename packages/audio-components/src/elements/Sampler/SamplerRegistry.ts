@@ -1,5 +1,5 @@
 // SamplerRegistry.ts
-import { SamplePlayer } from "@repo/audiolib";
+import { SamplePlayer } from '@repo/audiolib';
 
 const samplerRegistry = new Map<string, SamplePlayer>();
 const changeCallbacks = new Set<() => void>();

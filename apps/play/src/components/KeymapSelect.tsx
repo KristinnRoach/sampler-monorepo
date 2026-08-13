@@ -1,5 +1,5 @@
-import { For } from "solid-js";
-import type { KeymapKey } from "@repo/audiolib";
+import { For } from 'solid-js';
+import type { KeymapKey } from '@repo/audiolib';
 
 type KeymapSelectProps = {
   value: KeymapKey;
@@ -7,23 +7,27 @@ type KeymapSelectProps = {
 };
 
 const OPTIONS: { value: KeymapKey; label: string }[] = [
-  { value: "piano", label: "Piano" },
-  { value: "major", label: "Major" },
-  { value: "minor", label: "Minor" },
-  { value: "pentatonic", label: "Pentatonic" },
-  { value: "chromatic", label: "Chromatic" },
+  { value: 'piano', label: 'Piano' },
+  { value: 'major', label: 'Major' },
+  { value: 'minor', label: 'Minor' },
+  { value: 'pentatonic', label: 'Pentatonic' },
+  { value: 'chromatic', label: 'Chromatic' },
 ];
 
 const KeymapSelect = (props: KeymapSelectProps) => (
-  <div class="ac-selectContainer keymap-select">
+  <div class='ac-selectContainer keymap-select'>
     <select
-      aria-label="Keyboard keymap"
-      title="Select Keyboard Keymap"
-      class="ac-select"
+      aria-label='Keyboard keymap'
+      title='Select Keyboard Keymap'
+      class='ac-select'
       value={props.value}
-      onchange={(event) => props.onChange(event.currentTarget.value as KeymapKey)}
+      onchange={(event) =>
+        props.onChange(event.currentTarget.value as KeymapKey)
+      }
     >
-      <For each={OPTIONS}>{(option) => <option value={option.value}>{option.label}</option>}</For>
+      <For each={OPTIONS}>
+        {(option) => <option value={option.value}>{option.label}</option>}
+      </For>
     </select>
   </div>
 );

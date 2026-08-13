@@ -2,10 +2,13 @@ export function saveValue(key: string, value: string | number): void {
   localStorage.setItem(key, value.toString());
 }
 
-export function getValue<T extends string | number>(key: string, fallback: T): T {
+export function getValue<T extends string | number>(
+  key: string,
+  fallback: T
+): T {
   const stored = localStorage.getItem(key);
   if (stored === null) return fallback;
-  if (typeof fallback === "number") return Number(stored) as T;
+  if (typeof fallback === 'number') return Number(stored) as T;
   return stored as T;
 }
 

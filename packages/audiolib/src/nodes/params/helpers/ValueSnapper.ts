@@ -1,10 +1,13 @@
-import { createScale, offsetPeriodsBySemitones } from "@/utils/music-theory/utils/scale-utils";
-import type { NormalizeOptions } from "@/nodes/params/param-types";
-import { findClosest, findClosestNote, Note, ROOT_NOTES } from "@/utils";
+import {
+  createScale,
+  offsetPeriodsBySemitones,
+} from '@/utils/music-theory/utils/scale-utils';
+import type { NormalizeOptions } from '@/nodes/params/param-types';
+import { findClosest, findClosestNote, Note, ROOT_NOTES } from '@/utils';
 
 const normalizeRange = (
   values: number | number[],
-  options: NormalizeOptions,
+  options: NormalizeOptions
 ): number | number[] => {
   const { from, to } = options;
   const [fromMin, fromMax] = from;
@@ -30,7 +33,7 @@ export class ValueSnapper {
   #allowedPeriods: number[] = [];
   #prevIndex = 0;
 
-  #currentRootNote: keyof typeof ROOT_NOTES = "C";
+  #currentRootNote: keyof typeof ROOT_NOTES = 'C';
   #currentScalePattern: number[] = [];
 
   paramType: string | null = null;
@@ -42,7 +45,7 @@ export class ValueSnapper {
     lowestOctave: number = 0,
     highestOctave: number = 6,
     normalize: NormalizeOptions | false,
-    snapToZeroCrossings: number[] | false = false,
+    snapToZeroCrossings: number[] | false = false
   ) {
     // Create a copy of the pattern to ensure it's mutable
     const pattern = [...scalePattern];
@@ -53,14 +56,18 @@ export class ValueSnapper {
     if (tuningOffset !== 0) {
       periodsInSeconds = offsetPeriodsBySemitones(
         periodsInSeconds,
-        -tuningOffset, // Offset by MINUS the current tuning
+        -tuningOffset // Offset by MINUS the current tuning
       );
     }
 
     this.#currentRootNote = rootNote;
     this.#currentScalePattern = pattern;
 
-    return this.setAllowedPeriods(periodsInSeconds, normalize, snapToZeroCrossings);
+    return this.setAllowedPeriods(
+      periodsInSeconds,
+      normalize,
+      snapToZeroCrossings
+    );
   }
 
   setRootNote(rootNote: keyof typeof ROOT_NOTES) {
@@ -71,9 +78,11 @@ export class ValueSnapper {
     periods: number[],
     normalize: NormalizeOptions | false,
     snapToZeroCrossings: number[] | false = false,
-    direction: "left" | "right" | "any" = "any",
+    direction: 'left' | 'right' | 'any' = 'any'
   ) {
-    let values = normalize ? (normalizeRange([...periods], normalize) as number[]) : periods;
+    let values = normalize
+      ? (normalizeRange([...periods], normalize) as number[])
+      : periods;
 
     // Keep original periods for musical calculations
     // let values = [...periods];
@@ -116,7 +125,11 @@ export class ValueSnapper {
     return this.#allowedPeriods;
   }
 
-  #debugPeriods(beforeSnap: number[], afterSnap: number[], normalized: number[]) {
+  #debugPeriods(
+    beforeSnap: number[],
+    afterSnap: number[],
+    normalized: number[]
+  ) {
     const beforeNoteInfo: Note[] = [];
     beforeSnap.forEach((period) => {
       beforeNoteInfo.push(findClosestNote(1 / period));
@@ -133,7 +146,7 @@ export class ValueSnapper {
     target: number,
     allowedValues = this.#allowedValues,
     tolerance?: number,
-    preferDirection: "left" | "right" | "any" = "any",
+    preferDirection: 'left' | 'right' | 'any' = 'any'
   ): number {
     if (allowedValues.length === 0) return target;
 
@@ -143,7 +156,9 @@ export class ValueSnapper {
     }
 
     // Filter allowedValues by tolerance
-    const validValues = allowedValues.filter((value) => Math.abs(value - target) <= tolerance);
+    const validValues = allowedValues.filter(
+      (value) => Math.abs(value - target) <= tolerance
+    );
 
     if (validValues.length > 0) {
       // Normal case: snap to closest within tolerance
@@ -161,7 +176,10 @@ export class ValueSnapper {
     return target;
   }
 
-  snapToMusicalPeriod(targetPeriod: number, allowedPeriods = this.#allowedPeriods): number {
+  snapToMusicalPeriod(
+    targetPeriod: number,
+    allowedPeriods = this.#allowedPeriods
+  ): number {
     if (allowedPeriods.length === 0) return targetPeriod;
     if (targetPeriod > this.longestPeriod) return targetPeriod;
     if (targetPeriod <= this.shortestPeriod) return this.shortestPeriod;
@@ -172,7 +190,7 @@ export class ValueSnapper {
 
     if (targetPeriod === prevPeriod) return targetPeriod;
 
-    const direction = targetPeriod > prevPeriod ? "right" : "left";
+    const direction = targetPeriod > prevPeriod ? 'right' : 'left';
     // console.debug('PERIOD', direction);
 
     // TODO: Test current direction based approach VS 'findClosest'

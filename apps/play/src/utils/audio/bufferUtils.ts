@@ -14,10 +14,10 @@ export function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
     }
   };
 
-  writeString(0, "RIFF");
+  writeString(0, 'RIFF');
   view.setUint32(4, 36 + length * numberOfChannels * 2, true);
-  writeString(8, "WAVE");
-  writeString(12, "fmt ");
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, numberOfChannels, true);
@@ -25,15 +25,22 @@ export function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
   view.setUint32(28, sampleRate * numberOfChannels * 2, true);
   view.setUint16(32, numberOfChannels * 2, true);
   view.setUint16(34, 16, true);
-  writeString(36, "data");
+  writeString(36, 'data');
   view.setUint32(40, length * numberOfChannels * 2, true);
 
   // Convert float samples to 16-bit PCM
   let offset = 44;
   for (let i = 0; i < length; i++) {
     for (let channel = 0; channel < numberOfChannels; channel++) {
-      const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      const sample = Math.max(
+        -1,
+        Math.min(1, buffer.getChannelData(channel)[i]),
+      );
+      view.setInt16(
+        offset,
+        sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+        true,
+      );
       offset += 2;
     }
   }
@@ -44,7 +51,7 @@ export function audioBufferToWav(buffer: AudioBuffer): ArrayBuffer {
 export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   const chunkSize = 0x8000;
-  let binary = "";
+  let binary = '';
   for (let i = 0; i < bytes.byteLength; i += chunkSize) {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
@@ -84,7 +91,8 @@ export function validateWavBuffer(buffer: ArrayBuffer): boolean {
   const bitsPerSample = view.getUint16(34, true);
   const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
   const dataSize = view.getUint32(40, true);
-  if (dataSize === 0 || byteRate === 0 || dataSize / byteRate < 0.2) return false;
+  if (dataSize === 0 || byteRate === 0 || dataSize / byteRate < 0.2)
+    return false;
 
   const dataOffset = 44;
   const sampleSize = bitsPerSample / 8;
@@ -94,9 +102,13 @@ export function validateWavBuffer(buffer: ArrayBuffer): boolean {
   for (let i = 0; i < samplesToCheck; i++) {
     const sampleIndex = Math.floor((i * numSamples) / samplesToCheck);
     if (bitsPerSample === 16) {
-      sumAbs += Math.abs(view.getInt16(dataOffset + sampleIndex * sampleSize, true));
+      sumAbs += Math.abs(
+        view.getInt16(dataOffset + sampleIndex * sampleSize, true),
+      );
     } else if (bitsPerSample === 8) {
-      sumAbs += Math.abs(view.getUint8(dataOffset + sampleIndex * sampleSize) - 128);
+      sumAbs += Math.abs(
+        view.getUint8(dataOffset + sampleIndex * sampleSize) - 128,
+      );
     }
   }
   return sumAbs / samplesToCheck >= 0.08 * (1 << (bitsPerSample - 1));

@@ -1,39 +1,59 @@
-import van, { State } from "@repo/vanjs-core";
-import { ElementProps } from "@repo/vanjs-core/element";
-import "../../controls/webaudio-controls/webaudio-keyboard";
-import { getSampler } from "../SamplerRegistry";
-import { COMPONENT_STYLE, DISABLED_STYLE } from "../../../shared/styles/component-styles";
+import van, { State } from '@repo/vanjs-core';
+import { ElementProps } from '@repo/vanjs-core/element';
+import '../../controls/webaudio-controls/webaudio-keyboard';
+import { getSampler } from '../SamplerRegistry';
+import {
+  COMPONENT_STYLE,
+  DISABLED_STYLE,
+} from '../../../shared/styles/component-styles';
 
-import KeyMaps, { DEFAULT_KEYMAP_KEY } from "@/shared/keyboard/keyboard-keymaps";
+import KeyMaps, {
+  DEFAULT_KEYMAP_KEY,
+} from '@/shared/keyboard/keyboard-keymaps';
 
 const { div } = van.tags;
 const MOBILE_KEY_COUNT = 13;
 
 export const PianoKeyboard = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr("target-node-id", "");
-  const width = attributes.attr("width", "300");
-  const height = attributes.attr("height", "60");
+  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const width = attributes.attr('width', '300');
+  const height = attributes.attr('height', '60');
   const enabled = van.state(true);
 
   // Sync with computer keyboard keymap and octave
   const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]);
   const octaveOffset = van.state(0);
   const rootNote = van.state<
-    "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B"
-  >("C");
+    'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B'
+  >('C');
   const MAX_OCT_SHIFT = 2;
   const MIN_OCT_SHIFT = -2;
 
   // Helper: get semitone offset from C
   const getRootNoteOffset = (note: string) => {
-    const ROOT_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const ROOT_NOTES = [
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'A#',
+      'B',
+    ];
     return ROOT_NOTES.indexOf(note);
   };
 
-  const keyboard = document.createElement("webaudio-keyboard") as any;
+  const keyboard = document.createElement('webaudio-keyboard') as any;
 
   const getDisplayRange = () => {
-    const visibleKeys = window.matchMedia("(max-width: 600px)").matches ? MOBILE_KEY_COUNT : 25;
+    const visibleKeys = window.matchMedia('(max-width: 600px)').matches
+      ? MOBILE_KEY_COUNT
+      : 25;
 
     // Get the actual note range from the current keymap
     const notes = Object.values(currentKeymap.val).filter(Boolean) as number[];
@@ -56,10 +76,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
   // Reactive updates
   van.derive(() => {
     const { min, keys } = getDisplayRange();
-    keyboard.setAttribute("width", width.val);
-    keyboard.setAttribute("height", height.val);
-    keyboard.setAttribute("min", min.toString());
-    keyboard.setAttribute("keys", keys.toString());
+    keyboard.setAttribute('width', width.val);
+    keyboard.setAttribute('height', height.val);
+    keyboard.setAttribute('min', min.toString());
+    keyboard.setAttribute('keys', keys.toString());
   });
 
   // Handle mouse/touch events only
@@ -69,7 +89,8 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     if (!sampler) return;
 
     const [noteState, noteNumber] = event.note;
-    const midiNote = noteNumber + 12 * octaveOffset.val + getRootNoteOffset(rootNote.val);
+    const midiNote =
+      noteNumber + 12 * octaveOffset.val + getRootNoteOffset(rootNote.val);
 
     if (noteState === 1) {
       sampler.play(midiNote);
@@ -85,17 +106,20 @@ export const PianoKeyboard = (attributes: ElementProps) => {
     }
   };
 
-  keyboard.addEventListener("pointer", handlePianoClick);
+  keyboard.addEventListener('pointer', handlePianoClick);
 
   van.derive(() => {
-    const disabledStyles = enabled.val ? "" : DISABLED_STYLE;
+    const disabledStyles = enabled.val ? '' : DISABLED_STYLE;
     keyboard.style.cssText = disabledStyles;
   });
 
   attributes.mount(() => {
     // Sync octave changes from ComputerKeyboard
     const handleKeymapChange = (e: CustomEvent) => {
-      if (e.detail.targetNodeId === targetNodeId.val || !e.detail.targetNodeId) {
+      if (
+        e.detail.targetNodeId === targetNodeId.val ||
+        !e.detail.targetNodeId
+      ) {
         // Sync keymap and octave offset
         if (e.detail.keymap) {
           currentKeymap.val = e.detail.keymap;
@@ -108,7 +132,10 @@ export const PianoKeyboard = (attributes: ElementProps) => {
 
     // Listen for root note changes
     const handleRootNoteChange = (e: CustomEvent) => {
-      if (e.detail.targetNodeId === targetNodeId.val || !e.detail.targetNodeId) {
+      if (
+        e.detail.targetNodeId === targetNodeId.val ||
+        !e.detail.targetNodeId
+      ) {
         if (e.detail.rootNote) {
           rootNote.val = e.detail.rootNote;
         }
@@ -124,38 +151,51 @@ export const PianoKeyboard = (attributes: ElementProps) => {
       const midiNote = currentKeymap.val[e.code];
       if (!midiNote) return;
 
-      const adjustedMidiNote = midiNote + octaveOffset.val * 12 + getRootNoteOffset(rootNote.val);
+      const adjustedMidiNote =
+        midiNote + octaveOffset.val * 12 + getRootNoteOffset(rootNote.val);
 
       // Check if this note is within the piano keyboard's visible range
       const { min, keys } = getDisplayRange();
       if (adjustedMidiNote >= min && adjustedMidiNote < min + keys) {
         // Sync visual feedback with computer keyboard
-        const isKeyDown = e.type === "keydown";
+        const isKeyDown = e.type === 'keydown';
         // Add safety check for keyboard element
-        if (keyboard && typeof keyboard.setNote === "function") {
+        if (keyboard && typeof keyboard.setNote === 'function') {
           keyboard.setNote(isKeyDown ? 1 : 0, adjustedMidiNote);
         }
       }
     };
 
-    document.addEventListener("keydown", handleKeyboardEvents);
-    document.addEventListener("keyup", handleKeyboardEvents);
-    document.addEventListener("keymap-changed", handleKeymapChange as EventListener);
-    document.addEventListener("rootnote-changed", handleRootNoteChange as EventListener);
+    document.addEventListener('keydown', handleKeyboardEvents);
+    document.addEventListener('keyup', handleKeyboardEvents);
+    document.addEventListener(
+      'keymap-changed',
+      handleKeymapChange as EventListener
+    );
+    document.addEventListener(
+      'rootnote-changed',
+      handleRootNoteChange as EventListener
+    );
     return () => {
-      keyboard.removeEventListener("pointer", handlePianoClick);
-      document.removeEventListener("keydown", handleKeyboardEvents);
-      document.removeEventListener("keyup", handleKeyboardEvents);
-      document.removeEventListener("keymap-changed", handleKeymapChange as EventListener);
-      document.removeEventListener("rootnote-changed", handleRootNoteChange as EventListener);
+      keyboard.removeEventListener('pointer', handlePianoClick);
+      document.removeEventListener('keydown', handleKeyboardEvents);
+      document.removeEventListener('keyup', handleKeyboardEvents);
+      document.removeEventListener(
+        'keymap-changed',
+        handleKeymapChange as EventListener
+      );
+      document.removeEventListener(
+        'rootnote-changed',
+        handleRootNoteChange as EventListener
+      );
     };
   });
 
   return div(
     {
-      class: "piano-keyboard-control",
+      class: 'piano-keyboard-control',
       style: COMPONENT_STYLE,
     },
-    keyboard,
+    keyboard
   );
 };

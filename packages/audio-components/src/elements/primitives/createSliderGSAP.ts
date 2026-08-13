@@ -1,11 +1,11 @@
 // createSliderGsap.ts
-import van, { State } from "@repo/vanjs-core";
-import "./SliderGSAP";
+import van, { State } from '@repo/vanjs-core';
+import './SliderGSAP';
 
 // ? add to types.d.ts ?
 declare global {
   interface HTMLElementEventMap {
-    "range-change": CustomEvent<{ min: number; max: number }>;
+    'range-change': CustomEvent<{ min: number; max: number }>;
   }
 }
 
@@ -16,9 +16,9 @@ export const createSliderGSAP = (
   firstThumbState: State<number>,
   secondThumbState: State<number>,
   range: { min: number; max: number },
-  rampTime?: State<number>, // ? Make generic
+  rampTime?: State<number> // ? Make generic
 ) => {
-  const sliderElement = van.tags["slider-gsap"]({});
+  const sliderElement = van.tags['slider-gsap']({});
   const initialRampTime = rampTime?.rawVal ?? 0.5;
 
   // Defer until element is fully connected
@@ -30,20 +30,24 @@ export const createSliderGSAP = (
   }, 0);
 
   // Add listener to the actual slider element
-  (sliderElement as HTMLElement).addEventListener("range-change", (e: CustomEvent) => {
-    firstThumbState.val = e.detail.min;
-    secondThumbState.val = e.detail.max;
-    if (rampTime !== undefined) {
-      rampTime.val = e.detail.isShiftDragging ? 0 : initialRampTime;
+  (sliderElement as HTMLElement).addEventListener(
+    'range-change',
+    (e: CustomEvent) => {
+      firstThumbState.val = e.detail.min;
+      secondThumbState.val = e.detail.max;
+      if (rampTime !== undefined) {
+        rampTime.val = e.detail.isShiftDragging ? 0 : initialRampTime;
+      }
     }
-  });
+  );
 
   const container = div(
     {
-      style: "margin-bottom: 10px; display: flex; align-items: center; gap: 8px;",
+      style:
+        'margin-bottom: 10px; display: flex; align-items: center; gap: 8px;',
     },
-    label(() => labelText + ":"),
-    sliderElement,
+    label(() => labelText + ':'),
+    sliderElement
   );
 
   return { container, sliderElement };

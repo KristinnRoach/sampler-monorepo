@@ -1,12 +1,15 @@
-import { createStore } from "solid-js/store";
-import { samplerParams, type SamplerParamKey } from "@repo/audiolib";
+import { createStore } from 'solid-js/store';
+import { samplerParams, type SamplerParamKey } from '@repo/audiolib';
 
 export type SamplerParamValues = Record<SamplerParamKey, number>;
 
-const DEFAULT_NODE_ID = "test-sampler";
+const DEFAULT_NODE_ID = 'test-sampler';
 
 const defaultValues = Object.fromEntries(
-  Object.entries(samplerParams).map(([key, descriptor]) => [key, descriptor.defaultValue]),
+  Object.entries(samplerParams).map(([key, descriptor]) => [
+    key,
+    descriptor.defaultValue,
+  ]),
 ) as SamplerParamValues;
 
 const storageKey = (key: SamplerParamKey) =>
@@ -30,7 +33,8 @@ const loadValues = (): SamplerParamValues => {
   return values;
 };
 
-const [paramValues, setParamValues] = createStore<SamplerParamValues>(loadValues());
+const [paramValues, setParamValues] =
+  createStore<SamplerParamValues>(loadValues());
 
 export const samplerParamValues = () => paramValues;
 
@@ -51,7 +55,10 @@ const persistValue = (key: SamplerParamKey, value: number): void => {
   );
 };
 
-export const setSamplerParamValue = (key: SamplerParamKey, value: number): void => {
+export const setSamplerParamValue = (
+  key: SamplerParamKey,
+  value: number,
+): void => {
   if (!Number.isFinite(value) || paramValues[key] === value) return;
 
   setParamValues(key, value);

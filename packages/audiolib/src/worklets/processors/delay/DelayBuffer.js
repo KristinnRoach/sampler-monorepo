@@ -15,6 +15,7 @@ export class DelayBuffer {
 
   updatePointers(delaySamples) {
     this.writePtr = (this.writePtr + 1) % this.buffer.length;
-    this.readPtr = (this.writePtr - delaySamples + this.buffer.length) % this.buffer.length;
+    this.readPtr =
+      (this.writePtr - delaySamples + this.buffer.length) % this.buffer.length;
   }
 }

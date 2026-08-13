@@ -1,4 +1,4 @@
-import { KeyMap } from "./keyboard-types";
+import { KeyMap } from './keyboard-types';
 
 /**
  * Default keyboard-to-MIDI note mapping for audio input.
@@ -66,76 +66,76 @@ export function generateKeymap(config: {
 
   // Fourth row: 1 to - (top row)
   const fourthRow = [
-    "Digit1",
-    "Digit2",
-    "Digit3",
-    "Digit4",
-    "Digit5",
-    "Digit6",
-    "Digit7",
-    "Digit8",
-    "Digit9",
-    "Digit0",
-    "Minus",
-    "Equal",
+    'Digit1',
+    'Digit2',
+    'Digit3',
+    'Digit4',
+    'Digit5',
+    'Digit6',
+    'Digit7',
+    'Digit8',
+    'Digit9',
+    'Digit0',
+    'Minus',
+    'Equal',
   ];
 
   // Third row: q to '
   const thirdRow = [
-    "KeyQ",
-    "KeyW",
-    "KeyE",
-    "KeyR",
-    "KeyT",
-    "KeyY",
-    "KeyU",
-    "KeyI",
-    "KeyO",
-    "KeyP",
-    "BracketLeft",
-    "BracketRight",
+    'KeyQ',
+    'KeyW',
+    'KeyE',
+    'KeyR',
+    'KeyT',
+    'KeyY',
+    'KeyU',
+    'KeyI',
+    'KeyO',
+    'KeyP',
+    'BracketLeft',
+    'BracketRight',
   ];
 
   // Second row: a to + (fixed the order)
   const secondRow = [
-    "KeyA",
-    "KeyS",
-    "KeyD",
-    "KeyF",
-    "KeyG",
-    "KeyH",
-    "KeyJ",
-    "KeyK",
-    "KeyL",
-    "Semicolon",
-    "Quote",
-    "Backslash",
+    'KeyA',
+    'KeyS',
+    'KeyD',
+    'KeyF',
+    'KeyG',
+    'KeyH',
+    'KeyJ',
+    'KeyK',
+    'KeyL',
+    'Semicolon',
+    'Quote',
+    'Backslash',
   ];
 
   // First row: z to þ (bottom row)
   const firstRow = [
-    "KeyZ",
-    "KeyX",
-    "KeyC",
-    "KeyV",
-    "KeyB",
-    "KeyN",
-    "KeyM",
-    "Comma",
-    "Period",
-    "Slash",
+    'KeyZ',
+    'KeyX',
+    'KeyC',
+    'KeyV',
+    'KeyB',
+    'KeyN',
+    'KeyM',
+    'Comma',
+    'Period',
+    'Slash',
   ];
 
   const numpad = [
-    "Numpad1",
-    "Numpad2",
-    "Numpad3",
-    "Numpad4",
-    "Numpad5",
-    "Numpad6",
-    "Numpad7",
-    "Numpad8",
-    "Numpad9",
+    'Numpad1',
+    'Numpad2',
+    'Numpad3',
+    'Numpad4',
+    'Numpad5',
+    'Numpad6',
+    'Numpad7',
+    'Numpad8',
+    'Numpad9',
   ];
 
   const keymap: KeyMap = {};
@@ -187,9 +187,14 @@ export const chromaticKeymap = generateKeymap({
   scale: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
 });
 
-export type KeymapKey = "piano" | "major" | "minor" | "pentatonic" | "chromatic";
+export type KeymapKey =
+  | 'piano'
+  | 'major'
+  | 'minor'
+  | 'pentatonic'
+  | 'chromatic';
 
-export const DEFAULT_KEYMAP_KEY: KeymapKey = "major"; // update here to change default everywhere
+export const DEFAULT_KEYMAP_KEY: KeymapKey = 'major'; // update here to change default everywhere
 
 const KeyMaps = {
   piano: defaultKeymap,

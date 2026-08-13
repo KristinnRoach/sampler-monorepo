@@ -22,7 +22,7 @@
  *
  * */
 if (window.customElements) {
-  let styles = document.createElement("style");
+  let styles = document.createElement('style');
   styles.innerHTML = `#webaudioctrl-context-menu {
   display: none;
   position: absolute;
@@ -65,8 +65,8 @@ if (window.customElements) {
 }
 `;
   document.head.appendChild(styles);
-  let midimenu = document.createElement("ul");
-  midimenu.id = "webaudioctrl-context-menu";
+  let midimenu = document.createElement('ul');
+  midimenu.id = 'webaudioctrl-context-menu';
   midimenu.innerHTML = `<li class="webaudioctrl-context-menu__title">MIDI Learn</li>
 <li class="webaudioctrl-context-menu__item" id="webaudioctrl-context-menu-learn" onclick="webAudioControlsWidgetManager.contextMenuLearn()">Learn</li>
 <li class="webaudioctrl-context-menu__item" onclick="webAudioControlsWidgetManager.contextMenuClear()">Clear</li>
@@ -84,7 +84,7 @@ if (window.customElements) {
     knobWidth: null,
     knobHeight: null,
     knobDiameter: null,
-    knobColors: "#e00;#000;#fff",
+    knobColors: '#e00;#000;#fff',
     sliderSrc: null,
     sliderWidth: null,
     sliderHeight: null,
@@ -92,33 +92,34 @@ if (window.customElements) {
     sliderKnobWidth: null,
     sliderKnobHeight: null,
     sliderDitchlength: null,
-    sliderColors: "#e00;#333;#fcc",
+    sliderColors: '#e00;#333;#fcc',
     switchWidth: null,
     switchHeight: null,
     switchDiameter: null,
-    switchColors: "#e00;#000;#fcc",
+    switchColors: '#e00;#000;#fcc',
     paramWidth: null,
     paramHeight: null,
     paramFontSize: 9,
-    paramColors: "#fff;#000",
+    paramColors: '#fff;#000',
     valuetip: 0,
-    xypadColors: "#e00;#000;#fcc",
+    xypadColors: '#e00;#000;#fcc',
   };
-  if (window.WebAudioControlsOptions) Object.assign(opt, window.WebAudioControlsOptions);
+  if (window.WebAudioControlsOptions)
+    Object.assign(opt, window.WebAudioControlsOptions);
   class WebAudioControlsWidget extends HTMLElement {
     constructor() {
       super();
       // this.addEventListener('keydown', this.keydown); // !!!!! KIDDI COMMENT OUT
       // this.addEventListener('keyup', this.keyup); // !!!!! KIDDI COMMENT OUT
-      document.addEventListener("keydown", this.keydown.bind(this)); // KIDDI add
-      document.addEventListener("keyup", this.keyup.bind(this)); // KIDDI add
+      document.addEventListener('keydown', this.keydown.bind(this)); // KIDDI add
+      document.addEventListener('keyup', this.keyup.bind(this)); // KIDDI add
 
-      this.addEventListener("mousedown", this.pointerdown, { passive: false });
-      this.addEventListener("touchstart", this.pointerdown, { passive: false });
-      this.addEventListener("wheel", this.wheel, { passive: false });
-      this.addEventListener("mouseover", this.pointerover);
-      this.addEventListener("mouseout", this.pointerout);
-      this.addEventListener("contextmenu", this.contextMenu);
+      this.addEventListener('mousedown', this.pointerdown, { passive: false });
+      this.addEventListener('touchstart', this.pointerdown, { passive: false });
+      this.addEventListener('wheel', this.wheel, { passive: false });
+      this.addEventListener('mouseover', this.pointerover);
+      this.addEventListener('mouseout', this.pointerout);
+      this.addEventListener('contextmenu', this.contextMenu);
       this.hover = this.drag = 0;
       document.body.appendChild(midimenu);
       this.basestyle = `
@@ -158,16 +159,16 @@ if (window.customElements) {
 }
 `;
       this.onblur = () => {
-        this.elem.style.outline = "none";
+        this.elem.style.outline = 'none';
       };
       this.onfocus = () => {
         switch (+this.outline) {
           case null:
           case 0:
-            this.elem.style.outline = "none";
+            this.elem.style.outline = 'none';
             break;
           case 1:
-            this.elem.style.outline = "1px solid #444";
+            this.elem.style.outline = '1px solid #444';
             break;
           default:
             this.elem.style.outline = this.outline;
@@ -176,7 +177,7 @@ if (window.customElements) {
     }
     sendEvent(ev) {
       let event;
-      event = document.createEvent("HTMLEvents");
+      event = document.createEvent('HTMLEvents');
       event.initEvent(ev, false, true);
       this.dispatchEvent(event);
     }
@@ -184,8 +185,8 @@ if (window.customElements) {
       let v = this.getAttribute(n);
       if (v == null) return def;
       switch (typeof def) {
-        case "number":
-          if (v == "true") return 1;
+        case 'number':
+          if (v == 'true') return 1;
           v = +v;
           if (isNaN(v)) return 0;
           return v;
@@ -195,40 +196,40 @@ if (window.customElements) {
     showtip(d) {
       function valstr(x, c, type) {
         switch (type) {
-          case "x":
+          case 'x':
             return (x | 0).toString(16);
-          case "X":
+          case 'X':
             return (x | 0).toString(16).toUpperCase();
-          case "d":
+          case 'd':
             return (x | 0).toString();
-          case "f":
+          case 'f':
             return parseFloat(x).toFixed(c);
-          case "s":
+          case 's':
             return x.toString();
         }
-        return "";
+        return '';
       }
       function numformat(s, x) {
-        let i = s.indexOf("%");
+        let i = s.indexOf('%');
         let j = i + 1;
         if (i < 0) j = s.length;
         let c = [0, 0],
           type = 0,
           m = 0,
-          r = "";
-        if (s.indexOf("%s") >= 0) {
-          return s.replace("%s", x);
+          r = '';
+        if (s.indexOf('%s') >= 0) {
+          return s.replace('%s', x);
         }
         for (; j < s.length; ++j) {
-          if ("dfxXs".indexOf(s[j]) >= 0) {
+          if ('dfxXs'.indexOf(s[j]) >= 0) {
             type = s[j];
             break;
           }
-          if (s[j] == ".") m = 1;
+          if (s[j] == '.') m = 1;
           else c[m] = c[m] * 10 + parseInt(s[j]);
         }
         r = valstr(x, c[1], type);
-        if (c[0] > 0) r = ("               " + r).slice(-c[0]);
+        if (c[0] > 0) r = ('               ' + r).slice(-c[0]);
         r = s.replace(/%.*[xXdfs]/, r);
         return r;
       }
@@ -236,58 +237,60 @@ if (window.customElements) {
       if (this.drag || this.hover) {
         if (this.valuetip) {
           if (s == null) s = `%s`;
-          else if (s.indexOf("%") < 0) s += ` : %s`;
+          else if (s.indexOf('%') < 0) s += ` : %s`;
         }
         if (s) {
           this.ttframe.innerHTML = numformat(s, this.convValue);
-          this.ttframe.style.display = "inline-block";
-          this.ttframe.style.width = "auto";
-          this.ttframe.style.height = "auto";
-          this.ttframe.style.transition = "opacity 0.5s " + d + "s,visibility 0.5s " + d + "s";
+          this.ttframe.style.display = 'inline-block';
+          this.ttframe.style.width = 'auto';
+          this.ttframe.style.height = 'auto';
+          this.ttframe.style.transition =
+            'opacity 0.5s ' + d + 's,visibility 0.5s ' + d + 's';
           this.ttframe.style.opacity = 0.9;
-          this.ttframe.style.visibility = "visible";
+          this.ttframe.style.visibility = 'visible';
           let rc = this.getBoundingClientRect(),
             rc2 = this.ttframe.getBoundingClientRect(),
             rc3 = document.documentElement.getBoundingClientRect();
-          this.ttframe.style.left = (rc.width - rc2.width) * 0.5 + 1000 + "px";
-          this.ttframe.style.top = -rc2.height - 8 + "px";
+          this.ttframe.style.left = (rc.width - rc2.width) * 0.5 + 1000 + 'px';
+          this.ttframe.style.top = -rc2.height - 8 + 'px';
           return;
         }
       }
-      this.ttframe.style.transition = "opacity 0.1s " + d + "s,visibility 0.1s " + d + "s";
+      this.ttframe.style.transition =
+        'opacity 0.1s ' + d + 's,visibility 0.1s ' + d + 's';
       this.ttframe.style.opacity = 0;
-      this.ttframe.style.visibility = "hidden";
+      this.ttframe.style.visibility = 'hidden';
     }
     setupLabel() {
-      this.labelpos = this.getAttr("labelpos", "bottom 0px");
-      const lpos = this.labelpos.split(" ");
-      let offs = "";
+      this.labelpos = this.getAttr('labelpos', 'bottom 0px');
+      const lpos = this.labelpos.split(' ');
+      let offs = '';
       if (lpos.length == 3) offs = `translate(${lpos[1]},${lpos[2]})`;
-      this.label.style.position = "absolute";
+      this.label.style.position = 'absolute';
       switch (lpos[0]) {
-        case "center":
-          this.label.style.top = "50%";
-          this.label.style.left = "50%";
+        case 'center':
+          this.label.style.top = '50%';
+          this.label.style.left = '50%';
           this.label.style.transform = `translate(-50%,-50%) ${offs}`;
           break;
-        case "right":
-          this.label.style.top = "50%";
-          this.label.style.left = "100%";
+        case 'right':
+          this.label.style.top = '50%';
+          this.label.style.left = '100%';
           this.label.style.transform = `translateY(-50%) ${offs}`;
           break;
-        case "left":
-          this.label.style.top = "50%";
-          this.label.style.left = "0%";
+        case 'left':
+          this.label.style.top = '50%';
+          this.label.style.left = '0%';
           this.label.style.transform = `translate(-100%,-50%) ${offs}`;
           break;
-        case "bottom":
-          this.label.style.top = "100%";
-          this.label.style.left = "50%";
+        case 'bottom':
+          this.label.style.top = '100%';
+          this.label.style.left = '50%';
           this.label.style.transform = `translateX(-50%) ${offs}`;
           break;
-        case "top":
-          this.label.style.top = "0%";
-          this.label.style.left = "50%";
+        case 'top':
+          this.label.style.top = '0%';
+          this.label.style.left = '50%';
           this.label.style.transform = `translate(-50%,-100%) ${offs}`;
           break;
       }
@@ -310,7 +313,12 @@ if (window.customElements) {
       if (this.listeningToThisMidiController(channel, cc)) return;
       this.midiController = { channel: channel, cc: cc };
       console.log(
-        "Added mapping for channel=" + channel + " cc=" + cc + " tooltip=" + this.tooltip,
+        'Added mapping for channel=' +
+          channel +
+          ' cc=' +
+          cc +
+          ' tooltip=' +
+          this.tooltip
       );
     }
     listeningToThisMidiController(channel, cc) {
@@ -321,24 +329,24 @@ if (window.customElements) {
     processMidiEvent(event) {
       const channel = event.data[0] & 0xf;
       const controlNumber = event.data[1];
-      if (this.midiMode == "learn") {
+      if (this.midiMode == 'learn') {
         this.setMidiController(channel, controlNumber);
         webAudioControlsWidgetManager.contextMenuClose();
-        this.midiMode = "normal";
+        this.midiMode = 'normal';
         webAudioControlsWidgetManager.preserveMidiLearn();
       }
       if (this.listeningToThisMidiController(channel, controlNumber)) {
-        if (this.tagName == "WEBAUDIO-SWITCH") {
+        if (this.tagName == 'WEBAUDIO-SWITCH') {
           switch (this.type) {
-            case "toggle":
+            case 'toggle':
               if (event.data[2] >= 64) this.setValue(1 - this.value, true);
               break;
-            case "kick":
+            case 'kick':
               this.setValue(event.data[2] >= 64 ? 1 : 0);
               break;
-            case "radio":
+            case 'radio':
               let els = document.querySelectorAll(
-                "webaudio-switch[type='radio'][group='" + this.group + "']",
+                "webaudio-switch[type='radio'][group='" + this.group + "']"
               );
               for (let i = 0; i < els.length; ++i) {
                 if (els[i] == this) els[i].setValue(1);
@@ -356,14 +364,14 @@ if (window.customElements) {
 
   try {
     customElements.define(
-      "webaudio-knob",
+      'webaudio-knob',
       class WebAudioKnob extends WebAudioControlsWidget {
         constructor() {
           super();
         }
         connectedCallback() {
           let root;
-          if (this.attachShadow) root = this.attachShadow({ mode: "open" });
+          if (this.attachShadow) root = this.attachShadow({ mode: 'open' });
           else root = this;
           root.innerHTML = `<style>
 ${this.basestyle}
@@ -389,10 +397,10 @@ ${this.basestyle}
           this.elem = root.childNodes[2];
           this.ttframe = this.elem.firstChild;
           this.label = this.ttframe.nextSibling;
-          this.enable = this.getAttr("enable", 1);
-          this._src = this.getAttr("src", opt.knobSrc);
-          if (!this.hasOwnProperty("src"))
-            Object.defineProperty(this, "src", {
+          this.enable = this.getAttr('enable', 1);
+          this._src = this.getAttr('src', opt.knobSrc);
+          if (!this.hasOwnProperty('src'))
+            Object.defineProperty(this, 'src', {
               get: () => {
                 return this._src;
               },
@@ -401,9 +409,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._value = this.getAttr("value", 0);
-          if (!this.hasOwnProperty("value"))
-            Object.defineProperty(this, "value", {
+          this._value = this.getAttr('value', 0);
+          if (!this.hasOwnProperty('value'))
+            Object.defineProperty(this, 'value', {
               get: () => {
                 return this._value;
               },
@@ -412,10 +420,10 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this.defvalue = this.getAttr("defvalue", this._value);
-          this._min = this.getAttr("min", 0);
-          if (!this.hasOwnProperty("min"))
-            Object.defineProperty(this, "min", {
+          this.defvalue = this.getAttr('defvalue', this._value);
+          this._min = this.getAttr('min', 0);
+          if (!this.hasOwnProperty('min'))
+            Object.defineProperty(this, 'min', {
               get: () => {
                 return this._min;
               },
@@ -424,9 +432,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._max = this.getAttr("max", 100);
-          if (!this.hasOwnProperty("max"))
-            Object.defineProperty(this, "max", {
+          this._max = this.getAttr('max', 100);
+          if (!this.hasOwnProperty('max'))
+            Object.defineProperty(this, 'max', {
               get: () => {
                 return this._max;
               },
@@ -435,9 +443,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._step = this.getAttr("step", 1);
-          if (!this.hasOwnProperty("step"))
-            Object.defineProperty(this, "step", {
+          this._step = this.getAttr('step', 1);
+          if (!this.hasOwnProperty('step'))
+            Object.defineProperty(this, 'step', {
               get: () => {
                 return this._step;
               },
@@ -446,9 +454,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._sprites = this.getAttr("sprites", opt.knobSprites);
-          if (!this.hasOwnProperty("sprites"))
-            Object.defineProperty(this, "sprites", {
+          this._sprites = this.getAttr('sprites', opt.knobSprites);
+          if (!this.hasOwnProperty('sprites'))
+            Object.defineProperty(this, 'sprites', {
               get: () => {
                 return this._sprites;
               },
@@ -457,9 +465,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._width = this.getAttr("width", null);
-          if (!this.hasOwnProperty("width"))
-            Object.defineProperty(this, "width", {
+          this._width = this.getAttr('width', null);
+          if (!this.hasOwnProperty('width'))
+            Object.defineProperty(this, 'width', {
               get: () => {
                 return this._width;
               },
@@ -468,9 +476,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._height = this.getAttr("height", null);
-          if (!this.hasOwnProperty("height"))
-            Object.defineProperty(this, "height", {
+          this._height = this.getAttr('height', null);
+          if (!this.hasOwnProperty('height'))
+            Object.defineProperty(this, 'height', {
               get: () => {
                 return this._height;
               },
@@ -479,9 +487,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._diameter = this.getAttr("diameter", null);
-          if (!this.hasOwnProperty("diameter"))
-            Object.defineProperty(this, "diameter", {
+          this._diameter = this.getAttr('diameter', null);
+          if (!this.hasOwnProperty('diameter'))
+            Object.defineProperty(this, 'diameter', {
               get: () => {
                 return this._diameter;
               },
@@ -490,9 +498,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._colors = this.getAttr("colors", opt.knobColors);
-          if (!this.hasOwnProperty("colors"))
-            Object.defineProperty(this, "colors", {
+          this._colors = this.getAttr('colors', opt.knobColors);
+          if (!this.hasOwnProperty('colors'))
+            Object.defineProperty(this, 'colors', {
               get: () => {
                 return this._colors;
               },
@@ -501,29 +509,37 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.outline = this.getAttr("outline", opt.outline);
+          this.outline = this.getAttr('outline', opt.outline);
           this.setupLabel();
-          this.log = this.getAttr("log", 0);
-          this.sensitivity = this.getAttr("sensitivity", 1);
-          this.valuetip = this.getAttr("valuetip", opt.valuetip);
-          this.tooltip = this.getAttr("tooltip", null);
-          this.conv = this.getAttr("conv", null);
+          this.log = this.getAttr('log', 0);
+          this.sensitivity = this.getAttr('sensitivity', 1);
+          this.valuetip = this.getAttr('valuetip', opt.valuetip);
+          this.tooltip = this.getAttr('tooltip', null);
+          this.conv = this.getAttr('conv', null);
           if (this.conv) {
             const x = this._value;
-            this.convValue = new Function("x", `return ${this.conv}`)(x);
-            if (typeof this.convValue == "function") this.convValue = this.convValue(x);
+            this.convValue = new Function('x', `return ${this.conv}`)(x);
+            if (typeof this.convValue == 'function')
+              this.convValue = this.convValue(x);
           } else this.convValue = this._value;
-          this.midilearn = this.getAttr("midilearn", opt.midilearn);
-          this.midicc = this.getAttr("midicc", null);
+          this.midilearn = this.getAttr('midilearn', opt.midilearn);
+          this.midicc = this.getAttr('midicc', null);
           this.midiController = {};
-          this.midiMode = "normal";
+          this.midiMode = 'normal';
           if (this.midicc) {
-            let ch = parseInt(this.midicc.substring(0, this.midicc.lastIndexOf("."))) - 1;
-            let cc = parseInt(this.midicc.substring(this.midicc.lastIndexOf(".") + 1));
+            let ch =
+              parseInt(this.midicc.substring(0, this.midicc.lastIndexOf('.'))) -
+              1;
+            let cc = parseInt(
+              this.midicc.substring(this.midicc.lastIndexOf('.') + 1)
+            );
             this.setMidiController(ch, cc);
           }
           if (this.midilearn && this.id) {
-            if (webAudioControlsWidgetManager && webAudioControlsWidgetManager.midiLearnTable) {
+            if (
+              webAudioControlsWidgetManager &&
+              webAudioControlsWidgetManager.midiLearnTable
+            ) {
               const ml = webAudioControlsWidgetManager.midiLearnTable;
               for (let i = 0; i < ml.length; ++i) {
                 if (ml[i].id == this.id) {
@@ -539,17 +555,22 @@ ${this.basestyle}
             for (let n = this.step; n < 1; n *= 10) ++this.digits;
           }
           this._setValue(this._value);
-          this.coltab = ["#e00", "#000", "#000"];
+          this.coltab = ['#e00', '#000', '#000'];
           if (window.webAudioControlsWidgetManager)
             window.webAudioControlsWidgetManager.addWidget(this);
         }
         disconnectedCallback() {}
         setupImage() {
-          this.kw = this._width || this._diameter || opt.knobWidth || opt.knobDiameter;
-          this.kh = this._height || this._diameter || opt.knobHeight || opt.knobDiameter;
+          this.kw =
+            this._width || this._diameter || opt.knobWidth || opt.knobDiameter;
+          this.kh =
+            this._height ||
+            this._diameter ||
+            opt.knobHeight ||
+            opt.knobDiameter;
           if (!this.src) {
-            if (this.colors) this.coltab = this.colors.split(";");
-            if (!this.coltab) this.coltab = ["#e00", "#000", "#000"];
+            if (this.colors) this.coltab = this.colors.split(';');
+            if (!this.coltab) this.coltab = ['#e00', '#000', '#000'];
             let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="6464" preserveAspectRatio="none">
 <defs>
   <filter id="f1">
@@ -575,31 +596,34 @@ ${this.basestyle}
             for (let i = 0; i < 101; ++i) {
               svg += `<use href="#B" y="${64 * i}"/><use href="#K" y="${64 * i}" transform="rotate(${(-135 + (270 * i) / 101).toFixed(2)},32,${64 * i + 32})"/>`;
             }
-            svg += "</svg>";
-            this.elem.style.backgroundImage = "url(data:image/svg+xml;base64," + btoa(svg) + ")";
+            svg += '</svg>';
+            this.elem.style.backgroundImage =
+              'url(data:image/svg+xml;base64,' + btoa(svg) + ')';
             if (this.kw == null) this.kw = 64;
             if (this.kh == null) this.kh = 64;
             this.elem.style.backgroundSize = `${this.kw}px ${this.kh * 101}px`;
-            this.elem.style.width = this.kw + "px";
-            this.elem.style.height = this.kh + "px";
-            this.style.height = this.kh + "px";
+            this.elem.style.width = this.kw + 'px';
+            this.elem.style.height = this.kh + 'px';
+            this.style.height = this.kh + 'px';
             this.fireflag = true;
             this.redraw();
             return;
           } else {
             this.img = new Image();
             this.img.onload = () => {
-              this.elem.style.backgroundImage = "url(" + this.src + ")";
-              if (this._sprites == null) this._sprites = this.img.height / this.img.width - 1;
+              this.elem.style.backgroundImage = 'url(' + this.src + ')';
+              if (this._sprites == null)
+                this._sprites = this.img.height / this.img.width - 1;
               else this._sprites = +this._sprites;
               if (this.kw == null) this.kw = this.img.width;
-              if (this.kh == null) this.kh = this.img.height / (this.sprites + 1);
-              if (!this.sprites) this.elem.style.backgroundSize = "100% 100%";
+              if (this.kh == null)
+                this.kh = this.img.height / (this.sprites + 1);
+              if (!this.sprites) this.elem.style.backgroundSize = '100% 100%';
               else
                 this.elem.style.backgroundSize = `${this.kw}px ${this.kh * (this.sprites + 1)}px`;
-              this.elem.style.width = this.kw + "px";
-              this.elem.style.height = this.kh + "px";
-              this.style.height = this.kh + "px";
+              this.elem.style.width = this.kw + 'px';
+              this.elem.style.height = this.kh + 'px';
+              this.style.height = this.kh + 'px';
               this.redraw();
             };
             this.img.src = this.src;
@@ -617,32 +641,36 @@ ${this.basestyle}
           if (this.value > this.max) {
             this.value = this.max;
           }
-          if (this.log) ratio = Math.log(this.value / this.min) / Math.log(this.max / this.min);
+          if (this.log)
+            ratio =
+              Math.log(this.value / this.min) / Math.log(this.max / this.min);
           else ratio = (this.value - this.min) / (this.max - this.min);
           let style = this.elem.style;
           let sp = this.src ? this.sprites : 100;
           if (sp >= 1) {
             let offset = (sp * ratio) | 0;
-            style.backgroundPosition = "0px " + -offset * this.kh + "px";
-            style.transform = "rotate(0deg)";
+            style.backgroundPosition = '0px ' + -offset * this.kh + 'px';
+            style.transform = 'rotate(0deg)';
           } else {
             let deg = 270 * (ratio - 0.5);
-            style.backgroundPosition = "0px 0px";
-            style.transform = "rotate(" + deg + "deg)";
+            style.backgroundPosition = '0px 0px';
+            style.transform = 'rotate(' + deg + 'deg)';
           }
         }
         _setValue(v) {
-          if (this.step) v = Math.round((v - this.min) / this.step) * this.step + this.min;
+          if (this.step)
+            v = Math.round((v - this.min) / this.step) * this.step + this.min;
           this._value = Math.min(this.max, Math.max(this.min, v));
           if (this._value != this.oldvalue) {
             this.fireflag = true;
             this.oldvalue = this._value;
             if (this.conv) {
               const x = this._value;
-              this.convValue = new Function("x", `return ${this.conv}`)(x);
-              if (typeof this.convValue == "function") this.convValue = this.convValue(x);
+              this.convValue = new Function('x', `return ${this.conv}`)(x);
+              if (typeof this.convValue == 'function')
+                this.convValue = this.convValue(x);
             } else this.convValue = this._value;
-            if (typeof this.convValue == "number") {
+            if (typeof this.convValue == 'number') {
               this.convValue = this.convValue.toFixed(this.digits);
             }
             this.redraw();
@@ -652,16 +680,17 @@ ${this.basestyle}
           return 0;
         }
         setValue(v, f) {
-          if (this._setValue(v) && f) (this.sendEvent("input"), this.sendEvent("change"));
+          if (this._setValue(v) && f)
+            this.sendEvent('input'), this.sendEvent('change');
         }
         keydown(e) {
           let delta = this.step;
           if (delta == 0) delta = 1;
           switch (e.key) {
-            case "ArrowUp":
+            case 'ArrowUp':
               this.setValue(this.value + delta, true);
               break;
-            case "ArrowDown":
+            case 'ArrowDown':
               this.setValue(this.value - delta, true);
               break;
             default:
@@ -673,7 +702,8 @@ ${this.basestyle}
         wheel(e) {
           if (!this.enable) return;
           if (this.log) {
-            let r = Math.log(this.value / this.min) / Math.log(this.max / this.min);
+            let r =
+              Math.log(this.value / this.min) / Math.log(this.max / this.min);
             let d = e.deltaY > 0 ? -0.01 : 0.01;
             if (!e.shiftKey) d *= 5;
             r += d;
@@ -716,9 +746,13 @@ ${this.basestyle}
               this.startPosY = e.pageY;
               this.startVal = this.value;
             }
-            let offset = (this.startPosY - e.pageY - this.startPosX + e.pageX) * this.sensitivity;
+            let offset =
+              (this.startPosY - e.pageY - this.startPosX + e.pageX) *
+              this.sensitivity;
             if (this.log) {
-              let r = Math.log(this.startVal / this.min) / Math.log(this.max / this.min);
+              let r =
+                Math.log(this.startVal / this.min) /
+                Math.log(this.max / this.min);
               r += offset / ((e.shiftKey ? 4 : 1) * 128);
               if (r < 0) r = 0;
               if (r > 1) r = 1;
@@ -727,15 +761,16 @@ ${this.basestyle}
               this._setValue(
                 this.min +
                   (((this.startVal +
-                    ((this.max - this.min) * offset) / ((e.shiftKey ? 4 : 1) * 128) -
+                    ((this.max - this.min) * offset) /
+                      ((e.shiftKey ? 4 : 1) * 128) -
                     this.min) /
                     this.step) |
                     0) *
-                    this.step,
+                    this.step
               );
             }
             if (this.fireflag) {
-              this.sendEvent("input");
+              this.sendEvent('input');
               this.fireflag = false;
             }
             if (e.preventDefault) e.preventDefault();
@@ -745,7 +780,7 @@ ${this.basestyle}
           let pointerup = (ev) => {
             let e = ev;
             if (ev.touches) {
-              for (let i = 0; ;) {
+              for (let i = 0; ; ) {
                 if (ev.changedTouches[i].identifier == this.identifier) {
                   break;
                 }
@@ -755,17 +790,17 @@ ${this.basestyle}
             this.drag = 0;
             this.showtip(0);
             this.startPosX = this.startPosY = null;
-            window.removeEventListener("mousemove", pointermove);
-            window.removeEventListener("touchmove", pointermove, {
+            window.removeEventListener('mousemove', pointermove);
+            window.removeEventListener('touchmove', pointermove, {
               passive: false,
             });
-            window.removeEventListener("mouseup", pointerup);
-            window.removeEventListener("touchend", pointerup);
-            window.removeEventListener("touchcancel", pointerup);
-            document.body.removeEventListener("touchstart", preventScroll, {
+            window.removeEventListener('mouseup', pointerup);
+            window.removeEventListener('touchend', pointerup);
+            window.removeEventListener('touchcancel', pointerup);
+            document.body.removeEventListener('touchstart', preventScroll, {
               passive: false,
             });
-            this.sendEvent("change");
+            this.sendEvent('change');
           };
           let preventScroll = (e) => {
             e.preventDefault();
@@ -775,37 +810,37 @@ ${this.basestyle}
             this.startPosX = e.pageX;
             this.startPosY = e.pageY;
             this.startVal = this.value;
-            window.addEventListener("mousemove", pointermove);
-            window.addEventListener("touchmove", pointermove, {
+            window.addEventListener('mousemove', pointermove);
+            window.addEventListener('touchmove', pointermove, {
               passive: false,
             });
           }
-          window.addEventListener("mouseup", pointerup);
-          window.addEventListener("touchend", pointerup);
-          window.addEventListener("touchcancel", pointerup);
-          document.body.addEventListener("touchstart", preventScroll, {
+          window.addEventListener('mouseup', pointerup);
+          window.addEventListener('touchend', pointerup);
+          window.addEventListener('touchcancel', pointerup);
+          document.body.addEventListener('touchstart', preventScroll, {
             passive: false,
           });
           ev.preventDefault();
           ev.stopPropagation();
           return false;
         }
-      },
+      }
     );
   } catch (error) {
-    console.log("webaudio-knob already defined");
+    console.log('webaudio-knob already defined');
   }
 
   try {
     customElements.define(
-      "webaudio-slider",
+      'webaudio-slider',
       class WebAudioSlider extends WebAudioControlsWidget {
         constructor() {
           super();
         }
         connectedCallback() {
           let root;
-          if (this.attachShadow) root = this.attachShadow({ mode: "open" });
+          if (this.attachShadow) root = this.attachShadow({ mode: 'open' });
           else root = this;
           root.innerHTML = `<style>
 ${this.basestyle}
@@ -839,11 +874,11 @@ ${this.basestyle}
           this.knob = this.elem.firstChild;
           this.ttframe = this.knob.nextSibling;
           this.label = this.ttframe.nextSibling;
-          this.enable = this.getAttr("enable", 1);
-          this.tracking = this.getAttr("tracking", "rel");
-          this._src = this.getAttr("src", opt.sliderSrc);
-          if (!this.hasOwnProperty("src"))
-            Object.defineProperty(this, "src", {
+          this.enable = this.getAttr('enable', 1);
+          this.tracking = this.getAttr('tracking', 'rel');
+          this._src = this.getAttr('src', opt.sliderSrc);
+          if (!this.hasOwnProperty('src'))
+            Object.defineProperty(this, 'src', {
               get: () => {
                 return this._src;
               },
@@ -852,9 +887,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._knobsrc = this.getAttr("knobsrc", opt.sliderKnobSrc);
-          if (!this.hasOwnProperty("knobsrc"))
-            Object.defineProperty(this, "knobsrc", {
+          this._knobsrc = this.getAttr('knobsrc', opt.sliderKnobSrc);
+          if (!this.hasOwnProperty('knobsrc'))
+            Object.defineProperty(this, 'knobsrc', {
               get: () => {
                 return this._knobsrc;
               },
@@ -863,9 +898,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._value = this.getAttr("value", 0);
-          if (!this.hasOwnProperty("value"))
-            Object.defineProperty(this, "value", {
+          this._value = this.getAttr('value', 0);
+          if (!this.hasOwnProperty('value'))
+            Object.defineProperty(this, 'value', {
               get: () => {
                 return this._value;
               },
@@ -874,10 +909,10 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this.defvalue = this.getAttr("defvalue", this._value);
-          this._min = this.getAttr("min", 0);
-          if (!this.hasOwnProperty("min"))
-            Object.defineProperty(this, "min", {
+          this.defvalue = this.getAttr('defvalue', this._value);
+          this._min = this.getAttr('min', 0);
+          if (!this.hasOwnProperty('min'))
+            Object.defineProperty(this, 'min', {
               get: () => {
                 return this._min;
               },
@@ -886,9 +921,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._max = this.getAttr("max", 100);
-          if (!this.hasOwnProperty("max"))
-            Object.defineProperty(this, "max", {
+          this._max = this.getAttr('max', 100);
+          if (!this.hasOwnProperty('max'))
+            Object.defineProperty(this, 'max', {
               get: () => {
                 return this._max;
               },
@@ -897,9 +932,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._step = this.getAttr("step", 1);
-          if (!this.hasOwnProperty("step"))
-            Object.defineProperty(this, "step", {
+          this._step = this.getAttr('step', 1);
+          if (!this.hasOwnProperty('step'))
+            Object.defineProperty(this, 'step', {
               get: () => {
                 return this._step;
               },
@@ -908,9 +943,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._sprites = this.getAttr("sprites", 0);
-          if (!this.hasOwnProperty("sprites"))
-            Object.defineProperty(this, "sprites", {
+          this._sprites = this.getAttr('sprites', 0);
+          if (!this.hasOwnProperty('sprites'))
+            Object.defineProperty(this, 'sprites', {
               get: () => {
                 return this._sprites;
               },
@@ -919,9 +954,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._direction = this.getAttr("direction", null);
-          if (!this.hasOwnProperty("direction"))
-            Object.defineProperty(this, "direction", {
+          this._direction = this.getAttr('direction', null);
+          if (!this.hasOwnProperty('direction'))
+            Object.defineProperty(this, 'direction', {
               get: () => {
                 return this._direction;
               },
@@ -930,10 +965,10 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.log = this.getAttr("log", 0);
-          this._width = this.getAttr("width", opt.sliderWidth);
-          if (!this.hasOwnProperty("width"))
-            Object.defineProperty(this, "width", {
+          this.log = this.getAttr('log', 0);
+          this._width = this.getAttr('width', opt.sliderWidth);
+          if (!this.hasOwnProperty('width'))
+            Object.defineProperty(this, 'width', {
               get: () => {
                 return this._width;
               },
@@ -942,9 +977,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._height = this.getAttr("height", opt.sliderHeight);
-          if (!this.hasOwnProperty("height"))
-            Object.defineProperty(this, "height", {
+          this._height = this.getAttr('height', opt.sliderHeight);
+          if (!this.hasOwnProperty('height'))
+            Object.defineProperty(this, 'height', {
               get: () => {
                 return this._height;
               },
@@ -953,9 +988,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._knobwidth = this.getAttr("knobwidth", opt.sliderKnobWidth);
-          if (!this.hasOwnProperty("knobwidth"))
-            Object.defineProperty(this, "knobwidth", {
+          this._knobwidth = this.getAttr('knobwidth', opt.sliderKnobWidth);
+          if (!this.hasOwnProperty('knobwidth'))
+            Object.defineProperty(this, 'knobwidth', {
               get: () => {
                 return this._knobwidth;
               },
@@ -964,9 +999,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._knobheight = this.getAttr("knobheight", opt.sliderKnobHeight);
-          if (!this.hasOwnProperty("knobheight"))
-            Object.defineProperty(this, "knobheight", {
+          this._knobheight = this.getAttr('knobheight', opt.sliderKnobHeight);
+          if (!this.hasOwnProperty('knobheight'))
+            Object.defineProperty(this, 'knobheight', {
               get: () => {
                 return this._knobheight;
               },
@@ -975,9 +1010,12 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._ditchlength = this.getAttr("ditchlength", opt.sliderDitchlength);
-          if (!this.hasOwnProperty("ditchlength"))
-            Object.defineProperty(this, "ditchlength", {
+          this._ditchlength = this.getAttr(
+            'ditchlength',
+            opt.sliderDitchlength
+          );
+          if (!this.hasOwnProperty('ditchlength'))
+            Object.defineProperty(this, 'ditchlength', {
               get: () => {
                 return this._ditchlength;
               },
@@ -986,9 +1024,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._colors = this.getAttr("colors", opt.sliderColors);
-          if (!this.hasOwnProperty("colors"))
-            Object.defineProperty(this, "colors", {
+          this._colors = this.getAttr('colors', opt.sliderColors);
+          if (!this.hasOwnProperty('colors'))
+            Object.defineProperty(this, 'colors', {
               get: () => {
                 return this._colors;
               },
@@ -997,28 +1035,36 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.outline = this.getAttr("outline", opt.outline);
+          this.outline = this.getAttr('outline', opt.outline);
           this.setupLabel();
-          this.sensitivity = this.getAttr("sensitivity", 1);
-          this.valuetip = this.getAttr("valuetip", opt.valuetip);
-          this.tooltip = this.getAttr("tooltip", null);
-          this.conv = this.getAttr("conv", null);
+          this.sensitivity = this.getAttr('sensitivity', 1);
+          this.valuetip = this.getAttr('valuetip', opt.valuetip);
+          this.tooltip = this.getAttr('tooltip', null);
+          this.conv = this.getAttr('conv', null);
           if (this.conv) {
             const x = this._value;
-            this.convValue = new Function("x", `return ${this.conv}`)(x);
-            if (typeof this.convValue == "function") this.convValue = this.convValue(x);
+            this.convValue = new Function('x', `return ${this.conv}`)(x);
+            if (typeof this.convValue == 'function')
+              this.convValue = this.convValue(x);
           } else this.convValue = this._value;
-          this.midilearn = this.getAttr("midilearn", opt.midilearn);
-          this.midicc = this.getAttr("midicc", null);
+          this.midilearn = this.getAttr('midilearn', opt.midilearn);
+          this.midicc = this.getAttr('midicc', null);
           this.midiController = {};
-          this.midiMode = "normal";
+          this.midiMode = 'normal';
           if (this.midicc) {
-            let ch = parseInt(this.midicc.substring(0, this.midicc.lastIndexOf("."))) - 1;
-            let cc = parseInt(this.midicc.substring(this.midicc.lastIndexOf(".") + 1));
+            let ch =
+              parseInt(this.midicc.substring(0, this.midicc.lastIndexOf('.'))) -
+              1;
+            let cc = parseInt(
+              this.midicc.substring(this.midicc.lastIndexOf('.') + 1)
+            );
             this.setMidiController(ch, cc);
           }
           if (this.midilearn && this.id) {
-            if (webAudioControlsWidgetManager && webAudioControlsWidgetManager.midiLearnTable) {
+            if (
+              webAudioControlsWidgetManager &&
+              webAudioControlsWidgetManager.midiLearnTable
+            ) {
               const ml = webAudioControlsWidgetManager.midiLearnTable;
               for (let i = 0; i < ml.length; ++i) {
                 if (ml[i].id == this.id) {
@@ -1042,21 +1088,21 @@ ${this.basestyle}
           };
         }
         disconnectedCallback() {
-          document.removeEventListener("keydown", this.keydown); // ! KIDDI ADD
-          document.removeEventListener("keyup", this.keyup); // ! KIDDI ADD
+          document.removeEventListener('keydown', this.keydown); // ! KIDDI ADD
+          document.removeEventListener('keyup', this.keyup); // ! KIDDI ADD
         }
         setupImage() {
-          this.coltab = this.colors.split(";");
+          this.coltab = this.colors.split(';');
           this.bodyimg = new Image();
           this.knobimg = new Image();
           this.srcurl = null;
-          if (this.src == null || this.src == "") {
+          if (this.src == null || this.src == '') {
             this.sw = +this._width;
             this.sh = +this.height;
-            if (this._direction == "horz") {
+            if (this._direction == 'horz') {
               if (this._width == null) this.sw = 128;
               if (this._height == null) this.sh = 24;
-            } else if (this._direction == "vert") {
+            } else if (this._direction == 'vert') {
               if (this._width == null) this.sw = 24;
               if (this._height == null) this.sh = 128;
             } else {
@@ -1078,25 +1124,27 @@ ${this.basestyle}
 <rect x="3" y="3" rx="${r}" ry="${r}" width="${this.sw - 6}" height="${this.sh - 6}" fill="${this.coltab[1]}" filter="url(#f1)"/>
 <rect x="1" y="1" rx="${r}" ry="${r}" width="${this.sw - 2}" height="${this.sh - 2}" fill="url(#g1)"/>
 </svg>`;
-            this.srcurl = "data:image/svg+xml;base64," + btoa(svgbody);
+            this.srcurl = 'data:image/svg+xml;base64,' + btoa(svgbody);
           } else {
             this.srcurl = this.src;
           }
           this.bodyimg.onload = () => {
-            if (this.src != "") this.elem.style.backgroundImage = "url(" + this.srcurl + ")";
+            if (this.src != '')
+              this.elem.style.backgroundImage = 'url(' + this.srcurl + ')';
             this.sw = +this._width;
             this.sh = +this._height;
             if (this._width == null) this.sw = this.bodyimg.width;
             if (this._height == null) this.sh = this.bodyimg.height;
             if (this.dr == null) {
-              if (this.sw > this.sh) this.dr = "horz";
-              else this.dr = "vert";
+              if (this.sw > this.sh) this.dr = 'horz';
+              else this.dr = 'vert';
             }
             this.kw = +this._knobwidth;
             this.kh = +this._knobheight;
             if (this._knobsrc == null) {
               if (this._knobwidth == null) this.kw = Math.min(this.sw, this.sh);
-              if (this._knobheight == null) this.kh = Math.min(this.sw, this.sh);
+              if (this._knobheight == null)
+                this.kh = Math.min(this.sw, this.sh);
               const mm = Math.min(this.kw, this.kh) * 0.5;
               const kw2 = Math.max(1, this.kw - 12);
               const kh2 = Math.max(1, this.kh - 12);
@@ -1124,25 +1172,25 @@ ${this.basestyle}
 <rect x="6" y="6" width="${kw2}" height="${kh2}" rx="${mm}" ry="${mm}" fill="url(#g2)" filter="url(#f1)"/>
 <rect x="3" y="3" width="${this.kw - 6}" height="${this.kh - 6}" rx="${mm}" ry="${mm}" fill="url(#g3)"/>
 </svg>`;
-              this.knobsrcurl = "data:image/svg+xml;base64," + btoa(svgknob);
+              this.knobsrcurl = 'data:image/svg+xml;base64,' + btoa(svgknob);
             } else {
               this.knobsrcurl = this.knobsrc;
             }
             this.knobimg.onload = () => {
-              this.knob.style.backgroundImage = "url(" + this.knobsrcurl + ")";
+              this.knob.style.backgroundImage = 'url(' + this.knobsrcurl + ')';
               if (this._knobwidth == null) this.kw = this.knobimg.width;
               if (this._knobheight == null) this.kh = this.knobimg.height;
               this.dlen = this.ditchlength;
               if (this.dlen == null) {
-                if (this.dr == "horz") this.dlen = this.sw - this.kw;
+                if (this.dr == 'horz') this.dlen = this.sw - this.kw;
                 else this.dlen = this.sh - this.kh;
               }
-              this.knob.style.backgroundSize = "100% 100%";
-              this.knob.style.width = this.kw + "px";
-              this.knob.style.height = this.kh + "px";
-              this.elem.style.backgroundSize = "100% 100%";
-              this.elem.style.width = this.sw + "px";
-              this.elem.style.height = this.sh + "px";
+              this.knob.style.backgroundSize = '100% 100%';
+              this.knob.style.width = this.kw + 'px';
+              this.knob.style.height = this.kh + 'px';
+              this.elem.style.backgroundSize = '100% 100%';
+              this.elem.style.width = this.sw + 'px';
+              this.elem.style.height = this.sh + 'px';
               this.redraw();
             };
             this.knobimg.src = this.knobsrcurl;
@@ -1161,17 +1209,23 @@ ${this.basestyle}
           if (this.value > this.max) {
             this.value = this.max;
           }
-          if (this.log) ratio = Math.log(this.value / this.min) / Math.log(this.max / this.min);
+          if (this.log)
+            ratio =
+              Math.log(this.value / this.min) / Math.log(this.max / this.min);
           else ratio = (this.value - this.min) / (this.max - this.min);
           let style = this.knob.style;
-          if (this.dr == "horz") {
-            style.top = (this.sh - this.kh) * 0.5 + "px";
-            style.left = (this.sw - this.kw - this.dlen) * 0.5 + ratio * this.dlen + "px";
+          if (this.dr == 'horz') {
+            style.top = (this.sh - this.kh) * 0.5 + 'px';
+            style.left =
+              (this.sw - this.kw - this.dlen) * 0.5 + ratio * this.dlen + 'px';
             this.sensex = 1;
             this.sensey = 0;
           } else {
-            style.left = (this.sw - this.kw) * 0.5 + "px";
-            style.top = (this.sh - this.kh - this.dlen) * 0.5 + (1 - ratio) * this.dlen + "px";
+            style.left = (this.sw - this.kw) * 0.5 + 'px';
+            style.top =
+              (this.sh - this.kh - this.dlen) * 0.5 +
+              (1 - ratio) * this.dlen +
+              'px';
             this.sensex = 0;
             this.sensey = 1;
           }
@@ -1184,10 +1238,11 @@ ${this.basestyle}
             this.fireflag = true;
             if (this.conv) {
               const x = this._value;
-              this.convValue = new Function("x", `return ${this.conv}`)(x);
-              if (typeof this.convValue == "function") this.convValue = this.convValue(x);
+              this.convValue = new Function('x', `return ${this.conv}`)(x);
+              if (typeof this.convValue == 'function')
+                this.convValue = this.convValue(x);
             } else this.convValue = this._value;
-            if (typeof this.convValue == "number") {
+            if (typeof this.convValue == 'number') {
               this.convValue = this.convValue.toFixed(this.digits);
             }
             this.redraw();
@@ -1197,16 +1252,17 @@ ${this.basestyle}
           return 0;
         }
         setValue(v, f) {
-          if (this._setValue(v) && f) (this.sendEvent("input"), this.sendEvent("change"));
+          if (this._setValue(v) && f)
+            this.sendEvent('input'), this.sendEvent('change');
         }
         keydown(e) {
           let delta = this.step;
           if (delta == 0) delta = 1;
           switch (e.key) {
-            case "ArrowUp":
+            case 'ArrowUp':
               this.setValue(this.value + delta, true);
               break;
-            case "ArrowDown":
+            case 'ArrowDown':
               this.setValue(this.value - delta, true);
               break;
             default:
@@ -1218,7 +1274,8 @@ ${this.basestyle}
         wheel(e) {
           if (!this.enable) return;
           if (this.log) {
-            let r = Math.log(this.value / this.min) / Math.log(this.max / this.min);
+            let r =
+              Math.log(this.value / this.min) / Math.log(this.max / this.min);
             let d = e.deltaY > 0 ? -0.01 : 0.01;
             if (!e.shiftKey) d *= 5;
             r += d;
@@ -1260,17 +1317,17 @@ ${this.basestyle}
               this.startPosY = e.pageY;
               this.startVal = this.value;
             }
-            if (this.tracking == "abs") {
+            if (this.tracking == 'abs') {
               const rc = this.getBoundingClientRect();
               let val;
-              if (this.dr == "horz")
+              if (this.dr == 'horz')
                 val = Math.max(
                   0,
                   Math.min(
                     1,
                     (e.pageX - rc.left - window.pageXOffset - this.kw * 0.5) /
-                      (this.width - this.kw),
-                  ),
+                      (this.width - this.kw)
+                  )
                 );
               else
                 val =
@@ -1280,8 +1337,8 @@ ${this.basestyle}
                     Math.min(
                       1,
                       (e.pageY - rc.top - window.pageYOffset - this.kh * 0.5) /
-                        (this.height - this.kh),
-                    ),
+                        (this.height - this.kh)
+                    )
                   );
               if (this.log) {
                 this._setValue(this.min * Math.pow(this.max / this.min, val));
@@ -1292,7 +1349,9 @@ ${this.basestyle}
                   (this.startPosX - e.pageX) * this.sensex) *
                 this.sensitivity;
               if (this.log) {
-                let r = Math.log(this.startVal / this.min) / Math.log(this.max / this.min);
+                let r =
+                  Math.log(this.startVal / this.min) /
+                  Math.log(this.max / this.min);
                 r += offset / ((e.shiftKey ? 4 : 1) * 128);
                 if (r < 0) r = 0;
                 if (r > 1) r = 1;
@@ -1301,16 +1360,17 @@ ${this.basestyle}
                 this._setValue(
                   this.min +
                     (((this.startVal +
-                      ((this.max - this.min) * offset) / ((e.shiftKey ? 4 : 1) * this.dlen) -
+                      ((this.max - this.min) * offset) /
+                        ((e.shiftKey ? 4 : 1) * this.dlen) -
                       this.min) /
                       this.step) |
                       0) *
-                      this.step,
+                      this.step
                 );
               }
             }
             if (this.fireflag) {
-              this.sendEvent("input");
+              this.sendEvent('input');
               this.fireflag = false;
             }
             if (e.preventDefault) e.preventDefault();
@@ -1320,7 +1380,7 @@ ${this.basestyle}
           let pointerup = (ev) => {
             let e = ev;
             if (ev.touches) {
-              for (let i = 0; ;) {
+              for (let i = 0; ; ) {
                 if (ev.changedTouches[i].identifier == this.identifier) {
                   break;
                 }
@@ -1330,17 +1390,17 @@ ${this.basestyle}
             this.drag = 0;
             this.showtip(0);
             this.startPosX = this.startPosY = null;
-            window.removeEventListener("mousemove", pointermove);
-            window.removeEventListener("touchmove", pointermove, {
+            window.removeEventListener('mousemove', pointermove);
+            window.removeEventListener('touchmove', pointermove, {
               passive: false,
             });
-            window.removeEventListener("mouseup", pointerup);
-            window.removeEventListener("touchend", pointerup);
-            window.removeEventListener("touchcancel", pointerup);
-            document.body.removeEventListener("touchstart", preventScroll, {
+            window.removeEventListener('mouseup', pointerup);
+            window.removeEventListener('touchend', pointerup);
+            window.removeEventListener('touchcancel', pointerup);
+            document.body.removeEventListener('touchstart', preventScroll, {
               passive: false,
             });
-            this.sendEvent("change");
+            this.sendEvent('change');
           };
           let preventScroll = (e) => {
             e.preventDefault();
@@ -1351,38 +1411,38 @@ ${this.basestyle}
             this.startPosX = e.pageX;
             this.startPosY = e.pageY;
             this.startVal = this.value;
-            window.addEventListener("mousemove", pointermove);
-            window.addEventListener("touchmove", pointermove, {
+            window.addEventListener('mousemove', pointermove);
+            window.addEventListener('touchmove', pointermove, {
               passive: false,
             });
             pointermove(ev);
           }
-          window.addEventListener("mouseup", pointerup);
-          window.addEventListener("touchend", pointerup);
-          window.addEventListener("touchcancel", pointerup);
-          document.body.addEventListener("touchstart", preventScroll, {
+          window.addEventListener('mouseup', pointerup);
+          window.addEventListener('touchend', pointerup);
+          window.addEventListener('touchcancel', pointerup);
+          document.body.addEventListener('touchstart', preventScroll, {
             passive: false,
           });
           e.preventDefault();
           e.stopPropagation();
           return false;
         }
-      },
+      }
     );
   } catch (error) {
-    console.log("webaudio-slider already defined");
+    console.log('webaudio-slider already defined');
   }
 
   try {
     customElements.define(
-      "webaudio-switch",
+      'webaudio-switch',
       class WebAudioSwitch extends WebAudioControlsWidget {
         constructor() {
           super();
         }
         connectedCallback() {
           let root;
-          if (this.attachShadow) root = this.attachShadow({ mode: "open" });
+          if (this.attachShadow) root = this.attachShadow({ mode: 'open' });
           else root = this;
           root.innerHTML = `<style>
 ${this.basestyle}
@@ -1414,10 +1474,10 @@ ${this.basestyle}
           this.elem = root.childNodes[2];
           this.ttframe = this.elem.firstChild;
           this.label = this.ttframe.nextSibling;
-          this.enable = this.getAttr("enable", 1);
-          this._src = this.getAttr("src", null);
-          if (!this.hasOwnProperty("src"))
-            Object.defineProperty(this, "src", {
+          this.enable = this.getAttr('enable', 1);
+          this._src = this.getAttr('src', null);
+          if (!this.hasOwnProperty('src'))
+            Object.defineProperty(this, 'src', {
               get: () => {
                 return this._src;
               },
@@ -1426,9 +1486,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._value = this.getAttr("value", 0);
-          if (!this.hasOwnProperty("value"))
-            Object.defineProperty(this, "value", {
+          this._value = this.getAttr('value', 0);
+          if (!this.hasOwnProperty('value'))
+            Object.defineProperty(this, 'value', {
               get: () => {
                 return this._value;
               },
@@ -1437,12 +1497,12 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this.defvalue = this.getAttr("defvalue", this._value);
-          this.type = this.getAttr("type", "toggle");
-          this.group = this.getAttr("group", "");
-          this._width = this.getAttr("width", null);
-          if (!this.hasOwnProperty("width"))
-            Object.defineProperty(this, "width", {
+          this.defvalue = this.getAttr('defvalue', this._value);
+          this.type = this.getAttr('type', 'toggle');
+          this.group = this.getAttr('group', '');
+          this._width = this.getAttr('width', null);
+          if (!this.hasOwnProperty('width'))
+            Object.defineProperty(this, 'width', {
               get: () => {
                 return this._width;
               },
@@ -1451,9 +1511,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._height = this.getAttr("height", null);
-          if (!this.hasOwnProperty("height"))
-            Object.defineProperty(this, "height", {
+          this._height = this.getAttr('height', null);
+          if (!this.hasOwnProperty('height'))
+            Object.defineProperty(this, 'height', {
               get: () => {
                 return this._height;
               },
@@ -1462,9 +1522,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._diameter = this.getAttr("diameter", null);
-          if (!this.hasOwnProperty("diameter"))
-            Object.defineProperty(this, "diameter", {
+          this._diameter = this.getAttr('diameter', null);
+          if (!this.hasOwnProperty('diameter'))
+            Object.defineProperty(this, 'diameter', {
               get: () => {
                 return this._diameter;
               },
@@ -1473,10 +1533,10 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.invert = this.getAttr("invert", 0);
-          this._colors = this.getAttr("colors", opt.switchColors);
-          if (!this.hasOwnProperty("colors"))
-            Object.defineProperty(this, "colors", {
+          this.invert = this.getAttr('invert', 0);
+          this._colors = this.getAttr('colors', opt.switchColors);
+          if (!this.hasOwnProperty('colors'))
+            Object.defineProperty(this, 'colors', {
               get: () => {
                 return this._colors;
               },
@@ -1485,21 +1545,28 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.outline = this.getAttr("outline", opt.outline);
+          this.outline = this.getAttr('outline', opt.outline);
           this.setupLabel();
           this.valuetip = 0;
-          this.tooltip = this.getAttr("tooltip", null);
-          this.midilearn = this.getAttr("midilearn", opt.midilearn);
-          this.midicc = this.getAttr("midicc", null);
+          this.tooltip = this.getAttr('tooltip', null);
+          this.midilearn = this.getAttr('midilearn', opt.midilearn);
+          this.midicc = this.getAttr('midicc', null);
           this.midiController = {};
-          this.midiMode = "normal";
+          this.midiMode = 'normal';
           if (this.midicc) {
-            let ch = parseInt(this.midicc.substring(0, this.midicc.lastIndexOf("."))) - 1;
-            let cc = parseInt(this.midicc.substring(this.midicc.lastIndexOf(".") + 1));
+            let ch =
+              parseInt(this.midicc.substring(0, this.midicc.lastIndexOf('.'))) -
+              1;
+            let cc = parseInt(
+              this.midicc.substring(this.midicc.lastIndexOf('.') + 1)
+            );
             this.setMidiController(ch, cc);
           }
           if (this.midilearn && this.id) {
-            if (webAudioControlsWidgetManager && webAudioControlsWidgetManager.midiLearnTable) {
+            if (
+              webAudioControlsWidgetManager &&
+              webAudioControlsWidgetManager.midiLearnTable
+            ) {
               const ml = webAudioControlsWidgetManager.midiLearnTable;
               for (let i = 0; i < ml.length; ++i) {
                 if (ml[i].id == this.id) {
@@ -1523,12 +1590,20 @@ ${this.basestyle}
         }
         disconnectedCallback() {}
         setupImage() {
-          this.coltab = this.colors.split(";");
-          this.kw = this._width || this._diameter || opt.switchWidth || opt.switchDiameter;
-          this.kh = this._height || this._diameter || opt.switchHeight || opt.switchDiameter;
+          this.coltab = this.colors.split(';');
+          this.kw =
+            this._width ||
+            this._diameter ||
+            opt.switchWidth ||
+            opt.switchDiameter;
+          this.kh =
+            this._height ||
+            this._diameter ||
+            opt.switchHeight ||
+            opt.switchDiameter;
           this.img = new Image();
           this.srcurl = null;
-          if (this.src == null || this.src == "") {
+          if (this.src == null || this.src == '') {
             if (this.kw == null) this.kw = 32;
             if (this.kh == null) this.kh = 32;
             const mm = Math.min(this.kw, this.kh);
@@ -1562,23 +1637,23 @@ ${this.basestyle}
 <circle cx="${kw * 0.5}" cy="${kh * 1.5}" r="${mm * 0.25}" fill="url(#g2)" filter="url(#f1)"/>
 <circle cx="${kw * 0.5}" cy="${kh * 1.5}" r="${mm * 0.25}" fill="url(#g1)"/>
 </svg>`;
-            this.srcurl = "data:image/svg+xml;base64," + btoa(svg);
+            this.srcurl = 'data:image/svg+xml;base64,' + btoa(svg);
           } else this.srcurl = this.src;
           this.img.onload = () => {
             if (this.kw == null) this.kw = this.img.width;
             if (this.kh == null) this.kh = this.img.height * 0.5;
-            this.elem.style.backgroundImage = "url(" + this.srcurl + ")";
-            this.elem.style.backgroundSize = "100% 200%";
-            this.elem.style.width = this.kw + "px";
-            this.elem.style.height = this.kh + "px";
+            this.elem.style.backgroundImage = 'url(' + this.srcurl + ')';
+            this.elem.style.backgroundSize = '100% 200%';
+            this.elem.style.width = this.kw + 'px';
+            this.elem.style.height = this.kh + 'px';
             this.redraw();
           };
           this.img.src = this.srcurl;
         }
         redraw() {
           let style = this.elem.style;
-          if (this.value ^ this.invert) style.backgroundPosition = "0px -100%";
-          else style.backgroundPosition = "0px 0px";
+          if (this.value ^ this.invert) style.backgroundPosition = '0px -100%';
+          else style.backgroundPosition = '0px 0px';
         }
         setValue(v, f) {
           this.value = v;
@@ -1587,8 +1662,8 @@ ${this.basestyle}
             this.redraw();
             this.showtip(0);
             if (f) {
-              this.sendEvent("input");
-              this.sendEvent("change");
+              this.sendEvent('input');
+              this.sendEvent('change');
             }
             this.oldvalue = this.value;
           }
@@ -1613,23 +1688,23 @@ ${this.basestyle}
           let pointerup = (e) => {
             this.drag = 0;
             this.showtip(0);
-            window.removeEventListener("mousemove", pointermove);
-            window.removeEventListener("touchmove", pointermove, {
+            window.removeEventListener('mousemove', pointermove);
+            window.removeEventListener('touchmove', pointermove, {
               passive: false,
             });
-            window.removeEventListener("mouseup", pointerup);
-            window.removeEventListener("touchend", pointerup);
-            window.removeEventListener("touchcancel", pointerup);
-            document.body.removeEventListener("touchstart", preventScroll, {
+            window.removeEventListener('mouseup', pointerup);
+            window.removeEventListener('touchend', pointerup);
+            window.removeEventListener('touchcancel', pointerup);
+            document.body.removeEventListener('touchstart', preventScroll, {
               passive: false,
             });
-            if (this.type == "kick") {
+            if (this.type == 'kick') {
               this.value = 0;
               this.checked = false;
               this.redraw();
-              this.sendEvent("change");
+              this.sendEvent('change');
             }
-            this.sendEvent("click");
+            this.sendEvent('click');
             e.preventDefault();
             e.stopPropagation();
           };
@@ -1637,32 +1712,32 @@ ${this.basestyle}
             e.preventDefault();
           };
           switch (this.type) {
-            case "kick":
+            case 'kick':
               this.setValue(1);
-              this.sendEvent("change");
+              this.sendEvent('change');
               break;
-            case "toggle":
+            case 'toggle':
               if (e.ctrlKey || e.metaKey) this.value = defvalue;
               else this.value = 1 - this.value;
               this.checked = !!this.value;
-              this.sendEvent("change");
+              this.sendEvent('change');
               break;
-            case "radio":
+            case 'radio':
               let els = document.querySelectorAll(
-                "webaudio-switch[type='radio'][group='" + this.group + "']",
+                "webaudio-switch[type='radio'][group='" + this.group + "']"
               );
               for (let i = 0; i < els.length; ++i) {
                 if (els[i] == this) els[i].setValue(1);
                 else els[i].setValue(0);
               }
-              this.sendEvent("change");
+              this.sendEvent('change');
               break;
           }
 
-          window.addEventListener("mouseup", pointerup);
-          window.addEventListener("touchend", pointerup);
-          window.addEventListener("touchcancel", pointerup);
-          document.body.addEventListener("touchstart", preventScroll, {
+          window.addEventListener('mouseup', pointerup);
+          window.addEventListener('touchend', pointerup);
+          window.addEventListener('touchcancel', pointerup);
+          document.body.addEventListener('touchstart', preventScroll, {
             passive: false,
           });
           this.redraw();
@@ -1670,33 +1745,33 @@ ${this.basestyle}
           ev.stopPropagation();
           return false;
         }
-      },
+      }
     );
   } catch (error) {
-    console.log("webaudio-switch already defined");
+    console.log('webaudio-switch already defined');
   }
 
   try {
     customElements.define(
-      "webaudio-param",
+      'webaudio-param',
       class WebAudioParam extends WebAudioControlsWidget {
         constructor() {
           super();
-          this.addEventListener("keydown", this.keydown);
-          this.addEventListener("mousedown", this.pointerdown, {
+          this.addEventListener('keydown', this.keydown);
+          this.addEventListener('mousedown', this.pointerdown, {
             passive: false,
           });
-          this.addEventListener("touchstart", this.pointerdown, {
+          this.addEventListener('touchstart', this.pointerdown, {
             passive: false,
           });
-          this.addEventListener("wheel", this.wheel);
-          this.addEventListener("mouseover", this.pointerover);
-          this.addEventListener("mouseout", this.pointerout);
-          this.addEventListener("contextmenu", this.contextMenu);
+          this.addEventListener('wheel', this.wheel);
+          this.addEventListener('mouseover', this.pointerover);
+          this.addEventListener('mouseout', this.pointerout);
+          this.addEventListener('contextmenu', this.contextMenu);
         }
         connectedCallback() {
           let root;
-          if (this.attachShadow) root = this.attachShadow({ mode: "open" });
+          if (this.attachShadow) root = this.attachShadow({ mode: 'open' });
           else root = this;
           root.innerHTML = `<style>
 ${this.basestyle}
@@ -1728,10 +1803,10 @@ ${this.basestyle}
 `;
           this.elem = root.childNodes[2];
           this.ttframe = root.childNodes[3];
-          this.enable = this.getAttr("enable", 1);
-          this._value = this.getAttr("value", 0);
-          if (!this.hasOwnProperty("value"))
-            Object.defineProperty(this, "value", {
+          this.enable = this.getAttr('enable', 1);
+          this._value = this.getAttr('value', 0);
+          if (!this.hasOwnProperty('value'))
+            Object.defineProperty(this, 'value', {
               get: () => {
                 return this._value;
               },
@@ -1740,10 +1815,10 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this.defvalue = this.getAttr("defvalue", 0);
-          this._fontsize = this.getAttr("fontsize", 9);
-          if (!this.hasOwnProperty("fontsize"))
-            Object.defineProperty(this, "fontsize", {
+          this.defvalue = this.getAttr('defvalue', 0);
+          this._fontsize = this.getAttr('fontsize', 9);
+          if (!this.hasOwnProperty('fontsize'))
+            Object.defineProperty(this, 'fontsize', {
               get: () => {
                 return this._fontsize;
               },
@@ -1752,9 +1827,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._src = this.getAttr("src", opt.paramSrc);
-          if (!this.hasOwnProperty("src"))
-            Object.defineProperty(this, "src", {
+          this._src = this.getAttr('src', opt.paramSrc);
+          if (!this.hasOwnProperty('src'))
+            Object.defineProperty(this, 'src', {
               get: () => {
                 return this._src;
               },
@@ -1763,10 +1838,10 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.link = this.getAttr("link", "");
-          this._width = this.getAttr("width", opt.paramWidth);
-          if (!this.hasOwnProperty("width"))
-            Object.defineProperty(this, "width", {
+          this.link = this.getAttr('link', '');
+          this._width = this.getAttr('width', opt.paramWidth);
+          if (!this.hasOwnProperty('width'))
+            Object.defineProperty(this, 'width', {
               get: () => {
                 return this._width;
               },
@@ -1775,9 +1850,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._height = this.getAttr("height", opt.paramHeight);
-          if (!this.hasOwnProperty("height"))
-            Object.defineProperty(this, "height", {
+          this._height = this.getAttr('height', opt.paramHeight);
+          if (!this.hasOwnProperty('height'))
+            Object.defineProperty(this, 'height', {
               get: () => {
                 return this._height;
               },
@@ -1786,9 +1861,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._colors = this.getAttr("colors", opt.paramColors);
-          if (!this.hasOwnProperty("colors"))
-            Object.defineProperty(this, "colors", {
+          this._colors = this.getAttr('colors', opt.paramColors);
+          if (!this.hasOwnProperty('colors'))
+            Object.defineProperty(this, 'colors', {
               get: () => {
                 return this._colors;
               },
@@ -1797,14 +1872,18 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.outline = this.getAttr("outline", opt.outline);
-          this.rconv = this.getAttr("rconv", null);
+          this.outline = this.getAttr('outline', opt.outline);
+          this.rconv = this.getAttr('rconv', null);
           this.midiController = {};
-          this.midiMode = "normal";
+          this.midiMode = 'normal';
           this.currentLink = null;
           if (this.midicc) {
-            let ch = parseInt(this.midicc.substring(0, this.midicc.lastIndexOf("."))) - 1;
-            let cc = parseInt(this.midicc.substring(this.midicc.lastIndexOf(".") + 1));
+            let ch =
+              parseInt(this.midicc.substring(0, this.midicc.lastIndexOf('.'))) -
+              1;
+            let cc = parseInt(
+              this.midicc.substring(this.midicc.lastIndexOf('.') + 1)
+            );
             this.setMidiController(ch, cc);
           }
           this.setupImage();
@@ -1815,11 +1894,14 @@ ${this.basestyle}
             this.setValue(e.target.convValue.toFixed(e.target.digits));
           }).bind(this);
           this.elem.onchange = () => {
-            if (!this.currentLink.target.conv || (this.currentLink.target.conv && this.rconv)) {
+            if (
+              !this.currentLink.target.conv ||
+              (this.currentLink.target.conv && this.rconv)
+            ) {
               let val = (this.value = this.elem.value);
               if (this.rconv) {
                 let x = +this.elem.value;
-                val = new Function("x", `return ${this.rconv}`)(x);
+                val = new Function('x', `return ${this.rconv}`)(x);
               }
               if (this.currentLink) {
                 this.currentLink.target.setValue(val, true);
@@ -1830,45 +1912,53 @@ ${this.basestyle}
         disconnectedCallback() {}
         setupImage() {
           this.imgloaded = () => {
-            if (this.src != "" && this.src != null) {
-              this.elem.style.backgroundImage = "url(" + this.src + ")";
-              this.elem.style.backgroundSize = "100% 100%";
+            if (this.src != '' && this.src != null) {
+              this.elem.style.backgroundImage = 'url(' + this.src + ')';
+              this.elem.style.backgroundSize = '100% 100%';
               if (this._width == null) this._width = this.img.width;
               if (this._height == null) this._height = this.img.height;
             } else {
               if (this._width == null) this._width = 32;
               if (this._height == null) this._height = 20;
             }
-            this.elem.style.width = this._width + "px";
-            this.elem.style.height = this._height + "px";
-            this.elem.style.fontSize = this.fontsize + "px";
+            this.elem.style.width = this._width + 'px';
+            this.elem.style.height = this._height + 'px';
+            this.elem.style.fontSize = this.fontsize + 'px';
             let l = document.getElementById(this.link);
-            if (l && typeof l.value != "undefined") {
-              if (typeof l.convValue == "number") this.setValue(l.convValue.toFixed(l.digits));
+            if (l && typeof l.value != 'undefined') {
+              if (typeof l.convValue == 'number')
+                this.setValue(l.convValue.toFixed(l.digits));
               else this.setValue(l.convValue);
               if (this.currentLink)
-                this.currentLink.removeEventListener("input", this.currentLink.func);
+                this.currentLink.removeEventListener(
+                  'input',
+                  this.currentLink.func
+                );
               this.currentLink = {
                 target: l,
                 func: (e) => {
-                  if (typeof l.convValue == "number") this.setValue(l.convValue.toFixed(l.digits));
+                  if (typeof l.convValue == 'number')
+                    this.setValue(l.convValue.toFixed(l.digits));
                   else this.setValue(l.convValue);
                 },
               };
-              this.currentLink.target.addEventListener("input", this.currentLink.func);
+              this.currentLink.target.addEventListener(
+                'input',
+                this.currentLink.func
+              );
               //        l.addEventListener("input",(e)=>{this.setValue(l.convValue.toFixed(l.digits))});
             }
             this.redraw();
           };
-          this.coltab = this.colors.split(";");
+          this.coltab = this.colors.split(';');
           this.elem.style.color = this.coltab[0];
           this.img = new Image();
           this.img.onload = this.imgloaded.bind();
           if (this.src == null) {
             this.elem.style.backgroundColor = this.coltab[1];
             this.imgloaded();
-          } else if (this.src == "") {
-            this.elem.style.background = "none";
+          } else if (this.src == '') {
+            this.elem.style.background = 'none';
             this.imgloaded();
           } else {
             this.img.src = this.src;
@@ -1883,8 +1973,8 @@ ${this.basestyle}
             this.redraw();
             this.showtip(0);
             if (f) {
-              let event = document.createEvent("HTMLEvents");
-              event.initEvent("change", false, true);
+              let event = document.createEvent('HTMLEvents');
+              event.initEvent('change', false, true);
               this.dispatchEvent(event);
             }
             this.oldvalue = this.value;
@@ -1900,22 +1990,22 @@ ${this.basestyle}
           this.elem.focus();
           this.redraw();
         }
-      },
+      }
     );
   } catch (error) {
-    console.log("webaudio-param already defined");
+    console.log('webaudio-param already defined');
   }
 
   try {
     customElements.define(
-      "webaudio-keyboard",
+      'webaudio-keyboard',
       class WebAudioKeyboard extends WebAudioControlsWidget {
         constructor() {
           super();
         }
         connectedCallback() {
           let root;
-          if (this.attachShadow) root = this.attachShadow({ mode: "open" });
+          if (this.attachShadow) root = this.attachShadow({ mode: 'open' });
           else root = this;
           root.innerHTML = `<style>
 ${this.basestyle}
@@ -1938,12 +2028,12 @@ ${this.basestyle}
 `;
           this.elem = this.cv = root.childNodes[2];
           this.ttframe = root.childNodes[3];
-          this.ctx = this.cv.getContext("2d");
+          this.ctx = this.cv.getContext('2d');
           this._values = [];
-          this.enable = this.getAttr("enable", 1);
-          this._width = this.getAttr("width", 480);
-          if (!this.hasOwnProperty("width"))
-            Object.defineProperty(this, "width", {
+          this.enable = this.getAttr('enable', 1);
+          this._width = this.getAttr('width', 480);
+          if (!this.hasOwnProperty('width'))
+            Object.defineProperty(this, 'width', {
               get: () => {
                 return this._width;
               },
@@ -1952,9 +2042,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._height = this.getAttr("height", 128);
-          if (!this.hasOwnProperty("height"))
-            Object.defineProperty(this, "height", {
+          this._height = this.getAttr('height', 128);
+          if (!this.hasOwnProperty('height'))
+            Object.defineProperty(this, 'height', {
               get: () => {
                 return this._height;
               },
@@ -1963,9 +2053,9 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._min = this.getAttr("min", 0);
-          if (!this.hasOwnProperty("min"))
-            Object.defineProperty(this, "min", {
+          this._min = this.getAttr('min', 0);
+          if (!this.hasOwnProperty('min'))
+            Object.defineProperty(this, 'min', {
               get: () => {
                 return this._min;
               },
@@ -1974,9 +2064,9 @@ ${this.basestyle}
                 this.redraw();
               },
             });
-          this._keys = this.getAttr("keys", 25);
-          if (!this.hasOwnProperty("keys"))
-            Object.defineProperty(this, "keys", {
+          this._keys = this.getAttr('keys', 25);
+          if (!this.hasOwnProperty('keys'))
+            Object.defineProperty(this, 'keys', {
               get: () => {
                 return this._keys;
               },
@@ -1985,9 +2075,12 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this._colors = this.getAttr("colors", "#222;#eee;#ccc;#333;#000;#e88;#c44;#c33;#800");
-          if (!this.hasOwnProperty("colors"))
-            Object.defineProperty(this, "colors", {
+          this._colors = this.getAttr(
+            'colors',
+            '#222;#eee;#ccc;#333;#000;#e88;#c44;#c33;#800'
+          );
+          if (!this.hasOwnProperty('colors'))
+            Object.defineProperty(this, 'colors', {
               get: () => {
                 return this._colors;
               },
@@ -1996,21 +2089,27 @@ ${this.basestyle}
                 this.setupImage();
               },
             });
-          this.outline = this.getAttr("outline", opt.outline);
-          this.midilearn = this.getAttr("midilearn", 0);
-          this.midicc = this.getAttr("midicc", null);
+          this.outline = this.getAttr('outline', opt.outline);
+          this.midilearn = this.getAttr('midilearn', 0);
+          this.midicc = this.getAttr('midicc', null);
           this.press = 0;
           this.keycodes1 = [
-            90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, 188, 76, 190, 187, 191, 226,
+            90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, 188, 76, 190, 187,
+            191, 226,
           ];
           this.keycodes2 = [
-            81, 50, 87, 51, 69, 82, 53, 84, 54, 89, 55, 85, 73, 57, 79, 48, 80, 192, 222, 219,
+            81, 50, 87, 51, 69, 82, 53, 84, 54, 89, 55, 85, 73, 57, 79, 48, 80,
+            192, 222, 219,
           ];
           this.midiController = {};
-          this.midiMode = "normal";
+          this.midiMode = 'normal';
           if (this.midicc) {
-            let ch = parseInt(this.midicc.substring(0, this.midicc.lastIndexOf("."))) - 1;
-            let cc = parseInt(this.midicc.substring(this.midicc.lastIndexOf(".") + 1));
+            let ch =
+              parseInt(this.midicc.substring(0, this.midicc.lastIndexOf('.'))) -
+              1;
+            let cc = parseInt(
+              this.midicc.substring(this.midicc.lastIndexOf('.') + 1)
+            );
             this.setMidiController(ch, cc);
           }
           this.setupImage();
@@ -2023,8 +2122,8 @@ ${this.basestyle}
         }
         disconnectedCallback() {}
         setupImage() {
-          this.cv.style.width = this.width + "px";
-          this.cv.style.height = this.height + "px";
+          this.cv.style.width = this.width + 'px';
+          this.cv.style.height = this.height + 'px';
           this.bheight = this.height * 0.55;
           this.kp = [
             0,
@@ -2056,13 +2155,13 @@ ${this.basestyle}
             (7 * 11) / 12 - 6,
           ];
           this.kn = [0, 2, 4, 5, 7, 9, 11];
-          this.coltab = this.colors.split(";");
+          this.coltab = this.colors.split(';');
           this.cv.width = this.width;
           this.cv.height = this.height;
-          this.cv.style.width = this.width + "px";
-          this.cv.style.height = this.height + "px";
-          this.style.height = this.height + "px";
-          this.cv.style.outline = this.outline ? "" : "none";
+          this.cv.style.width = this.width + 'px';
+          this.cv.style.height = this.height + 'px';
+          this.style.height = this.height + 'px';
+          this.cv.style.outline = this.outline ? '' : 'none';
           this.bheight = this.height * 0.55;
           this.max = this.min + this.keys - 1;
           this.dispvalues = [];
@@ -2110,7 +2209,7 @@ ${this.basestyle}
                   this.height - 2,
                   r,
                   this.coltab[5],
-                  this.coltab[6],
+                  this.coltab[6]
                 );
               else
                 rrect(
@@ -2121,24 +2220,47 @@ ${this.basestyle}
                   this.height - 2,
                   r,
                   this.coltab[1],
-                  this.coltab[2],
+                  this.coltab[2]
                 );
             }
           }
           r = Math.min(8, this.bwidth * 0.3);
           for (let i = this.min; i < this.max; ++i) {
             if (this.kf[i % 12]) {
-              let x = this.wwidth * this.ko[this.min % 12] + this.bwidth * (i - this.min) + 1;
+              let x =
+                this.wwidth * this.ko[this.min % 12] +
+                this.bwidth * (i - this.min) +
+                1;
               if (this.dispvalues.indexOf(i) >= 0)
-                rrect(this.ctx, x, 1, this.bwidth, h2, r, this.coltab[7], this.coltab[8]);
-              else rrect(this.ctx, x, 1, this.bwidth, h2, r, this.coltab[3], this.coltab[4]);
+                rrect(
+                  this.ctx,
+                  x,
+                  1,
+                  this.bwidth,
+                  h2,
+                  r,
+                  this.coltab[7],
+                  this.coltab[8]
+                );
+              else
+                rrect(
+                  this.ctx,
+                  x,
+                  1,
+                  this.bwidth,
+                  h2,
+                  r,
+                  this.coltab[3],
+                  this.coltab[4]
+                );
               this.ctx.strokeStyle = this.coltab[0];
               this.ctx.stroke();
             }
           }
         }
         _setValue(v) {
-          if (this.step) v = Math.round((v - this.min) / this.step) * this.step + this.min;
+          if (this.step)
+            v = Math.round((v - this.min) / this.step) * this.step + this.min;
           this._value = Math.min(this.max, Math.max(this.min, v));
           if (this._value != this.oldvalue) {
             this.oldvalue = this._value;
@@ -2149,7 +2271,8 @@ ${this.basestyle}
           return 0;
         }
         setValue(v, f) {
-          if (this._setValue(v) && f) (this.sendEvent("input"), this.sendEvent("change"));
+          if (this._setValue(v) && f)
+            this.sendEvent('input'), this.sendEvent('change');
         }
         wheel(e) {}
         keydown(e) {
@@ -2210,7 +2333,11 @@ ${this.basestyle}
                   k = (px / this.wwidth) | 0;
                   ko = this.kp[this.min % 12];
                   k += ko;
-                  k = this.min + ((k / 7) | 0) * 12 + this.kn[k % 7] - this.kn[ko % 7];
+                  k =
+                    this.min +
+                    ((k / 7) | 0) * 12 +
+                    this.kn[k % 7] -
+                    this.kn[ko % 7];
                 }
                 if (k >= this.min && k <= this.max) v.push(k);
               }
@@ -2228,14 +2355,14 @@ ${this.basestyle}
               pointermove(ev);
               this.sendevent();
               if (this.press == 0) {
-                window.removeEventListener("mousemove", pointermove);
-                window.removeEventListener("touchmove", pointermove, {
+                window.removeEventListener('mousemove', pointermove);
+                window.removeEventListener('touchmove', pointermove, {
                   passive: false,
                 });
-                window.removeEventListener("mouseup", pointerup);
-                window.removeEventListener("touchend", pointerup);
-                window.removeEventListener("touchcancel", pointerup);
-                document.body.removeEventListener("touchstart", preventScroll, {
+                window.removeEventListener('mouseup', pointerup);
+                window.removeEventListener('touchend', pointerup);
+                window.removeEventListener('touchcancel', pointerup);
+                document.body.removeEventListener('touchstart', preventScroll, {
                   passive: false,
                 });
               }
@@ -2247,12 +2374,12 @@ ${this.basestyle}
           let preventScroll = (ev) => {
             ev.preventDefault();
           };
-          window.addEventListener("mousemove", pointermove);
-          window.addEventListener("touchmove", pointermove, { passive: false });
-          window.addEventListener("mouseup", pointerup);
-          window.addEventListener("touchend", pointerup);
-          window.addEventListener("touchcancel", pointerup);
-          document.body.addEventListener("touchstart", preventScroll, {
+          window.addEventListener('mousemove', pointermove);
+          window.addEventListener('touchmove', pointermove, { passive: false });
+          window.addEventListener('mouseup', pointerup);
+          window.addEventListener('touchend', pointerup);
+          window.addEventListener('touchcancel', pointerup);
+          document.body.addEventListener('touchstart', preventScroll, {
             passive: false,
           });
           pointermove(ev);
@@ -2260,25 +2387,27 @@ ${this.basestyle}
           ev.stopPropagation();
         }
         sendEventFromKey(s, k) {
-          let ev = document.createEvent("HTMLEvents");
-          ev.initEvent("keyboard", true, true); // !!!! KIDDI
+          let ev = document.createEvent('HTMLEvents');
+          ev.initEvent('keyboard', true, true); // !!!! KIDDI
           ev.note = [s, k];
           this.dispatchEvent(ev);
         }
         sendevent() {
           let notes = [];
           for (let i = 0, j = this.valuesold.length; i < j; ++i) {
-            if (this.values.indexOf(this.valuesold[i]) < 0) notes.push([0, this.valuesold[i]]);
+            if (this.values.indexOf(this.valuesold[i]) < 0)
+              notes.push([0, this.valuesold[i]]);
           }
           for (let i = 0, j = this.values.length; i < j; ++i) {
-            if (this.valuesold.indexOf(this.values[i]) < 0) notes.push([1, this.values[i]]);
+            if (this.valuesold.indexOf(this.values[i]) < 0)
+              notes.push([1, this.values[i]]);
           }
           if (notes.length) {
             this.valuesold = this.values;
             for (let i = 0; i < notes.length; ++i) {
               this.setdispvalues(notes[i][0], notes[i][1]);
-              let ev = document.createEvent("HTMLEvents");
-              ev.initEvent("pointer", true, true); // !!!! KIDDI
+              let ev = document.createEvent('HTMLEvents');
+              ev.initEvent('pointer', true, true); // !!!! KIDDI
               ev.note = notes[i];
               this.dispatchEvent(ev);
             }
@@ -2303,10 +2432,10 @@ ${this.basestyle}
             this.redraw();
           }
         }
-      },
+      }
     );
   } catch (error) {
-    console.log("webaudio-keyboard already defined");
+    console.log('webaudio-keyboard already defined');
   }
 
   class WebAudioControlsWidgetManager {
@@ -2316,7 +2445,9 @@ ${this.basestyle}
       this.listOfExternalMidiListeners = [];
       this.updateWidgets();
       if (opt.preserveMidiLearn)
-        this.midiLearnTable = JSON.parse(localStorage.getItem("WebAudioControlsMidiLearn"));
+        this.midiLearnTable = JSON.parse(
+          localStorage.getItem('WebAudioControlsMidiLearn')
+        );
       else this.midiLearnTable = null;
       this.initWebAudioControls();
     }
@@ -2330,24 +2461,35 @@ ${this.basestyle}
       if (navigator.requestMIDIAccess) {
         navigator.requestMIDIAccess().then(
           (ma) => {
-            ((this.midiAccess = ma), this.enableInputs());
+            (this.midiAccess = ma), this.enableInputs();
           },
           (err) => {
-            console.log("MIDI not initialized - error encountered:" + err.code);
-          },
+            console.log('MIDI not initialized - error encountered:' + err.code);
+          }
         );
       }
     }
     enableInputs() {
       let inputs = this.midiAccess.inputs.values();
-      console.log("Found " + this.midiAccess.inputs.size + " MIDI input(s)");
-      for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
-        console.log("Connected input: " + input.value.name);
+      console.log('Found ' + this.midiAccess.inputs.size + ' MIDI input(s)');
+      for (
+        let input = inputs.next();
+        input && !input.done;
+        input = inputs.next()
+      ) {
+        console.log('Connected input: ' + input.value.name);
         input.value.onmidimessage = this.handleMIDIMessage.bind(this);
       }
     }
     midiConnectionStateChange(e) {
-      console.log("connection: " + e.port.name + " " + e.port.connection + " " + e.port.state);
+      console.log(
+        'connection: ' +
+          e.port.name +
+          ' ' +
+          e.port.connection +
+          ' ' +
+          e.port.state
+      );
       enableInputs();
     }
 
@@ -2379,33 +2521,40 @@ ${this.basestyle}
     }
     contextMenuOpen(e, knob) {
       if (!this.midiAccess) return;
-      let menu = document.getElementById("webaudioctrl-context-menu");
-      menu.style.left = e.pageX + "px";
-      menu.style.top = e.pageY + "px";
+      let menu = document.getElementById('webaudioctrl-context-menu');
+      menu.style.left = e.pageX + 'px';
+      menu.style.top = e.pageY + 'px';
       menu.knob = knob;
-      menu.classList.add("active");
+      menu.classList.add('active');
       menu.knob.focus();
-      menu.knob.addEventListener("keydown", this.contextMenuCloseByKey.bind(this));
+      menu.knob.addEventListener(
+        'keydown',
+        this.contextMenuCloseByKey.bind(this)
+      );
     }
     contextMenuCloseByKey(e) {
       if (e.keyCode == 27) this.contextMenuClose();
     }
     contextMenuClose() {
-      let menu = document.getElementById("webaudioctrl-context-menu");
-      menu.knob.removeEventListener("keydown", this.contextMenuCloseByKey);
-      menu.classList.remove("active");
-      let menuItemLearn = document.getElementById("webaudioctrl-context-menu-learn");
-      menuItemLearn.innerHTML = "Learn";
-      menu.knob.midiMode = "normal";
+      let menu = document.getElementById('webaudioctrl-context-menu');
+      menu.knob.removeEventListener('keydown', this.contextMenuCloseByKey);
+      menu.classList.remove('active');
+      let menuItemLearn = document.getElementById(
+        'webaudioctrl-context-menu-learn'
+      );
+      menuItemLearn.innerHTML = 'Learn';
+      menu.knob.midiMode = 'normal';
     }
     contextMenuLearn() {
-      let menu = document.getElementById("webaudioctrl-context-menu");
-      let menuItemLearn = document.getElementById("webaudioctrl-context-menu-learn");
-      menuItemLearn.innerHTML = "Listening...";
-      menu.knob.midiMode = "learn";
+      let menu = document.getElementById('webaudioctrl-context-menu');
+      let menuItemLearn = document.getElementById(
+        'webaudioctrl-context-menu-learn'
+      );
+      menuItemLearn.innerHTML = 'Listening...';
+      menu.knob.midiMode = 'learn';
     }
     contextMenuClear(e) {
-      let menu = document.getElementById("webaudioctrl-context-menu");
+      let menu = document.getElementById('webaudioctrl-context-menu');
       menu.knob.midiController = {};
       this.contextMenuClose();
     }
@@ -2416,7 +2565,7 @@ ${this.basestyle}
         if (w.id) v.push({ id: w.id, cc: w.midiController });
       }
       const s = JSON.stringify(v);
-      localStorage.setItem("WebAudioControlsMidiLearn", s);
+      localStorage.setItem('WebAudioControlsMidiLearn', s);
     }
   }
   if (window.UseWebAudioControlsMidi || opt.useMidi)

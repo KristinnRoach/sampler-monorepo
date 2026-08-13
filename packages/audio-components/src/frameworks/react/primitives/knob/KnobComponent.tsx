@@ -1,16 +1,16 @@
 // src/frameworks/react/primitives/knob/KnobComponent.tsx
 /** @jsx React.createElement */
 /** @jsxRuntime classic */
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 import {
   KnobElement,
   KnobConfig,
   KnobChangeEventDetail,
   createKnobElement,
-} from "../../../../elements/primitives/KnobElement";
+} from '../../../../elements/primitives/KnobElement';
 
-import { KnobPresetProps, KnobPresetKey } from "../../../shared/KnobPresets";
+import { KnobPresetProps, KnobPresetKey } from '../../../shared/KnobPresets';
 
 export interface KnobComponentProps extends Partial<KnobConfig> {
   preset?: KnobPresetKey;
@@ -46,7 +46,9 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
   (props, ref): React.ReactElement => {
     const containerRef = useRef<HTMLDivElement>(null);
     const knobInstanceRef = useRef<KnobElement | null>(null);
-    const [currentValue, setCurrentValue] = useState(() => props.value ?? props.defaultValue ?? 0);
+    const [currentValue, setCurrentValue] = useState(
+      () => props.value ?? props.defaultValue ?? 0
+    );
 
     // Merge defaults, preset config, and props (props override preset and defaults)
     const merged = React.useMemo(
@@ -56,7 +58,7 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
         ...(props.preset ? KnobPresetProps[props.preset] : {}),
         ...props,
       }),
-      [props],
+      [props]
     );
 
     // Create knob instance once on mount
@@ -83,7 +85,7 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
 
       // Apply knobClassName if provided
       if (props.knobClassName) {
-        knobInstance.classList.add(...props.knobClassName.split(" "));
+        knobInstance.classList.add(...props.knobClassName.split(' '));
       }
 
       // Create event handler inside useEffect to avoid stale closures
@@ -92,10 +94,13 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
         props.onChange?.(e.detail);
       };
 
-      knobInstance.addEventListener("knob-change", handleChange as EventListener);
+      knobInstance.addEventListener(
+        'knob-change',
+        handleChange as EventListener
+      );
 
       // Handle ref forwarding
-      if (typeof ref === "function") {
+      if (typeof ref === 'function') {
         ref(knobInstance);
       } else if (ref) {
         (ref as React.MutableRefObject<KnobElement>).current = knobInstance;
@@ -107,11 +112,14 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
       knobInstance.setValue(initialValue);
 
       return () => {
-        knobInstance.removeEventListener("knob-change", handleChange as EventListener);
+        knobInstance.removeEventListener(
+          'knob-change',
+          handleChange as EventListener
+        );
 
         // Clean up the DOM by removing all children from the container
         if (containerRef.current) {
-          containerRef.current.innerHTML = "";
+          containerRef.current.innerHTML = '';
         }
 
         knobInstanceRef.current = null;
@@ -120,7 +128,11 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
 
     // Update value when props.value changes (controlled component)
     useEffect(() => {
-      if (knobInstanceRef.current && props.value !== undefined && props.value !== currentValue) {
+      if (
+        knobInstanceRef.current &&
+        props.value !== undefined &&
+        props.value !== currentValue
+      ) {
         knobInstanceRef.current.setValue(props.value);
         setCurrentValue(props.value);
       }
@@ -128,28 +140,32 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
 
     // Default label styles
     const defaultLabelStyle: React.CSSProperties = {
-      textAlign: "center",
-      marginBottom: "4px",
+      textAlign: 'center',
+      marginBottom: '4px',
     };
 
     // Merge default label styles with user-provided labelStyle
     const combinedLabelStyle: React.CSSProperties = {
       ...defaultLabelStyle,
-      ...(merged.labelStyle && typeof merged.labelStyle === "object" ? merged.labelStyle : {}),
+      ...(merged.labelStyle && typeof merged.labelStyle === 'object'
+        ? merged.labelStyle
+        : {}),
     };
 
     // Default value styles
     const defaultValueStyle: React.CSSProperties = {
-      fontSize: "10px",
-      textAlign: "center",
-      color: "#999",
-      marginTop: "4px",
+      fontSize: '10px',
+      textAlign: 'center',
+      color: '#999',
+      marginTop: '4px',
     };
 
     // Merge default value styles with user-provided valueStyle
     const combinedValueStyle: React.CSSProperties = {
       ...defaultValueStyle,
-      ...(merged.valueStyle && typeof merged.valueStyle === "object" ? merged.valueStyle : {}),
+      ...(merged.valueStyle && typeof merged.valueStyle === 'object'
+        ? merged.valueStyle
+        : {}),
     };
 
     // Default formatter if none provided
@@ -157,7 +173,7 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
 
     // Simple render without label or value display
     if (!merged.label && !merged.displayValue) {
-      return React.createElement("div", {
+      return React.createElement('div', {
         ref: containerRef,
         title: merged.title,
       });
@@ -165,42 +181,42 @@ export const KnobComponent = React.forwardRef<KnobElement, KnobComponentProps>(
 
     // Full render with label and/or value display
     return React.createElement(
-      "div",
+      'div',
       {
-        className: merged.className || "knob-container",
-        style: typeof merged.style === "string" ? undefined : merged.style,
+        className: merged.className || 'knob-container',
+        style: typeof merged.style === 'string' ? undefined : merged.style,
         title: merged.title,
       },
       [
         merged.label &&
           React.createElement(
-            "div",
+            'div',
             {
-              key: "label",
-              className: merged.labelClassName || "knob-label",
+              key: 'label',
+              className: merged.labelClassName || 'knob-label',
               style: combinedLabelStyle,
             },
-            merged.label,
+            merged.label
           ),
-        React.createElement("div", {
-          key: "knob",
+        React.createElement('div', {
+          key: 'knob',
           ref: containerRef,
         }),
         merged.displayValue &&
           React.createElement(
-            "div",
+            'div',
             {
-              key: "value",
-              className: merged.valueClassName || "knob-value",
+              key: 'value',
+              className: merged.valueClassName || 'knob-value',
               style: combinedValueStyle,
             },
-            formatter(currentValue),
+            formatter(currentValue)
           ),
-      ].filter(Boolean),
+      ].filter(Boolean)
     );
-  },
+  }
 );
 
-KnobComponent.displayName = "KnobComponent";
+KnobComponent.displayName = 'KnobComponent';
 
 export default KnobComponent;

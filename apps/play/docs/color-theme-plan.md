@@ -101,7 +101,7 @@
   /* ... more tokens */
 }
 
-[data-theme="green"][data-mode="dark"] {
+[data-theme='green'][data-mode='dark'] {
   --palette-primary: #357d3f;
   --palette-background: #c0c44fa1;
   /* ... */
@@ -111,8 +111,8 @@
 ### Theme Management
 
 ```typescript
-type ColorPalette = "green" | "blue" | "warm" | "mono";
-type ThemeMode = "light" | "dark" | "auto";
+type ColorPalette = 'green' | 'blue' | 'warm' | 'mono';
+type ThemeMode = 'light' | 'dark' | 'auto';
 
 interface ThemeStore {
   palette: ColorPalette;

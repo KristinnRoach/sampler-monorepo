@@ -76,7 +76,9 @@
 
     <div class="value-display" id="valueDisplay">0</div>
 
-    <div class="info">Drag to rotate • Values: 0-100 • Smooth interpolation</div>
+    <div class="info">
+      Drag to rotate • Values: 0-100 • Smooth interpolation
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js"></script>
@@ -88,7 +90,7 @@
       class MinimalKnob {
         constructor(element, options = {}) {
           this.element = element;
-          this.valueDisplay = document.getElementById("valueDisplay");
+          this.valueDisplay = document.getElementById('valueDisplay');
 
           // Configuration
           this.minValue = options.minValue || 0;
@@ -109,14 +111,14 @@
             this.minRotation,
             this.maxRotation,
             this.minValue,
-            this.maxValue,
+            this.maxValue
           );
 
           this.valueToRotation = gsap.utils.mapRange(
             this.minValue,
             this.maxValue,
             this.minRotation,
-            this.maxRotation,
+            this.maxRotation
           );
 
           // Set initial rotation (start at minimum)
@@ -124,7 +126,7 @@
 
           // Create draggable
           this.draggable = Draggable.create(this.element, {
-            type: "rotation",
+            type: 'rotation',
             bounds: {
               minRotation: this.minRotation,
               maxRotation: this.maxRotation,
@@ -142,7 +144,7 @@
           this.currentRotation = gsap.utils.clamp(
             this.minRotation,
             this.maxRotation,
-            this.draggable.rotation,
+            this.draggable.rotation
           );
 
           // Convert rotation to value and snap
@@ -158,24 +160,28 @@
 
           // Optional: Trigger custom event for external use
           this.element.dispatchEvent(
-            new CustomEvent("knobChange", {
+            new CustomEvent('knobChange', {
               detail: {
                 value: this.currentValue,
                 rotation: this.currentRotation,
               },
-            }),
+            })
           );
         }
 
         // Public method to set value programmatically
         setValue(value) {
-          this.currentValue = gsap.utils.clamp(this.minValue, this.maxValue, value);
+          this.currentValue = gsap.utils.clamp(
+            this.minValue,
+            this.maxValue,
+            value
+          );
           this.currentRotation = this.valueToRotation(this.currentValue);
 
           gsap.to(this.element, {
             rotation: this.currentRotation,
             duration: 0.3,
-            ease: "power2.out",
+            ease: 'power2.out',
           });
 
           this.updateValue();
@@ -187,7 +193,7 @@
       }
 
       // Initialize the knob
-      const knob = new MinimalKnob(document.getElementById("knob"), {
+      const knob = new MinimalKnob(document.getElementById('knob'), {
         minValue: 0,
         maxValue: 100,
         minRotation: -135, // Start at -135 degrees
@@ -196,8 +202,8 @@
       });
 
       // Example: Listen for value changes
-      document.getElementById("knob").addEventListener("knobChange", (e) => {
-        console.log("Knob value:", e.detail.value);
+      document.getElementById('knob').addEventListener('knobChange', (e) => {
+        console.log('Knob value:', e.detail.value);
 
         // Example: Use the value to control something else
         // document.body.style.hue = `hue-rotate(${e.detail.value * 3.6}deg)`;

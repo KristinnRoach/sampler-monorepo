@@ -1,10 +1,10 @@
-import { onMount } from "solid-js";
-import { OscilloscopeElement } from "../../elements/OscilloscopeElement";
+import { onMount } from 'solid-js';
+import { OscilloscopeElement } from '../../elements/OscilloscopeElement';
 
-declare module "solid-js" {
+declare module 'solid-js' {
   namespace JSX {
     interface IntrinsicElements {
-      "oscilloscope-element": any;
+      'oscilloscope-element': any;
     }
   }
 }

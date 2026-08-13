@@ -7,11 +7,11 @@ if (window.customElements) {
   class WebAudioControlsWidget extends HTMLElement {
     constructor() {
       super();
-      this.addEventListener("mousedown", this.pointerdown, { passive: false });
-      this.addEventListener("touchstart", this.pointerdown, { passive: false });
-      this.addEventListener("wheel", this.wheel, { passive: false });
-      this.addEventListener("mouseover", this.pointerover);
-      this.addEventListener("mouseout", this.pointerout);
+      this.addEventListener('mousedown', this.pointerdown, { passive: false });
+      this.addEventListener('touchstart', this.pointerdown, { passive: false });
+      this.addEventListener('wheel', this.wheel, { passive: false });
+      this.addEventListener('mouseover', this.pointerover);
+      this.addEventListener('mouseout', this.pointerout);
       this.hover = this.drag = 0;
 
       this.basestyle = `
@@ -35,7 +35,7 @@ if (window.customElements) {
     }
 
     sendEvent(ev) {
-      let event = document.createEvent("HTMLEvents");
+      let event = document.createEvent('HTMLEvents');
       event.initEvent(ev, false, true);
       this.dispatchEvent(event);
     }
@@ -44,8 +44,8 @@ if (window.customElements) {
       let v = this.getAttribute(n);
       if (v == null) return def;
       switch (typeof def) {
-        case "number":
-          if (v == "true") return 1;
+        case 'number':
+          if (v == 'true') return 1;
           v = +v;
           if (isNaN(v)) return 0;
           return v;
@@ -57,7 +57,7 @@ if (window.customElements) {
       // Simplified tooltip functionality
       if (this.ttframe) {
         this.ttframe.style.opacity = 0;
-        this.ttframe.style.visibility = "hidden";
+        this.ttframe.style.visibility = 'hidden';
       }
     }
 
@@ -78,11 +78,11 @@ if (window.customElements) {
 
   // WebAudio Keyboard Component
   customElements.define(
-    "webaudio-keyboard",
+    'webaudio-keyboard',
     class WebAudioKeyboard extends WebAudioControlsWidget {
       connectedCallback() {
         let root;
-        if (this.attachShadow) root = this.attachShadow({ mode: "open" });
+        if (this.attachShadow) root = this.attachShadow({ mode: 'open' });
         else root = this;
 
         root.innerHTML = `<style>
@@ -107,14 +107,14 @@ ${this.basestyle}
 
         this.elem = this.cv = root.childNodes[2];
         this.ttframe = root.childNodes[3];
-        this.ctx = this.cv.getContext("2d");
+        this.ctx = this.cv.getContext('2d');
         this._values = [];
 
-        this.enable = this.getAttr("enable", 1);
-        this._width = this.getAttr("width", 480);
+        this.enable = this.getAttr('enable', 1);
+        this._width = this.getAttr('width', 480);
 
-        if (!this.hasOwnProperty("width"))
-          Object.defineProperty(this, "width", {
+        if (!this.hasOwnProperty('width'))
+          Object.defineProperty(this, 'width', {
             get: () => this._width,
             set: (v) => {
               this._width = v;
@@ -122,9 +122,9 @@ ${this.basestyle}
             },
           });
 
-        this._height = this.getAttr("height", 128);
-        if (!this.hasOwnProperty("height"))
-          Object.defineProperty(this, "height", {
+        this._height = this.getAttr('height', 128);
+        if (!this.hasOwnProperty('height'))
+          Object.defineProperty(this, 'height', {
             get: () => this._height,
             set: (v) => {
               this._height = v;
@@ -132,9 +132,9 @@ ${this.basestyle}
             },
           });
 
-        this._min = this.getAttr("min", 0);
-        if (!this.hasOwnProperty("min"))
-          Object.defineProperty(this, "min", {
+        this._min = this.getAttr('min', 0);
+        if (!this.hasOwnProperty('min'))
+          Object.defineProperty(this, 'min', {
             get: () => this._min,
             set: (v) => {
               this._min = +v;
@@ -142,9 +142,9 @@ ${this.basestyle}
             },
           });
 
-        this._keys = this.getAttr("keys", 25);
-        if (!this.hasOwnProperty("keys"))
-          Object.defineProperty(this, "keys", {
+        this._keys = this.getAttr('keys', 25);
+        if (!this.hasOwnProperty('keys'))
+          Object.defineProperty(this, 'keys', {
             get: () => this._keys,
             set: (v) => {
               this._keys = +v;
@@ -152,9 +152,12 @@ ${this.basestyle}
             },
           });
 
-        this._colors = this.getAttr("colors", "#222;#eee;#ccc;#333;#000;#e88;#c44;#c33;#800");
-        if (!this.hasOwnProperty("colors"))
-          Object.defineProperty(this, "colors", {
+        this._colors = this.getAttr(
+          'colors',
+          '#222;#eee;#ccc;#333;#000;#e88;#c44;#c33;#800',
+        );
+        if (!this.hasOwnProperty('colors'))
+          Object.defineProperty(this, 'colors', {
             get: () => this._colors,
             set: (v) => {
               this._colors = v;
@@ -173,8 +176,8 @@ ${this.basestyle}
       }
 
       setupImage() {
-        this.cv.style.width = this.width + "px";
-        this.cv.style.height = this.height + "px";
+        this.cv.style.width = this.width + 'px';
+        this.cv.style.height = this.height + 'px';
         this.bheight = this.height * 0.55;
 
         this.kp = [
@@ -208,12 +211,12 @@ ${this.basestyle}
         ];
         this.kn = [0, 2, 4, 5, 7, 9, 11];
 
-        this.coltab = this.colors.split(";");
+        this.coltab = this.colors.split(';');
         this.cv.width = this.width;
         this.cv.height = this.height;
-        this.cv.style.width = this.width + "px";
-        this.cv.style.height = this.height + "px";
-        this.style.height = this.height + "px";
+        this.cv.style.width = this.width + 'px';
+        this.cv.style.height = this.height + 'px';
+        this.style.height = this.height + 'px';
         this.bheight = this.height * 0.55;
         this.max = this.min + this.keys - 1;
         this.dispvalues = [];
@@ -287,10 +290,32 @@ ${this.basestyle}
         r = Math.min(8, this.bwidth * 0.3);
         for (let i = this.min; i < this.max; ++i) {
           if (this.kf[i % 12]) {
-            let x = this.wwidth * this.ko[this.min % 12] + this.bwidth * (i - this.min) + 1;
+            let x =
+              this.wwidth * this.ko[this.min % 12] +
+              this.bwidth * (i - this.min) +
+              1;
             if (this.dispvalues.indexOf(i) >= 0)
-              rrect(this.ctx, x, 1, this.bwidth, h2, r, this.coltab[7], this.coltab[8]);
-            else rrect(this.ctx, x, 1, this.bwidth, h2, r, this.coltab[3], this.coltab[4]);
+              rrect(
+                this.ctx,
+                x,
+                1,
+                this.bwidth,
+                h2,
+                r,
+                this.coltab[7],
+                this.coltab[8],
+              );
+            else
+              rrect(
+                this.ctx,
+                x,
+                1,
+                this.bwidth,
+                h2,
+                r,
+                this.coltab[3],
+                this.coltab[4],
+              );
             this.ctx.strokeStyle = this.coltab[0];
             this.ctx.stroke();
           }
@@ -298,7 +323,8 @@ ${this.basestyle}
       }
 
       _setValue(v) {
-        if (this.step) v = Math.round((v - this.min) / this.step) * this.step + this.min;
+        if (this.step)
+          v = Math.round((v - this.min) / this.step) * this.step + this.min;
         this._value = Math.min(this.max, Math.max(this.min, v));
         if (this._value != this.oldvalue) {
           this.oldvalue = this._value;
@@ -310,7 +336,8 @@ ${this.basestyle}
       }
 
       setValue(v, f) {
-        if (this._setValue(v) && f) (this.sendEvent("input"), this.sendEvent("change"));
+        if (this._setValue(v) && f)
+          (this.sendEvent('input'), this.sendEvent('change'));
       }
 
       wheel(e) {}
@@ -344,7 +371,11 @@ ${this.basestyle}
                 k = (px / this.wwidth) | 0;
                 ko = this.kp[this.min % 12];
                 k += ko;
-                k = this.min + ((k / 7) | 0) * 12 + this.kn[k % 7] - this.kn[ko % 7];
+                k =
+                  this.min +
+                  ((k / 7) | 0) * 12 +
+                  this.kn[k % 7] -
+                  this.kn[ko % 7];
               }
               if (k >= this.min && k <= this.max) v.push(k);
             }
@@ -375,14 +406,14 @@ ${this.basestyle}
         };
 
         let removePointerListeners = () => {
-          window.removeEventListener("mousemove", pointermove);
-          window.removeEventListener("touchmove", pointermove, {
+          window.removeEventListener('mousemove', pointermove);
+          window.removeEventListener('touchmove', pointermove, {
             passive: false,
           });
-          window.removeEventListener("mouseup", pointerup);
-          window.removeEventListener("touchend", pointerup);
-          window.removeEventListener("touchcancel", pointerup);
-          document.body.removeEventListener("touchstart", preventScroll, {
+          window.removeEventListener('mouseup', pointerup);
+          window.removeEventListener('touchend', pointerup);
+          window.removeEventListener('touchcancel', pointerup);
+          document.body.removeEventListener('touchstart', preventScroll, {
             passive: false,
           });
           if (this._removePointerListeners === removePointerListeners) {
@@ -392,12 +423,12 @@ ${this.basestyle}
 
         this._removePointerListeners = removePointerListeners;
 
-        window.addEventListener("mousemove", pointermove);
-        window.addEventListener("touchmove", pointermove, { passive: false });
-        window.addEventListener("mouseup", pointerup);
-        window.addEventListener("touchend", pointerup);
-        window.addEventListener("touchcancel", pointerup);
-        document.body.addEventListener("touchstart", preventScroll, {
+        window.addEventListener('mousemove', pointermove);
+        window.addEventListener('touchmove', pointermove, { passive: false });
+        window.addEventListener('mouseup', pointerup);
+        window.addEventListener('touchend', pointerup);
+        window.addEventListener('touchcancel', pointerup);
+        document.body.addEventListener('touchstart', preventScroll, {
           passive: false,
         });
         pointermove(ev);
@@ -408,17 +439,19 @@ ${this.basestyle}
       sendevent() {
         let notes = [];
         for (let i = 0, j = this.valuesold.length; i < j; ++i) {
-          if (this.values.indexOf(this.valuesold[i]) < 0) notes.push([0, this.valuesold[i]]);
+          if (this.values.indexOf(this.valuesold[i]) < 0)
+            notes.push([0, this.valuesold[i]]);
         }
         for (let i = 0, j = this.values.length; i < j; ++i) {
-          if (this.valuesold.indexOf(this.values[i]) < 0) notes.push([1, this.values[i]]);
+          if (this.valuesold.indexOf(this.values[i]) < 0)
+            notes.push([1, this.values[i]]);
         }
         if (notes.length) {
           this.valuesold = this.values;
           for (let i = 0; i < notes.length; ++i) {
             this.setdispvalues(notes[i][0], notes[i][1]);
-            let ev = document.createEvent("HTMLEvents");
-            ev.initEvent("pointer", true, true);
+            let ev = document.createEvent('HTMLEvents');
+            ev.initEvent('pointer', true, true);
             ev.note = notes[i];
             this.dispatchEvent(ev);
           }

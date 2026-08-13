@@ -20,7 +20,7 @@ define("custom-counter", () => {
     slot(),
     counter,
     button({ onclick: () => ++counter.val }, "+"),
-    button({ onclick: () => --counter.val }, "-"),
+    button({ onclick: () => --counter.val }, "-")
   );
 });
 ```

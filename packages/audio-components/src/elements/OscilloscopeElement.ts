@@ -1,4 +1,4 @@
-import { Oscilloscope } from "@repo/audiolib";
+import { Oscilloscope } from '@repo/audiolib';
 
 export class OscilloscopeElement extends HTMLElement {
   private oscilloscope?: Oscilloscope;
@@ -11,7 +11,7 @@ export class OscilloscopeElement extends HTMLElement {
   connectedCallback() {
     // Create canvas when element is connected to DOM
     if (!this.canvas) {
-      this.canvas = document.createElement("canvas");
+      this.canvas = document.createElement('canvas');
       this.canvas.width = 300;
       this.canvas.height = 150;
       this.appendChild(this.canvas);
@@ -28,4 +28,4 @@ export class OscilloscopeElement extends HTMLElement {
   }
 }
 
-customElements.define("oscilloscope-element", OscilloscopeElement);
+customElements.define('oscilloscope-element', OscilloscopeElement);

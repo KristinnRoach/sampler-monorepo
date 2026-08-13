@@ -73,11 +73,13 @@
       <h3>How it works:</h3>
       <p>1. Select an easing function</p>
       <p>2. Click "Play" to hear the easing curve applied to audio frequency</p>
-      <p>3. The SVG path data controls a lowpass filter cutoff over 3 seconds</p>
+      <p>
+        3. The SVG path data controls a lowpass filter cutoff over 3 seconds
+      </p>
     </div>
 
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
+      document.addEventListener('DOMContentLoaded', () => {
         gsap.registerPlugin(CustomEase);
         gsap.registerPlugin(CustomWiggle);
         gsap.registerPlugin(MorphSVGPlugin);
@@ -110,7 +112,8 @@
         // Initialize Web Audio
         function initAudio() {
           if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            audioContext = new (window.AudioContext ||
+              window.webkitAudioContext)();
           }
         }
 
@@ -141,7 +144,8 @@
             for (let j = 0; j < points.length - 1; j++) {
               if (svgX >= points[j].x && svgX <= points[j + 1].x) {
                 // Linear interpolation between two points
-                const ratio = (svgX - points[j].x) / (points[j + 1].x - points[j].x);
+                const ratio =
+                  (svgX - points[j].x) / (points[j + 1].x - points[j].x);
                 y = points[j].y + ratio * (points[j + 1].y - points[j].y);
                 break;
               }
@@ -168,17 +172,17 @@
           isPlaying = true;
 
           // Get the selected easing curve
-          const selectedEase = document.getElementById("easeSelect").value;
+          const selectedEase = document.getElementById('easeSelect').value;
           const svgData = CustomEase.getSVGData(selectedEase, {
             width: 500,
             height: 500,
           });
 
-          console.log("SVG Data:", svgData);
+          console.log('SVG Data:', svgData);
 
           // Convert to audio automation values
           const audioValues = pathToAudioValues(svgData, 3);
-          console.log("Audio Values:", audioValues.slice(0, 10)); // Show first 10 values
+          console.log('Audio Values:', audioValues.slice(0, 10)); // Show first 10 values
 
           // Create audio nodes
           oscillator = audioContext.createOscillator();
@@ -186,23 +190,32 @@
           gainNode = audioContext.createGain();
 
           // Configure oscillator
-          oscillator.type = "sawtooth";
+          oscillator.type = 'sawtooth';
           oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // A3
 
           // Configure filter
-          filter.type = "lowpass";
+          filter.type = 'lowpass';
           filter.Q.setValueAtTime(5, audioContext.currentTime); // Resonance
 
           // Apply the easing curve to filter frequency
           audioValues.forEach((point, index) => {
-            filter.frequency.setValueAtTime(point.value, audioContext.currentTime + point.time);
+            filter.frequency.setValueAtTime(
+              point.value,
+              audioContext.currentTime + point.time
+            );
           });
 
           // Configure gain (volume envelope)
           gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-          gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+          gainNode.gain.linearRampToValueAtTime(
+            0.3,
+            audioContext.currentTime + 0.1
+          );
           gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + 2.5);
-          gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 3);
+          gainNode.gain.linearRampToValueAtTime(
+            0,
+            audioContext.currentTime + 3
+          );
 
           // Connect the nodes
           oscillator.connect(filter);
@@ -225,8 +238,12 @@
           }
         }
 
-        document.getElementById("playButton").addEventListener("click", playWithEasing);
-        document.getElementById("stopButton").addEventListener("click", stopAudio);
+        document
+          .getElementById('playButton')
+          .addEventListener('click', playWithEasing);
+        document
+          .getElementById('stopButton')
+          .addEventListener('click', stopAudio);
       });
     </script>
   </body>
