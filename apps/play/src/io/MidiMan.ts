@@ -257,12 +257,12 @@ export async function enableSamplePlayerMidi(
   midiInputChannel = options.inputChannel || 'all';
   bindNoteAndSustainTargets();
 
-  // Set up default / initial knob mappings
-  if (options.knobMappings) {
+  // Set up default mappings and MIDI Learn listeners after knobs render
+  if (options.knobMappings || options.midiLearnEnabled) {
     knobSetupTimeout = setTimeout(() => {
       knobSetupTimeout = null;
 
-      options.knobMappings!.forEach(({ cc, selector, name }) => {
+      options.knobMappings?.forEach(({ cc, selector, name }) => {
         const element = document.querySelector(selector);
         const knobElement = element?.querySelector(
           'knob-element',

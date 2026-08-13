@@ -94,38 +94,40 @@ describe('KnobElement init', () => {
       value: null,
     });
 
-    const knob = createKnob({
-      'min-value': '0',
-      'max-value': '100',
-      'default-value': '25',
-    });
-    document.body.appendChild(knob);
-    knob.dispatchEvent(new MouseEvent('mousedown', { clientY: 100 }));
-    document.dispatchEvent(new MouseEvent('mousemove', { clientY: 90 }));
-    document.dispatchEvent(new MouseEvent('mouseup'));
-    await Promise.resolve();
+    try {
+      const knob = createKnob({
+        'min-value': '0',
+        'max-value': '100',
+        'default-value': '25',
+      });
+      document.body.appendChild(knob);
+      knob.dispatchEvent(new MouseEvent('mousedown', { clientY: 100 }));
+      await Promise.resolve();
+      document.dispatchEvent(new MouseEvent('mousemove', { clientY: 90 }));
+      document.dispatchEvent(new MouseEvent('mouseup'));
 
-    expect(requestPointerLock).toHaveBeenCalledOnce();
-    expect(knob.getValue()).toBeGreaterThan(25);
-
-    if (originalRequest) {
-      Object.defineProperty(
-        HTMLElement.prototype,
-        'requestPointerLock',
-        originalRequest,
-      );
-    } else {
-      delete (HTMLElement.prototype as Partial<HTMLElement>)
-        .requestPointerLock;
-    }
-    if (originalPointerLockElement) {
-      Object.defineProperty(
-        document,
-        'pointerLockElement',
-        originalPointerLockElement,
-      );
-    } else {
-      Reflect.deleteProperty(document, 'pointerLockElement');
+      expect(requestPointerLock).toHaveBeenCalledOnce();
+      expect(knob.getValue()).toBeGreaterThan(25);
+    } finally {
+      if (originalRequest) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'requestPointerLock',
+          originalRequest,
+        );
+      } else {
+        delete (HTMLElement.prototype as Partial<HTMLElement>)
+          .requestPointerLock;
+      }
+      if (originalPointerLockElement) {
+        Object.defineProperty(
+          document,
+          'pointerLockElement',
+          originalPointerLockElement,
+        );
+      } else {
+        Reflect.deleteProperty(document, 'pointerLockElement');
+      }
     }
   });
 });

@@ -27,10 +27,10 @@ export const TimeScaleKnob = ({
   const knobElement = document.createElement('knob-element') as KnobElement;
   knobElement.title = 'Envelope speed';
   Object.entries({
-    'min-value': 1, // todo: fix so halftime (0.5) works
+    'min-value': 0.5,
     'max-value': 100,
     'default-value': 1,
-    'snap-increment': 1,
+    'snap-increment': 0.5,
     width,
     height,
     curve: 2.5,
@@ -39,7 +39,7 @@ export const TimeScaleKnob = ({
   container.appendChild(knobElement);
 
   const valueDisplay = document.createElement('div');
-  valueDisplay.textContent = `Speed: ${knobElement.getValue().toFixed(0)}`;
+  valueDisplay.textContent = `Speed: ${knobElement.getValue()}`;
   valueDisplay.style.cssText =
     'font-size: 10px; color: #aaa; margin-top: 4px; width: 10ch;';
   container.appendChild(valueDisplay);
@@ -47,7 +47,7 @@ export const TimeScaleKnob = ({
   knobElement.addEventListener('knob-change', (event) => {
     const timeScale = (event as CustomEvent<KnobChangeEventDetail>).detail
       .value;
-    valueDisplay.textContent = `Speed: ${timeScale.toFixed(0)}`;
+    valueDisplay.textContent = `Speed: ${timeScale}`;
     onChange({ envelopeType, timeScale });
   });
   knobElement.setValue(1);
