@@ -1,18 +1,18 @@
 // main-thread.ts
-import { processorFileRegistry } from './processor-registry';
+import { processorFileRegistry } from "./processor-registry";
 
 let processorsInitialized = false;
 
 // Static paths to try first
 const staticPaths = [
   // Path that works in development (first attempt)
-  '/node_modules/@repo/audiolib/dist/processors/processors.js',
+  "/node_modules/@repo/audiolib/dist/processors/processors.js",
   // Relative path for production build
-  './processors/processors.js',
+  "./processors/processors.js",
   // Other potential paths
-  '/processors/processors.js',
+  "/processors/processors.js",
   /* @vite-ignore */
-  new URL('../dist/processors/processors.js', import.meta.url).href,
+  new URL("../dist/processors/processors.js", import.meta.url).href,
 ];
 
 // Helper function to create a Blob URL from the processor code
@@ -22,10 +22,10 @@ async function getBlobUrl(): Promise<string> {
     const possibleFetchUrls = [
       // Try the URL that worked in development first
       /* @vite-ignore */
-      new URL('../dist/processors/processors.js', import.meta.url).href,
+      new URL("../dist/processors/processors.js", import.meta.url).href,
       // Add other potential URLs to fetch from
-      '/processors/processors.js',
-      './processors/processors.js',
+      "/processors/processors.js",
+      "./processors/processors.js",
     ];
 
     let processorCode = null;
@@ -49,19 +49,16 @@ async function getBlobUrl(): Promise<string> {
 
     // If we couldn't fetch the code, throw an error
     if (!processorCode) {
-      throw (
-        lastFetchError ||
-        new Error("Couldn't fetch processor code from any URL")
-      );
+      throw lastFetchError || new Error("Couldn't fetch processor code from any URL");
     }
 
     // Create a Blob URL from the code
-    const blob = new Blob([processorCode], { type: 'application/javascript' });
+    const blob = new Blob([processorCode], { type: "application/javascript" });
     const blobUrl = URL.createObjectURL(blob);
 
     return blobUrl;
   } catch (error) {
-    console.error('Failed to create Blob URL:', error);
+    console.error("Failed to create Blob URL:", error);
     throw error;
   }
 }
@@ -69,10 +66,10 @@ async function getBlobUrl(): Promise<string> {
 // Function to try multiple paths to load the audio worklet
 export async function initProcessors(context: AudioContext) {
   if (processorsInitialized) {
-    console.info('AudioWorklet processors already initialized, skipping');
+    console.info("AudioWorklet processors already initialized, skipping");
     return {
       success: true,
-      loadedPath: 'already-initialized',
+      loadedPath: "already-initialized",
       timestamp: new Date().toISOString(),
     };
   }
@@ -81,18 +78,18 @@ export async function initProcessors(context: AudioContext) {
   if (!context.audioWorklet) {
     // This is a known issue on some Android browsers where AudioWorkletNode exists
     // but context.audioWorklet is not available
-    console.warn('AudioWorklet API is not fully supported on this browser.');
-    console.warn('The audio sampler requires AudioWorklet support. Please try:');
-    console.warn('1. Using Chrome, Firefox, or Edge on desktop');
-    console.warn('2. Updating your mobile browser to the latest version');
-    console.warn('3. Using a different browser on mobile (Chrome or Firefox)');
-    
+    console.warn("AudioWorklet API is not fully supported on this browser.");
+    console.warn("The audio sampler requires AudioWorklet support. Please try:");
+    console.warn("1. Using Chrome, Firefox, or Edge on desktop");
+    console.warn("2. Updating your mobile browser to the latest version");
+    console.warn("3. Using a different browser on mobile (Chrome or Firefox)");
+
     // Return a "failed" status instead of throwing
     return {
       success: false,
-      loadedPath: 'none-worklet-not-supported',
+      loadedPath: "none-worklet-not-supported",
       timestamp: new Date().toISOString(),
-      error: 'AudioWorklet not supported on this browser'
+      error: "AudioWorklet not supported on this browser",
     };
   }
 
@@ -106,7 +103,7 @@ export async function initProcessors(context: AudioContext) {
         processorFileRegistry.add(path);
         processorsInitialized = true;
 
-        console.info('Audiolib: AudioWorklet module loaded.');
+        console.info("Audiolib: AudioWorklet module loaded.");
         return {
           success: true,
           loadedPath: path,
@@ -127,7 +124,7 @@ export async function initProcessors(context: AudioContext) {
       processorFileRegistry.add(blobUrl);
 
       processorsInitialized = true;
-      console.info('AudioWorklet module loaded from Blob URL');
+      console.info("AudioWorklet module loaded from Blob URL");
     }
 
     // Clean up the the loaded blob URL
@@ -135,25 +132,25 @@ export async function initProcessors(context: AudioContext) {
 
     return {
       success: true,
-      loadedPath: 'blob-url',
+      loadedPath: "blob-url",
       timestamp: new Date().toISOString(),
     };
   } catch (blobError) {
-    console.error('Failed to load AudioWorklet from Blob URL:', blobError);
+    console.error("Failed to load AudioWorklet from Blob URL:", blobError);
     // Combine all errors
     lastError = new Error(
       `Failed to load AudioWorklet from all paths. Last error: ${
-        (lastError instanceof Error && lastError.message) || 'Unknown error'
+        (lastError instanceof Error && lastError.message) || "Unknown error"
       }. Blob URL error: ${
-        typeof blobError === 'object' && blobError && 'message' in blobError
+        typeof blobError === "object" && blobError && "message" in blobError
           ? (blobError as { message: string }).message
           : String(blobError)
-      }`
+      }`,
     );
   }
 
   // If we get here, all paths failed including the Blob URL
-  throw lastError || new Error('Failed to load AudioWorklet from all paths');
+  throw lastError || new Error("Failed to load AudioWorklet from all paths");
 }
 
 // Helper function to get the processor path (used elsewhere if needed)

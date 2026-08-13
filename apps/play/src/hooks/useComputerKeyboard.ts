@@ -1,11 +1,5 @@
-import {
-  type Accessor,
-  type Setter,
-  createSignal,
-  onCleanup,
-  onMount,
-} from 'solid-js';
-import type { KeyMap, SamplePlayer } from '@repo/audiolib';
+import { type Accessor, type Setter, createSignal, onCleanup, onMount } from "solid-js";
+import type { KeyMap, SamplePlayer } from "@repo/audiolib";
 
 const MIN_OCTAVE_OFFSET = -3;
 const MAX_OCTAVE_OFFSET = 3;
@@ -18,8 +12,7 @@ type ComputerKeyboardOptions = {
 };
 
 const isEditableTarget = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.matches('input, textarea') || target.isContentEditable);
+  target instanceof HTMLElement && (target.matches("input, textarea") || target.isContentEditable);
 
 export const useComputerKeyboard = ({
   player,
@@ -27,12 +20,8 @@ export const useComputerKeyboard = ({
   octaveOffset,
   setOctaveOffset,
 }: ComputerKeyboardOptions) => {
-  const [pressedNotes, setPressedNotes] =
-    createSignal<ReadonlySet<number>>(new Set());
-  const pressedKeys = new Map<
-    string,
-    { note: number; player: SamplePlayer }
-  >();
+  const [pressedNotes, setPressedNotes] = createSignal<ReadonlySet<number>>(new Set());
+  const pressedKeys = new Map<string, { note: number; player: SamplePlayer }>();
   let spacePressed = false;
 
   const syncPressedNotes = () => {
@@ -67,29 +56,25 @@ export const useComputerKeyboard = ({
       return;
     }
 
-    if (event.code === 'Backquote') {
+    if (event.code === "Backquote") {
       event.preventDefault();
       const direction = event.shiftKey ? 1 : -1;
       setOctaveOffset((current) =>
-        Math.max(
-          MIN_OCTAVE_OFFSET,
-          Math.min(MAX_OCTAVE_OFFSET, current + direction),
-        ),
+        Math.max(MIN_OCTAVE_OFFSET, Math.min(MAX_OCTAVE_OFFSET, current + direction)),
       );
     }
 
     const activePlayer = player();
     if (!activePlayer) return;
 
-    if (event.code === 'Space') {
+    if (event.code === "Space") {
       event.preventDefault();
       event.stopPropagation();
       spacePressed = true;
     }
 
     const loopEnabled =
-      (event.code === 'CapsLock' || event.getModifierState('CapsLock')) !==
-      spacePressed;
+      (event.code === "CapsLock" || event.getModifierState("CapsLock")) !== spacePressed;
     const holdEnabled = event.shiftKey !== spacePressed;
 
     activePlayer.setLoopEnabled(loopEnabled);
@@ -122,25 +107,25 @@ export const useComputerKeyboard = ({
     const activePlayer = player();
     if (!activePlayer) return;
 
-    if (event.code === 'CapsLock') {
+    if (event.code === "CapsLock") {
       activePlayer.setLoopEnabled(false);
-    } else if (event.code === 'Space') {
+    } else if (event.code === "Space") {
       spacePressed = false;
-      activePlayer.setLoopEnabled(event.getModifierState('CapsLock'));
+      activePlayer.setLoopEnabled(event.getModifierState("CapsLock"));
       activePlayer.setHoldEnabled(event.shiftKey);
     }
   };
 
   onMount(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('blur', releasePressedNotes);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", releasePressedNotes);
   });
 
   onCleanup(() => {
-    document.removeEventListener('keydown', handleKeyDown);
-    document.removeEventListener('keyup', handleKeyUp);
-    window.removeEventListener('blur', releasePressedNotes);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("blur", releasePressedNotes);
     releasePressedNotes();
   });
 

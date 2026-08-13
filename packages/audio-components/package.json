@@ -2,6 +2,9 @@
   "name": "@repo/audio-components",
   "version": "0.1.0",
   "description": "Web Components for Audio Processing",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -22,9 +25,6 @@
     "./style": "./dist/audio-components.css",
     "./audio-components.css": "./dist/audio-components.css"
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "pnpm clean && pnpm build:vanilla && pnpm build:react && pnpm build:solid",
     "build:vanilla": "vite build --config vite.config.vanilla.ts",
@@ -38,10 +38,29 @@
     "clean:deps": "rm -rf node_modules && pnpm install",
     "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune"
   },
+  "dependencies": {
+    "@repo/audiolib": "workspace:*",
+    "@repo/vanjs-core": "workspace:*",
+    "gsap": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "concurrently": "^9.1.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "solid-js": "^1.9.4",
+    "typescript": "^5.8.0",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.5.3",
+    "vite-plugin-solid": "^2.11.0",
+    "vitest": "^3.2.4"
+  },
   "peerDependencies": {
-    "solid-js": "^1.8.0",
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
-    "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0"
+    "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+    "solid-js": "^1.8.0"
   },
   "peerDependenciesMeta": {
     "solid-js": {
@@ -53,24 +72,5 @@
     "react-dom": {
       "optional": true
     }
-  },
-  "dependencies": {
-    "@repo/audiolib": "workspace:*",
-    "@repo/vanjs-core": "workspace:*",
-    "gsap": "^3.13.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.0.0",
-    "@types/react-dom": "^18.0.0",
-    "@vitejs/plugin-react": "^4.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "solid-js": "^1.9.4",
-    "typescript": "^5.8.0",
-    "vite": "^6.0.0",
-    "vite-plugin-dts": "^4.5.3",
-    "vite-plugin-solid": "^2.11.0",
-    "vitest": "^3.2.4",
-    "concurrently": "^9.1.0"
   }
 }

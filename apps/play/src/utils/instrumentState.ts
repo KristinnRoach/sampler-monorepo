@@ -1,12 +1,9 @@
-import type {
-  SamplePlayer,
-  SupportedWaveform,
-} from '@repo/audiolib';
+import type { SamplePlayer, SupportedWaveform } from "@repo/audiolib";
 import {
   restoreSamplerParamValues,
   snapshotSamplerParamValues,
   type SamplerParamValues,
-} from './samplerParamState';
+} from "./samplerParamState";
 
 export interface EnvelopeSettings {
   points: Array<{ time: number; value: number; curve?: string }>;
@@ -26,7 +23,7 @@ export interface InstrumentSettings {
   selects?: Record<string, string>;
 }
 
-const envelopeTypes = ['amp-env', 'filter-env', 'pitch-env'] as const;
+const envelopeTypes = ["amp-env", "filter-env", "pitch-env"] as const;
 
 export function captureInstrumentState(
   player: SamplePlayer,
@@ -42,7 +39,7 @@ export function captureInstrumentState(
           points: envelope.points.map((point) => ({
             time: point.time,
             value: point.value,
-            curve: point.curve || 'linear',
+            curve: point.curve || "linear",
           })),
           sustainPointIndex: envelope.sustainPointIndex ?? null,
           releasePointIndex: envelope.releasePointIndex,
@@ -74,25 +71,21 @@ export function restoreInstrumentState(
   restoreToggles(player, controlsRoot, settings.toggles ?? {});
   restoreSelects(player, controlsRoot, settings.selects ?? {});
 
-  const envelopeSwitcher = controlsRoot.querySelector('envelope-switcher') as
+  const envelopeSwitcher = controlsRoot.querySelector("envelope-switcher") as
     | (HTMLElement & {
-        restoreEnvelopeSettings?: (
-          settings: Record<string, EnvelopeSettings>,
-        ) => void;
+        restoreEnvelopeSettings?: (settings: Record<string, EnvelopeSettings>) => void;
       })
     | null;
   envelopeSwitcher?.restoreEnvelopeSettings?.(settings.envelopes ?? {});
 }
 
-function captureToggles(
-  controlsRoot: ParentNode,
-): Record<string, string> {
+function captureToggles(controlsRoot: ParentNode): Record<string, string> {
   const toggles: Record<string, string> = {};
   const svgToggleNames = [
-    'playback-direction-toggle',
-    'loop-lock-toggle',
-    'hold-lock-toggle',
-    'pitch-toggle',
+    "playback-direction-toggle",
+    "loop-lock-toggle",
+    "hold-lock-toggle",
+    "pitch-toggle",
   ];
   svgToggleNames.forEach((name) => {
     const button = controlsRoot.querySelector(`${name} button.svg-button`) as
@@ -117,19 +110,17 @@ function restoreToggles(
     button?.setState?.(value);
 
     switch (name) {
-      case 'playback-direction-toggle':
-        player.setPlaybackDirection(
-          value === 'direction_reverse' ? 'reverse' : 'forward',
-        );
+      case "playback-direction-toggle":
+        player.setPlaybackDirection(value === "direction_reverse" ? "reverse" : "forward");
         break;
-      case 'loop-lock-toggle':
-        player.setLoopLocked(value === 'loop_locked');
+      case "loop-lock-toggle":
+        player.setLoopLocked(value === "loop_locked");
         break;
-      case 'hold-lock-toggle':
-        player.setHoldLocked(value === 'hold_locked');
+      case "hold-lock-toggle":
+        player.setHoldLocked(value === "hold_locked");
         break;
-      case 'pitch-toggle':
-        if (value === 'pitch_on') player.enablePitch();
+      case "pitch-toggle":
+        if (value === "pitch_on") player.enablePitch();
         else player.disablePitch();
         break;
     }
@@ -140,9 +131,9 @@ function captureSelects(controlsRoot: ParentNode): Record<string, string> {
   const selects: Record<string, string> = {};
 
   [
-    { name: 'rootnote-select', selector: '.rootnote-select select' },
-    { name: 'keymap-select', selector: '.keymap-select select' },
-    { name: 'waveform-select', selector: 'waveform-select select' },
+    { name: "rootnote-select", selector: ".rootnote-select select" },
+    { name: "keymap-select", selector: ".keymap-select select" },
+    { name: "waveform-select", selector: "waveform-select select" },
   ].forEach(({ name, selector }) => {
     const select = controlsRoot.querySelector(selector) as HTMLSelectElement | null;
     if (select) selects[name] = select.value;
@@ -158,19 +149,17 @@ function restoreSelects(
 ): void {
   Object.entries(selects).forEach(([name, value]) => {
     const selector =
-      name === 'keymap-select' || name === 'rootnote-select'
-        ? `.${name} select`
-        : `${name} select`;
+      name === "keymap-select" || name === "rootnote-select" ? `.${name} select` : `${name} select`;
     const select = controlsRoot.querySelector(selector) as HTMLSelectElement | null;
     if (!select) return;
 
     select.value = value;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    select.dispatchEvent(new Event("change", { bubbles: true }));
 
-    if (name === 'waveform-select') {
-      player.setModulationWaveform('AM', value as SupportedWaveform);
-    } else if (name === 'rootnote-select') {
-      player.setRootNote(value as Parameters<SamplePlayer['setRootNote']>[0]);
+    if (name === "waveform-select") {
+      player.setModulationWaveform("AM", value as SupportedWaveform);
+    } else if (name === "rootnote-select") {
+      player.setRootNote(value as Parameters<SamplePlayer["setRootNote"]>[0]);
     }
   });
 }

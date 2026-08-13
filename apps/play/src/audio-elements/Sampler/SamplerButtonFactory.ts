@@ -1,37 +1,30 @@
 // SamplerButtonFactory.ts -
-import van, { State } from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
-import {
-  createAudioRecorder,
-  type Recorder,
-  type RecorderInput,
-} from '@repo/audiolib';
-import { getSamplePlayer } from '../../../../App';
-import { COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import {
-  createSVGButton,
-  type SVGButton,
-} from '../../primitives/createSVGButton';
-import { getRecorderSettings } from '../../../../utils/recorderSettings';
+import van, { State } from "@repo/vanjs-core";
+import { ElementProps } from "@repo/vanjs-core/element";
+import { createAudioRecorder, type Recorder, type RecorderInput } from "@repo/audiolib";
+import { getSamplePlayer } from "../../App";
+import { COMPONENT_STYLE } from "../shared/styles/component-styles";
+import { createSVGButton, type SVGButton } from "../createSVGButton";
+import { getRecorderSettings } from "../../utils/recorderSettings";
 
 const { div } = van.tags;
 
 // ===== UPLOAD BUTTON =====
 
 export const UploadButton = (attributes: ElementProps) => {
-  const showStatus = attributes.attr('show-status', 'false');
-  const status = van.state('Ready');
+  const showStatus = attributes.attr("show-status", "false");
+  const status = van.state("Ready");
 
   const loadSample = async () => {
     const sampler = getSamplePlayer();
     if (!sampler) {
-      status.val = 'Sampler not found';
+      status.val = "Sampler not found";
       return;
     }
 
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = 'audio/*';
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "audio/*";
 
     fileInput.onchange = async (event) => {
       const target = event.target as HTMLInputElement;
@@ -54,83 +47,82 @@ export const UploadButton = (attributes: ElementProps) => {
     fileInput.click();
   };
 
-  const uploadButton = createSVGButton('Upload Sample', 'upload', {
-    size: 'md',
+  const uploadButton = createSVGButton("Upload Sample", "upload", {
+    size: "md",
     onClick: loadSample,
   });
 
   return div(
     { style: COMPONENT_STYLE },
     uploadButton,
-    ...(showStatus.val === 'true' ? [div(() => status.val)] : []),
+    ...(showStatus.val === "true" ? [div(() => status.val)] : []),
   );
 };
 
 export const SaveButton = () => {
-  const svgButton = createSVGButton('Save Sample', 'save', {
-    size: 'md',
+  const svgButton = createSVGButton("Save Sample", "save", {
+    size: "md",
     onClick: () => {
       // Placeholder for save functionality
-      console.log('Save button clicked');
+      console.log("Save button clicked");
     },
   });
 
-  return div({ class: 'save-button', style: '' }, svgButton); // COMPONENT_STYLE
+  return div({ class: "save-button", style: "" }, svgButton); // COMPONENT_STYLE
 };
 
 // ===== RECORD BUTTON =====
 
 export const RecordButton = (attributes: ElementProps) => {
-  const showStatus = attributes.attr('show-status', 'false');
-  const status = van.state('Ready');
+  const showStatus = attributes.attr("show-status", "false");
+  const status = van.state("Ready");
 
   const currentRecorder: State<Recorder | null> = van.state(null);
-  const recordBtnState: State<'Idle' | 'Armed' | 'Recording'> =
-    van.state('Idle');
+  const recordBtnState: State<"Idle" | "Armed" | "Recording"> = van.state("Idle");
   const samplerAvailable = van.state(false);
 
   let recordButton: SVGButton;
 
   const startRecording = async () => {
     const sampler = getSamplePlayer();
-    if (!sampler || recordBtnState.val === 'Recording') return;
+    if (!sampler || recordBtnState.val === "Recording") return;
 
     const { inputSource, inputDeviceId } = getRecorderSettings();
     const input: RecorderInput =
-      inputSource === 'resample'
-        ? { type: 'audio-node', node: sampler.output }
-        : inputSource === 'browser'
-          ? { type: 'display' }
-          : { type: 'microphone', deviceId: inputDeviceId || undefined };
+      inputSource === "resample"
+        ? { type: "audio-node", node: sampler.output }
+        : inputSource === "browser"
+          ? { type: "display" }
+          : { type: "microphone", deviceId: inputDeviceId || undefined };
 
     try {
       const recorderResult = await createAudioRecorder(sampler.context);
 
       if (!recorderResult) {
-        status.val = 'Failed to create recorder';
+        status.val = "Failed to create recorder";
         return;
       }
 
       currentRecorder.val = recorderResult;
       currentRecorder.val.connect(sampler);
 
-      currentRecorder.val.onMessage('state-change', (msg: any) => {
+      currentRecorder.val.onMessage("state-change", (msg: any) => {
         status.val = msg.state;
 
         switch (msg.state) {
-          case 'ARMED':
-            recordBtnState.val = 'Armed';
-            recordButton.setState('record_armed');
+          case "ARMED":
+            recordBtnState.val = "Armed";
+            recordButton.setState("record_armed");
             break;
-          case 'RECORDING':
-            recordBtnState.val = 'Recording';
-            recordButton.setState('record_recording');
+          case "RECORDING":
+            recordBtnState.val = "Recording";
+            recordButton.setState("record_recording");
             break;
-          case 'IDLE':
-          case 'STOPPED':
+          case "IDLE":
+          case "STOPPED":
           default:
-            recordBtnState.val = 'Idle';
-            recordButton.setState('record_idle');
+            recordBtnState.val = "Idle";
+            recordButton.setState("record_idle");
             break;
         }
       });
@@ -144,11 +136,11 @@ export const RecordButton = (attributes: ElementProps) => {
         silenceTimeoutMs: 1000,
       });
     } catch (error) {
-      console.error('Failed to start recording:', error);
+      console.error("Failed to start recording:", error);
       status.val = `Recording error: ${error instanceof Error ? error.message : String(error)}`;
       currentRecorder.val = null;
-      recordBtnState.val = 'Idle';
-      recordButton.setState('record_idle');
+      recordBtnState.val = "Idle";
+      recordButton.setState("record_idle");
     }
   };
 
@@ -159,32 +151,32 @@ export const RecordButton = (attributes: ElementProps) => {
       await currentRecorder.val.stop();
       currentRecorder.val.dispose();
       currentRecorder.val = null;
-      recordBtnState.val = 'Idle';
-      recordButton.setState('record_idle');
-      status.val = 'Recording stopped';
+      recordBtnState.val = "Idle";
+      recordButton.setState("record_idle");
+      status.val = "Recording stopped";
     } catch (error) {
       currentRecorder.val = null;
-      recordBtnState.val = 'Idle';
-      recordButton.setState('record_idle');
-      console.error('Failed to stop recording:', error);
+      recordBtnState.val = "Idle";
+      recordButton.setState("record_idle");
+      console.error("Failed to stop recording:", error);
       status.val = `Stop error: ${error instanceof Error ? error.message : String(error)}`;
     }
   };
 
   // Esc aborts an armed or in-progress recording, discarding any captured audio
   const handleEscape = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape' || recordBtnState.val === 'Idle') return;
+    if (e.key !== "Escape" || recordBtnState.val === "Idle") return;
 
     currentRecorder.val?.cancel();
     currentRecorder.val?.dispose();
     currentRecorder.val = null;
-    status.val = 'Recording cancelled';
+    status.val = "Recording cancelled";
   };
 
   const handleClick = async () => {
-    if (recordBtnState.val === 'Idle') {
+    if (recordBtnState.val === "Idle") {
       await startRecording();
-    } else if (recordBtnState.val === 'Armed') {
+    } else if (recordBtnState.val === "Armed") {
       if (currentRecorder.val) {
         currentRecorder.val.forceStart();
       }
@@ -195,22 +187,22 @@ export const RecordButton = (attributes: ElementProps) => {
 
   // Create SVG record button using new function API
   recordButton = createSVGButton(
-    'Record Sample',
-    ['record_idle', 'record_armed', 'record_recording'],
+    "Record Sample",
+    ["record_idle", "record_armed", "record_recording"],
     {
-      size: 'lg',
+      size: "lg",
       onClick: handleClick,
       colors: {
-        record_idle: '#FFFFFF',
-        record_armed: '#f59e0b',
-        record_recording: '#ef4444',
+        record_idle: "#FFFFFF",
+        record_armed: "#f59e0b",
+        record_recording: "#ef4444",
       },
     },
   );
 
   van.derive(() => {
     recordButton.disabled = !samplerAvailable.val;
-    recordButton.style.opacity = samplerAvailable.val ? '1' : '0.5';
+    recordButton.style.opacity = samplerAvailable.val ? "1" : "0.5";
   });
 
   attributes.mount(() => {
@@ -220,25 +212,22 @@ export const RecordButton = (attributes: ElementProps) => {
     const handleSamplerInitialized = () => {
       checkSampler();
     };
-    document.addEventListener('sampler-initialized', handleSamplerInitialized);
-    document.addEventListener('keydown', handleEscape);
+    document.addEventListener("sampler-initialized", handleSamplerInitialized);
+    document.addEventListener("keydown", handleEscape);
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("keydown", handleEscape);
       if (currentRecorder.val) {
         currentRecorder.val.dispose();
         currentRecorder.val = null;
-        recordBtnState.val = 'Idle';
+        recordBtnState.val = "Idle";
       }
-      document.removeEventListener(
-        'sampler-initialized',
-        handleSamplerInitialized,
-      );
+      document.removeEventListener("sampler-initialized", handleSamplerInitialized);
     };
   });
 
   return div(
     { style: COMPONENT_STYLE },
     recordButton,
-    ...(showStatus.val === 'true' ? [div(() => status.val)] : []),
+    ...(showStatus.val === "true" ? [div(() => status.val)] : []),
   );
 };

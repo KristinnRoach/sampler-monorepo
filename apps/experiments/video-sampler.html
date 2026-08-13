@@ -22,9 +22,9 @@
       </div>
     </div>
     <script>
-      const video = document.getElementById('video');
-      const recordBtn = document.getElementById('record');
-      const stopBtn = document.getElementById('stop');
+      const video = document.getElementById("video");
+      const recordBtn = document.getElementById("record");
+      const stopBtn = document.getElementById("stop");
 
       const keymap = {
         KeyZ: 48,
@@ -100,7 +100,7 @@
         mediaRecorder.onstop = async () => {
           video.srcObject = null;
 
-          const blob = new Blob(recordedChunks, { type: 'video/webm' });
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
           video.src = URL.createObjectURL(blob);
           stream.getTracks().forEach((track) => track.stop());
 
@@ -125,7 +125,7 @@
         if (e.repeat) return;
 
         if (keymap[e.code] && audioBuffer) {
-          if (audioContext.state === 'suspended') await audioContext.resume();
+          if (audioContext.state === "suspended") await audioContext.resume();
 
           const midiNote = keymap[e.code];
           const rate = Math.pow(2, (midiNote - 69) / 12);

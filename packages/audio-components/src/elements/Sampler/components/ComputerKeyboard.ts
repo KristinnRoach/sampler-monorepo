@@ -1,31 +1,26 @@
 // ComputerKeyboard.ts
-import van, { State } from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
+import van, { State } from "@repo/vanjs-core";
+import { ElementProps } from "@repo/vanjs-core/element";
 import {
   keyboardEnabledInstruments,
   enableComputerKeyboard,
   disableComputerKeyboard,
   pressedKeys,
-} from '../../../shared/keyboard/keyboard-state';
-import KeyMaps, {
-  DEFAULT_KEYMAP_KEY,
-} from '@/shared/keyboard/keyboard-keymaps';
-import { getSampler } from '../SamplerRegistry';
-import {
-  COMPONENT_STYLE,
-  HELP_TEXT_STYLE,
-} from '../../../shared/styles/component-styles';
+} from "../../../shared/keyboard/keyboard-state";
+import KeyMaps, { DEFAULT_KEYMAP_KEY } from "@/shared/keyboard/keyboard-keymaps";
+import { getSampler } from "../SamplerRegistry";
+import { COMPONENT_STYLE, HELP_TEXT_STYLE } from "../../../shared/styles/component-styles";
 
 const { div } = van.tags;
 
 export const ComputerKeyboard = (attributes: ElementProps) => {
-  const targetNodeId: State<string> = attributes.attr('target-node-id', '');
+  const targetNodeId: State<string> = attributes.attr("target-node-id", "");
   const enabled = van.state(true);
   const currentKeymap = van.state(KeyMaps[DEFAULT_KEYMAP_KEY]);
   const octaveOffset = van.state(0);
   const loopEnabled = van.state(false);
   const holdEnabled = van.state(false);
-  const showUI = attributes.attr('show-ui', 'false'); // Invisible by default
+  const showUI = attributes.attr("show-ui", "false"); // Invisible by default
   const MAX_OCT_SHIFT = 3;
   const MIN_OCT_SHIFT = -3;
 
@@ -51,11 +46,11 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
     // Return early if a text input is focused
     const activeElement = document.activeElement as HTMLInputElement;
-    if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text') {
+    if (activeElement?.tagName === "INPUT" && activeElement.type === "text") {
       return;
     }
 
-    if (e.code === 'Backquote') {
+    if (e.code === "Backquote") {
       e.preventDefault();
       if (e.shiftKey) handleOctaveChange(1);
       else handleOctaveChange(-1);
@@ -64,15 +59,14 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || !enabled.val) return;
 
-    if (e.code === 'Space') {
+    if (e.code === "Space") {
       e.preventDefault();
       e.stopPropagation(); // prevent page scrolling
 
       spacePressed = true;
     }
 
-    const baseLoopEnabled =
-      e.code === 'CapsLock' || e.getModifierState('CapsLock');
+    const baseLoopEnabled = e.code === "CapsLock" || e.getModifierState("CapsLock");
 
     const baseHoldEnabled = e.shiftKey;
 
@@ -96,18 +90,17 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
   const keyUp = (e: KeyboardEvent) => {
     // Return early if a text input is focused
     const activeElement = document.activeElement as HTMLInputElement;
-    if (activeElement?.tagName === 'INPUT' && activeElement.type === 'text')
-      return;
+    if (activeElement?.tagName === "INPUT" && activeElement.type === "text") return;
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler || !enabled.val) return;
 
-    if (e.code === 'CapsLock') {
+    if (e.code === "CapsLock") {
       loopEnabled.val = false;
       sampler.setLoopEnabled?.(false);
-    } else if (e.code === 'Space') {
+    } else if (e.code === "Space") {
       spacePressed = false;
-      loopEnabled.val = e.getModifierState('CapsLock');
+      loopEnabled.val = e.getModifierState("CapsLock");
       holdEnabled.val = e.shiftKey;
       sampler.setLoopEnabled?.(loopEnabled.val);
       sampler.setHoldEnabled?.(holdEnabled.val);
@@ -127,14 +120,14 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
     const sampler = getSampler(targetNodeId.val);
 
     if (sampler && enabled.val && !keyHandlersAttached) {
-      document.addEventListener('keydown', keyDown);
-      document.addEventListener('keyup', keyUp);
+      document.addEventListener("keydown", keyDown);
+      document.addEventListener("keyup", keyUp);
       enableComputerKeyboard(sampler.nodeId);
       keyHandlersAttached = true;
     } else if (!sampler || !enabled.val) {
       if (keyHandlersAttached) {
-        document.removeEventListener('keydown', keyDown);
-        document.removeEventListener('keyup', keyUp);
+        document.removeEventListener("keydown", keyDown);
+        document.removeEventListener("keyup", keyUp);
         if (sampler) disableComputerKeyboard(sampler.nodeId);
         keyHandlersAttached = false;
       }
@@ -151,21 +144,15 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
   attributes.mount(() => {
     // Listen for keymap changes from the select component
-    document.addEventListener(
-      'keymap-changed',
-      handleKeymapChange as EventListener
-    );
+    document.addEventListener("keymap-changed", handleKeymapChange as EventListener);
 
     setTimeout(updateKeyboardHandlers, 100);
     return () => {
       clearInterval(checkInterval);
-      document.removeEventListener(
-        'keymap-changed',
-        handleKeymapChange as EventListener
-      );
+      document.removeEventListener("keymap-changed", handleKeymapChange as EventListener);
       if (keyHandlersAttached) {
-        document.removeEventListener('keydown', keyDown);
-        document.removeEventListener('keyup', keyUp);
+        document.removeEventListener("keydown", keyDown);
+        document.removeEventListener("keyup", keyUp);
         const sampler = getSampler(targetNodeId.val);
         if (sampler) disableComputerKeyboard(sampler.nodeId);
       }
@@ -174,24 +161,21 @@ export const ComputerKeyboard = (attributes: ElementProps) => {
 
   return div(
     {
-      class: 'computer-keyboard-control',
-      style: showUI.val === 'true' ? COMPONENT_STYLE : 'display: none;',
+      class: "computer-keyboard-control",
+      style: showUI.val === "true" ? COMPONENT_STYLE : "display: none;",
     },
 
     // Only show UI elements if showUI is true
-    ...(showUI.val === 'true'
+    ...(showUI.val === "true"
       ? [
           div(
-            () => `Loop: ${loopEnabled.val ? 'ON' : 'OFF'}`,
-            ' | ',
-            () => `Hold: ${holdEnabled.val ? 'ON' : 'OFF'}`
+            () => `Loop: ${loopEnabled.val ? "ON" : "OFF"}`,
+            " | ",
+            () => `Hold: ${holdEnabled.val ? "ON" : "OFF"}`,
           ),
 
-          div(
-            { style: HELP_TEXT_STYLE },
-            'CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave'
-          ),
+          div({ style: HELP_TEXT_STYLE }, "CapsLock=Loop, Shift=Hold, Space=Override, </>=Octave"),
         ]
-      : [])
+      : []),
   );
 };

@@ -44,13 +44,7 @@ public setValueNormalized(normalizedValue: number): void {
 
 ```html
 <!-- Declarative MIDI binding -->
-<knob-element
-  midi-cc="74"
-  midi-channel="1"
-  min-value="20"
-  max-value="20000"
-  curve="5"
->
+<knob-element midi-cc="74" midi-channel="1" min-value="20" max-value="20000" curve="5">
 </knob-element>
 ```
 
@@ -101,8 +95,7 @@ disconnectedCallback() {
 **Proposed:** Direct AudioParam connection
 
 ```html
-<knob-element audio-param="filter.frequency" min-value="20" max-value="20000">
-</knob-element>
+<knob-element audio-param="filter.frequency" min-value="20" max-value="20000"> </knob-element>
 ```
 
 ```typescript
@@ -168,8 +161,7 @@ private updateTooltip() {
 
 ```html
 <!-- Usage -->
-<knob-element value-format="hz" min-value="20" max-value="20000">
-</knob-element>
+<knob-element value-format="hz" min-value="20" max-value="20000"> </knob-element>
 ```
 
 Built-in formats: `hz`, `db`, `ms`, `percent`, `semitones`
@@ -198,7 +190,7 @@ knob.enterMidiLearnMode().then(cc => {
 
 ```typescript
 // Knob dispatches when clicked in learn mode
-knob.addEventListener('midi-learn-request', (e) => {
+knob.addEventListener("midi-learn-request", (e) => {
   // App handles the learning logic
 });
 ```
@@ -276,11 +268,11 @@ curve: 1.5; // Slight log curve feels more natural for audio
 
 ```typescript
 // Musical timing
-knob.setAttribute('snap-musical', 'true');
+knob.setAttribute("snap-musical", "true");
 // Snaps to: 1/16, 1/8, 1/4, 1/2, 1, 2, 4 bars
 
 // Semitones
-knob.setAttribute('snap-semitones', 'true');
+knob.setAttribute("snap-semitones", "true");
 // Integer semitone values
 ```
 

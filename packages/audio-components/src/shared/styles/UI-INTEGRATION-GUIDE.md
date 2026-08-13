@@ -17,16 +17,13 @@ This guide outlines the optimized pattern for easy UI integration in consuming a
 Add the default stylesheet to your consuming application:
 
 ```html
-<link
-  rel="stylesheet"
-  href="@repo/audio-components/dist/audio-components.css"
-/>
+<link rel="stylesheet" href="@repo/audio-components/dist/audio-components.css" />
 ```
 
 Or import in your CSS/SCSS:
 
 ```scss
-@import '@repo/audio-components/dist/audio-components.css';
+@import "@repo/audio-components/dist/audio-components.css";
 ```
 
 ### 2. Use Components with Attributes
@@ -34,18 +31,10 @@ Or import in your CSS/SCSS:
 ```html
 <!-- Basic usage -->
 <sampler-element node-id="my-sampler" debug-mode></sampler-element>
-<load-button
-  target-node-id="my-sampler"
-  size="lg"
-  variant="primary"
-></load-button>
+<load-button target-node-id="my-sampler" size="lg" variant="primary"></load-button>
 
 <!-- With custom styling -->
-<volume-knob
-  target-node-id="my-sampler"
-  class="my-custom-knob"
-  style="--ac-knob-size: 80px;"
->
+<volume-knob target-node-id="my-sampler" class="my-custom-knob" style="--ac-knob-size: 80px;">
 </volume-knob>
 ```
 
@@ -179,10 +168,7 @@ For advanced responsive behavior:
 
     <div class="control-group">
       <h3>Effects</h3>
-      <div
-        class="ac-layout--grid"
-        style="grid-template-columns: repeat(3, 1fr);"
-      >
+      <div class="ac-layout--grid" style="grid-template-columns: repeat(3, 1fr);">
         <reverb-knob target-node-id="sampler-1"></reverb-knob>
         <drive-knob target-node-id="sampler-1"></drive-knob>
         <feedback-knob target-node-id="sampler-1"></feedback-knob>
@@ -211,14 +197,8 @@ For advanced responsive behavior:
   <!-- Inline controls for space efficiency -->
   <div class="ac-layout--inline ac-spacing--sm">
     <load-button target-node-id="sampler-2" size="sm"></load-button>
-    <volume-knob
-      target-node-id="sampler-2"
-      style="--ac-knob-size: 40px;"
-    ></volume-knob>
-    <reverb-knob
-      target-node-id="sampler-2"
-      style="--ac-knob-size: 40px;"
-    ></reverb-knob>
+    <volume-knob target-node-id="sampler-2" style="--ac-knob-size: 40px;"></volume-knob>
+    <reverb-knob target-node-id="sampler-2" style="--ac-knob-size: 40px;"></reverb-knob>
   </div>
 </div>
 ```

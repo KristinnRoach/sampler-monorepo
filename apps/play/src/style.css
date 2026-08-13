@@ -3,13 +3,13 @@ body {
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
-    'Segoe UI',
+    "Segoe UI",
     Roboto,
     Oxygen,
     Ubuntu,
     Cantarell,
-    'Open Sans',
-    'Helvetica Neue',
+    "Open Sans",
+    "Helvetica Neue",
     sans-serif;
 
   margin: 0;
@@ -124,10 +124,10 @@ option:checked {
 /* Layout variants */
 .control-grid.layout-desktop {
   grid-template-areas:
-    'env env sample space'
-    'env env filter feedback'
-    'loop trim misc lfo'
-    'toggle keyboard keyboard keyboard';
+    "env env sample space"
+    "env env filter feedback"
+    "loop trim misc lfo"
+    "toggle keyboard keyboard keyboard";
 }
 
 .control-grid.layout-mobile {
@@ -135,30 +135,30 @@ option:checked {
   /* width: clamp(350px, auto, 100%);
   border: none; */
   grid-template-areas:
-    'sample'
-    'env'
-    'keyboard'
-    'loop'
-    'trim'
-    'space'
-    'filter'
-    'misc'
-    'feedback'
-    'lfo'
-    'toggle';
+    "sample"
+    "env"
+    "keyboard"
+    "loop"
+    "trim"
+    "space"
+    "filter"
+    "misc"
+    "feedback"
+    "lfo"
+    "toggle";
 }
 
 .control-grid.layout-tablet {
   grid-template-columns: 1fr 1fr;
   grid-template-areas:
-    'env sample'
-    'env filter'
-    'loop trim'
-    'space misc'
-    'feedback feedback'
-    'lfo lfo'
-    'keyboard keyboard'
-    'toggle .';
+    "env sample"
+    "env filter"
+    "loop trim"
+    "space misc"
+    "feedback feedback"
+    "lfo lfo"
+    "keyboard keyboard"
+    "toggle .";
 }
 
 /* Tablet */
@@ -556,7 +556,7 @@ option:checked {
 }
 
 .drag-handle::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 2px;
   left: 2px;
@@ -618,7 +618,7 @@ option:checked {
 }
 
 .row-collapse-icon::before {
-  content: '﹀';
+  content: "﹀";
   font-weight: bold;
 }
 

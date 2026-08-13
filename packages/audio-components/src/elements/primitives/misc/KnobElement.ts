@@ -4,7 +4,7 @@ export class KnobElement extends HTMLElement {
   private isDragging: boolean = false;
 
   static get observedAttributes() {
-    return ['value', 'min', 'max'];
+    return ["value", "min", "max"];
   }
 
   get value(): number {
@@ -13,14 +13,14 @@ export class KnobElement extends HTMLElement {
   set value(v: number) {
     this._value = Math.max(this.min, Math.min(this.max, v));
     this.updateRotation();
-    this.dispatchEvent(new Event('change'));
+    this.dispatchEvent(new Event("change"));
   }
 
   get min(): number {
-    return parseInt(this.getAttribute('min') || '0');
+    return parseInt(this.getAttribute("min") || "0");
   }
   get max(): number {
-    return parseInt(this.getAttribute('max') || '100');
+    return parseInt(this.getAttribute("max") || "100");
   }
 
   constructor() {
@@ -34,12 +34,12 @@ export class KnobElement extends HTMLElement {
   }
 
   private setupEventListeners() {
-    (this.querySelector('.knob') as HTMLElement)!.addEventListener(
-      'mousedown',
-      this.startDrag.bind(this)
+    (this.querySelector(".knob") as HTMLElement)!.addEventListener(
+      "mousedown",
+      this.startDrag.bind(this),
     );
-    window.addEventListener('mousemove', this.handleDrag.bind(this));
-    window.addEventListener('mouseup', this.endDrag.bind(this));
+    window.addEventListener("mousemove", this.handleDrag.bind(this));
+    window.addEventListener("mouseup", this.endDrag.bind(this));
   }
 
   private startDrag(e: MouseEvent) {
@@ -52,8 +52,7 @@ export class KnobElement extends HTMLElement {
     const rect = this.getBoundingClientRect();
     const centerY = rect.top + rect.height / 2;
     const centerX = rect.left + rect.width / 2;
-    const angle =
-      (Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180) / Math.PI;
+    const angle = (Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180) / Math.PI;
     this.rotation = angle;
     this.value = this.calculateValueFromRotation();
     this.updateRotation();
@@ -71,9 +70,8 @@ export class KnobElement extends HTMLElement {
   }
 
   private updateRotation() {
-    const knob = this.querySelector('.knob') as HTMLElement;
-    const rotation =
-      ((this.value - this.min) / (this.max - this.min)) * 240 - 150;
+    const knob = this.querySelector(".knob") as HTMLElement;
+    const rotation = ((this.value - this.min) / (this.max - this.min)) * 240 - 150;
     knob.style.transform = `rotate(${rotation}deg)`;
   }
 
@@ -82,7 +80,7 @@ export class KnobElement extends HTMLElement {
   }
 }
 
-customElements.define('knob-element', KnobElement);
+customElements.define("knob-element", KnobElement);
 
 //   <style>
 //     value-knob {

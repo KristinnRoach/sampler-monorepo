@@ -1,15 +1,12 @@
 // env-utils.ts
-import type { EnvelopePoint } from '@repo/audiolib';
+import type { EnvelopePoint } from "@repo/audiolib";
 
 const LOG_SAFETY_MIN = 0.1;
 
 /**
  * Convert linear value to logarithmic space
  */
-export const linearToLogarithmic = (
-  linearValue: number,
-  valueRange: [number, number]
-): number => {
+export const linearToLogarithmic = (linearValue: number, valueRange: [number, number]): number => {
   const [min, max] = valueRange;
   const normalized = (linearValue - min) / (max - min);
   const logMin = Math.log2(Math.max(LOG_SAFETY_MIN, min));
@@ -23,7 +20,7 @@ export const linearToLogarithmic = (
 export const secondsToScreenX = (
   timeInSeconds: number,
   maxDurationSeconds: number,
-  svgWidth: number
+  svgWidth: number,
 ): number => {
   return (timeInSeconds / maxDurationSeconds) * svgWidth;
 };
@@ -34,7 +31,7 @@ export const secondsToScreenX = (
 export const screenXToSeconds = (
   screenX: number,
   svgWidth: number,
-  maxDurationSeconds: number
+  maxDurationSeconds: number,
 ): number => {
   return (screenX / svgWidth) * maxDurationSeconds;
 };
@@ -43,10 +40,7 @@ export const screenXToSeconds = (
  * Convert SVG Y coordinate to normalized envelope value (0-1)
  * This now returns normalized values that need to be converted to absolute values
  */
-export const screenYToNormalizedValue = (
-  screenY: number,
-  svgHeight: number
-): number => {
+export const screenYToNormalizedValue = (screenY: number, svgHeight: number): number => {
   return Math.max(0, Math.min(1, 1 - screenY / svgHeight));
 };
 
@@ -57,12 +51,12 @@ export const screenYToAbsoluteValue = (
   screenY: number,
   svgHeight: number,
   valueRange: [number, number],
-  scaling: 'linear' | 'logarithmic' = 'linear'
+  scaling: "linear" | "logarithmic" = "linear",
 ): number => {
   const normalized = screenYToNormalizedValue(screenY, svgHeight);
   const [min, max] = valueRange;
 
-  if (scaling === 'logarithmic') {
+  if (scaling === "logarithmic") {
     // Convert from linear UI space to logarithmic frequency space
     const logMin = Math.log2(Math.max(LOG_SAFETY_MIN, min));
     const logMax = Math.log2(max);
@@ -79,11 +73,11 @@ export const screenYToAbsoluteValue = (
 export const absoluteValueToNormalized = (
   value: number,
   valueRange: [number, number],
-  scaling: 'linear' | 'logarithmic' = 'linear'
+  scaling: "linear" | "logarithmic" = "linear",
 ): number => {
   const [min, max] = valueRange;
 
-  if (scaling === 'logarithmic') {
+  if (scaling === "logarithmic") {
     // Convert from logarithmic frequency space to linear UI space
     const logMin = Math.log2(Math.max(LOG_SAFETY_MIN, min));
     const logMax = Math.log2(max);
@@ -101,7 +95,7 @@ export const absoluteValueToNormalized = (
 export const applySnapping = (
   value: number,
   snapValues: number[] | undefined,
-  threshold: number
+  threshold: number,
 ): number => {
   if (!snapValues) return value;
   const closest = snapValues.find((v) => Math.abs(v - value) < threshold);
@@ -115,7 +109,7 @@ export const applySnappingAbsolute = (
   absoluteValue: number,
   normalizedSnapValues: number[] | undefined,
   threshold: number,
-  valueRange: [number, number]
+  valueRange: [number, number],
 ): number => {
   if (!normalizedSnapValues) return absoluteValue;
 
@@ -139,9 +133,9 @@ export const generateSVGPath = (
   svgWidth: number,
   svgHeight: number,
   valueRange: [number, number],
-  scaling: 'linear' | 'logarithmic' = 'linear',
+  scaling: "linear" | "logarithmic" = "linear",
   offsetX: number = 0,
-  offsetY: number = 0
+  offsetY: number = 0,
 ): string => {
   if (points.length < 2)
     return `M${offsetX},${svgHeight + offsetY} L${svgWidth + offsetX},${svgHeight + offsetY}`;
@@ -149,35 +143,20 @@ export const generateSVGPath = (
   const sortedPoints = [...points].sort((a, b) => a.time - b.time);
 
   // Normalize first point value for display
-  const firstNormalized = absoluteValueToNormalized(
-    sortedPoints[0].value,
-    valueRange,
-    scaling
-  );
+  const firstNormalized = absoluteValueToNormalized(sortedPoints[0].value, valueRange, scaling);
   let path = `M${secondsToScreenX(sortedPoints[0].time, baseDurationSeconds, svgWidth) + offsetX},${(1 - firstNormalized) * svgHeight + offsetY}`;
 
   for (let i = 1; i < sortedPoints.length; i++) {
     const point = sortedPoints[i];
     const prevPoint = sortedPoints[i - 1];
 
-    const x =
-      secondsToScreenX(point.time, baseDurationSeconds, svgWidth) + offsetX;
-    const normalizedY = absoluteValueToNormalized(
-      point.value,
-      valueRange,
-      scaling
-    );
+    const x = secondsToScreenX(point.time, baseDurationSeconds, svgWidth) + offsetX;
+    const normalizedY = absoluteValueToNormalized(point.value, valueRange, scaling);
     const y = (1 - normalizedY) * svgHeight + offsetY;
 
-    if (prevPoint.curve === 'exponential') {
-      const prevX =
-        secondsToScreenX(prevPoint.time, baseDurationSeconds, svgWidth) +
-        offsetX;
-      const prevNormalizedY = absoluteValueToNormalized(
-        prevPoint.value,
-        valueRange,
-        scaling
-      );
+    if (prevPoint.curve === "exponential") {
+      const prevX = secondsToScreenX(prevPoint.time, baseDurationSeconds, svgWidth) + offsetX;
+      const prevNormalizedY = absoluteValueToNormalized(prevPoint.value, valueRange, scaling);
       const prevY = (1 - prevNormalizedY) * svgHeight + offsetY;
       const cp1X = prevX + (x - prevX) * 0.3;
       const cp1Y = prevY;

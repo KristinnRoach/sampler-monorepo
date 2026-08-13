@@ -17,35 +17,25 @@ pnpm add @repo/audio-components react react-dom
 ### Import the React components
 
 ```tsx
-import { KnobComponent } from '@repo/audio-components/react';
-import '@repo/audio-components/style';
+import { KnobComponent } from "@repo/audio-components/react";
+import "@repo/audio-components/style";
 ```
 
 ### Simple Knob
 
 ```tsx
-import React, { useState } from 'react';
-import {
-  KnobComponent,
-  KnobChangeEventDetail,
-} from '@repo/audio-components/react';
+import React, { useState } from "react";
+import { KnobComponent, KnobChangeEventDetail } from "@repo/audio-components/react";
 
 function MyComponent() {
   const [value, setValue] = useState(0.5);
 
   const handleChange = (detail: KnobChangeEventDetail) => {
     setValue(detail.value);
-    console.log('Value changed:', detail.value);
+    console.log("Value changed:", detail.value);
   };
 
-  return (
-    <KnobComponent
-      value={value}
-      onChange={handleChange}
-      label='Volume'
-      size={60}
-    />
-  );
+  return <KnobComponent value={value} onChange={handleChange} label="Volume" size={60} />;
 }
 ```
 
@@ -113,8 +103,8 @@ Available presets: `volume`, `dryWet`, `feedback`, `distortion`, `drive`, `clipp
 Access the underlying KnobElement:
 
 ```tsx
-import { useRef } from 'react';
-import { KnobComponent, KnobElement } from '@repo/audio-components/react';
+import { useRef } from "react";
+import { KnobComponent, KnobElement } from "@repo/audio-components/react";
 
 function MyComponent() {
   const knobRef = useRef<KnobElement>(null);
@@ -138,19 +128,19 @@ function MyComponent() {
 
 ```tsx
 <KnobComponent
-  label='Custom Knob'
+  label="Custom Knob"
   size={80}
-  color='#ff6b6b'
-  className='my-knob-container'
+  color="#ff6b6b"
+  className="my-knob-container"
   labelStyle={{
-    color: '#333',
-    fontWeight: 'bold',
-    fontSize: '14px',
+    color: "#333",
+    fontWeight: "bold",
+    fontSize: "14px",
   }}
   valueStyle={{
-    color: '#666',
-    fontSize: '12px',
-    fontFamily: 'monospace',
+    color: "#666",
+    fontSize: "12px",
+    fontFamily: "monospace",
   }}
   valueFormatter={(v) => `${Math.round(v * 100)}%`}
 />
@@ -160,7 +150,7 @@ function MyComponent() {
 
 ```tsx
 <KnobComponent
-  label='Dynamic Snap'
+  label="Dynamic Snap"
   minValue={0}
   maxValue={100}
   snapThresholds={[
@@ -177,11 +167,11 @@ You can also use the underlying web component directly in React:
 
 ```tsx
 // Import types for TypeScript support
-import '@repo/audio-components/react'; // This registers the JSX types
+import "@repo/audio-components/react"; // This registers the JSX types
 
 function MyComponent() {
   const handleChange = (e: CustomEvent<KnobChangeEventDetail>) => {
-    console.log('Knob changed:', e.detail.value);
+    console.log("Knob changed:", e.detail.value);
   };
 
   return (
@@ -190,7 +180,7 @@ function MyComponent() {
       max-value={1}
       default-value={0.5}
       width={60}
-      color='#00ff00'
+      color="#00ff00"
       onknob-change={handleChange}
     />
   );
@@ -222,7 +212,7 @@ npm install --save-dev @types/react @types/react-dom
 Don't forget to import the stylesheet:
 
 ```tsx
-import '@repo/audio-components/style';
+import "@repo/audio-components/style";
 ```
 
 ### Peer Dependency Warnings

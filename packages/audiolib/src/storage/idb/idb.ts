@@ -1,19 +1,19 @@
 // src/idb/idb.ts
-import Dexie from 'dexie';
-import { IdbSample } from '@/types/Sample';
+import Dexie from "dexie";
+import { IdbSample } from "@/types/Sample";
 
 export class AudioSampleDB extends Dexie {
   samples: Dexie.Table<IdbSample, TODO>; //
 
   constructor() {
-    super('AudioSampleDB');
+    super("AudioSampleDB");
 
     // Define the schema for the database
     this.version(1).stores({
-      samples: 'id, url, dateAdded, isDefaultInitSample, isFromDefaultLib',
+      samples: "id, url, dateAdded, isDefaultInitSample, isFromDefaultLib",
     });
 
-    this.samples = this.table('samples');
+    this.samples = this.table("samples");
   }
 }
 

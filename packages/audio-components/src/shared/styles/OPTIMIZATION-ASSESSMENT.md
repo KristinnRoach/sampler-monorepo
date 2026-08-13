@@ -90,10 +90,7 @@ This approach provides:
 <volume-knob size="compact|normal|large" target-node-id="sampler"></volume-knob>
 
 <!-- Style variants -->
-<load-button
-  variant="primary|secondary|danger"
-  target-node-id="sampler"
-></load-button>
+<load-button variant="primary|secondary|danger" target-node-id="sampler"></load-button>
 ```
 
 #### 3.2 Layout Utilities
@@ -122,8 +119,8 @@ This approach provides:
 ```typescript
 return div(
   { style: COMPONENT_STYLE },
-  button({ onclick: loadSample, style: BUTTON_STYLE }, 'Load Sample'),
-  div(() => status.val)
+  button({ onclick: loadSample, style: BUTTON_STYLE }, "Load Sample"),
+  div(() => status.val),
 );
 ```
 
@@ -133,27 +130,27 @@ return div(
 return div(
   {
     class: createComponentStyle({ inline: true }),
-    'data-component': 'load-button',
+    "data-component": "load-button",
   },
   button(
     {
       class: () =>
         createButtonStyle({
-          primary: variant.val === 'primary',
+          primary: variant.val === "primary",
           disabled: !!disabled.val,
         }),
       onclick: loadSample,
-      'aria-label': 'Load audio sample',
+      "aria-label": "Load audio sample",
     },
-    'Load Sample'
+    "Load Sample",
   ),
   div(
     {
-      class: 'ac-component__status',
-      'aria-live': 'polite',
+      class: "ac-component__status",
+      "aria-live": "polite",
     },
-    () => status.val
-  )
+    () => status.val,
+  ),
 );
 ```
 
@@ -163,10 +160,10 @@ return div(
 
 ```typescript
 export const defineSampler = () => {
-  defineIfNotExists('load-button', LoadButton, false);
-  defineIfNotExists('load-button-sm', SmallLoadButton, false);
-  defineIfNotExists('load-button-lg', LargeLoadButton, false);
-  defineIfNotExists('load-button-primary', PrimaryLoadButton, false);
+  defineIfNotExists("load-button", LoadButton, false);
+  defineIfNotExists("load-button-sm", SmallLoadButton, false);
+  defineIfNotExists("load-button-lg", LargeLoadButton, false);
+  defineIfNotExists("load-button-primary", PrimaryLoadButton, false);
   // ... etc
 };
 ```
@@ -176,17 +173,10 @@ export const defineSampler = () => {
 **Simple Integration:**
 
 ```html
-<link
-  rel="stylesheet"
-  href="node_modules/@repo/audio-components/dist/audio-components.css"
-/>
+<link rel="stylesheet" href="node_modules/@repo/audio-components/dist/audio-components.css" />
 
 <sampler-element node-id="main-sampler"></sampler-element>
-<load-button
-  target-node-id="main-sampler"
-  size="lg"
-  variant="primary"
-></load-button>
+<load-button target-node-id="main-sampler" size="lg" variant="primary"></load-button>
 ```
 
 **Custom Theming:**

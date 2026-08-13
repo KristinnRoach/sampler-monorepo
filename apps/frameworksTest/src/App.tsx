@@ -1,22 +1,22 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   KnobComponent,
   KnobChangeEventDetail,
   OscilloscopeComponent,
-} from '@repo/audio-components/react';
-import '@repo/audio-components/style';
-import './App.css';
+} from "@repo/audio-components/react";
+import "@repo/audio-components/style";
+import "./App.css";
 
 const customFormatter = (v: number) => `${Math.round(v * 100)}%`;
 const customLabelStyle = {
-  color: '#333',
-  fontWeight: 'bold',
-  fontSize: '14px',
+  color: "#333",
+  fontWeight: "bold",
+  fontSize: "14px",
 };
 const customValueStyle = {
-  color: '#000000ff',
-  fontSize: '12px',
-  fontFamily: 'monospace',
+  color: "#000000ff",
+  fontSize: "12px",
+  fontFamily: "monospace",
 };
 
 function App() {
@@ -60,29 +60,29 @@ function App() {
   };
 
   return (
-    <div className='app'>
-      <header className='app-header'>
+    <div className="app">
+      <header className="app-header">
         <h1>React Audio Components Test</h1>
         <p>Testing KnobComponent wrapper</p>
       </header>
 
-      <main className='knob-grid'>
-        <div className='knob-section'>
+      <main className="knob-grid">
+        <div className="knob-section">
           <h2>Basic Knob</h2>
           <KnobComponent
             value={basicValue}
             onChange={handleBasicChange}
-            label='Basic'
+            label="Basic"
             size={60}
             displayValue={true}
           />
           <p>Value: {basicValue.toFixed(3)}</p>
         </div>
 
-        <div className='knob-section'>
+        <div className="knob-section">
           <h2>Volume Preset</h2>
           <KnobComponent
-            preset='volume'
+            preset="volume"
             value={volumeValue}
             onChange={handleVolumeChange}
             size={80}
@@ -90,10 +90,10 @@ function App() {
           <p>Value: {volumeValue.toFixed(3)}</p>
         </div>
 
-        <div className='knob-section'>
+        <div className="knob-section">
           <h2>Feedback Preset</h2>
           <KnobComponent
-            preset='feedback'
+            preset="feedback"
             value={feedbackValue}
             onChange={handleFeedbackChange}
             size={70}
@@ -101,29 +101,29 @@ function App() {
           <p>Value: {feedbackValue.toFixed(3)}</p>
         </div>
 
-        <div className='knob-section'>
+        <div className="knob-section">
           <h2>Custom Style</h2>
           <KnobComponent
-            label='Custom'
+            label="Custom"
             value={customValue}
             onChange={handleCustomChange}
             minValue={0}
             maxValue={1}
             size={65}
-            color='#000000ff'
+            color="#000000ff"
             displayValue={true}
             valueFormatter={customFormatter}
-            className='custom-knob'
+            className="custom-knob"
             labelStyle={customLabelStyle}
             valueStyle={customValueStyle}
           />
           <p>Value: {customValue.toFixed(3)}</p>
         </div>
 
-        <div className='knob-section'>
+        <div className="knob-section">
           <h2>Stepped Values</h2>
           <KnobComponent
-            label='Steps'
+            label="Steps"
             value={steppedValue}
             onChange={handleSteppedChange}
             minValue={0}
@@ -132,12 +132,12 @@ function App() {
             displayValue={true}
             valueFormatter={(v) => v.toString()}
             size={60}
-            color='#4CAF50'
+            color="#4CAF50"
           />
           <p>Value: {steppedValue}</p>
         </div>
 
-        <div className='knob-section'>
+        <div className="knob-section">
           <h2>Oscilloscope</h2>
           {!audioContext && <button onClick={startAudio}>Start Audio</button>}
           {audioContext && (
@@ -163,7 +163,7 @@ function App() {
         </div> */}
       </main>
 
-      <footer className='app-footer'>
+      <footer className="app-footer">
         <p>Open browser console to see change events</p>
       </footer>
     </div>

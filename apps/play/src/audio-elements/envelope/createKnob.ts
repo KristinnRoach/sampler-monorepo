@@ -1,6 +1,3 @@
-import { SamplePlayer } from '@repo/audiolib';
-
-
 // TODO: Delete this file when Envelope and it's TimeScaleKnob are refactored and standard patterns established
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
@@ -37,25 +34,20 @@ export interface KnobConfig {
 
   // Callbacks
   onChange?: (value: any) => void;
-  onConnect?: (target: SamplePlayer, state: any, knobElement?: any) => void;
-  onStateReady?: (state: any) => void;
 }
 
-export const createKnob = (
-  config: KnobConfig,
-  nodeId?: string,
-): HTMLElement => {
+export const createKnob = (config: KnobConfig, nodeId?: string): HTMLElement => {
   const {
     label,
     valueFormatter = (v) => v.toFixed(2),
     showValue = true,
     useLocalStorage = false,
     onChange,
-    className = 'generic-knob',
+    className = "generic-knob",
   } = config;
 
   // Create container
-  const container = document.createElement('div');
+  const container = document.createElement("div");
   container.classList.add(className);
   container.style.cssText = `
     display: flex;
@@ -63,15 +55,15 @@ export const createKnob = (
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: ${config.color ?? '#ccc'};
+    color: ${config.color ?? "#ccc"};
   `;
 
   // Create label
   if (label) {
-    const labelElement = document.createElement('div');
+    const labelElement = document.createElement("div");
     labelElement.textContent = label;
-    labelElement.style.cssText = `text-align: center; cursor: pointer; color: ${config.color ?? '#ccc'};`;
-    labelElement.addEventListener('dblclick', () => {
+    labelElement.style.cssText = `text-align: center; cursor: pointer; color: ${config.color ?? "#ccc"};`;
+    labelElement.addEventListener("dblclick", () => {
       knobElement.setValue?.(config.defaultValue || 0);
     });
     container.appendChild(labelElement);
@@ -80,41 +72,35 @@ export const createKnob = (
   // Ensure knob element is defined?
 
   // Create knob element
-  const knobElement = document.createElement('knob-element') as any;
+  const knobElement = document.createElement("knob-element") as any;
 
   // Set all knob properties
   Object.entries({
-    'min-value': config.minValue ?? 0,
-    'max-value': config.maxValue ?? 1,
-    'default-value': config.defaultValue ?? 0.5,
-    'snap-increment': config.snapIncrement ?? 0.01,
+    "min-value": config.minValue ?? 0,
+    "max-value": config.maxValue ?? 1,
+    "default-value": config.defaultValue ?? 0.5,
+    "snap-increment": config.snapIncrement ?? 0.01,
     width: config.width ?? 45,
     height: config.height ?? 45,
     curve: config.curve ?? 1,
-    color: config.color ?? 'rgb(234, 234, 234)',
+    color: config.color ?? "rgb(234, 234, 234)",
   }).forEach(([key, value]) => {
     knobElement.setAttribute(key, value.toString());
   });
 
   if (config.snapThresholds) {
-    knobElement.setAttribute(
-      'snap-thresholds',
-      JSON.stringify(config.snapThresholds),
-    );
+    knobElement.setAttribute("snap-thresholds", JSON.stringify(config.snapThresholds));
   }
   if (config.allowedValues) {
-    knobElement.setAttribute(
-      'allowed-values',
-      JSON.stringify(config.allowedValues),
-    );
+    knobElement.setAttribute("allowed-values", JSON.stringify(config.allowedValues));
   }
 
   container.appendChild(knobElement);
 
   // Handle storage
   const getStorageKey = () => {
-    let key = config.paramName || label || 'unkown-knob-value';
-    if (nodeId) key += ':nodeId:' + nodeId;
+    let key = config.paramName || label || "unkown-knob-value";
+    if (nodeId) key += ":nodeId:" + nodeId;
     return key;
   };
 
@@ -141,7 +127,7 @@ export const createKnob = (
     }
   }, 200);
 
-  knobElement.addEventListener('knob-change', (e: CustomEvent) => {
+  knobElement.addEventListener("knob-change", (e: CustomEvent) => {
     const value = e.detail.value;
 
     // Save to localStorage if enabled
@@ -154,12 +140,12 @@ export const createKnob = (
   });
 
   if (showValue) {
-    const valueDisplay = document.createElement('div');
+    const valueDisplay = document.createElement("div");
     valueDisplay.textContent = valueFormatter(initialValue);
-    valueDisplay.style.cssText = `font-size: 10px; text-align: center; color: ${config.color ?? '#999'};`;
+    valueDisplay.style.cssText = `font-size: 10px; text-align: center; color: ${config.color ?? "#999"};`;
     container.appendChild(valueDisplay);
 
-    knobElement.addEventListener('knob-change', (e: CustomEvent) => {
+    knobElement.addEventListener("knob-change", (e: CustomEvent) => {
       valueDisplay.textContent = valueFormatter(e.detail.value);
     });
   }

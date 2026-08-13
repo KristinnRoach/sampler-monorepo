@@ -1,13 +1,9 @@
 // src/idb/audioStorage.ts
-import { idb } from './idb';
-import { DEFAULT } from '@/constants';
-import {
-  releaseOfflineContext,
-  getOfflineAudioContext,
-  OfflineContextConfig,
-} from '@/context';
+import { idb } from "./idb";
+import { DEFAULT } from "@/constants";
+import { releaseOfflineContext, getOfflineAudioContext, OfflineContextConfig } from "@/context";
 
-import { AppSample, IdbSample, SampleMetadata } from '@/types/Sample';
+import { AppSample, IdbSample, SampleMetadata } from "@/types/Sample";
 
 /**
  * Stores an AudioBuffer in IndexedDB
@@ -22,7 +18,7 @@ export async function storeAudioSample(
   url: string,
   buffer: AudioBuffer, // todo: support these -> | ArrayBuffer,  | Float32Array,
   isDefaultInitSample: 0 | 1 = 0,
-  isFromDefaultLib: 0 | 1 = 0
+  isFromDefaultLib: 0 | 1 = 0,
 ): Promise<string> {
   try {
     // Check if the sample already exists
@@ -71,43 +67,33 @@ export async function storeAudioSample(
 
     return id;
   } catch (error) {
-    console.error('Failed to store audio sample:', error);
+    console.error("Failed to store audio sample:", error);
     throw new Error(
-      `Failed to store audio sample: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to store audio sample: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
-export async function getSampleItem(
-  id: string
-): Promise<IdbSample | undefined> {
+export async function getSampleItem(id: string): Promise<IdbSample | undefined> {
   return await idb.samples.get(id);
 }
 
-export async function getSampleMetadata(
-  id: string
-): Promise<IdbSample['metadata'] | undefined> {
+export async function getSampleMetadata(id: string): Promise<IdbSample["metadata"] | undefined> {
   const item = await idb.samples.get(id);
   return item?.metadata || undefined;
 }
 
-export async function getSampleArrayBuffer(
-  id: string
-): Promise<ArrayBuffer | undefined> {
+export async function getSampleArrayBuffer(id: string): Promise<ArrayBuffer | undefined> {
   const item = await idb.samples.get(id);
   return item?.audioData;
 }
 
-export async function getSampleAsFloat32Array(
-  id: string
-): Promise<Float32Array | undefined> {
+export async function getSampleAsFloat32Array(id: string): Promise<Float32Array | undefined> {
   const item = await idb.samples.get(id);
   return item ? new Float32Array(item.audioData) : undefined;
 }
 
-export async function getSamplesDateAdded(
-  id: string
-): Promise<Date | undefined> {
+export async function getSamplesDateAdded(id: string): Promise<Date | undefined> {
   const item = await idb.samples.get(id);
   return item?.dateAdded;
 }
@@ -116,7 +102,7 @@ export async function getSamplesDateAdded(
 
 function extractContextConfig(
   metadata: SampleMetadata,
-  audioData: Float32Array
+  audioData: Float32Array,
 ): OfflineContextConfig {
   // Data needed for reconstruction of AudioBuffer
   const channels = metadata?.channels || 1; // make required when storing?
@@ -137,7 +123,7 @@ function extractContextConfig(
  */
 export async function getSampleAudioBuffer(
   id: string,
-  sampleItem?: IdbSample
+  sampleItem?: IdbSample,
 ): Promise<AudioBuffer | undefined> {
   try {
     const item = sampleItem ? sampleItem : await idb.samples.get(id);
@@ -148,10 +134,7 @@ export async function getSampleAudioBuffer(
     const audioData = new Float32Array(item.audioData);
 
     // Metadata needed for reconstruction
-    const config: OfflineContextConfig = extractContextConfig(
-      item.metadata,
-      audioData
-    );
+    const config: OfflineContextConfig = extractContextConfig(item.metadata, audioData);
 
     const context = getOfflineAudioContext(config);
 
@@ -159,7 +142,7 @@ export async function getSampleAudioBuffer(
     const audioBuffer = context.createBuffer(
       config.numberOfChannels!,
       config.length,
-      config.sampleRate!
+      config.sampleRate!,
     );
 
     // Copy data into the AudioBuffer for each channel
@@ -175,19 +158,19 @@ export async function getSampleAudioBuffer(
 
     return audioBuffer;
   } catch (error) {
-    console.error('Failed to retrieve audio sample:', error);
+    console.error("Failed to retrieve audio sample:", error);
     throw new Error(
-      `Failed to retrieve audio sample: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to retrieve audio sample: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
 export async function getAppSample(
   id: string,
-  audioDataType: 'AudioBuffer' | 'Float32Array' | 'ArrayBuffer' = 'AudioBuffer',
+  audioDataType: "AudioBuffer" | "Float32Array" | "ArrayBuffer" = "AudioBuffer",
   getMetadata = true,
   getInfo = true,
-  idbSample: IdbSample | null = null
+  idbSample: IdbSample | null = null,
 ): Promise<
   | {
       audioData: AudioBuffer | Float32Array | ArrayBuffer;
@@ -200,20 +183,20 @@ export async function getAppSample(
 
   if (!item) return undefined;
   if (idbSample && item.id !== idbSample.id) {
-    console.warn('sample id and idb item do not match, check logic');
+    console.warn("sample id and idb item do not match, check logic");
     return undefined;
   }
 
   let audioData: AudioBuffer | Float32Array | ArrayBuffer;
 
   switch (audioDataType) {
-    case 'AudioBuffer':
+    case "AudioBuffer":
       audioData = (await getSampleAudioBuffer(item.id, item)) as AudioBuffer;
       break;
-    case 'Float32Array':
+    case "Float32Array":
       audioData = new Float32Array(item.audioData);
       break;
-    case 'ArrayBuffer':
+    case "ArrayBuffer":
       audioData = item.audioData;
       break;
   }
@@ -254,18 +237,16 @@ export async function getAllAudioSamples(): Promise<IdbSample[]> {
     const allSamples = await idb.samples.toArray();
     return allSamples;
   } catch (error) {
-    console.error('Failed to retrieve all audio samples:', error);
+    console.error("Failed to retrieve all audio samples:", error);
     throw new Error(
-      `Failed to retrieve all audio samples: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to retrieve all audio samples: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
 // Get most recently added sample item, as stored in IndexedDB
 async function getLatestSampleItem(): Promise<IdbSample | undefined> {
-  return (
-    (await idb.samples.orderBy('dateAdded').reverse().first()) || undefined
-  );
+  return (await idb.samples.orderBy("dateAdded").reverse().first()) || undefined;
 }
 // export async function getAudioSampleByUrl(url: string): Promise<ISampleItem | undefined> {
 
@@ -280,7 +261,7 @@ export async function getLatestSample(): Promise<
   try {
     const item = await getLatestSampleItem();
     if (!item) {
-      console.warn('getLatestSampleItem returned undefined');
+      console.warn("getLatestSampleItem returned undefined");
       return undefined;
     }
     // Check if the sample exists
@@ -292,10 +273,10 @@ export async function getLatestSample(): Promise<
 
     return await getAppSample(item.id);
   } catch (error) {
-    console.error('Failed to retrieve latest audio sample:', error);
+    console.error("Failed to retrieve latest audio sample:", error);
     throw new Error(
       `Failed to retrieve sample: 
-      ${error instanceof Error ? error.message : String(error)}`
+      ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -318,9 +299,9 @@ export async function removeAudioSample(id: string): Promise<boolean> {
     await idb.samples.delete(id);
     return true;
   } catch (error) {
-    console.error('Failed to remove audio sample:', error);
+    console.error("Failed to remove audio sample:", error);
     throw new Error(
-      `Failed to remove audio sample: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to remove audio sample: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -333,12 +314,12 @@ export async function removeAudioSample(id: string): Promise<boolean> {
  */
 export async function hasAudioSample(id: string): Promise<boolean> {
   try {
-    const count = await idb.samples.where('id').equals(id).count();
+    const count = await idb.samples.where("id").equals(id).count();
     return count > 0;
   } catch (error) {
-    console.error('Failed to check for audio sample:', error);
+    console.error("Failed to check for audio sample:", error);
     throw new Error(
-      `Failed to check for audio sample: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to check for audio sample: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }

@@ -1,6 +1,6 @@
 interface ButtonOptions {
   initialState?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: "sm" | "md" | "lg";
   className?: string;
   onClick?: () => void;
   colors?: Record<string, string>;
@@ -27,28 +27,28 @@ const icons = new Map<string, string>([
 
   [
     // ! SCALED version. TODO: verify that this is correct before using (otherwise use above version)
-    'download',
+    "download",
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
       <path d="M 12.5 16 L 12.5 0 M 5.8 9.3 L 12.5 16 L 19.2 9.3 M 24.5 16 L 24.5 21.3 C 24.5 22.8 23.4 24 21.9 24 L 3.1 24 C 1.6 24 0.5 22.8 0.5 21.3 L 0.5 16" />
     </svg>`,
   ],
 
   [
-    'upload',
+    "upload",
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke="currentColor">
       <path d="M 12 0.75 L 12 16.084 M 24 15.334 L 24 20.444 C 24 21.856 22.857 23 21.444 23 L 2.667 23 C 1.254 23 0 21.856 0 20.444 L 0 15.334 M 5.339 7.14 L 12 0.75 L 18.661 7.14" />
     </svg>`,
   ],
 
   [
-    'record_idle',
+    "record_idle",
     `<svg viewBox="0 0 24 24" fill="red" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="8" />
     </svg>`,
   ],
 
   [
-    'record_armed',
+    "record_armed",
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="8" />
       <circle cx="12" cy="12" r="4" fill="currentColor" />
@@ -56,28 +56,28 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'record_recording',
+    "record_recording",
     `<svg viewBox="0 0 24 24" fill="currentColor">
       <circle cx="12" cy="12" r="12" />
     </svg>`,
   ],
 
   [
-    'midi_on',
+    "midi_on",
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 5 24 14" width="24px" height="14px" fill="currentColor" stroke="none">
       <path d="M 21.775 5 L 24 5 L 24 18.998 L 21.775 18.998 L 21.775 5 Z M 13.213 5 L 19.719 5 C 20.379 5 20.764 5.891 20.764 6.948 L 20.764 17.262 C 20.764 18.575 20.414 18.998 19.652 18.998 L 13.213 18.998 L 13.213 10.106 L 15.438 10.106 L 15.438 15.577 L 18.573 15.577 L 18.573 8.159 L 13.213 8.159 L 13.213 5 Z M 9.978 5 L 12.168 5 L 12.168 18.998 L 9.978 18.998 L 9.978 5 Z M 0 5 L 7.854 5 C 8.514 5 8.899 5.891 8.899 6.948 L 8.899 19 L 6.708 19 L 6.708 8.524 L 5.427 8.524 L 5.427 18.997 L 3.438 18.997 L 3.438 8.525 L 2.191 8.525 L 2.191 18.998 L 0 18.998 L 0 5 Z" style="stroke-width: 1;" />
     </svg>`,
   ],
 
   [
-    'midi_off',
+    "midi_off",
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 5 24 14" width="24px" height="14px" fill="currentColor" stroke="none">
       <path d="M 21.775 5 L 24 5 L 24 18.998 L 21.775 18.998 L 21.775 5 Z M 13.213 5 L 19.719 5 C 20.379 5 20.764 5.891 20.764 6.948 L 20.764 17.262 C 20.764 18.575 20.414 18.998 19.652 18.998 L 13.213 18.998 L 13.213 10.106 L 15.438 10.106 L 15.438 15.577 L 18.573 15.577 L 18.573 8.159 L 13.213 8.159 L 13.213 5 Z M 9.978 5 L 12.168 5 L 12.168 18.998 L 9.978 18.998 L 9.978 5 Z M 0 5 L 7.854 5 C 8.514 5 8.899 5.891 8.899 6.948 L 8.899 19 L 6.708 19 L 6.708 8.524 L 5.427 8.524 L 5.427 18.997 L 3.438 18.997 L 3.438 8.525 L 2.191 8.525 L 2.191 18.998 L 0 18.998 L 0 5 Z" style="stroke-width: 1;" />
     </svg>`,
   ],
 
   [
-    'direction_forward',
+    "direction_forward",
     `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24px" height="16px" xmlns:bx="https://boxy-svg.com" fill="currentColor" stroke="none">
         <path d="M 34.241 44.441 H 47.535 L 44.848 38.728 L 56.716 46.728 L 44.848 54.728 L 47.535 49.016 H 34.241 V 44.441 Z" bx:shape="arrow 34.241 38.728 22.475 16 4.574 11.868 2.687 1@3d0e1b09" style="fill: currentColor;" transform="matrix(1, -0.00037700001848861575, 0.00037700001848861575, 1, -33.69770050048828, -33.24232482910156)" />
@@ -86,7 +86,7 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'direction_reverse',
+    "direction_reverse",
     `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24px" height="16px" xmlns:bx="https://boxy-svg.com" fill="currentColor" stroke="none">
       <path d="M -34.241 -33.015 H -20.947 L -23.634 -38.728 L -11.766 -30.728 L -23.634 -22.728 L -20.947 -28.441 H -34.241 V -33.015 Z" bx:shape="arrow -34.241 -38.728 22.475 16 4.574 11.868 2.687 1@168237fd" style="fill: currentColor;" transform="matrix(-1, -0.00037700001848861575, -0.00037700001848861575, 1, -10.841633796691895, 44.18785858154297)" />
@@ -94,7 +94,7 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'loop_unlocked',
+    "loop_unlocked",
     `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 1.6 24 20.747" width="24px" height="20.747px" fill="currentColor" stroke="none">
       <path d="M 1.412 11.973 C 1.412 15.085 3.827 17.616 6.795 17.616 L 6.795 19.026 C 3.048 19.026 0 15.862 0 11.973 C 0 8.084 3.048 4.919 6.795 4.919 L 12.765 4.919 L 10.441 2.597 L 11.44 1.6 L 15.469 5.625 L 11.441 9.651 L 10.441 8.652 L 12.767 6.33 L 6.795 6.33 C 3.827 6.33 1.412 8.861 1.412 11.973 Z M 17.205 4.919 L 17.205 6.33 C 20.173 6.33 22.588 8.861 22.588 11.973 C 22.588 15.085 20.173 17.616 17.205 17.616 L 11.233 17.616 L 13.557 15.294 L 12.559 14.296 L 8.531 18.321 L 12.56 22.347 L 13.559 21.35 L 11.233 19.026 L 17.204 19.026 C 20.952 19.026 24 15.862 24 11.973 C 24 8.084 20.952 4.919 17.205 4.919 Z" />
@@ -102,14 +102,14 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'loop_locked',
+    "loop_locked",
     `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 1.6 24 20.747" width="24px" height="20.747px" fill="currentColor" stroke="none">
       <path d="M 1.412 11.973 C 1.412 15.085 3.827 17.616 6.795 17.616 L 6.795 19.026 C 3.048 19.026 0 15.862 0 11.973 C 0 8.084 3.048 4.919 6.795 4.919 L 12.765 4.919 L 10.441 2.597 L 11.44 1.6 L 15.469 5.625 L 11.441 9.651 L 10.441 8.652 L 12.767 6.33 L 6.795 6.33 C 3.827 6.33 1.412 8.861 1.412 11.973 Z M 17.205 4.919 L 17.205 6.33 C 20.173 6.33 22.588 8.861 22.588 11.973 C 22.588 15.085 20.173 17.616 17.205 17.616 L 11.233 17.616 L 13.557 15.294 L 12.559 14.296 L 8.531 18.321 L 12.56 22.347 L 13.559 21.35 L 11.233 19.026 L 17.204 19.026 C 20.952 19.026 24 15.862 24 11.973 C 24 8.084 20.952 4.919 17.205 4.919 Z" />
     </svg>`,
   ],
   [
-    'pitch_on',
+    "pitch_on",
     `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="4 0 16 24" width="16px" height="24px" fill="currentColor" stroke="none">
       <path d="M 12 0 L 12 14.067 C 11.213 13.613 10.307 13.333 9.333 13.333 C 6.387 13.333 4 15.72 4 18.667 C 4 21.613 6.387 24 9.333 24 C 12.28 24 14.667 21.613 14.667 18.667 L 14.667 5.333 L 20 5.333 L 20 0 L 12 0 Z" style="stroke-width: 1;" />
@@ -117,13 +117,13 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'pitch_off',
+    "pitch_off",
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 0 16 24" width="16px" height="24px" fill="currentColor" stroke="none">
       <path d="M 12 0 L 12 14.067 C 11.213 13.613 10.307 13.333 9.333 13.333 C 6.387 13.333 4 15.72 4 18.667 C 4 21.613 6.387 24 9.333 24 C 12.28 24 14.667 21.613 14.667 18.667 L 14.667 5.333 L 20 5.333 L 20 0 L 12 0 Z" style="stroke-width: 1;" />
     </svg>`,
   ],
   [
-    'hold_locked',
+    "hold_locked",
     `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="4 0 16 24" width="16px" height="24px" fill="currentColor" stroke="none">
       <path d="M 14.667 2 L 20 2 L 20 22 L 14.667 22 L 14.667 2 Z M 4 2 L 9.333 2 L 9.333 22 L 4 22 L 4 2 Z" style="stroke-width: 1;" />
@@ -131,14 +131,14 @@ const icons = new Map<string, string>([
   ],
 
   [
-    'hold_unlocked',
+    "hold_unlocked",
     `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="4 0 16 24" width="16px" height="24px" fill="currentColor" stroke="none">
       <path d="M 14.667 2 L 20 2 L 20 22 L 14.667 22 L 14.667 2 Z M 4 2 L 9.333 2 L 9.333 22 L 4 22 L 4 2 Z" style="stroke-width: 1;" />
     </svg>`,
   ],
   [
-    'save',
+    "save",
     `<svg id="save" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor">
     <path d="m23.65 4.4-4.2-4.2a.68.68 0 0 0-.48-.2H.675A.675.675 0 0 0 0 .675v22.5A.675.675 0 0 0 .675 24h22.5a.675.675 0 0 0 .675-.675V4.875a.675.675 0 0 0-.2-.475zM3.16 2.85a.487.487 0 0 1 .487-.487h13.24a.487.487 0 0 1 .487.487v6.44a.487.487 0 0 1-.487.487H3.647a.487.487 0 0 1-.487-.487V2.85zm17.53 17.52a.6.6 0 0 1-.6.6H3.765a.6.6 0 0 1-.6-.6v-7.88a.6.6 0 0 1 .6-.6h16.325a.6.6 0 0 1 .6.6v7.94z"/>
     <path d="M14.29 3.21h2.02v5.73h-2.02zM4.89 14.38H19.51v.675H4.89zM4.89 17.74H19.51v.675H4.89z"/>
@@ -151,52 +151,52 @@ export function registerIcon(name: string, svgContent: string): void {
 }
 
 const DEFAULT_COLORS = {
-  color: '#eee',
-  background: 'transparent',
-  fill: '#eee',
-  stroke: '#eee',
-  hover: '#999999',
+  color: "#eee",
+  background: "transparent",
+  fill: "#eee",
+  stroke: "#eee",
+  hover: "#999999",
 
   // States
-  midi_on: '#eee',
-  pitch_on: '#eee',
-  hold_locked: '#eee',
-  loop_locked: '#eee',
+  midi_on: "#eee",
+  pitch_on: "#eee",
+  hold_locked: "#eee",
+  loop_locked: "#eee",
 
-  midi_off: '#aaa',
-  pitch_off: '#aaa',
-  hold_unlocked: '#aaa',
-  loop_unlocked: '#aaa',
+  midi_off: "#aaa",
+  pitch_off: "#aaa",
+  hold_unlocked: "#aaa",
+  loop_unlocked: "#aaa",
 } as const;
 
-const getSizeConfig = (size: 'sm' | 'md' | 'lg'): ButtonSize => {
-  const sizeMap: Record<'sm' | 'md' | 'lg', ButtonSize> = {
-    sm: { width: '32px', height: '32px', iconSize: '16px' },
-    md: { width: '40px', height: '40px', iconSize: '20px' },
-    lg: { width: '48px', height: '48px', iconSize: '24px' },
+const getSizeConfig = (size: "sm" | "md" | "lg"): ButtonSize => {
+  const sizeMap: Record<"sm" | "md" | "lg", ButtonSize> = {
+    sm: { width: "32px", height: "32px", iconSize: "16px" },
+    md: { width: "40px", height: "40px", iconSize: "20px" },
+    lg: { width: "48px", height: "48px", iconSize: "24px" },
   } as const;
 
   return sizeMap[size];
 };
 
 const applyBaseStyles = (button: HTMLButtonElement): void => {
-  button.style.display = 'inline-flex';
-  button.style.alignItems = 'center';
-  button.style.justifyContent = 'center';
-  button.style.padding = '8px';
-  button.style.margin = '4px';
-  button.style.borderRadius = '4px';
-  button.style.cursor = 'pointer';
-  button.style.border = 'none';
-  button.style.backgroundColor = DEFAULT_COLORS['background'];
+  button.style.display = "inline-flex";
+  button.style.alignItems = "center";
+  button.style.justifyContent = "center";
+  button.style.padding = "8px";
+  button.style.margin = "4px";
+  button.style.borderRadius = "4px";
+  button.style.cursor = "pointer";
+  button.style.border = "none";
+  button.style.backgroundColor = DEFAULT_COLORS["background"];
 
-  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
-    button.addEventListener('mouseenter', () => {
-      button.style.border = `1px solid ${DEFAULT_COLORS['hover']}`;
+  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    button.addEventListener("mouseenter", () => {
+      button.style.border = `1px solid ${DEFAULT_COLORS["hover"]}`;
     });
 
-    button.addEventListener('mouseleave', () => {
-      button.style.border = 'none';
+    button.addEventListener("mouseleave", () => {
+      button.style.border = "none";
     });
   }
 };
@@ -219,18 +219,18 @@ export function createSVGButton(
     if (idx >= 0) currentStateIndex = idx;
   }
 
-  const button = document.createElement('button') as SVGButton;
+  const button = document.createElement("button") as SVGButton;
   button.title = title;
-  button.classList.add('svg-button');
+  button.classList.add("svg-button");
 
   if (stateArray.length > 1) {
-    button.setAttribute('role', 'button');
-    button.setAttribute('aria-pressed', 'false');
+    button.setAttribute("role", "button");
+    button.setAttribute("aria-pressed", "false");
     button.tabIndex = 0;
   }
 
   applyBaseStyles(button);
-  applySizeStyles(button, getSizeConfig(options.size || 'md'));
+  applySizeStyles(button, getSizeConfig(options.size || "md"));
 
   if (options.className) {
     button.className += ` ${options.className}`;
@@ -241,23 +241,19 @@ export function createSVGButton(
     const svgContent = icons.get(stateName) || stateName;
     button.innerHTML = svgContent;
 
-    const svg = button.querySelector('svg');
+    const svg = button.querySelector("svg");
     if (svg) {
-      const iconSize = getSizeConfig(options.size || 'md').iconSize;
+      const iconSize = getSizeConfig(options.size || "md").iconSize;
       svg.style.width = iconSize;
       svg.style.height = iconSize;
 
       const customColor = options.colors?.[stateName];
-      const defaultStateColor =
-        DEFAULT_COLORS[stateName as keyof typeof DEFAULT_COLORS];
-      const color = customColor || defaultStateColor || DEFAULT_COLORS['color'];
+      const defaultStateColor = DEFAULT_COLORS[stateName as keyof typeof DEFAULT_COLORS];
+      const color = customColor || defaultStateColor || DEFAULT_COLORS["color"];
       svg.style.color = color;
 
       if (stateArray.length > 1) {
-        button.setAttribute(
-          'aria-pressed',
-          currentStateIndex !== 0 ? 'true' : 'false',
-        );
+        button.setAttribute("aria-pressed", currentStateIndex !== 0 ? "true" : "false");
       }
     }
   };
@@ -274,7 +270,7 @@ export function createSVGButton(
     }
   };
 
-  button.addEventListener('click', () => {
+  button.addEventListener("click", () => {
     if (stateArray.length > 1) {
       currentStateIndex = (currentStateIndex + 1) % stateArray.length;
       updateButton();

@@ -27,14 +27,14 @@
       }
 
       h4::before {
-        content: '🟢';
+        content: "🟢";
       }
     </style>
     <script>
-      if (localStorage.getItem('colorScheme')) {
+      if (localStorage.getItem("colorScheme")) {
         document
           .querySelector('meta[name="color-scheme"]')
-          ?.setAttribute('content', localStorage.getItem('colorScheme'));
+          ?.setAttribute("content", localStorage.getItem("colorScheme"));
       }
     </script>
   </head>
@@ -46,9 +46,7 @@
     <h4>Dynamic attribute injection</h4>
     <p>
       Here is
-      <font-preview size="6" color="orange"
-        >a Van Element with attributes!</font-preview
-      >
+      <font-preview size="6" color="orange">a Van Element with attributes!</font-preview>
     </p>
     <p>(Attributes can have <font-preview>default values</font-preview>)</p>
     <p>It can be used inside other Van Elements:</p>
@@ -74,13 +72,12 @@
     <h4>Tabs</h4>
     <tab-panel>
       <p slot="tab">
-        How is it going? I am just a casual tab 🫡<br />Clicking other tabs will
-        assign the <code>tabs</code> slot to another element!
+        How is it going? I am just a casual tab 🫡<br />Clicking other tabs will assign the
+        <code>tabs</code> slot to another element!
       </p>
       <article>
         <p>
-          The slotted content can be any HTML element or custom element,
-          including Van Elements.
+          The slotted content can be any HTML element or custom element, including Van Elements.
         </p>
         <p>
           <font-preview size="12" color="cyan"
@@ -94,8 +91,8 @@
             <button slot="open-button">Nested modal?</button>
             <h1>Here you go!</h1>
             <p>
-              It's that easy to do. No duplicated code or hydration boilerplate.
-              Just reusing the exact same component.
+              It's that easy to do. No duplicated code or hydration boilerplate. Just reusing the
+              exact same component.
             </p>
           </custom-modal>
         </custom-modal>

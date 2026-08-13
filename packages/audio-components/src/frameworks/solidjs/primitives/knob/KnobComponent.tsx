@@ -7,16 +7,16 @@ import {
   mergeProps,
   Show,
   createSignal,
-} from 'solid-js';
+} from "solid-js";
 
 import {
   KnobElement,
   KnobConfig,
   KnobChangeEventDetail,
   createKnobElement,
-} from '../../../../elements/primitives/KnobElement';
+} from "../../../../elements/primitives/KnobElement";
 
-import { KnobPresetProps, KnobPresetKey } from '../../../shared/KnobPresets';
+import { KnobPresetProps, KnobPresetKey } from "../../../shared/KnobPresets";
 
 export interface KnobComponentProps extends Partial<KnobConfig> {
   preset?: KnobPresetKey;
@@ -59,7 +59,7 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
   const merged = mergeProps(
     { displayValue: true, size: 45 }, // Default values
     props.preset ? KnobPresetProps[props.preset] : {},
-    props
+    props,
   );
 
   onMount(() => {
@@ -77,7 +77,7 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
 
     // Apply knobClass if provided
     if (props.knobClass) {
-      knobInstance.classList.add(...props.knobClass.split(' '));
+      knobInstance.classList.add(...props.knobClass.split(" "));
     }
 
     const handleChange = (e: CustomEvent<KnobChangeEventDetail>) => {
@@ -85,17 +85,14 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
       props.onChange?.(e.detail);
     };
 
-    knobInstance.addEventListener('knob-change', handleChange as EventListener);
+    knobInstance.addEventListener("knob-change", handleChange as EventListener);
     props.ref?.(knobInstance);
 
     // Set initial value for display
     setCurrentValue(merged.value ?? merged.defaultValue ?? 0);
 
     onCleanup(() => {
-      knobInstance?.removeEventListener(
-        'knob-change',
-        handleChange as EventListener
-      );
+      knobInstance?.removeEventListener("knob-change", handleChange as EventListener);
     });
   });
 
@@ -107,45 +104,45 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
 
   // Default label styles
   const defaultLabelStyle = {
-    'text-align': 'center',
-    'margin-bottom': '4px',
+    "text-align": "center",
+    "margin-bottom": "4px",
   };
 
   // Merge default label styles with user-provided labelStyle
   const combinedLabelStyle = {
     ...defaultLabelStyle,
-    ...(typeof merged.labelStyle === 'string' ? {} : merged.labelStyle || {}),
+    ...(typeof merged.labelStyle === "string" ? {} : merged.labelStyle || {}),
   };
 
   // Convert to string if needed
   const labelStyleString =
-    typeof merged.labelStyle === 'string'
+    typeof merged.labelStyle === "string"
       ? `text-align: center; margin-bottom: 4px; ${merged.labelStyle}`
       : Object.entries(combinedLabelStyle)
           .map(([key, value]) => `${key}: ${value}`)
-          .join('; ');
+          .join("; ");
 
   // Default value styles
   const defaultValueStyle = {
-    'font-size': '10px',
-    'text-align': 'center',
-    color: '#999',
-    'margin-top': '4px',
+    "font-size": "10px",
+    "text-align": "center",
+    color: "#999",
+    "margin-top": "4px",
   };
 
   // Merge default value styles with user-provided valueStyle
   const combinedValueStyle = {
     ...defaultValueStyle,
-    ...(typeof merged.valueStyle === 'string' ? {} : merged.valueStyle || {}),
+    ...(typeof merged.valueStyle === "string" ? {} : merged.valueStyle || {}),
   };
 
   // Convert to string if needed
   const valueStyleString =
-    typeof merged.valueStyle === 'string'
+    typeof merged.valueStyle === "string"
       ? `font-size: 10px; text-align: center; color: #999; ${merged.valueStyle}`
       : Object.entries(combinedValueStyle)
           .map(([key, value]) => `${key}: ${value}`)
-          .join('; ');
+          .join("; ");
 
   // Default formatter if none provided
   const formatter = merged.valueFormatter || ((v: number) => v.toFixed(2));
@@ -155,25 +152,15 @@ export const KnobComponent: Component<KnobComponentProps> = (props) => {
       when={merged.label || merged.displayValue}
       fallback={<div ref={containerRef!} title={merged.title} />}
     >
-      <div
-        class={merged.class || 'knob-container'}
-        style={merged.style}
-        title={merged.title}
-      >
+      <div class={merged.class || "knob-container"} style={merged.style} title={merged.title}>
         <Show when={merged.label}>
-          <div
-            class={merged.labelClass || 'knob-label'}
-            style={labelStyleString}
-          >
+          <div class={merged.labelClass || "knob-label"} style={labelStyleString}>
             {merged.label}
           </div>
         </Show>
         <div ref={containerRef!} />
         <Show when={merged.displayValue}>
-          <div
-            class={merged.valueClass || 'knob-value'}
-            style={valueStyleString}
-          >
+          <div class={merged.valueClass || "knob-value"} style={valueStyleString}>
             {formatter(currentValue())}
           </div>
         </Show>

@@ -1,20 +1,20 @@
 // SamplerToggleFactory.ts - Toggle and control components
-import van, { State } from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
-import { getSampler } from '../SamplerRegistry';
-import { Toggle } from '../../primitives/VanToggle';
-import { INLINE_COMPONENT_STYLE } from '../../../shared/styles/component-styles';
-import { createToggleForTarget, ToggleConfig } from '../component-utils';
+import van, { State } from "@repo/vanjs-core";
+import { ElementProps } from "@repo/vanjs-core/element";
+import { getSampler } from "../SamplerRegistry";
+import { Toggle } from "../../primitives/VanToggle";
+import { INLINE_COMPONENT_STYLE } from "../../../shared/styles/component-styles";
+import { createToggleForTarget, ToggleConfig } from "../component-utils";
 
-import { createSVGButton } from '../../primitives/createSVGButton';
+import { createSVGButton } from "../../primitives/createSVGButton";
 
 const { div } = van.tags;
 
 export const MidiToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
+  const targetNodeId = attributes.attr("target-node-id", "");
 
-  const toggleButton = createSVGButton('Toggle MIDI', ['midi_on', 'midi_off'], {
-    size: 'md',
+  const toggleButton = createSVGButton("Toggle MIDI", ["midi_on", "midi_off"], {
+    size: "md",
     onClick: () => {
       // TODO: Finish refacoring to use centralized input handling package
       // const sampler = getSampler(targetNodeId.val);
@@ -26,154 +26,141 @@ export const MidiToggle = (attributes: ElementProps) => {
       //   sampler.disableMIDI();
       // }
     },
-    initialState: 'midi_on',
+    initialState: "midi_on",
   });
 
-  return div({ style: '' }, toggleButton);
+  return div({ style: "" }, toggleButton);
 };
 
 export const PlaybackDirectionToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
+  const targetNodeId = attributes.attr("target-node-id", "");
 
   const toggleButton = createSVGButton(
-    'Toggle Playback Direction',
-    ['direction_forward', 'direction_reverse'],
+    "Toggle Playback Direction",
+    ["direction_forward", "direction_reverse"],
     {
-      size: 'md',
+      size: "md",
       onClick: () => {
         const sampler = getSampler(targetNodeId.val);
         if (!sampler) return;
 
         const currentState = (toggleButton as any).getState();
-        const direction =
-          currentState === 'direction_reverse' ? 'reverse' : 'forward';
+        const direction = currentState === "direction_reverse" ? "reverse" : "forward";
         sampler.setPlaybackDirection(direction);
       },
-    }
+    },
   );
 
-  return div({ style: '' }, toggleButton);
+  return div({ style: "" }, toggleButton);
 };
 
 export const LoopLockToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
+  const targetNodeId = attributes.attr("target-node-id", "");
 
-  const toggleButton = createSVGButton(
-    'Toggle Loop Locked',
-    ['loop_locked', 'loop_unlocked'],
-    {
-      size: 'md',
-      onClick: () => {
-        const sampler = getSampler(targetNodeId.val);
-        if (!sampler) return;
+  const toggleButton = createSVGButton("Toggle Loop Locked", ["loop_locked", "loop_unlocked"], {
+    size: "md",
+    onClick: () => {
+      const sampler = getSampler(targetNodeId.val);
+      if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
-        const shouldLock = currentState === 'loop_locked';
+      const currentState = (toggleButton as any).getState();
+      const shouldLock = currentState === "loop_locked";
 
-        sampler.setLoopLocked(shouldLock);
-      },
-      initialState: 'loop_unlocked',
-    }
-  );
+      sampler.setLoopLocked(shouldLock);
+    },
+    initialState: "loop_unlocked",
+  });
 
-  return div({ style: '' }, toggleButton);
+  return div({ style: "" }, toggleButton);
 };
 
 export const HoldLockToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
+  const targetNodeId = attributes.attr("target-node-id", "");
 
-  const toggleButton = createSVGButton(
-    'Toggle Hold Locked',
-    ['hold_locked', 'hold_unlocked'],
-    {
-      size: 'md',
-      onClick: () => {
-        const sampler = getSampler(targetNodeId.val);
-        if (!sampler) return;
+  const toggleButton = createSVGButton("Toggle Hold Locked", ["hold_locked", "hold_unlocked"], {
+    size: "md",
+    onClick: () => {
+      const sampler = getSampler(targetNodeId.val);
+      if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
-        const shouldLock = currentState === 'hold_locked';
+      const currentState = (toggleButton as any).getState();
+      const shouldLock = currentState === "hold_locked";
 
-        sampler.setHoldLocked(shouldLock);
-      },
-      initialState: 'hold_unlocked',
-    }
-  );
+      sampler.setHoldLocked(shouldLock);
+    },
+    initialState: "hold_unlocked",
+  });
 
-  return div({ style: '' }, toggleButton);
+  return div({ style: "" }, toggleButton);
 };
 
 export const PitchToggle = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
+  const targetNodeId = attributes.attr("target-node-id", "");
 
-  const toggleButton = createSVGButton(
-    'Toggle Pitch',
-    ['pitch_on', 'pitch_off'],
-    {
-      size: 'md',
-      onClick: () => {
-        const sampler = getSampler(targetNodeId.val);
-        if (!sampler) return;
+  const toggleButton = createSVGButton("Toggle Pitch", ["pitch_on", "pitch_off"], {
+    size: "md",
+    onClick: () => {
+      const sampler = getSampler(targetNodeId.val);
+      if (!sampler) return;
 
-        const currentState = (toggleButton as any).getState();
+      const currentState = (toggleButton as any).getState();
 
-        if (currentState === 'pitch_on') sampler.enablePitch();
-        else if (currentState === 'pitch_off') sampler.disablePitch();
-      },
-    }
-  );
+      if (currentState === "pitch_on") sampler.enablePitch();
+      else if (currentState === "pitch_off") sampler.disablePitch();
+    },
+  });
 
-  return div({ style: '' }, toggleButton);
+  return div({ style: "" }, toggleButton);
 };
 
 // ===== TOGGLE CONFIGURATIONS =====
 
 const feedbackModeConfig: ToggleConfig = {
-  label: 'FB-Mode',
-  title: 'Feedback Mode',
+  label: "FB-Mode",
+  title: "Feedback Mode",
   defaultValue: true, // false = monophonic, true = polyphonic
-  onColor: '#4CAF50',
-  offText: 'Mono',
-  onText: 'Poly',
+  onColor: "#4CAF50",
+  offText: "Mono",
+  onText: "Poly",
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
-      const mode = state.val ? 'polyphonic' : 'monophonic';
+      const mode = state.val ? "polyphonic" : "monophonic";
       sampler.setFeedbackMode(mode);
     });
   },
 };
 
 const gainLFOSyncConfig: ToggleConfig = {
-  label: 'Amp LFO Sync',
-  title: 'Toggle Amp LFO Sync',
+  label: "Amp LFO Sync",
+  title: "Toggle Amp LFO Sync",
   defaultValue: false,
-  onColor: '#ff9800',
-  offText: 'Free',
-  onText: 'Sync',
+  onColor: "#ff9800",
+  offText: "Free",
+  onText: "Sync",
   onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => sampler.syncLFOsToNoteFreq('gain-lfo', state.val));
+    van.derive(() => sampler.syncLFOsToNoteFreq("gain-lfo", state.val));
   },
 };
 
 const pitchLFOSyncConfig: ToggleConfig = {
-  label: 'Pitch LFO',
-  title: 'Toggle Pitch LFO Sync',
+  label: "Pitch LFO",
+  title: "Toggle Pitch LFO Sync",
   defaultValue: false,
-  onColor: '#ff9800',
-  offText: 'Free',
-  onText: 'Sync',
+  onColor: "#ff9800",
+  offText: "Free",
+  onText: "Sync",
   onSamplerConnect: (sampler, state, van) => {
-    van.derive(() => sampler.syncLFOsToNoteFreq('pitch-lfo', state.val));
+    van.derive(() => sampler.syncLFOsToNoteFreq("pitch-lfo", state.val));
   },
 };
 
 const panDriftConfig: ToggleConfig = {
-  label: 'Pan drift',
-  title: 'Toggle Pan Drift enabled',
+  label: "Pan drift",
+  title: "Toggle Pan Drift enabled",
   defaultValue: true,
-  onColor: '#ff9800',
-  offText: '○',
-  onText: '◐',
+  onColor: "#ff9800",
+  offText: "○",
+  onText: "◐",
   onSamplerConnect: (sampler, state, van) => {
     van.derive(() => {
       sampler.setPanDriftEnabled(state.val);
@@ -188,7 +175,7 @@ export const FeedbackModeToggle = createToggleForTarget(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE,
 );
 
 export const GainLFOSyncNoteToggle = createToggleForTarget(
@@ -196,7 +183,7 @@ export const GainLFOSyncNoteToggle = createToggleForTarget(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE,
 );
 
 export const PitchLFOSyncNoteToggle = createToggleForTarget(
@@ -204,7 +191,7 @@ export const PitchLFOSyncNoteToggle = createToggleForTarget(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE,
 );
 
 export const PanDriftToggle = createToggleForTarget(
@@ -212,7 +199,7 @@ export const PanDriftToggle = createToggleForTarget(
   getSampler,
   Toggle,
   van,
-  INLINE_COMPONENT_STYLE
+  INLINE_COMPONENT_STYLE,
 );
 
 // const midiConfig: ToggleConfig = {

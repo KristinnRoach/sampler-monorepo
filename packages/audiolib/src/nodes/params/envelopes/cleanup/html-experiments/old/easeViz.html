@@ -112,12 +112,7 @@
           width="500"
           id="svg"
         >
-          <path
-            id="motionPath"
-            d="M 0 500 L 500 0"
-            fill="none"
-            stroke="green"
-          />
+          <path id="motionPath" d="M 0 500 L 500 0" fill="none" stroke="green" />
 
           <g id="dummy-g"></g>
 
@@ -155,7 +150,7 @@
     </div>
 
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
+      document.addEventListener("DOMContentLoaded", () => {
         gsap.registerPlugin(CustomEase);
         gsap.registerPlugin(CustomWiggle);
         gsap.registerPlugin(MorphSVGPlugin);
@@ -163,9 +158,9 @@
         gsap.registerPlugin(CustomBounce);
         gsap.registerPlugin(MotionPathPlugin);
 
-        const btnEl = document.getElementById('startBtn');
-        const motionPathEl = document.getElementById('motionPath');
-        const dEl = document.querySelector('#motionPath').getAttribute('d');
+        const btnEl = document.getElementById("startBtn");
+        const motionPathEl = document.getElementById("motionPath");
+        const dEl = document.querySelector("#motionPath").getAttribute("d");
 
         let duration = 1;
 
@@ -175,15 +170,11 @@
 
         resetMotionPath();
 
-        let lastPathData = document
-          .querySelector('#motionPath')
-          .getAttribute('d');
+        let lastPathData = document.querySelector("#motionPath").getAttribute("d");
         setInterval(() => {
-          const currentPathData = document
-            .querySelector('#motionPath')
-            .getAttribute('d');
+          const currentPathData = document.querySelector("#motionPath").getAttribute("d");
           if (currentPathData !== lastPathData) {
-            console.log('Path changed:', currentPathData);
+            console.log("Path changed:", currentPathData);
             lastPathData = currentPathData;
             svgPath = currentPathData;
           }
@@ -199,25 +190,24 @@
         // Initialize Web Audio
         function initAudio() {
           if (!audioContext) {
-            audioContext = new (window.AudioContext ||
-              window.webkitAudioContext)();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
           }
-          if (audioContext.state !== 'running') audioContext.resume();
+          if (audioContext.state !== "running") audioContext.resume();
         }
 
         function resetMotionPath() {
           // It is necessery to use a "dummy" <g> element for MotionPathHelper to work
-          motionTween = gsap.to('#dummy-g', {
+          motionTween = gsap.to("#dummy-g", {
             motionPath: {
-              path: '#motionPath',
-              align: '#motionPath',
+              path: "#motionPath",
+              align: "#motionPath",
               alignOrigin: [0.5, 0.5],
             },
           });
-          helper = MotionPathHelper.create('#dummy-g');
+          helper = MotionPathHelper.create("#dummy-g");
         }
 
-        easeSelect.addEventListener('change', () => {
+        easeSelect.addEventListener("change", () => {
           svgPath = CustomEase.getSVGData(easeSelect.value, {
             width: 500,
             height: 500,
@@ -227,36 +217,30 @@
           if (motionTween) motionTween.kill();
           if (helper) helper.kill();
 
-          motionTween = gsap.to('#motionPath', {
+          motionTween = gsap.to("#motionPath", {
             morphSVG: svgPath,
             duration: 0.1,
             onComplete: () => resetMotionPath(),
           });
         });
 
-        btnEl.addEventListener('click', () => {
+        btnEl.addEventListener("click", () => {
           initAudio();
           const now = audioContext.currentTime;
 
-          const svgPath = document
-            .querySelector('#motionPath')
-            .getAttribute('d');
+          const svgPath = document.querySelector("#motionPath").getAttribute("d");
 
           gsap.fromTo(
-            '#motionPath',
-            { drawSVG: '0% 0%' },
-            { duration: duration, drawSVG: '0% 100%' }
+            "#motionPath",
+            { drawSVG: "0% 0%" },
+            { duration: duration, drawSVG: "0% 100%" },
           );
 
           playWithEasing(svgPath, now);
         });
 
         // Convert SVG path data to audio automation values
-        function pathToAudioValues(
-          svgPath,
-          duration = duration,
-          sampleRate = 1000
-        ) {
+        function pathToAudioValues(svgPath, duration = duration, sampleRate = 1000) {
           // Parse the SVG path to get coordinate points
           const coordinates = svgPath.match(/[\d.]+/g);
           const points = [];
@@ -282,8 +266,7 @@
             for (let j = 0; j < points.length - 1; j++) {
               if (svgX >= points[j].x && svgX <= points[j + 1].x) {
                 // Linear interpolation between two points
-                const ratio =
-                  (svgX - points[j].x) / (points[j + 1].x - points[j].x);
+                const ratio = (svgX - points[j].x) / (points[j + 1].x - points[j].x);
                 y = points[j].y + ratio * (points[j + 1].y - points[j].y);
                 break;
               }
@@ -311,7 +294,7 @@
 
           // Convert to audio automation values
           const audioValues = pathToAudioValues(svgPath, startTime);
-          console.log('Audio Values:', audioValues.slice(0, 10)); // Show first 10 values
+          console.log("Audio Values:", audioValues.slice(0, 10)); // Show first 10 values
 
           // Create audio nodes
           oscillator = audioContext.createOscillator();
@@ -319,23 +302,17 @@
           gainNode = audioContext.createGain();
 
           // Configure oscillator
-          oscillator.type = 'sawtooth';
+          oscillator.type = "sawtooth";
           oscillator.frequency.setValueAtTime(0, startTime);
 
           // Configure filter
-          filter.type = 'lowpass';
+          filter.type = "lowpass";
           filter.Q.setValueAtTime(1, startTime);
 
           audioValues.forEach((point, index) => {
-            filter.frequency.setValueAtTime(
-              point.value,
-              startTime + point.time
-            );
+            filter.frequency.setValueAtTime(point.value, startTime + point.time);
 
-            oscillator.frequency.setValueAtTime(
-              point.value,
-              startTime + point.time
-            );
+            oscillator.frequency.setValueAtTime(point.value, startTime + point.time);
           });
 
           // Configure gain (volume envelope)

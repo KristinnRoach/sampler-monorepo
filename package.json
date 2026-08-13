@@ -1,18 +1,6 @@
 {
   "name": "sampler-monorepo",
   "version": "0.0.0",
-  "devDependencies": {
-    "@playwright/test": "^1.56.0",
-    "concurrently": "^9.2.1",
-    "prettier": "^3.6.2",
-    "syncpack": "^13.0.4",
-    "turbo": "^2.5.8",
-    "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "packageManager": "pnpm@11.5.2",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -31,5 +19,17 @@
     "test": "turbo run test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
-  }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "concurrently": "^9.2.1",
+    "prettier": "^3.6.2",
+    "syncpack": "^13.0.4",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.5.2"
 }

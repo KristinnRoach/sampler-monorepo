@@ -8,8 +8,7 @@
       body {
         margin: 0;
         padding: 20px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-          sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background: #1a1a1a;
         color: white;
       }
@@ -99,12 +98,12 @@
         color: #ccc;
       }
 
-      input[type='range'] {
+      input[type="range"] {
         width: 100%;
         margin-bottom: 5px;
       }
 
-      input[type='number'] {
+      input[type="number"] {
         width: 60px;
         padding: 4px;
         border: 1px solid #444;
@@ -157,7 +156,7 @@
         border: 1px solid #444;
         border-radius: 4px;
         padding: 15px;
-        font-family: 'Monaco', 'Consolas', monospace;
+        font-family: "Monaco", "Consolas", monospace;
         font-size: 12px;
         overflow-x: auto;
       }
@@ -174,11 +173,7 @@
         <h2>Audio Envelope Editor</h2>
 
         <div class="svg-container">
-          <svg
-            class="envelope-svg"
-            viewBox="0 0 400 200"
-            preserveAspectRatio="xMidYMid meet"
-          >
+          <svg class="envelope-svg" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
             <!-- Grid lines -->
             <g class="grid">
               <!-- Vertical lines -->
@@ -228,63 +223,23 @@
         </div>
 
         <div class="control-group">
-          <label
-            >Attack Time:
-            <span class="value-display" id="attack-value">0.1s</span></label
-          >
-          <input
-            type="range"
-            id="attack"
-            min="0.001"
-            max="2"
-            step="0.001"
-            value="0.1"
-          />
+          <label>Attack Time: <span class="value-display" id="attack-value">0.1s</span></label>
+          <input type="range" id="attack" min="0.001" max="2" step="0.001" value="0.1" />
         </div>
 
         <div class="control-group">
-          <label
-            >Decay Time:
-            <span class="value-display" id="decay-value">0.3s</span></label
-          >
-          <input
-            type="range"
-            id="decay"
-            min="0.001"
-            max="2"
-            step="0.001"
-            value="0.3"
-          />
+          <label>Decay Time: <span class="value-display" id="decay-value">0.3s</span></label>
+          <input type="range" id="decay" min="0.001" max="2" step="0.001" value="0.3" />
         </div>
 
         <div class="control-group">
-          <label
-            >Sustain Level:
-            <span class="value-display" id="sustain-value">0.7</span></label
-          >
-          <input
-            type="range"
-            id="sustain"
-            min="0"
-            max="1"
-            step="0.01"
-            value="0.7"
-          />
+          <label>Sustain Level: <span class="value-display" id="sustain-value">0.7</span></label>
+          <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.7" />
         </div>
 
         <div class="control-group">
-          <label
-            >Release Time:
-            <span class="value-display" id="release-value">0.5s</span></label
-          >
-          <input
-            type="range"
-            id="release"
-            min="0.001"
-            max="3"
-            step="0.001"
-            value="0.5"
-          />
+          <label>Release Time: <span class="value-display" id="release-value">0.5s</span></label>
+          <input type="range" id="release" min="0.001" max="3" step="0.001" value="0.5" />
         </div>
 
         <div class="control-group">
@@ -303,7 +258,7 @@
     </div>
 
     <script type="module">
-      import van from './van.js';
+      import van from "./van.js";
 
       const { div, svg, path, circle, g } = van.tags;
 
@@ -314,8 +269,8 @@
             decay: 0.3,
             sustain: 0.7,
             release: 0.5,
-            type: 'adsr',
-            curve: 'exponential',
+            type: "adsr",
+            curve: "exponential",
           };
 
           this.svgWidth = 400;
@@ -334,64 +289,56 @@
 
         setupEventListeners() {
           // Control sliders
-          const controls = ['attack', 'decay', 'sustain', 'release'];
+          const controls = ["attack", "decay", "sustain", "release"];
           controls.forEach((control) => {
             const slider = document.getElementById(control);
             const valueDisplay = document.getElementById(`${control}-value`);
 
-            slider.addEventListener('input', (e) => {
+            slider.addEventListener("input", (e) => {
               this.envelope[control] = parseFloat(e.target.value);
               valueDisplay.textContent =
-                control === 'sustain' ? e.target.value : `${e.target.value}s`;
+                control === "sustain" ? e.target.value : `${e.target.value}s`;
               this.updateVisualization();
               this.updateCode();
             });
           });
 
           // Envelope type selector
-          document
-            .getElementById('envelope-type')
-            .addEventListener('change', (e) => {
-              this.envelope.type = e.target.value;
-              this.updateVisualization();
-              this.updateCode();
-            });
+          document.getElementById("envelope-type").addEventListener("change", (e) => {
+            this.envelope.type = e.target.value;
+            this.updateVisualization();
+            this.updateCode();
+          });
 
           // Curve type selector
-          document
-            .getElementById('curve-type')
-            .addEventListener('change', (e) => {
-              this.envelope.curve = e.target.value;
-              this.updateVisualization();
-              this.updateCode();
-            });
+          document.getElementById("curve-type").addEventListener("change", (e) => {
+            this.envelope.curve = e.target.value;
+            this.updateVisualization();
+            this.updateCode();
+          });
 
           // Preset buttons
-          document.querySelectorAll('[data-preset]').forEach((button) => {
-            button.addEventListener('click', (e) => {
+          document.querySelectorAll("[data-preset]").forEach((button) => {
+            button.addEventListener("click", (e) => {
               this.loadPreset(e.target.dataset.preset);
 
               // Update active button
               document
-                .querySelectorAll('[data-preset]')
-                .forEach((b) => b.classList.remove('active'));
-              e.target.classList.add('active');
+                .querySelectorAll("[data-preset]")
+                .forEach((b) => b.classList.remove("active"));
+              e.target.classList.add("active");
             });
           });
 
           // Play preview (placeholder)
-          document
-            .getElementById('play-preview')
-            .addEventListener('click', () => {
-              this.playPreview();
-            });
+          document.getElementById("play-preview").addEventListener("click", () => {
+            this.playPreview();
+          });
 
           // Export envelope
-          document
-            .getElementById('export-envelope')
-            .addEventListener('click', () => {
-              this.exportEnvelope();
-            });
+          document.getElementById("export-envelope").addEventListener("click", () => {
+            this.exportEnvelope();
+          });
         }
 
         loadPreset(presetName) {
@@ -411,15 +358,13 @@
         }
 
         updateControls() {
-          ['attack', 'decay', 'sustain', 'release'].forEach((control) => {
+          ["attack", "decay", "sustain", "release"].forEach((control) => {
             const slider = document.getElementById(control);
             const valueDisplay = document.getElementById(`${control}-value`);
 
             slider.value = this.envelope[control];
             valueDisplay.textContent =
-              control === 'sustain'
-                ? this.envelope[control]
-                : `${this.envelope[control]}s`;
+              control === "sustain" ? this.envelope[control] : `${this.envelope[control]}s`;
           });
         }
 
@@ -427,8 +372,8 @@
           const pathData = this.generateEnvelopePath();
           const fillData = this.generateEnvelopeFill();
 
-          document.querySelector('.envelope-path').setAttribute('d', pathData);
-          document.querySelector('.envelope-fill').setAttribute('d', fillData);
+          document.querySelector(".envelope-path").setAttribute("d", pathData);
+          document.querySelector(".envelope-fill").setAttribute("d", fillData);
 
           this.updateControlPoints();
         }
@@ -449,7 +394,7 @@
           const sustainY = maxAmplitude - sustain * (maxAmplitude - 20);
           const endY = maxAmplitude;
 
-          if (this.envelope.curve === 'linear') {
+          if (this.envelope.curve === "linear") {
             return `M 0 ${endY} L ${attackX} ${peakY} L ${decayX} ${sustainY} L ${sustainX} ${sustainY} L ${releaseX} ${endY}`;
           } else {
             // Exponential curves using cubic bezier
@@ -471,8 +416,7 @@
         generateEnvelopeFill() {
           const pathData = this.generateEnvelopePath();
           return (
-            pathData +
-            ` L ${this.svgWidth} ${this.svgHeight - 20} L 0 ${this.svgHeight - 20} Z`
+            pathData + ` L ${this.svgWidth} ${this.svgHeight - 20} L 0 ${this.svgHeight - 20} Z`
           );
         }
 
@@ -485,45 +429,41 @@
             {
               x: (attack / totalTime) * this.svgWidth,
               y: 20,
-              label: 'Attack Peak',
+              label: "Attack Peak",
             },
             {
               x: ((attack + decay) / totalTime) * this.svgWidth,
               y: maxAmplitude - sustain * (maxAmplitude - 20),
-              label: 'Decay End',
+              label: "Decay End",
             },
             {
               x: ((attack + decay + 1.0) / totalTime) * this.svgWidth,
               y: maxAmplitude - sustain * (maxAmplitude - 20),
-              label: 'Sustain End',
+              label: "Sustain End",
             },
-            { x: this.svgWidth, y: maxAmplitude, label: 'Release End' },
+            { x: this.svgWidth, y: maxAmplitude, label: "Release End" },
           ];
 
-          const pointsContainer = document.querySelector('.control-points');
-          pointsContainer.innerHTML = '';
+          const pointsContainer = document.querySelector(".control-points");
+          pointsContainer.innerHTML = "";
 
           points.forEach((point, index) => {
-            const circle = document.createElementNS(
-              'http://www.w3.org/2000/svg',
-              'circle'
-            );
-            circle.setAttribute('cx', point.x);
-            circle.setAttribute('cy', point.y);
-            circle.setAttribute('r', 5);
-            circle.setAttribute('class', 'control-point');
-            circle.setAttribute('data-index', index);
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", point.x);
+            circle.setAttribute("cy", point.y);
+            circle.setAttribute("r", 5);
+            circle.setAttribute("class", "control-point");
+            circle.setAttribute("data-index", index);
 
             pointsContainer.appendChild(circle);
           });
         }
 
         updateCode() {
-          const { attack, decay, sustain, release, type, curve } =
-            this.envelope;
+          const { attack, decay, sustain, release, type, curve } = this.envelope;
 
-          let code = '';
-          if (type === 'adsr') {
+          let code = "";
+          if (type === "adsr") {
             code = `const envelope = {
   attack: ${attack},
   decay: ${decay}, 
@@ -538,7 +478,7 @@
 // gainNode.gain.exponentialRampToValueAtTime(sustain, startTime + attack + decay);
 // gainNode.gain.setValueAtTime(sustain, releaseTime);
 // gainNode.gain.exponentialRampToValueAtTime(0.001, releaseTime + release);`;
-          } else if (type === 'lfo') {
+          } else if (type === "lfo") {
             code = `const lfo = {
   frequency: ${(1 / attack).toFixed(2)},
   depth: ${sustain},
@@ -547,14 +487,13 @@
 };`;
           }
 
-          document.getElementById('envelope-code').innerHTML = code;
+          document.getElementById("envelope-code").innerHTML = code;
         }
 
         playPreview() {
           // Create a simple Web Audio API preview
           if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext ||
-              window.webkitAudioContext)();
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
           }
 
           const oscillator = this.audioContext.createOscillator();
@@ -563,11 +502,8 @@
           oscillator.connect(gainNode);
           gainNode.connect(this.audioContext.destination);
 
-          oscillator.frequency.setValueAtTime(
-            440,
-            this.audioContext.currentTime
-          );
-          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime);
+          oscillator.type = "sine";
 
           const { attack, decay, sustain, release } = this.envelope;
           const startTime = this.audioContext.currentTime;
@@ -577,15 +513,12 @@
           gainNode.gain.linearRampToValueAtTime(1, startTime + attack);
           gainNode.gain.exponentialRampToValueAtTime(
             Math.max(sustain, 0.001),
-            startTime + attack + decay
+            startTime + attack + decay,
           );
-          gainNode.gain.setValueAtTime(
-            Math.max(sustain, 0.001),
-            startTime + attack + decay + 1
-          );
+          gainNode.gain.setValueAtTime(Math.max(sustain, 0.001), startTime + attack + decay + 1);
           gainNode.gain.exponentialRampToValueAtTime(
             0.001,
-            startTime + attack + decay + 1 + release
+            startTime + attack + decay + 1 + release,
           );
 
           oscillator.start(startTime);
@@ -594,12 +527,12 @@
 
         exportEnvelope() {
           const data = JSON.stringify(this.envelope, null, 2);
-          const blob = new Blob([data], { type: 'application/json' });
+          const blob = new Blob([data], { type: "application/json" });
           const url = URL.createObjectURL(blob);
 
-          const a = document.createElement('a');
+          const a = document.createElement("a");
           a.href = url;
-          a.download = 'audio-envelope.json';
+          a.download = "audio-envelope.json";
           a.click();
 
           URL.revokeObjectURL(url);

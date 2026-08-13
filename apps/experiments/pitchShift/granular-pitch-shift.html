@@ -21,7 +21,7 @@
       .controls {
         margin: 20px 0;
       }
-      input[type='file'] {
+      input[type="file"] {
         margin: 10px 0;
         padding: 8px;
         border: 1px solid #ddd;
@@ -82,15 +82,11 @@
 
       <div class="keyboard-help">
         <h3>Keyboard Controls:</h3>
-        <p>
-          Press and hold keys to trigger notes. Root note (C4) is mapped to
-          Comma key.
-        </p>
+        <p>Press and hold keys to trigger notes. Root note (C4) is mapped to Comma key.</p>
         <div class="keyboard-layout">
-          Lower Row (C3-C4): Z S X D C V G B H N J M , L . ; / C3 C#3D3 D#3E3 F3
-          F#3G3 G#3A3 A#3B3 C4 C#4D4 D#4E4 Upper Row (C4-G5): Q 2 W 3 E R 5 T 6
-          Y 7 U I 9 O 0 P [ = ] C4 C#4D4 D#4E4 F4 F#4G4 G#4A4 A#4B4 C5 C#5D5
-          D#5E5 F5 F#5G5
+          Lower Row (C3-C4): Z S X D C V G B H N J M , L . ; / C3 C#3D3 D#3E3 F3 F#3G3 G#3A3 A#3B3
+          C4 C#4D4 D#4E4 Upper Row (C4-G5): Q 2 W 3 E R 5 T 6 Y 7 U I 9 O 0 P [ = ] C4 C#4D4 D#4E4
+          F4 F#4G4 G#4A4 A#4B4 C5 C#5D5 D#5E5 F5 F#5G5
         </div>
       </div>
     </div>
@@ -270,23 +266,23 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
 
       // Create worklet processor as blob URL
       const blob = new Blob([processorCode], {
-        type: 'application/javascript',
+        type: "application/javascript",
       });
       const processorURL = URL.createObjectURL(blob);
 
       // DOM elements
-      const fileInput = document.getElementById('audioFile');
-      const startBtn = document.getElementById('startBtn');
-      const stopBtn = document.getElementById('stopBtn');
-      const status = document.getElementById('status');
+      const fileInput = document.getElementById("audioFile");
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const status = document.getElementById("status");
 
       // File upload handler
-      fileInput.addEventListener('change', async (event) => {
+      fileInput.addEventListener("change", async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
         try {
-          status.textContent = 'Loading audio file...';
+          status.textContent = "Loading audio file...";
           const arrayBuffer = await file.arrayBuffer();
 
           if (!audioContext) {
@@ -297,19 +293,19 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
           status.textContent = `Audio loaded: ${file.name} (${audioBuffer.duration.toFixed(1)}s)`;
           startBtn.disabled = false;
         } catch (error) {
-          status.textContent = 'Error loading audio file: ' + error.message;
+          status.textContent = "Error loading audio file: " + error.message;
           console.error(error);
         }
       });
 
       // Start button handler
-      startBtn.addEventListener('click', async () => {
+      startBtn.addEventListener("click", async () => {
         try {
           if (!audioContext) {
             audioContext = new AudioContext();
           }
 
-          if (audioContext.state === 'suspended') {
+          if (audioContext.state === "suspended") {
             await audioContext.resume();
           }
 
@@ -317,63 +313,60 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
           await audioContext.audioWorklet.addModule(processorURL);
 
           // Create worklet node
-          granularNode = new AudioWorkletNode(
-            audioContext,
-            'granular-pitch-processor'
-          );
+          granularNode = new AudioWorkletNode(audioContext, "granular-pitch-processor");
           granularNode.connect(audioContext.destination);
 
           // Send audio buffer to worklet
           const channelData = audioBuffer.getChannelData(0); // Use first channel
           granularNode.port.postMessage({
-            type: 'setAudioBuffer',
+            type: "setAudioBuffer",
             data: channelData,
           });
 
-          status.textContent = 'Ready! Press keys to play notes.';
+          status.textContent = "Ready! Press keys to play notes.";
           startBtn.disabled = true;
           stopBtn.disabled = false;
         } catch (error) {
-          status.textContent = 'Error starting audio: ' + error.message;
+          status.textContent = "Error starting audio: " + error.message;
           console.error(error);
         }
       });
 
       // Stop button handler
-      stopBtn.addEventListener('click', () => {
+      stopBtn.addEventListener("click", () => {
         if (granularNode) {
           granularNode.disconnect();
           granularNode = null;
         }
         activeKeys.clear();
-        status.textContent = 'Stopped. Click Start to resume.';
+        status.textContent = "Stopped. Click Start to resume.";
         startBtn.disabled = false;
         stopBtn.disabled = true;
       });
 
       // Keyboard event handlers
-      document.addEventListener('keydown', (event) => {
+      document.addEventListener("keydown", (event) => {
         if (!granularNode || activeKeys.has(event.code)) return;
 
         const midiNote = keyMap[event.code];
         if (midiNote !== undefined) {
           activeKeys.add(event.code);
           granularNode.port.postMessage({
-            type: 'noteOn',
+            type: "noteOn",
             data: { note: midiNote },
           });
           event.preventDefault();
         }
       });
 
-      document.addEventListener('keyup', (event) => {
+      document.addEventListener("keyup", (event) => {
         if (!granularNode || !activeKeys.has(event.code)) return;
 
         const midiNote = keyMap[event.code];
         if (midiNote !== undefined) {
           activeKeys.delete(event.code);
           granularNode.port.postMessage({
-            type: 'noteOff',
+            type: "noteOff",
             data: { note: midiNote },
           });
           event.preventDefault();
@@ -381,7 +374,7 @@ registerProcessor('granular-pitch-processor', GranularPitchProcessor);
       });
 
       // Prevent default behavior for mapped keys
-      document.addEventListener('keydown', (event) => {
+      document.addEventListener("keydown", (event) => {
         if (keyMap[event.code] !== undefined) {
           event.preventDefault();
         }

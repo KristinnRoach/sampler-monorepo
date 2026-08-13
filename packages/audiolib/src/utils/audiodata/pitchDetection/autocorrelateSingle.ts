@@ -10,7 +10,7 @@ const clipThresholds = {
 
 export async function detectSinglePitchAC(
   audioBuffer: AudioBuffer,
-  noiseReduction: keyof typeof clipThresholds = 'medium'
+  noiseReduction: keyof typeof clipThresholds = "medium",
 ) {
   const rawData = audioBuffer.getChannelData(0);
   const clipThreshold = clipThresholds[noiseReduction];

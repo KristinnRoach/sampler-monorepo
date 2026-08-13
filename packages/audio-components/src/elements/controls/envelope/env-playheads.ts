@@ -1,6 +1,6 @@
-import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
-import { generateMidiNoteColors } from '../../../shared/utils/visual/generateColors';
-import { gsap, MotionPathPlugin, CustomEase } from 'gsap/all';
+import { CustomEnvelope, EnvelopeType, SamplePlayer } from "@repo/audiolib";
+import { generateMidiNoteColors } from "../../../shared/utils/visual/generateColors";
+import { gsap, MotionPathPlugin, CustomEase } from "gsap/all";
 
 gsap.registerPlugin(MotionPathPlugin, CustomEase);
 
@@ -15,7 +15,7 @@ export const createPlayheads = (
   instrument: SamplePlayer,
   envType: EnvelopeType,
   svgWidth: number = 400,
-  svgHeight: number = 200
+  svgHeight: number = 200,
 ): PlayheadManager => {
   const activeAnimations = new Map<string, gsap.core.Timeline>();
   const activeLoopingAnimations = new Map<string, gsap.core.Timeline>();
@@ -26,22 +26,19 @@ export const createPlayheads = (
   // Store baseDuration for consistent time calculations
   let cachedBaseDuration = envelope.baseDuration;
 
-  const colors = generateMidiNoteColors('none', [40, 90], true);
+  const colors = generateMidiNoteColors("none", [40, 90], true);
 
   const centerY = svgHeight / 2;
 
   // Create playhead element
   const createPlayhead = (midiNote?: number): SVGCircleElement => {
-    const circle = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'circle'
-    );
-    const color = midiNote ? colors[midiNote] : '#bb0000';
-    circle.setAttribute('fill', color);
-    circle.setAttribute('pointer-events', 'none');
-    circle.setAttribute('stroke', '#fff');
-    circle.setAttribute('stroke-width', '1');
-    circle.style.pointerEvents = 'none';
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    const color = midiNote ? colors[midiNote] : "#bb0000";
+    circle.setAttribute("fill", color);
+    circle.setAttribute("pointer-events", "none");
+    circle.setAttribute("stroke", "#fff");
+    circle.setAttribute("stroke-width", "1");
+    circle.style.pointerEvents = "none";
     return circle;
   };
 
@@ -58,7 +55,7 @@ export const createPlayheads = (
         strokeWidth: 1,
         opacity: 1,
         duration: 0.2,
-      }
+      },
     );
 
   // Listen to envelope messages
@@ -105,14 +102,14 @@ export const createPlayheads = (
         {
           x: svgWidth,
           duration: duration,
-          ease: 'none',
+          ease: "none",
           onComplete: () => {
             // For loops, don't auto-cleanup since restart() will handle it
             // Only cleanup on explicit release:loop message
           },
           // paused: true, // Start paused, will be played by loop messages
         },
-        0
+        0,
       );
 
       activeLoopingAnimations.set(voiceId, triggerTl);
@@ -127,12 +124,12 @@ export const createPlayheads = (
         {
           x: sustainX,
           duration: safeDuration,
-          ease: 'none',
+          ease: "none",
           onComplete: () => {
             triggerTl.pause(); // Wait for release
           },
         },
-        0
+        0,
       );
     } else {
       // No sustain: animate straight to end
@@ -141,9 +138,9 @@ export const createPlayheads = (
         {
           x: svgWidth,
           duration: safeDuration,
-          ease: 'none',
+          ease: "none",
         },
-        0
+        0,
       );
     }
 
@@ -192,7 +189,7 @@ export const createPlayheads = (
         .to(playhead, {
           x: svgWidth,
           duration: remainingDuration,
-          ease: 'none',
+          ease: "none",
           onComplete: () => stopAnimation(voiceId),
         })
         .to(
@@ -204,7 +201,7 @@ export const createPlayheads = (
             opacity: 0.1,
             duration: Math.min(0.2, remainingDuration - 0.2),
           },
-          remainingDuration - 0.2
+          remainingDuration - 0.2,
         );
 
       activeAnimations.set(voiceId, releaseTl);
@@ -249,13 +246,13 @@ export const createPlayheads = (
         r: 0,
         strokeWidth: 0,
         duration: 0.2,
-        ease: 'none',
+        ease: "none",
         opacity: 0.1,
       });
     }
   };
 
-  instrument.onMessage('voice:stopped', (msg: any) => {
+  instrument.onMessage("voice:stopped", (msg: any) => {
     stopAnimation(msg.voiceId);
   });
 

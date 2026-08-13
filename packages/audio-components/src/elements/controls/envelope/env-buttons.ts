@@ -1,4 +1,4 @@
-import van, { State } from '@repo/vanjs-core';
+import van, { State } from "@repo/vanjs-core";
 
 const { button } = van.tags;
 
@@ -8,7 +8,7 @@ const { button } = van.tags;
 export const EnvToggleButtons = (
   enabled: State<boolean>,
   loopEnabled: State<boolean>,
-  syncedToPlaybackRate: State<boolean>
+  syncedToPlaybackRate: State<boolean>,
 ) => {
   const enabledToggle = button({
     style: () => `
@@ -21,9 +21,9 @@ export const EnvToggleButtons = (
       border-radius: 50%; 
       cursor: pointer; 
       z-index: 10;
-      background: ${enabled.val ? '#4ade80' : '#666'};
+      background: ${enabled.val ? "#4ade80" : "#666"};
     `,
-    title: () => (enabled.val ? 'Disable envelope' : 'Enable envelope'),
+    title: () => (enabled.val ? "Disable envelope" : "Enable envelope"),
     onclick: () => (enabled.val = !enabled.val),
   });
 
@@ -38,9 +38,9 @@ export const EnvToggleButtons = (
       border-radius: 50%; 
       cursor: pointer; 
       z-index: 10;
-      background: ${loopEnabled.val && enabled.val ? '#ff6b6b' : '#666'};
+      background: ${loopEnabled.val && enabled.val ? "#ff6b6b" : "#666"};
     `,
-    title: () => (loopEnabled.val ? 'Disable looping' : 'Enable looping'),
+    title: () => (loopEnabled.val ? "Disable looping" : "Enable looping"),
     onclick: () => (loopEnabled.val = !loopEnabled.val),
   });
 
@@ -55,9 +55,9 @@ export const EnvToggleButtons = (
       border-radius: 50%; 
       cursor: pointer; 
       z-index: 10;
-      background: ${syncedToPlaybackRate.val && enabled.val ? '#336bcc' : '#666'};
+      background: ${syncedToPlaybackRate.val && enabled.val ? "#336bcc" : "#666"};
     `,
-    title: () => (syncedToPlaybackRate.val ? 'Disable sync' : 'Enable sync'),
+    title: () => (syncedToPlaybackRate.val ? "Disable sync" : "Enable sync"),
     onclick: () => (syncedToPlaybackRate.val = !syncedToPlaybackRate.val),
   });
 

@@ -2,8 +2,8 @@ let notificationElement: HTMLDivElement | undefined;
 
 export const showNotification = (message: string, duration = 3000) => {
   if (!notificationElement) {
-    notificationElement = document.createElement('div');
-    notificationElement.className = 'notification';
+    notificationElement = document.createElement("div");
+    notificationElement.className = "notification";
     notificationElement.style.cssText = `
       position: fixed;
       bottom: 20px;
@@ -23,13 +23,13 @@ export const showNotification = (message: string, duration = 3000) => {
   }
 
   notificationElement.innerHTML = message;
-  notificationElement.style.opacity = '1';
-  notificationElement.style.transform = 'translateY(0)';
+  notificationElement.style.opacity = "1";
+  notificationElement.style.transform = "translateY(0)";
 
   setTimeout(() => {
     if (notificationElement) {
-      notificationElement.style.opacity = '0';
-      notificationElement.style.transform = 'translateY(20px)';
+      notificationElement.style.opacity = "0";
+      notificationElement.style.transform = "translateY(20px)";
       cleanupNotifications(); // Important cleanup!
     }
   }, duration);

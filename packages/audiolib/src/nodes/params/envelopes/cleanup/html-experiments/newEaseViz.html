@@ -126,12 +126,7 @@
           width="500"
           id="svg"
         >
-          <path
-            id="motionPath"
-            d="M 0 500 L 500 0"
-            fill="none"
-            stroke="green"
-          />
+          <path id="motionPath" d="M 0 500 L 500 0" fill="none" stroke="green" />
 
           <g id="dummy-g"></g>
 
@@ -170,7 +165,7 @@
     </div>
 
     <script>
-      document.addEventListener('DOMContentLoaded', () => {
+      document.addEventListener("DOMContentLoaded", () => {
         gsap.registerPlugin(CustomEase);
         gsap.registerPlugin(CustomWiggle);
         gsap.registerPlugin(MorphSVGPlugin);
@@ -178,24 +173,24 @@
         gsap.registerPlugin(CustomBounce);
         gsap.registerPlugin(MotionPathPlugin);
 
-        const btnEl = document.getElementById('startBtn');
-        const motionPathEl = document.getElementById('motionPath');
-        const easeSelect = document.getElementById('easeSelect');
-        const debugInfo = document.getElementById('debugInfo');
-        const dEl = document.querySelector('#motionPath').getAttribute('d');
+        const btnEl = document.getElementById("startBtn");
+        const motionPathEl = document.getElementById("motionPath");
+        const easeSelect = document.getElementById("easeSelect");
+        const debugInfo = document.getElementById("debugInfo");
+        const dEl = document.querySelector("#motionPath").getAttribute("d");
 
         let duration = 1;
-        let currentEaseName = 'linear';
+        let currentEaseName = "linear";
         let currentCustomEase = null;
         let isPathModified = false;
 
         // Define simple, editable custom eases with minimal control points
         const simpleEases = {
-          linear: 'M0,0 L1,1',
-          easeOut: 'M0,0 C0,0 0.2,1 1,1',
-          easeInOut: 'M0,0 C0.4,0 0.6,1 1,1',
-          bounce: 'M0,0 C0.3,0 0.3,1.4 0.5,1 C0.7,0.6 0.7,1.2 1,1',
-          elastic: 'M0,0 C0.2,0 0.2,1.6 0.4,1 C0.6,0.4 0.8,1.4 1,1',
+          linear: "M0,0 L1,1",
+          easeOut: "M0,0 C0,0 0.2,1 1,1",
+          easeInOut: "M0,0 C0.4,0 0.6,1 1,1",
+          bounce: "M0,0 C0.3,0 0.3,1.4 0.5,1 C0.7,0.6 0.7,1.2 1,1",
+          elastic: "M0,0 C0.2,0 0.2,1.6 0.4,1 C0.6,0.4 0.8,1.4 1,1",
         };
 
         let motionTween;
@@ -214,18 +209,17 @@
         // Initialize Web Audio
         function initAudio() {
           if (!audioContext) {
-            audioContext = new (window.AudioContext ||
-              window.webkitAudioContext)();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
           }
-          if (audioContext.state !== 'running') audioContext.resume();
+          if (audioContext.state !== "running") audioContext.resume();
         }
 
         function resetMotionPath() {
           // It is necessary to use a "dummy" <g> element for MotionPathHelper to work
-          motionTween = gsap.to('#dummy-g', {
+          motionTween = gsap.to("#dummy-g", {
             motionPath: {
-              path: '#motionPath',
-              align: '#motionPath',
+              path: "#motionPath",
+              align: "#motionPath",
               alignOrigin: [0.5, 0.5],
             },
             // motionPath: {
@@ -237,28 +231,22 @@
             //   ],
             // type: 'cubic'},
           });
-          helper = MotionPathHelper.create('#dummy-g');
+          helper = MotionPathHelper.create("#dummy-g");
         }
 
         // *** KEY FIX: Watch for path changes from MotionPathHelper ***
-        let lastPathData = motionPathEl.getAttribute('d');
+        let lastPathData = motionPathEl.getAttribute("d");
 
         // Use MutationObserver to detect path changes in real-time
         const pathObserver = new MutationObserver((mutations) => {
           mutations.forEach((mutation) => {
-            if (
-              mutation.type === 'attributes' &&
-              mutation.attributeName === 'd'
-            ) {
-              const currentPathData = motionPathEl.getAttribute('d');
+            if (mutation.type === "attributes" && mutation.attributeName === "d") {
+              const currentPathData = motionPathEl.getAttribute("d");
               if (currentPathData !== lastPathData) {
-                console.log(
-                  'Path changed via MotionPathHelper:',
-                  currentPathData
-                );
+                console.log("Path changed via MotionPathHelper:", currentPathData);
                 const constrainedPath = constrainPathToBounds(currentPathData);
                 if (constrainedPath !== currentPathData) {
-                  motionPathEl.setAttribute('d', constrainedPath);
+                  motionPathEl.setAttribute("d", constrainedPath);
                 }
                 lastPathData = constrainedPath;
                 // lastPathData = currentPathData;
@@ -267,15 +255,11 @@
                 // Create a CustomEase from the modified path
                 try {
                   // Normalize the path data for CustomEase (should be 0-1 coordinates)
-                  const normalizedPath =
-                    normalizePathForEasing(currentPathData);
-                  currentCustomEase = CustomEase.create(
-                    'pathEase',
-                    normalizedPath
-                  );
+                  const normalizedPath = normalizePathForEasing(currentPathData);
+                  currentCustomEase = CustomEase.create("pathEase", normalizedPath);
                   debugInfo.textContent = `Path modified! Using custom ease from SVG`;
                 } catch (e) {
-                  console.error('Failed to create CustomEase from path:', e);
+                  console.error("Failed to create CustomEase from path:", e);
                   debugInfo.textContent = `Path modified but couldn't create ease: ${e.message}`;
                 }
               }
@@ -286,7 +270,7 @@
         // Start observing path changes
         pathObserver.observe(motionPathEl, {
           attributes: true,
-          attributeFilter: ['d'],
+          attributeFilter: ["d"],
         });
 
         // Function to normalize SVG path coordinates to 0-1 range for CustomEase
@@ -297,7 +281,7 @@
           // Extract all coordinate pairs from the path
           const coordMatches = pathData.match(/[\d.]+/g);
           if (!coordMatches || coordMatches.length < 4) {
-            throw new Error('Invalid path data');
+            throw new Error("Invalid path data");
           }
 
           const coords = coordMatches.map(Number);
@@ -311,24 +295,20 @@
           if (maxY - minY === 0) maxY = minY + 1;
 
           // Reconstruct path with normalized coordinates
-          let normalizedPath = pathData.replace(
-            /[\d.]+/g,
-            (match, offset, string) => {
-              const index =
-                string.substring(0, offset).match(/[\d.]+/g)?.length || 0;
-              const isX = index % 2 === 0;
-              const value = Number(match);
+          let normalizedPath = pathData.replace(/[\d.]+/g, (match, offset, string) => {
+            const index = string.substring(0, offset).match(/[\d.]+/g)?.length || 0;
+            const isX = index % 2 === 0;
+            const value = Number(match);
 
-              if (isX) {
-                return ((value - minX) / (maxX - minX)).toFixed(3);
-              } else {
-                // Flip Y coordinate (SVG Y increases downward, ease Y increases upward)
-                return (1 - (value - minY) / (maxY - minY)).toFixed(3);
-              }
+            if (isX) {
+              return ((value - minX) / (maxX - minX)).toFixed(3);
+            } else {
+              // Flip Y coordinate (SVG Y increases downward, ease Y increases upward)
+              return (1 - (value - minY) / (maxY - minY)).toFixed(3);
             }
-          );
+          });
 
-          console.log('Normalized path:', normalizedPath);
+          console.log("Normalized path:", normalizedPath);
           return normalizedPath;
         }
 
@@ -339,7 +319,7 @@
           });
         }
 
-        easeSelect.addEventListener('change', () => {
+        easeSelect.addEventListener("change", () => {
           currentEaseName = easeSelect.value;
           isPathModified = false; // Reset to use built-in ease
           currentCustomEase = null;
@@ -357,25 +337,23 @@
               .replace(/([ML]?)([0-9.]+),([0-9.]+)/g, (match, cmd, x, y) => {
                 const newX = parseFloat(x) * 500;
                 const newY = 500 - parseFloat(y) * 500; // Flip Y for SVG coordinates
-                return `${cmd || 'L'}${newX},${newY}`;
+                return `${cmd || "L"}${newX},${newY}`;
               })
               .replace(/C([0-9.,\s]+)/g, (match, coords) => {
-                const numbers = coords
-                  .split(/[,\s]+/)
-                  .map((n) => parseFloat(n));
+                const numbers = coords.split(/[,\s]+/).map((n) => parseFloat(n));
                 const converted = [];
                 for (let i = 0; i < numbers.length; i += 2) {
                   converted.push(numbers[i] * 500); // X
                   converted.push(500 - numbers[i + 1] * 500); // Y flipped
                 }
-                return `C${converted.join(',')}`;
+                return `C${converted.join(",")}`;
               });
 
-            console.log('Using simple custom ease:', currentEaseName);
+            console.log("Using simple custom ease:", currentEaseName);
             debugInfo.textContent = `Using simple ease: ${currentEaseName} (editable)`;
 
             // Set the path directly instead of morphing
-            motionPathEl.setAttribute('d', simplePath);
+            motionPathEl.setAttribute("d", simplePath);
             if (motionTween) motionTween.kill();
             if (helper) helper.kill();
             resetMotionPath();
@@ -385,13 +363,13 @@
               width: 500,
               height: 500,
             });
-            console.log('Using built-in ease:', currentEaseName);
+            console.log("Using built-in ease:", currentEaseName);
             debugInfo.textContent = `Using built-in ease: ${currentEaseName} (many points)`;
 
             if (motionTween) motionTween.kill();
             if (helper) helper.kill();
 
-            motionTween = gsap.to('#motionPath', {
+            motionTween = gsap.to("#motionPath", {
               morphSVG: svgPath,
               duration: 0.1,
               onComplete: () => resetMotionPath(),
@@ -399,40 +377,34 @@
           }
         });
 
-        btnEl.addEventListener('click', () => {
+        btnEl.addEventListener("click", () => {
           initAudio();
           const now = audioContext.currentTime;
 
           gsap.fromTo(
-            '#motionPath',
-            { drawSVG: '0% 0%' },
-            { duration: duration, drawSVG: '0% 100%' }
+            "#motionPath",
+            { drawSVG: "0% 0%" },
+            { duration: duration, drawSVG: "0% 100%" },
           );
 
           // Use the appropriate easing source
-          const easingSource = isPathModified
-            ? currentCustomEase
-            : currentEaseName;
+          const easingSource = isPathModified ? currentCustomEase : currentEaseName;
           playWithEasing(easingSource, now);
         });
 
         // *** UPDATED: Support both built-in eases and custom path-based eases ***
-        function getEasingValues(
-          easingSource,
-          duration = 1,
-          sampleRate = 1000
-        ) {
+        function getEasingValues(easingSource, duration = 1, sampleRate = 1000) {
           const audioValues = [];
           const timeStep = duration / sampleRate;
 
           let easingFunction;
 
-          if (typeof easingSource === 'string') {
+          if (typeof easingSource === "string") {
             // Built-in ease
             const dummyTween = gsap.to({}, { duration: 1, ease: easingSource });
             easingFunction = dummyTween._ease;
             dummyTween.kill();
-          } else if (easingSource && typeof easingSource === 'function') {
+          } else if (easingSource && typeof easingSource === "function") {
             // Custom ease function
             easingFunction = easingSource;
           } else {
@@ -461,10 +433,7 @@
         }
 
         // Play audio with easing automation
-        function playWithEasing(
-          easingSource,
-          startTime = audioContext.currentTime
-        ) {
+        function playWithEasing(easingSource, startTime = audioContext.currentTime) {
           if (isPlaying) return;
 
           initAudio();
@@ -472,11 +441,8 @@
 
           // Get easing values from either built-in ease or custom path ease
           const audioValues = getEasingValues(easingSource, duration);
-          console.log('Audio Values (first 10):', audioValues.slice(0, 10));
-          console.log(
-            'Using easing source:',
-            isPathModified ? 'Custom Path' : easingSource
-          );
+          console.log("Audio Values (first 10):", audioValues.slice(0, 10));
+          console.log("Using easing source:", isPathModified ? "Custom Path" : easingSource);
 
           // Create audio nodes
           oscillator = audioContext.createOscillator();
@@ -485,25 +451,19 @@
           gainNode.gain.setValueAtTime(0, startTime);
 
           // Configure oscillator
-          oscillator.type = 'sawtooth';
+          oscillator.type = "sawtooth";
           oscillator.frequency.setValueAtTime(audioValues[0].value, startTime);
 
           // Configure filter
-          filter.type = 'lowpass';
+          filter.type = "lowpass";
           filter.Q.setValueAtTime(1, startTime);
           filter.frequency.setValueAtTime(audioValues[0].value, startTime);
 
           // Apply the easing-based frequency automation
           audioValues.forEach((point, index) => {
-            oscillator.frequency.setValueAtTime(
-              point.value,
-              startTime + point.time
-            );
+            oscillator.frequency.setValueAtTime(point.value, startTime + point.time);
 
-            gainNode.gain.setValueAtTime(
-              point.value / 100,
-              startTime + point.time
-            );
+            gainNode.gain.setValueAtTime(point.value / 100, startTime + point.time);
             // filter.frequency.setValueAtTime(
             //   point.value,
             //   startTime + point.time

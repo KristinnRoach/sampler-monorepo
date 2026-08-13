@@ -1,19 +1,11 @@
 // components/OutputDeviceSelect.tsx
-import {
-  Component,
-  For,
-  Show,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-} from 'solid-js';
+import { Component, For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
   canSetOutputDevice,
   getAudioOutputDevices,
   setAudioOutputDevice,
   getCurrentOutputDeviceId,
-} from '@repo/audiolib';
+} from "@repo/audiolib";
 
 interface OutputDeviceSelectProps {
   class?: string;
@@ -23,7 +15,7 @@ interface OutputDeviceSelectProps {
  *  Hidden entirely on browsers without AudioContext.setSinkId (Safari). */
 const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
   const [devices, setDevices] = createSignal<MediaDeviceInfo[]>([]);
-  const [selected, setSelected] = createSignal('');
+  const [selected, setSelected] = createSignal("");
 
   const refresh = async () => setDevices(await getAudioOutputDevices());
 
@@ -45,18 +37,13 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
   onMount(() => {
     if (!canSetOutputDevice()) return;
     refresh();
-    navigator.mediaDevices.addEventListener('devicechange', refresh);
-    onCleanup(() =>
-      navigator.mediaDevices.removeEventListener('devicechange', refresh),
-    );
+    navigator.mediaDevices.addEventListener("devicechange", refresh);
+    onCleanup(() => navigator.mediaDevices.removeEventListener("devicechange", refresh));
   });
 
   const selectedLabel = createMemo(() => {
-    if (!selected()) return 'System Default Output';
-    return (
-      devices().find((d) => d.deviceId === selected())?.label ||
-      'Audio output device'
-    );
+    if (!selected()) return "System Default Output";
+    return devices().find((d) => d.deviceId === selected())?.label || "Audio output device";
   });
 
   const onChange = async (deviceId: string) => {
@@ -64,7 +51,7 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
       await setAudioOutputDevice(deviceId);
       setSelected(deviceId);
     } catch (err) {
-      console.error('Failed to set output device', err);
+      console.error("Failed to set output device", err);
     }
   };
 
@@ -72,15 +59,17 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
     <Show when={canSetOutputDevice()}>
       <div class={props.class}>
         <select
-          aria-label='Audio output device'
+          aria-label="Audio output device"
           title={selectedLabel()}
-          class='icon-select'
+          class="icon-select"
           value={selected()}
           onfocus={refreshWithPermission}
           onchange={(e) => onChange(e.currentTarget.value)}
         >
-          <option value='' selected={!selected()}>System Default Output</option>
-          <For each={devices().filter((d) => d.deviceId !== 'default')}>
+          <option value="" selected={!selected()}>
+            System Default Output
+          </option>
+          <For each={devices().filter((d) => d.deviceId !== "default")}>
             {(d, i) => (
               <option value={d.deviceId} selected={selected() === d.deviceId}>
                 {d.label || `Output ${i() + 1}`}
@@ -88,21 +77,21 @@ const OutputDeviceSelect: Component<OutputDeviceSelectProps> = (props) => {
             )}
           </For>
         </select>
-        <div class='icon-select-icon'>
+        <div class="icon-select-icon">
           <svg
-            aria-hidden='true'
-            viewBox='0 0 24 24'
-            width='20'
-            height='20'
-            fill='none'
-            stroke='currentColor'
-            stroke-width='2'
-            stroke-linecap='round'
-            stroke-linejoin='round'
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            width="20"
+            height="20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            <path d='M11 5 6 9H3v6h3l5 4z' />
-            <path d='M15.5 8.5a5 5 0 0 1 0 7' />
-            <path d='M18.5 5.5a9 9 0 0 1 0 13' />
+            <path d="M11 5 6 9H3v6h3l5 4z" />
+            <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+            <path d="M18.5 5.5a9 9 0 0 1 0 13" />
           </svg>
         </div>
       </div>

@@ -1,4 +1,4 @@
-const template = document.createElement('template');
+const template = document.createElement("template");
 template.innerHTML = `
   <style>
     :host {
@@ -24,7 +24,7 @@ template.innerHTML = `
   </style>
   <div id="rotator" part="rotator"><slot></slot></div>`;
 
-window.ShadyCSS && ShadyCSS.prepareTemplate(template, 'input-knob');
+window.ShadyCSS && ShadyCSS.prepareTemplate(template, "input-knob");
 
 const TWO_PI = 2 * Math.PI;
 
@@ -33,9 +33,9 @@ export default class InputKnob extends HTMLElement {
     super();
 
     window.ShadyCSS && ShadyCSS.styleElement(this);
-    this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: "open" });
     this.shadowRoot.appendChild(template.content.cloneNode(true));
-    this._rotator = this.shadowRoot.getElementById('rotator');
+    this._rotator = this.shadowRoot.getElementById("rotator");
     this._fallback = null;
 
     this._drawState = this._drawState.bind(this);
@@ -54,76 +54,73 @@ export default class InputKnob extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ['value', 'scale', 'min', 'max'];
+    return ["value", "scale", "min", "max"];
   }
 
   get value() {
-    return this.hasAttribute('value') ? this.getAttribute('value') : 0;
+    return this.hasAttribute("value") ? this.getAttribute("value") : 0;
   }
 
   set value(value) {
-    this.setAttribute('value', parseFloat(value));
+    this.setAttribute("value", parseFloat(value));
   }
 
   get scale() {
-    return this.hasAttribute('scale') ? this.getAttribute('scale') : 1;
+    return this.hasAttribute("scale") ? this.getAttribute("scale") : 1;
   }
 
   set scale(scale) {
-    this.setAttribute('scale', parseFloat(scale));
+    this.setAttribute("scale", parseFloat(scale));
   }
 
   get min() {
-    return this.hasAttribute('min') ? this.getAttribute('min') : null;
+    return this.hasAttribute("min") ? this.getAttribute("min") : null;
   }
 
   set min(min) {
-    this.setAttribute('min', parseFloat(min));
+    this.setAttribute("min", parseFloat(min));
   }
 
   get max() {
-    return this.hasAttribute('max') ? this.getAttribute('max') : null;
+    return this.hasAttribute("max") ? this.getAttribute("max") : null;
   }
 
   set max(max) {
-    this.setAttribute('max', parseFloat(max));
+    this.setAttribute("max", parseFloat(max));
   }
 
   connectedCallback() {
     if (!this._rotator.part) {
-      this._fallback = document.createElement('span');
-      this._fallback.style.setProperty('--angle', `${this._angle}rad`);
-      this._fallback.style.setProperty('transform', `rotate(var(--angle))`);
-      this._fallback.style.setProperty(
-        '-webkit-tap-highlight-color',
-        'transparent'
-      );
+      this._fallback = document.createElement("span");
+      this._fallback.style.setProperty("--angle", `${this._angle}rad`);
+      this._fallback.style.setProperty("transform", `rotate(var(--angle))`);
+      this._fallback.style.setProperty("-webkit-tap-highlight-color", "transparent");
 
       while (this.childNodes.length > 0) {
         this._fallback.appendChild(this.childNodes[0]);
       }
 
-      this._fallback.classList.add('fallback');
-      this.classList.add('fallback');
+      this._fallback.classList.add("fallback");
+      this.classList.add("fallback");
       this.append(this._fallback);
     }
 
     this._drawState();
 
-    if ('PointerEvent' in window) {
-      this.addEventListener('pointerdown', this._onPointerdown);
+    if ("PointerEvent" in window) {
+      this.addEventListener("pointerdown", this._onPointerdown);
     } else {
-      this.addEventListener('touchstart', this._onTouchstart);
-      this.addEventListener('mousedown', this._onMousedown);
+      this.addEventListener("touchstart", this._onTouchstart);
+      this.addEventListener("mousedown", this._onMousedown);
     }
   }
 
   disconnectedCallback() {
-    if ('PointerEvent' in window) {
-      this.removeEventListener('pointerdown', this._onPointerdown);
+    if ("PointerEvent" in window) {
+      this.removeEventListener("pointerdown", this._onPointerdown);
     } else {
-      this.removeEventListener('touchstart', this._onTouchstart);
-      this.removeEventListener('mousedown', this._onMousedown);
+      this.removeEventListener("touchstart", this._onTouchstart);
+      this.removeEventListener("mousedown", this._onMousedown);
     }
   }
 
@@ -140,29 +137,24 @@ export default class InputKnob extends HTMLElement {
       target = this._fallback;
     }
 
-    target.style.setProperty('--angle', `${this._angle}rad`);
+    target.style.setProperty("--angle", `${this._angle}rad`);
   }
 
   _rotationStart() {
     window.oncontextmenu = () => {
       return false;
     };
-    this._centerX =
-      this.offsetLeft -
-      this.scrollLeft +
-      this.clientLeft +
-      this.offsetWidth / 2;
-    this._centerY =
-      this.offsetTop - this.scrollTop + this.clientTop + this.offsetHeight / 2;
+    this._centerX = this.offsetLeft - this.scrollLeft + this.clientLeft + this.offsetWidth / 2;
+    this._centerY = this.offsetTop - this.scrollTop + this.clientTop + this.offsetHeight / 2;
     this._initialAngle = this._angle;
     this._attemptedAngle = this._angle;
     this._attemptedRotations = this._rotations;
     this._initialTouchAngle = Math.atan2(
       this._touchY - this._centerY,
-      this._touchX - this._centerX
+      this._touchX - this._centerX,
     );
 
-    const evt = new Event('knob-move-start', { bubbles: true });
+    const evt = new Event("knob-move-start", { bubbles: true });
     this.dispatchEvent(evt);
   }
 
@@ -177,17 +169,13 @@ export default class InputKnob extends HTMLElement {
     if (this.max !== null && this.min !== null) {
       if (this._attemptedAngle < 1.57 && this._previousAttemptedAngle > 4.71) {
         this._attemptedRotations++;
-      } else if (
-        this._previousAttemptedAngle < 1.57 &&
-        this._attemptedAngle > 4.71
-      ) {
+      } else if (this._previousAttemptedAngle < 1.57 && this._attemptedAngle > 4.71) {
         this._attemptedRotations--;
       }
     }
 
     this._attemptedValue =
-      this._attemptedAngle / (TWO_PI / this.scale) +
-      this.scale * this._attemptedRotations;
+      this._attemptedAngle / (TWO_PI / this.scale) + this.scale * this._attemptedRotations;
 
     if (
       (this.min === null || this._attemptedValue >= this.min) &&
@@ -202,13 +190,13 @@ export default class InputKnob extends HTMLElement {
       this.value = this.max;
     }
 
-    const evt = new Event('knob-move-change', { bubbles: true });
+    const evt = new Event("knob-move-change", { bubbles: true });
     this.dispatchEvent(evt);
   }
 
   _rotationEnd() {
     window.oncontextmenu = null;
-    const evt = new Event('knob-move-end', { bubbles: true });
+    const evt = new Event("knob-move-end", { bubbles: true });
     this.dispatchEvent(evt);
   }
 
@@ -220,9 +208,9 @@ export default class InputKnob extends HTMLElement {
     this._rotationStart();
 
     this.setPointerCapture(e.pointerId);
-    this.addEventListener('pointermove', this._onPointermove);
-    this.addEventListener('pointerup', this._onPointerup);
-    this.addEventListener('pointercancel', this._onPointerup);
+    this.addEventListener("pointermove", this._onPointermove);
+    this.addEventListener("pointerup", this._onPointerup);
+    this.addEventListener("pointercancel", this._onPointerup);
   }
 
   _onPointermove(e) {
@@ -236,17 +224,17 @@ export default class InputKnob extends HTMLElement {
     e.preventDefault();
     this._rotationEnd();
     this.releasePointerCapture(e.pointerId);
-    this.removeEventListener('pointermove', this._onPointermove);
-    this.removeEventListener('pointerup', this._onPointerup);
-    this.removeEventListener('pointercancel', this._onPointerup);
+    this.removeEventListener("pointermove", this._onPointermove);
+    this.removeEventListener("pointerup", this._onPointerup);
+    this.removeEventListener("pointercancel", this._onPointerup);
   }
 
   _onMousedown(e) {
     this._touchX = e.clientX;
     this._touchY = e.clientY;
     this._rotationStart();
-    document.addEventListener('mousemove', this._onMousemove);
-    document.addEventListener('mouseup', this._onMouseup);
+    document.addEventListener("mousemove", this._onMousemove);
+    document.addEventListener("mouseup", this._onMouseup);
   }
 
   _onMousemove(e) {
@@ -258,8 +246,8 @@ export default class InputKnob extends HTMLElement {
 
   _onMouseup(e) {
     e.preventDefault();
-    document.removeEventListener('mousemove', this._onMousemove);
-    document.removeEventListener('mouseup', this._onMouseup);
+    document.removeEventListener("mousemove", this._onMousemove);
+    document.removeEventListener("mouseup", this._onMouseup);
     this._rotationEnd();
   }
 
@@ -268,9 +256,9 @@ export default class InputKnob extends HTMLElement {
     this._touchX = e.changedTouches[0].clientX;
     this._touchY = e.changedTouches[0].clientY;
     this._rotationStart();
-    this.addEventListener('touchmove', this._onTouchmove);
-    this.addEventListener('touchend', this._onTouchend);
-    this.addEventListener('touchcancel', this._onTouchend);
+    this.addEventListener("touchmove", this._onTouchmove);
+    this.addEventListener("touchend", this._onTouchend);
+    this.addEventListener("touchcancel", this._onTouchend);
   }
 
   _onTouchmove(e) {
@@ -282,9 +270,9 @@ export default class InputKnob extends HTMLElement {
 
   _onTouchend(e) {
     e.preventDefault();
-    this.removeEventListener('touchmove', this._onTouchmove);
-    this.removeEventListener('touchend', this._onTouchend);
-    this.removeEventListener('touchcancel', this._onTouchend);
+    this.removeEventListener("touchmove", this._onTouchmove);
+    this.removeEventListener("touchend", this._onTouchend);
+    this.removeEventListener("touchcancel", this._onTouchend);
     this._rotationEnd();
   }
 }

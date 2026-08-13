@@ -1,5 +1,5 @@
-const locked = '🔒';
-const unlocked = '🔓';
+const locked = "🔒";
+const unlocked = "🔓";
 
 export const UNICODES = {
   locked,

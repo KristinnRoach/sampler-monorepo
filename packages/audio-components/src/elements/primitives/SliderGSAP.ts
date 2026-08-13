@@ -1,5 +1,5 @@
-import { gsap } from 'gsap';
-import { Draggable } from 'gsap/Draggable';
+import { gsap } from "gsap";
+import { Draggable } from "gsap/Draggable";
 
 // TODO1: Shift + click to drag both thumbs at the same time
 // TODO2: Check for leftover redundant normalization / convertion
@@ -94,11 +94,9 @@ class SliderGSAP extends HTMLElement {
         -->
     `;
 
-    this.svg = this.querySelector('.slider-svg')!;
-    this.track = this.querySelector('.slider-track')!;
-    this.thumbs = Array.from(
-      this.querySelectorAll('.slider-thumb')
-    ) as SVGCircleElement[];
+    this.svg = this.querySelector(".slider-svg")!;
+    this.track = this.querySelector(".slider-track")!;
+    this.thumbs = Array.from(this.querySelectorAll(".slider-thumb")) as SVGCircleElement[];
 
     this.initializeGSAP();
     this.updateThumbs();
@@ -129,8 +127,8 @@ class SliderGSAP extends HTMLElement {
   }
 
   initializeGSAP() {
-    if (typeof gsap === 'undefined') {
-      console.error('GSAP is not loaded');
+    if (typeof gsap === "undefined") {
+      console.error("GSAP is not loaded");
       return;
     }
     gsap.registerPlugin(Draggable);
@@ -142,7 +140,7 @@ class SliderGSAP extends HTMLElement {
     // Create draggable instances for each thumb
     this.thumbs.forEach((thumb, index) => {
       Draggable.create(thumb, {
-        type: 'x',
+        type: "x",
         bounds: { minX: this.sliderMinPx, maxX: this.sliderMaxPx },
         onDrag: () => this.onDrag(index),
         onPress: (e) => this.onPress(e, index),
@@ -161,8 +159,8 @@ class SliderGSAP extends HTMLElement {
       // this.rampTime = 0;
       // Store current positions at drag start
       this.dragStartPositions = [
-        gsap.getProperty(this.thumbs[0], 'x') as number,
-        gsap.getProperty(this.thumbs[1], 'x') as number,
+        gsap.getProperty(this.thumbs[0], "x") as number,
+        gsap.getProperty(this.thumbs[1], "x") as number,
       ];
     }
     // else {
@@ -171,28 +169,21 @@ class SliderGSAP extends HTMLElement {
   }
 
   onDrag(thumbIndex: number) {
-    let thumb0X = gsap.getProperty(this.thumbs[0], 'x') as number;
-    let thumb1X = gsap.getProperty(this.thumbs[1], 'x') as number;
+    let thumb0X = gsap.getProperty(this.thumbs[0], "x") as number;
+    let thumb1X = gsap.getProperty(this.thumbs[1], "x") as number;
 
     if (this.isShiftDragging) {
       // Calculate how much the dragged thumb moved
       const draggedThumbDelta =
-        (thumbIndex === 0 ? thumb0X : thumb1X) -
-        this.dragStartPositions[thumbIndex];
+        (thumbIndex === 0 ? thumb0X : thumb1X) - this.dragStartPositions[thumbIndex];
 
       // Move both thumbs by the same delta
       const newThumb0X = this.dragStartPositions[0] + draggedThumbDelta;
       const newThumb1X = this.dragStartPositions[1] + draggedThumbDelta;
 
       // Apply bounds checking
-      const constrainedThumb0X = Math.max(
-        this.sliderMinPx,
-        Math.min(this.sliderMaxPx, newThumb0X)
-      );
-      const constrainedThumb1X = Math.max(
-        this.sliderMinPx,
-        Math.min(this.sliderMaxPx, newThumb1X)
-      );
+      const constrainedThumb0X = Math.max(this.sliderMinPx, Math.min(this.sliderMaxPx, newThumb0X));
+      const constrainedThumb1X = Math.max(this.sliderMinPx, Math.min(this.sliderMaxPx, newThumb1X));
 
       // Update both thumbs
       gsap.set(this.thumbs[0], { x: constrainedThumb0X });
@@ -249,7 +240,7 @@ class SliderGSAP extends HTMLElement {
     const secondValue = this.normalizedToValue(secondNormalized);
 
     this.dispatchEvent(
-      new CustomEvent('range-change', {
+      new CustomEvent("range-change", {
         detail: {
           min: firstValue,
           max: secondValue,
@@ -259,19 +250,19 @@ class SliderGSAP extends HTMLElement {
           minNormalized: firstNormalized,
           maxNormalized: secondNormalized,
         },
-      })
+      }),
     );
   }
 
   updateThumbs() {
-    if (typeof gsap === 'undefined') return;
+    if (typeof gsap === "undefined") return;
 
     // Animate thumbs to their positions
     this.thumbs.forEach((thumb, index) => {
       gsap.to(thumb, {
         x: this.positionsPixels[index],
         duration: 0.3,
-        ease: 'power2.out',
+        ease: "power2.out",
       });
     });
 
@@ -280,9 +271,7 @@ class SliderGSAP extends HTMLElement {
 
   refreshDisplay() {
     this.thumbs.forEach((thumb, index) => {
-      const valueSpan = this.querySelector(
-        `#value-${index}`
-      ) as HTMLSpanElement;
+      const valueSpan = this.querySelector(`#value-${index}`) as HTMLSpanElement;
       if (valueSpan) {
         valueSpan.textContent = this.positionsPixels[index].toFixed(0);
       }
@@ -312,9 +301,7 @@ class SliderGSAP extends HTMLElement {
 
   // Return actual values instead of pixels
   getPosition(thumbIndex: number): number {
-    const normalized = this.pixelsToNormalized(
-      this.positionsPixels[thumbIndex]
-    );
+    const normalized = this.pixelsToNormalized(this.positionsPixels[thumbIndex]);
     return this.normalizedToValue(normalized);
   }
 
@@ -324,4 +311,4 @@ class SliderGSAP extends HTMLElement {
 }
 
 // Register the custom element
-customElements.define('slider-gsap', SliderGSAP);
+customElements.define("slider-gsap", SliderGSAP);

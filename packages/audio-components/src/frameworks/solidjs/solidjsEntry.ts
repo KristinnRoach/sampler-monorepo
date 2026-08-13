@@ -1,27 +1,24 @@
 // src/frameworks/solidjs/index.ts
 
 // Import solidjs types to ensure they're registered
-import './types';
+import "./types";
 
 // Import svg, gsap, etc. types
-import '../../types/modules.d';
+import "../../types/modules.d";
 
 // Export the main component
-export { KnobComponent } from './primitives/knob/KnobComponent';
+export { KnobComponent } from "./primitives/knob/KnobComponent";
 
 // Export types for consumers
-export type { KnobComponentProps } from './primitives/knob/KnobComponent';
-export type { KnobPresetKey } from '../shared/KnobPresets';
-export { KnobPresetProps } from '../shared/KnobPresets';
+export type { KnobComponentProps } from "./primitives/knob/KnobComponent";
+export type { KnobPresetKey } from "../shared/KnobPresets";
+export { KnobPresetProps } from "../shared/KnobPresets";
 
-export type {
-  KnobConfig,
-  KnobChangeEventDetail,
-} from '../../elements/primitives/KnobElement';
+export type { KnobConfig, KnobChangeEventDetail } from "../../elements/primitives/KnobElement";
 
 // Re-export the core element class for advanced usage
-export { KnobElement } from '../../elements/primitives/KnobElement';
+export { KnobElement } from "../../elements/primitives/KnobElement";
 
-export { Oscilloscope } from './OscilloScopeComponent';
-export type { OscilloscopeProps } from './OscilloScopeComponent';
-export { OscilloscopeElement } from '../../elements/OscilloscopeElement';
+export { Oscilloscope } from "./OscilloScopeComponent";
+export type { OscilloscopeProps } from "./OscilloScopeComponent";
+export { OscilloscopeElement } from "../../elements/OscilloscopeElement";

@@ -1,43 +1,43 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
-import dts from 'vite-plugin-dts';
+import { defineConfig } from "vite";
+import { resolve } from "path";
+import { fileURLToPath } from "url";
+import dts from "vite-plugin-dts";
 
 export default defineConfig({
-  base: './',
+  base: "./",
   plugins: [
     dts({
-      include: ['src'],
-      exclude: ['**/*.test.ts', '**/__tests__/**'],
-      outDir: 'dist',
+      include: ["src"],
+      exclude: ["**/*.test.ts", "**/__tests__/**"],
+      outDir: "dist",
       rollupTypes: true,
     }),
   ],
 
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: false, // necessary to prevent worklets being erased (when using build-processors.js)
     // assetsInlineLimit: 0, // Prevent inlining (not needed when using build-processors.js)
 
     lib: {
       entry: {
-        index: resolve(__dirname, 'src/index.ts'),
-        io: resolve(__dirname, 'src/io/index.ts'),
-        components: resolve(__dirname, 'src/components/index.ts'),
+        index: resolve(__dirname, "src/index.ts"),
+        io: resolve(__dirname, "src/io/index.ts"),
+        components: resolve(__dirname, "src/components/index.ts"),
       },
-      name: '@repo/audiolib',
-      formats: ['es'],
+      name: "@repo/audiolib",
+      formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,
     },
     rollupOptions: {
-      external: ['dexie', 'webmidi'],
+      external: ["dexie", "webmidi"],
     },
     // output: { globals: {}, }, // skoða
   },
   resolve: {
     // extensions: ['.js', '.ts'], // TOdo: henda
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 });

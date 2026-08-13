@@ -1,5 +1,5 @@
 // components/Button.tsx
-import { Component } from 'solid-js';
+import { Component } from "solid-js";
 
 interface BaseButtonProps {
   title?: string;
@@ -7,23 +7,23 @@ interface BaseButtonProps {
   class?: string;
   conditionalClass?: { condition: boolean; className: string }[];
   children?: any;
-  type?: 'button' | 'submit' | 'reset';
+  type?: "button" | "submit" | "reset";
 }
 
 const BaseButton: Component<BaseButtonProps> = (props) => {
   return (
     <button
-      type={props.type || 'button'}
-      class={`${props.class ? props.class : 'base-button'} ${
+      type={props.type || "button"}
+      class={`${props.class ? props.class : "base-button"} ${
         props.conditionalClass
           ? props.conditionalClass
               .filter((c) => c.condition)
               .map((c) => c.className)
-              .join(' ')
-          : ''
+              .join(" ")
+          : ""
       }`}
       onclick={props.onclick}
-      title={props.title ? props.title : 'Button'}
+      title={props.title ? props.title : "Button"}
     >
       {props.children}
     </button>

@@ -1,6 +1,6 @@
-import van from '@repo/vanjs-core';
-import type { State } from '@repo/vanjs-core';
-import { when } from '@/shared/utils/vanjs/vanjs-utils';
+import van from "@repo/vanjs-core";
+import type { State } from "@repo/vanjs-core";
+import { when } from "@/shared/utils/vanjs/vanjs-utils";
 
 const { div, span, input, label } = van.tags;
 
@@ -21,14 +21,11 @@ export type CustomCheckbox = {
 // Helper function to render label content
 const renderLabelContent = (content: LabelContent) => {
   // If content is a function, call it to get the actual content
-  const actualContent = typeof content === 'function' ? content() : content;
+  const actualContent = typeof content === "function" ? content() : content;
 
   // Handle array content
   if (Array.isArray(actualContent)) {
-    return div(
-      { style: 'display: inline-flex; align-items: center;' },
-      ...actualContent
-    );
+    return div({ style: "display: inline-flex; align-items: center;" }, ...actualContent);
   }
 
   // Handle string or element
@@ -42,107 +39,96 @@ export const createSlider = (
   max: number,
   step: number,
   showValue = false,
-  unit: string = '%',
-  multiplier: number = 100
+  unit: string = "%",
+  multiplier: number = 100,
 ) => {
   return div(
-    { style: 'margin-bottom: 20px;' },
-    typeof labelContent === 'function'
+    { style: "margin-bottom: 20px;" },
+    typeof labelContent === "function"
       ? () => {
           const content = labelContent();
-          return typeof content === 'string'
-            ? label(content + ': ')
-            : div(
-                { style: 'display: inline-block; margin-right: 5px;' },
-                content
-              );
+          return typeof content === "string"
+            ? label(content + ": ")
+            : div({ style: "display: inline-block; margin-right: 5px;" }, content);
         }
-      : typeof labelContent === 'string'
-        ? label(labelContent + ': ')
-        : div(
-            { style: 'display: inline-block; margin-right: 5px;' },
-            labelContent
-          ),
+      : typeof labelContent === "string"
+        ? label(labelContent + ": ")
+        : div({ style: "display: inline-block; margin-right: 5px;" }, labelContent),
 
     input({
-      type: 'range',
+      type: "range",
       min,
       max,
       step,
       value: state,
       oninput: (e) => (state.val = parseFloat(e.target.value)),
-      style: 'margin-left: 10px;',
-      class: 'interactive-element',
+      style: "margin-left: 10px;",
+      class: "interactive-element",
     }),
 
     when(showValue, () =>
-      span({ style: 'margin-left: 10px;' }, () =>
-        unit === '%'
-          ? Math.round(state.val * multiplier) + unit
-          : state.val + unit
-      )
-    )
+      span({ style: "margin-left: 10px;" }, () =>
+        unit === "%" ? Math.round(state.val * multiplier) + unit : state.val + unit,
+      ),
+    ),
   );
 };
 
 export const createCheckbox = (
   labelContent: LabelContent,
   state: State<boolean>,
-  customCheckbox?: CustomCheckbox
+  customCheckbox?: CustomCheckbox,
 ) => {
   if (customCheckbox) {
     return div(
       {
-        style: 'display: flex; align-items: center; gap: 8px; cursor: pointer;',
+        style: "display: flex; align-items: center; gap: 8px; cursor: pointer;",
         onclick: () => (state.val = !state.val),
-        role: 'checkbox',
-        'aria-checked': () => state.val,
+        role: "checkbox",
+        "aria-checked": () => state.val,
       },
       // Custom checkbox element that changes based on state
       () => {
-        const element = state.val
-          ? customCheckbox.checked
-          : customCheckbox.unchecked;
+        const element = state.val ? customCheckbox.checked : customCheckbox.unchecked;
 
         // Handle different types of elements
-        if (typeof element === 'string') {
+        if (typeof element === "string") {
           return span(
             {
-              style:
-                'font-size: 1.2rem; display: inline-flex; align-items: center;',
-              class: 'custom-checkbox-text',
+              style: "font-size: 1.2rem; display: inline-flex; align-items: center;",
+              class: "custom-checkbox-text",
             },
-            element
+            element,
           );
         } else {
           return div(
             {
-              style: 'display: inline-flex; align-items: center;',
-              class: 'custom-checkbox',
+              style: "display: inline-flex; align-items: center;",
+              class: "custom-checkbox",
             },
-            element
+            element,
           );
         }
       },
       // Dynamic label content
-      typeof labelContent === 'function'
+      typeof labelContent === "function"
         ? () => renderLabelContent(labelContent())
-        : renderLabelContent(labelContent)
+        : renderLabelContent(labelContent),
     );
   }
 
   // Original implementation for standard checkbox
   return label(
-    { style: 'display: flex; align-items: center; gap: 8px; cursor: pointer;' },
+    { style: "display: flex; align-items: center; gap: 8px; cursor: pointer;" },
     input({
-      type: 'checkbox',
+      type: "checkbox",
       checked: state,
       onchange: (e) => (state.val = e.target.checked),
     }),
     // Dynamic label content
-    typeof labelContent === 'function'
+    typeof labelContent === "function"
       ? () => renderLabelContent(labelContent())
-      : renderLabelContent(labelContent)
+      : renderLabelContent(labelContent),
   );
 };
 

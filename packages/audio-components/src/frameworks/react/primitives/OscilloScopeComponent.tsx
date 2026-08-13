@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { OscilloscopeElement } from '../../../elements/OscilloscopeElement';
+import React, { useRef, useEffect, useState } from "react";
+import { OscilloscopeElement } from "../../../elements/OscilloscopeElement";
 
 export interface OscilloscopeComponentProps {
   audioContext?: AudioContext;
@@ -15,10 +15,10 @@ export const OscilloscopeComponent = ({
 
   useEffect(() => {
     // Wait for the custom element to be defined
-    if (customElements.get('oscilloscope-element')) {
+    if (customElements.get("oscilloscope-element")) {
       setIsElementReady(true);
     } else {
-      customElements.whenDefined('oscilloscope-element').then(() => {
+      customElements.whenDefined("oscilloscope-element").then(() => {
         setIsElementReady(true);
       });
     }
@@ -26,18 +26,15 @@ export const OscilloscopeComponent = ({
 
   useEffect(() => {
     if (ref.current && audioContext && inputNode && isElementReady) {
-      (ref.current as OscilloscopeElement).connectAudio(
-        audioContext,
-        inputNode
-      );
+      (ref.current as OscilloscopeElement).connectAudio(audioContext, inputNode);
     }
   }, [audioContext, inputNode, isElementReady]);
 
   if (!isElementReady) {
-    return React.createElement('div', {}, 'Loading oscilloscope...');
+    return React.createElement("div", {}, "Loading oscilloscope...");
   }
 
-  return React.createElement('oscilloscope-element', {
+  return React.createElement("oscilloscope-element", {
     ref: ref as React.Ref<HTMLElement>,
   });
 };

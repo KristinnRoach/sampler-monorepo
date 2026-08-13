@@ -1,18 +1,18 @@
 // EnvelopeDisplay.ts
-import van from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
-import { EnvelopeSVG } from '@/elements/controls/envelope';
-import { EnvelopeType } from '@repo/audiolib';
-import { getSampler } from '../SamplerRegistry';
-import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
+import van from "@repo/vanjs-core";
+import { ElementProps } from "@repo/vanjs-core/element";
+import { EnvelopeSVG } from "@/elements/controls/envelope";
+import { EnvelopeType } from "@repo/audiolib";
+import { getSampler } from "../SamplerRegistry";
+import { COMPONENT_STYLE } from "@/shared/styles/component-styles";
 
 const { div } = van.tags;
 
 export const EnvelopeDisplay = (attributes: ElementProps) => {
-  const targetNodeId = attributes.attr('target-node-id', '');
-  const envelopeType = attributes.attr('envelope-type', 'amp-env');
-  const width = attributes.attr('width', '100%');
-  const height = attributes.attr('height', '200px');
+  const targetNodeId = attributes.attr("target-node-id", "");
+  const envelopeType = attributes.attr("envelope-type", "amp-env");
+  const width = attributes.attr("width", "100%");
+  const height = attributes.attr("height", "200px");
 
   let envelopeInstance: EnvelopeSVG | null = null;
 
@@ -23,7 +23,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
   const tryCreateEnvelope = () => {
     // Only create envelope when both sampler is ready AND sample is loaded
     if (!samplerInitialized.val || !sampleLoaded.val) {
-      console.log('Waiting for sampler...', {
+      console.log("Waiting for sampler...", {
         samplerReady: samplerInitialized.val,
         sampleLoaded: sampleLoaded.val,
       });
@@ -32,7 +32,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
 
     const sampler = getSampler(targetNodeId.val);
     if (!sampler) {
-      console.log('No sampler found for nodeId:', targetNodeId.val);
+      console.log("No sampler found for nodeId:", targetNodeId.val);
       return;
     }
 
@@ -47,7 +47,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
         sampler,
         envelopeType.val as EnvelopeType,
         width.val,
-        height.val
+        height.val,
       );
 
       // Draw waveform since we know sample is loaded
@@ -55,7 +55,7 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
         envelopeInstance.drawWaveform(sampler.audiobuffer);
       }
     } catch (error) {
-      console.error('Error creating envelope:', error);
+      console.error("Error creating envelope:", error);
     }
   };
 
@@ -76,41 +76,32 @@ export const EnvelopeDisplay = (attributes: ElementProps) => {
       }
     };
 
-    document.addEventListener(
-      'sampler-initialized',
-      handleSamplerInitialized as EventListener
-    );
-    document.addEventListener(
-      'sample-loaded',
-      handleSampleLoaded as EventListener
-    );
+    document.addEventListener("sampler-initialized", handleSamplerInitialized as EventListener);
+    document.addEventListener("sample-loaded", handleSampleLoaded as EventListener);
 
     return () => {
       if (envelopeInstance) {
         envelopeInstance.cleanup();
       }
       document.removeEventListener(
-        'sampler-initialized',
-        handleSamplerInitialized as EventListener
+        "sampler-initialized",
+        handleSamplerInitialized as EventListener,
       );
-      document.removeEventListener(
-        'sample-loaded',
-        handleSampleLoaded as EventListener
-      );
+      document.removeEventListener("sample-loaded", handleSampleLoaded as EventListener);
     };
   });
 
   return div(
     {
-      class: 'envelope-display',
+      class: "envelope-display",
       style: COMPONENT_STYLE,
     },
     () => {
-      if (!samplerInitialized.val) return div('Waiting for sampler...');
-      if (!sampleLoaded.val) return div('Waiting for sample...');
-      if (!envelopeInstance) return div('Creating envelope...');
+      if (!samplerInitialized.val) return div("Waiting for sampler...");
+      if (!sampleLoaded.val) return div("Waiting for sample...");
+      if (!envelopeInstance) return div("Creating envelope...");
       return envelopeInstance.element;
-    }
+    },
   );
 };
 

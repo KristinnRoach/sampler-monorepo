@@ -1,9 +1,12 @@
 {
   "name": "@repo/audiolib",
   "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "types": "./dist/index.d.ts",
-  "private": true,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,9 +21,6 @@
       "import": "./dist/components.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build:worklets": "node build-processors.js && mkdir -p dist",
     "build": "pnpm clean && node build-processors.js && vite build && tsc --emitDeclarationOnly",

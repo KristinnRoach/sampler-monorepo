@@ -1,5 +1,5 @@
 // components/Sidebar.tsx
-import { Component, JSX, createEffect, onCleanup } from 'solid-js';
+import { Component, JSX, createEffect, onCleanup } from "solid-js";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -12,15 +12,15 @@ const Sidebar: Component<SidebarProps> = (props) => {
   // Handle Escape key to close sidebar
   createEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && props.isOpen) {
+      if (event.key === "Escape" && props.isOpen) {
         props.onClose();
       }
     };
 
     if (props.isOpen) {
-      document.addEventListener('keydown', handleEscapeKey);
+      document.addEventListener("keydown", handleEscapeKey);
       onCleanup(() => {
-        document.removeEventListener('keydown', handleEscapeKey);
+        document.removeEventListener("keydown", handleEscapeKey);
       });
     }
   });
@@ -28,16 +28,16 @@ const Sidebar: Component<SidebarProps> = (props) => {
   const isOpen = () => props.isOpen;
 
   return (
-    <div class={`sidebar ${isOpen() ? 'sidebar-open' : 'sidebar-closed'}`}>
+    <div class={`sidebar ${isOpen() ? "sidebar-open" : "sidebar-closed"}`}>
       {props.title && (
-        <div class='sidebar-header'>
+        <div class="sidebar-header">
           <h3>{props.title}</h3>
-          <button type='button' class='close-button' onclick={props.onClose}>
+          <button type="button" class="close-button" onclick={props.onClose}>
             ×
           </button>
         </div>
       )}
-      <div class='sidebar-content'>{props.children}</div>
+      <div class="sidebar-content">{props.children}</div>
     </div>
   );
 };

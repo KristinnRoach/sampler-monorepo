@@ -111,25 +111,11 @@
         </div>
 
         <div class="svg-container">
-          <svg
-            class="envelope-svg"
-            viewBox="0 0 400 150"
-            preserveAspectRatio="xMidYMid meet"
-          >
+          <svg class="envelope-svg" viewBox="0 0 400 150" preserveAspectRatio="xMidYMid meet">
             <!-- Grid -->
             <defs>
-              <pattern
-                id="grid"
-                width="40"
-                height="15"
-                patternUnits="userSpaceOnUse"
-              >
-                <path
-                  d="M 40 0 L 0 0 0 15"
-                  fill="none"
-                  stroke="#333"
-                  stroke-width="1"
-                />
+              <pattern id="grid" width="40" height="15" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 15" fill="none" stroke="#333" stroke-width="1" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
@@ -143,10 +129,8 @@
         </div>
 
         <div class="info" id="envelope-info">
-          Click "Add Point" to create control points. Drag points to shape your
-          envelope.
-          <br />Delete key removes selected points. Points define time (x) and
-          amplitude (y).
+          Click "Add Point" to create control points. Drag points to shape your envelope.
+          <br />Delete key removes selected points. Points define time (x) and amplitude (y).
         </div>
       </div>
     </div>
@@ -180,32 +164,30 @@
 
         setupEventListeners() {
           // Add point button
-          document.getElementById('add-point').addEventListener('click', () => {
+          document.getElementById("add-point").addEventListener("click", () => {
             this.addPoint();
           });
 
           // Play test button
-          document.getElementById('play-test').addEventListener('click', () => {
+          document.getElementById("play-test").addEventListener("click", () => {
             this.playTestTone();
           });
 
           // Clear points button
-          document
-            .getElementById('clear-points')
-            .addEventListener('click', () => {
-              this.clearPoints();
-            });
+          document.getElementById("clear-points").addEventListener("click", () => {
+            this.clearPoints();
+          });
 
           // SVG mouse events
-          const svg = document.querySelector('.envelope-svg');
-          svg.addEventListener('mousedown', (e) => this.onMouseDown(e));
-          svg.addEventListener('mousemove', (e) => this.onMouseMove(e));
-          svg.addEventListener('mouseup', () => this.onMouseUp());
-          svg.addEventListener('mouseleave', () => this.onMouseUp());
+          const svg = document.querySelector(".envelope-svg");
+          svg.addEventListener("mousedown", (e) => this.onMouseDown(e));
+          svg.addEventListener("mousemove", (e) => this.onMouseMove(e));
+          svg.addEventListener("mouseup", () => this.onMouseUp());
+          svg.addEventListener("mouseleave", () => this.onMouseUp());
 
           // Keyboard events
-          document.addEventListener('keydown', (e) => {
-            if (e.key === 'Delete' && this.selectedPoint !== null) {
+          document.addEventListener("keydown", (e) => {
+            if (e.key === "Delete" && this.selectedPoint !== null) {
               this.deletePoint(this.selectedPoint);
             }
           });
@@ -245,7 +227,7 @@
         }
 
         getSVGPoint(e) {
-          const svg = document.querySelector('.envelope-svg');
+          const svg = document.querySelector(".envelope-svg");
           const rect = svg.getBoundingClientRect();
           const viewBox = svg.viewBox.baseVal;
 
@@ -265,9 +247,7 @@
           this.selectedPoint = null;
           for (let i = 0; i < this.points.length; i++) {
             const p = this.points[i];
-            const distance = Math.sqrt(
-              (point.x - p.x) ** 2 + (point.y - p.y) ** 2
-            );
+            const distance = Math.sqrt((point.x - p.x) ** 2 + (point.y - p.y) ** 2);
             if (distance < 10) {
               this.selectedPoint = i;
               this.isDragging = true;
@@ -325,25 +305,22 @@
             }
           }
 
-          document.querySelector('.envelope-path').setAttribute('d', pathData);
+          document.querySelector(".envelope-path").setAttribute("d", pathData);
         }
 
         updateControlPoints() {
-          const container = document.querySelector('.control-points');
-          container.innerHTML = '';
+          const container = document.querySelector(".control-points");
+          container.innerHTML = "";
 
           this.points.forEach((point, index) => {
-            const circle = document.createElementNS(
-              'http://www.w3.org/2000/svg',
-              'circle'
-            );
-            circle.setAttribute('cx', point.x);
-            circle.setAttribute('cy', point.y);
-            circle.setAttribute('class', 'control-point');
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", point.x);
+            circle.setAttribute("cy", point.y);
+            circle.setAttribute("class", "control-point");
 
             if (index === this.selectedPoint) {
-              circle.classList.add('selected');
-              circle.style.fill = '#ff6b6b';
+              circle.classList.add("selected");
+              circle.style.fill = "#ff6b6b";
             }
 
             container.appendChild(circle);
@@ -352,8 +329,7 @@
 
         updateInfo() {
           const count = this.points.length;
-          document.getElementById('point-count').textContent =
-            `Points: ${count}`;
+          document.getElementById("point-count").textContent = `Points: ${count}`;
 
           // Show envelope data in normalized form (0-1 for both time and amplitude)
           const normalizedPoints = this.points.map((p) => ({
@@ -361,7 +337,7 @@
             amplitude: ((this.svgHeight - p.y) / this.svgHeight).toFixed(3),
           }));
 
-          document.getElementById('envelope-info').innerHTML =
+          document.getElementById("envelope-info").innerHTML =
             `Envelope Points: ${JSON.stringify(normalizedPoints, null, 2)}`;
         }
 
@@ -383,23 +359,22 @@
 
           // Create CustomEase with our path
           try {
-            CustomEase.create('audioEnvelope', pathData);
-            return 'audioEnvelope';
+            CustomEase.create("audioEnvelope", pathData);
+            return "audioEnvelope";
           } catch (error) {
-            console.warn('CustomEase creation failed, using linear:', error);
-            return 'none';
+            console.warn("CustomEase creation failed, using linear:", error);
+            return "none";
           }
         }
 
         async playTestTone() {
           // Initialize Web Audio API
           if (!this.audioContext) {
-            this.audioContext = new (window.AudioContext ||
-              window.webkitAudioContext)();
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
           }
 
           // Resume context if suspended
-          if (this.audioContext.state === 'suspended') {
+          if (this.audioContext.state === "suspended") {
             await this.audioContext.resume();
           }
 
@@ -411,11 +386,8 @@
           gainNode.connect(this.audioContext.destination);
 
           // Set up oscillator
-          oscillator.frequency.setValueAtTime(
-            440,
-            this.audioContext.currentTime
-          );
-          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime);
+          oscillator.type = "sine";
 
           // Create GSAP ease and apply to gain
           const easeName = this.createGSAPEase();
@@ -434,10 +406,7 @@
             onUpdate: () => {
               // Map the eased value to the audio gain
               const currentTime = this.audioContext.currentTime;
-              gainNode.gain.setValueAtTime(
-                audioTarget.value * 0.3,
-                currentTime
-              ); // 0.3 max volume
+              gainNode.gain.setValueAtTime(audioTarget.value * 0.3, currentTime); // 0.3 max volume
             },
           });
 

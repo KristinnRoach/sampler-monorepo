@@ -20,12 +20,7 @@ interface WebAudioKeyboardElement extends HTMLElement {
   keyboard?: boolean;
 
   /** Sets a note on/off programmatically with optional scheduling */
-  setNote(
-    state: number,
-    note: number,
-    audioContext?: AudioContext,
-    when?: number
-  ): void;
+  setNote(state: number, note: number, audioContext?: AudioContext, when?: number): void;
 }
 
 interface WebAudioKeyboardEvent extends Event {
@@ -36,7 +31,7 @@ interface WebAudioKeyboardEvent extends Event {
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'webaudio-keyboard': Partial<WebAudioKeyboardElement> & {
+      "webaudio-keyboard": Partial<WebAudioKeyboardElement> & {
         width?: number;
         height?: number;
         min?: number;
@@ -51,7 +46,7 @@ declare global {
   }
 
   interface HTMLElementTagNameMap {
-    'webaudio-keyboard': WebAudioKeyboardElement;
+    "webaudio-keyboard": WebAudioKeyboardElement;
   }
 
   interface HTMLElementEventMap {

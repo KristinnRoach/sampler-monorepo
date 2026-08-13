@@ -1,4 +1,4 @@
-import type { State, ChildDom } from '../van';
+import type { State, ChildDom } from "../van";
 
 export type ElementProps = {
   /** Get the value of an attribute */
@@ -10,7 +10,7 @@ export type ElementProps = {
     /** Callback when the element connects to the DOM
      * @returns An optional dismount callback
      */
-    mount: () => (() => void) | void
+    mount: () => (() => void) | void,
   ) => void;
   /** Instance of the custom element with public getters & setters*/
   $this: HTMLElement & {
@@ -28,7 +28,7 @@ export declare const define: (
   /** VanJS functional component */
   element: (
     /** Attributes and properties of the custom element */
-    props: ElementProps
+    props: ElementProps,
   ) => ChildDom,
-  options?: ShadowRootInit | false
+  options?: ShadowRootInit | false,
 ) => void;
