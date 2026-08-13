@@ -15,8 +15,8 @@ import {
   type SamplerParamDescriptor,
   type SamplePlayer,
 } from '@repo/audiolib';
+import { KnobElement } from '@repo/audiolib/components';
 
-import { KnobElement } from '../../audio-elements/elements/primitives/KnobElement';
 import { defineElement } from '../../audio-elements/elementRegistry';
 
 import {
