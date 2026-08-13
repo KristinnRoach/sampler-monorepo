@@ -1,6 +1,6 @@
 // envelopeTimeScaleKnob.ts
 import { EnvelopeType } from '@repo/audiolib';
-import { createKnob, type KnobConfig } from '../../primitives/createKnob';
+import { createKnob, type KnobConfig } from './createKnob';
 
 export interface TimeScaleKnobConfig extends KnobConfig {
   onChange: (data: { envelopeType: EnvelopeType; timeScale: number }) => void;

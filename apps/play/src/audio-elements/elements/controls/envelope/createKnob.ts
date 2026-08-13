@@ -1,8 +1,7 @@
-// createKnob.ts
 import { SamplePlayer } from '@repo/audiolib';
-import { defineElement } from '../../elementRegistry';
-import { KnobElement, type KnobChangeEventDetail } from './KnobElement';
-import van, { State } from '@repo/vanjs-core';
+
+
+// TODO: Delete this file when Envelope and it's TimeScaleKnob are refactored and standard patterns established
 
 function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): T {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -24,17 +23,13 @@ export interface KnobConfig {
   allowedValues?: number[];
   snapThresholds?: Array<{ maxValue: number; increment: number }>;
 
-  color?: string;
-
-  // State
-  state?: State<number>; // Optional van state
-
   // UI properties
   label?: string;
   valueFormatter?: (value: number) => string;
   showValue?: boolean;
   className?: string;
   title?: string;
+  color?: string;
 
   // Storage properties
   paramName?: string;
@@ -82,8 +77,7 @@ export const createKnob = (
     container.appendChild(labelElement);
   }
 
-  // Ensure knob element is defined
-  defineElement('knob-element', KnobElement);
+  // Ensure knob element is defined?
 
   // Create knob element
   const knobElement = document.createElement('knob-element') as any;
@@ -149,10 +143,6 @@ export const createKnob = (
 
   knobElement.addEventListener('knob-change', (e: CustomEvent) => {
     const value = e.detail.value;
-
-    if (config.state) {
-      config.state.val = value;
-    }
 
     // Save to localStorage if enabled
     const storageKey = getStorageKey();
