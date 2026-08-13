@@ -282,9 +282,14 @@ export const createPlayheads = (
       disposeLoopTrigger();
       disposeRelease();
       disposeVoiceStopped();
-      [...activeAnimations.keys()].forEach(stopAnimation);
       [...activeLoopingAnimations.values()].forEach((tl) => tl.kill());
+      [...activeAnimations.values()].forEach((tl) => tl.kill());
       [...activeExitAnimations.values()].forEach((tl) => tl.kill());
+      [...playheads.values()].forEach((playhead) => {
+        if (playhead.parentNode === svgElement) {
+          svgElement.removeChild(playhead);
+        }
+      });
 
       activeAnimations.clear();
       activeLoopingAnimations.clear();
