@@ -653,7 +653,7 @@ export class SamplePlayer implements ILibInstrumentNode {
 
   releaseAll(releaseTime?: number): this {
     this.#sustainedNotes.clear();
-    this.voicePool.allNotesOff(releaseTime);
+    this.voicePool?.allNotesOff(releaseTime);
     return this;
   }
 
