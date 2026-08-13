@@ -324,6 +324,9 @@ export async function enableSamplePlayerMidi(
         e.preventDefault();
         toggleMidiLearn();
       }
+      else if (e.key === 'Escape' && midiLearnActive) {
+       toggleMidiLearn();
+      }
     };
     document.addEventListener('keydown', keydownHandler);
   }
