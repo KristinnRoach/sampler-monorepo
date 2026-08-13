@@ -430,6 +430,22 @@ export class KnobElement extends HTMLElement {
     let totalDeltaY = 0;
     let isUsingPointerLock = false;
 
+    const requestPointerLockOrUseDragFallback = (event: MouseEvent) => {
+      startY = event.clientY;
+      isUsingPointerLock = document.pointerLockElement === this;
+
+      if (!pointerLockSupported || document.pointerLockElement) return;
+
+      void this.requestPointerLock().then(
+        () => {
+          isUsingPointerLock = document.pointerLockElement === this;
+        },
+        () => {
+          isUsingPointerLock = false;
+        },
+      );
+    };
+
     const handleStart = (e: MouseEvent | TouchEvent) => {
       // Checked per-interaction so toggling `disabled` works after creation.
       if (this.config.disabled) return;
@@ -469,13 +485,8 @@ export class KnobElement extends HTMLElement {
       if (isTouchEvent) {
         startY = e.touches[0].clientY;
         isUsingPointerLock = false;
-      } else if (pointerLockSupported) {
-        // Try to use pointer lock for mouse
-        this.requestPointerLock();
-        isUsingPointerLock = true;
       } else {
-        startY = (e as MouseEvent).clientY;
-        isUsingPointerLock = false;
+        requestPointerLockOrUseDragFallback(e as MouseEvent);
       }
     };
 

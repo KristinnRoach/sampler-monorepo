@@ -15,9 +15,7 @@ import {
   type SamplerParamDescriptor,
   type SamplePlayer,
 } from '@repo/audiolib';
-import { KnobElement } from '@repo/audiolib/components';
-
-import { defineElement } from '../../audio-elements/elementRegistry';
+import { KnobElement, registerKnobElement } from '@repo/audiolib/components';
 
 import {
   samplerParamValues,
@@ -61,7 +59,7 @@ export const ParamKnob: Component<ParamKnobProps> = (props) => {
     // Appending KnobElement synchronously emits its descriptor default. Keep
     // the storage-backed shared value captured before that event updates state.
     const initialValue = value();
-    defineElement('knob-element', KnobElement);
+    registerKnobElement();
     knobEl = document.createElement('knob-element') as KnobElement;
 
     const attrs: Record<string, string> = {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { KnobElement } from './KnobElement';
 
 customElements.define('knob-element', KnobElement);
@@ -70,5 +70,62 @@ describe('KnobElement init', () => {
     document.dispatchEvent(new MouseEvent('mouseup'));
 
     expect(knob.getValue()).toBeGreaterThan(25);
+  });
+
+  it('uses normal dragging when pointer lock is rejected', async () => {
+    const originalRequest = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'requestPointerLock',
+    );
+    const originalPointerLockElement = Object.getOwnPropertyDescriptor(
+      document,
+      'pointerLockElement',
+    );
+    const requestPointerLock = vi
+      .fn()
+      .mockRejectedValue(new DOMException('Pointer lock throttled'));
+
+    Object.defineProperty(HTMLElement.prototype, 'requestPointerLock', {
+      configurable: true,
+      value: requestPointerLock,
+    });
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      value: null,
+    });
+
+    const knob = createKnob({
+      'min-value': '0',
+      'max-value': '100',
+      'default-value': '25',
+    });
+    document.body.appendChild(knob);
+    knob.dispatchEvent(new MouseEvent('mousedown', { clientY: 100 }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientY: 90 }));
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    await Promise.resolve();
+
+    expect(requestPointerLock).toHaveBeenCalledOnce();
+    expect(knob.getValue()).toBeGreaterThan(25);
+
+    if (originalRequest) {
+      Object.defineProperty(
+        HTMLElement.prototype,
+        'requestPointerLock',
+        originalRequest,
+      );
+    } else {
+      delete (HTMLElement.prototype as Partial<HTMLElement>)
+        .requestPointerLock;
+    }
+    if (originalPointerLockElement) {
+      Object.defineProperty(
+        document,
+        'pointerLockElement',
+        originalPointerLockElement,
+      );
+    } else {
+      Reflect.deleteProperty(document, 'pointerLockElement');
+    }
   });
 });
