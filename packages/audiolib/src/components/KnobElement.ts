@@ -431,21 +431,6 @@ export class KnobElement extends HTMLElement {
       // Checked per-interaction so toggling `disabled` works after creation.
       if (this.config.disabled) return;
 
-      // Check if MIDI learn is active by looking at body class
-      if (document.body.classList.contains("midi-learn-active")) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // ? Seems to work fine without dispatching. // Todo: remove commented out code after testing diff envs // Dispatch custom event that KnobMidiController listens to
-        // this.dispatchEvent(
-        //   new CustomEvent('knob-midi-learn-request', {
-        //     bubbles: true,
-        //     detail: { knob: this },
-        //   })
-        // );
-        return;
-      }
-
       const now = Date.now();
       const timeDiff = now - this.lastClickTime;
 
