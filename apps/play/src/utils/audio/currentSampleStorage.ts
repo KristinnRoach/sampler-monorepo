@@ -1,12 +1,7 @@
 import { db } from '../../db/samplelib/sampleIdb';
-import {
-  audioBufferToWav,
-  base64ToArrayBuffer,
-  validateWavBuffer,
-} from './bufferUtils';
+import { audioBufferToWav, validateWavBuffer } from './bufferUtils';
 
 const CURRENT_SAMPLE_ID = 'current';
-const LEGACY_STORAGE_KEY = 'currentSample';
 
 export const loadDefaultSample = async (): Promise<ArrayBuffer> => {
   const res = await fetch(`${import.meta.env.BASE_URL}audio/init_sample.webm`);
@@ -25,15 +20,6 @@ export const loadCurrentSample = async (): Promise<ArrayBuffer | undefined> => {
       if (validateWavBuffer(stored.audioData)) return stored.audioData;
       await db.workingSamples.delete(CURRENT_SAMPLE_ID);
     }
-
-    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (!legacy) return;
-    const audioData = base64ToArrayBuffer(legacy);
-    if (!validateWavBuffer(audioData)) return;
-
-    await db.workingSamples.put({ id: CURRENT_SAMPLE_ID, audioData });
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
-    return audioData;
   } catch (error) {
     console.error('Failed to read current sample:', error);
   }
