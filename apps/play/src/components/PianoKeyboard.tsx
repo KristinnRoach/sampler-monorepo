@@ -1,5 +1,5 @@
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-import type { KeyMap, SamplePlayer } from '@repo/audiolib';
+import type { KeyMap, SamplePlayer } from '@kidlib/web-audio';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 import { ROOT_NOTES, type RootNote } from './RootNoteSelect';
 import '../audio-elements/webaudio-keyboard';

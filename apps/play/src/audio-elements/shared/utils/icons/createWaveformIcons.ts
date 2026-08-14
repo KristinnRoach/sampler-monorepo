@@ -1,6 +1,6 @@
 // createWaveformIcons.ts
 import { createSvgIcon } from './createSvgIcon';
-import { SupportedWaveform } from '@repo/audiolib';
+import { SupportedWaveform } from '@kidlib/web-audio';
 
 import sineRaw from '../../assets/icons/svg/waveworm/sine.svg?raw';
 import sawtoothRaw from '../../assets/icons/svg/waveworm/sawtooth.svg?raw';

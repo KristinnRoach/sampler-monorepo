@@ -57,9 +57,9 @@ importers:
 
   apps/play:
     dependencies:
-      '@repo/audiolib':
-        specifier: workspace:*
-        version: link:../../packages/audiolib
+      '@kidlib/web-audio':
+        specifier: 0.1.0
+        version: 0.1.0
       '@repo/vanjs-core':
         specifier: workspace:*
         version: link:../../packages/vanjs
@@ -1463,6 +1463,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kidlib/web-audio@0.1.0':
+    resolution: {integrity: sha512-6Op5IdwcsNX9ORyN/8aiFtY5qyIJcIMAmp8+YYhszce5mqcpqA6rceQYJq0lPYfArUOLnoWfseZKzw8PMbfJEg==}
 
   '@microsoft/api-extractor-model@7.30.5':
     resolution: {integrity: sha512-0ic4rcbcDZHz833RaTZWTGu+NpNgrxVNjVaor0ZDUymfDFzjA/Uuk8hYziIUIOEOSTfmIQqyzVwlzxZxPe7tOA==}
@@ -5592,6 +5595,11 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@kidlib/web-audio@0.1.0':
+    dependencies:
+      dexie: 4.0.11
+      webmidi: 3.1.13
 
   '@microsoft/api-extractor-model@7.30.5(@types/node@24.7.1)':
     dependencies:

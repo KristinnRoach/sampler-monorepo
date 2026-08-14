@@ -2,11 +2,14 @@
 
 ## Before audiolib extraction
 
-- [ ] Remove Play's TypeScript path alias to audiolib source and verify Play against an installed audiolib package tarball.
-- [ ] Fix audiolib's generated declaration files so they contain no paths outside its published `dist` directory.
-- [ ] Replace AudioWorklet loading paths that assume this monorepo or the `@repo/audiolib` package name with package-relative asset loading.
-- [ ] Decide whether `KnobElement` is a supported optional `./components` export or Play-only UI; document and enforce that boundary.
-- [ ] Make audiolib publish-ready: final package name and version, no `private` flag, license, repository metadata, and installation/API documentation.
+- [x] Remove Play's TypeScript path alias to audiolib source and verify Play against an installed audiolib package tarball.
+- [x] Fix audiolib's generated declaration files so they contain no paths outside its published `dist` directory.
+- [x] Bundle AudioWorklet processor code so loading does not depend on monorepo, package-manager, or consumer asset paths.
+- [x] Support `KnobElement` through the optional `@kidlib/web-audio/components` export only.
+- [x] Publish `@kidlib/web-audio@0.1.0` from `KristinnRoach/web-audio` and consume it from Play.
+
+The monorepo copy remains temporarily for other workspace consumers. Continue
+audiolib development in the extracted repository.
 
 ## Play cleanup after extraction
 

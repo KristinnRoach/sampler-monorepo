@@ -1,6 +1,6 @@
-import type { SamplePlayer } from '@repo/audiolib';
-import type { KnobElement } from '@repo/audiolib/components';
-import { inputController, type ControlChangeEvent } from '@repo/audiolib/io';
+import type { SamplePlayer } from '@kidlib/web-audio';
+import type { KnobElement } from '@kidlib/web-audio/components';
+import { inputController, type ControlChangeEvent } from '@kidlib/web-audio/io';
 
 type SamplePlayerAccessor = () => SamplePlayer | null | undefined;
 export type MidiInputChannel = number | 'all';

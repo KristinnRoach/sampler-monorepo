@@ -6,7 +6,7 @@ import { MotionPathPlugin } from 'gsap/MotionPathPlugin';
 import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
 import { CustomEase } from 'gsap/CustomEase';
 
-import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@repo/audiolib';
+import { CustomEnvelope, EnvelopeType, SamplePlayer } from '@kidlib/web-audio';
 
 import { TimeScaleKnob } from './TimeScaleKnob';
 import { EnvToggleButtons } from './env-buttons';

@@ -14,8 +14,8 @@ import {
   type SamplerParamKey,
   type SamplerParamDescriptor,
   type SamplePlayer,
-} from '@repo/audiolib';
-import { KnobElement, registerKnobElement } from '@repo/audiolib/components';
+} from '@kidlib/web-audio';
+import { KnobElement, registerKnobElement } from '@kidlib/web-audio/components';
 
 import {
   samplerParamValues,

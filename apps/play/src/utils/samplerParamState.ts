@@ -4,7 +4,7 @@ import {
   type SamplerParamKey,
   type SamplerParamPatch,
   type SamplerParamValues,
-} from '@repo/audiolib';
+} from '@kidlib/web-audio';
 
 const DRAFT_STORAGE_KEY = 'play:working-param-draft:v1';
 
