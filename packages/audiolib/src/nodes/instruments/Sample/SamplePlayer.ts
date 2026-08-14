@@ -40,6 +40,19 @@ import {
 } from '@/utils/audiodata/generate/generateWaveform';
 import { createSampleVoicePool } from './createSampleVoicePool';
 
+function isValidSamplerParamValue(
+  descriptor: SamplerParamDescriptor,
+  value: unknown,
+): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= descriptor.min &&
+    value <= descriptor.max &&
+    (!descriptor.allowedValues || descriptor.allowedValues.includes(value))
+  );
+}
+
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;
   readonly nodeType = 'sample-player' as const;
@@ -991,7 +1004,7 @@ export class SamplePlayer implements ILibInstrumentNode {
       const descriptor = samplerParams[key as SamplerParamKey] as
         | SamplerParamDescriptor
         | undefined;
-      if (!descriptor || typeof value !== 'number' || !Number.isFinite(value)) {
+      if (!descriptor || !isValidSamplerParamValue(descriptor, value)) {
         return;
       }
       descriptor.apply(this, value);
