@@ -31,5 +31,5 @@
 ## Deferred
 
 - [ ] Give audiolib `KnobElement` a silent-initialization or non-emitting setter path, preserving explicit programmatic-change events for existing consumers.
-- [ ] Decide whether audiolib or Play owns parameter localStorage, then remove the duplicate persistence path without changing saved-patch behavior.
+- [x] Removed parameter localStorage from audiolib. `SamplePlayer` now keeps the few values it needs for runtime behavior in memory; any persistence belongs to the consuming app.
 - [ ] After the remaining controls are migrated, delete the temporary document readiness/sample events and stale custom-element compatibility code.
