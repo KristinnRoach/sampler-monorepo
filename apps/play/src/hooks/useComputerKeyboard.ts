@@ -17,9 +17,17 @@ type ComputerKeyboardOptions = {
   setOctaveOffset: Setter<number>;
 };
 
-const isEditableTarget = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.matches('input, textarea') || target.isContentEditable);
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) {
+    return ['text', 'search', 'email', 'password', 'url', 'tel'].includes(target.type);
+  }
+
+  return false;
+};
 
 export const useComputerKeyboard = ({
   player,
