@@ -14,6 +14,7 @@ import {
   DEFAULT_KEYMAP_KEY,
   samplerParams,
   type KeymapKey,
+  type SamplerParamPatch,
   type SamplePlayer,
 } from '@repo/audiolib';
 import ParamKnob from './components/knobs/ParamKnob';
@@ -24,7 +25,6 @@ import './styles/midi-learn.css';
 import { addExpandCollapseListeners } from './utils/expandCollapse';
 import { showNotification, cleanupNotifications } from './utils/notifications';
 import { getLayoutFromWidth, type LayoutType } from './utils/layout';
-import { useSampleSelection } from './hooks/useSampleSelection';
 import {
   enableSamplePlayerMidi,
   disableSamplePlayerMidi,
@@ -44,8 +44,11 @@ import {
 } from './utils/recorderSettings';
 import {
   samplerParamValues,
+  restoreSamplerParamValues,
   setSamplerParamValue,
+  snapshotSamplerParamValues,
 } from './utils/samplerParamState';
+import type { SavedSample } from './db/samplelib/sampleIdb';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -86,9 +89,6 @@ const loadMidiInputChannel = (): MidiInputChannel => {
 };
 
 const App: Component = () => {
-  const [controlsRoot, setControlsRoot] = createSignal<HTMLDivElement | null>(
-    null,
-  );
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
 
@@ -125,16 +125,38 @@ const App: Component = () => {
     () => recorderInputSource() !== 'audio-input',
   );
 
-  const { handleSampleSelect } = useSampleSelection(
-    getSamplePlayer,
-    controlsRoot,
-    setSidebarOpen,
-  );
+  const applyParamPatch = (
+    player: SamplePlayer,
+    patch: SamplerParamPatch,
+  ) => {
+    player.applyParams(patch);
+    restoreSamplerParamValues(patch);
+  };
+
+  const handleSampleSelect = async (savedSample: SavedSample) => {
+    const player = getSamplePlayer();
+    if (!player) return;
+
+    try {
+      await player.loadSample(savedSample.audioData, undefined, {
+        skipPreProcessing: true,
+      });
+
+      if (savedSample.patch?.params) {
+        applyParamPatch(player, savedSample.patch.params);
+      }
+
+      setSidebarOpen(false);
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+    }
+  };
 
   onMount(() => {
     let disposed = false;
     let player: SamplePlayer | undefined;
     let unsubscribeSampleLoaded: (() => void) | undefined;
+    const reloadDraft = snapshotSamplerParamValues();
 
     const handleSampleLoaded = (samplePlayer: SamplePlayer) => {
       const audiobuffer = samplePlayer.audiobuffer;
@@ -145,7 +167,7 @@ const App: Component = () => {
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
-      saveCurrentSample(audiobuffer);
+      void saveCurrentSample(audiobuffer);
 
       // SamplePlayer resets its loop/trim points to the full buffer on load,
       // so reset the normalized controls to match instead of keeping the
@@ -167,7 +189,7 @@ const App: Component = () => {
 
     void (async () => {
       try {
-        const prevSample = loadCurrentSample();
+        const prevSample = await loadCurrentSample();
         const sample = prevSample ? prevSample : await loadDefaultSample();
         if (!sample.byteLength)
           console.warn('Failed to fetch app default sample');
@@ -191,6 +213,7 @@ const App: Component = () => {
 
         // createSamplePlayer resolves after its initial sample has loaded.
         handleSampleLoaded(createdPlayer);
+        applyParamPatch(createdPlayer, reloadDraft);
       } catch (error: any) {
         const errText =
           typeof error?.message === 'string' ? error.message : String(error);
@@ -333,8 +356,6 @@ const App: Component = () => {
 
             <SaveButton
               audioBuffer={currentAudioBuffer()}
-              player={samplePlayer()}
-              controlsRoot={controlsRoot()}
               disabled={!sampleLoaded()}
               isOpen={sidebarOpen()}
               class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
@@ -431,11 +452,7 @@ const App: Component = () => {
           />
         </Sidebar>
 
-        <div
-          ref={setControlsRoot}
-          class={`control-grid layout-${layout()}`}
-          id='sampler-container'
-        >
+        <div class={`control-grid layout-${layout()}`} id='sampler-container'>
           <fieldset class='control-group env-group'>
             <legend class='expandable-legend'>Envelopes</legend>
             <div class='expandable-content'>

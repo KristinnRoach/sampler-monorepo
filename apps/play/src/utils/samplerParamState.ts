@@ -1,9 +1,12 @@
 import { createStore } from 'solid-js/store';
-import { samplerParams, type SamplerParamKey } from '@repo/audiolib';
+import {
+  samplerParams,
+  type SamplerParamKey,
+  type SamplerParamPatch,
+  type SamplerParamValues,
+} from '@repo/audiolib';
 
-export type SamplerParamValues = Record<SamplerParamKey, number>;
-
-const DEFAULT_NODE_ID = 'test-sampler';
+const DRAFT_STORAGE_KEY = 'play:working-param-draft:v1';
 
 const defaultValues = Object.fromEntries(
   Object.entries(samplerParams).map(([key, descriptor]) => [
@@ -12,48 +15,33 @@ const defaultValues = Object.fromEntries(
   ]),
 ) as SamplerParamValues;
 
-const storageKey = (key: SamplerParamKey) =>
-  `${samplerParams[key].label}:nodeId:${DEFAULT_NODE_ID}`;
-
-const loadValues = (): SamplerParamValues => {
+const loadDraft = (): SamplerParamValues => {
   const values = { ...defaultValues };
-
   try {
-    (Object.keys(samplerParams) as SamplerParamKey[]).forEach((key) => {
-      const stored = localStorage.getItem(storageKey(key));
-      if (stored === null) return;
-
-      const parsed = Number(stored);
-      if (Number.isFinite(parsed)) values[key] = parsed;
-    });
+    const draft = JSON.parse(
+      sessionStorage.getItem(DRAFT_STORAGE_KEY) ?? 'null',
+    ) as SamplerParamPatch | null;
+    if (draft) {
+      Object.entries(draft).forEach(([key, value]) => {
+        if (
+          key in samplerParams &&
+          typeof value === 'number' &&
+          Number.isFinite(value)
+        ) {
+          values[key as SamplerParamKey] = value;
+        }
+      });
+    }
   } catch {
-    // Storage may be unavailable; descriptor defaults remain authoritative.
+    // Session persistence is best-effort; descriptor defaults remain valid.
   }
-
   return values;
 };
 
 const [paramValues, setParamValues] =
-  createStore<SamplerParamValues>(loadValues());
+  createStore<SamplerParamValues>(loadDraft());
 
 export const samplerParamValues = () => paramValues;
-
-const saveTimers = new Map<SamplerParamKey, ReturnType<typeof setTimeout>>();
-
-const persistValue = (key: SamplerParamKey, value: number): void => {
-  clearTimeout(saveTimers.get(key));
-  saveTimers.set(
-    key,
-    setTimeout(() => {
-      try {
-        localStorage.setItem(storageKey(key), String(value));
-      } catch {
-        // Persistence is optional; the live app state still updates.
-      }
-      saveTimers.delete(key);
-    }, 200),
-  );
-};
 
 export const setSamplerParamValue = (
   key: SamplerParamKey,
@@ -62,8 +50,11 @@ export const setSamplerParamValue = (
   if (!Number.isFinite(value) || paramValues[key] === value) return;
 
   setParamValues(key, value);
-
-  persistValue(key, value);
+  try {
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(paramValues));
+  } catch {
+    // Live state remains usable when session storage is unavailable.
+  }
 };
 
 export const snapshotSamplerParamValues = (): SamplerParamValues => ({
@@ -71,7 +62,7 @@ export const snapshotSamplerParamValues = (): SamplerParamValues => ({
 });
 
 export const restoreSamplerParamValues = (
-  values: Partial<Record<SamplerParamKey, number>>,
+  values: SamplerParamPatch,
 ): void => {
   (Object.keys(values) as SamplerParamKey[]).forEach((key) => {
     if (key in samplerParams) setSamplerParamValue(key, values[key]!);

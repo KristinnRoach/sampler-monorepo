@@ -14,11 +14,11 @@
 
 ## 4. Make samplerParams the single parameter contract — high value / medium effort.
 
-[x] Treat audiolib’s exported parameter keys, defaults, value domains and apply mappings as the public contract. Play owns parameter values and page-reload localStorage through one app-level state path; all sampler knobs (including AM) use it, and the duplicate SamplerKnobFactory is gone. Removing audiolib’s internal localStorage behavior remains a separate follow-up.
+[x] Treat audiolib’s exported parameter keys, defaults, value domains and apply mappings as the public contract. Play owns one small reactive parameter store; all sampler knobs (including AM) use it, and the duplicate SamplerKnobFactory and old per-parameter localStorage path are gone. A single session-scoped working draft provides best-effort reload recovery without modifying intentional saved patches.
 
 ## 5. Fix instrument-state persistence against that contract — high value / medium effort; same PR as step 4.
 
-[x] Save and restore parameters by SamplerParamKey through Play’s state path; capture engine state from SamplePlayer and app-only state through explicit references instead of retired DOM wrappers. The unused legacy saved-instrument format shim was later removed so only the current explicit settings shape remains. Intentional saved-patch persistence remains distinct from the page-reload convenience. Steps 4 and 5 landed together and were manually verified.
+[x] Saved samples include a typed parameter patch. Loading one applies the patch through `SamplePlayer.applyParams()` and updates Play’s reactive controls. The unused DOM-based instrument-state capture/restore layer and one-use sample-selection hook are gone.
 
 ## 6. Migrate remaining controls incrementally from custom elements to direct Solid components — high value / higher effort.
 
@@ -31,5 +31,5 @@
 ## Deferred
 
 - [ ] Give audiolib `KnobElement` a silent-initialization or non-emitting setter path, preserving explicit programmatic-change events for existing consumers.
-- [ ] Decide whether audiolib or Play owns parameter localStorage, then remove the duplicate persistence path without changing saved-patch behavior.
+- [x] Removed automatic parameter localStorage from audiolib and Play. `SamplePlayer` keeps runtime values in memory; intentional saved samples carry explicit parameter patches.
 - [ ] After the remaining controls are migrated, delete the temporary document readiness/sample events and stale custom-element compatibility code.

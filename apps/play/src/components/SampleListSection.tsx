@@ -1,7 +1,6 @@
 // components/SampleListSection.tsx
 import { Component, createSignal, For } from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
-import SaveButton from './SaveButton';
 
 interface SampleListSectionProps {
   onSampleSelect: (sample: SavedSample) => void;
