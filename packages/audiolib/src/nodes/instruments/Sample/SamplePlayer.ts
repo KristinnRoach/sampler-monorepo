@@ -16,6 +16,7 @@ import { isValidAudioBuffer, isMidiValue } from '@/utils';
 import { MacroParam, NormalizeOptions } from '@/nodes/params';
 
 import {
+  isValidSamplerParamValue,
   samplerParams,
   type SamplerParamPatch,
   type SamplerParamKey,
@@ -39,19 +40,6 @@ import {
   WaveformOptions,
 } from '@/utils/audiodata/generate/generateWaveform';
 import { createSampleVoicePool } from './createSampleVoicePool';
-
-function isValidSamplerParamValue(
-  descriptor: SamplerParamDescriptor,
-  value: unknown,
-): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isFinite(value) &&
-    value >= descriptor.min &&
-    value <= descriptor.max &&
-    (!descriptor.allowedValues || descriptor.allowedValues.includes(value))
-  );
-}
 
 export class SamplePlayer implements ILibInstrumentNode {
   public readonly nodeId: NodeID;

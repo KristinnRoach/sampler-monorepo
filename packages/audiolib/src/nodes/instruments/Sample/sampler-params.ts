@@ -19,6 +19,19 @@ export interface SamplerParamDescriptor {
   apply: (player: SamplePlayer, value: number) => void;
 }
 
+export function isValidSamplerParamValue(
+  descriptor: SamplerParamDescriptor,
+  value: unknown,
+): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= descriptor.min &&
+    value <= descriptor.max &&
+    (!descriptor.allowedValues || descriptor.allowedValues.includes(value))
+  );
+}
+
 const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
 const hz = (v: number) => `${v.toFixed(0)} Hz`;
 /** Normalized position -> seconds readout */
