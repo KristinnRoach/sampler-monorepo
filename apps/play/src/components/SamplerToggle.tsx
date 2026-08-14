@@ -3,7 +3,7 @@ import {
   samplerToggles,
   type SamplerToggleKey,
   type SamplePlayer,
-} from '@repo/audiolib';
+} from '@kidlib/web-audio';
 import styles from './SamplerToggle.module.css';
 
 interface SamplerToggleProps {

@@ -1,5 +1,5 @@
 // env-utils.ts
-import type { EnvelopePoint } from '@repo/audiolib';
+import type { EnvelopePoint } from '@kidlib/web-audio';
 
 const LOG_SAFETY_MIN = 0.1;
 

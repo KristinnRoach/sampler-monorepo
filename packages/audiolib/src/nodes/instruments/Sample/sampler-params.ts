@@ -37,7 +37,13 @@ const hz = (v: number) => `${v.toFixed(0)} Hz`;
 /** Normalized position -> seconds readout */
 const seconds = (v: number, duration: number) => `${(v * duration).toFixed(2)} s`;
 
-export const samplerParams = {
+function defineSamplerParams<K extends string>(
+  definitions: Record<K, SamplerParamDescriptor>,
+): Record<K, SamplerParamDescriptor> {
+  return definitions;
+}
+
+export const samplerParams = defineSamplerParams({
   volume: {
     label: 'Volume',
     min: 0,
@@ -315,7 +321,7 @@ export const samplerParams = {
     format: pct,
     apply: (p, v) => p.setKeytrackLoopAmount(v),
   },
-} as const satisfies Record<string, SamplerParamDescriptor>;
+});
 
 export type SamplerParamKey = keyof typeof samplerParams;
 export type SamplerParamValues = Record<SamplerParamKey, number>;

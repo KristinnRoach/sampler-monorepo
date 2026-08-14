@@ -7,7 +7,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
-import { getAudioInputDevices } from '@repo/audiolib';
+import { getAudioInputDevices } from '@kidlib/web-audio';
 
 interface InputDeviceSelectProps {
   class?: string;

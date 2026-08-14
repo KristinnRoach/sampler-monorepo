@@ -5,7 +5,7 @@ import {
   createAudioRecorder,
   type Recorder,
   type RecorderInput,
-} from '@repo/audiolib';
+} from '@kidlib/web-audio';
 import { getSamplePlayer } from '../../App';
 import { COMPONENT_STYLE } from '../shared/styles/component-styles';
 import { createSVGButton, type SVGButton } from '../createSVGButton';

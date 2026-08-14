@@ -21,8 +21,7 @@
     "allowJs": true,
 
     "paths": {
-      "@/*": ["./src/audio-elements/*"],
-      "@repo/audiolib/io": ["../../packages/audiolib/src/io/index.ts"]
+      "@/*": ["./src/audio-elements/*"]
     }
   },
   "include": ["src", "src/types"]

@@ -5,7 +5,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
-import type { KeyMap, SamplePlayer } from '@repo/audiolib';
+import type { KeyMap, SamplePlayer } from '@kidlib/web-audio';
 
 const MIN_OCTAVE_OFFSET = -3;
 const MAX_OCTAVE_OFFSET = 3;

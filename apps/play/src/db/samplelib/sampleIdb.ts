@@ -1,6 +1,6 @@
 // db/sampleDatabase.ts
 import Dexie, { Table } from 'dexie';
-import type { SamplerParamPatch } from '@repo/audiolib';
+import type { SamplerParamPatch } from '@kidlib/web-audio';
 
 export interface SavedSample {
   id?: number;

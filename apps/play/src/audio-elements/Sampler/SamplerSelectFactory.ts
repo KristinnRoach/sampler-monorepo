@@ -7,7 +7,7 @@ import {
   SELECT_STYLE,
 } from '../shared/styles/component-styles';
 
-import { SUPPORTED_WAVEFORMS, SupportedWaveform } from '@repo/audiolib';
+import { SUPPORTED_WAVEFORMS, SupportedWaveform } from '@kidlib/web-audio';
 import { createWaveformIcon } from '@/shared/utils/icons/createWaveformIcons';
 import { setRecorderInputSource } from '../../utils/recorderSettings';
 

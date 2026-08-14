@@ -13,7 +13,7 @@ import {
   getAudioOutputDevices,
   setAudioOutputDevice,
   getCurrentOutputDeviceId,
-} from '@repo/audiolib';
+} from '@kidlib/web-audio';
 
 interface OutputDeviceSelectProps {
   class?: string;

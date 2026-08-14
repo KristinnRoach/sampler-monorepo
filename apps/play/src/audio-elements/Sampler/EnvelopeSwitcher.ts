@@ -2,7 +2,7 @@
 import van from '@repo/vanjs-core';
 import { ElementProps } from '@repo/vanjs-core/element';
 import { EnvelopeSVG, EnvelopeSettings } from '../envelope';
-import { EnvelopeType } from '@repo/audiolib';
+import { EnvelopeType } from '@kidlib/web-audio';
 import { getSamplePlayer } from '../../App';
 import { COMPONENT_STYLE } from '@/shared/styles/component-styles';
 

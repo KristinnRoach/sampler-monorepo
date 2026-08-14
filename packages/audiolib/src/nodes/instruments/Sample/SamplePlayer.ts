@@ -12,6 +12,7 @@ import {
 } from '@/nodes/preprocessor/Preprocessor';
 
 import { isValidAudioBuffer, isMidiValue } from '@/utils';
+import type { Note } from '@/utils/music-theory/types';
 
 import { MacroParam, NormalizeOptions } from '@/nodes/params';
 
@@ -538,7 +539,12 @@ export class SamplePlayer implements ILibInstrumentNode {
     });
   }
 
-  async detectPitch(buffer: AudioBuffer) {
+  async detectPitch(buffer: AudioBuffer): Promise<{
+    frequency: number;
+    confidence: number;
+    midiFloat: number;
+    targetNoteInfo: Note;
+  }> {
     const pitchSource = await detectSinglePitchAC(buffer);
     const targetNoteInfo = findClosestNote(pitchSource.frequency);
     const midiFloat = 69 + 12 * Math.log2(pitchSource.frequency / 440);

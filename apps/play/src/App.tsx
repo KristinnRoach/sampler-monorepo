@@ -16,7 +16,7 @@ import {
   type KeymapKey,
   type SamplerParamPatch,
   type SamplePlayer,
-} from '@repo/audiolib';
+} from '@kidlib/web-audio';
 import ParamKnob from './components/knobs/ParamKnob';
 import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 
@@ -31,7 +31,7 @@ import {
   setSamplePlayerMidiInputChannel,
   type MidiInputChannel,
 } from './io/MidiMan';
-import { getMidiSupportInfo } from '@repo/audiolib/io';
+import { getMidiSupportInfo } from '@kidlib/web-audio/io';
 import {
   loadCurrentSample,
   saveCurrentSample,
