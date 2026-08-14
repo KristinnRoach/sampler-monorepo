@@ -14,14 +14,14 @@ export const loadDefaultSample = async (): Promise<ArrayBuffer> => {
 };
 
 export const loadCurrentSample = async (): Promise<ArrayBuffer | undefined> => {
-  try {
-    const stored = await db.workingSamples.get(CURRENT_SAMPLE_ID);
-    if (stored) {
-      if (validateWavBuffer(stored.audioData)) return stored.audioData;
+  const stored = await db.workingSamples.get(CURRENT_SAMPLE_ID);
+  if (stored) {
+    if (validateWavBuffer(stored.audioData)) return stored.audioData;
+    try {
       await db.workingSamples.delete(CURRENT_SAMPLE_ID);
+    } catch (error) {
+      console.error('Failed to remove invalid current sample:', error);
     }
-  } catch (error) {
-    console.error('Failed to read current sample:', error);
   }
 };
 

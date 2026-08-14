@@ -190,7 +190,7 @@ const App: Component = () => {
     void (async () => {
       try {
         const prevSample = await loadCurrentSample();
-        const sample = prevSample ? prevSample : await loadDefaultSample();
+        const sample = prevSample ?? (await loadDefaultSample());
         if (!sample.byteLength)
           console.warn('Failed to fetch app default sample');
 
