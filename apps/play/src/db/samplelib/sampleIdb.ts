@@ -12,13 +12,23 @@ export interface SavedSample {
   patch?: { params: SamplerParamPatch };
 }
 
+export interface WorkingSample {
+  id: 'current';
+  audioData: ArrayBuffer;
+}
+
 export class SampleDatabase extends Dexie {
   samples!: Table<SavedSample>;
+  workingSamples!: Table<WorkingSample, WorkingSample['id']>;
 
   constructor() {
     super('SampleDatabase');
     this.version(1).stores({
       samples: '++id, name, createdAt',
+    });
+    this.version(2).stores({
+      samples: '++id, name, createdAt',
+      workingSamples: 'id',
     });
   }
 }

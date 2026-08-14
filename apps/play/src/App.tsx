@@ -14,6 +14,7 @@ import {
   DEFAULT_KEYMAP_KEY,
   samplerParams,
   type KeymapKey,
+  type SamplerParamPatch,
   type SamplePlayer,
 } from '@repo/audiolib';
 import ParamKnob from './components/knobs/ParamKnob';
@@ -124,6 +125,14 @@ const App: Component = () => {
     () => recorderInputSource() !== 'audio-input',
   );
 
+  const applyParamPatch = (
+    player: SamplePlayer,
+    patch: SamplerParamPatch,
+  ) => {
+    player.applyParams(patch);
+    restoreSamplerParamValues(patch);
+  };
+
   const handleSampleSelect = async (savedSample: SavedSample) => {
     const player = getSamplePlayer();
     if (!player) return;
@@ -134,8 +143,7 @@ const App: Component = () => {
       });
 
       if (savedSample.patch?.params) {
-        player.applyParams(savedSample.patch.params);
-        restoreSamplerParamValues(savedSample.patch.params);
+        applyParamPatch(player, savedSample.patch.params);
       }
 
       setSidebarOpen(false);
@@ -159,7 +167,7 @@ const App: Component = () => {
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
-      saveCurrentSample(audiobuffer);
+      void saveCurrentSample(audiobuffer);
 
       // SamplePlayer resets its loop/trim points to the full buffer on load,
       // so reset the normalized controls to match instead of keeping the
@@ -181,7 +189,7 @@ const App: Component = () => {
 
     void (async () => {
       try {
-        const prevSample = loadCurrentSample();
+        const prevSample = await loadCurrentSample();
         const sample = prevSample ? prevSample : await loadDefaultSample();
         if (!sample.byteLength)
           console.warn('Failed to fetch app default sample');
@@ -205,8 +213,7 @@ const App: Component = () => {
 
         // createSamplePlayer resolves after its initial sample has loaded.
         handleSampleLoaded(createdPlayer);
-        createdPlayer.applyParams(reloadDraft);
-        restoreSamplerParamValues(reloadDraft);
+        applyParamPatch(createdPlayer, reloadDraft);
       } catch (error: any) {
         const errText =
           typeof error?.message === 'string' ? error.message : String(error);
