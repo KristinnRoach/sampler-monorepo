@@ -45,6 +45,7 @@ import {
   samplerParamValues,
   restoreSamplerParamValues,
   setSamplerParamValue,
+  snapshotSamplerParamValues,
 } from './utils/samplerParamState';
 import type { SavedSample } from './db/samplelib/sampleIdb';
 
@@ -147,6 +148,7 @@ const App: Component = () => {
     let disposed = false;
     let player: SamplePlayer | undefined;
     let unsubscribeSampleLoaded: (() => void) | undefined;
+    const reloadDraft = snapshotSamplerParamValues();
 
     const handleSampleLoaded = (samplePlayer: SamplePlayer) => {
       const audiobuffer = samplePlayer.audiobuffer;
@@ -203,6 +205,8 @@ const App: Component = () => {
 
         // createSamplePlayer resolves after its initial sample has loaded.
         handleSampleLoaded(createdPlayer);
+        createdPlayer.applyParams(reloadDraft);
+        restoreSamplerParamValues(reloadDraft);
       } catch (error: any) {
         const errText =
           typeof error?.message === 'string' ? error.message : String(error);

@@ -14,7 +14,7 @@
 
 ## 4. Make samplerParams the single parameter contract — high value / medium effort.
 
-[x] Treat audiolib’s exported parameter keys, defaults, value domains and apply mappings as the public contract. Play owns one small reactive parameter store; all sampler knobs (including AM) use it, and the duplicate SamplerKnobFactory and automatic page-reload parameter persistence are gone.
+[x] Treat audiolib’s exported parameter keys, defaults, value domains and apply mappings as the public contract. Play owns one small reactive parameter store; all sampler knobs (including AM) use it, and the duplicate SamplerKnobFactory and old per-parameter localStorage path are gone. A single session-scoped working draft provides best-effort reload recovery without modifying intentional saved patches.
 
 ## 5. Fix instrument-state persistence against that contract — high value / medium effort; same PR as step 4.
 
