@@ -35,6 +35,8 @@ export { samplerParams } from './nodes/instruments/Sample/sampler-params';
 export type {
   SamplerParamKey,
   SamplerParamDescriptor,
+  SamplerParamValues,
+  SamplerParamPatch,
 } from './nodes/instruments/Sample/sampler-params';
 export { samplerToggles } from './nodes/instruments/Sample/sampler-toggles';
 export type {

@@ -1,6 +1,6 @@
 // db/sampleDatabase.ts
 import Dexie, { Table } from 'dexie';
-import type { InstrumentSettings } from '../../utils/instrumentState';
+import type { SamplerParamPatch } from '@repo/audiolib';
 
 export interface SavedSample {
   id?: number;
@@ -9,7 +9,7 @@ export interface SavedSample {
   sampleRate?: number;
   channels?: number;
   createdAt?: Date;
-  settings?: InstrumentSettings;
+  patch?: { params: SamplerParamPatch };
 }
 
 export class SampleDatabase extends Dexie {

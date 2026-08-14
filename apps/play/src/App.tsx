@@ -24,7 +24,6 @@ import './styles/midi-learn.css';
 import { addExpandCollapseListeners } from './utils/expandCollapse';
 import { showNotification, cleanupNotifications } from './utils/notifications';
 import { getLayoutFromWidth, type LayoutType } from './utils/layout';
-import { useSampleSelection } from './hooks/useSampleSelection';
 import {
   enableSamplePlayerMidi,
   disableSamplePlayerMidi,
@@ -44,8 +43,10 @@ import {
 } from './utils/recorderSettings';
 import {
   samplerParamValues,
+  restoreSamplerParamValues,
   setSamplerParamValue,
 } from './utils/samplerParamState';
+import type { SavedSample } from './db/samplelib/sampleIdb';
 
 import { ThemeToggle } from './components/ThemeSwitcher';
 import SaveButton from './components/SaveButton';
@@ -86,9 +87,6 @@ const loadMidiInputChannel = (): MidiInputChannel => {
 };
 
 const App: Component = () => {
-  const [controlsRoot, setControlsRoot] = createSignal<HTMLDivElement | null>(
-    null,
-  );
   const [layout, setLayout] = createSignal<LayoutType>('desktop');
   const [envHeight, setEnvHeight] = createSignal<number>(225);
 
@@ -125,11 +123,25 @@ const App: Component = () => {
     () => recorderInputSource() !== 'audio-input',
   );
 
-  const { handleSampleSelect } = useSampleSelection(
-    getSamplePlayer,
-    controlsRoot,
-    setSidebarOpen,
-  );
+  const handleSampleSelect = async (savedSample: SavedSample) => {
+    const player = getSamplePlayer();
+    if (!player) return;
+
+    try {
+      await player.loadSample(savedSample.audioData, undefined, {
+        skipPreProcessing: true,
+      });
+
+      if (savedSample.patch?.params) {
+        player.applyParams(savedSample.patch.params);
+        restoreSamplerParamValues(savedSample.patch.params);
+      }
+
+      setSidebarOpen(false);
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+    }
+  };
 
   onMount(() => {
     let disposed = false;
@@ -333,8 +345,6 @@ const App: Component = () => {
 
             <SaveButton
               audioBuffer={currentAudioBuffer()}
-              player={samplePlayer()}
-              controlsRoot={controlsRoot()}
               disabled={!sampleLoaded()}
               isOpen={sidebarOpen()}
               class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
@@ -431,11 +441,7 @@ const App: Component = () => {
           />
         </Sidebar>
 
-        <div
-          ref={setControlsRoot}
-          class={`control-grid layout-${layout()}`}
-          id='sampler-container'
-        >
+        <div class={`control-grid layout-${layout()}`} id='sampler-container'>
           <fieldset class='control-group env-group'>
             <legend class='expandable-legend'>Envelopes</legend>
             <div class='expandable-content'>

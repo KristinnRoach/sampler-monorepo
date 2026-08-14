@@ -15,7 +15,12 @@ import { isValidAudioBuffer, isMidiValue } from '@/utils';
 
 import { MacroParam, NormalizeOptions } from '@/nodes/params';
 
-import { samplerParams } from './sampler-params';
+import {
+  samplerParams,
+  type SamplerParamPatch,
+  type SamplerParamKey,
+  type SamplerParamDescriptor,
+} from './sampler-params';
 
 import { LFO } from '@/nodes/params/LFOs/LFO';
 import {
@@ -978,6 +983,19 @@ export class SamplePlayer implements ILibInstrumentNode {
       default:
         console.warn(`Unknown parameter: ${name}`);
     }
+    return this;
+  }
+
+  applyParams(params: SamplerParamPatch): this {
+    Object.entries(params).forEach(([key, value]) => {
+      const descriptor = samplerParams[key as SamplerParamKey] as
+        | SamplerParamDescriptor
+        | undefined;
+      if (!descriptor || typeof value !== 'number' || !Number.isFinite(value)) {
+        return;
+      }
+      descriptor.apply(this, value);
+    });
     return this;
   }
 

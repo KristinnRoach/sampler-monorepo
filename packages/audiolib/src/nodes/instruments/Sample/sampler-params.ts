@@ -305,3 +305,5 @@ export const samplerParams = {
 } as const satisfies Record<string, SamplerParamDescriptor>;
 
 export type SamplerParamKey = keyof typeof samplerParams;
+export type SamplerParamValues = Record<SamplerParamKey, number>;
+export type SamplerParamPatch = Partial<SamplerParamValues>;
