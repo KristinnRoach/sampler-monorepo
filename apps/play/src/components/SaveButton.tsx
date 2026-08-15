@@ -9,6 +9,7 @@ import {
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
 import { snapshotSamplerParamValues } from '../utils/samplerParamState';
 import { audioBufferToWav } from '../utils/audio/bufferUtils';
+import { clickOutside } from '../directives/clickOutside';
 
 interface SaveButtonProps {
   audioBuffer: AudioBuffer | null;
@@ -41,6 +42,11 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     if (!props.audioBuffer) return;
     setName(props.savedSample?.name ?? '');
     setShowPrompt(true);
+  };
+
+  const cancelPrompt = () => {
+    setShowPrompt(false);
+    setName('');
   };
 
   const handleSave = async (saveAsNew = false) => {
@@ -90,8 +96,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     if (e.key === 'Enter') {
       void handleSave();
     } else if (e.key === 'Escape') {
-      setShowPrompt(false);
-      setName('');
+      cancelPrompt();
     }
   };
 
@@ -137,7 +142,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
         }
       ></save-button>
       {showPrompt() && (
-        <div class='save-popup'>
+        <div class='save-popup' use:clickOutside={cancelPrompt}>
           <span class='save-popup-header'>Save Sample</span>
 
           <input
@@ -165,7 +170,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
                 Save as new
               </button>
             )}
-            <button onClick={() => setShowPrompt(false)}>Cancel</button>
+            <button onClick={cancelPrompt}>Cancel</button>
           </div>
         </div>
       )}
