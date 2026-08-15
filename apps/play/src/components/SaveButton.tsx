@@ -59,6 +59,10 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
   };
 
   const handleSave = async (saveAsNew = false, requestedName = name()) => {
+    const audioBuffer = props.audioBuffer;
+    const savedSample = props.savedSample;
+    if (!audioBuffer || saving()) return;
+
     const sampleName = requestedName.trim();
     if (sampleName.length === 0) {
       alert('Please enter a name.');
@@ -67,19 +71,19 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
 
     setSaving(true);
     try {
-      const wavData = audioBufferToWav(props.audioBuffer!);
+      const wavData = audioBufferToWav(audioBuffer);
 
       const sample: SavedSample = {
         name: sampleName,
         audioData: wavData,
-        sampleRate: props.audioBuffer!.sampleRate,
-        channels: props.audioBuffer!.numberOfChannels,
+        sampleRate: audioBuffer.sampleRate,
+        channels: audioBuffer.numberOfChannels,
         patch: { params: snapshotSamplerParamValues() },
       };
 
       let id: number;
-      if (props.savedSample && !saveAsNew) {
-        id = props.savedSample.id;
+      if (savedSample && !saveAsNew) {
+        id = savedSample.id;
         const updated = await db.samples.update(id, sample);
         if (!updated) throw new Error(`Saved sample ${id} no longer exists`);
       } else {
@@ -89,7 +93,12 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       console.log('Sample saved successfully!');
       setShowPrompt(false);
       setName('');
-      props.onSavedCallback?.({ id, name: sampleName });
+      if (
+        props.audioBuffer === audioBuffer &&
+        props.savedSample?.id === savedSample?.id
+      ) {
+        props.onSavedCallback?.({ id, name: sampleName });
+      }
 
       document.dispatchEvent(new CustomEvent('sample:saved'));
     } catch (error) {
