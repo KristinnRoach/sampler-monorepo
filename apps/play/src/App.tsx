@@ -94,6 +94,10 @@ const App: Component = () => {
 
   const [currentAudioBuffer, setCurrentAudioBuffer] =
     createSignal<AudioBuffer | null>(null);
+  const [activeSavedSample, setActiveSavedSample] = createSignal<{
+    id: number;
+    name: string;
+  } | null>(null);
   const [audioInitialized, setAudioInitialized] = createSignal(false);
   const [sampleLoaded, setSampleLoaded] = createSignal(false);
   const [samplerError, setSamplerError] = createSignal<string | null>(null);
@@ -146,6 +150,9 @@ const App: Component = () => {
         applyParamPatch(player, savedSample.patch.params);
       }
 
+      if (savedSample.id !== undefined) {
+        setActiveSavedSample({ id: savedSample.id, name: savedSample.name });
+      }
       setSidebarOpen(false);
     } catch (error) {
       console.error('Failed to load sample:', error);
@@ -167,6 +174,7 @@ const App: Component = () => {
 
       setCurrentAudioBuffer(audiobuffer);
       setSampleLoaded(true);
+      setActiveSavedSample(null);
       void saveCurrentSample(audiobuffer);
 
       // SamplePlayer resets its loop/trim points to the full buffer on load,
@@ -356,9 +364,11 @@ const App: Component = () => {
 
             <SaveButton
               audioBuffer={currentAudioBuffer()}
+              savedSample={activeSavedSample()}
               disabled={!sampleLoaded()}
               isOpen={sidebarOpen()}
               class={`toolbar-btn ${toolbarOpen() ? '__toolbar-open' : ''}`}
+              onSavedCallback={setActiveSavedSample}
             />
 
             <ThemeToggle
@@ -615,9 +625,11 @@ const App: Component = () => {
                   if (!player) return;
 
                   try {
+                    const savedSample = activeSavedSample();
                     const croppedBuffer = await player.cropSample();
                     if (!croppedBuffer) return;
 
+                    setActiveSavedSample(savedSample);
                     // Trim points are normalized: the crop is the new full range.
                     setSamplerParamValue('trimStart', 0);
                     setSamplerParamValue('trimEnd', 1);

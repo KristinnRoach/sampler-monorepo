@@ -1,15 +1,22 @@
 // components/SaveButton.tsx
-import { Component, createSignal, createEffect } from 'solid-js';
+import {
+  Component,
+  createSignal,
+  createEffect,
+  onCleanup,
+  onMount,
+} from 'solid-js';
 import { db, SavedSample } from '../db/samplelib/sampleIdb';
 import { snapshotSamplerParamValues } from '../utils/samplerParamState';
 import { audioBufferToWav } from '../utils/audio/bufferUtils';
 
 interface SaveButtonProps {
   audioBuffer: AudioBuffer | null;
+  savedSample?: { id: number; name: string } | null;
   isOpen?: boolean;
   disabled?: boolean;
   class?: string;
-  onSavedCallback?: () => unknown;
+  onSavedCallback?: (sample: { id: number; name: string }) => unknown;
 }
 
 // TODO: replace with dumb ui compenent e.g. BaseButton
@@ -32,11 +39,13 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
 
   const handleClick = () => {
     if (!props.audioBuffer) return;
+    setName(props.savedSample?.name ?? '');
     setShowPrompt(true);
   };
 
-  const handleSave = async () => {
-    if (name().trim().length === 0) {
+  const handleSave = async (saveAsNew = false) => {
+    const sampleName = name().trim();
+    if (sampleName.length === 0) {
       alert('Please enter a name.');
       return;
     }
@@ -46,19 +55,26 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       const wavData = audioBufferToWav(props.audioBuffer!);
 
       const sample: SavedSample = {
-        name: name(),
+        name: sampleName,
         audioData: wavData,
         sampleRate: props.audioBuffer!.sampleRate,
         channels: props.audioBuffer!.numberOfChannels,
-        createdAt: new Date(),
         patch: { params: snapshotSamplerParamValues() },
       };
 
-      await db.samples.add(sample);
+      let id: number;
+      if (props.savedSample && !saveAsNew) {
+        id = props.savedSample.id;
+        const updated = await db.samples.update(id, sample);
+        if (!updated) throw new Error(`Saved sample ${id} no longer exists`);
+      } else {
+        id = await db.samples.add({ ...sample, createdAt: new Date() });
+      }
+
       console.log('Sample saved successfully!');
       setShowPrompt(false);
       setName('');
-      props.onSavedCallback?.();
+      props.onSavedCallback?.({ id, name: sampleName });
 
       document.dispatchEvent(new CustomEvent('sample:saved'));
     } catch (error) {
@@ -72,12 +88,35 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
   const handleKeyDown = (e: KeyboardEvent) => {
     e.stopPropagation();
     if (e.key === 'Enter') {
-      handleSave();
+      void handleSave();
     } else if (e.key === 'Escape') {
       setShowPrompt(false);
       setName('');
     }
   };
+
+  const handleSaveShortcut = (e: KeyboardEvent) => {
+    if (
+      e.key.toLowerCase() !== 's' ||
+      (!e.metaKey && !e.ctrlKey) ||
+      e.altKey ||
+      e.shiftKey
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    if (!props.audioBuffer || props.disabled || saving()) return;
+
+    if (showPrompt()) void handleSave();
+    else handleClick();
+  };
+
+  onMount(() => document.addEventListener('keydown', handleSaveShortcut, true));
+  onCleanup(() =>
+    document.removeEventListener('keydown', handleSaveShortcut, true),
+  );
 
   createEffect(() => {
     if (showPrompt() && inputRef) {
@@ -91,7 +130,11 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
         class={`${props.class ? props.class : ''} save-button ${showPrompt() ? 'open' : ''}`}
         disabled={props.disabled || saving()}
         onclick={handleClick}
-        title='Save sample'
+        title={
+          props.savedSample
+            ? `Save changes to ${props.savedSample.name}`
+            : 'Save sample'
+        }
       ></save-button>
       {showPrompt() && (
         <div class='save-popup'>
@@ -107,9 +150,21 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
             onKeyDown={handleKeyDown}
           />
           <div class='save-popup-buttons'>
-            <button onClick={handleSave} disabled={saving()}>
-              {saving() ? 'Saving...' : 'Save'}
+            <button onClick={() => void handleSave()} disabled={saving()}>
+              {saving()
+                ? 'Saving...'
+                : props.savedSample
+                  ? 'Update'
+                  : 'Save'}
             </button>
+            {props.savedSample && (
+              <button
+                onClick={() => void handleSave(true)}
+                disabled={saving()}
+              >
+                Save as new
+              </button>
+            )}
             <button onClick={() => setShowPrompt(false)}>Cancel</button>
           </div>
         </div>
