@@ -20,6 +20,15 @@ interface SaveButtonProps {
   onSavedCallback?: (sample: { id: number; name: string }) => unknown;
 }
 
+const getNextSampleName = async () => {
+  const existingNames = new Set(
+    await db.samples.where('name').startsWith('Sample ').keys(),
+  );
+  let number = 1;
+  while (existingNames.has(`Sample ${number}`)) number += 1;
+  return `Sample ${number}`;
+};
+
 // TODO: replace with dumb ui compenent e.g. BaseButton
 
 const SaveButton: Component<SaveButtonProps> = (props) => {
@@ -38,9 +47,9 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     }
   }, [props.isOpen]);
 
-  const handleClick = () => {
+  const openPrompt = async () => {
     if (!props.audioBuffer) return;
-    setName(props.savedSample?.name ?? '');
+    setName(props.savedSample?.name ?? (await getNextSampleName()));
     setShowPrompt(true);
   };
 
@@ -49,8 +58,8 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     setName('');
   };
 
-  const handleSave = async (saveAsNew = false) => {
-    const sampleName = name().trim();
+  const handleSave = async (saveAsNew = false, requestedName = name()) => {
+    const sampleName = requestedName.trim();
     if (sampleName.length === 0) {
       alert('Please enter a name.');
       return;
@@ -104,8 +113,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     if (
       e.key.toLowerCase() !== 's' ||
       (!e.metaKey && !e.ctrlKey) ||
-      e.altKey ||
-      e.shiftKey
+      e.altKey
     ) {
       return;
     }
@@ -114,8 +122,15 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
     e.stopPropagation();
     if (!props.audioBuffer || props.disabled || saving()) return;
 
-    if (showPrompt()) void handleSave();
-    else handleClick();
+    if (e.shiftKey) {
+      void openPrompt();
+    } else if (showPrompt()) {
+      void handleSave();
+    } else if (props.savedSample) {
+      void handleSave(false, props.savedSample.name);
+    } else {
+      void openPrompt();
+    }
   };
 
   onMount(() => document.addEventListener('keydown', handleSaveShortcut, true));
@@ -134,7 +149,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       <save-button
         class={`${props.class ? props.class : ''} save-button ${showPrompt() ? 'open' : ''}`}
         disabled={props.disabled || saving()}
-        onclick={handleClick}
+        onclick={() => void openPrompt()}
         title={
           props.savedSample
             ? `Save changes to ${props.savedSample.name}`
