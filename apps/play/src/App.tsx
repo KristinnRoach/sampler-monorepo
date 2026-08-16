@@ -23,7 +23,7 @@ import SampleWaveformFilled from './assets/svg/SampleWaveformFilled.svg';
 import './styles/midi-learn.css';
 
 import { addExpandCollapseListeners } from './utils/expandCollapse';
-import { showNotification, cleanupNotifications } from './utils/notifications';
+import { showToast, ToastViewport } from './components/Toast';
 import { getLayoutFromWidth, type LayoutType } from './utils/layout';
 import {
   enableSamplePlayerMidi,
@@ -259,18 +259,18 @@ const App: Component = () => {
       ],
     }).then((success) => {
       if (success) {
-        showNotification(
+        showToast(
           'MIDI enabled - Press Cmd+Shift+M to access MIDI Learn',
         );
       } else {
         const { supported, message } = getMidiSupportInfo();
 
         if (!supported) {
-          showNotification(`MIDI not available - ${message}`, 5000);
+          showToast(`MIDI not available - ${message}`, { duration: 5000 });
         } else {
-          showNotification(
+          showToast(
             'MIDI initialization failed - Check if MIDI devices are connected',
-            4000,
+            { kind: 'error', duration: 4000 },
           );
         }
         console.warn('MIDI initialization failed');
@@ -279,19 +279,20 @@ const App: Component = () => {
 
     const handleMidiLearn = ((e: CustomEvent<{ message: string }>) => {
       if (e.detail?.message) {
-        showNotification(e.detail.message);
+        showToast(e.detail.message);
       }
     }) as EventListener;
 
     // Listen for MIDI-related custom events
     document.addEventListener('midi:learn', handleMidiLearn);
+    document.addEventListener('midi:mapping', handleMidiLearn);
 
     onCleanup(() => {
       disposed = true;
       window.removeEventListener('resize', updateLayout);
       document.removeEventListener('midi:learn', handleMidiLearn);
+      document.removeEventListener('midi:mapping', handleMidiLearn);
 
-      cleanupNotifications();
       disableSamplePlayerMidi();
 
       unsubscribeSampleLoaded?.();
@@ -316,6 +317,7 @@ const App: Component = () => {
 
   return (
     <>
+      <ToastViewport />
       <div class='content-wrapper'>
         <div
           class={`toolbar-wrapper ${toolbarOpen() ? '__toolbar-open' : ''} ${sidebarOpen() ? '__sidebar-open' : ''}`}
@@ -635,7 +637,7 @@ const App: Component = () => {
                     setSamplerParamValue('trimEnd', 1);
                   } catch (error) {
                     console.error('Failed to crop sample:', error);
-                    showNotification('Failed to crop sample');
+                    showToast('Failed to crop sample', { kind: 'error' });
                   }
                 }}
               >

@@ -10,6 +10,7 @@ import { db, SavedSample } from '../db/samplelib/sampleIdb';
 import { snapshotSamplerParamValues } from '../utils/samplerParamState';
 import { audioBufferToWav } from '../utils/audio/bufferUtils';
 import { clickOutside } from '../directives/clickOutside';
+import { showToast } from './Toast';
 
 interface SaveButtonProps {
   audioBuffer: AudioBuffer | null;
@@ -90,7 +91,7 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
         id = await db.samples.add({ ...sample, createdAt: new Date() });
       }
 
-      console.log('Sample saved successfully!');
+      showToast(`Saved “${sampleName}”`, { kind: 'success' });
       setShowPrompt(false);
       setName('');
       if (
@@ -103,7 +104,10 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       document.dispatchEvent(new CustomEvent('sample:saved'));
     } catch (error) {
       console.error('Save failed:', error);
-      alert('Save failed. Please try again.');
+      showToast('Could not save sample. Please try again.', {
+        kind: 'error',
+        duration: 5000,
+      });
     } finally {
       setSaving(false);
     }
