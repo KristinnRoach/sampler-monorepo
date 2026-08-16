@@ -20,6 +20,10 @@ declare module 'solid-js' {
     export default content;
   }
   namespace JSX {
+    interface Directives {
+      clickOutside: (event: PointerEvent) => void;
+    }
+
     interface IntrinsicElements {
       // Envelope components
       'envelope-switcher': any;
