@@ -49,9 +49,26 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
   }, [props.isOpen]);
 
   const openPrompt = async () => {
-    if (!props.audioBuffer) return;
-    setName(props.savedSample?.name ?? (await getNextSampleName()));
-    setShowPrompt(true);
+    const audioBuffer = props.audioBuffer;
+    const savedSample = props.savedSample;
+    if (!audioBuffer) return;
+
+    try {
+      const sampleName = savedSample?.name ?? (await getNextSampleName());
+      if (
+        props.audioBuffer !== audioBuffer ||
+        props.savedSample?.id !== savedSample?.id
+      )
+        return;
+
+      setName(sampleName);
+      setShowPrompt(true);
+    } catch (error) {
+      console.error('Failed to open save prompt:', error);
+      showToast('Could not prepare a sample name. Please try again.', {
+        kind: 'error',
+      });
+    }
   };
 
   const cancelPrompt = () => {
@@ -92,12 +109,12 @@ const SaveButton: Component<SaveButtonProps> = (props) => {
       }
 
       showToast(`Saved “${sampleName}”`, { kind: 'success' });
-      setShowPrompt(false);
-      setName('');
       if (
         props.audioBuffer === audioBuffer &&
         props.savedSample?.id === savedSample?.id
       ) {
+        setShowPrompt(false);
+        setName('');
         props.onSavedCallback?.({ id, name: sampleName });
       }
 

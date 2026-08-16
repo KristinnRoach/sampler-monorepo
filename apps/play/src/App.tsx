@@ -257,25 +257,33 @@ const App: Component = () => {
         { cc: 15, selector: '[data-param="highpassFilter"]', name: 'HPF' },
         { cc: 73, selector: '[data-param="lowpassFilter"]', name: 'LPF' },
       ],
-    }).then((success) => {
-      if (success) {
-        showToast(
-          'MIDI enabled - Press Cmd+Shift+M to access MIDI Learn',
-        );
-      } else {
-        const { supported, message } = getMidiSupportInfo();
-
-        if (!supported) {
-          showToast(`MIDI not available - ${message}`, { duration: 5000 });
-        } else {
+    })
+      .then((success) => {
+        if (success) {
           showToast(
-            'MIDI initialization failed - Check if MIDI devices are connected',
-            { kind: 'error', duration: 4000 },
+            'MIDI enabled - Press Cmd+Shift+M to access MIDI Learn',
           );
+        } else {
+          const { supported, message } = getMidiSupportInfo();
+
+          if (!supported) {
+            showToast(`MIDI not available - ${message}`, { duration: 5000 });
+          } else {
+            showToast(
+              'MIDI initialization failed - Check if MIDI devices are connected',
+              { kind: 'error', duration: 4000 },
+            );
+          }
+          console.warn('MIDI initialization failed');
         }
-        console.warn('MIDI initialization failed');
-      }
-    });
+      })
+      .catch((error) => {
+        console.error('MIDI initialization failed:', error);
+        showToast(
+          'MIDI initialization failed - Check if MIDI devices are connected',
+          { kind: 'error', duration: 4000 },
+        );
+      });
 
     const handleMidiLearn = ((e: CustomEvent<{ message: string }>) => {
       if (e.detail?.message) {
