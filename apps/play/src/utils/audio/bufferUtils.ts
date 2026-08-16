@@ -68,8 +68,7 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return buffer;
 }
 
-// Guards against corrupted samples persisted by some browsers (seen in Brave):
-// requires a WAV header, >= 0.2s of audio and non-silent amplitude.
+// Guards against corrupted samples persisted by some browsers (seen in Brave).
 export function validateWavBuffer(buffer: ArrayBuffer): boolean {
   if (buffer.byteLength < 44) return false;
 
@@ -91,25 +90,5 @@ export function validateWavBuffer(buffer: ArrayBuffer): boolean {
   const bitsPerSample = view.getUint16(34, true);
   const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
   const dataSize = view.getUint32(40, true);
-  if (dataSize === 0 || byteRate === 0 || dataSize / byteRate < 0.2)
-    return false;
-
-  const dataOffset = 44;
-  const sampleSize = bitsPerSample / 8;
-  const numSamples = Math.floor((buffer.byteLength - dataOffset) / sampleSize);
-  let sumAbs = 0;
-  const samplesToCheck = Math.min(1000, numSamples);
-  for (let i = 0; i < samplesToCheck; i++) {
-    const sampleIndex = Math.floor((i * numSamples) / samplesToCheck);
-    if (bitsPerSample === 16) {
-      sumAbs += Math.abs(
-        view.getInt16(dataOffset + sampleIndex * sampleSize, true),
-      );
-    } else if (bitsPerSample === 8) {
-      sumAbs += Math.abs(
-        view.getUint8(dataOffset + sampleIndex * sampleSize) - 128,
-      );
-    }
-  }
-  return sumAbs / samplesToCheck >= 0.08 * (1 << (bitsPerSample - 1));
+  return dataSize > 0 && byteRate > 0;
 }
