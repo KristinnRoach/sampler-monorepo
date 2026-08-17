@@ -5,4 +5,4 @@ allowBuilds:
   esbuild: true
   sharp: true
 minimumReleaseAgeExclude:
-  - '@kidlib/web-audio@0.1.0'
+  - '@kidlib/web-audio'
