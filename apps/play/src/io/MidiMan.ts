@@ -1,3 +1,4 @@
+import { log } from '../utils/log';
 import type { SamplePlayer } from '@kidlib/web-audio';
 import type { KnobElement } from '@kidlib/web-audio/components';
 import { inputController, type ControlChangeEvent } from '@kidlib/web-audio/io';
@@ -102,7 +103,7 @@ function handleMidiLearnControlChange(event: ControlChangeEvent): void {
       .map((knob) => knob.title || 'knob')
       .join(', ');
 
-    console.log(`MIDI Learn: Mapped CC${ccNumber} to ${knobNames}`);
+    log(`MIDI Learn: Mapped CC${ccNumber} to ${knobNames}`);
 
     // If CC already mapped, unsubscribe the old mapping
     const existingUnsub = ccUnsubscribes.get(ccNumber);
@@ -149,7 +150,7 @@ function toggleMidiLearn(): void {
     clearKnobHighlights();
     document.body.classList.remove('midi-learn-active');
     updateMidiLearnStatus(false);
-    console.log('MIDI Learn mode deactivated');
+    log('MIDI Learn mode deactivated');
 
     // Dispatch custom event for notification
     document.dispatchEvent(
@@ -160,7 +161,7 @@ function toggleMidiLearn(): void {
   } else {
     document.body.classList.add('midi-learn-active');
     updateMidiLearnStatus(true);
-    console.log(
+    log(
       'MIDI Learn mode activated: Click on a knob to select it (hold Shift for multiple)',
     );
 
@@ -231,7 +232,7 @@ function startMidiLearnForKnob(knob: KnobElement, isShiftKey = false): void {
   updateMidiLearnStatus(true);
 
   const count = knobsToLearn.length;
-  console.log(
+  log(
     `MIDI Learn active: ${count} knob${count !== 1 ? 's' : ''} selected. Move a controller knob to map it.`,
   );
 }
@@ -275,7 +276,7 @@ export async function enableSamplePlayerMidi(
 
           knobControlUnsubs.push(unsub);
           ccUnsubscribes.set(cc, unsub);
-          console.log(`Mapped CC${cc} to ${name}`);
+          log(`Mapped CC${cc} to ${name}`);
         }
       });
 
@@ -335,7 +336,7 @@ export async function enableSamplePlayerMidi(
   stateChangeCallback = options.onStateChange;
   stateChangeCallback?.(true);
 
-  console.log('enableSamplePlayerMidi() -> MIDI enabled');
+  log('enableSamplePlayerMidi() -> MIDI enabled');
 
   return true;
 }
@@ -391,7 +392,7 @@ export function disableSamplePlayerMidi(): void {
   document.body.classList.remove('midi-learn-active');
   ccUnsubscribes.clear();
 
-  console.log('MIDI disabled and cleaned up');
+  log('MIDI disabled and cleaned up');
 
   samplePlayerAccessor = null;
   enabled = false;

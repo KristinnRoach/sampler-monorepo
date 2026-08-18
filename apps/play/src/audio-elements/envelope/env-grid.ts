@@ -1,4 +1,4 @@
-import van from '@repo/vanjs-core';
+import van from 'vanjs-core';
 
 const { g, line } = van.tags('http://www.w3.org/2000/svg');
 

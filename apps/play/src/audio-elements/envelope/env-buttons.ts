@@ -1,4 +1,4 @@
-import van, { State } from '@repo/vanjs-core';
+import van, { State } from 'vanjs-core';
 
 const { button } = van.tags;
 

@@ -11,16 +11,18 @@
     "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune",
     "deploy:gh": "pnpm build && gh-pages -d dist -b gh-pages",
     "preview": "vite preview",
+    "test:e2e": "playwright test",
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
     "@kidlib/web-audio": "^0.1.1",
-    "@repo/vanjs-core": "workspace:*",
     "dexie": "^4.0.11",
     "gsap": "^3.13.0",
-    "solid-js": "^1.9.9"
+    "solid-js": "^1.9.9",
+    "vanjs-core": "^1.6.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "@vite-pwa/assets-generator": "^1.0.0",
     "gh-pages": "^6.3.0",
     "typescript": "^5.8.0",
@@ -28,7 +30,6 @@
     "vite-plugin-pwa": "^1.0.2",
     "vite-plugin-solid": "^2.11.0",
     "vite-plugin-solid-svg": "^0.8.1",
-    "vitest": "^3.2.4",
     "workbox-window": "^7.3.0"
   }
 }
