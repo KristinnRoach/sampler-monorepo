@@ -18,7 +18,7 @@ test.describe('Stuck Notes Investigation', () => {
 
     // Wait for the sample player to be created and its sample loaded
     await page.waitForFunction(
-      () => (window as any).getSamplePlayer?.()?.audiobuffer != null,
+      () => ((window as any).getSamplePlayer?.()?.audiobuffer?.length ?? 0) > 0,
       undefined,
       { timeout: 30000 }
     );

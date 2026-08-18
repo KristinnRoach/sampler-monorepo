@@ -2,7 +2,10 @@ import type { State, ChildDom } from 'vanjs-core';
 
 export type ElementProps = {
   /** Get the value of an attribute */
-  attr: (name: string, defaultValue?: string | number) => State<string>;
+  attr: <T extends string | number | undefined = undefined>(
+    name: string,
+    defaultValue?: T,
+  ) => State<string | T>;
   /** Get or create a reactive property */
   prop: <T = any>(name: string, defaultValue?: T) => State<T>;
   /** Registers a callback that is called when the element connects to the DOM */
