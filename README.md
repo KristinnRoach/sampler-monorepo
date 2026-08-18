@@ -44,19 +44,19 @@ I wanted to understand how audio production tools work under the hood and explor
 
 ### Audio Engine
 
-- 🎤 Real-time audio recording from microphone
-- 🎹 Polyphonic playback with keyboard control
-- 🔊 ADSR envelope with visual editing
-- 🔄 Sample looping with adjustable loop points
-- 🎚️ Built-in effects (reverb, filters, LFO modulation)
-- 🎵 Pitch detection for auto-tuning samples
+- Real-time audio recording from microphone
+- Polyphonic playback with keyboard control
+- ADSR envelope with visual editing
+- Sample looping with adjustable loop points
+- Built-in effects (reverb, filters, LFO modulation)
+- Pitch detection for auto-tuning samples
 
 ### UI Components
 
-- 📊 Waveform visualization
-- 🎛️ Custom knobs and sliders (built as web components)
-- ⌨️ Keyboard-to-note mapping
-- 💾 IndexedDB sample storage
+- Waveform visualization
+- Custom knobs and sliders (built as web components)
+- Keyboard-to-note mapping
+- IndexedDB sample storage
 
 ---
 
@@ -203,7 +203,7 @@ function VolumeControl() {
 
 ## Roadmap
 
-- [ ] MIDI controller support
+- [x] MIDI controller support
 - [ ] Waveform editing tools
 - [ ] Preset management
 - [ ] Additional effects
@@ -220,12 +220,6 @@ This is a personal project, but feedback is welcome. See [CONTRIBUTING.md](CONTR
 ## License
 
 MIT License - see [LICENSE](LICENSE) file.
-
----
-
-## Author
-
-Built by Kristinn Roach Gunnarsson as a portfolio project demonstrating full-stack web audio development.
 
 ---
 
