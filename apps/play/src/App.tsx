@@ -74,6 +74,11 @@ export const [samplePlayer, setSamplePlayer] =
 // Untracked read for non-reactive consumers (web components, MidiMan, etc.)
 export const getSamplePlayer = () => samplePlayer();
 
+// ponytail: dev-only handle so e2e tests can inspect voice pool state
+if (import.meta.env.DEV) {
+  (window as any).getSamplePlayer = getSamplePlayer;
+}
+
 const MIDI_INPUT_CHANNEL_STORAGE_KEY = 'midi-input-channel';
 
 const loadMidiInputChannel = (): MidiInputChannel => {

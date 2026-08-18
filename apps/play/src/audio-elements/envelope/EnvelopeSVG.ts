@@ -1,5 +1,6 @@
 // EnvelopeSVG.ts
-import van from '@repo/vanjs-core';
+import { log } from '../../utils/log';
+import van from 'vanjs-core';
 
 import { gsap } from 'gsap';
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin';
@@ -624,7 +625,7 @@ export const EnvelopeSVG = (
       loopStartLine!.style.display = 'block';
     } else {
       loopStartLine!.style.display = 'none';
-      console.log('Loop start line out of bounds');
+      log('Loop start line out of bounds');
     }
 
     // Update loop end line
@@ -637,7 +638,7 @@ export const EnvelopeSVG = (
       loopEndLine!.style.display = 'block';
     } else {
       loopEndLine!.style.display = 'none';
-      console.log('Loop end line out of bounds');
+      log('Loop end line out of bounds');
     }
   }
 

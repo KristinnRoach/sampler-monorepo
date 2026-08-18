@@ -1,6 +1,6 @@
 // SamplerButtonFactory.ts -
-import van, { State } from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
+import van, { State } from 'vanjs-core';
+import { ElementProps } from '../../vendor/van-element';
 import {
   createAudioRecorder,
   type Recorder,
@@ -68,7 +68,6 @@ export const SaveButton = () => {
     size: 'md',
     onClick: () => {
       // Placeholder for save functionality
-      console.log('Save button clicked');
     },
   });
 

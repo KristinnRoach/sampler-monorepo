@@ -29,7 +29,7 @@
     "list-mismatches": "npx syncpack list-mismatches",
     "list-packages": "npx syncpack list",
     "test": "turbo run test",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "pnpm --filter play test:e2e",
+    "test:e2e:ui": "pnpm --filter play test:e2e --ui"
   }
 }

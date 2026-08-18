@@ -1,6 +1,6 @@
 // SamplerSelectFactory.ts - Select components for sampler controls
-import van, { State } from '@repo/vanjs-core';
-import { ElementProps } from '@repo/vanjs-core/element';
+import van, { State } from 'vanjs-core';
+import { ElementProps } from '../../vendor/van-element';
 import { getSamplePlayer } from '../../App';
 import {
   COMPONENT_STYLE,

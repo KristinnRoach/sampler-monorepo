@@ -1,4 +1,4 @@
-import { define } from '@repo/vanjs-core/element';
+import { define } from '../../vendor/van-element';
 
 import {
   MidiToggle,

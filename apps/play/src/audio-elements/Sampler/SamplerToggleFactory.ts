@@ -1,5 +1,5 @@
 // SamplerToggleFactory.ts - Toggle and control components
-import van from '@repo/vanjs-core';
+import van from 'vanjs-core';
 import { getSamplePlayer } from '../../App';
 import { createSVGButton } from '../createSVGButton';
 
