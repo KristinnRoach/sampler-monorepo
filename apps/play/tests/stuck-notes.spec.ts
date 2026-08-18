@@ -1,10 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
 
-// Test configuration to run against the local dev server
-test.use({
-  baseURL: 'http://localhost:5173', // Vite default port for playground-solidjs
-});
-
 test.describe('Stuck Notes Investigation', () => {
   let page: Page;
 
@@ -20,18 +15,18 @@ test.describe('Stuck Notes Investigation', () => {
 
     // Navigate to the app
     await page.goto('/');
-    
-    // Wait for the sampler to be ready
-    await page.waitForSelector('sampler-element', { state: 'attached' });
-    
-    // Wait a bit more for full initialization
-    await page.waitForTimeout(2000);
-    
+
+    // Wait for the sample player to be created and its sample loaded
+    await page.waitForFunction(
+      () => (window as any).getSamplePlayer?.()?.audiobuffer != null,
+      undefined,
+      { timeout: 30000 }
+    );
+
     // Inject debugging helper to monitor voice pool state
     await page.evaluate(() => {
-      const samplerElement = document.querySelector('sampler-element') as any;
-      if (samplerElement && samplerElement.getSamplePlayer) {
-        const samplePlayer = samplerElement.getSamplePlayer();
+      const samplePlayer = (window as any).getSamplePlayer();
+      if (samplePlayer) {
         
         // Add global helper function to check voice pool state
         (window as any).checkVoicePoolState = () => {

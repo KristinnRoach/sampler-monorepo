@@ -6,6 +6,7 @@
   "scripts": {
     "watch": "vite",
     "build": "pnpm clean && vite build",
+    "check-types": "tsc --noEmit",
     "clean": "rm -rf dist dev-dist ",
     "clean:deps": "rm -rf node_modules && pnpm install",
     "clean:all": "rm -rf dist node_modules && pnpm store prune && pnpm prune",
